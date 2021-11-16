@@ -1,0 +1,3 @@
+[submodule "src/modules/multiphenics"]
+	path = src/modules/multiphenics
+	url = https://github.com/multiphenics/multiphenics

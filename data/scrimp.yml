@@ -1,0 +1,15 @@
+name: IMPACTS
+channels:
+    - conda-forge
+    - defaults
+dependencies:
+    - python
+    - conda
+    - control
+    - fenics
+    - matplotlib
+    - meshio
+    - jupyter
+    - pip
+    - pip:
+        - gmsh
