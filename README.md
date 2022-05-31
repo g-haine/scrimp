@@ -41,12 +41,12 @@ ___
 
 - Install **conda**: https://docs.conda.io
 
+- Install **mutliphenics**: https://github.com/multiphenics/multiphenics
+
 - Create the *scrimp* environment:
 ```
 conda install --file "/path/to/your/scrimp/directory/data/scrimp.yml"
 ```
-
-- Install **mutliphenics**: https://github.com/multiphenics/multiphenics
 ___
 
 # How to get started using SCRIMP:
@@ -57,7 +57,7 @@ ___
 conda activate scrimp
 ```
 
-- Import the module by starting your script.py by:
+- Import the module by starting your script.py with:
 
 ```
 rootdir = "/path/to/your/scrimp/directory/"
