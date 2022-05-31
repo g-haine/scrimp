@@ -1,49 +1,34 @@
 #  SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
 
-__________________________________________________________________________________
-__________________________________________________________________________________
-   ____ _________________________ _______   |      ___ ___  ____   ____   ____
-  |      ___  ___  __ __  _   _  |    |     |         |    |      /    \ |
-  |___  |    |___|   |   | \ / | |____|     |         |    |____  |____| |___
-      | |    |  \    |   |  V  | |          |         |         | |    | |
-______|=|___=|   \=__|__=|     |=|          |      ___|___  ____| |    | |____
-                               SCRIMP 0.5   |             == SUPAERO ==
-__________________________________________________________________________________
-__________________________________________________________________________________
+Git: https://github.com/g-haine/scrimp
 
+## What is SCRIMP?
 
-            Simulation and ContRol of Interactions in Multi-Physics
-            Git: https://github.com/g-haine/scrimp
-__________________________________________________________________________________
-
-           ANR-DFG Project INFIDHEM: http://websites.isae.fr/infidhem
-                           AID School Project FAMAS
-              ANR Project IMPACTS: https://impacts.ens2m.fr/
-__________________________________________________________________________________
-
-    Please report bug at: florian.monteghetti@isae.fr, ghislain.haine@isae.fr
-
-    Current developers: Florian Monteghetti, Ghislain Haine,
-                        Antoine Bendhimerad-Hohl, Melvin Chopin
-    Past: Andrea Brugnoli, Anass Serhani, Xavier Vasseur
-
-    Please read the LICENSE.txt
-__________________________________________________________________________________
-
-    SCRIMP is a python collection of methods and classes for the structure-
+SCRIMP is a python collection of methods and classes for the structure-
 preserving discretization and simulation of multi-physics models, using the 
 formalism of port-Hamiltonian systems. It intends to speed up the coding 
 processus.
-__________________________________________________________________________________
 
-    How to cite SCRIMP?
+## Development
+
+Please report bug at: ghislain.haine@isae.fr
+
+Current developers: Florian Monteghetti, Ghislain Haine, Antoine Bendhimerad-Hohl, Melvin Chopin
+Past: Andrea Brugnoli, Anass Serhani, Xavier Vasseur
+
+Please read the LICENSE.txt
+
+## Founding
+
+ANR-DFG Project INFIDHEM: http://websites.isae.fr/infidhem
+AID School Project FAMAS
+ANR Project IMPACTS: https://impacts.ens2m.fr/
+
+## How to cite SCRIMP?
     
-    Brugnoli, Andrea and Haine, Ghislain and Serhani, Anass and Vasseur, Xavier.
-    Numerical Approximation of Port-Hamiltonian Systems for Hyperbolic or 
-        Parabolic PDEs with Boundary Control.
-    (2021) Journal of Applied Mathematics and Physics, 09 (06). 1278-1321.
-
-__________________________________________________________________________________
+Brugnoli, Andrea and Haine, Ghislain and Serhani, Anass and Vasseur, Xavier.
+Numerical Approximation of Port-Hamiltonian Systems for Hyperbolic or Parabolic PDEs with Boundary Control.
+(2021) Journal of Applied Mathematics and Physics, 09 (06). 1278-1321.
 
 # How to install SCRIMP:
 
