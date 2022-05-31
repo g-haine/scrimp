@@ -16,7 +16,7 @@ Please report bug at: ghislain.haine@isae.fr
 Current developers: Florian Monteghetti, Ghislain Haine, Antoine Bendhimerad-Hohl, Melvin Chopin
 Past: Andrea Brugnoli, Anass Serhani, Xavier Vasseur
 
-**Please read the LICENSE.txt**
+**Please read the LICENSE**
 
 ## Founding
 
