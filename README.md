@@ -5,10 +5,12 @@ ___
 
 ## What is SCRIMP?
 
-**SCRIMP** is a python collection of methods and classes for the structure-
-preserving discretization and simulation of multi-physics models, using the 
+**SCRIMP** is a python collection of methods and classes for the structure-preserving 
+discretization and simulation of multi-physics models, using the 
 formalism of port-Hamiltonian systems. It intends to speed up the coding 
 processus.
+
+**Notebooks** (Jupyter) are provided as examples.
 
 ## Development
 
