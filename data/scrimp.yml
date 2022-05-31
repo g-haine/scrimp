@@ -1,15 +1,16 @@
-name: IMPACTS
+name: scrimp
 channels:
     - conda-forge
-    - defaults
 dependencies:
-    - python
+    - python=3
     - conda
     - control
     - fenics
+    - jupyter
     - matplotlib
     - meshio
-    - jupyter
+    - scipy
+    - spyder
     - pip
     - pip:
         - gmsh
