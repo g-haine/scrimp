@@ -68,4 +68,15 @@ sys.path.append(rootdir)
 import scrimp
 scrimp.setup_path(rootdir)
 ```
+___
+
+# How to test my installation:
+
+- Run provided Notebooks. In your scrimp folder::
+
+```
+jupyter notebook &
+```
+
+- In [Jupyter](https://jupyter.org/), choose your Notebook.
 
