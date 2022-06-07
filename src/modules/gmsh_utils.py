@@ -16,7 +16,7 @@ import numpy as np
 ##############################################################################
 
 def generate_mesh_cli(geofile,gmshfile,dim,order=1,
-                           gmshformat=2,refinement=0,log=0,binary=False,
+                           gmshformat=2,refinement=1,log=0,binary=False,
                            parameters=dict()):
     """
     Generate mesh (MSH format, ASCII) from gmsh geometry file.

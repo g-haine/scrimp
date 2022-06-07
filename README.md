@@ -10,7 +10,8 @@ discretization and simulation of multi-physics models, using the
 formalism of port-Hamiltonian systems. It intends to speed up the coding 
 processus, and scrimp time!
 
-**Notebooks** (Jupyter) are provided as examples.
+**Notebooks** ([Jupyter](https://jupyter.org/)) are provided as examples.
+___
 
 ## Development
 
@@ -22,7 +23,7 @@ Past: Andrea Brugnoli, Anass Serhani, Xavier Vasseur
 
 **Please read the LICENSE**
 
-## Founding
+### Founding
 
 ANR-DFG Project **INFIDHEM**: http://websites.isae.fr/infidhem
 
@@ -30,7 +31,25 @@ AID School Project **FAMAS**
 
 ANR Project **IMPACTS**: https://impacts.ens2m.fr/
 
-## How to cite SCRIMP?
+### Third-party
+
+[numpy]():
+
+[FEniCS](): A finite elements library
+
+[multiphenics](): 
+
+[PETSc](): 
+
+[GMSH](): A mesh generator
+
+[matplotlib]():
+
+[Spyder]():
+
+[Jupyter](https://jupyter.org/):
+
+### How to cite SCRIMP?
     
 Brugnoli, Andrea and Haine, Ghislain and Serhani, Anass and Vasseur, Xavier.
 
@@ -72,11 +91,15 @@ ___
 
 # How to test my installation:
 
-- Run provided Notebooks. In your scrimp folder::
+- Run provided Notebooks.
+
+** In your scrimp folder (do not forget to activate the scrimp environment before):
 
 ```
 jupyter notebook &
 ```
 
-- In [Jupyter](https://jupyter.org/), choose your Notebook.
+** In [Jupyter](https://jupyter.org/), choose your Notebook.
+
+- Or run directly the extracted python scripts from the script directory (e.g. with Spyder).
 

@@ -103,7 +103,7 @@ class Fully_implicit_DAE(object):
     
     def init_history(self):
         """ Initialize history structure. """
-        self.history = dict(t=list(),y=list())#,ally=list())
+        self.history = dict(t=list(),z=list())#,ally=list()) # z because y is for the output in the pHs framework
         self.t_start = 0
         
     def monitor(self, ts, i, t, y, dt_export=1, t0=0.0):
@@ -113,10 +113,10 @@ class Fully_implicit_DAE(object):
         else:
             lastt = t-dt_export
             self.t_start = time.time()
-        if (t > lastt + dt_export) or (i==-1) or (t==t0):
+        if (t >= lastt + 0.95*dt_export) or (i==-1) or (t==t0):
             print(f"i={i:8d} t={t:8g} * ({int(time.time()-self.t_start)}s)")
             self.history['t'].append(t)
-            self.history['y'].append(y.copy())
+            self.history['z'].append(y.copy()) # z because y is for the output in the pHs framework
         else: # (i<10): 
             print(f"i={i:8d} t={t:8g}   ({int(time.time()-self.t_start)}s)")
         
