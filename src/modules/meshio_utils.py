@@ -80,27 +80,26 @@ def create_submesh_from_gmsh(mesh, cell_type, outfile, prune_z=False):
         # Write to file
     print(f"Exporting nodes and '{cell_type}' to {outfile}...")
     meshio.write(outfile, out_mesh,file_format="xdmf")
-    print("Done.")
-    
-def prune_z_0(mesh, tol: float = 1.0e-13):
+    print("Done.")    
 
+
+def prune_z_0(mesh, tol: float = 1.0e-13):
     """
     Remove third (z) component of points if it is 0 everywhere (up to a
-    tolerance). This function is deprecated in meshio 7.0.0; this implementation
-    is copied from a previous version of meshio:
-    https://github.com/nschloe/meshio/pull/1228 (29/11/2021).
-
+    tolerance). This function is deprecated in meshio 7.0.0.
+    This implementation is copied from a previous version of meshio.
+    https://github.com/nschloe/meshio/pull/1228 (29/11/2021)
+    
     Parameters
     ----------
     mesh : meshio.Mesh
     tol : float
     """
-
     if mesh.points.shape[0] == 0:
         return
-
     if mesh.points.shape[1] == 3 and np.all(np.abs(mesh.points[:, 2]) < tol):
         mesh.points = mesh.points[:, :2]
+    return mesh
 
 def export_phys_gmsh(mesh, outfile):
     """

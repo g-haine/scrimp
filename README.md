@@ -27,7 +27,7 @@ Past: Andrea Brugnoli, Anass Serhani, Xavier Vasseur
 
 ANR-DFG Project **INFIDHEM**: http://websites.isae.fr/infidhem
 
-AID School Project **FAMAS**
+AID School Project **FAMAS**: https://www.defense.gouv.fr/aid
 
 ANR Project **IMPACTS**: https://impacts.ens2m.fr/
 
@@ -59,6 +59,8 @@ Brugnoli, Andrea and Haine, Ghislain and Serhani, Anass and Vasseur, Xavier.
 ___
 
 # How to install SCRIMP:
+
+- Install **GMSH** client (not from the package manager! Outdated version!): https://gmsh.info/
 
 - Install **conda**: https://docs.conda.io
 

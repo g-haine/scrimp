@@ -16,7 +16,7 @@ import numpy as np
 ##############################################################################
 
 def generate_mesh_cli(geofile,gmshfile,dim,order=1,
-                           gmshformat=2,refinement=1,log=0,binary=False,
+                           gmshformat=2,refinement=0,log=0,binary=False,
                            parameters=dict()):
     """
     Generate mesh (MSH format, ASCII) from gmsh geometry file.
@@ -32,7 +32,7 @@ def generate_mesh_cli(geofile,gmshfile,dim,order=1,
     order : int, optional
         Geometrical order of mesh. The default is 1.
     refinement : int, optional
-        Number of refinment steps. The default is 1.
+        Number of refinment steps. The default is 0.
     gmshformat : int, optional
         Msh format. The default is 2.
     log : int, optional
@@ -83,10 +83,11 @@ def generate_mesh_cli(geofile,gmshfile,dim,order=1,
         print("--- End of gmsh log for {gmshfile} ---")
 
 def generate_mesh_api(geofile,gmshfile,dim,order=1,refinement=0,
-                       gmshformat=2,log=0,binary=False):
+                           gmshformat=2,log=0,binary=False,
+                           parameters=dict()):
     """
-    Identical to ``generate_mesh_cli``, but relies on the API. Does not handle
-    parameters.
+    Identical to ``generate_mesh_cli``, but relies on the API.
+    Does not handle parameters. ### TO DO ###
     
     """
     
@@ -102,6 +103,8 @@ def generate_mesh_api(geofile,gmshfile,dim,order=1,refinement=0,
     gmsh.option.setNumber("Mesh.MshFileVersion", gmshformat)
     gmsh.option.setNumber("Mesh.Binary", binary)
     gmsh.model.mesh.generate(dim)
+    for param_name in parameters:
+        pass ### TO DO ###
     for i in range(refinement):
         gmsh.model.mesh.refine()
     gmsh.write(gmshfile)

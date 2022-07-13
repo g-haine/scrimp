@@ -18,8 +18,8 @@
 */
 
 // Parameters
-If (!Exists(h)) h=0.05; EndIf
-If (!Exists(layer)) layer=0.1; EndIf
+If (!Exists(h)) h=0.08; EndIf
+If (!Exists(layer)) layer=0.35; EndIf
 If (!Exists(L)) L=3.; EndIf // Length
 If (!Exists(l)) l=1.; EndIf // Length
 
