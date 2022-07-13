@@ -103,5 +103,5 @@ jupyter notebook &
 
 ** In [Jupyter](https://jupyter.org/), choose your Notebook.
 
-- Or run directly the extracted python scripts from the script directory (e.g. with Spyder).
+- First notebook to test: 2D/wave.ipynb
 
