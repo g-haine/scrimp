@@ -64,7 +64,7 @@ ___
 
 - Install **conda**: https://docs.conda.io
 
-- Install **mutliphenics**: https://github.com/multiphenics/multiphenics
+- Install **mutliphenics**: https://github.com/multiphenics/multiphenics in your /path/to/scrimp
 
 - Create the *scrimp* environment:
 ```
@@ -103,5 +103,5 @@ jupyter notebook &
 
 ** In [Jupyter](https://jupyter.org/), choose your Notebook.
 
-- Or run directly the extracted python scripts from the script directory (e.g. with Spyder).
+- First notebook to test: 2D/wave.ipynb
 
