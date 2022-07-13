@@ -193,7 +193,7 @@ def TS_integration_dae(dae,x0,dt,tf,dt_export=None,
         monitor_init = lambda ts, i, t, x: dae.monitor(ts, i, t, x, dt_export=cinit_dt*cinit_nstep, t0=t0)
         # OptDB["ts_type"] = "beuler"
         OptDB["ts_type"] = "pseudo"
-        OptDB["ts_pseudo_increment"] = 1.1
+        OptDB["ts_pseudo_increment"] = 0.8
         OptDB["ts_pseudo_fatol"] = 1e-6
         OptDB["ts_pseudo_frtol"] = 1e-9
         # if OptDB.hasName("ts_atol"):
