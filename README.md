@@ -64,7 +64,7 @@ ___
 
 - Install **conda**: https://docs.conda.io
 
-- Install **mutliphenics**: https://github.com/multiphenics/multiphenics
+- Install **mutliphenics**: https://github.com/multiphenics/multiphenics in your /path/to/scrimp
 
 - Create the *scrimp* environment:
 ```
