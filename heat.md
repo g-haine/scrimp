@@ -93,7 +93,7 @@ $$
 The **power balance** satisfied by the Hamiltonian is
 
 $$
-\frac{\rm d}{{\rm d}t} \mathcal{H} = - \int_\Omega \mathbf{J}\_Q \cdot \lambda^{-1} \cdot \mathbf{J}\_Q + \langle u_\partial, y_\partial \rangle_{H^{-\frac12}(\partial \Omega),H^\frac12(\partial \Omega)}.
+\frac{\rm d}{ {\rm d}t} \mathcal{H} = - \int_\Omega \mathbf{J}\_Q \cdot \lambda^{-1} \cdot \mathbf{J}\_Q + \langle u_\partial, y_\partial \rangle_{H^{-\frac12}(\partial \Omega),H^\frac12(\partial \Omega)}.
 $$
 
 To get rid of the first algebraic constraint induced by the constitutive relation $e_u = \frac{\alpha_u}{C_v}$, one rewrites $\rho C_v \frac{\partial}{\partial t} T$. Furthermore, we also include Fourier's law as $\lambda^{-1} \cdot \mathbf{J}\_Q = \mathbf{f}\_Q$ inside the Dirac structure. The port-Hamiltonian system then reads
