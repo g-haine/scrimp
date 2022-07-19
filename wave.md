@@ -1,12 +1,13 @@
 # The lossless 2D wave equation with Neumann boundary control
 
+
 ## The model
 
-Let us consider the vertical deflection from equilibrium ``w`` of a 2D membrane $\Omega \subset \mathbb{R}^2$. Denoting $\rho$ the mass density and $T$ the Young modulus of the membrane, a positive definite tensor, leads to the following well-known *wave equation*
+Let us consider the vertical deflection from equilibrium $w$ of a 2D membrane $\Omega \subset \mathbb{R}^2$. Denoting $\rho$ the mass density and $T$ the Young modulus of the membrane, a positive definite tensor, leads to the following well-known *wave equation*
 
-```math
+$$
 \rho(x) \frac{\partial^2}{\partial t^2} w(t,x) - {\rm div} \left( T(x) \cdot {\rm grad} \left( w(t,x) \right) \right) = 0, \quad t \ge 0, \, x \in \Omega,
-```
+$$
 
 together with *Neumann boundary control* 
 
@@ -104,12 +105,15 @@ $$
 
 known as the **co-energy formulation**. This allows to get a simple Ordinary Differential Equation at the discrete level (instead of a Differential Algebraic Equation in general).
 
+
 ## The Partitioned Finite Element Method
 
 The strategy follows three steps, inspired by the Mixed Finite Element Method for steady-state problem with homogeneous boundary condition
 * write the weak form of the system;
 * integrate by parts a **partition** of the state (such that $u_\partial$ appears); and
 * project on finite element spaces.
+
+
 
 ### Weak formulation
 
@@ -126,6 +130,8 @@ $$
 \end{array}\right.
 $$
 
+
+
 ### Integration by parts
 
 The integration by parts of the second line makes $u_\partial = e_q \cdot \mathbf{n}$ appear
@@ -140,6 +146,8 @@ $$
 \displaystyle \int_{\partial \Omega} \psi y_\partial &=& \displaystyle \int_{\partial \Omega} \psi e_p.
 \end{array}\right.
 $$
+
+
 
 ### Projection
 
@@ -197,6 +205,8 @@ $$
 \qquad
 (B)\_{jk} := \int_{\partial \Omega} \varphi_p^j \psi^k.
 $$
+
+
 
 ### Discrete Hamiltonian
 
