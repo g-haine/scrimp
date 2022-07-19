@@ -1,5 +1,3 @@
 theme: jekyll-theme-hacker
 title: SCRIMP
 description: Simulation and ContRol of Interactions in Multi-Physics
-markdown: kramdown
-math_engine: mathjax
