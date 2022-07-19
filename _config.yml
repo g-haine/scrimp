@@ -4,4 +4,3 @@ description: Simulation and ContRol of Interactions in Multi-Physics
 markdown: kramdown
 kramdown:
   math_engine: mathjax
-  usemathjax : true
