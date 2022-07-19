@@ -19,7 +19,7 @@ The strategy follows three steps, inspired by the Mixed Finite Element Method fo
 
 ___
 
-## Development
+# Development
 
 Please report bug at: ghislain.haine@isae.fr
 
@@ -29,9 +29,7 @@ Past: Andrea Brugnoli, Anass Serhani, Xavier Vasseur
 
 **Please read the LICENSE**
 
-___
-
-## Founding
+# Founding
 
 ANR-DFG Project **INFIDHEM**: http://websites.isae.fr/infidhem
 
@@ -39,9 +37,7 @@ AID School Project **FAMAS**: https://www.defense.gouv.fr/aid
 
 ANR Project **IMPACTS**: https://impacts.ens2m.fr/
 
-___
-
-## Third-party
+# Third-party
 
 [numpy](https://numpy.org/): A well-known package for scientific computing
 
@@ -61,10 +57,12 @@ ___
 
 ___
 
-## How to cite SCRIMP?
+# How to cite SCRIMP?
     
 Brugnoli, Andrea and Haine, Ghislain and Serhani, Anass and Vasseur, Xavier.
 
 *Numerical Approximation of Port-Hamiltonian Systems for Hyperbolic or Parabolic PDEs with Boundary Control.*
 
 (2021) **Journal of Applied Mathematics and Physics**, 09 (06). 1278-1321.
+
+___
