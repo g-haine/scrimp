@@ -1,5 +1,7 @@
 # The 2D heat equation with Neumann boundary control
 
+![Heat equation](images/heat.png)
+
 ## The model
 
 Let us consider the temperature $T$ of a 2D domain $\Omega \subset \mathbb{R}^2$. Denoting $C_v$ the heat capacity (at constant volume), $\rho$ the mass density and $\lambda$ the heat conductivity, a positive definite tensor, leads to the following well-known *heat equation*
