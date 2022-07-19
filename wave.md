@@ -75,7 +75,7 @@ $$
 The **power balance** satisfied by the Hamiltonian is
 
 $$
-\frac{\rm d}{{\rm d}t} \mathcal{H} = \langle u_\partial, y_\partial \rangle_{H^{-\frac12}(\partial \Omega),H^\frac12(\partial \Omega)}
+\frac{\rm d}{ {\rm d}t} \mathcal{H} = \langle u_\partial, y_\partial \rangle_{H^{-\frac12}(\partial \Omega),H^\frac12(\partial \Omega)}
 $$
 
 To get rid of the algebraic constraints induced by the constitutive relations, one rewrites the port-Hamiltonian system as
@@ -166,8 +166,8 @@ M_q & 0 & 0 \\
 0 & 0 & M_\partial
 \end{bmatrix}
 \begin{pmatrix}
-\frac{\rm d}{{\rm d}t} \underline{e_q}(t) \\
-\frac{\rm d}{{\rm d}t} \underline{e_p}(t) \\
+\frac{\rm d}{ {\rm d}t} \underline{e_q}(t) \\
+\frac{\rm d}{ {\rm d}t} \underline{e_p}(t) \\
 \ - \underline{y_\partial}(t)
 \end{pmatrix} =
 \begin{bmatrix}
@@ -223,5 +223,5 @@ $$
 and the **discrete power balance** follows
 
 $$
-\frac{\rm d}{{\rm d}t} \mathcal{H}^d(t) = \underline{u_\partial}(t)^\top M_\partial \underline{y_\partial}(t).
+\frac{\rm d}{ {\rm d}t} \mathcal{H}^d(t) = \underline{u_\partial}(t)^\top M_\partial \underline{y_\partial}(t).
 $$
