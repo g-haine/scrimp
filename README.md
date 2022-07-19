@@ -1,6 +1,8 @@
 #  SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
 
 Git: https://github.com/g-haine/scrimp
+
+Website: https://g-haine.github.io/scrimp/
 ___
 
 ## What is SCRIMP?
