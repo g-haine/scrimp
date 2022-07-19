@@ -227,3 +227,5 @@ and the **discrete power balance** follows
 $$
 \frac{\rm d}{ {\rm d}t} \mathcal{H}^d(t) = \underline{u_\partial}(t)^\top M_\partial \underline{y_\partial}(t).
 $$
+
+___
