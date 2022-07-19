@@ -32,7 +32,7 @@ conda activate scrimp
 
 - Import the module by starting your script.py with:
 ```
-rootdir = "/path/to/your/scrimp/directory/"
+rootdir = "/path/to/scrimp/"
 import sys
 sys.path.append(rootdir)
 import scrimp
