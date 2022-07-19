@@ -11,7 +11,7 @@ $$
 together with *Neumann boundary control* 
 
 $$
-- \left( \lambda(x) \cdot {\rm grad} \left( T(t,x) \right) \right) \cdot \mathbf{n} = u_\partial(t,x), \quad t \ge 0, \, x \in \partial \Omega,
+\- \left( \lambda(x) \cdot {\rm grad} \left( T(t,x) \right) \right) \cdot \mathbf{n} = u_\partial(t,x), \quad t \ge 0, \, x \in \partial \Omega,
 $$
 
 where $\mathbf{n}$ is the outward normal to $\Omega$.
