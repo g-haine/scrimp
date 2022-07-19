@@ -9,6 +9,8 @@ The strategy follows three steps, inspired by the Mixed Finite Element Method fo
 
 * [The wave equation](https://g-haine.github.io/scrimp/wave)
 
+* [The heat equation](https://g-haine.github.io/scrimp/heat)
+
 # References
 
 ## Articles
