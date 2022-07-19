@@ -26,13 +26,11 @@ conda install --file "/path/to/your/scrimp/directory/data/scrimp.yml"
 # How to get started using SCRIMP
 
 - Activate the environment:
-
 ```
 conda activate scrimp
 ```
 
 - Import the module by starting your script.py with:
-
 ```
 rootdir = "/path/to/your/scrimp/directory/"
 import sys
@@ -43,14 +41,13 @@ scrimp.setup_path(rootdir)
 
 # How to test SCRIMP
 
-- Run provided Notebooks.
+By running the provided Notebooks.
 
-** In your scrimp folder `/path/to/scrimp/` (do not forget to activate the scrimp environment before):
-
+- In your scrimp folder `/path/to/scrimp/` (do not forget to activate the scrimp environment before):
 ```
 jupyter notebook &
 ```
 
-** In [Jupyter](https://jupyter.org/), choose your Notebook.
+- In [Jupyter](https://jupyter.org/), choose your Notebook.
 
 **The very first notebook to test: `2D/wave.ipynb`**
