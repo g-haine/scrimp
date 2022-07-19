@@ -2,7 +2,7 @@
 
 The strategy follows three steps, inspired by the Mixed Finite Element Method for steady-state problem with homogeneous boundary condition
 * write the weak form of the system;
-* integrate by parts a **partition** of the state (such that $u_\partial$ appears); and
+* integrate by parts a **partition** of the state (such that the control appears); and
 * project on finite element spaces.
 
 # Description of some models tackled by the Partitioned Finite Element Method
