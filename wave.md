@@ -1,5 +1,6 @@
 # The lossless 2D wave equation with Neumann boundary control
 
+![Wave equation](images/wave.png)
 
 ## The model
 
