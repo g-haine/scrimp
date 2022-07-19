@@ -1,7 +1,5 @@
 # The lossless 2D wave equation with Neumann boundary control
 
-This notebook is meant to present the 2D lossless wave equation as first example of the SCRIMP wrapper for PFEM.
-
 ## The model
 
 Let us consider the vertical deflection from equilibrium $w$ of a 2D membrane $\Omega \subset \mathbb{R}^2$. Denoting $\rho$ the mass density and $T$ the Young modulus of the membrane, a positive definite tensor, leads to the following well-known *wave equation*
