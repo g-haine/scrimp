@@ -1,4 +1,8 @@
-## The 2D wave equation with Neumann boundary control
+# The lossless 2D wave equation with Neumann boundary control
+
+This notebook is meant to present the 2D lossless wave equation as first example of the SCRIMP wrapper for PFEM.
+
+## The model
 
 Let us consider the vertical deflection from equilibrium $w$ of a 2D membrane $\Omega \subset \mathbb{R}^2$. Denoting $\rho$ the mass density and $T$ the Young modulus of the membrane, a positive definite tensor, leads to the following well-known *wave equation*
 
@@ -6,7 +10,7 @@ $$
 \rho(x) \frac{\partial^2}{\partial t^2} w(t,x) - {\rm div} \left( T(x) \cdot {\rm grad} \left( w(t,x) \right) \right) = 0, \quad t \ge 0, \, x \in \Omega,
 $$
 
-together with *Neumann boundary control*
+together with *Neumann boundary control* 
 
 $$
 \left( T(x) \cdot {\rm grad} \left( w(t,x) \right) \right) \cdot \mathbf{n} = u_\partial(t,x), \quad t \ge 0, \, x \in \partial \Omega,
@@ -21,17 +25,11 @@ $$
 + \frac{1}{2} \int_\Omega \rho(x) \left( \frac{\partial}{\partial t} w(t,x) \right)^2 {\rm d}x, \qquad t \ge 0.
 $$
 
-Taking the *strain* and the *linear momentum*
+Taking the *strain* $\mathbf{\alpha}_q := {\rm grad} \left( w \right)$ and the *linear momentum* $\alpha_p := \frac{\partial}{\partial t} w$ as **energy variables**, the Hamiltonian rewrites
 
 $$
-\mathbf{\alpha}_q := {\rm grad} \left( w \right), 
-\qquad \alpha_p := \frac{\partial}{\partial t} w,
-$$
- 
-as **energy variables**, the Hamiltonian rewrites
-
-$$
-\mathcal{H}(t) = \mathcal{H}(\mathbf{\alpha}_q(t,\cdot), \alpha_p(t,\cdot)) = \frac{1}{2} \int_\Omega \left( \mathbf{\alpha}_q(t,x) \right)^\top \cdot T(x) \cdot \mathbf{\alpha}_q(t,x) {\rm d}x + \frac{1}{2} \int_\Omega \frac{\alpha_p^2(t,x)}{\rho(x)} {\rm d}x.
+\mathcal{H}(t) = \mathcal{H}(\mathbf{\alpha}_q(t,\cdot), \alpha_p(t,\cdot)) = \frac{1}{2} \int_\Omega \left( \mathbf{\alpha}_q(t,x) \right)^\top \cdot T(x) \cdot \mathbf{\alpha}_q(t,x) {\rm d}x
++ \frac{1}{2} \int_\Omega \frac{\alpha_p^2(t,x)}{\rho(x)} {\rm d}x.
 $$
 
 The **co-energy variables** are by definition the variational derivatives of the Hamiltonian
@@ -118,8 +116,10 @@ Let $\phi_q$, $\varphi_p$ and $\psi$ be vector-valued, scalar-valued and boundar
 $$
 \left\lbrace
 \begin{array}{rcl}
-\displaystyle \int_{\Omega} \phi_q \cdot T^{-1} \cdot \frac{\partial}{\partial t} \mathbf{e}_q &=& \displaystyle \int_{\Omega} \phi_q \cdot {\rm grad} \left( e_p \right), \\
-\displaystyle \int_{\Omega} \varphi_p \rho \frac{\partial}{\partial t} e_p &=& \displaystyle \int_{\Omega} \varphi_p {\rm div} \left( \mathbf{e}_q \right), \\ 
+\displaystyle \int_\Omega \phi_q \cdot T^{-1} \cdot \frac{\partial}{\partial t} \mathbf{e}_q 
+&=& \displaystyle \int_\Omega \phi_q \cdot {\rm grad} \left( e_p \right), \\
+\displaystyle \int_\Omega \varphi_p \rho \frac{\partial}{\partial t} e_p 
+&=& \displaystyle \int_\Omega \varphi_p {\rm div} \left( \mathbf{e}_q \right), \\
 \displaystyle \int_{\partial \Omega} \psi y_\partial &=& \displaystyle \int_{\partial \Omega} \psi e_p.
 \end{array}\right.
 $$
@@ -131,8 +131,11 @@ The integration by parts of the second line makes $u_\partial = \mathbf{e}_q \cd
 $$
 \left\lbrace
 \begin{array}{rcl}
-\displaystyle \int_\Omega \phi_q \cdot T^{-1} \cdot \frac{\partial}{\partial t} \mathbf{e}_q &=& \displaystyle \int_\Omega \phi_q \cdot {\rm grad} \left( e_p \right), \\
-\displaystyle \int_\Omega \varphi_p \rho \frac{\partial}{\partial t} e_p &=& \displaystyle - \int_\Omega {\rm grad} \left( \varphi_p \right) \cdot \mathbf{e}_q + \int_{\partial \Omega} \varphi_p u_\partial, \\
+\displaystyle \int_\Omega \phi_q \cdot T^{-1} \cdot \frac{\partial}{\partial t} \mathbf{e}_q 
+&=& \displaystyle \int_\Omega \phi_q \cdot {\rm grad} \left( e_p \right), \\
+\displaystyle \int_\Omega \varphi_p \rho \frac{\partial}{\partial t} e_p 
+&=& \displaystyle - \int_\Omega {\rm grad} \left( \varphi_p \right) \cdot \mathbf{e}_q
++ \int_{\partial \Omega} \varphi_p u_\partial, \\
 \displaystyle \int_{\partial \Omega} \psi y_\partial &=& \displaystyle \int_{\partial \Omega} \psi e_p.
 \end{array}\right.
 $$
@@ -194,7 +197,7 @@ $$
 (B)_{jk} := \int_{\partial \Omega} \varphi_p^j \psi^k.
 $$
 
-## Discrete Hamiltonian
+### Discrete Hamiltonian
 
 By definition, the discrete Hamiltonian is equal to the continuous Hamiltonian evaluated in the approximated variables. As we are working with the co-energy formulation, a first step is to restate the Hamiltonian in terms of co-energy variables
 
