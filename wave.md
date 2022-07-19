@@ -21,21 +21,25 @@ where $\mathbf{n}$ is the outward normal to $\Omega$.
 The **Hamiltonian** is the total mechanical energy, given as the sum of potential and kinetic energies
 
 $$
-\mathcal{H}(t) := \frac{1}{2} \int_\Omega \left( {\rm grad} \left( w(t,x) \right) \right)^\top \cdot T(x) \cdot {\rm grad} \left( w(t,x) \right) {\rm d}x 
-+ \frac{1}{2} \int_\Omega \rho(x) \left( \frac{\partial}{\partial t} w(t,x) \right)^2 {\rm d}x, \qquad t \ge 0.
+\mathcal{H}(t) := \frac{1}{2} \int_{\Omega} \left( {\rm grad} \left( w(t,x) \right) \right)^\top \cdot T(x) \cdot {\rm grad} \left( w(t,x) \right) {\rm d}x + \frac{1}{2} \int_{\Omega} \rho(x) \left( \frac{\partial}{\partial t} w(t,x) \right)^2 {\rm d}x, \qquad t \ge 0.
 $$
 
-Taking the *strain* $\mathbf{\alpha}_q := {\rm grad} \left( w \right)$ and the *linear momentum* $\alpha_p := \frac{\partial}{\partial t} w$ as **energy variables**, the Hamiltonian rewrites
+Taking the *strain* and the *linear momentum*
 
 $$
-\mathcal{H}(t) = \mathcal{H}(\mathbf{\alpha}_q(t,\cdot), \alpha_p(t,\cdot)) = \frac{1}{2} \int_\Omega \left( \mathbf{\alpha}_q(t,x) \right)^\top \cdot T(x) \cdot \mathbf{\alpha}_q(t,x) {\rm d}x
-+ \frac{1}{2} \int_\Omega \frac{\alpha_p^2(t,x)}{\rho(x)} {\rm d}x.
+\alpha_q := {\rm grad} \left( w \right), \qquad \alpha_p := \frac{\partial}{\partial t} w,
+$$
+
+as **energy variables**, the Hamiltonian rewrites
+
+$$
+\mathcal{H}(t) = \mathcal{H}(\alpha_q (t,\cdot), \alpha_p(t,\cdot)) = \frac{1}{2} \int_{\Omega} \left( \alpha_q(t,x) \right)^\top \cdot T(x) \cdot \alpha_q(t,x) {\rm d}x + \frac{1}{2} \int_{\Omega} \frac{\alpha_p^2(t,x)}{\rho(x)} {\rm d}x.
 $$
 
 The **co-energy variables** are by definition the variational derivatives of the Hamiltonian
 
 $$
-\mathbf{e}_q := \delta_{\mathbf{\alpha}_q} \mathcal{H} = T \cdot \mathbf{\alpha}_q, 
+e_q := \delta_{\alpha_q} \mathcal{H} = T \cdot \alpha_q, 
 \qquad e_p := \delta_{\alpha_p} \mathcal{H} = \frac{\alpha_p}{\rho},
 $$
 
@@ -45,7 +49,7 @@ Thanks to these variables, the wave equation writes as a **port-Hamiltonian syst
 
 $$
 \begin{pmatrix}
-\frac{\partial}{\partial t} \mathbf{\alpha}_q \\
+\frac{\partial}{\partial t} \alpha_q \\
 \frac{\partial}{\partial t} \alpha_p
 \end{pmatrix} =
 \begin{bmatrix}
@@ -53,18 +57,18 @@ $$
 {\rm div} & 0
 \end{bmatrix}
 \begin{pmatrix}
-\mathbf{e}_q \\
+e_q \\
 e_p
 \end{pmatrix}, 
 \qquad \left\lbrace
 \begin{array}{rcl}
-\mathbf{e}_q &=& T \cdot \mathbf{\alpha}_q, \\
+e_q &=& T \cdot \alpha_q, \\
 e_p &=& \frac{\alpha_p}{\rho},
 \end{array}\right.
 \qquad \left\lbrace
 \begin{array}{rcl}
-u_\partial &=& \mathbf{e}_q \cdot \mathbf{n}, \\
-y_\partial &=& e_p|_{\partial \Omega},
+u_\partial &=& e_q \cdot \mathbf{n}, \\
+y_\partial &=& e_p\mid_{\partial \Omega},
 \end{array}\right.
 $$
 
@@ -82,7 +86,7 @@ T^{-1} & 0 \\
 0 & \rho
 \end{bmatrix}
 \begin{pmatrix}
-\frac{\partial}{\partial t} \mathbf{e}_q \\
+\frac{\partial}{\partial t} e_q \\
 \frac{\partial}{\partial t} e_p
 \end{pmatrix} =
 \begin{bmatrix}
@@ -90,13 +94,13 @@ T^{-1} & 0 \\
 {\rm div} & 0
 \end{bmatrix}
 \begin{pmatrix}
-\mathbf{e}_q \\
+e_q \\
 e_p
 \end{pmatrix}, 
 \qquad \left\lbrace
 \begin{array}{rcl}
-u_\partial &=& \mathbf{e}_q \cdot \mathbf{n}, \\
-y_\partial &=& e_p|_{\partial \Omega},
+u_\partial &=& e_q \cdot \mathbf{n}, \\
+y_\partial &=& e_p\mid_{\partial \Omega},
 \end{array}\right.
 $$
 
@@ -116,36 +120,35 @@ Let $\phi_q$, $\varphi_p$ and $\psi$ be vector-valued, scalar-valued and boundar
 $$
 \left\lbrace
 \begin{array}{rcl}
-\displaystyle \int_\Omega \phi_q \cdot T^{-1} \cdot \frac{\partial}{\partial t} \mathbf{e}_q 
-&=& \displaystyle \int_\Omega \phi_q \cdot {\rm grad} \left( e_p \right), \\
-\displaystyle \int_\Omega \varphi_p \rho \frac{\partial}{\partial t} e_p 
-&=& \displaystyle \int_\Omega \varphi_p {\rm div} \left( \mathbf{e}_q \right), \\
+\displaystyle \int_{\Omega} \phi_q \cdot T^{-1} \cdot \frac{\partial}{\partial t} e_q 
+&=& \displaystyle \int_{\Omega} \phi_q \cdot {\rm grad} \left( e_p \right), \\
+\displaystyle \int_{\Omega} \varphi_p \rho \frac{\partial}{\partial t} e_p 
+&=& \displaystyle \int_{\Omega} \varphi_p {\rm div} \left( e_q \right), \\
 \displaystyle \int_{\partial \Omega} \psi y_\partial &=& \displaystyle \int_{\partial \Omega} \psi e_p.
 \end{array}\right.
 $$
 
 ### Integration by parts
 
-The integration by parts of the second line makes $u_\partial = \mathbf{e}_q \cdot \mathbf{n}$ appear
+The integration by parts of the second line makes $u_\partial = e_q \cdot \mathbf{n}$ appear
 
 $$
 \left\lbrace
 \begin{array}{rcl}
-\displaystyle \int_\Omega \phi_q \cdot T^{-1} \cdot \frac{\partial}{\partial t} \mathbf{e}_q 
-&=& \displaystyle \int_\Omega \phi_q \cdot {\rm grad} \left( e_p \right), \\
-\displaystyle \int_\Omega \varphi_p \rho \frac{\partial}{\partial t} e_p 
-&=& \displaystyle - \int_\Omega {\rm grad} \left( \varphi_p \right) \cdot \mathbf{e}_q
-+ \int_{\partial \Omega} \varphi_p u_\partial, \\
+\displaystyle \int_{\Omega} \phi_q \cdot T^{-1} \cdot \frac{\partial}{\partial t} e_q 
+&=& \displaystyle \int_{\Omega} \phi_q \cdot {\rm grad} \left( e_p \right), \\
+\displaystyle \int_{\Omega} \varphi_p \rho \frac{\partial}{\partial t} e_p 
+&=& \displaystyle - \int_{\Omega} {\rm grad} \left( \varphi_p \right) \cdot e_q + \int_{\partial \Omega} \varphi_p u_\partial, \\
 \displaystyle \int_{\partial \Omega} \psi y_\partial &=& \displaystyle \int_{\partial \Omega} \psi e_p.
 \end{array}\right.
 $$
 
 ### Projection
 
-Let $(\phi_q^i)_{1 \le i \le N_q}$, $(\varphi_p^j)_{1 \le j \le N_p}$ and $(\psi^k)_{1 \le k \le N_\partial}$ be finite element families for $q$-type, $p$-type and boundary-type variables. Variables are approximated in their respective finite element family
+Let $(\phi_q^i)\_{1 \le i \le N_q}$, $(\varphi_p^j)\_{1 \le j \le N_p}$ and $(\psi^k)\_{1 \le k \le N_\partial}$ be finite element families for $q$-type, $p$-type and boundary-type variables. Variables are approximated in their respective finite element family
 
 $$
-\mathbf{e}_q^d(t,x) := \sum_{i=1}^{N_q} e_q^i(t) \phi_q^i(x),
+e_q^d(t,x) := \sum_{i=1}^{N_q} e_q^i(t) \phi_q^i(x),
 \qquad e_p^d(t,x) := \sum_{j=1}^{N_p} e_p^j(t) \varphi_p^j(x),
 $$
 
@@ -165,11 +168,11 @@ M_q & 0 & 0 \\
 \begin{pmatrix}
 \frac{\rm d}{{\rm d}t} \underline{e_q}(t) \\
 \frac{\rm d}{{\rm d}t} \underline{e_p}(t) \\
-- \underline{y_\partial}(t)
+\ - \underline{y_\partial}(t)
 \end{pmatrix} =
 \begin{bmatrix}
 0 & D & 0 \\
--D^\top & 0 & B \\
+\ -D^\top & 0 & B \\
 0 & -B^\top & 0
 \end{bmatrix}
 \begin{pmatrix}
@@ -182,19 +185,19 @@ $$
 where
 
 $$
-(M_q)_{ij} := \int_\Omega \phi_q^i \cdot T^{-1} \cdot \phi_q^j,
+(M_q)\_{ij} := \int_{\Omega} \phi_q^i \cdot T^{-1} \cdot \phi_q^j,
 \qquad 
-(M_p)_{ij} := \int_\Omega \varphi_p^i \rho \varphi_p^j,
+(M_p)\_{ij} := \int_{\Omega} \varphi_p^i \rho \varphi_p^j,
 \qquad 
-(M_\partial)_{ij} := \int_{\partial \Omega} \psi^i \psi^j,
+(M_\partial)\_{ij} := \int_{\partial \Omega} \psi^i \psi^j,
 $$
 
 and
 
 $$
-(D)_{ij} := \int_\Omega \phi_q^i \cdot {\rm grad} \left( \varphi_p^j \right),
+(D)\_{ij} := \int_{\Omega} \phi_q^i \cdot {\rm grad} \left( \varphi_p^j \right),
 \qquad
-(B)_{jk} := \int_{\partial \Omega} \varphi_p^j \psi^k.
+(B)\_{jk} := \int_{\partial \Omega} \varphi_p^j \psi^k.
 $$
 
 ### Discrete Hamiltonian
@@ -202,13 +205,13 @@ $$
 By definition, the discrete Hamiltonian is equal to the continuous Hamiltonian evaluated in the approximated variables. As we are working with the co-energy formulation, a first step is to restate the Hamiltonian in terms of co-energy variables
 
 $$
-\mathcal{H} = \frac{1}{2} \int_\Omega \mathbf{e}_q \cdot T^{-1} \cdot \mathbf{e}_q + \frac{1}{2} \int_\Omega \rho (e_p)^2.
+\mathcal{H} = \frac{1}{2} \int_{\Omega} e_q \cdot T^{-1} \cdot e_q + \frac{1}{2} \int_\Omega \rho (e_p)^2.
 $$
 
 Then, the discrete Hamiltonian is defined as
 
 $$
-\mathcal{H}^d := \frac{1}{2} \int_\Omega \mathbf{e}_q^d \cdot T^{-1} \cdot \mathbf{e}_q^d + \frac{1}{2} \int_\Omega \rho (e_p^d)^2.
+\mathcal{H}^d := \frac{1}{2} \int_{\Omega} e_q^d \cdot T^{-1} \cdot e_q^d + \frac{1}{2} \int_{\Omega} \rho (e_p^d)^2.
 $$
 
 After straightforward computations, it comes
