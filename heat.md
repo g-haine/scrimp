@@ -2,7 +2,7 @@
 
 ## The model
 
-Let us consider the temperature $T$ of a 2D domain $\Omega \subset \mathbb{R}^2$. Denoting $C_v$ the heat capacity (at constant volume), $\rho$ the mass density and $\lambda$ the heat conductivity, a positive definite tensor, leads to the following well-known *heat equation*
+Let us consider the temperature $ T $ of a 2D domain $ \Omega \subset \mathbb{R}^2 $. Denoting $ C_v $ the heat capacity (at constant volume), $ \rho $ the mass density and $ \lambda $ the heat conductivity, a positive definite tensor, leads to the following well-known *heat equation*
 
 $$
 \rho(x) C_v(x) \frac{\partial}{\partial t} T(t,x) - {\rm div} \left( \lambda(x) \cdot {\rm grad} \left( T(t,x) \right) \right) = 0, \quad t \ge 0, \, x \in \Omega,
