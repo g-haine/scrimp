@@ -33,21 +33,21 @@ ANR Project **IMPACTS**: https://impacts.ens2m.fr/
 
 ### Third-party
 
-[numpy]():
+[numpy](https://numpy.org/): A well-known package for scientific computing
 
-[FEniCS](): A finite elements library
+[FEniCS](https://fenicsproject.org/): A finite elements library
 
-[multiphenics](): 
+[multiphenics](https://github.com/multiphenics/multiphenics): An easy way to prototype multiphysics problems using FEniCS
 
-[PETSc](): 
+[PETSc](https://petsc.org/release/): The Portable, Extensible Toolkit for Scientific Computation
 
-[GMSH](): A mesh generator
+[GMSH](https://gmsh.info/): A three-dimensional finite element mesh generator
 
-[matplotlib]():
+[matplotlib](https://matplotlib.org/): Visualization with Python
 
-[Spyder]():
+[Spyder](https://www.spyder-ide.org/): A scientific Python development environment
 
-[Jupyter](https://jupyter.org/):
+[Jupyter](https://jupyter.org/): A software for interactive computing across all programming languages
 
 ### How to cite SCRIMP?
     
@@ -64,7 +64,13 @@ ___
 
 - Install **conda**: https://docs.conda.io
 
-- Install **mutliphenics**: https://github.com/multiphenics/multiphenics in your /path/to/scrimp
+- Install **mutliphenics**: https://github.com/multiphenics/multiphenics in your /path/to/scrimp/src/modules
+```
+mkdir /path/to/scrimp/src/modules/multiphenics
+cd /path/to/scrimp/src/modules/multiphenics
+git clone https://github.com/multiphenics/multiphenics.git
+python setup.py install
+```
 
 - Create the *scrimp* environment:
 ```
