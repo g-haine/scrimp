@@ -1,4 +1,4 @@
-# The 2D wave equation with Neumann boundary control
+## The 2D wave equation with Neumann boundary control
 
 Let us consider the vertical deflection from equilibrium $w$ of a 2D membrane $\Omega \subset \mathbb{R}^2$. Denoting $\rho$ the mass density and $T$ the Young modulus of the membrane, a positive definite tensor, leads to the following well-known *wave equation*
 
@@ -21,11 +21,17 @@ $$
 + \frac{1}{2} \int_\Omega \rho(x) \left( \frac{\partial}{\partial t} w(t,x) \right)^2 {\rm d}x, \qquad t \ge 0.
 $$
 
-Taking the *strain* $\mathbf{\alpha}_q := {\rm grad} \left( w \right)$ and the *linear momentum* $\alpha_p := \frac{\partial}{\partial t} w$ as **energy variables**, the Hamiltonian rewrites
+Taking the *strain* and the *linear momentum*
 
 $$
-\mathcal{H}(t) = \mathcal{H}(\mathbf{\alpha}_q(t,\cdot), \alpha_p(t,\cdot)) = \frac{1}{2} \int_\Omega \left( \mathbf{\alpha}_q(t,x) \right)^\top \cdot T(x) \cdot \mathbf{\alpha}_q(t,x) {\rm d}x
-+ \frac{1}{2} \int_\Omega \frac{\alpha_p^2(t,x)}{\rho(x)} {\rm d}x.
+\mathbf{\alpha}_q := {\rm grad} \left( w \right), 
+\qquad \alpha_p := \frac{\partial}{\partial t} w,
+$$
+ 
+as **energy variables**, the Hamiltonian rewrites
+
+$$
+\mathcal{H}(t) = \mathcal{H}(\mathbf{\alpha}_q(t,\cdot), \alpha_p(t,\cdot)) = \frac{1}{2} \int_\Omega \left( \mathbf{\alpha}_q(t,x) \right)^\top \cdot T(x) \cdot \mathbf{\alpha}_q(t,x) {\rm d}x + \frac{1}{2} \int_\Omega \frac{\alpha_p^2(t,x)}{\rho(x)} {\rm d}x.
 $$
 
 The **co-energy variables** are by definition the variational derivatives of the Hamiltonian
@@ -43,8 +49,7 @@ $$
 \begin{pmatrix}
 \frac{\partial}{\partial t} \mathbf{\alpha}_q \\
 \frac{\partial}{\partial t} \alpha_p
-\end{pmatrix}
-=
+\end{pmatrix} =
 \begin{bmatrix}
 0 & {\rm grad} \\
 {\rm div} & 0
@@ -81,8 +86,7 @@ T^{-1} & 0 \\
 \begin{pmatrix}
 \frac{\partial}{\partial t} \mathbf{e}_q \\
 \frac{\partial}{\partial t} e_p
-\end{pmatrix}
-=
+\end{pmatrix} =
 \begin{bmatrix}
 0 & {\rm grad} \\
 {\rm div} & 0
@@ -100,45 +104,40 @@ $$
 
 known as the **co-energy formulation**. This allows to get a simple Ordinary Differential Equation at the discrete level (instead of a Differential Algebraic Equation in general).
 
-# The Partitioned Finite Element Method
+## The Partitioned Finite Element Method
 
 The strategy follows three steps, inspired by the Mixed Finite Element Method for steady-state problem with homogeneous boundary condition
 * write the weak form of the system;
 * integrate by parts a **partition** of the state (such that $u_\partial$ appears); and
 * project on finite element spaces.
 
-## Weak formulation
+### Weak formulation
 
 Let $\phi_q$, $\varphi_p$ and $\psi$ be vector-valued, scalar-valued and boundary scalar-valued test functions respectively. The weak formulation reads
 
 $$
 \left\lbrace
 \begin{array}{rcl}
-\displaystyle \int_\Omega \phi_q \cdot T^{-1} \cdot \frac{\partial}{\partial t} \mathbf{e}_q 
-&=& \displaystyle \int_\Omega \phi_q \cdot {\rm grad} \left( e_p \right), \\
-\displaystyle \int_\Omega \varphi_p \rho \frac{\partial}{\partial t} e_p 
-&=& \displaystyle \int_\Omega \varphi_p {\rm div} \left( \mathbf{e}_q \right), \\
+\displaystyle \int_{\Omega} \phi_q \cdot T^{-1} \cdot \frac{\partial}{\partial t} \mathbf{e}_q &=& \displaystyle \int_{\Omega} \phi_q \cdot {\rm grad} \left( e_p \right), \\
+\displaystyle \int_{\Omega} \varphi_p \rho \frac{\partial}{\partial t} e_p &=& \displaystyle \int_{\Omega} \varphi_p {\rm div} \left( \mathbf{e}_q \right), \\ 
 \displaystyle \int_{\partial \Omega} \psi y_\partial &=& \displaystyle \int_{\partial \Omega} \psi e_p.
 \end{array}\right.
 $$
 
-## Integration by parts
+### Integration by parts
 
 The integration by parts of the second line makes $u_\partial = \mathbf{e}_q \cdot \mathbf{n}$ appear
 
 $$
 \left\lbrace
 \begin{array}{rcl}
-\displaystyle \int_\Omega \phi_q \cdot T^{-1} \cdot \frac{\partial}{\partial t} \mathbf{e}_q 
-&=& \displaystyle \int_\Omega \phi_q \cdot {\rm grad} \left( e_p \right), \\
-\displaystyle \int_\Omega \varphi_p \rho \frac{\partial}{\partial t} e_p 
-&=& \displaystyle - \int_\Omega {\rm grad} \left( \varphi_p \right) \cdot \mathbf{e}_q
-+ \int_{\partial \Omega} \varphi_p u_\partial, \\
+\displaystyle \int_\Omega \phi_q \cdot T^{-1} \cdot \frac{\partial}{\partial t} \mathbf{e}_q &=& \displaystyle \int_\Omega \phi_q \cdot {\rm grad} \left( e_p \right), \\
+\displaystyle \int_\Omega \varphi_p \rho \frac{\partial}{\partial t} e_p &=& \displaystyle - \int_\Omega {\rm grad} \left( \varphi_p \right) \cdot \mathbf{e}_q + \int_{\partial \Omega} \varphi_p u_\partial, \\
 \displaystyle \int_{\partial \Omega} \psi y_\partial &=& \displaystyle \int_{\partial \Omega} \psi e_p.
 \end{array}\right.
 $$
 
-## Projection
+### Projection
 
 Let $(\phi_q^i)_{1 \le i \le N_q}$, $(\varphi_p^j)_{1 \le j \le N_p}$ and $(\psi^k)_{1 \le k \le N_\partial}$ be finite element families for $q$-type, $p$-type and boundary-type variables. Variables are approximated in their respective finite element family
 
@@ -164,8 +163,7 @@ M_q & 0 & 0 \\
 \frac{\rm d}{{\rm d}t} \underline{e_q}(t) \\
 \frac{\rm d}{{\rm d}t} \underline{e_p}(t) \\
 - \underline{y_\partial}(t)
-\end{pmatrix}
-=
+\end{pmatrix} =
 \begin{bmatrix}
 0 & D & 0 \\
 -D^\top & 0 & B \\
@@ -201,15 +199,13 @@ $$
 By definition, the discrete Hamiltonian is equal to the continuous Hamiltonian evaluated in the approximated variables. As we are working with the co-energy formulation, a first step is to restate the Hamiltonian in terms of co-energy variables
 
 $$
-\mathcal{H} = \frac{1}{2} \int_\Omega \mathbf{e}_q \cdot T^{-1} \cdot \mathbf{e}_q 
-+ \frac{1}{2} \int_\Omega \rho (e_p)^2.
+\mathcal{H} = \frac{1}{2} \int_\Omega \mathbf{e}_q \cdot T^{-1} \cdot \mathbf{e}_q + \frac{1}{2} \int_\Omega \rho (e_p)^2.
 $$
 
 Then, the discrete Hamiltonian is defined as
 
 $$
-\mathcal{H}^d := \frac{1}{2} \int_\Omega \mathbf{e}_q^d \cdot T^{-1} \cdot \mathbf{e}_q^d 
-+ \frac{1}{2} \int_\Omega \rho (e_p^d)^2.
+\mathcal{H}^d := \frac{1}{2} \int_\Omega \mathbf{e}_q^d \cdot T^{-1} \cdot \mathbf{e}_q^d + \frac{1}{2} \int_\Omega \rho (e_p^d)^2.
 $$
 
 After straightforward computations, it comes
