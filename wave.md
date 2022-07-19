@@ -106,13 +106,7 @@ $$
 known as the **co-energy formulation**. This allows to get a simple Ordinary Differential Equation at the discrete level (instead of a Differential Algebraic Equation in general).
 
 
-## The Partitioned Finite Element Method
-
-The strategy follows three steps, inspired by the Mixed Finite Element Method for steady-state problem with homogeneous boundary condition
-* write the weak form of the system;
-* integrate by parts a **partition** of the state (such that $u_\partial$ appears); and
-* project on finite element spaces.
-
+## Structure-preserving discretization
 
 
 ### Weak formulation
