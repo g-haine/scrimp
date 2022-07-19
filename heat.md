@@ -11,7 +11,7 @@ $$
 together with *Neumann boundary control* 
 
 $$
-\- \left( \lambda(x) \cdot {\rm grad} \left( T(t,x) \right) \right) \cdot \mathbf{n} = u_\partial(t,x), \quad t \ge 0, \, x \in \partial \Omega,
+\ - \left( \lambda(x) \cdot {\rm grad} \left( T(t,x) \right) \right) \cdot \mathbf{n} = u_\partial(t,x), \quad t \ge 0, \, x \in \partial \Omega,
 $$
 
 where $\mathbf{n}$ is the outward normal to $\Omega$.
@@ -146,7 +146,7 @@ $$
 \begin{array}{rcl}
 \displaystyle \int_\Omega \varphi_T \rho C_v \frac{\partial}{\partial t} T 
 &=& \displaystyle \int_\Omega {\rm grad} \left( \varphi_T \right) \mathbf{J}\_Q 
-\- \int_{\partial \Omega} u_\partial \varphi_T, \\
+-\int_{\partial \Omega} u_\partial \varphi_T, \\
 \displaystyle \int_\Omega \phi_Q \cdot \lambda^{-1} \cdot \mathbf{J}\_Q 
 &=& \displaystyle - \int_\Omega \phi_Q \cdot {\rm grad} \left( T \right), \\
 \displaystyle \int_{\partial \Omega} \psi y_\partial &=& \displaystyle \int_{\partial \Omega} \psi T.
@@ -178,12 +178,12 @@ M_T & 0 & 0 \\
 \begin{pmatrix}
 \frac{\rm d}{ {\rm d}t} \underline{T}(t) \\
 \underline{J_Q}(t) \\
-\- \underline{y_\partial}(t)
+-\underline{y_\partial}(t)
 \end{pmatrix} =
 \begin{bmatrix}
 0 & D & B \\
-\-D^\top & 0 & 0 \\
-\-B^\top & 0 & 0
+-D^\top & 0 & 0 \\
+-B^\top & 0 & 0
 \end{bmatrix}
 \begin{pmatrix}
 \underline{T}(t) \\
