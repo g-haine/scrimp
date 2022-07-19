@@ -30,7 +30,8 @@
             <a href="{{ site.github.tar_url }}" class="btn">Download as .tar.gz</a>
           {% endif %}
           <a href="{{ site.github.repository_url }}" class="btn btn-github"><span class="icon"></span>View on GitHub</a>
-          <a href="{{ site.github }} /models" class="btn btn-github"><span class="icon"></span>Models</a>
+          <a href="https://g-haine.github.io/scrimp/models" class="btn"><span class="icon"></span>Models and discretization</a>
+          <a href="https://www.isae-supaero.fr" class="btn"><span class="icon"></span>ISAE-SUPAERO</a>
         </section>
       </div>
     </header>
@@ -41,26 +42,4 @@
       </section>
     </div>
   </body>
-  <footer>
-     <!-- Parse the Latex divs with Katex-->
-     <script type="text/javascript">
-         $("script[type='math/tex']").replaceWith(
-             function(){
-                 var tex = $(this).text();
-                 return katex.renderToString(tex, {displayMode: false});
-         });
-
-         $("script[type='math/tex; mode=display']").replaceWith(
-             function(){
-                 var tex = $(this).text();
-                 return katex.renderToString(tex.replace(/%.*/g, ''), {displayMode: true});
-         });
-     </script>
-    
-    <div class="container">
-      <section id="footer">
-        <a href="https://www.isae-supaero.fr" class="btn"><span class="icon"></span>ISAE-SUPAERO</a>
-      </section>
-    </div>
- </footer>
 </html>
