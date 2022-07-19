@@ -50,4 +50,4 @@ jupyter notebook &
 
 - In [Jupyter](https://jupyter.org/), choose your Notebook.
 
-**The very first notebook to test: `2D/wave.ipynb`**
+**The very first notebook to test: `/path/to/scrimp/notebooks/2D/wave.ipynb`**
