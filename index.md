@@ -39,21 +39,21 @@ ANR-DFG Project [**INFIDHEM**](http://websites.isae.fr/infidhem) -- INterconnect
 
 # Third-party
 
-[numpy](https://numpy.org/): A well-known package for scientific computing
+[numpy](https://numpy.org/) -- A well-known package for scientific computing
 
-[FEniCS](https://fenicsproject.org/): A finite elements library
+[FEniCS](https://fenicsproject.org/) -- A finite elements library
 
-[multiphenics](https://github.com/multiphenics/multiphenics): An easy way to prototype multiphysics problems using FEniCS
+[multiphenics](https://github.com/multiphenics/multiphenics) -- An easy way to prototype multiphysics problems using FEniCS
 
-[PETSc](https://petsc.org/release/): The Portable, Extensible Toolkit for Scientific Computation
+[PETSc](https://petsc.org/release/) -- The Portable, Extensible Toolkit for Scientific Computation
 
-[GMSH](https://gmsh.info/): A three-dimensional finite element mesh generator
+[GMSH](https://gmsh.info/) -- A three-dimensional finite element mesh generator
 
-[matplotlib](https://matplotlib.org/): Visualization with Python
+[matplotlib](https://matplotlib.org/) -- Visualization with Python
 
-[Spyder](https://www.spyder-ide.org/): A scientific Python development environment
+[Spyder](https://www.spyder-ide.org/) -- A scientific Python development environment
 
-[Jupyter](https://jupyter.org/): A software for interactive computing across all programming languages
+[Jupyter](https://jupyter.org/) -- A software for interactive computing across all programming languages
 
 ___
 
