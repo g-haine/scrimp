@@ -17,7 +17,7 @@
 
 ```
 @article{Cardoso2021,
-  author = {Fl{\'a}vio Luiz Cardoso-Ribeiro and Denis Matignon and  Laurent Lef{\`{e}}vre},
+  author = {Fl{\'{a}}vio Luiz Cardoso-Ribeiro and Denis Matignon and  Laurent Lef{\`{e}}vre},
   title = { {A partitioned finite element method for power-preserving discretization of open systems of conservation laws} },
   journal = {IMA Journal of Mathematical Control and Information},
   volume = {38},
