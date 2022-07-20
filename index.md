@@ -60,9 +60,19 @@ ___
 # How to cite SCRIMP?
     
 Brugnoli, Andrea and Haine, Ghislain and Serhani, Anass and Vasseur, Xavier.
-
 *Numerical Approximation of Port-Hamiltonian Systems for Hyperbolic or Parabolic PDEs with Boundary Control.*
-
 (2021) **Journal of Applied Mathematics and Physics**, 09 (06). 1278-1321.
+
+```
+@article{Brugnoli2021,
+author = {Brugnoli, Andrea and Haine, Ghislain and Serhani, Anass and Vasseur, Xavier},
+title = { {Numerical Approximation of Port-Hamiltonian Systems for Hyperbolic or Parabolic PDEs with Boundary Control} },
+journal = {Journal of Applied Mathematics and Physics},
+volume = {09},
+issue = {06}
+pages = {1278--1321},
+year = {2021}
+}
+```
 
 ___
