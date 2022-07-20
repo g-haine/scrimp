@@ -34,7 +34,7 @@
     <header>
       <div class="container">
         <a id="a-title" href="{{ '/' | relative_url }}">
-          <h1><img src="images/Logo.png" alt="{{ site.github.repository_name }}"  width="32" height="32" /> &nbsp; {{ site.title | default: site.github.repository_name }}</h1>
+          <h1><img src="images/Logo.png" alt="{{ site.github.repository_name }}"  width="32" height="32" /> {{ site.title | default: site.github.repository_name }}</h1>
         </a>
         <h2>{{ site.description | default: site.github.project_tagline }}</h2>
 
