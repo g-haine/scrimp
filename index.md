@@ -31,11 +31,11 @@ Past: Andrea Brugnoli, Anass Serhani, Xavier Vasseur
 
 # Founding
 
-ANR-DFG Project **INFIDHEM**: http://websites.isae.fr/infidhem
+ANR Project [**IMPACTS**](https://impacts.ens2m.fr/) -- IMplicit Port-hAmiltonian ConTrol Systems 
 
-AID School Project **FAMAS**: https://www.defense.gouv.fr/aid
+AID School Project [**FAMAS**](https://www.defense.gouv.fr/aid) -- Fast & Accurate MAxwell Solver 
 
-ANR Project **IMPACTS**: https://impacts.ens2m.fr/
+ANR-DFG Project [**INFIDHEM**](http://websites.isae.fr/infidhem) -- INterconnected inFinite-Dimensional systems for HEterogeneous Media
 
 # Third-party
 
