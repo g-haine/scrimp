@@ -29,7 +29,7 @@ Past: Andrea Brugnoli, Anass Serhani, Xavier Vasseur
 
 **Please read the LICENSE**
 
-# Founding
+# Funding
 
 ANR Project [**IMPACTS**](https://impacts.ens2m.fr/) -- IMplicit Port-hAmiltonian ConTrol Systems 
 
