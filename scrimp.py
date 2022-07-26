@@ -46,9 +46,10 @@ def setup_path(rootdir):
     print("Data directories:")
     n_dir = config_path_append(os.path.join(rootdir,"data"))
     print(f"{n_dir} directories found.")    
-    print("Source directories:")
-    n_dir = config_path_append(os.path.join(rootdir,"src/modules"))
+    print("Modules directories:")
+    n_dir = config_path_append(os.path.join(rootdir,"src"))
     print(f"{n_dir} directories found.")
+    print("Systems directories:")
    
     # If in rootdir, call setup_path
 if os.path.isfile('scrimp.py'):
