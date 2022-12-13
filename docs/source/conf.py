@@ -17,6 +17,9 @@ version = '0.5.0'
 
 import sys, os
 sys.path.append(os.path.dirname(__file__))
+sys.path.append(os.path.join(os.path.dirname(__file__),'scrimp'))
+sys.path.append(os.path.join(os.path.dirname(__file__),'scrimp','examples'))
+sys.path.append(os.path.join(os.path.dirname(__file__),'scrimp','utils'))
 sys.path.append('../..')
 sys.path.append('..')
 
