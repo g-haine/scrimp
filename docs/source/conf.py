@@ -17,6 +17,9 @@ version = '0.5.0'
 
 import sys, os
 sys.path.append(os.path.dirname(__file__))
+sys.path.append('../..')
+sys.path.append('..')
+sys.path.append('.')
 
 import sphinx_rtd_theme
 
