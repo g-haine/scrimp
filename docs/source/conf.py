@@ -50,12 +50,6 @@ autodoc_mock_imports = [
 html_theme = 'sphinx_rtd_theme'
 html_favicon = 'Logo-ico.png'
 html_logo = 'Logo.png'
-html_context = {
-    "display_github": True, # Integrate GitHub
-    "github_user": "g-haine", # Username
-    "github_repo": "scrimp", # Repo name
-    "github_version": "master", # Version
-}
 html_theme_options = {
     'logo_only': False,
     'display_version': True,
