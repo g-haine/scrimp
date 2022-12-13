@@ -15,6 +15,11 @@ version = '0.5.0'
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
+import sys
+from pathlib import Path
+cwd = Path.cwd()
+sys.path.append(cwd.parent.parent)
+
 import sphinx_rtd_theme
 
 extensions = [
@@ -41,7 +46,3 @@ html_theme_options = {
     'display_version': True,
 }
 
-import sys
-from pathlib import Path
-cwd = Path(__file__).parent
-sys.path.append(cwd.parent.parent)
