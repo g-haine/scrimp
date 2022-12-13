@@ -1,16 +1,16 @@
-name: scrimp
+name: scrimp-dev
 channels:
-    - conda-forge
+  - conda-forge
 dependencies:
-    - python=3
-    - conda
-    - control
-    - fenics
-    - jupyter
-    - matplotlib
-    - meshio
-    - scipy
-    - spyder
-    - pip
-    - pip:
-        - gmsh
+  - python=3
+  - getfem
+  - matplotlib
+  - numpy
+  - scipy
+  - spyder
+  - petsc4py
+  - pip
+  - pip:
+    - gmsh
+    - sphinx
+    - sphinx_rtd_theme

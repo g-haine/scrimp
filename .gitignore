@@ -1,14 +1,5 @@
 .*
 __pycache__/
-vtk/
-Matrices_MAT_format
-*.mat
-*.msh
-*.log
-*.h5
-*.xdmf
-*.json
-*.avi
-blacktocat.png
-jitfailure*
-!/.gitignore
+docs/build/
+scrimp/outputs/
+.gitignore
