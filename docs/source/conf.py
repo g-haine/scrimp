@@ -17,8 +17,7 @@ version = '0.5.0'
 
 import sys
 from pathlib import Path
-cwd = Path.cwd()
-sys.path.append(cwd.parent.parent)
+sys.path.append(Path.cwd())
 
 import sphinx_rtd_theme
 
@@ -38,7 +37,6 @@ exclude_patterns = []
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 html_theme = 'sphinx_rtd_theme'
-html_static_path = ['_static']
 html_favicon = 'Logo-ico.png'
 html_logo = 'Logo.png'
 html_theme_options = {
