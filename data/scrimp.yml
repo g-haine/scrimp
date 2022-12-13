@@ -1,8 +1,9 @@
-name: scrimp-dev
+name: scrimp
 channels:
   - conda-forge
 dependencies:
   - python=3
+  - conda
   - getfem
   - matplotlib
   - numpy
