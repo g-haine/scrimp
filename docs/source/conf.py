@@ -42,4 +42,6 @@ html_theme_options = {
 }
 
 import sys
-sys.path.append('/home/ghaine/Simulations/scrimp_getfem/')
+from pathlib import Path
+cwd = Path(__file__).parent
+sys.path.append(cwd.parent.parent)
