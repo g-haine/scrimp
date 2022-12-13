@@ -15,9 +15,8 @@ version = '0.5.0'
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-import sys
-from pathlib import Path
-sys.path.append(Path.cwd())
+import sys, os
+sys.path.append(os.path.dirname(__file__))
 
 import sphinx_rtd_theme
 
