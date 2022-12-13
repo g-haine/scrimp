@@ -19,7 +19,6 @@ import sys, os
 sys.path.append(os.path.dirname(__file__))
 sys.path.append('../..')
 sys.path.append('..')
-sys.path.append('.')
 
 import sphinx_rtd_theme
 
@@ -33,7 +32,13 @@ extensions = [
 templates_path = ['_templates']
 exclude_patterns = []
 
-
+autodoc_mock_imports = [
+    'getfem',
+    'matplotlib',
+    'numpy',
+    'scipy',
+    'petsc4py',
+]
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
