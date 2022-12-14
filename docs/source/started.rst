@@ -288,7 +288,7 @@ To start, import the scrimp module `dpHs` for the discretization of *distributed
     
     wave = dpHs('real')
 
-Then, define the domain :math:`Omega = (0,1)`, with a mesh-size parameter :math:`h`
+Then, define the domain :math:`\Omega = (0,1)`, with a mesh-size parameter :math:`h`
 
 .. code-block:: python
    
