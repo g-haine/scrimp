@@ -241,12 +241,12 @@ The **discrete power balance** is then easily deduced from the above matrix form
 
 .. math::
 
-    \underbrace{\begin{bmatrix}
+    \begin{bmatrix}
     \widetilde{M}_q & 0 & 0 & 0 \\
     0 & \widetilde{M}_p & 0 & 0 \\
     0 & 0 & 1 & 0 \\
     0 & 0 & 0 & 1
-    \end{bmatrix}}_{= M}
+    \end{bmatrix}
     \begin{pmatrix}
     \frac{\rm d}{{\rm d}t} \underline{e_q}(t) \\
     \frac{\rm d}{{\rm d}t} \underline{e_p}(t) \\
@@ -254,12 +254,12 @@ The **discrete power balance** is then easily deduced from the above matrix form
     - y_R(t)
     \end{pmatrix}
     =
-    \underbrace{\begin{bmatrix}
+    \begin{bmatrix}
     0 & D & 0 & 0 \\
     -D^\top & 0 & B_L & B_R \\
     0 & -B_L^\top & 0 & 0 \\
     0 & -B_R^\top & 0 & 0
-    \end{bmatrix}}_{= J}
+    \end{bmatrix}
     \begin{pmatrix}
     \underline{e_q}(t) \\
     \underline{e_p}(t) \\
