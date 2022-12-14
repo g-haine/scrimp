@@ -411,7 +411,11 @@ To end, one can also add the Hamiltonian terms and plot the contribution of each
 
     wave.plot_Hamiltonian()
 
-One can appreciate the *structure-preserving* property by looking at the dashed line, showing :math:`\mathcal{H}^d(t) - \int_0^t u_R(s) y_R(s) {\rm d}s + \int_0^t u_L(s) y_L(s) {\rm d}s`
+One can appreciate the *structure-preserving* property by looking at the dashed line, showing the evolution of
+
+.. math::
+
+    \mathcal{H}^d(t) - \int_0^t u_R(s) y_R(s) {\rm d}s + \int_0^t u_L(s) y_L(s) {\rm d}s
 
 .. image:: Hamiltonian-wave-1D-started.png
     :width: 600px
