@@ -32,9 +32,12 @@ Table of Contents
     
     install
     started
-    further
     examples
+    further
     scrimp
+    biblio
+    ANR Impacts <https://impacts.ens2m.fr/>
+    GitHub repo <https://github.com/g-haine/scrimp>
 
 ************************
 Port-Hamiltonian systems

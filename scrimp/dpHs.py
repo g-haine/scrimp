@@ -821,6 +821,9 @@ class dpHs:
         for name_control in self.controls.keys():
             assert self.controls[name_control]['isset'], ('Control', name_control, 'must be defined before time-resolution')
         
+        # Initialize time scheme options (without override)
+        self.set_time_scheme()
+        
         # Load time scheme options to PETSc
         self.time_scheme = PETSc.Options()
         
