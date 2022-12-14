@@ -294,7 +294,7 @@ Then, define the domain :math:`\Omega = (0,1)`, with a mesh-size parameter :math
    
     wave.set_domain('Interval', {'L': 1., 'h': 0.01})
    
-This creates a mesh of the interval :math:`Omega = (0,1)`. **Important to keep in mind**: the domain is composed of `regions`, denoted by integers. The *built-in* geometry of an interval available in the code returns 1 for the domain :math:`Omega`, 10 for the left-end and 11 for the right-end. Informations about available geometries and the indices of their regions can be found in the documentation or via :code:`built_in_geometries()` after an import :code:`import scrimp.utils.mesh`.
+This creates a mesh of the interval :math:`\Omega = (0,1)`. **Important to keep in mind**: the domain is composed of `regions`, denoted by integers. The *built-in* geometry of an interval available in the code returns 1 for the domain :math:`\Omega`, 10 for the left-end and 11 for the right-end. Informations about available geometries and the indices of their regions can be found in the documentation or via :code:`built_in_geometries()` after an import :code:`import scrimp.utils.mesh`.
 
 On this domain, we define two **states** and two **co-states**. At this stage, we only set each couple to be part of the same **port**.
 
