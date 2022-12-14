@@ -388,23 +388,23 @@ These parameters at hand, one can now define the constitutive relations.
 
 The port-Hamiltonian system is now fully stated. It remains to set the initial values of the states and the controls before solving
 
-.. code-block::
+.. code-block:: python
 
-wave.set_control('Boundary control (left)', 'sin(2*pi*t)')
-wave.set_control('Boundary control (right)', '0.')
+    wave.set_control('Boundary control (left)', 'sin(2*pi*t)')
+    wave.set_control('Boundary control (right)', '0.')
 
-wave.set_initial_value('q', '10.')
-wave.set_initial_value('p', 'np.exp(-50.*(x-0.5)*(x-0.5))')
+    wave.set_initial_value('q', '10.')
+    wave.set_initial_value('p', 'np.exp(-50.*(x-0.5)*(x-0.5))')
 
 We can now solve the system (with default experiment parameter)
 
-.. code-block::
+.. code-block:: python
 
     wave.solve()
 
 To end, one can also add the Hamiltonian terms and plot the contribution of each port to the balance equation
 
-.. code-block::
+.. code-block:: python
 
     wave.set_Hamiltonian_term('Kinetic energy', '0.5*p*p/rho', [1])
     wave.set_Hamiltonian_term('Potential energy', '0.5*q*T*q', [1])
