@@ -178,7 +178,7 @@ Brugnoli, Andrea and Haine, Ghislain and Serhani, Anass and Vasseur, Xavier.
     title = { {Numerical Approximation of Port-Hamiltonian Systems for Hyperbolic or Parabolic PDEs with Boundary Control} },
     journal = {Journal of Applied Mathematics and Physics},
     volume = {09},
-    issue = {06}
+    issue = {06},
     pages = {1278--1321},
     year = {2021}
     }
