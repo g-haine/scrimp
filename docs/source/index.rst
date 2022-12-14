@@ -33,9 +33,7 @@ Table of Contents
     install
     started
     examples
-    further
     scrimp
-    biblio
     ANR Impacts <https://impacts.ens2m.fr/>
     GitHub repo <https://github.com/g-haine/scrimp>
 
