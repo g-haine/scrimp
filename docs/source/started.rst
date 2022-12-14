@@ -12,8 +12,8 @@ To understand the coding philosophy of **SCRIMP**, let us consider the 1D wave e
     \rho(x) \partial_{tt}^2 w(t,x) - \partial_x \left( T(x) \partial_x w(t,x) \right) &=& 0, \qquad t \ge 0, x \in (0,1), \\
     \partial_t w(0,x) &=& v(x), \qquad x \in (0,1), \\
     \partial_x w(0,x) &=& s(x), \qquad x \in (0,1), \\
-    \partial_x T(0) w(t,0) &=& u_L(t), \qquad t \ge 0, \\
-    \partial_x T(1) w(t,1) &=& u_R(t), \qquad t \ge 0.
+    \partial_x \left( T(0) w(t,0) \right) &=& u_L(t), \qquad t \ge 0, \\
+    \partial_x \left( T(1) w(t,1) \right) &=& u_R(t), \qquad t \ge 0.
     \end{array}
     \right.
 
