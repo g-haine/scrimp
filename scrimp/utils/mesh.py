@@ -175,12 +175,12 @@ def Rectangle(parameters={'L': 2., 'l': 1, 'h': 0.1}, terminal=1):
     dim = 2
     model.mesh.generate(dim)
     path = set_default_path()
-    gmsh.write(os.path.join(path, 'Disk.msh'))
+    gmsh.write(os.path.join(path, 'Rectangle.msh'))
     gmsh.finalize()
     
     print('Rectangle (0,'+str(L)+')x(0,'+str(l)+') has been meshed')
     
-    mesh = gf.Mesh('import', 'gmsh_with_lower_dim_elt', os.path.join(path, 'Disk.msh'))
+    mesh = gf.Mesh('import', 'gmsh_with_lower_dim_elt', os.path.join(path, 'Rectangle.msh'))
     
     return [mesh, dim, {'Omega': 1}, {'Gamma_Bottom': 10, 'Gamma_Right': 11, 'Gamma_Top': 12, 'Gamma_Left': 13}]
     
