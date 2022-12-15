@@ -8,7 +8,7 @@ The easiest way to install **SCRIMP** is to use *conda environment*.
 
 #. Install `Anaconda <https://www.anaconda.com/>`_
 #. Clone the git repository :code:`git clone https://github.com/g-haine/scrimp`
-#. Create the conda environment :code:`conda create env --file /path/to/scrimp/data/scrimp.yml`
+#. Create the conda environment :code:`conda env create --file /path/to/scrimp/data/scrimp.yml`
 #. Activate the environment :code:`conda activate scrimp`
 #. Add the *path/to/scrimp* folder to this environment :code:`conda develop /path/to/scrimp/`
 
