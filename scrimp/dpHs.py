@@ -184,13 +184,14 @@ class dpHs:
                                'region': self.states[state]['region'], 
                                'mesh_id': self.states[state]['mesh_id'], 
                                'state': state, 
-                               'port': None, 
-                               'substituted': substituted}
+                               'port': None
+                               }
         
         self.states[state]['costate'] = name
         
         self.add_port(state, state, name, self.costates[name]['kind'], 
                       self.states[state]['mesh_id'], algebraic=False, 
+                      substituted=substituted,
                       region=self.states[state]['region'])
         
         self.states[state]['port'] = state
@@ -202,7 +203,7 @@ class dpHs:
         print('A co-state variable', name, ', describing \'', description, '\', associated to state \'', state, '\' has been initialized as a', self.costates[name]['kind'], 'on mesh', self.costates[name]['mesh_id'], where)
         print('The constitutive relations between the state', state, 'and the co-state', name, 'will'+(not substituted)*' not'+' be substituted for the resolution: variable', name, 'will'+substituted*' not'+' be considered as an unknown')
         
-    def add_port(self, name, flow, effort, kind, mesh_id=0, algebraic=True, region=None):
+    def add_port(self, name, flow, effort, kind, mesh_id=0, algebraic=True, substituted=False, region=None):
         """
         Add a `port` object to the dpHs
         
@@ -218,13 +219,15 @@ class dpHs:
         :type mesh_id: int
         :param algebraic: if `False` (default: `True`), the flow variable will be derivated in time at resolution
         :type algebraic: bool
+        :param substituted: if `True`, the constitutive relation is substituted into the mass matrix of the flow, there is only one unknown in the getfem model
+        :type substituted: bool
         :param region: the int identifying the region in mesh_id where the port belong
         :type region: int
         
         :return: create a `port` object and append it to the dict `ports` of the dpHs
         """
         
-        self.ports[name] = port(name, flow, effort, kind, mesh_id, algebraic, region)
+        self.ports[name] = port(name, flow, effort, kind, mesh_id, algebraic, substituted, region)
         
         where = ''
         if self.ports[name].region is not None:
@@ -275,8 +278,8 @@ class dpHs:
             self.gf_model.add_fem_variable(self.ports[name_port].flow, 
                                            self.ports[name_port].FEM)
         
-        # If the port is algebraic, we also add the effort to the list of variables
-        if self.ports[name_port].algebraic:
+        # If the port is algebraic and not substituted, we also add the effort to the list of variables
+        if self.ports[name_port].algebraic and not self.ports[name_port].substituted:
             if self.ports[name_port].region is not None:
                 self.gf_model.add_filtered_fem_variable(self.ports[name_port].effort, 
                                                         self.ports[name_port].FEM, 
@@ -290,7 +293,7 @@ class dpHs:
         # If the port is dynamic and the co-state is not substituted, the co-state must be added as an unknown variable
         if self.ports[name_port].effort in self.costates.keys():
             assert not self.ports[name_port].algebraic, ('Port', name_port, 'should not be algebraic because', self.ports[name_port].effort, 'is a co-state')
-            if not self.costates[self.ports[name_port].effort]['substituted']:
+            if not self.ports[name_port].substituted:
                 if self.ports[name_port].region is not None:
                     self.gf_model.add_filtered_fem_variable(self.ports[name_port].effort, 
                                                             self.ports[name_port].FEM, 
@@ -789,13 +792,14 @@ class dpHs:
         # We add indices of all algebraic ports
         for name_port in self.ports.keys():
             if self.ports[name_port].algebraic:
-                I = self.gf_model.interval_of_variable(self.ports[name_port].flow)
-                id_alg = np.concatenate((id_alg, np.arange(I[0], I[0]+I[1], dtype=int)))
+                if not self.ports[name_port].substituted:
+                    I = self.gf_model.interval_of_variable(self.ports[name_port].flow)
+                    id_alg = np.concatenate((id_alg, np.arange(I[0], I[0]+I[1], dtype=int)))
                 I = self.gf_model.interval_of_variable(self.ports[name_port].effort)
                 id_alg = np.concatenate((id_alg, np.arange(I[0], I[0]+I[1], dtype=int)))
         # If costate are not substituted, we also add them
         for name_costate in self.costates.keys():
-            if not self.costates[name_costate]['substituted']:
+            if not self.ports[self.costates[name_costate]['port']].substituted:
                 I = self.gf_model.interval_of_variable(name_costate)
                 id_alg = np.concatenate((id_alg, np.arange(I[0], I[0]+I[1], dtype=int)))
         id_alg.sort()
@@ -1363,7 +1367,7 @@ class port:
     It is mainly constituted of a flow variable, an effort variable, and a FEM
     """
     
-    def __init__(self, name, flow, effort, kind, mesh_id, algebraic, region):
+    def __init__(self, name, flow, effort, kind, mesh_id, algebraic, substituted, region):
         """
         Constructor of a `port` of a dpHs
         
@@ -1381,6 +1385,8 @@ class port:
         :type mesh_id: int
         :param algebraic: if `False`, the flow variable will be derivated in time at resolution
         :type algebraic: bool
+        :param substituted: if `True`, the constitutive relation is substituted and there is only a getfem variable for the effort
+        :type substituted: bool
         :param region: the int identifying the region in mesh_id where the port belong, useful for boundary ports
         :type region: int
         """
@@ -1392,6 +1398,7 @@ class port:
         self.kind = kind #: The type of the variables (e.g. `scalar-field`)
         self.mesh_id = mesh_id #: The id of the mesh where the variables belong
         self.algebraic = algebraic #: If `True`, the equation associated to this port is algebraic, otherwise dynamic and the flow is derivated in time at resoltuion
+        self.substituted = substituted #: If `True, the getfem `Model` will only have an unknown variable for the effort: the constitutive relation is substituted into the mass matrix on the flow side
         self.parameters = dict() #: A dict of parameters acting on the variables of the `port`
         self.FEM = None #: A getfem MeshFem object to discretize the `port`
         self.region = region #: If any, the int of the region of mesh_id where the flow/effort variables belong

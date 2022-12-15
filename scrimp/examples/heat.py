@@ -18,7 +18,7 @@ def heat():
     """
     A structure-preserving discretization of the heat equation with boundary control
     
-    Formulation co-energy (constitutive relation from variational derivativeof H is substituted),
+    Formulation co-energy (constitutive relation from variational derivative of H is substituted),
     Lyapunov L^2 functional, Div-Div, Mixed boundary condition on the Rectangle
     """
     
