@@ -145,14 +145,14 @@ def wave():
     ## Post-processing
     
     # Plot the Hamiltonian with the power supplied at the boundary
-    wave.plot_Hamiltonian(with_powers=True)
+    wave.plot_Hamiltonian()
     
     # Export solutions for ParaView
     wave.export_to_pv('q')
     wave.export_to_pv('p')
     
     # Plot the matrices representing the Dirac structure
-    wave.spy_Dirac()
+    # wave.spy_Dirac()
     
     return wave # For consol use
 

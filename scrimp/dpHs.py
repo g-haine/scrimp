@@ -18,9 +18,11 @@ import os
 import sys
 import time
 import getfem as gf
+
 import petsc4py
 petsc4py.init()
 from petsc4py import PETSc
+comm = PETSc.COMM_WORLD
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -60,13 +62,13 @@ class dpHs:
         self.Hamiltonian_computed = False #: Top check if the Hamiltonian terms have been computed
         self.powers = dict() #: Store the computations of the powers f(t)*e(t) on each algebraic port
         self.powers_computed = False #: To check if the powers have been computed
-        self.tangent_mass = PETSc.Mat().create() #: Tangent (non-linear + linear) mass matrix of the system in PETSc CSR format
-        self.nl_mass = PETSc.Mat().create() #: Non-linear mass matrix of the system in PETSc CSR format
-        self.mass = PETSc.Mat().create() #: Linear mass matrix of the system in PETSc CSR format
-        self.tangent_stiffness = PETSc.Mat().create() #: Tangent (non-linear + linear) stiffness matrix of the system in PETSc CSR format
-        self.nl_stiffness = PETSc.Mat().create() #: Non-linear stiffness matrix of the system in PETSc CSR format
-        self.stiffness = PETSc.Mat().create() #: Linear stiffness matrix of the system in PETSc CSR format
-        self.rhs = PETSc.Vec().create() #: rhs of the system in PETSc Vec
+        self.tangent_mass = PETSc.Mat().create(comm=comm) #: Tangent (non-linear + linear) mass matrix of the system in PETSc CSR format
+        self.nl_mass = PETSc.Mat().create(comm=comm) #: Non-linear mass matrix of the system in PETSc CSR format
+        self.mass = PETSc.Mat().create(comm=comm) #: Linear mass matrix of the system in PETSc CSR format
+        self.tangent_stiffness = PETSc.Mat().create(comm=comm) #: Tangent (non-linear + linear) stiffness matrix of the system in PETSc CSR format
+        self.nl_stiffness = PETSc.Mat().create(comm=comm) #: Non-linear stiffness matrix of the system in PETSc CSR format
+        self.stiffness = PETSc.Mat().create(comm=comm) #: Linear stiffness matrix of the system in PETSc CSR format
+        self.rhs = PETSc.Vec().create(comm=comm) #: rhs of the system in PETSc Vec
         self.initial_value_setted = dict() #: To check if the initial values have been setted before time-resolution
         self.time_scheme['isset'] = False #: To check if the PETSc TS time-integration parameters have been setted before time-integration
         self.ts_start = 0 #: For monitoring time in TS resolution
@@ -74,9 +76,9 @@ class dpHs:
         self.solution['t'] = list() #: Time t where the solution have been saved
         self.solution['z'] = list() #: Solution z at time t
         self.solve_done = False #: To check if the system has been solved
-        self.F = PETSc.Vec().create() #: A PETSc Vec for residual computation
-        self.J = PETSc.Mat().create() #: A PETSc Mat for Jacobian computation
-        self.buffer = PETSc.Vec().create() #: A PETSc Vec buffering computation
+        self.F = PETSc.Vec().create(comm=comm) #: A PETSc Vec for residual computation
+        self.J = PETSc.Mat().create(comm=comm) #: A PETSc Mat for Jacobian computation
+        self.buffer = PETSc.Vec().create(comm=comm) #: A PETSc Vec buffering computation
         
         self.gf_model = gf.Model(basis_field) #: A getfem `Model` object that is use as core for the dpHs
         self.gf_model.add_initialized_data('t', 0., sizes=1) #: Says to getfem that the `Model` is time-dependent
@@ -94,7 +96,7 @@ class dpHs:
         Define the object 'domain' of the pHs,
         either manually or using built_in geometries
         
-        !TO DO: If not built_in, given from a script 'name.py' with args in the dict 'parameters'
+        !TO DO: If not built_in, given from a script 'name.py' or a .geo file with args in the dict 'parameters'
         should be able to handle several meshes e.g. for interconnections, hence the list type
         
         :param name: id of the domain, either for built in, or user-defined auxiliary script
@@ -145,7 +147,7 @@ class dpHs:
         
         self.states[name] = {'description': description,
                              'kind': kind,
-                             'region': None,
+                             'region': region,
                              'mesh_id': mesh_id, 
                              'costate': None, 
                              'port': None}
@@ -287,8 +289,6 @@ class dpHs:
             else:
                 self.gf_model.add_fem_variable(self.ports[name_port].effort, 
                                                self.ports[name_port].FEM)
-        else:
-            self.initial_value_setted[self.ports[name_port].flow] = False # If the port is dynamic, the state needs initialization for time-resolution
             
         # If the port is dynamic and the co-state is not substituted, the co-state must be added as an unknown variable
         if self.ports[name_port].effort in self.costates.keys():
@@ -301,6 +301,10 @@ class dpHs:
                 else:
                     self.gf_model.add_fem_variable(self.ports[name_port].effort, 
                                                    self.ports[name_port].FEM)
+        
+        # If the port is dynamic, the state needs initialization for time-resolution
+        if not self.ports[name_port].algebraic:
+            self.initial_value_setted[self.ports[name_port].flow] = False
     
     def add_parameter(self, name, description, kind, expression, name_port):
         """
@@ -344,9 +348,15 @@ class dpHs:
         :return: evaluate the parameter's expression in the FEM of the `port` name_port and add it to the getfem `Model`
         """
         
-        self.ports[name_port].init_parameter(name, self.ports[name_port].parameters[name]['expression'])
+        evaluation = self.ports[name_port].init_parameter(name, self.ports[name_port].parameters[name]['expression'])
+        
+        sizes = None
+        if self.ports[name_port].parameters[name]['kind']=='tensor-field':
+            sizes = evaluation.shape[0]
+        
         self.gf_model.add_initialized_fem_data(name, self.ports[name_port].FEM, 
-                                               self.ports[name_port].parameters[name]['FEM_eval'])
+                                               evaluation, sizes=sizes)
+        print('Parameter', name, 'has been initialized with the FEM of port', name_port)
         
     def set_initial_value(self, name_variable, expression):
         """
@@ -366,8 +376,28 @@ class dpHs:
         else:
             raise ValueError('Variable', name_variable, 'does not need initialization')
         
-        FEM = self.gf_model.mesh_fem_of_variable(name_variable)
-        self.set_from_vector(name_variable, FEM.eval(expression, globals(), locals()))
+        evaluation = self.gf_model.mesh_fem_of_variable(name_variable).eval(expression, globals(), locals())
+        
+        initial_value = None
+        for name_port in self.ports.keys():
+            if name_variable==self.ports[name_port].flow or name_variable==self.ports[name_port].effort:
+                if self.ports[name_port].region==None:
+                    initial_value = evaluation
+                else:
+                    nb_dofs_total = self.ports[name_port].FEM.nbdof()
+                    dofs_on_region = self.ports[name_port].FEM.basic_dof_on_region(self.ports[name_port].region)
+                    qdim = self.ports[name_port].FEM.qdim()
+                    size = dofs_on_region.shape[0]
+                    shape = (qdim,int(size/qdim))
+                    evaluation_long = np.reshape(evaluation, (nb_dofs_total,))
+                    initial_value_long = evaluation_long[dofs_on_region]
+                    initial_value = np.reshape(initial_value_long, shape)
+                continue
+        
+        if initial_value.all()==None:
+                raise ValueError(name_variable,'can not be found in ports')
+        
+        self.set_from_vector(name_variable, initial_value)
         self.initial_value_setted[name_variable] = True
         print('Variable', name_variable, 'has been initialized with:', expression)
         
@@ -469,7 +499,7 @@ class dpHs:
         else:
             raise ValueError('Position', position, 'is not available for control port')
 
-        self.add_port(name, flow, effort, kind, mesh_id, algebraic=True, region=region)
+        self.add_port(name, flow, effort, kind, mesh_id, algebraic=True, substituted=False, region=region)
         self.controls[name] = {'name_control': name_control,
                                'description_control': description_control,
                                'name_observation': name_observation,
@@ -792,19 +822,21 @@ class dpHs:
         # We add indices of all algebraic ports
         for name_port in self.ports.keys():
             if self.ports[name_port].algebraic:
+                I = self.gf_model.interval_of_variable(self.ports[name_port].flow)
+                id_alg = np.concatenate((id_alg, np.arange(I[0], I[0]+I[1], dtype=int)))
+                # If it is not substituted, it also has the effort part
                 if not self.ports[name_port].substituted:
-                    I = self.gf_model.interval_of_variable(self.ports[name_port].flow)
+                    I = self.gf_model.interval_of_variable(self.ports[name_port].effort)
                     id_alg = np.concatenate((id_alg, np.arange(I[0], I[0]+I[1], dtype=int)))
-                I = self.gf_model.interval_of_variable(self.ports[name_port].effort)
-                id_alg = np.concatenate((id_alg, np.arange(I[0], I[0]+I[1], dtype=int)))
-        # If costate are not substituted, we also add them
-        for name_costate in self.costates.keys():
-            if not self.ports[self.costates[name_costate]['port']].substituted:
-                I = self.gf_model.interval_of_variable(name_costate)
-                id_alg = np.concatenate((id_alg, np.arange(I[0], I[0]+I[1], dtype=int)))
+            # Else on dynamical ports
+            else:
+            # If costate are not substituted, we also add them
+                if not self.ports[name_port].substituted:
+                    I = self.gf_model.interval_of_variable(self.ports[name_port].effort)
+                    id_alg = np.concatenate((id_alg, np.arange(I[0], I[0]+I[1], dtype=int)))
         id_alg.sort()
         atol_v[id_alg] = np.inf
-        atol_v_petsc = PETSc.Vec().createWithArray(np.zeros(self.gf_model.nbdof(),))
+        atol_v_petsc = PETSc.Vec().createWithArray(np.zeros(self.gf_model.nbdof(),), comm=comm)
         atol_v_petsc.setArray(atol_v)
         TS.setTolerances(atol=atol_v_petsc)
     
@@ -855,7 +887,7 @@ class dpHs:
             self.init_step()
         
         # TS
-        TS = PETSc.TS().create()
+        TS = PETSc.TS().create(comm=comm)
         monitor = lambda TS, i, t, z: self.monitor(TS, i, t, z, 
                                                    dt_save=float(self.time_scheme['dt_save']), 
                                                    t_0=float(self.time_scheme['t_0']))
@@ -870,7 +902,7 @@ class dpHs:
         # TS.setExactFinalTime(PETSc.TS.ExactFinalTime.MATCHSTEP)
         TS.setFromOptions()
         self.exclude_algebraic_var_from_lte(TS)
-        TS.solve(PETSc.Vec().createWithArray(self.gf_model.from_variables()))
+        TS.solve(PETSc.Vec().createWithArray(self.gf_model.from_variables(), comm=comm))
         
         print(f"Elapsed time: {time.time()-self.ts_start:1.4g}s")
         print(f"Steps: {TS.getStepNumber()} ({TS.getStepRejections()} rejected, {TS.getSNESFailures()} Nonlinear solver failures)")
@@ -893,7 +925,7 @@ class dpHs:
         """
         
         # TS
-        TS = PETSc.TS().create()
+        TS = PETSc.TS().create(comm=comm)
         monitor = lambda TS, i, t, z: self.monitor(TS, i, t, z, 
                                                    dt_save=1., 
                                                    t_0=float(self.time_scheme['t_0']),
@@ -925,7 +957,7 @@ class dpHs:
         self.exclude_algebraic_var_from_lte(TS)
         
         print('Perform an initial step using pseudo bdf scheme for initial value consistency')
-        TS.solve(PETSc.Vec().createWithArray(self.gf_model.from_variables()))
+        TS.solve(PETSc.Vec().createWithArray(self.gf_model.from_variables(), comm=comm))
         print(f"Initialisation done in {time.time()-self.ts_start:1.4g}s")
         TS.reset()
         TS.destroy()
@@ -1076,15 +1108,15 @@ class dpHs:
     
     def compute_powers(self):
         """
-        Compute each power associated to each algebraic port
+        Compute each power associated to each algebraic port if it is not substituted (because of the parameter-dependency if it is)
         """
         
         assert self.solve_done, ('System has not been solved yet, powers can not be computed')
         
-        print('Start computing the powers')
+        print('Start computing the powers (substituted ports are not automated)')
         start = time.time()
         for name_port in self.ports.keys(): 
-            if self.ports[name_port].algebraic:
+            if self.ports[name_port].algebraic and not self.ports[name_port].substituted:
                 if self.ports[name_port].region==None:
                     region = -1
                 else:
@@ -1163,7 +1195,13 @@ class dpHs:
                     SP_balance += power
 
         if HamTot is not None:
-            ax.plot(t, SP_balance, '--', label='Balance')
+            # Check if the balance makes sense: should not have algebraic and substituted port
+            check_makes_sense = True
+            for name_port in self.ports.keys():
+                if self.ports[name_port].algebraic and self.ports[name_port].substituted:
+                    check_makes_sense = False
+            if check_makes_sense:
+                ax.plot(t, SP_balance, '--', label='Balance')
         
         if need_to_set_figure:
             ax.legend()
@@ -1186,7 +1224,7 @@ class dpHs:
         if not state==None:
             self.gf_model.to_variables(state)
         else:
-            self.gf_model.to_variables(PETSc.Vec().createWithArray(np.zeros(self.gf_model.nbdof(),)))
+            self.gf_model.to_variables(PETSc.Vec().createWithArray(np.zeros(self.gf_model.nbdof(),), comm=comm))
         
         size = self.gf_model.nbdof()
         M = 0
@@ -1244,7 +1282,11 @@ class dpHs:
             path = os.path.join(set_default_path(),name_variable)
             if not os.path.exists(path):
                 os.makedirs(path)
-            
+        
+        # Get the dofs of name_variable
+        I = self.gf_model.interval_of_variable(name_variable)
+        J = range(I[0],I[0]+I[1])
+        
         if t=='All':
             sys.stdout.write('Export all time values of '+name_variable+' is starting...\n')
             with open(os.path.join(path,name_variable+'.pvd'), 'w') as pvd_file:
@@ -1252,10 +1294,9 @@ class dpHs:
                 pvd_file.write('<VTKFile type="Collection" version="0.1">\n')
                 pvd_file.write('  <Collection>\n')
                 for k in range(len(self.solution['t'])):
-                    self.gf_model.to_variables(self.solution['z'][k])
-                    z = self.gf_model.variable(name_variable)
+                    z = self.solution['z'][k][J]
                     FEM = self.gf_model.mesh_fem_of_variable(name_variable)
-                    FEM.export_to_vtu(os.path.join(path,name_variable+f'_{k:05d}.vtu'),
+                    FEM.export_to_vtu(os.path.join(path,name_variable+f'_{k:05d}.vtu'), 'ascii',
                                       FEM, z, name_variable)
                     pvd_file.write('    <DataSet timestep="'+str(self.solution['t'][k])+'" file="'+name_variable+f'_{k:05d}.vtu'+'" />\n')
                     sys.stdout.write("\rExport time %f" % self.solution['t'][k])
@@ -1266,16 +1307,14 @@ class dpHs:
             sys.stdout.write('\rExport is done              \n')
         elif t=='Init':
             print('Export initial value of', name_variable)
-            self.gf_model.to_variables(self.solution['z'][0])
-            z = self.gf_model.variable(name_variable)
+            z = self.solution['z'][0][J]
             FEM = self.gf_model.mesh_fem_of_variable(name_variable)
-            FEM.export_to_vtu(os.path.join(path,name_variable+'_init.vtu'),FEM,z,name_variable)
+            FEM.export_to_vtu(os.path.join(path,name_variable+'_init.vtu'),'ascii',FEM,z,name_variable)
         elif t=='Final':
             print('Export final value of', name_variable)
-            self.gf_model.to_variables(self.solution['z'][-1])
-            z = self.gf_model.variable(name_variable)
+            z = self.solution['z'][-1][J]
             FEM = self.gf_model.mesh_fem_of_variable(name_variable)
-            FEM.export_to_vtu(os.path.join(path,name_variable+'_final.vtu'),FEM,z,name_variable)
+            FEM.export_to_vtu(os.path.join(path,name_variable+'_final.vtu'),'ascii',FEM,z,name_variable)
         else:
             raise ValueError('t must be `All`, `Init` or `Final`. Unknown value:', t)
         
@@ -1341,7 +1380,7 @@ class domain:
                                                  gf.Integ('IM_TRIANGLE(7)')))
             elif self.dim[k] == 3:
                 self.int_method.append(gf.MeshIm(self.mesh[k], 
-                                                 gf.Integ('IM_TETRAHEDRON(5)')))
+                                                 gf.Integ('IM_TETRAHEDRON(8)')))
             else:
                 self.isset = False
                 print('Integration method has to be setted manually on mesh', k,' of dimension', self.dim[k])
@@ -1421,21 +1460,19 @@ class port:
         :return: set a MeshFem object on the mesh where the variables belong
         """
         
-        self.FEM = gf.MeshFem(mesh, dim)
         if FEM=='CG':
             FEM_str = 'FEM_PK('+str(mesh.dim())+','+str(order)+')'
-            self.FEM.set_fem(gf.Fem(FEM_str))
-            self.isset = True
-            print(FEM_str, 'has been setted for port', self.name)
-            self.FEM.display()
         elif FEM=='DG':
             FEM_str = 'FEM_PK_DISCONTINUOUS('+str(mesh.dim())+','+str(order)+')'
-            self.FEM.set_fem(gf.Fem(FEM_str))
-            self.isset = True
-            print(FEM_str, 'has been setted for port', self.name)
-            self.FEM.display()
         else:
             raise ValueError('Unknown FEM '+FEM+' for port '+self.name+'\nUse the gf_model `Model` attribute to set it directly')
+        
+        self.FEM = gf.MeshFem(mesh, dim)
+        self.FEM.set_fem(gf.Fem(FEM_str))
+        
+        self.isset = True
+        print(FEM_str, 'has been setted for port', self.name)
+        self.FEM.display()
 
     def add_parameter(self, name, description, kind, expression):
         """
@@ -1458,10 +1495,10 @@ class port:
         """
         
         self.parameters[name] = {'description': description,
-            'kind': kind,
-            'expression': expression,
-            'name_port': self.name,
-            'FEM_eval': None}
+                                 'kind': kind,
+                                 'expression': expression,
+                                 'name_port': self.name
+                                 }
         print('A parameter', name, ', describing \'', description, '\', of type', kind, 'has been added to port \'', self.name, '\'')
 
     def init_parameter(self, name, expression):
@@ -1475,15 +1512,18 @@ class port:
         :param expression: the expression in getfem syntax
         :type expression: str
         
-        :return: make the evaluation of the parameter in the FEM of the `port`
+        :return: the evaluation of the parameter in the FEM of the `port`
+        :rtype: numpy array
         """
         
         assert self.isset, ('A FEM must be setted for port \'', self.name, '\' before initialization')
         
         assert name in self.parameters.keys(), ('Parameter', name, 'must be added before intialization')
         
-        self.parameters[name]['FEM_eval'] = self.FEM.eval(expression, globals(), locals())
-        print('Parameter', name, 'has been initialized with the FEM of port \'', self.parameters[name]['name_port'], '\', with expression:', expression)
+        evaluation = self.FEM.eval(expression, globals(), locals())
+        print('Parameter', name, 'has been evaluated with the FEM of port \'', self.parameters[name]['name_port'], '\', with expression:', expression)
+
+        return evaluation
 
     def display(self):
         """

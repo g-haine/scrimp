@@ -107,7 +107,7 @@ def heat():
     ## Solve in time
     
     # Define the time scheme (default ts_type='cn', t_f=1, dt=0.01, etc.)
-    heat.set_time_scheme(t_f=1, dt=0.01)
+    heat.set_time_scheme(t_f=1, dt=0.01, pc_type='jacobi')
     
     # Solve
     heat.solve()

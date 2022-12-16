@@ -15,10 +15,13 @@
 """
 
 import getfem as gf
+import petsc4py
+petsc4py.init()
 from petsc4py import PETSc
+comm = PETSc.COMM_WORLD
 import scipy.sparse as sp
 
-def extract_gmm_to_petsc(I, J, M, comm=None):
+def extract_gmm_to_petsc(I, J, M, comm=comm):
     """
     Extract a sub-matrix A from M, on interval I, J
     
@@ -49,7 +52,8 @@ def extract_gmm_to_petsc(I, J, M, comm=None):
     data = A.csc_val()
     
     B = PETSc.Mat().createAIJ(size=[I[1],J[1]], csr=(indptr,indices,data), comm=comm)
-    
+    B.setOption(PETSc.Mat.Option.FORCE_DIAGONAL_ENTRIES, True)
+    B.setUp()
     B.assemble()
     
     return B

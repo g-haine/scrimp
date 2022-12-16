@@ -98,7 +98,7 @@ def shallow_water():
     # We define the time scheme to use (this step may be skipped, a default time-experience is then used)
     swe.set_time_scheme(ts_type='cn', ksp_type='preonly', 
                         pc_type='lu', #pc_factor_mat_solver_type='mumps',
-                        t_0=0., t_f=3., dt=0.01, dt_save=0.01, init_step=True)
+                        t_0=0., t_f=0.5, dt=0.01, dt_save=0.01, init_step=True)
     
     # Solve the system in time
     swe.solve()
