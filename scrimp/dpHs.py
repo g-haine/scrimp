@@ -381,7 +381,7 @@ class dpHs:
         initial_value = None
         for name_port in self.ports.keys():
             if name_variable==self.ports[name_port].flow or name_variable==self.ports[name_port].effort:
-                if self.ports[name_port].region==None:
+                if self.ports[name_port].region is None:
                     initial_value = evaluation
                 else:
                     nb_dofs_total = self.ports[name_port].FEM.nbdof()
@@ -394,7 +394,7 @@ class dpHs:
                     initial_value = np.reshape(initial_value_long, shape)
                 continue
         
-        if initial_value.all()==None:
+        if initial_value.all() is None:
                 raise ValueError(name_variable,'can not be found in ports')
         
         self.set_from_vector(name_variable, initial_value)
@@ -1117,7 +1117,7 @@ class dpHs:
         start = time.time()
         for name_port in self.ports.keys(): 
             if self.ports[name_port].algebraic and not self.ports[name_port].substituted:
-                if self.ports[name_port].region==None:
+                if self.ports[name_port].region is None:
                     region = -1
                 else:
                     region = self.ports[name_port].region
@@ -1216,12 +1216,12 @@ class dpHs:
         !TO DO: improve a lot with position of bricks and no constitutive relations!!!
         """
         
-        if not t==None:
+        if t is not None:
             self.gf_model.set_time(t)
         else:
             self.gf_model.set_time(0.)
         
-        if not state==None:
+        if state is not None:
             self.gf_model.to_variables(state)
         else:
             self.gf_model.to_variables(PETSc.Vec().createWithArray(np.zeros(self.gf_model.nbdof(),), comm=comm))
@@ -1256,7 +1256,7 @@ class dpHs:
         !TO DO:
         """
         
-        if path==None:
+        if path is None:
             path = set_default_path()
                 
         
