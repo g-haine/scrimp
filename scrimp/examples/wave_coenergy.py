@@ -10,7 +10,7 @@
 - file:             examples/wave_coenergy.py
 - author:           Ghislain Haine
 - date:             15 dec. 2022
-- last modified:    16 dec. 2022
+- last modified:    24 jan. 2023
 - brief:            wave system
 """
 
@@ -90,7 +90,7 @@ def wave_coenergy():
     
     ## Initialize the problem
     
-    # Set the control functions (automatic construction of bricks such that -M_u u + f(t) = 0)
+    # Set the control functions (automatic construction of bricks such that -M u + f(t) = 0)
     # Output feedback: be aware that Y is the -y "written on paper", care must be taken for the sign!
     wave.set_control('Boundary control', '0.005*Y')
     

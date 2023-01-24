@@ -534,8 +534,8 @@ class dpHs:
             raise ValueError('Unknown kind', self.controls[name]['kind'], 'for control port')
         
         u = self.controls[name]['name_control']
-        
         mass_form = u+times+'Test_'+u # form of the mass matrix for the control variable
+        
         self.add_brick('M_'+u, mass_form, [self.controls[name]['region']], linear=True, dt=False, position='constitutive', mesh_id=self.controls[name]['mesh_id'])
         
         # Construct the form
@@ -549,7 +549,7 @@ class dpHs:
                                     'regions': [self.controls[name]['region']],
                                     'linear': False,
                                     'dt': False,
-                                    'position': 'source'}
+                                    'position': 'constitutive'}
         
         print('Control function has been setted to', u, '=', expression, 'on region', self.controls[name]['region'], 'of mesh', self.controls[name]['mesh_id'])
         self.controls[name]['isset'] = True
@@ -787,7 +787,7 @@ class dpHs:
             self.time_scheme['ts_type'] = 'cn'
             
         if not self.time_scheme.hasName('ksp_type'):
-            self.time_scheme['ksp_type'] = 'gmres'
+            self.time_scheme['ksp_type'] = 'preonly'
             
         if not self.time_scheme.hasName('pc_type'):
             self.time_scheme['pc_type'] = 'lu'

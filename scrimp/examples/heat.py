@@ -10,7 +10,7 @@
 - file:             examples/heat.py
 - author:           Ghislain Haine
 - date:             05 dec. 2022
-- last modified:    12 dec. 2022
+- last modified:    24 jan. 2023
 - brief:            heat system
 """
 
@@ -85,6 +85,7 @@ def heat():
     heat.add_brick('C_B', 'e_Q.Normal*Test_Y_B', [10], position='effort')
     heat.add_brick('C_R', 'e_Q.Normal*Test_Y_R', [11], position='effort')
     heat.add_brick('C_T', 'e_Q.Normal*Test_Y_T', [12], position='effort')
+    # Normal trace is imposed by Lagrange multiplier on the left side == the collocated output
     heat.add_brick('C_L', 'e_Q.Normal*Test_Y_L', [13], position='effort')
     
     ## Define the constitutive relations as getfem `brick`
@@ -95,11 +96,11 @@ def heat():
     
     ## Initialize the problem
     
-    # Set the control functions (automatic construction of bricks such that -M_u u + f(t) = 0)
-    heat.set_control('Boundary control (bottom)', 't')
-    heat.set_control('Boundary control (right)', 't')
-    heat.set_control('Boundary control (top)', 't')
-    heat.set_control('Boundary control (left)', '0.2')
+    # Set the control functions (automatic construction of bricks such that -M u + f(t) = 0)
+    heat.set_control('Boundary control (bottom)', '0')
+    heat.set_control('Boundary control (right)', '0')
+    heat.set_control('Boundary control (top)', '0')
+    heat.set_control('Boundary control (left)', '-0.5')
     
     # Set the initial data
     heat.set_initial_value('T', 'np.exp(-50*((x-1)*(x-1)+(y-0.5)*(y-0.5))**2)')
@@ -107,7 +108,7 @@ def heat():
     ## Solve in time
     
     # Define the time scheme (default ts_type='cn', t_f=1, dt=0.01, etc.)
-    heat.set_time_scheme(t_f=1, dt=0.01, pc_type='jacobi')
+    heat.set_time_scheme(t_f=1, dt=0.01)
     
     # Solve
     heat.solve()

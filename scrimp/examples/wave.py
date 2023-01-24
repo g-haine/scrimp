@@ -10,7 +10,7 @@
 - file:             examples/wave.py
 - author:           Ghislain Haine
 - date:             22 nov. 2022
-- last modified:    12 dec. 2022
+- last modified:    24 jan. 2023
 - brief:            wave system
 
 !TO DO: Correct Lagrange multiplier assignement
@@ -108,6 +108,7 @@ def wave():
     wave.add_brick('C_B', '-e_p*Test_Y_B', [10], position='effort')
     wave.add_brick('C_R', '-e_p*Test_Y_R', [11], position='effort')
     wave.add_brick('C_T', '-e_p*Test_Y_T', [12], position='effort')
+    # The Dirichlet term is applied via Lagrange multiplier == the colocated output
     wave.add_brick('C_L', '-e_p*Test_Y_L', [13], position='effort')
     
     ## Define the constitutive relations as getfem `brick`
@@ -126,9 +127,9 @@ def wave():
     
     ## Initialize the problem
     
-    # Set the control functions (automatic construction of bricks such that -M_u u + f(t) = 0)
+    # Set the control functions (automatic construction of bricks such that -M u + f(t) = 0)
     wave.set_control('Boundary control (bottom)', '0.')
-    wave.set_control('Boundary control (right)', '0.')
+    wave.set_control('Boundary control (right)', 'log(t+1)*y*(1.-y)')
     wave.set_control('Boundary control (top)', '0.')
     wave.set_control('Boundary control (left)', '0.1*sin(2.*t)*sin(4*pi*y)')
     
