@@ -1,6 +1,6 @@
 # SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
 #
-# Copyright (C) 2015-2022 Ghislain Haine
+# Copyright (C) 2015-2023 Ghislain Haine
 #
 # See the LICENSE file in the root directory for license information.
 #
@@ -12,6 +12,8 @@
 - date:             22 nov. 2022
 - last modified:    12 dec. 2022
 - brief:            wave system
+
+!TO DO: Correct Lagrange multiplier assignement
 """
 
 def wave():
@@ -137,7 +139,9 @@ def wave():
     ## Solve in time
     
     # Define the time scheme (default ts_type='cn', t_f=1, dt=0.01, etc.)
-    wave.set_time_scheme(t_f=2., dt=0.01, dt_save=0.01)
+    wave.set_time_scheme(ts_type='cn', init_step=True,
+                         t_f=2., dt=0.01, dt_save=0.01,
+                         ksp_type='preonly')
     
     # Solve
     wave.solve()

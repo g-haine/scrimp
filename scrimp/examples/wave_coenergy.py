@@ -1,6 +1,6 @@
 # SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
 #
-# Copyright (C) 2015-2022 Ghislain Haine
+# Copyright (C) 2015-2023 Ghislain Haine
 #
 # See the LICENSE file in the root directory for license information.
 #
@@ -29,8 +29,8 @@ def wave_coenergy():
     # Init the distributed port-Hamiltonian system
     wave = dpHs('real')
     
-    # Set the domain (using the built-in geometry `Rectangle`)
-    # Omega = 1, Gamma_Bottom = 10, Gamma_Right = 11, Gamma_Top = 12, Gamma_Left = 13
+    # Set the domain (using the built-in geometry `Concentric`)
+    # Omega_in = 1, Omega_out = 2, Interface = 10, Gamma = 20
     wave.set_domain('Concentric', {'R': 1., 'r': 0.6, 'h': 0.15})
     
     ## Define the variables and their discretizations

@@ -1,6 +1,6 @@
 # SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
 #
-# Copyright (C) 2015-2022 Ghislain Haine
+# Copyright (C) 2015-2023 Ghislain Haine
 #
 # See the LICENSE file in the root directory for license information.
 #
@@ -20,9 +20,10 @@ import time
 import getfem as gf
 
 import petsc4py
-petsc4py.init()
+petsc4py.init(sys.argv)
 from petsc4py import PETSc
-comm = PETSc.COMM_WORLD
+# // attempt gives strange results
+# comm = PETSc.COMM_WORLD
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -62,13 +63,13 @@ class dpHs:
         self.Hamiltonian_computed = False #: Top check if the Hamiltonian terms have been computed
         self.powers = dict() #: Store the computations of the powers f(t)*e(t) on each algebraic port
         self.powers_computed = False #: To check if the powers have been computed
-        self.tangent_mass = PETSc.Mat().create(comm=comm) #: Tangent (non-linear + linear) mass matrix of the system in PETSc CSR format
-        self.nl_mass = PETSc.Mat().create(comm=comm) #: Non-linear mass matrix of the system in PETSc CSR format
-        self.mass = PETSc.Mat().create(comm=comm) #: Linear mass matrix of the system in PETSc CSR format
-        self.tangent_stiffness = PETSc.Mat().create(comm=comm) #: Tangent (non-linear + linear) stiffness matrix of the system in PETSc CSR format
-        self.nl_stiffness = PETSc.Mat().create(comm=comm) #: Non-linear stiffness matrix of the system in PETSc CSR format
-        self.stiffness = PETSc.Mat().create(comm=comm) #: Linear stiffness matrix of the system in PETSc CSR format
-        self.rhs = PETSc.Vec().create(comm=comm) #: rhs of the system in PETSc Vec
+        self.tangent_mass = PETSc.Mat().create() #: Tangent (non-linear + linear) mass matrix of the system in PETSc CSR format
+        self.nl_mass = PETSc.Mat().create() #: Non-linear mass matrix of the system in PETSc CSR format
+        self.mass = PETSc.Mat().create() #: Linear mass matrix of the system in PETSc CSR format
+        self.tangent_stiffness = PETSc.Mat().create() #: Tangent (non-linear + linear) stiffness matrix of the system in PETSc CSR format
+        self.nl_stiffness = PETSc.Mat().create() #: Non-linear stiffness matrix of the system in PETSc CSR format
+        self.stiffness = PETSc.Mat().create() #: Linear stiffness matrix of the system in PETSc CSR format
+        self.rhs = PETSc.Vec().create() #: rhs of the system in PETSc Vec
         self.initial_value_setted = dict() #: To check if the initial values have been setted before time-resolution
         self.time_scheme['isset'] = False #: To check if the PETSc TS time-integration parameters have been setted before time-integration
         self.ts_start = 0 #: For monitoring time in TS resolution
@@ -76,9 +77,9 @@ class dpHs:
         self.solution['t'] = list() #: Time t where the solution have been saved
         self.solution['z'] = list() #: Solution z at time t
         self.solve_done = False #: To check if the system has been solved
-        self.F = PETSc.Vec().create(comm=comm) #: A PETSc Vec for residual computation
-        self.J = PETSc.Mat().create(comm=comm) #: A PETSc Mat for Jacobian computation
-        self.buffer = PETSc.Vec().create(comm=comm) #: A PETSc Vec buffering computation
+        self.F = PETSc.Vec().create() #: A PETSc Vec for residual computation
+        self.J = PETSc.Mat().create() #: A PETSc Mat for Jacobian computation
+        self.buffer = PETSc.Vec().create() #: A PETSc Vec buffering computation
         
         self.gf_model = gf.Model(basis_field) #: A getfem `Model` object that is use as core for the dpHs
         self.gf_model.add_initialized_data('t', 0., sizes=1) #: Says to getfem that the `Model` is time-dependent
@@ -383,6 +384,7 @@ class dpHs:
             if name_variable==self.ports[name_port].flow or name_variable==self.ports[name_port].effort:
                 if self.ports[name_port].region is None:
                     initial_value = evaluation
+                # Handle restriction to a region
                 else:
                     nb_dofs_total = self.ports[name_port].FEM.nbdof()
                     dofs_on_region = self.ports[name_port].FEM.basic_dof_on_region(self.ports[name_port].region)
@@ -614,8 +616,13 @@ class dpHs:
                     self.gf_model.enable_bricks(k)
     
         self.gf_model.assembly(option='build_rhs')
-        self.rhs = PETSc.Vec().createWithArray(self.gf_model.rhs())
-    
+        # // attempt fives strange results
+        # Istart, Iend = self.rhs.getOwnershipRange()
+        # self.rhs.setValues(range(Istart,Iend), self.gf_model.rhs()[Istart:Iend],
+        #                    addv=PETSc.InsertMode.INSERT_VALUES)
+        self.rhs.setValues(range(self.gf_model.nbdof()), self.gf_model.rhs(),
+                           addv=PETSc.InsertMode.INSERT_VALUES)
+        
         for name in self.bricks.keys():
             # Disable again all bricks previously enabled
             if self.bricks[name]['position']=='source':
@@ -836,7 +843,7 @@ class dpHs:
                     id_alg = np.concatenate((id_alg, np.arange(I[0], I[0]+I[1], dtype=int)))
         id_alg.sort()
         atol_v[id_alg] = np.inf
-        atol_v_petsc = PETSc.Vec().createWithArray(np.zeros(self.gf_model.nbdof(),), comm=comm)
+        atol_v_petsc = PETSc.Vec().createWithArray(np.zeros(self.gf_model.nbdof(),))
         atol_v_petsc.setArray(atol_v)
         TS.setTolerances(atol=atol_v_petsc)
     
@@ -857,7 +864,7 @@ class dpHs:
         for name_control in self.controls.keys():
             assert self.controls[name_control]['isset'], ('Control', name_control, 'must be defined before time-resolution')
         
-        # Initialize time scheme options (without override)
+        # Initialize time scheme options (without override if already setted)
         self.set_time_scheme()
         
         # Load time scheme options to PETSc
@@ -877,17 +884,23 @@ class dpHs:
         self.J = self.tangent_stiffness.duplicate()
         self.J.assemble()
         
+        # // attempt gives strange results
+        # Istart, Iend = self.J.getOwnershipRange()
+        # self.rhs.setSizes((Iend-Istart, self.gf_model.nbdof()))
+        # self.rhs.setUp()
+        self.rhs.setSizes(self.gf_model.nbdof())
+        self.rhs.setUp()
         self.assemble_rhs()
         
-        self.F = self.tangent_mass.createVecRight()
-        self.buffer = self.tangent_mass.createVecRight()
+        self.F = self.rhs.duplicate()
+        self.buffer = self.rhs.duplicate()
         
         self.ts_start = time.time()
         if self.time_scheme['init_step']=='true': # Because PETSc DB store everything as str
             self.init_step()
         
         # TS
-        TS = PETSc.TS().create(comm=comm)
+        TS = PETSc.TS().create()
         monitor = lambda TS, i, t, z: self.monitor(TS, i, t, z, 
                                                    dt_save=float(self.time_scheme['dt_save']), 
                                                    t_0=float(self.time_scheme['t_0']))
@@ -902,7 +915,7 @@ class dpHs:
         # TS.setExactFinalTime(PETSc.TS.ExactFinalTime.MATCHSTEP)
         TS.setFromOptions()
         self.exclude_algebraic_var_from_lte(TS)
-        TS.solve(PETSc.Vec().createWithArray(self.gf_model.from_variables(), comm=comm))
+        TS.solve(PETSc.Vec().createWithArray(self.gf_model.from_variables()))
         
         print(f"Elapsed time: {time.time()-self.ts_start:1.4g}s")
         print(f"Steps: {TS.getStepNumber()} ({TS.getStepRejections()} rejected, {TS.getSNESFailures()} Nonlinear solver failures)")
@@ -925,7 +938,7 @@ class dpHs:
         """
         
         # TS
-        TS = PETSc.TS().create(comm=comm)
+        TS = PETSc.TS().create()
         monitor = lambda TS, i, t, z: self.monitor(TS, i, t, z, 
                                                    dt_save=1., 
                                                    t_0=float(self.time_scheme['t_0']),
@@ -957,7 +970,9 @@ class dpHs:
         self.exclude_algebraic_var_from_lte(TS)
         
         print('Perform an initial step using pseudo bdf scheme for initial value consistency')
-        TS.solve(PETSc.Vec().createWithArray(self.gf_model.from_variables(), comm=comm))
+        # // attempt gives strange results
+        # Istart, Iend = self.J.getOwnershipRange()
+        TS.solve(PETSc.Vec().createWithArray(self.gf_model.from_variables()))
         print(f"Initialisation done in {time.time()-self.ts_start:1.4g}s")
         TS.reset()
         TS.destroy()
@@ -1213,7 +1228,16 @@ class dpHs:
     
     def spy_Dirac(self, t=None, state=None):
         """
-        !TO DO: improve a lot with position of bricks and no constitutive relations!!!
+        Plot the spy structure of matrices M and J, at instant t with current state z
+        
+        !TO DO: To improve with position of bricks and removing constitutive relations blocks!!!
+        
+        :param t: the current time
+        :type t: float
+        :param state: the current state
+        :type state: PETSc Vec
+        
+        :returns: plots the spy structure (non-null values) of matrices M and J of the Dirac structure
         """
         
         if t is not None:
@@ -1224,7 +1248,7 @@ class dpHs:
         if state is not None:
             self.gf_model.to_variables(state)
         else:
-            self.gf_model.to_variables(PETSc.Vec().createWithArray(np.zeros(self.gf_model.nbdof(),), comm=comm))
+            self.gf_model.to_variables(PETSc.Vec().createWithArray(np.zeros(self.gf_model.nbdof(),)))
         
         size = self.gf_model.nbdof()
         M = 0
@@ -1246,6 +1270,8 @@ class dpHs:
                                             2, brick['form'], region, self.gf_model)
                     J += convert_PETSc_to_scipy(extract_gmm_to_petsc([0, size], [0, size], matrix))
         
+        self.disable_all_bricks()
+        
         pl.spy(M, markersize=0.2)
         pl.show()
         pl.spy(J, markersize=0.2)
@@ -1253,7 +1279,20 @@ class dpHs:
     
     def export_matrices(self, t=None, state=None, path=None, to='matlab'):
         """
-        !TO DO:
+        Export all matrices of the system, at current time t, current state z, to other software-readable format
+        
+        !TO DO: Everything has to be done
+        
+        :param t: the current time
+        :type t: float
+        :param state: the current state
+        :type state: PETSc Vec
+        :param path: the path where files have to be saved
+        :type path: str
+        :param to: the output format (e.g. `matlab`)
+        :type to: str
+        
+        :returns: save the matrices at time `t` and state `state` into a file readable by `to` located in `path`
         """
         
         if path is None:

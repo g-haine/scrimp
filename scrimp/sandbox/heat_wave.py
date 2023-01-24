@@ -1,6 +1,6 @@
 # SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
 #
-# Copyright (C) 2015-2022 Ghislain Haine
+# Copyright (C) 2015-2023 Ghislain Haine
 #
 # See the LICENSE file in the root directory for license information.
 #
@@ -12,6 +12,8 @@
 - date:             15 dec. 2022
 - last modified:    15 dec. 2022
 - brief:            a 2D coupled heat-wave system
+
+!TO DO: Correct Lagrange multiplier assignement
 """
 
 from scrimp import set_verbose_gf
@@ -25,31 +27,31 @@ hw.set_domain('Concentric', {'R': 1., 'r': 0.6, 'h': 0.1})
 
 hw.add_state('T', 'Temperature', 'scalar-field', region=1)
 hw.add_costate('T', 'Temperature', 'T', substituted=True)
-hw.add_FEM('T', 2, FEM='CG')
+hw.add_FEM('T', 1, FEM='CG')
 
 hw.add_port('Q', 'J_Q', 'J_Q', 'vector-field', 
             algebraic=True, substituted=True, region=1)
-hw.add_FEM('Q', 3, FEM='CG')
+hw.add_FEM('Q', 1, FEM='CG')
 
 hw.add_control_port('Interface Heat', 'U_T', 'Heat flux', 'Y_T', 'Temperature', 'scalar-field', 
                     region=10, position='flow')
-hw.add_FEM('Interface Heat', 2, FEM='CG')
+hw.add_FEM('Interface Heat', 1, FEM='CG')
 
 hw.add_state('p', 'Velocity', 'scalar-field', region=2)
 hw.add_costate('p', 'Velocity', 'p', substituted=True)
-hw.add_FEM('p', 2, FEM='CG')
+hw.add_FEM('p', 1, FEM='CG')
 
 hw.add_state('q', 'Stress', 'vector-field', region=2)
 hw.add_costate('q', 'Stress', 'q', substituted=True)
-hw.add_FEM('q', 3, FEM='CG')
+hw.add_FEM('q', 1, FEM='CG')
 
 hw.add_control_port('Interface Wave', 'U_w', 'Velocity', 'Y_w', 'Velocity', 'scalar-field', 
                     region=10, position='effort')
-hw.add_FEM('Interface Wave', 2, FEM='CG')
+hw.add_FEM('Interface Wave', 1, FEM='CG')
 
 hw.add_control_port('Boundary Wave', 'U_w_bnd', 'Velocity', 'Y_w_bnd', 'Velocity', 'scalar-field', 
                     region=20, position='effort')
-hw.add_FEM('Boundary Wave', 2, FEM='CG')
+hw.add_FEM('Boundary Wave', 1, FEM='CG')
 
 hw.add_parameter('rho_CV', 'Mass density times heat capacity', 'scalar-field', '1.', 'T')
 hw.add_parameter('Lambda_inv', 'Heat conductivity', 'tensor-field', '[[1., 0.],[0., 1.]]', 'Q')
@@ -85,15 +87,12 @@ hw.set_control('Interface Heat', 'Y_w')
 hw.set_control('Interface Wave', '-Y_T')
 hw.set_control('Boundary Wave', '0.')
 
-hw.set_initial_value('T', '5.*np.exp(-50*((x-0.6)*(x-0.6)+y*y))')
-hw.set_initial_value('p', '5.*np.exp(-50*((x-0.6)*(x-0.6)+y*y))')
+hw.set_initial_value('T', '5.*np.exp(-20*((x-0.6)*(x-0.6)+y*y))')
+hw.set_initial_value('p', '5.*np.exp(-20*((x-0.6)*(x-0.6)+y*y))')
 hw.set_initial_value('q', '[0.,0.]')
 
 hw.set_time_scheme(ts_type='cn',
-                   t_0=0., t_f=5, dt=0.01, 
-                   ksp_type='bcgs',
-                   pc_type='hypre',
-                   pc_hypre_type='euclid')
+                   t_0=0., t_f=0.5, dt=0.01)
 
 hw.solve()
 

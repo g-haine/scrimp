@@ -1,6 +1,6 @@
 # SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
 #
-# Copyright (C) 2015-2022 Ghislain Haine
+# Copyright (C) 2015-2023 Ghislain Haine
 #
 # See the LICENSE file in the root directory for license information.
 #

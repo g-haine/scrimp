@@ -1,6 +1,6 @@
 # SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
 #
-# Copyright (C) 2015-2022 Ghislain Haine
+# Copyright (C) 2015-2023 Ghislain Haine
 #
 # See the LICENSE file in the root directory for license information.
 #
@@ -14,14 +14,16 @@
 - brief:            linear algebra functions
 """
 
+import sys
 import getfem as gf
 import petsc4py
-petsc4py.init()
+petsc4py.init(sys.argv)
 from petsc4py import PETSc
-comm = PETSc.COMM_WORLD
+# // attempt gives strange results
+# comm = PETSc.COMM_WORLD
 import scipy.sparse as sp
 
-def extract_gmm_to_petsc(I, J, M, comm=comm):
+def extract_gmm_to_petsc(I, J, M, comm=None):
     """
     Extract a sub-matrix A from M, on interval I, J
     
@@ -43,17 +45,39 @@ def extract_gmm_to_petsc(I, J, M, comm=comm):
     A = gf.Spmat('empty', I[1], J[1]) # Pre-allocation
     A.assign(range(I[1]), range(J[1]), gf.Spmat('copy', M, R_I, R_J))
     
-    A.transpose() # Because CSR is CSC of the transpose
-    A.to_csc() # and CSR is not available in getfem
-    
-    A_ind = A.csc_ind()
-    indptr = A_ind[0]
-    indices = A_ind[1]
+    # Because CSR is CSC of the transpose
+    # and CSR is not available in getfem
+    # See if it can be optimised
+    A.transpose()
+    A.to_csc()
+    A_ind = A.csc_ind() 
+    indrow = A_ind[0] 
+    indcol = A_ind[1] 
     data = A.csc_val()
     
-    B = PETSc.Mat().createAIJ(size=[I[1],J[1]], csr=(indptr,indices,data), comm=comm)
-    B.setOption(PETSc.Mat.Option.FORCE_DIAGONAL_ENTRIES, True)
+    B = PETSc.Mat()
+    # // attempt gives strange results
+    # B.create(comm)
+    # B.setSizes(A.size())
+    # B.setType('aij')
+    # B.setUp()
+    
+    B.createAIJ(size=A.size(), csr=(indrow,indcol,data))
+    B.setOption(PETSc.Mat.Option.FORCE_DIAGONAL_ENTRIES, True) # Mandatory for some ksp solvers
     B.setUp()
+    
+    # // attempt gives strange results
+    # Istart, Iend = B.getOwnershipRange()
+    # for i in range(Istart,Iend):
+    #     row_start = indrow[i]
+    #     row_end = indrow[i+1]
+    #     B.setValues(i,
+    #                 indcol[row_start:row_end],
+    #                 data[row_start:row_end],
+    #                 addv=PETSc.InsertMode.INSERT_VALUES)
+    
+    # B.setOption(PETSc.Mat.Option.FORCE_DIAGONAL_ENTRIES, True)
+    
     B.assemble()
     
     return B
@@ -70,7 +94,7 @@ def convert_PETSc_to_scipy(A):
     :return: the matrix A in scipy.sparse.csr.csr_matrix format
     """
     
-    (indptr,indices,val) = A.getValuesCSR()
-    A_scipy = sp.csr_matrix((val, indices, indptr), shape=A.size)
+    (indrow,indices,val) = A.getValuesCSR()
+    A_scipy = sp.csr_matrix((val, indices, indrow), shape=A.size)
     
     return A_scipy

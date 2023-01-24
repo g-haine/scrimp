@@ -66,7 +66,7 @@ The port-Hamiltonian system representing a (linear) vibrating string with Neuman
     \begin{pmatrix} \partial_t \alpha_q \\ \partial_t \alpha_p \end{pmatrix}
     =
     \begin{bmatrix} 0 & \partial_x \\ \partial_x & 0 \end{bmatrix}
-    \begin{pmatrix} e_q \\ e_p \end{pmatrix}.
+    \begin{pmatrix} e_q \\ e_p \end{pmatrix},
 
 .. math::
 
@@ -75,7 +75,7 @@ The port-Hamiltonian system representing a (linear) vibrating string with Neuman
     e_q(t,0) &=& u_L(t), \\
     e_q(t,1) &=& u_R(t), \\
     y_L(t) &=& e_p(t,0), \\
-    y_R(t) &=& e_p(t,1).
+    y_R(t) &=& e_p(t,1),
     \end{array}
     \right.
 
@@ -84,7 +84,7 @@ The port-Hamiltonian system representing a (linear) vibrating string with Neuman
     \left\lbrace
     \begin{array}{rcl}
     e_q &=& T \alpha_q, \\
-    e_p &=& \frac{\alpha_p}{\rho},
+    e_p &=& \frac{\alpha_p}{\rho}.
     \end{array}
     \right.
 

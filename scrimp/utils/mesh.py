@@ -1,6 +1,6 @@
 # SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
 #
-# Copyright (C) 2015-2022 Ghislain Haine
+# Copyright (C) 2015-2023 Ghislain Haine
 #
 # See the LICENSE file in the root directory for license information.
 #
@@ -246,11 +246,11 @@ def Concentric(parameters={'R': 1., 'r': 0.6, 'h': 0.1}, terminal=1):
     mesh.region_merge(10, 11)
     mesh.region_merge(10, 12)
     mesh.delete_region([11,12])
-    
+
     mesh.region_merge(20, 21)
     mesh.region_merge(20, 22)
     mesh.delete_region([21,22])
-    
+
     return [mesh, dim, {'Omega_Disk': 1, 'Omega_Annulus': 2}, {'Interface': 10, 'Gamma': 20}]
 
 def Ball(parameters={'R': 1., 'h': 0.1}, terminal=1):
