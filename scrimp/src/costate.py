@@ -1,10 +1,10 @@
-from state import State
+from ..src.state import State
+
 
 class CoState(State):
-    def __init__(self,name:str, description:str, state:State, substituted=False):
-        assert isinstance(state,State), (f'State {state} must be added before its co-state')
-        assert state.set_costate() is None, (f'State {state} has alredy a co-state')
-        super().__init__(name,description,state.kind,state.region,state.mesh_id)
+    def __init__(self, name: str, description: str, state: State, substituted=False):
+        assert isinstance(state, State), (f'State {state} must be added before its co-state')
+        super().__init__(name, description, state.get_kind(), state.get_region(), state.get_mesh_id())
         self._state = state
         self._substituted = substituted
 
@@ -12,11 +12,13 @@ class CoState(State):
         where = ''
         if self.get_state().get_region() is not None:
             where = ', in region numbered ' + str(self.get_state().get_region())
-        print('A co-state variable', self.get_name(), ', describing \'', self.get_description(), '\', associated to state \'', self.get_state(),
+        print('A co-state variable', self.get_name(), ', describing \'', self.get_description(),
+              '\', associated to state \'', self.get_state(),
               '\' has been initialized as a', self.get_kind(), 'on mesh', self.get_mesh_id(),
               where)
         print('The constitutive relations between the state', self.get_state(), 'and the co-state', self.get_name(),
-              'will' + (not self.get_substituted()) * ' not' + ' be substituted for the resolution: variable', self.get_name(),
+              'will' + (not self.get_substituted()) * ' not' + ' be substituted for the resolution: variable',
+              self.get_name(),
               'will' + self.get_substituted() * ' not' + ' be considered as an unknown')
 
     def get_state(self):
@@ -24,9 +26,6 @@ class CoState(State):
 
     def get_substituted(self):
         return self._substituted
-
-
-
 
     #
     # def add_costate(self, name, description, state, substituted=False):

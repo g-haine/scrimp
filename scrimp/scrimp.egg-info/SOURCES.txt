@@ -15,6 +15,17 @@ scrimp.egg-info/PKG-INFO
 scrimp.egg-info/SOURCES.txt
 scrimp.egg-info/dependency_links.txt
 scrimp.egg-info/top_level.txt
+src/__init__.py
+src/brick.py
+src/costate.py
+src/domain.py
+src/dphs.py
+src/fem.py
+src/hamiltonian.py
+src/port.py
+src/state.py
+test/__init__.py
+test/state.py
 utils/__init__.py
 utils/linalg.py
 utils/mesh.py

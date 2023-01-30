@@ -1,7 +1,3 @@
-from costate import CoState
-from port import Port
-
-
 class State:
     def __init__(self, name: str, description: str, kind: str, region=None, mesh_id=0):
         self._name = name
@@ -34,16 +30,24 @@ class State:
     def get_region(self):
         return self._region
 
-    def set_costate(self, costate: CoState):
-        assert isinstance(costate, CoState)
-        self._costate = costate
+    def set_costate(self, costate):
+        from .costate import CoState
+        if self.get_costate() is None and costate is not None:
+            assert isinstance(costate,CoState)
+            self._costate = costate
+        else:
+            print("A costate is already present for this state")
 
     def get_costate(self):
         return self._costate
 
-    def set_port(self, port: Port):
-        assert isinstance(port, Port)
-        self._port = port
+    def set_port(self, port):
+        from .port import Port
+        if self.get_port() is None and port is not None:
+            assert isinstance(port, Port)
+            self._port = port
+        else:
+            print("A port is already present for this state")
 
     def get_port(self):
         return self._port
