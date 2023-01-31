@@ -58,6 +58,12 @@ class TestState(unittest.TestCase):
         state.set_port(port)
         self.assertEqual(port, state.get_port())
 
+    def test_str(self):
+        state = State("name", "description", "kind", 2, 1)
+        self.assertEqual("A state variable: name, describing: description, has been initialized as a: kind, on mesh: 1, in region numbered 2",state.__str__())
+        state = State("name", "description", "kind",)
+        self.assertEqual("A state variable: name, describing: description, has been initialized as a: kind, on mesh: 0",state.__str__())
 
 if __name__ == '__main__':
     unittest.main()
+

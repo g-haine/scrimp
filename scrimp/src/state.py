@@ -11,12 +11,9 @@ class State:
 
     def __str__(self):
         where = ''
-        if self.region is not None:
-            where = ', in region numbered ' + str(self.region)
-        print('A state variable', self.name, ', describing \'', self.description, '\', has been initialized as a',
-              self.kind,
-              'on mesh',
-              self.mesh_id, where)
+        if self.get_region() is not None:
+            where = ', in region numbered ' + str(self.get_region())
+        return f"A state variable: {self.get_name()}, describing: {self.get_description()}, has been initialized as a: {self.get_kind()}, on mesh: {self.get_mesh_id()}{where}"
 
     def get_name(self):
         return self._name
