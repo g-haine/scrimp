@@ -1,5 +1,23 @@
 class State:
-    def __init__(self, name: str, description: str, kind: str, region=None, mesh_id=0):
+    """This class defines a State."""
+
+    def __init__(
+        self,
+        name: str,
+        description: str,
+        kind: str,
+        region: int = None,
+        mesh_id: int = 0,
+    ):
+        """This constructor create a State.
+
+        Args:
+            name (str): name of the State
+            description (str): description of the State
+            kind (str): kind of the State
+            region (int, optional): region of the State. Defaults to None.
+            mesh_id (int, optional): id of the mesh. Defaults to 0.
+        """
         self._name = name
         self._description = description
         self._kind = kind
@@ -10,9 +28,9 @@ class State:
         self._mesh_id = mesh_id
 
     def __str__(self):
-        where = ''
+        where = ""
         if self.get_region() is not None:
-            where = ', in region numbered ' + str(self.get_region())
+            where = ", in region numbered " + str(self.get_region())
         return f"A state variable: {self.get_name()}, describing: {self.get_description()}, has been initialized as a: {self.get_kind()}, on mesh: {self.get_mesh_id()}{where}"
 
     def get_name(self):
@@ -29,8 +47,9 @@ class State:
 
     def set_costate(self, costate):
         from .costate import CoState
+
         if self.get_costate() is None and costate is not None:
-            assert isinstance(costate,CoState)
+            assert isinstance(costate, CoState)
             self._costate = costate
         else:
             print("A costate is already present for this state")
@@ -40,6 +59,7 @@ class State:
 
     def set_port(self, port):
         from .port import Port
+
         if self.get_port() is None and port is not None:
             assert isinstance(port, Port)
             self._port = port
@@ -51,6 +71,7 @@ class State:
 
     def get_mesh_id(self):
         return self._mesh_id
+
 
 # def add_state(self, name, description, kind, region=None, mesh_id=0):
 #     """
