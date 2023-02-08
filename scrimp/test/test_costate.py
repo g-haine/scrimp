@@ -1,7 +1,7 @@
 import unittest
-from ..src.costate import CoState
-from ..src.state import State
-from ..src.port import Port
+from ..dphs.costate import CoState
+from ..dphs.state import State
+from ..dphs.port import Port
 
 
 class TestCoState(unittest.TestCase):
