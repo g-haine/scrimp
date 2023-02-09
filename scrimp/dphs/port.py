@@ -1,9 +1,8 @@
-
 class Parameter:
     """This class describes the Parameter for a Port."""
 
     def __init__(
-            self, name: str, description: str, kind: str, expression: str, name_port: str
+        self, name: str, description: str, kind: str, expression: str, name_port: str
     ):
         self.__name = name
         self.__description = description
@@ -60,15 +59,15 @@ class Port:
     """
 
     def __init__(
-            self,
-            name: str,
-            flow: str,
-            effort: str,
-            kind: str,
-            mesh_id: int,
-            algebraic: bool,
-            substituted: bool,
-            region: int,
+        self,
+        name: str,
+        flow: str,
+        effort: str,
+        kind: str,
+        mesh_id: int,
+        algebraic: bool,
+        substituted: bool,
+        region: int,
     ):
         """Constructor of a `port` of a discrete port Hmiltonian system (dpHs).
 
@@ -165,12 +164,16 @@ class Port:
         return self.__region
 
     def get_fem(self):
+        """This function returns the fetfem Meshfem object to discretize the port.
+
+        Returns:
+            _type_: the getfem Meshfem object to discretize the port
+        """
         return self.__fem
 
     def set_fem(self, mesh, dim: int, order: int, fem: str):
         """This function sets the Meshfem getfem object defining the finite element method to use to discretize the port.
 
-        !TO DO: handle more FE
 
         Args:
             mesh (Mesh): the mesh where the FE are define
@@ -181,6 +184,7 @@ class Port:
         Raises:
             ValueError: Unknown fem for port.
         """
+        # TO DO: handle more FE
 
         if fem == "CG":
             fem_str = "fem_PK(" + str(mesh.dim()) + "," + str(order) + ")"
@@ -202,14 +206,26 @@ class Port:
         print(fem_str, "has been setted for port", self.__name)
         self.__fem.display()
 
-    def get_parameter(self,name):
+    def get_parameter(self, name) -> Parameter:
+        """This function return the parameter with a specific name.
+
+        Args:
+            name (str): the name of the parameter of interest
+
+        Returns:
+            Parameter: the desired parameter, None otherwise
+        """
         for p in self.__parameters:
             if p.get_name() == name:
                 return p
         print(f"Parameter with name: {name} does not exit!")
-        return None
 
-    def get_parameters(self):
+    def get_parameters(self) -> list(Parameter):
+        """This function returns the list of all the parameters inserted for the port.
+
+        Returns:
+            list(Parameter): list of all the parameters inserted for the port
+        """
         return self.__parameters.copy()
 
     def add_parameter(self, parameter: Parameter) -> bool:
@@ -217,13 +233,18 @@ class Port:
 
         Args:
             parameter (Parameter): parameter for the port.:
+
+        Returns:
+            bool: True if the insertion has been complete correctly, False otherwise
+
         """
-        if isinstance(parameter,Parameter):
+        if isinstance(parameter, Parameter):
             self.__parameters.append(parameter)
             return True
         else:
             # assert False, f"Insertion parameter not valid expected {type(Parameter)} got {type(parameter)}"
             return False
+
     def init_parameter(self, name: str, expression: str):
         """This function sets the chosen parameter object for the current port by initialization in the FE basis.
 
@@ -269,7 +290,6 @@ class Port:
         self.__fem.display()
 
         return f"{self.__name}, {self.__flow}, {self.__effort}, {self.__kind}, {str(self.__mesh_id)}, {str(self.__algebraic)}, {self.__parameters}"
-
 
 
 if __name__ == "__main__":
