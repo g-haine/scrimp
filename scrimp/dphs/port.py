@@ -1,3 +1,4 @@
+
 class Parameter:
     """This class describes the Parameter for a Port."""
 
@@ -163,6 +164,9 @@ class Port:
         """
         return self.__region
 
+    def get_fem(self):
+        return self.__fem
+
     def set_fem(self, mesh, dim: int, order: int, fem: str):
         """This function sets the Meshfem getfem object defining the finite element method to use to discretize the port.
 
@@ -198,14 +202,28 @@ class Port:
         print(fem_str, "has been setted for port", self.__name)
         self.__fem.display()
 
-    def add_parameter(self, parameter: Parameter):
+    def get_parameter(self,name):
+        for p in self.__parameters:
+            if p.get_name() == name:
+                return p
+        print(f"Parameter with name: {name} does not exit!")
+        return None
+
+    def get_parameters(self):
+        return self.__parameters.copy()
+
+    def add_parameter(self, parameter: Parameter) -> bool:
         """This function adds a Parameter object that is acting on the variables of the port.
 
         Args:
             parameter (Parameter): parameter for the port.:
         """
-        self.__parameters.append(parameter)
-
+        if isinstance(parameter,Parameter):
+            self.__parameters.append(parameter)
+            return True
+        else:
+            # assert False, f"Insertion parameter not valid expected {type(Parameter)} got {type(parameter)}"
+            return False
     def init_parameter(self, name: str, expression: str):
         """This function sets the chosen parameter object for the current port by initialization in the FE basis.
 
@@ -242,21 +260,16 @@ class Port:
         Returns:
             str: detailed info of the port
         """
+
         assert self.__isSet, (
             "Port",
             self.__name,
             "has not been setted yet (a fem is probably missing)",
         )
         self.__fem.display()
-        return str(
-            self.__name,
-            self.__flow,
-            self.__effort,
-            self.__kind,
-            self.__mesh_id,
-            self.__algebraic,
-            self.__parameters,
-        )
+
+        return f"{self.__name}, {self.__flow}, {self.__effort}, {self.__kind}, {str(self.__mesh_id)}, {str(self.__algebraic)}, {self.__parameters}"
+
 
 
 if __name__ == "__main__":
