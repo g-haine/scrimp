@@ -220,7 +220,7 @@ class Port:
                 return p
         print(f"Parameter with name: {name} does not exit!")
 
-    def get_parameters(self) -> list(Parameter):
+    def get_parameters(self) -> list:
         """This function returns the list of all the parameters inserted for the port.
 
         Returns:

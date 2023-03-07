@@ -1,4 +1,4 @@
-from scrimp.dphs.state import State
+from .state import State
 
 
 class CoState(State):
@@ -37,7 +37,8 @@ class CoState(State):
     def get_substituted(self):
         return self._substituted
 
-if __name__=="__main__":
+
+if __name__ == "__main__":
     print("COSTATE module OK!")
     #
     # def add_costate(self, name, description, state, substituted=False):
@@ -91,4 +92,3 @@ if __name__=="__main__":
     #     print('The constitutive relations between the state', state, 'and the co-state', name,
     #           'will' + (not substituted) * ' not' + ' be substituted for the resolution: variable', name,
     #           'will' + substituted * ' not' + ' be considered as an unknown')
-
