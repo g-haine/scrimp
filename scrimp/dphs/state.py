@@ -33,19 +33,44 @@ class State:
             where = ", in region numbered " + str(self.get_region())
         return f"A state variable: {self.get_name()}, describing: {self.get_description()}, has been initialized as a: {self.get_kind()}, on mesh: {self.get_mesh_id()}{where}"
 
-    def get_name(self):
+    def get_name(self) -> str:
+        """This function gets the name of the State.
+
+        Returns:
+            str: name of the state
+        """
         return self._name
 
-    def get_description(self):
+    def get_description(self) -> str:
+        """This function gets the description of the State.
+
+        Returns:
+            str: description of the state
+        """
         return self._description
 
-    def get_kind(self):
+    def get_kind(self) -> str:
+        """This function gets the kind of the State.
+
+        Returns:
+            str: kind of the state
+        """
         return self._kind
 
-    def get_region(self):
+    def get_region(self) -> int:
+        """This function gets the integer number of the region of the state.
+
+        Returns:
+            int: region of the State.
+        """
         return self._region
 
     def set_costate(self, costate):
+        """This function sets a Co-state to the State.
+
+        Args:
+            costate (Costate): Co-state
+        """
         from .costate import CoState
 
         if self.get_costate() is None and costate is not None:
@@ -54,10 +79,20 @@ class State:
         else:
             print("A costate is already present for this state")
 
-    def get_costate(self):
+    def get_costate(self) -> object:
+        """This function gets the Co-state of the state
+
+        Returns:
+            object: Costate
+        """
         return self._costate
 
     def set_port(self, port):
+        """This function sets a port to the state.
+
+        Args:
+            port (Port): Port
+        """
         from .port import Port
 
         if self.get_port() is None and port is not None:
@@ -66,10 +101,21 @@ class State:
         else:
             print("A port is already present for this state")
 
-    def get_port(self):
+    def get_port(self) -> object:
+        """This function gets the port of the state
+
+        Returns:
+            object: Port
+        """
         return self._port
 
-    def get_mesh_id(self):
+    def get_mesh_id(self) -> int:
+        """This funtion gets the integer number of the mesh of the state.
+
+        Returns:
+            int: id of the mesh
+        """
+
         return self._mesh_id
 
 

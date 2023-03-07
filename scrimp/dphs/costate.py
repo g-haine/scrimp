@@ -31,10 +31,20 @@ class CoState(State):
         str2 = f'The constitutive relations between the state: {self.get_state().get_name()}, and the co-state: {self.get_name()}, will{(not self.get_substituted()) * " not"} be substituted for the resolution: variable {self.get_name()}, will { (self.get_substituted()) * "not"} be considered as an unknown'
         return str1 + "\n" + str2
 
-    def get_state(self):
+    def get_state(self) -> object:
+        """This function gets the State of the Costate.
+
+        Returns:
+            object: State
+        """
         return self._state
 
-    def get_substituted(self):
+    def get_substituted(self) -> bool:
+        """This function gets the boolean indicating wether to substitute the variable or not.
+
+        Returns:
+            bool: boolean indicating wether to substitute the variable
+        """
         return self._substituted
 
 

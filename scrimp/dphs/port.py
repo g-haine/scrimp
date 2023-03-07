@@ -4,6 +4,15 @@ class Parameter:
     def __init__(
         self, name: str, description: str, kind: str, expression: str, name_port: str
     ):
+        """This constructor defines the object Parameter for a Port.
+
+        Args:
+            name (str): name of the parameter
+            description (str): description of the paramter
+            kind (str): kind of the parameter
+            expression (str): expression of the parameter
+            name_port (str): name of the Port to apply the parameter
+        """
         self.__name = name
         self.__description = description
         self.__kind = kind
