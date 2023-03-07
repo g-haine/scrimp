@@ -1,11 +1,10 @@
 import unittest
-from scrimp.dphs.costate import CoState
-from scrimp.dphs.state import State
-from scrimp.dphs.port import Port
+from dphs.costate import CoState
+from dphs.state import State
+from dphs.port import Port
 
 
 class TestState(unittest.TestCase):
-
     def test_name(self):
         state = State("name", "description", "kind", 1, 2)
         self.assertEqual(state.get_name(), "name")  # add assertion here
@@ -47,23 +46,37 @@ class TestState(unittest.TestCase):
 
     def test_set_port(self):
         state = State("name", "description", "kind", 1, 2)
-        port = Port("name_port", "flow_port", "effort_port", "kind_port", 0, False, False, 0)
+        port = Port(
+            "name_port", "flow_port", "effort_port", "kind_port", 0, False, False, 0
+        )
         state.set_port(port)
         self.assertEqual(port, state.get_port())
 
     def test_get_port(self):
         state = State("name", "description", "kind", 1, 2)
         self.assertIsNone(state.get_port())
-        port = Port("name_port", "flow_port", "effort_port", "kind_port", 0, False, False, 0)
+        port = Port(
+            "name_port", "flow_port", "effort_port", "kind_port", 0, False, False, 0
+        )
         state.set_port(port)
         self.assertEqual(port, state.get_port())
 
     def test_str(self):
         state = State("name", "description", "kind", 2, 1)
-        self.assertEqual("A state variable: name, describing: description, has been initialized as a: kind, on mesh: 1, in region numbered 2",state.__str__())
-        state = State("name", "description", "kind",)
-        self.assertEqual("A state variable: name, describing: description, has been initialized as a: kind, on mesh: 0",state.__str__())
+        self.assertEqual(
+            "A state variable: name, describing: description, has been initialized as a: kind, on mesh: 1, in region numbered 2",
+            state.__str__(),
+        )
+        state = State(
+            "name",
+            "description",
+            "kind",
+        )
+        self.assertEqual(
+            "A state variable: name, describing: description, has been initialized as a: kind, on mesh: 0",
+            state.__str__(),
+        )
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()
-

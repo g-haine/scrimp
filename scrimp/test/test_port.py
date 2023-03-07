@@ -1,9 +1,8 @@
 import unittest
-from scrimp.dphs.port import Port, Parameter
+from dphs.port import Port, Parameter
 
 
 class TestPort(unittest.TestCase):
-
     def test_name(self):
         port = Port("name", "flow", "effort", "kind", 0, True, True, 1)
         self.assertEqual(port.get_name(), "name")  # add assertion here
@@ -15,7 +14,6 @@ class TestPort(unittest.TestCase):
     def test_effort(self):
         port = Port("name", "flow", "effort", "kind", 0, True, True, 1)
         self.assertEqual(port.get_effort(), "effort")  # add assertion here
-
 
     def test_kind(self):
         port = Port("name", "flow", "effort", "kind", 0, True, True, 1)
@@ -53,6 +51,7 @@ class TestPort(unittest.TestCase):
     def test_fem(self):
         port = Port("name", "flow", "effort", "kind", 0, True, True, 1)
         self.assertEqual(port.get_fem(), None)  # add assertion here
+
     def test_get_parameter(self):
         port = Port("name", "flow", "effort", "kind", 0, True, True, 1)
         self.assertIsNone(port.get_parameter("not_present_name"))
@@ -61,7 +60,8 @@ class TestPort(unittest.TestCase):
             "name_para", "description", "kind_param", "expression", port.get_name()
         )
         port.add_parameter(parameter)
-        self.assertEqual(port.get_parameter("name_para"),parameter)
+        self.assertEqual(port.get_parameter("name_para"), parameter)
+
     def test_add_parameter(self):
         port = Port("name", "flow", "effort", "kind", 0, True, True, 1)
         self.assertFalse(port.add_parameter(None))
@@ -70,9 +70,9 @@ class TestPort(unittest.TestCase):
             "name_para", "description", "kind_param", "expression", port.get_name()
         )
         self.assertTrue(port.add_parameter(parameter))
-        self.assertEqual(port.get_parameter("name_para"),parameter)
+        self.assertEqual(port.get_parameter("name_para"), parameter)
 
-    #TODO add fem obgect
+    # TODO add fem obgect
     # def test_init_parameter(self):
     #     port = Port("name", "flow", "effort", "kind", 0, True, True, 1)
     #     parameter = Parameter(
@@ -82,13 +82,15 @@ class TestPort(unittest.TestCase):
     #     self.assertEqual(port, port.init_parameter("name_para","expression"))
     #
 
-
     def test_str(self):
         port = Port("name", "flow", "effort", "kind", 0, True, True, 1)
         out = port.__str__()
         print(out)
-        self.assertEqual(out, f"{port.get_name()}, {port.get_flow()}, {port.get_effort()}, {port.get_kind()}, {str(port.get_mesh_id())}, {str(port.get_algebraic())}, {port.get_parameters()}")
+        self.assertEqual(
+            out,
+            f"{port.get_name()}, {port.get_flow()}, {port.get_effort()}, {port.get_kind()}, {str(port.get_mesh_id())}, {str(port.get_algebraic())}, {port.get_parameters()}",
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
