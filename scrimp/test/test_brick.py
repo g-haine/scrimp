@@ -1,7 +1,5 @@
 import unittest
-from dphs.brick import Brick
-
-Brick("name", "form", [1, 2], True, False, "constitutive", 0)
+from src.brick import Brick
 
 
 class TestBrick(unittest.TestCase):

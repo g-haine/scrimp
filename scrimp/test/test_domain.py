@@ -1,5 +1,5 @@
 import unittest
-from dphs.domain import Domain
+from src.domain import Domain
 import utils.mesh
 
 
