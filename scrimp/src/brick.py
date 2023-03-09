@@ -32,6 +32,14 @@ class Brick:
         self._dt = dt
         self._position = position
 
+    def add_id_brick_to_list(self, id_brick: int):
+        """This function adds a brick ID to the brick ID list.
+
+        Args:
+            id_brick (int): the id of the brick
+        """
+        self._id_bricks.append(id_brick)
+
     def get_name(self) -> str:
         """This function returns the name of the brick.
 
@@ -46,7 +54,7 @@ class Brick:
         Returns:
             list: the list of integers related to the ids of the bricks.
         """
-        return self._id_bricks
+        return self._id_bricks.copy()
 
     def get_form(self) -> str:
         """This function returns the form of the brick.
