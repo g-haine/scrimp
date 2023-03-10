@@ -1,3 +1,6 @@
+import getfem as gf
+
+
 class Parameter:
     """This class describes the Parameter for a Port."""
 
@@ -105,6 +108,15 @@ class Port:
         self.__fem = None  #: A getfem Meshfem object to discretize the `port`
         self.__region = region  #: If any, the int of the region of mesh_id where the flow/effort variables belong
 
+    def get_is_set(self) -> bool:
+        """This funcion gets the boolean value that indicates wether the port is set or not.
+
+
+        Returns:
+            bool: value that indicates if the port is set.
+        """
+        return self.__isSet
+
     def get_name(self) -> str:
         """This function gets the name of the port.
 
@@ -196,9 +208,9 @@ class Port:
         # TO DO: handle more FE
 
         if fem == "CG":
-            fem_str = "fem_PK(" + str(mesh.dim()) + "," + str(order) + ")"
+            fem_str = "FEM_PK(" + str(mesh.dim()) + "," + str(order) + ")"
         elif fem == "DG":
-            fem_str = "fem_PK_DISCONTINUOUS(" + str(mesh.dim()) + "," + str(order) + ")"
+            fem_str = "FEM_PK_DISCONTINUOUS(" + str(mesh.dim()) + "," + str(order) + ")"
         else:
             raise ValueError(
                 "Unknown fem "
@@ -208,8 +220,8 @@ class Port:
                 + "\nUse the gf_model `Model` attribute to set it directly"
             )
 
-        self.__fem = gf.Meshfem(mesh, dim)
-        self.__fem.set_fem(gf.fem(fem_str))
+        self.__fem = gf.MeshFem(mesh, dim)
+        self.__fem.set_fem(gf.Fem(fem_str))
 
         self.__isSet = True
         print(fem_str, "has been setted for port", self.__name)
