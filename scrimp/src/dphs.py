@@ -176,6 +176,7 @@ class DPHS:
         costate = CoState(name, description, self.states[name_state], substituted)
 
         self.states[name_state].set_costate(costate)
+        self.costates[name] = costate
 
         self.add_port(
             name_state,
@@ -189,7 +190,7 @@ class DPHS:
         )
 
         self.states[name_state].set_port(self.ports[name_state])
-        self.costates[name].set_port(self.port[name_state])
+        self.costates[name].set_port(self.ports[name_state])
 
         print(self.states[name_state])
 
@@ -228,7 +229,7 @@ class DPHS:
         """
         port = Port(name, flow, effort, kind, mesh_id, algebraic, substituted, region)
         self.ports[name] = port
-        print(port)
+        print(f"Port {name} has been added to the DPHS")
 
     def add_FEM(self, name_port, order, FEM="CG"):
         """
@@ -258,14 +259,14 @@ class DPHS:
         if self.ports[name_port].get_kind() == "scalar-field":
             dim = 1
         elif self.ports[name_port].get_kind() == "vector-field":
-            dim = self.domain.get_dim[self.ports[name_port].get_mesh_id()]
+            dim = self.domain.get_dim()[self.ports[name_port].get_mesh_id()]
         else:
             raise ValueError(
                 "Unknown kind of variables", self.ports[name_port].get_kind()
             )
 
         self.ports[name_port].set_fem(
-            self.domain.get_mesh[self.ports[name_port].get_mesh_id()], dim, order, FEM
+            self.domain.get_mesh()[self.ports[name_port].get_mesh_id()], dim, order, FEM
         )
 
         # If region is not None, the variable is restricted to the region of mesh_id. Useful for boundary ports or interconnected dpHs on the same mesh
@@ -346,7 +347,7 @@ class DPHS:
         parameter = Parameter(name, description, kind, expression, name_port)
         self.ports[name_port].add_parameter(parameter)
 
-        if self.ports[name_port].isset:
+        if self.ports[name_port].get_is_set():
             self.init_parameter(name, name_port)
 
     def init_parameter(self, name, name_port):
@@ -365,7 +366,7 @@ class DPHS:
         """
 
         evaluation = self.ports[name_port].init_parameter(
-            name, self.ports[name_port].get_paramter(name).get_expression()
+            name, self.ports[name_port].get_parameter(name).get_expression()
         )
 
         sizes = None
@@ -505,6 +506,10 @@ class DPHS:
                 "of mesh",
                 mesh_id,
             )
+            # if isinstance(id_brick,dict):
+            #     id_bricks = id_brick["id_bricks"]
+            #
+            #     for id_brick in id_bricks:
             self.bricks[name].add_id_brick_to_list(id_brick)
 
     def add_control_port(
@@ -621,16 +626,24 @@ class DPHS:
             expression_form,
             self.controls[name]["region"],
         )
-
-        self.bricks[u + "_source"] = {
-            "id_bricks": [source_id],
-            "form": expression_form,
-            "mesh_id": self.controls[name]["mesh_id"],
-            "regions": [self.controls[name]["region"]],
-            "linear": False,
-            "dt": False,
-            "position": "source",
-        }
+        self.add_brick(
+            u + "_source",
+            expression_form,
+            [self.controls[name]["region"]],
+            False,
+            False,
+            "source",
+            self.controls[name]["mesh_id"],
+        )
+        # self.bricks[u + "_source"] = {
+        #     "id_bricks": [source_id],
+        #     "form": expression_form,
+        #     "mesh_id": self.controls[name]["mesh_id"],
+        #     "regions": [self.controls[name]["region"]],
+        #     "linear": False,
+        #     "dt": False,
+        #     "position": "source",
+        # }
 
         print(
             "Control function has been setted to",
@@ -650,10 +663,10 @@ class DPHS:
         """
 
         for name in self.bricks.keys():
+            print(name)
             # Enable the bricks that are dynamical and linear
             if self.bricks[name].get_dt() and self.bricks[name].get_linear():
-                for k in self.bricks[name].get_id_bricks():
-                    self.gf_model.enable_bricks(k)
+                self.bricks[name].enable_id_bricks(self.gf_model)
 
         self.gf_model.assembly(option="build_matrix")
         size = self.gf_model.nbdof()
@@ -664,8 +677,7 @@ class DPHS:
         for name in self.bricks.keys():
             # Disable again all bricks previously enabled
             if self.bricks[name].get_dt() and self.bricks[name].get_linear():
-                for k in self.bricks[name].get_id_bricks():
-                    self.gf_model.disable_bricks(k)
+                self.bricks[name].disable_id_bricks(self.gf_model)
 
     def assemble_stiffness(self):
         """
@@ -675,8 +687,7 @@ class DPHS:
         for name in self.bricks.keys():
             # Enable the bricks that are non-dynamical and linear
             if not self.bricks[name].get_dt() and self.bricks[name].get_linear():
-                for k in self.bricks[name].get_id_bricks():
-                    self.gf_model.enable_bricks(k)
+                self.bricks[name].enable_id_bricks(self.gf_model)
 
         self.gf_model.assembly(option="build_matrix")
         size = self.gf_model.nbdof()
@@ -687,8 +698,7 @@ class DPHS:
         for name in self.bricks.keys():
             # Disable again all bricks previously enabled
             if not self.bricks[name].get_dt() and self.bricks[name].get_linear():
-                for k in self.bricks[name].get_id_bricks():
-                    self.gf_model.disable_bricks(k)
+                self.bricks[name].disable_id_bricks(self.gf_model)
 
     def assemble_rhs(self):
         """
@@ -700,12 +710,10 @@ class DPHS:
         for name in self.bricks.keys():
             # Enable the bricks that are in 'source' position
             if self.bricks[name].get_position() == "source":
-                for k in self.bricks[name].get_id_bricks():
-                    self.gf_model.enable_bricks(k)
+                self.bricks[name].enable_id_bricks(self.gf_model)
             # And the non-linear ones (and not dt of course)
             if not self.bricks[name].get_dt() and not self.bricks[name].get_linear():
-                for k in self.bricks[name].get_id_bricks():
-                    self.gf_model.enable_bricks(k)
+                self.bricks[name].enable_id_bricks(self.gf_model)
 
         self.gf_model.assembly(option="build_rhs")
         self.rhs = PETSc.Vec().createWithArray(self.gf_model.rhs())
@@ -713,12 +721,10 @@ class DPHS:
         for name in self.bricks.keys():
             # Disable again all bricks previously enabled
             if self.bricks[name].get_position() == "source":
-                for k in self.bricks[name].get_id_bricks():
-                    self.gf_model.disable_bricks(k)
+                self.bricks[name].disable_id_bricks(self.gf_model)
             # And the non-linear ones (and not dt of course)
             if not self.bricks[name].get_dt() and not self.bricks[name].get_linear():
-                for k in self.bricks[name].get_id_bricks():
-                    self.gf_model.disable_bricks(k)
+                self.bricks[name].disable_id_bricks(self.gf_model)
 
     def assemble_nl_mass(self):
         """
@@ -728,8 +734,7 @@ class DPHS:
         for name in self.bricks.keys():
             # Enable the bricks that are dynamical and non-linear
             if self.bricks[name].get_dt() and not self.bricks[name].get_linear():
-                for k in self.bricks[name].get_id_bricks():
-                    self.gf_model.enable_bricks(k)
+                self.bricks[name].enable_id_bricks(self.gf_model)
 
         self.gf_model.assembly(option="build_matrix")
         size = self.gf_model.nbdof()
@@ -742,8 +747,7 @@ class DPHS:
         for name in self.bricks.keys():
             # Disable again all bricks previously enabled
             if self.bricks[name].get_dt() and not self.bricks[name].get_linear():
-                for k in self.bricks[name].get_id_bricks():
-                    self.gf_model.disable_bricks(k)
+                self.bricks[name].disable_id_bricks(self.gf_model)
 
     def assemble_nl_stiffness(self):
         """
@@ -753,8 +757,7 @@ class DPHS:
         for name in self.bricks.keys():
             # Enable the bricks that are non-dynamical and non-linear
             if not self.bricks[name].get_dt() and not self.bricks[name].get_linear():
-                for k in self.bricks[name].get_id_bricks():
-                    self.gf_model.enable_bricks(k)
+                self.bricks[name].enable_id_bricks(self.gf_model)
 
         self.gf_model.assembly(option="build_matrix")
         size = self.gf_model.nbdof()
@@ -767,24 +770,21 @@ class DPHS:
         for name in self.bricks.keys():
             # Disable again all bricks previously enabled
             if not self.bricks[name].get_dt() and not self.bricks[name].get_linear():
-                for k in self.bricks[name].get_id_bricks():
-                    self.gf_model.disable_bricks(k)
+                self.bricks[name].disable_id_bricks(self.gf_model)
 
     def disable_all_bricks(self):
         """
         Disable all bricks in the `Model`
         """
-        for name in self.bricks.keys():
-            for k in self.bricks[name].get_id_bricks():
-                self.gf_model.disable_bricks(k)
+        for _, brick in self.bricks.items():
+            brick.disable_id_bricks(self.gf_model)
 
     def enable_all_bricks(self):
         """
         Enable all bricks in the `Model`
         """
-        for name in self.bricks.keys():
-            for k in self.bricks[name].get_id_bricks():
-                self.gf_model.enable_bricks(k)
+        for _, brick in self.bricks.items():
+            brick.enable_id_bricks(self.gf_model)
 
     def IFunction(self, TS, t, z, zd, F):
         """
@@ -1195,13 +1195,13 @@ class DPHS:
                 for region in self.hamiltonian[term].get_regions():
                     term_value_at_t += gf.asm(
                         "generic",
-                        self.domain._int_method[self.hamiltonian[term]["mesh_id"]],
+                        self.domain._int_method[self.hamiltonian[term].get_mesh_id()],
                         0,
                         self.hamiltonian[term].get_expression(),
                         region,
                         self.gf_model,
                     )
-                self.hamiltonian[term].get_values().append(term_value_at_t)
+                self.hamiltonian[term].set_value(term_value_at_t)
 
         print("Hamiltonian has been computed in", time.time() - start, "s")
 
@@ -1229,6 +1229,9 @@ class DPHS:
 
         for term in range(len(self.hamiltonian)):
             values = np.array(self.hamiltonian[term].get_values())
+            from IPython import embed
+
+            # embed()
             HamTot += values
             ax.plot(t, values, label=self.hamiltonian[term].get_description())
 
@@ -1298,7 +1301,7 @@ class DPHS:
 
                     power_value_at_t = gf.asm(
                         "generic",
-                        self.domain._int_method[self.ports[name_port].mesh_id],
+                        self.domain._int_method[self.ports[name_port].get_mesh_id()],
                         0,
                         form,
                         region,
