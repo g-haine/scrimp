@@ -1124,23 +1124,6 @@ class DPHS:
         self.gf_model.to_variables(z.array)  # Update the state in the getfem `Model`
         self.gf_model.next_iter()  # Says to getfem that we go to the next iteration, not sure if needed
 
-    def set_Hamiltonian_term(self, description, expression, regions, mesh_id=0):
-        """
-        Defines a term of the Hamiltonian functional
-
-        :param description: the name or description of the term (e.g. 'Kinetic energy')
-        :type description: str
-        :param expression: the formula, using the `Model` variables, defining the term. Parameters are allowed (e.g. '0.5*q.T.q')
-        :type expression: str
-        :param regions: the region ids of the mesh mesh_id where the expression has to be evaluated
-        :type regions: list(int)
-        :param mesh_id: the mesh id of the mesh where the regions belong
-        :type mesh_id: int
-        """
-
-        term = Term(description, expression, regions, mesh_id)
-        self.hamiltonian.add_term(term)
-
     def compute_Hamiltonian(self):
         """
         Compute each `term` constituting the Hamiltonian
