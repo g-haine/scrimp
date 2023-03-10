@@ -1,6 +1,6 @@
 __pycache__/
 docs/build/
-scrimp/outputs/
+outputs/
 
 *.png
 *.msh
