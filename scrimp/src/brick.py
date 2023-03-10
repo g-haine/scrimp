@@ -103,3 +103,9 @@ class Brick:
             int: the id of the mesh where the form applies. Defaults to 0.
         """
         return self._position
+
+    def disable_id_bricks(self, gf_model):
+        gf_model.disable_bricks(self._id_bricks)
+
+    def enable_id_bricks(self, gf_model):
+        gf_model.enable_bricks(self._id_bricks)
