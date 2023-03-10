@@ -8,7 +8,7 @@
 
 """
 - file:             dpHs.py
-- authors:          Ghislain Haine, Florian Monteghetti
+- authors:          Ghislain Haine, Florian Monteghetti, Giuseppe Ferraro
 - date:             22 nov. 2022
 - last modified:    13 dec. 2022
 - brief:            class for distributed port-Hamiltonian system
@@ -128,7 +128,7 @@ class DPHS:
 
         print("A model with", basis_field, "unknowns has been initialized")
 
-    def set_domain(self, name: str, parameters: dict):
+    def set_domain(self, domain: Domain):
         """This function sets a domain for the dphp.
         TODO: If not built_in, given from a script 'name.py' or a .geo file with args in the dict 'parameters' should be able to handle several meshes e.g. for interconnections, hence the list type
 
@@ -136,11 +136,9 @@ class DPHS:
             name (str): id of the domain, either for built in, or user-defined auxiliary script
             parameters (dict): parameters for the construction, either for built in, or user-defined auxiliary script
         """
-        self.domain = Domain(name, parameters)
+        self.domain = domain
 
-    def add_state(
-        self, name: str, description: str, kind: str, region=None, mesh_id: int = 0
-    ):
+    def add_state(self, state: State):
         """This functions adds a state to the dpHS.
            !TO DO: handling of `tensor-field` state
 
@@ -152,13 +150,10 @@ class DPHS:
             mesh_id (int, optional): a state has to be associated to a unique mesh of the 'domain' attribute (overlap needs the definition of two different states with interface interaction). Defaults to 0.
         """
 
-        state = State(name, description, kind, region, mesh_id)
-        self.states[name] = state
+        self.states[state.get_name()] = state
         print(state)
 
-    def add_costate(
-        self, name: str, description: str, name_state: str, substituted=False
-    ):
+    def add_costate(self, costate: CoState):
         """This function adds a costate to the costate list of the dhps.
 
         Args:
@@ -167,44 +162,28 @@ class DPHS:
             name_state (str): the name of the state related
             substituted (bool, optional): if 'True' (default: `False`) the constitutive relations are substituted into the dynamic. Defaults to False.
         """
+        state = costate.get_state()
+        state.set_costate(costate)
+        self.costates[costate.get_name()] = costate
 
-        assert name_state in self.states.keys(), (
-            "State",
-            name_state,
-            "must be added before its co-state",
-        )
-        costate = CoState(name, description, self.states[name_state], substituted)
-
-        self.states[name_state].set_costate(costate)
-        self.costates[name] = costate
-
-        self.add_port(
-            name_state,
-            name_state,
-            name,
-            self.costates[name].get_kind(),
-            self.states[name_state].get_mesh_id(),
+        port = Port(
+            state.get_name(),
+            state.get_name(),
+            costate.get_name(),
+            costate.get_kind(),
+            state.get_mesh_id(),
             algebraic=False,
-            substituted=substituted,
-            region=self.states[name_state].get_region(),
+            substituted=costate.get_substituted(),
+            region=state.get_region(),
         )
+        self.add_port(port)
 
-        self.states[name_state].set_port(self.ports[name_state])
-        self.costates[name].set_port(self.ports[name_state])
+        state.set_port(port)
+        costate.set_port(port)
 
-        print(self.states[name_state])
+        print(state)
 
-    def add_port(
-        self,
-        name,
-        flow,
-        effort,
-        kind,
-        mesh_id=0,
-        algebraic=True,
-        substituted=False,
-        region=None,
-    ):
+    def add_port(self, port: Port):
         """
         Add a `port` object to the dpHs
 
@@ -227,9 +206,8 @@ class DPHS:
 
         :return: create a `port` object and append it to the dict `ports` of the dpHs
         """
-        port = Port(name, flow, effort, kind, mesh_id, algebraic, substituted, region)
-        self.ports[name] = port
-        print(f"Port {name} has been added to the DPHS")
+        self.ports[port.get_name()] = port
+        print(f"Port {port.get_name()} has been added to the DPHS")
 
     def add_FEM(self, name_port, order, FEM="CG"):
         """
@@ -323,7 +301,7 @@ class DPHS:
         if not self.ports[name_port].get_algebraic():
             self.initial_value_setted[self.ports[name_port].get_flow()] = False
 
-    def add_parameter(self, name, description, kind, expression, name_port):
+    def add_parameter(self, parameter: Parameter):
         """
         Define a time-independent possibly space-varying parameter (x, y and z are the space variables to use) associated to a `port` of the dpHs
 
@@ -344,11 +322,11 @@ class DPHS:
 
         :return: define a parameter to the `port` name_port, and initialized it if the FEM of the port is already defined
         """
-        parameter = Parameter(name, description, kind, expression, name_port)
+        name_port = parameter.get_name_port()
         self.ports[name_port].add_parameter(parameter)
 
         if self.ports[name_port].get_is_set():
-            self.init_parameter(name, name_port)
+            self.init_parameter(parameter.get_name(), name_port)
 
     def init_parameter(self, name, name_port):
         """
@@ -444,16 +422,7 @@ class DPHS:
 
         self.gf_model.set_variable(name_variable, x)
 
-    def add_brick(
-        self,
-        name,
-        form,
-        regions,
-        linear=True,
-        dt=False,
-        position="constitutive",
-        mesh_id=0,
-    ):
+    def add_brick(self, brick: Brick):
         """
         Add a `brick` in the getfem `Model` thanks to a form in GWFL getfem language
 
@@ -476,15 +445,18 @@ class DPHS:
 
         :return: add bricks to the getfem `Model`
         """
-        brick = Brick(name, form, regions, linear, dt, position, mesh_id)
-        self.bricks[name] = brick
+        name_brick = brick.get_name()
+        mesh_id = brick.get_mesh_id()
+        position = brick.get_position()
+        form = brick.get_form()
+        self.bricks[name_brick] = brick
 
         # Flows are on the left-hand side => need a minus for fully implicit formulation in time-resolution
         if position == "flow":
             form = "-(" + form + ")"
 
-        for region in regions:
-            if linear:
+        for region in brick.get_regions():
+            if brick.get_linear():
                 id_brick = self.gf_model.add_linear_term(
                     self.domain._int_method[mesh_id], form, region
                 )
@@ -498,7 +470,7 @@ class DPHS:
 
             print(
                 s,
-                self.bricks[name].get_form(),
+                self.bricks[name_brick].get_form(),
                 "' has been added as",
                 position,
                 "relation on region",
@@ -506,11 +478,8 @@ class DPHS:
                 "of mesh",
                 mesh_id,
             )
-            # if isinstance(id_brick,dict):
-            #     id_bricks = id_brick["id_bricks"]
-            #
-            #     for id_brick in id_bricks:
-            self.bricks[name].add_id_brick_to_list(id_brick)
+
+            self.bricks[name_brick].add_id_brick_to_list(id_brick)
 
     def add_control_port(
         self,
@@ -559,14 +528,16 @@ class DPHS:
             raise ValueError("Position", position, "is not available for control port")
 
         self.add_port(
-            name,
-            flow,
-            effort,
-            kind,
-            mesh_id,
-            algebraic=True,
-            substituted=False,
-            region=region,
+            Port(
+                name,
+                flow,
+                effort,
+                kind,
+                mesh_id,
+                algebraic=True,
+                substituted=False,
+                region=region,
+            )
         )
         self.controls[name] = {
             "name_control": name_control,
@@ -609,13 +580,15 @@ class DPHS:
             u + times + "Test_" + u
         )  # form of the mass matrix for the control variable
         self.add_brick(
-            "M_" + u,
-            mass_form,
-            [self.controls[name]["region"]],
-            linear=True,
-            dt=False,
-            position="constitutive",
-            mesh_id=self.controls[name]["mesh_id"],
+            Brick(
+                "M_" + u,
+                mass_form,
+                [self.controls[name]["region"]],
+                linear=True,
+                dt=False,
+                position="constitutive",
+                mesh_id=self.controls[name]["mesh_id"],
+            )
         )
 
         # Construct the form
@@ -627,23 +600,16 @@ class DPHS:
             self.controls[name]["region"],
         )
         self.add_brick(
-            u + "_source",
-            expression_form,
-            [self.controls[name]["region"]],
-            False,
-            False,
-            "source",
-            self.controls[name]["mesh_id"],
+            Brick(
+                u + "_source",
+                expression_form,
+                [self.controls[name]["region"]],
+                False,
+                False,
+                "source",
+                self.controls[name]["mesh_id"],
+            )
         )
-        # self.bricks[u + "_source"] = {
-        #     "id_bricks": [source_id],
-        #     "form": expression_form,
-        #     "mesh_id": self.controls[name]["mesh_id"],
-        #     "regions": [self.controls[name]["region"]],
-        #     "linear": False,
-        #     "dt": False,
-        #     "position": "source",
-        # }
 
         print(
             "Control function has been setted to",
@@ -662,11 +628,11 @@ class DPHS:
         Perform the assembly of the bricks dt=True and linear=True and set the PETSc.Mat attribute `mass`
         """
 
-        for name in self.bricks.keys():
-            print(name)
+        for _, brick in self.bricks.items():
+            print(brick.get_name())
             # Enable the bricks that are dynamical and linear
-            if self.bricks[name].get_dt() and self.bricks[name].get_linear():
-                self.bricks[name].enable_id_bricks(self.gf_model)
+            if brick.get_dt() and brick.get_linear():
+                brick.enable_id_bricks(self.gf_model)
 
         self.gf_model.assembly(option="build_matrix")
         size = self.gf_model.nbdof()
@@ -674,20 +640,20 @@ class DPHS:
             [0, size], [0, size], self.gf_model.tangent_matrix()
         )
 
-        for name in self.bricks.keys():
+        for _, brick in self.bricks.items():
             # Disable again all bricks previously enabled
-            if self.bricks[name].get_dt() and self.bricks[name].get_linear():
-                self.bricks[name].disable_id_bricks(self.gf_model)
+            if brick.get_dt() and brick.get_linear():
+                brick.disable_id_bricks(self.gf_model)
 
     def assemble_stiffness(self):
         """
         Perform the assembly of the bricks dt=False and linear=True and set the PETSc.Mat attribute `stiffness`
         """
 
-        for name in self.bricks.keys():
+        for _, brick in self.bricks.items():
             # Enable the bricks that are non-dynamical and linear
-            if not self.bricks[name].get_dt() and self.bricks[name].get_linear():
-                self.bricks[name].enable_id_bricks(self.gf_model)
+            if not brick.get_dt() and brick.get_linear():
+                brick.enable_id_bricks(self.gf_model)
 
         self.gf_model.assembly(option="build_matrix")
         size = self.gf_model.nbdof()
@@ -695,10 +661,10 @@ class DPHS:
             [0, size], [0, size], self.gf_model.tangent_matrix()
         )
 
-        for name in self.bricks.keys():
+        for _, brick in self.bricks.items():
             # Disable again all bricks previously enabled
-            if not self.bricks[name].get_dt() and self.bricks[name].get_linear():
-                self.bricks[name].disable_id_bricks(self.gf_model)
+            if not brick.get_dt() and brick.get_linear():
+                brick.disable_id_bricks(self.gf_model)
 
     def assemble_rhs(self):
         """
@@ -707,34 +673,34 @@ class DPHS:
 
         # Remark: I do not understand why enable_all_bricks give absurd results
         # Maybe due to mass matrices!!!
-        for name in self.bricks.keys():
+        for _, brick in self.bricks.items():
             # Enable the bricks that are in 'source' position
-            if self.bricks[name].get_position() == "source":
-                self.bricks[name].enable_id_bricks(self.gf_model)
+            if brick.get_position() == "source":
+                brick.enable_id_bricks(self.gf_model)
             # And the non-linear ones (and not dt of course)
-            if not self.bricks[name].get_dt() and not self.bricks[name].get_linear():
-                self.bricks[name].enable_id_bricks(self.gf_model)
+            if not brick.get_dt() and not brick.get_linear():
+                brick.enable_id_bricks(self.gf_model)
 
         self.gf_model.assembly(option="build_rhs")
         self.rhs = PETSc.Vec().createWithArray(self.gf_model.rhs())
 
-        for name in self.bricks.keys():
+        for _, brick in self.bricks.items():
             # Disable again all bricks previously enabled
-            if self.bricks[name].get_position() == "source":
-                self.bricks[name].disable_id_bricks(self.gf_model)
+            if brick.get_position() == "source":
+                brick.disable_id_bricks(self.gf_model)
             # And the non-linear ones (and not dt of course)
-            if not self.bricks[name].get_dt() and not self.bricks[name].get_linear():
-                self.bricks[name].disable_id_bricks(self.gf_model)
+            if not brick.get_dt() and not brick.get_linear():
+                brick.disable_id_bricks(self.gf_model)
 
     def assemble_nl_mass(self):
         """
         Perform the assembly of the bricks dt=True and linear=False and set the PETSc.Mat attribute `nl_mass`
         """
 
-        for name in self.bricks.keys():
+        for _, brick in self.bricks.items():
             # Enable the bricks that are dynamical and non-linear
-            if self.bricks[name].get_dt() and not self.bricks[name].get_linear():
-                self.bricks[name].enable_id_bricks(self.gf_model)
+            if brick.get_dt() and not brick.get_linear():
+                brick.enable_id_bricks(self.gf_model)
 
         self.gf_model.assembly(option="build_matrix")
         size = self.gf_model.nbdof()
@@ -744,20 +710,20 @@ class DPHS:
         self.tangent_mass = self.mass + self.nl_mass
         self.tangent_mass.assemble()
 
-        for name in self.bricks.keys():
+        for _, brick in self.bricks.items():
             # Disable again all bricks previously enabled
-            if self.bricks[name].get_dt() and not self.bricks[name].get_linear():
-                self.bricks[name].disable_id_bricks(self.gf_model)
+            if brick.get_dt() and not brick.get_linear():
+                brick.disable_id_bricks(self.gf_model)
 
     def assemble_nl_stiffness(self):
         """
         Perform the assembly of the bricks dt=False and linear=False and set the PETSc.Mat attribute `nl_stiffness`
         """
 
-        for name in self.bricks.keys():
+        for _, brick in self.bricks.items():
             # Enable the bricks that are non-dynamical and non-linear
-            if not self.bricks[name].get_dt() and not self.bricks[name].get_linear():
-                self.bricks[name].enable_id_bricks(self.gf_model)
+            if not brick.get_dt() and not brick.get_linear():
+                brick.enable_id_bricks(self.gf_model)
 
         self.gf_model.assembly(option="build_matrix")
         size = self.gf_model.nbdof()
@@ -767,10 +733,10 @@ class DPHS:
         self.tangent_stiffness = self.stiffness + self.nl_stiffness
         self.tangent_stiffness.assemble()
 
-        for name in self.bricks.keys():
+        for _, brick in self.bricks.items():
             # Disable again all bricks previously enabled
-            if not self.bricks[name].get_dt() and not self.bricks[name].get_linear():
-                self.bricks[name].disable_id_bricks(self.gf_model)
+            if not brick.get_dt() and not brick.get_linear():
+                brick.disable_id_bricks(self.gf_model)
 
     def disable_all_bricks(self):
         """
@@ -1407,7 +1373,7 @@ class DPHS:
         # Avoid missing a brick!
         self.enable_all_bricks()
 
-        for name in self.bricks.keys():
+        for _, brick in self.bricks.items():
             brick = self.bricks[name]
             if brick["position"] == "flow":
                 for region in brick["regions"]:

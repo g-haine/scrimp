@@ -76,10 +76,10 @@ class Port:
         flow: str,
         effort: str,
         kind: str,
-        mesh_id: int,
-        algebraic: bool,
-        substituted: bool,
-        region: int,
+        mesh_id: int=0,
+        algebraic: bool = True,
+        substituted: bool=False,
+        region: int = None,
     ):
         """Constructor of a `port` of a discrete port Hmiltonian system (dpHs).
 
