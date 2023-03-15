@@ -67,6 +67,7 @@ def wave():
 
     # Add a resistive `port`
     port = Port("Damping", "f_r", "e_r", "scalar-field")
+    port = Port("Damping", "f_r", "resistive-flow", "e_r", "scalar-field")
     wave.add_port(port)
     # Add a FEM on it
     wave.add_FEM("Damping", 1, FEM="DG")
