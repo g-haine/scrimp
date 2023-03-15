@@ -51,76 +51,69 @@ class dpHs:
         :type basis_field: str
         """
 
-        self.domain = (
-            domain()
-        )  #: The `domain` of a dpHs is an object that handle mesh(es) and dict of regions with getfem indices (for each mesh), useful to define `bricks` (i.e. forms) in the getfem syntax
+        #: The `domain` of a dpHs is an object that handle mesh(es) and dict of regions with getfem indices (for each mesh), useful to define `bricks` (i.e. forms) in the getfem syntax
+        self.domain = domain()
+        #: Clear and init `time_scheme` member, which embed PETSc TS options database
+        self.get_cleared_TS_options()
+        #: The dict of `states`, store many infos for display()
+        self.states = dict()
+        #: The dict of `costates`, store many infos for display()
+        self.costates = dict()
+        #: The dict of `ports`, store many infos for display()
+        self.ports = dict()
+        #: The dict of `bricks`, associating getfem `bricks` to petsc matrices obtained by the PFEM, store many infos for display()
+        self.bricks = dict()
+        #: The dict of `controls`, collecting information about control ports. Also appear in `ports` entries
+        self.controls = dict()
+        #: The `Hamiltonian` of a dpHs is a list of dict containing several useful information for each term
+        self.Hamiltonian = list()
+        #: For plot purpose
+        self.Hamiltonian_name = "Hamiltonian"
+        #: Top check if the Hamiltonian terms have been computed
+        self.Hamiltonian_computed = False
+        #: Store the computations of the powers f(t)*e(t) on each algebraic port
+        self.powers = dict()
+        #: To check if the powers have been computed
+        self.powers_computed = False
+        #: Tangent (non-linear + linear) mass matrix of the system in PETSc CSR format
+        self.tangent_mass = PETSc.Mat().create(comm=comm)
+        #: Non-linear mass matrix of the system in PETSc CSR format
+        self.nl_mass = PETSc.Mat().create(comm=comm)
+        #: Linear mass matrix of the system in PETSc CSR format
+        self.mass = PETSc.Mat().create(comm=comm)
+        #: Tangent (non-linear + linear) stiffness matrix of the system in PETSc CSR format
+        self.tangent_stiffness = PETSc.Mat().create(comm=comm)
+        #: Non-linear stiffness matrix of the system in PETSc CSR format
+        self.nl_stiffness = PETSc.Mat().create(comm=comm)
+        #: Linear stiffness matrix of the system in PETSc CSR format
+        self.stiffness = PETSc.Mat().create(comm=comm)
+        #: rhs of the system in PETSc Vec
+        self.rhs = PETSc.Vec().create(comm=comm)
+        #: To check if the initial values have been setted before time-resolution
+        self.initial_value_setted = dict()
+        #: To check if the PETSc TS time-integration parameters have been setted before time-integration
+        self.time_scheme["isset"] = False
+        #: For monitoring time in TS resolution
+        self.ts_start = 0
+        #: Will contain both time t and solution z
+        self.solution = dict()
+        #: Time t where the solution have been saved
+        self.solution["t"] = list()
+        #: Solution z at time t
+        self.solution["z"] = list()
+        #: To check if the system has been solved
+        self.solve_done = False
+        #: A PETSc Vec for residual computation
+        self.F = PETSc.Vec().create(comm=comm)
+        #: A PETSc Mat for Jacobian computation
+        self.J = PETSc.Mat().create(comm=comm)
+        #: A PETSc Vec buffering computation
+        self.buffer = PETSc.Vec().create(comm=comm)
 
-        self.get_cleared_TS_options()  #: Clear and init `time_scheme` member, which embed PETSc TS options database
-
-        self.states = dict()  #: The dict of `states`, store many infos for display()
-        self.costates = (
-            dict()
-        )  #: The dict of `costates`, store many infos for display()
-        self.ports = dict()  #: The dict of `ports`, store many infos for display()
-        self.bricks = (
-            dict()
-        )  #: The dict of `bricks`, associating getfem `bricks` to petsc matrices obtained by the PFEM, store many infos for display()
-        self.controls = (
-            dict()
-        )  #: The dict of `controls`, collecting information about control ports. Also appear in `ports` entries
-        self.Hamiltonian = (
-            list()
-        )  #: The `Hamiltonian` of a dpHs is a list of dict containing several useful information for each term
-        self.Hamiltonian_name = "Hamiltonian"  #: For plot purpose
-        self.Hamiltonian_computed = (
-            False  #: Top check if the Hamiltonian terms have been computed
-        )
-        self.powers = (
-            dict()
-        )  #: Store the computations of the powers f(t)*e(t) on each algebraic port
-        self.powers_computed = False  #: To check if the powers have been computed
-        self.tangent_mass = PETSc.Mat().create(
-            comm=comm
-        )  #: Tangent (non-linear + linear) mass matrix of the system in PETSc CSR format
-        self.nl_mass = PETSc.Mat().create(
-            comm=comm
-        )  #: Non-linear mass matrix of the system in PETSc CSR format
-        self.mass = PETSc.Mat().create(
-            comm=comm
-        )  #: Linear mass matrix of the system in PETSc CSR format
-        self.tangent_stiffness = PETSc.Mat().create(
-            comm=comm
-        )  #: Tangent (non-linear + linear) stiffness matrix of the system in PETSc CSR format
-        self.nl_stiffness = PETSc.Mat().create(
-            comm=comm
-        )  #: Non-linear stiffness matrix of the system in PETSc CSR format
-        self.stiffness = PETSc.Mat().create(
-            comm=comm
-        )  #: Linear stiffness matrix of the system in PETSc CSR format
-        self.rhs = PETSc.Vec().create(comm=comm)  #: rhs of the system in PETSc Vec
-        self.initial_value_setted = (
-            dict()
-        )  #: To check if the initial values have been setted before time-resolution
-        self.time_scheme[
-            "isset"
-        ] = False  #: To check if the PETSc TS time-integration parameters have been setted before time-integration
-        self.ts_start = 0  #: For monitoring time in TS resolution
-        self.solution = dict()  #: Will contain both time t and solution z
-        self.solution["t"] = list()  #: Time t where the solution have been saved
-        self.solution["z"] = list()  #: Solution z at time t
-        self.solve_done = False  #: To check if the system has been solved
-        self.F = PETSc.Vec().create(comm=comm)  #: A PETSc Vec for residual computation
-        self.J = PETSc.Mat().create(comm=comm)  #: A PETSc Mat for Jacobian computation
-        self.buffer = PETSc.Vec().create(
-            comm=comm
-        )  #: A PETSc Vec buffering computation
-
-        self.gf_model = gf.Model(
-            basis_field
-        )  #: A getfem `Model` object that is use as core for the dpHs
-        self.gf_model.add_initialized_data(
-            "t", 0.0, sizes=1
-        )  #: Says to getfem that the `Model` is time-dependent
+        #: A getfem `Model` object that is use as core for the dpHs
+        self.gf_model = gf.Model(basis_field)
+        #: Says to getfem that the `Model` is time-dependent
+        self.gf_model.add_initialized_data("t", 0.0, sizes=1)
 
         # HACK: Macros x, y and z are not available for source term otherwise (why?)
         # Relative problem: source term does not accept numpy functions for the moment
@@ -1699,16 +1692,18 @@ class domain:
         Constructor of the `domain` member of a dpHs
         """
 
-        self.isset = False  #: A boolean to check if the domain has been setted
-        self.mesh = list()  #: A list of getfem Mesh objects
-        self.subdomains = list(
-            dict()
-        )  #: A list of dict `str`: `int` listing the indices of region of dim n in the getfem mesh
-        self.boundaries = list(
-            dict()
-        )  #: A list of dict `str`: `int` listing the indices of region of dim n-1 in the getfem mesh
-        self.dim = list()  #: A list of the dimensions of the getfem meshes
-        self.int_method = list()  #: A list of getfem integration method MeshIm objects
+        self.isset = False
+        #: A boolean to check if the domain has been setted
+        self.mesh = list()
+        #: A list of getfem Mesh objects
+        self.subdomains = list(dict())
+        #: A list of dict `str`: `int` listing the indices of region of dim n in the getfem mesh
+        self.boundaries = list(dict())
+        #: A list of dict `str`: `int` listing the indices of region of dim n-1 in the getfem mesh
+        self.dim = list()
+        #: A list of the dimensions of the getfem meshes
+        self.int_method = list()
+        #: A list of getfem integration method MeshIm objects
 
     def set_mim_auto(self):
         """
@@ -1785,19 +1780,28 @@ class port:
         :type region: int
         """
 
-        self.isset = False  #: A boolean to check if the domain has been setted
-        self.name = name  #: The name of the `port`
-        self.flow = flow  #: The name of the flow variable
-        self.effort = effort  #: The name of the effort variable
-        self.kind = kind  #: The type of the variables (e.g. `scalar-field`)
-        self.mesh_id = mesh_id  #: The id of the mesh where the variables belong
-        self.algebraic = algebraic  #: If `True`, the equation associated to this port is algebraic, otherwise dynamic and the flow is derivated in time at resoltuion
-        self.substituted = substituted  #: If `True, the getfem `Model` will only have an unknown variable for the effort: the constitutive relation is substituted into the mass matrix on the flow side
-        self.parameters = (
-            dict()
-        )  #: A dict of parameters acting on the variables of the `port`
-        self.FEM = None  #: A getfem MeshFem object to discretize the `port`
-        self.region = region  #: If any, the int of the region of mesh_id where the flow/effort variables belong
+        self.isset = False
+        #: A boolean to check if the domain has been setted
+        self.name = name
+        #: The name of the `port`
+        self.flow = flow
+        #: The name of the flow variable
+        self.effort = effort
+        #: The name of the effort variable
+        self.kind = kind
+        #: The type of the variables (e.g. `scalar-field`)
+        self.mesh_id = mesh_id
+        #: The id of the mesh where the variables belong
+        self.algebraic = algebraic
+        #: If `True`, the equation associated to this port is algebraic, otherwise dynamic and the flow is derivated in time at resoltuion
+        self.substituted = substituted
+        #: If `True, the getfem `Model` will only have an unknown variable for the effort: the constitutive relation is substituted into the mass matrix on the flow side
+        self.parameters = dict()
+        #: A dict of parameters acting on the variables of the `port`
+        self.FEM = None
+        #: A getfem MeshFem object to discretize the `port`
+        self.region = region
+        #: If any, the int of the region of mesh_id where the flow/effort variables belong
 
     def set_FEM(self, mesh, dim, order, FEM):
         """
