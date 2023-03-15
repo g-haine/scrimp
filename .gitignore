@@ -1,7 +1,8 @@
 __pycache__/
 docs/build/
 outputs/
-
+logs
+*.log
 *.png
 *.msh
 *.vscode
