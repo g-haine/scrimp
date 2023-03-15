@@ -29,6 +29,7 @@ comm = PETSc.COMM_WORLD
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.pylab as pl
+import logging
 
 from utils.linalg import extract_gmm_to_petsc, convert_PETSc_to_scipy
 from src import set_default_path
@@ -57,13 +58,18 @@ class DPHS:
         :param basis_field: basis field for unknowns (must be `real` or `complex`)
         :type basis_field: str
         """
-
+        # Set the log file
+        logging.basicConfig(
+            filename="dphs.log",
+            encoding="utf-8",
+            level=logging.DEBUG,
+            filemode="w",
+            format="",
+        )
         #: The `domain` of a dpHs is an object that handle mesh(es) and dict of regions with getfem indices (for each mesh), useful to define `bricks` (i.e. forms) in the getfem syntax
         self.domain = None
-
         #: Clear and init `time_scheme` member, which embed PETSc TS options database
         self.get_cleared_TS_options()
-
         #: The dict of `states`, store many infos for display()
         self.states = dict()
         #: The dict of `costates`, store many infos for display()
@@ -76,7 +82,6 @@ class DPHS:
         self.controls = dict()
         #: The `Hamiltonian` of a dpHs is a list of dict containing several useful information for each term
         self.hamiltonian = Hamiltonian("Hamiltonian")
-
         #: Store the computations of the powers f(t)*e(t) on each algebraic port
         self.powers = dict()
         #: To check if the powers have been computed
@@ -93,7 +98,8 @@ class DPHS:
         self.nl_stiffness = PETSc.Mat().create(comm=comm)
         #: Linear stiffness matrix of the system in PETSc CSR format
         self.stiffness = PETSc.Mat().create(comm=comm)
-        self.rhs = PETSc.Vec().create(comm=comm)  #: rhs of the system in PETSc Vec
+        #: rhs of the system in PETSc Vec
+        self.rhs = PETSc.Vec().create(comm=comm)
         #: To check if the initial values have been setted before time-resolution
         self.initial_value_setted = dict()
         #: To check if the PETSc TS time-integration parameters have been setted before time-integration
@@ -137,31 +143,23 @@ class DPHS:
             parameters (dict): parameters for the construction, either for built in, or user-defined auxiliary script
         """
         self.domain = domain
+        logging.debug(f"domain: {domain.get_name()} has been set")
 
     def add_state(self, state: State):
         """This functions adds a state to the dpHS.
-           !TO DO: handling of `tensor-field` state
 
         Args:
-            name (str): the name of the state
-            description (str): a physically motivated description (e.g. `linear momentum`)
-            kind (str): the unknown type, must be `scalar-field` or `vector-field`
-            region (_type_, optional): the index of the region in mesh_id where the variable belong, useful with multi-domains mesh for interconnected dpHs. Defaults to None.
-            mesh_id (int, optional): a state has to be associated to a unique mesh of the 'domain' attribute (overlap needs the definition of two different states with interface interaction). Defaults to 0.
+            state (State): the state
         """
 
         self.states[state.get_name()] = state
-        print(state)
+        logging.debug(f"state: {state.get_name()} has been added")
 
     def add_costate(self, costate: CoState):
         """This function adds a costate to the costate list of the dhps.
 
         Args:
-            name (str): the name of the costate
-            description (str): a physically motivated description (e.g. `velocity`)
-            name_state (str): the name of the state related
-            substituted (bool, optional): if 'True' (default: `False`) the constitutive relations are substituted into the dynamic. Defaults to False.
-        """
+            costate (Costate): the costate"""
         state = costate.get_state()
         state.set_costate(costate)
         self.costates[costate.get_name()] = costate
@@ -181,37 +179,23 @@ class DPHS:
         state.set_port(port)
         costate.set_port(port)
 
-        print(state)
+        logging.debug(
+            f"costate: {costate.get_name()} has been added to state: {costate.get_state().get_name()}"
+        )
+        logging.debug(
+            f"state: {state.get_name()} has new costate: {state.get_costate().get_name()}"
+        )
 
     def add_port(self, port: Port):
-        """
-        Add a `port` object to the dpHs
+        """This function adds a `port` object to the dpHs
 
-        :param name: the name of the port
-        :type name: str
-        :param flow: the name id of the flow
-        :type flow: str
-        :param effort: the name id of the effort
-        :type effort: str
-        :param kind: the kind of the flow and effort variable (e.g. `scalar-field`)
-        :type kind: str
-        :param mesh_id: the id of the mesh where the variables belong to
-        :type mesh_id: int
-        :param algebraic: if `False` (default: `True`), the flow variable will be derivated in time at resolution
-        :type algebraic: bool
-        :param substituted: if `True`, the constitutive relation is substituted into the mass matrix of the flow, there is only one unknown in the getfem model
-        :type substituted: bool
-        :param region: the int identifying the region in mesh_id where the port belong
-        :type region: int
-
-        :return: create a `port` object and append it to the dict `ports` of the dpHs
-        """
+        Args:
+        port (Port):the port"""
         self.ports[port.get_name()] = port
-        print(f"Port {port.get_name()} has been added to the DPHS")
+        logging.debug(f"port: {port.get_name()} has been added")
 
     def add_FEM(self, name_port, order, FEM="CG"):
-        """
-        Define a FEM (Finite Element Method) for the variables associated to a `port` of the dpHs
+        """This function defines a FEM (Finite Element Method) for the variables associated to a `port` of the dpHs
 
         This FEM is a member of the `port`, but it is linked to the getfem `Model` at this stage
 
@@ -219,14 +203,10 @@ class DPHS:
 
         TODO: handle `tensor-field`
 
-        :param name_port: the name of the `port` to discretize
-        :type name_port: str
-        :param order: the order of the FE
-        :type order: int
-        :param FEM: the FE to use, default `CG` for the classical Lagrange element, see port.set_FEM() for more details
-        :type FEM: str
-
-        :return: define a FEM for the flow and effort variables in the `port` name_port, and add them as fem_variable to the getfem `Model`
+        Args:
+        name_port (str): the name of the `port` to discretize
+        order (int): the order of the FE
+        FEM (str): the FE to use, default `CG` for the classical Lagrange element, see port.set_FEM() for more details
         """
 
         assert self.domain.get_isSet(), "Domain must be setted before adding FEM"
@@ -302,49 +282,40 @@ class DPHS:
             self.initial_value_setted[self.ports[name_port].get_flow()] = False
 
     def add_parameter(self, parameter: Parameter):
-        """
-        Define a time-independent possibly space-varying parameter (x, y and z are the space variables to use) associated to a `port` of the dpHs
+        """This function defines a time-independent possibly space-varying parameter (x, y and z are the space variables to use) associated to a `port` of the dpHs
 
         This parameter is a member of the `port`, but it is added to the dpHs at this stage
 
         If the FEM of the port has already been setted, the parameter is initialized in this FEM without call needed
 
-        :param name: the name of the parameter
-        :type name: str
-        :param description: a physically motivated description (e.g. `mass density`)
-        :type description: str
-        :param kind: the type of parameter, must be `scalar-field`, `vector-field` or `tensor-field`
-        :type kind: str
-        :param expression: the expression in getfem syntax (e.g. `x*y`, `[x, y]`, etc.)
-        :type expression: str
-        :param name_port: the name id of the `port` where the parameter belong to
-        :type name_port: str
-
-        :return: define a parameter to the `port` name_port, and initialized it if the FEM of the port is already defined
-        """
+        Args:
+        parameter (Parameter): the parameter"""
         name_port = parameter.get_name_port()
         self.ports[name_port].add_parameter(parameter)
+        logging.debug(
+            f"parameter: {parameter.get_name()} has been added to port: {parameter.get_name_port()}"
+        )
 
         if self.ports[name_port].get_is_set():
             self.init_parameter(parameter.get_name(), name_port)
 
     def init_parameter(self, name, name_port):
-        """
-        Initialize the parameter name in the FEM of the `port` of the dpHs
+        """This function initializes the parameter name in the FEM of the `port` of the dpHs
+        evaluate the parameter's expression in the FEM of the `port` name_port and add it to the getfem `Model`
 
         A parameter is a member of the `port` where it belongs, but it is initialized from
         the parent dpHs of the `port` at this stage, where it is added to the getfem `Model` object
 
-        :param name: the name of the parameter as defined with add_parameter()
-        :type parameter: str
-        :param name_port: the name of the `port` where the parameter belongs
-        :type name_port: str
-
-        :return: evaluate the parameter's expression in the FEM of the `port` name_port and add it to the getfem `Model`
+        Args:
+        name (str): the name of the parameter as defined with add_parameter()
+        name_port (str): the name of the `port` where the parameter belongs
         """
 
         evaluation = self.ports[name_port].init_parameter(
             name, self.ports[name_port].get_parameter(name).get_expression()
+        )
+        logging.debug(
+            f"expression: {self.ports[name_port].get_parameter(name).get_expression()} for parameter: {name} of port: {name_port}"
         )
 
         sizes = None
@@ -354,18 +325,16 @@ class DPHS:
         self.gf_model.add_initialized_fem_data(
             name, self.ports[name_port].get_fem(), evaluation, sizes=sizes
         )
-        print("Parameter", name, "has been initialized with the FEM of port", name_port)
+        logging.debug(
+            f"parameter: {name} has been initialized with the FEM of port: {name_port}"
+        )
 
     def set_initial_value(self, name_variable, expression):
-        """
-        Set the initial value of the variable `name_variable` of the dpHs from an expression
+        """This function sets the initial value of the variable `name_variable` of the dpHs from an expression
 
-        :param name_variable: the name of the variable to set
-        :type name_variable: str
-        :param expression: the expression of the function to use
-        :type expression: str
-
-        :return: set variable `name_variable` of the getfem Model of the dpHs to `expression`, evaluated on the FEM of the port variable
+        Args:
+        name_variable (str): the name of the variable to set
+        expression (str): the expression of the function to use
         """
 
         if name_variable in self.initial_value_setted.keys():
@@ -406,49 +375,34 @@ class DPHS:
 
         self.set_from_vector(name_variable, initial_value)
         self.initial_value_setted[name_variable] = True
-        print("Variable", name_variable, "has been initialized with:", expression)
+        logging.debug(
+            f"variable: {name_variable} has been initialized with: {expression}"
+        )
 
     def set_from_vector(self, name_variable, x):
-        """
-        Set the value of the variable `name_variable` in the getfem `Model` from a numpy vector
+        """This function sets the value of the variable `name_variable` in the getfem `Model` from a numpy vector
 
-        :param name_variable: the name of the variable to set
-        :type name_variable: str
-        :param x: the vector of values
-        :type x: numpy array
-
-        :return: set variable `name_variable` of the getfem `Model` of the dpHs to `x`
+        Args:
+        name_variable (str): the name of the variable to set
+        x (numpy array): the vector of values
         """
 
         self.gf_model.set_variable(name_variable, x)
+        logging.debug(f"value: {x} has been set for variable: {name_variable}")
 
     def add_brick(self, brick: Brick):
-        """
-        Add a `brick` in the getfem `Model` thanks to a form in GWFL getfem language
+        """This function adds a `brick` in the getfem `Model` thanks to a form in GWFL getfem language
 
         The form may be non-linear
 
-        :param name: the name of the brick, will be used mainly for plotting purpose
-        :type name: str
-        :param form: the form in GWFL getfem language
-        :type form: str
-        :param regions: the regions of mesh_id where the form applies
-        :type regions: list(int)
-        :param linear: default=True, parameter to help easy identification of linear bricks
-        :type linear: bool
-        :param dt: default=False, parameter to help easy identification of matrices applied to time-derivative of a variable (e.g. mass matrices)
-        :type dt: bool
-        :param position: default='constitutive', parameter to help easy identification of "where" is the form: in the Dirac structure ('flow' side or 'effort' side), or in the 'constitutive' relations. This serves for both the time-resolution and plotting purposes.
-        :type position: str
-        :param mesh_id: default=0, the id of the mesh where the form applies
-        :type mesh: int
-
-        :return: add bricks to the getfem `Model`
+        Args:
+        brick (Brick): the brick
         """
         name_brick = brick.get_name()
         mesh_id = brick.get_mesh_id()
         position = brick.get_position()
         form = brick.get_form()
+
         self.bricks[name_brick] = brick
 
         # Flows are on the left-hand side => need a minus for fully implicit formulation in time-resolution
@@ -468,18 +422,14 @@ class DPHS:
                 )
                 s = ("Non-linear form '",)
 
-            print(
-                s,
-                self.bricks[name_brick].get_form(),
-                "' has been added as",
-                position,
-                "relation on region",
-                region,
-                "of mesh",
-                mesh_id,
+            logging.debug(
+                f"{s},{self.bricks[name_brick].get_form()} has been added as: {position} relation on region: {region} of mesh: {mesh_id}"
             )
 
             self.bricks[name_brick].add_id_brick_to_list(id_brick)
+            logging.debug(
+                f"brick IDs: {id_brick} has been added to brick: {name_brick}"
+            )
 
     def add_control_port(
         self,
@@ -493,8 +443,7 @@ class DPHS:
         position="effort",
         mesh_id=0,
     ):
-        """
-        Add a control `port` to the dpHs
+        """This function adds a control `port` to the dpHs
 
         :param name: the name of the port
         :type name: str
@@ -552,8 +501,7 @@ class DPHS:
         }
 
     def set_control(self, name, expression):
-        """
-        Apply a source term `expression` to the control port `name`
+        """This function applies a source term `expression` to the control port `name`
 
         :param name: the name of the port
         :type name: str
@@ -592,13 +540,8 @@ class DPHS:
         )
 
         # Construct the form
-        expression_form = "-(" + expression + ")" + times + "Test_" + u
+        expression_form = "(" + expression + ")" + times + "Test_" + u
         # Add the source brick
-        source_id = self.gf_model.add_source_term(
-            self.domain._int_method[self.controls[name]["mesh_id"]],
-            expression_form,
-            self.controls[name]["region"],
-        )
         self.add_brick(
             Brick(
                 u + "_source",
@@ -611,25 +554,16 @@ class DPHS:
             )
         )
 
-        print(
-            "Control function has been setted to",
-            u,
-            "=",
-            expression,
-            "on region",
-            self.controls[name]["region"],
-            "of mesh",
-            self.controls[name]["mesh_id"],
+        logging.debug(
+            f"Control function has been setted to: {u} = {expression} on region: {self.controls[name]['region']} of mesh: {self.controls[name]['mesh_id']}"
         )
         self.controls[name]["isset"] = True
+        logging.debug(f"control port: {self.controls[name]} has been set:")
 
     def assemble_mass(self):
-        """
-        Perform the assembly of the bricks dt=True and linear=True and set the PETSc.Mat attribute `mass`
-        """
+        """This function performs the assembly of the bricks dt=True and linear=True and set the PETSc.Mat attribute `mass`"""
 
         for _, brick in self.bricks.items():
-            print(brick.get_name())
             # Enable the bricks that are dynamical and linear
             if brick.get_dt() and brick.get_linear():
                 brick.enable_id_bricks(self.gf_model)
@@ -646,9 +580,7 @@ class DPHS:
                 brick.disable_id_bricks(self.gf_model)
 
     def assemble_stiffness(self):
-        """
-        Perform the assembly of the bricks dt=False and linear=True and set the PETSc.Mat attribute `stiffness`
-        """
+        """This function performs the assembly of the bricks dt=False and linear=True and set the PETSc.Mat attribute `stiffness`"""
 
         for _, brick in self.bricks.items():
             # Enable the bricks that are non-dynamical and linear
@@ -667,9 +599,7 @@ class DPHS:
                 brick.disable_id_bricks(self.gf_model)
 
     def assemble_rhs(self):
-        """
-        Perform the assembly of the rhs position='source' and set the PETSc.Vec attribute `rhs`
-        """
+        """This function performs the assembly of the rhs position='source' and set the PETSc.Vec attribute `rhs`"""
 
         # Remark: I do not understand why enable_all_bricks give absurd results
         # Maybe due to mass matrices!!!
@@ -693,9 +623,7 @@ class DPHS:
                 brick.disable_id_bricks(self.gf_model)
 
     def assemble_nl_mass(self):
-        """
-        Perform the assembly of the bricks dt=True and linear=False and set the PETSc.Mat attribute `nl_mass`
-        """
+        """This function performs the assembly of the bricks dt=True and linear=False and set the PETSc.Mat attribute `nl_mass`"""
 
         for _, brick in self.bricks.items():
             # Enable the bricks that are dynamical and non-linear
@@ -716,9 +644,7 @@ class DPHS:
                 brick.disable_id_bricks(self.gf_model)
 
     def assemble_nl_stiffness(self):
-        """
-        Perform the assembly of the bricks dt=False and linear=False and set the PETSc.Mat attribute `nl_stiffness`
-        """
+        """This function performs the assembly of the bricks dt=False and linear=False and set the PETSc.Mat attribute `nl_stiffness`"""
 
         for _, brick in self.bricks.items():
             # Enable the bricks that are non-dynamical and non-linear
@@ -739,16 +665,12 @@ class DPHS:
                 brick.disable_id_bricks(self.gf_model)
 
     def disable_all_bricks(self):
-        """
-        Disable all bricks in the `Model`
-        """
+        """This function disables all bricks in the `Model`"""
         for _, brick in self.bricks.items():
             brick.disable_id_bricks(self.gf_model)
 
     def enable_all_bricks(self):
-        """
-        Enable all bricks in the `Model`
-        """
+        """This function enables all bricks in the `Model`"""
         for _, brick in self.bricks.items():
             brick.enable_id_bricks(self.gf_model)
 
@@ -1010,6 +932,7 @@ class DPHS:
             f"Nonlinear iterations: {TS.getSNESIterations()}, Linear iterations: {TS.getKSPIterations()}"
         )
         TS.reset()
+
         TS.destroy()
 
         self.enable_all_bricks()
@@ -1152,9 +1075,8 @@ class DPHS:
                     )
                 self.hamiltonian[term].set_value(term_value_at_t)
 
-        print("Hamiltonian has been computed in", time.time() - start, "s")
-
         self.hamiltonian.set_is_computed()
+        logging.debug(f"Hamiltonian has been computed in {str(time.time() - start)} s")
 
     def plot_Hamiltonian(self, with_powers=True):
         """
@@ -1178,9 +1100,6 @@ class DPHS:
 
         for term in range(len(self.hamiltonian)):
             values = np.array(self.hamiltonian[term].get_values())
-            from IPython import embed
-
-            # embed()
             HamTot += values
             ax.plot(t, values, label=self.hamiltonian[term].get_description())
 
@@ -1357,25 +1276,24 @@ class DPHS:
         self.enable_all_bricks()
 
         for _, brick in self.bricks.items():
-            brick = self.bricks[name]
-            if brick["position"] == "flow":
-                for region in brick["regions"]:
+            if brick.get_position() == "flow":
+                for region in brick.get_regions():
                     matrix = gf.asm_generic(
-                        self.domain._int_method[brick["mesh_id"]],
+                        self.domain._int_method[brick.get_mesh_id()],
                         2,
-                        brick["form"],
+                        brick.get_form(),
                         region,
                         self.gf_model,
                     )
                     M += convert_PETSc_to_scipy(
                         extract_gmm_to_petsc([0, size], [0, size], matrix)
                     )
-            if brick["position"] == "effort":
-                for region in brick["regions"]:
+            if brick.get_position() == "effort":
+                for region in brick.get_regions():
                     matrix = gf.asm_generic(
-                        self.domain._int_method[brick["mesh_id"]],
+                        self.domain._int_method[brick.get_mesh_id()],
                         2,
-                        brick["form"],
+                        brick.get_form(),
                         region,
                         self.gf_model,
                     )
@@ -1390,7 +1308,7 @@ class DPHS:
 
     def export_matrices(self, t=None, state=None, path=None, to="matlab"):
         """
-        !TO DO:
+        TODO:
         """
 
         if path == None:
