@@ -349,21 +349,16 @@ class DPHS:
         )
 
         initial_value = None
-        for name_port in self.ports.keys():
-            if (
-                name_variable == self.ports[name_port].get_flow()
-                or name_variable == self.ports[name_port].get_effort()
-            ):
-                if self.ports[name_port].get_region() == None:
+        for _, port in self.ports.items():
+            if name_variable == port.get_flow() or name_variable == port.get_effort():
+                if port.get_region() == None:
                     initial_value = evaluation
                 else:
-                    nb_dofs_total = self.ports[name_port].get_fem().nbdof()
-                    dofs_on_region = (
-                        self.ports[name_port]
-                        .get_fem()
-                        .basic_dof_on_region(self.ports[name_port].get_region())
+                    nb_dofs_total = port.get_fem().nbdof()
+                    dofs_on_region = port.get_fem().basic_dof_on_region(
+                        port.get_region()
                     )
-                    qdim = self.ports[name_port].get_fem().qdim()
+                    qdim = port.get_fem().qdim()
                     size = dofs_on_region.shape[0]
                     shape = (qdim, int(size / qdim))
                     evaluation_long = np.reshape(evaluation, (nb_dofs_total,))
@@ -751,27 +746,23 @@ class DPHS:
         atol_v = atol * np.ones((self.gf_model.nbdof(),))
         id_alg = np.array([], dtype=int)
         # We add indices of all algebraic ports
-        for name_port in self.ports.keys():
-            if self.ports[name_port].get_algebraic():
-                I = self.gf_model.interval_of_variable(self.ports[name_port].get_flow())
+        for _, port in self.ports.items():
+            if port.get_algebraic():
+                I = self.gf_model.interval_of_variable(port.get_flow())
                 id_alg = np.concatenate(
                     (id_alg, np.arange(I[0], I[0] + I[1], dtype=int))
                 )
                 # If it is not substituted, it also has the effort part
-                if not self.ports[name_port].get_substituted():
-                    I = self.gf_model.interval_of_variable(
-                        self.ports[name_port].get_effort()
-                    )
+                if not port.get_substituted():
+                    I = self.gf_model.interval_of_variable(port.get_effort())
                     id_alg = np.concatenate(
                         (id_alg, np.arange(I[0], I[0] + I[1], dtype=int))
                     )
             # Else on dynamical ports
             else:
                 # If costate are not substituted, we also add them
-                if not self.ports[name_port].get_substituted():
-                    I = self.gf_model.interval_of_variable(
-                        self.ports[name_port].get_effort()
-                    )
+                if not port.get_substituted():
+                    I = self.gf_model.interval_of_variable(port.get_effort())
                     id_alg = np.concatenate(
                         (id_alg, np.arange(I[0], I[0] + I[1], dtype=int))
                     )
@@ -1003,20 +994,20 @@ class DPHS:
 
         print("Start computing the Hamiltonian")
         start = time.time()
-        for t in range(len(self.solution["t"])):
+        for t, _ in enumerate(self.solution["t"]):
             self.gf_model.to_variables(self.solution["z"][t])
-            for term in range(len(self.hamiltonian)):
+            for _, term in enumerate(self.hamiltonian):
                 term_value_at_t = 0.0
-                for region in self.hamiltonian[term].get_regions():
+                for region in term.get_regions():
                     term_value_at_t += gf.asm(
                         "generic",
-                        self.domain._int_method[self.hamiltonian[term].get_mesh_id()],
+                        self.domain._int_method[term.get_mesh_id()],
                         0,
-                        self.hamiltonian[term].get_expression(),
+                        term.get_expression(),
                         region,
                         self.gf_model,
                     )
-                self.hamiltonian[term].set_value(term_value_at_t)
+                term.set_value(term_value_at_t)
 
         self.hamiltonian.set_is_computed()
         logging.debug(f"Hamiltonian has been computed in {str(time.time() - start)} s")
@@ -1041,10 +1032,10 @@ class DPHS:
         ax = fig.add_subplot(111)
         HamTot = np.zeros(t.size)
 
-        for term in range(len(self.hamiltonian)):
-            values = np.array(self.hamiltonian[term].get_values())
+        for _, term in enumerate(self.hamiltonian):
+            values = np.array(term.get_values())
             HamTot += values
-            ax.plot(t, values, label=self.hamiltonian[term].get_description())
+            ax.plot(t, values, label=term.get_description())
 
         if len(self.hamiltonian) > 1:
             ax.plot(t, HamTot, label=self.hamiltonian.get_name())
@@ -1070,55 +1061,47 @@ class DPHS:
 
         print("Start computing the powers (substituted ports are not automated)")
         start = time.time()
-        for name_port in self.ports.keys():
-            if (
-                self.ports[name_port].get_algebraic()
-                and not self.ports[name_port].get_substituted()
-            ):
-                if self.ports[name_port].get_region() == None:
+        for _, port in self.ports.items():
+            if port.get_algebraic() and not port.get_substituted():
+                if port.get_region() == None:
                     region = -1
                 else:
-                    region = self.ports[name_port].get_region()
+                    region = port.get_region()
 
-                if self.ports[name_port].get_kind() == "scalar-field":
+                if port.get_kind() == "scalar-field":
                     times = "*"
-                elif self.ports[name_port].get_kind() == "vector-field":
+                elif port.get_kind() == "vector-field":
                     times = "."
-                elif self.ports[name_port].get_kind() == "tensor-field":
+                elif port.get_kind() == "tensor-field":
                     times = ":"
                 else:
                     raise ValueError(
                         "Unknown kind",
-                        self.ports[name_port].get_kind(),
+                        port.get_kind(),
                         "for control port",
                     )
 
                 # Control ports needs a minus for a better plot
-                if name_port in self.controls.keys():
+                if port.get_name() in self.controls.keys():
                     minus = "-"
                 else:
                     minus = ""
 
-                form = (
-                    minus
-                    + self.ports[name_port].get_flow()
-                    + times
-                    + self.ports[name_port].get_effort()
-                )
+                form = minus + port.get_flow() + times + port.get_effort()
 
-                self.powers[name_port] = []
-                for t in range(len(self.solution["t"])):
+                self.powers[port.get_name()] = []
+                for t, _ in enumerate(self.solution["t"]):
                     self.gf_model.to_variables(self.solution["z"][t])
 
                     power_value_at_t = gf.asm(
                         "generic",
-                        self.domain._int_method[self.ports[name_port].get_mesh_id()],
+                        self.domain._int_method[port.get_mesh_id()],
                         0,
                         form,
                         region,
                         self.gf_model,
                     )
-                    self.powers[name_port].append(power_value_at_t)
+                    self.powers[port.get_name()].append(power_value_at_t)
 
         print("Powers have been computed in", time.time() - start, "s")
 
@@ -1172,11 +1155,8 @@ class DPHS:
         if HamTot is not None:
             # Check if the balance makes sense: should not have algebraic and substituted port
             check_makes_sense = True
-            for name_port in self.ports.keys():
-                if (
-                    self.ports[name_port].get_algebraic()
-                    and self.ports[name_port].get_substituted()
-                ):
+            for _, port in self.ports.items():
+                if port.get_algebraic() and port.get_substituted():
                     check_makes_sense = False
             if check_makes_sense:
                 ax.plot(t, SP_balance, "--", label="Balance")
@@ -1288,7 +1268,7 @@ class DPHS:
                 pvd_file.write('<?xml version="1.0"?>\n')
                 pvd_file.write('<VTKFile type="Collection" version="0.1">\n')
                 pvd_file.write("  <Collection>\n")
-                for k in range(len(self.solution["t"])):
+                for k, _ in enumerate(self.solution["t"]):
                     z = self.solution["z"][k][J]
                     FEM = self.gf_model.mesh_fem_of_variable(name_variable)
                     FEM.export_to_vtu(
@@ -1363,5 +1343,5 @@ class DPHS:
             for term in self.hamiltonian.get_terms():
                 print(term)
 
-            for name_port in self.ports.keys():
-                print(self.ports[name_port])
+            for _, port in self.ports.items():
+                print(port)
