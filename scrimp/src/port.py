@@ -76,9 +76,9 @@ class Port:
         flow: str,
         effort: str,
         kind: str,
-        mesh_id: int=0,
+        mesh_id: int = 0,
         algebraic: bool = True,
-        substituted: bool=False,
+        substituted: bool = False,
         region: int = None,
     ):
         """Constructor of a `port` of a discrete port Hmiltonian system (dpHs).
@@ -116,6 +116,15 @@ class Port:
             bool: value that indicates if the port is set.
         """
         return self.__isSet
+
+    def set_is_set(self) -> bool:
+        """This funcion sets the boolean value that indicates the port is set.
+
+
+        Returns:
+            bool: value that indicates if the port is set.
+        """
+        self.__isSet = True
 
     def get_name(self) -> str:
         """This function gets the name of the port.
