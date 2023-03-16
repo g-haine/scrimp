@@ -32,6 +32,7 @@ def wave():
     from src.state import State
     from src.costate import CoState
     from src.port import Parameter, Port
+    from src.control import Control_Port
     from src.brick import Brick
 
     # Init the distributed port-Hamiltonian system
@@ -67,7 +68,6 @@ def wave():
 
     # Add a resistive `port`
     port = Port("Damping", "f_r", "e_r", "scalar-field")
-    port = Port("Damping", "f_r", "resistive-flow", "e_r", "scalar-field")
     wave.add_port(port)
     # Add a FEM on it
     wave.add_FEM("Damping", 1, FEM="DG")
@@ -78,47 +78,55 @@ def wave():
 
     # Add a control `port` on the bottom part of the boundary (Neumann, thus position='effort' - default)
     wave.add_control_port(
-        "Boundary control (bottom)",
-        "U_B",
-        "Normal force",
-        "Y_B",
-        "Velocity trace",
-        "scalar-field",
-        region=10,
+        Control_Port(
+            "Boundary control (bottom)",
+            "U_B",
+            "Normal force",
+            "Y_B",
+            "Velocity trace",
+            "scalar-field",
+            region=10,
+        )
     )
     wave.add_FEM("Boundary control (bottom)", 1, FEM="DG")
     # Add a control `port` on the right part of the boundary (Neumann, thus position='effort' - default)
     wave.add_control_port(
-        "Boundary control (right)",
-        "U_R",
-        "Normal force",
-        "Y_R",
-        "Velocity trace",
-        "scalar-field",
-        region=11,
+        Control_Port(
+            "Boundary control (right)",
+            "U_R",
+            "Normal force",
+            "Y_R",
+            "Velocity trace",
+            "scalar-field",
+            region=11,
+        )
     )
     wave.add_FEM("Boundary control (right)", 1, FEM="DG")
     # Add a control `port` on the top part of the boundary (Neumann, thus position='effort' - default)
     wave.add_control_port(
-        "Boundary control (top)",
-        "U_T",
-        "Normal force",
-        "Y_T",
-        "Velocity trace",
-        "scalar-field",
-        region=12,
+        Control_Port(
+            "Boundary control (top)",
+            "U_T",
+            "Normal force",
+            "Y_T",
+            "Velocity trace",
+            "scalar-field",
+            region=12,
+        )
     )
     wave.add_FEM("Boundary control (top)", 1, FEM="DG")
     # Add a control `port` on the left part of the boundary (Dirichlet, thus position='flow')
     wave.add_control_port(
-        "Boundary control (left)",
-        "U_L",
-        "Velocity trace",
-        "Y_L",
-        "Normal force",
-        "scalar-field",
-        region=13,
-        position="flow",
+        Control_Port(
+            "Boundary control (left)",
+            "U_L",
+            "Velocity trace",
+            "Y_L",
+            "Normal force",
+            "scalar-field",
+            region=13,
+            position="flow",
+        )
     )
     wave.add_FEM("Boundary control (left)", 1, FEM="DG")
 

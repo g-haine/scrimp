@@ -38,6 +38,7 @@ from src.domain import Domain
 from src.state import State
 from src.costate import CoState
 from src.port import Port, Parameter
+from src.control import Control_Port
 from src.brick import Brick
 from src.hamiltonian import Term, Hamiltonian
 
@@ -431,74 +432,16 @@ class DPHS:
                 f"brick IDs: {id_brick} has been added to brick: {name_brick}"
             )
 
-    def add_control_port(
-        self,
-        name,
-        name_control,
-        description_control,
-        name_observation,
-        description_observation,
-        kind,
-        region=None,
-        position="effort",
-        mesh_id=0,
-    ):
+    def add_control_port(self, control_port: Control_Port):
         """This function adds a control `port` to the dpHs
 
-        :param name: the name of the port
-        :type name: str
-        :param name_control: the name of the control variable
-        :type name_control: str
-        :param description_control: a physically motivated description of the control
-        :type description_control: str
-        :param name_observation: the name of the observation variable
-        :type name_observation: str
-        :param description_observation: a physically motivated description of the observation
-        :type description_observation: str
-        :param kind: the type of the variables, must be `scalar-field` or `vector-field`
-        :type kind: str
-        :param region: default=None, the id of the region where the port applies in the mesh mesh_id
-        :type region: int
-        :param position: default='effort', the position in the flow-effort formulation. Note that 'flow' means that the observation will be a Lagrange multiplier (see examples for more details).
-        :type position: str
-        :param mesh_id: the id of the mesh where the port belong
-        :type mesh_id: int
-
-        :return: appends a `port` to the dpHs and add a control `name` to the dict `controls`
+        Args:
+        control_port (Control_Port): the control port.
         """
 
-        if position == "effort":
-            flow = name_observation
-            effort = name_control
-        elif position == "flow":
-            flow = name_control
-            effort = name_observation
-        else:
-            raise ValueError("Position", position, "is not available for control port")
-
-        self.add_port(
-            Port(
-                name,
-                flow,
-                effort,
-                kind,
-                mesh_id,
-                algebraic=True,
-                substituted=False,
-                region=region,
-            )
-        )
-        self.controls[name] = {
-            "name_control": name_control,
-            "description_control": description_control,
-            "name_observation": name_observation,
-            "description_observation": description_observation,
-            "kind": kind,
-            "region": region,
-            "position": position,
-            "mesh_id": mesh_id,
-            "isset": False,
-        }
+        self.controls[control_port.get_name()] = control_port
+        logging.debug(f"control_port: {control_port.get_name()} has been added")
+        self.add_port(control_port)
 
     def set_control(self, name, expression):
         """This function applies a source term `expression` to the control port `name`
@@ -511,31 +454,31 @@ class DPHS:
         :return: construct the constitutive relation `M u = F` setting the control variable u using `brick` and `source` in the getfem `Model`
         """
 
-        if self.controls[name]["kind"] == "scalar-field":
+        if self.controls[name].get_kind() == "scalar-field":
             times = "*"
-        elif self.controls[name]["kind"] == "vector-field":
+        elif self.controls[name].get_kind() == "vector-field":
             times = "."
-        elif self.controls[name]["kind"] == "tensor-field":
+        elif self.controls[name].get_kind() == "tensor-field":
             times = ":"
         else:
             raise ValueError(
-                "Unknown kind", self.controls[name]["kind"], "for control port"
+                "Unknown kind", self.controls[name].get_kind(), "for control port"
             )
 
-        u = self.controls[name]["name_control"]
+        u = self.controls[name].get_name_control()
 
-        mass_form = (
-            u + times + "Test_" + u
-        )  # form of the mass matrix for the control variable
+        # form of the mass matrix for the control variable
+        mass_form = u + times + "Test_" + u
+
         self.add_brick(
             Brick(
                 "M_" + u,
                 mass_form,
-                [self.controls[name]["region"]],
+                [self.controls[name].get_region()],
                 linear=True,
                 dt=False,
                 position="constitutive",
-                mesh_id=self.controls[name]["mesh_id"],
+                mesh_id=self.controls[name].get_mesh_id(),
             )
         )
 
@@ -546,18 +489,18 @@ class DPHS:
             Brick(
                 u + "_source",
                 expression_form,
-                [self.controls[name]["region"]],
+                [self.controls[name].get_region()],
                 False,
                 False,
                 "source",
-                self.controls[name]["mesh_id"],
+                self.controls[name].get_mesh_id(),
             )
         )
 
         logging.debug(
-            f"Control function has been setted to: {u} = {expression} on region: {self.controls[name]['region']} of mesh: {self.controls[name]['mesh_id']}"
+            f"Control function has been setted to: {u} = {expression} on region: {self.controls[name].get_region()} of mesh: {self.controls[name].get_mesh_id()}"
         )
-        self.controls[name]["isset"] = True
+        self.controls[name].get_is_set()
         logging.debug(f"control port: {self.controls[name]} has been set:")
 
     def assemble_mass(self):
@@ -864,7 +807,7 @@ class DPHS:
                 "must be defined before time-resolution",
             )
         for name_control in self.controls.keys():
-            assert self.controls[name_control]["isset"], (
+            assert self.controls[name_control].get_is_set(), (
                 "Control",
                 name_control,
                 "must be defined before time-resolution",
