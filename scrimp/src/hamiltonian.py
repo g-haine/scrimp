@@ -82,6 +82,7 @@ class Hamiltonian:
         self.__terms = []
         self.__name = name
         self.__is_computed = False
+        self.__n = None
 
     def add_term(self, term: Term):
         """This function add a term to the term list of the Hamiltonian
@@ -186,6 +187,19 @@ class Hamiltonian:
             int: _description_
         """
         return len(self.__terms)
+
+    def __iter__(self):
+        self.__n = -1
+        return self
+
+    def __next__(self):
+
+        if self.__n < len(self) -1:
+            self.__n += 1
+            return self.__terms[self.__n]
+        else:
+            raise StopIteration
+
 
     def get_terms(self) -> list:
         """This function returns a copy of the list of terms of the Hamiltonian.
