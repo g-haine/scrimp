@@ -1,8 +1,8 @@
-from src.domain import Domain
-from src.state import State
-from src.costate import CoState
-from src.port import Port, Parameter
-from src.brick import Brick
+from dphs.domain import Domain
+from dphs.state import State
+from dphs.costate import CoState
+from dphs.port import Port, Parameter
+from dphs.brick import Brick
 
 import petsc4py
 

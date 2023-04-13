@@ -1,5 +1,5 @@
 import unittest
-from src.port import Port, Parameter
+from dphs.port import Port, Parameter
 
 
 class TestPort(unittest.TestCase):

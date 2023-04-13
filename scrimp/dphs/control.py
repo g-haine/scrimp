@@ -1,4 +1,4 @@
-from src.port import Port
+from dphs.port import Port
 
 
 class Control_Port(Port):

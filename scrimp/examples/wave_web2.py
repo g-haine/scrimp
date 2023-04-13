@@ -1,10 +1,10 @@
-from src.dphs import DPHS
-from src.domain import Domain
-from src.dphs import Term
-from src.state import State
-from src.costate import CoState
-from src.port import Parameter, Port
-from src.brick import Brick
+from dphs.dphs import DPHS
+from dphs.domain import Domain
+from dphs.dphs import Term
+from dphs.state import State
+from dphs.costate import CoState
+from dphs.port import Parameter, Port
+from dphs.brick import Brick
 
 wave = DPHS("real")
 

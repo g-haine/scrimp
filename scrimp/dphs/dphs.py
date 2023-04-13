@@ -32,15 +32,15 @@ import matplotlib.pylab as pl
 import logging
 
 from utils.linalg import extract_gmm_to_petsc, convert_PETSc_to_scipy
-from src import set_default_path
+from dphs import set_default_path
 
-from src.domain import Domain
-from src.state import State
-from src.costate import CoState
-from src.port import Port, Parameter
-from src.control import Control_Port
-from src.brick import Brick
-from src.hamiltonian import Term, Hamiltonian
+from dphs.domain import Domain
+from dphs.state import State
+from dphs.costate import CoState
+from dphs.port import Port, Parameter
+from dphs.control import Control_Port
+from dphs.brick import Brick
+from dphs.hamiltonian import Term, Hamiltonian
 
 
 class DPHS:

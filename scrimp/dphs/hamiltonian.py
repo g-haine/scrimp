@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import getfem as gf
 
-from src.domain import Domain
+from dphs.domain import Domain
 
 
 class Term:
