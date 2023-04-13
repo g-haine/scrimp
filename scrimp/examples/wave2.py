@@ -13,7 +13,7 @@
 - last modified:    12 dec. 2022
 - brief:            wave system
 """
-from dphs import *
+from scrimp import *
 from utils.mesh import set_verbose_gf
 
 

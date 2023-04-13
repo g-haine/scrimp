@@ -1,4 +1,4 @@
-from dphs import Domain
+from scrimp import Domain
 
 import getfem as gf
 import matplotlib.pyplot as plt

@@ -1,5 +1,5 @@
 import unittest
-from dphs.port import Port, Parameter
+from scrimp.port import Port, Parameter
 
 
 class TestParameter(unittest.TestCase):

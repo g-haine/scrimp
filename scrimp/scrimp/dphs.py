@@ -35,13 +35,13 @@ from utils.linalg import extract_gmm_to_petsc, convert_PETSc_to_scipy
 from utils.mesh import set_default_path
 
 
-from dphs import Domain
-from dphs import State
-from dphs import CoState
-from dphs import Port, Parameter
-from dphs import Control_Port
-from dphs import Brick
-from dphs import Term, Hamiltonian
+from scrimp.domain import Domain
+from scrimp.state import State
+from scrimp.costate import CoState
+from scrimp.port import Port, Parameter
+from scrimp.control import Control_Port
+from scrimp.brick import Brick
+from scrimp.hamiltonian import Term, Hamiltonian
 
 
 class DPHS:

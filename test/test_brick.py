@@ -1,5 +1,5 @@
 import unittest
-from dphs.brick import Brick
+from scrimp.brick import Brick
 
 
 class TestBrick(unittest.TestCase):

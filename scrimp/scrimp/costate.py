@@ -1,4 +1,4 @@
-from dphs import State
+from scrimp import State
 
 
 class CoState(State):

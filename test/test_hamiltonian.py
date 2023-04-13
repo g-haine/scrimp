@@ -1,5 +1,5 @@
 from unittest import TestCase
-from dphs.hamiltonian import Term, Hamiltonian
+from scrimp.hamiltonian import Term, Hamiltonian
 
 
 class TestHamiltonian(TestCase):

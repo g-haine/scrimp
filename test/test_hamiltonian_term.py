@@ -1,6 +1,6 @@
 from unittest import TestCase
-from dphs.hamiltonian import Term
-from dphs.domain import Domain
+from scrimp.hamiltonian import Term
+from scrimp.domain import Domain
 import getfem as gf
 
 

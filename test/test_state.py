@@ -1,7 +1,7 @@
 import unittest
-from dphs.costate import CoState
-from dphs.state import State
-from dphs.port import Port
+from scrimp.costate import CoState
+from scrimp.state import State
+from scrimp.port import Port
 
 
 class TestState(unittest.TestCase):
