@@ -2,7 +2,6 @@ import utils.mesh
 import getfem as gf
 
 
-
 class Domain:
     """
     A class handling meshes and indices for regions

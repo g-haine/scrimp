@@ -32,7 +32,7 @@ comm = PETSc.COMM_WORLD
 
 
 from utils.linalg import extract_gmm_to_petsc, convert_PETSc_to_scipy
-from utils.mesh import set_default_path
+
 
 
 from scrimp.domain import Domain
@@ -44,6 +44,8 @@ from scrimp.brick import Brick
 from scrimp.hamiltonian import Term, Hamiltonian
 
 
+module_path=os.path.join(__file__[:-15],"outputs")
+
 class DPHS:
     """
     A generic class handling distributed pHs using the GetFEM tools
@@ -53,7 +55,7 @@ class DPHS:
     Access to fine tunings is preserved as much as possible
     """
 
-    def __init__(self, basis_field="real"):
+    def __init__(self, basis_field="real", filename_log="dphs.log"):
         """
         Constructor of the `distributed port-Hamiltonian system` dpHs class
 
@@ -62,7 +64,7 @@ class DPHS:
         """
         # Set the log file
         logging.basicConfig(
-            filename="dphs.log",
+            filename=os.path.join(module_path,"log", filename_log),
             encoding="utf-8",
             level=logging.DEBUG,
             filemode="w",
@@ -1013,7 +1015,9 @@ class DPHS:
         self.hamiltonian.set_is_computed()
         logging.debug(f"Hamiltonian has been computed in {str(time.time() - start)} s")
 
-    def plot_Hamiltonian(self, with_powers=True):
+    def plot_Hamiltonian(
+        self, with_powers=True, save_figure=False, filename="hamiltonian.png"
+    ):
         """
         Plot each term constituting the Hamiltonian and the Hamiltonian
 
@@ -1049,6 +1053,8 @@ class DPHS:
         ax.set_xlabel("time t")
         ax.set_ylabel("Hamiltonian terms")
         ax.set_title("Evolution of Hamiltonian terms")
+        if save_figure:
+            plt.savefig(os.path.join(module_path, "png", filename), dpi=300)
         plt.show()
 
     def compute_powers(self):
@@ -1236,7 +1242,7 @@ class DPHS:
         """
 
         if path == None:
-            path = set_default_path()
+            path = module_path
 
     def export_to_pv(self, name_variable, path=None, t="All"):
         """
@@ -1252,10 +1258,13 @@ class DPHS:
 
         assert self.solve_done, "The system has not been solved yet"
 
-        if not path:
-            path = os.path.join(set_default_path(), name_variable)
-            if not os.path.exists(path):
-                os.makedirs(path)
+        if path is not None:
+            path = os.path.join(path, name_variable)
+        else:
+            path = os.path.join(module_path, name_variable)
+
+        if not os.path.exists(path):
+            os.makedirs(path)
 
         # Get the dofs of name_variable
         I = self.gf_model.interval_of_variable(name_variable)

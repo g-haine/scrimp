@@ -193,7 +193,7 @@ def wave():
     ## Post-processing
 
     # Plot the Hamiltonian with the power supplied at the boundary
-    wave.plot_Hamiltonian()
+    wave.plot_Hamiltonian(save_figure=True)
 
     # Export solutions for ParaView
     wave.export_to_pv("q")
