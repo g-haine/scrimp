@@ -14,33 +14,34 @@
 - brief:            class for distributed port-Hamiltonian system
 """
 
+import getfem as gf
+import logging
+import matplotlib.pyplot as plt
+import matplotlib.pylab as pl
+import numpy as np
 import os
+import petsc4py
 import sys
 import time
-import getfem as gf
 
-import petsc4py
 
 petsc4py.init()
 from petsc4py import PETSc
 
 comm = PETSc.COMM_WORLD
 
-import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.pylab as pl
-import logging
 
 from utils.linalg import extract_gmm_to_petsc, convert_PETSc_to_scipy
-from dphs import set_default_path
+from utils.mesh import set_default_path
 
-from dphs.domain import Domain
-from dphs.state import State
-from dphs.costate import CoState
-from dphs.port import Port, Parameter
-from dphs.control import Control_Port
-from dphs.brick import Brick
-from dphs.hamiltonian import Term, Hamiltonian
+
+from dphs import Domain
+from dphs import State
+from dphs import CoState
+from dphs import Port, Parameter
+from dphs import Control_Port
+from dphs import Brick
+from dphs import Term, Hamiltonian
 
 
 class DPHS:
@@ -1320,6 +1321,7 @@ class DPHS:
     def display(self, verbose=2):
         """
         A method giving infos about the dpHs
+
 
         !TO DO: improve presentation.
 

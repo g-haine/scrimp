@@ -21,14 +21,24 @@ import numpy as np
 import getfem as gf
 
 
-def check_default_path():
-    """
-    Check if the default path exists, and create it otherwise
-    """
-
-    path = set_default_path()
-    if not os.path.exists(path):
-        os.makedirs(path)
+#
+# def check_default_path():
+#     """
+#     Check if the default path exists, and create it otherwise
+#     """
+#
+#     path = set_default_path()
+#     if not os.path.exists(path):
+#         os.makedirs(path)
+#
+#
+# def set_default_path():
+#     """
+#     Set the default path folder for outputs to the path of this file + outputs
+#     """
+#
+#     return os.path.join(os.path.dirname(os.path.realpath(__file__)), "outputs")
+#
 
 
 def set_default_path():
@@ -38,6 +48,27 @@ def set_default_path():
 
     return os.path.join(os.path.dirname(os.path.realpath(__file__)), "outputs")
 
+
+def set_verbose_gf(verbose):
+    """
+    Set the verbosity level of getfem
+
+    :param verbose: the level
+    :type verbose: int
+    """
+
+    gf.util_trace_level(verbose)
+    gf.util_warning_level(verbose)
+
+
+def check_default_path():
+    """
+    Check if the default path exists, and create it otherwise
+    """
+
+    path = set_default_path()
+    if not os.path.exists(path):
+        os.makedirs(path)
 
 check_default_path()
 

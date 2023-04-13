@@ -1,6 +1,8 @@
 import utils.mesh
 import getfem as gf
 
+# from dphs import set_default_path
+
 
 class Domain:
     """

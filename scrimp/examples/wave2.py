@@ -13,6 +13,8 @@
 - last modified:    12 dec. 2022
 - brief:            wave system
 """
+from dphs import *
+from utils.mesh import set_verbose_gf
 
 
 def wave():
@@ -22,18 +24,7 @@ def wave():
     Formulation DAE (energy/co-energy), Grad-Grad, Mixed boundary condition on the Rectangle
     """
 
-    from src import set_verbose_gf
-
     set_verbose_gf(0)
-
-    from src.dphs import DPHS
-    from src.domain import Domain
-    from src.dphs import Term
-    from src.state import State
-    from src.costate import CoState
-    from src.port import Parameter, Port
-    from src.control import Control_Port
-    from src.brick import Brick
 
     # Init the distributed port-Hamiltonian system
     wave = DPHS("real")

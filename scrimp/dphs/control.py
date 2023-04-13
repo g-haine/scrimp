@@ -1,4 +1,4 @@
-from dphs.port import Port
+from dphs import Port
 
 
 class Control_Port(Port):
@@ -14,7 +14,6 @@ class Control_Port(Port):
         position: str = "effort",
         mesh_id: int = 0,
     ):
-
         if position == "effort":
             flow = name_observation
             effort = name_control

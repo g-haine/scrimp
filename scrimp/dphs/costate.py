@@ -1,4 +1,4 @@
-from dphs.state import State
+from dphs import State
 
 
 class CoState(State):

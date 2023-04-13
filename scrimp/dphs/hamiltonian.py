@@ -1,9 +1,9 @@
-import time
-import numpy as np
-import matplotlib.pyplot as plt
-import getfem as gf
+from dphs import Domain
 
-from dphs.domain import Domain
+import getfem as gf
+import matplotlib.pyplot as plt
+import numpy as np
+import time
 
 
 class Term:
@@ -193,13 +193,11 @@ class Hamiltonian:
         return self
 
     def __next__(self):
-
-        if self.__n < len(self) -1:
+        if self.__n < len(self) - 1:
             self.__n += 1
             return self.__terms[self.__n]
         else:
             raise StopIteration
-
 
     def get_terms(self) -> list:
         """This function returns a copy of the list of terms of the Hamiltonian.
