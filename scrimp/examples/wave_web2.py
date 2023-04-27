@@ -4,7 +4,6 @@ from dphs.dphs import Term
 from dphs.state import State
 from dphs.costate import CoState
 from dphs.port import Parameter, Port
-from
 from dphs.brick import Brick
 
 wave = DPHS("real")

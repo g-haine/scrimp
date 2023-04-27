@@ -1,6 +1,6 @@
 import unittest
-from scrimp.domain import Domain
-import utils.mesh
+from scrimp import Domain
+import scrimp.utils.mesh
 
 
 class TestDomain(unittest.TestCase):

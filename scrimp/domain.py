@@ -1,4 +1,4 @@
-import utils.mesh
+import scrimp.utils.mesh
 import getfem as gf
 
 
@@ -25,10 +25,10 @@ class Domain:
         self._dim = list()  #: A list of the dimensions of the getfem meshes
         self._int_method = list()  #: A list of getfem integration method MeshIm objects
 
-        built_in_methods = dir(utils.mesh)
+        built_in_methods = dir(scrimp.utils.mesh)
 
         if name in built_in_methods:
-            mesh_function = getattr(utils.mesh, name)
+            mesh_function = getattr(scrimp.utils.mesh, name)
             gf_mesh = mesh_function(parameters, terminal=0)
             self._mesh.append(gf_mesh[0])
             self._dim.append(gf_mesh[1])

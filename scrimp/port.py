@@ -1,5 +1,5 @@
 import getfem as gf
-from scrimp.fem import FEM
+from scrimp import FEM
 
 
 class Parameter:

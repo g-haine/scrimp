@@ -14,7 +14,7 @@
 - brief:            wave system
 """
 from scrimp import *
-from utils.mesh import set_verbose_gf
+from scrimp.utils.mesh import set_verbose_gf
 from itertools import zip_longest
 
 

@@ -26,7 +26,7 @@ def shallow_water():
     from scrimp import set_verbose_gf
     set_verbose_gf(0) # Select the verbosity level of getfem from 0 (quiet) to 3
     
-    from scrimp.dpHs import dpHs
+    from scrimp import dpHs
     
     swe = dpHs('real')
     

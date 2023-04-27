@@ -31,17 +31,10 @@ from petsc4py import PETSc
 comm = PETSc.COMM_WORLD
 
 
-from utils.linalg import extract_gmm_to_petsc, convert_PETSc_to_scipy
+from scrimp.utils.linalg import extract_gmm_to_petsc, convert_PETSc_to_scipy
 
 
-from scrimp.domain import Domain
-from scrimp.state import State
-from scrimp.costate import CoState
-from scrimp.port import Port, Parameter
-from scrimp.control import Control_Port
-from scrimp.brick import Brick
-from scrimp.hamiltonian import Term, Hamiltonian
-from scrimp.fem import FEM
+from scrimp import *
 
 
 module_path = os.path.join(__file__[:-15], "outputs")

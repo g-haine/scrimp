@@ -71,7 +71,7 @@ class State:
         Args:
             costate (Costate): Co-state
         """
-        from .costate import CoState
+        from scrimp import CoState
 
         if self.get_costate() is None and costate is not None:
             assert isinstance(costate, CoState)
@@ -93,7 +93,7 @@ class State:
         Args:
             port (Port): Port
         """
-        from .port import Port
+        from scrimp import Port
 
         if self.get_port() is None and port is not None:
             assert isinstance(port, Port)

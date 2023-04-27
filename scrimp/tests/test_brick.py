@@ -1,5 +1,5 @@
 import unittest
-from scrimp.brick import Brick
+from scrimp import Brick
 
 
 class TestBrick(unittest.TestCase):
