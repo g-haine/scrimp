@@ -1,4 +1,5 @@
 import getfem as gf
+from scrimp.fem import FEM
 
 
 class Parameter:
@@ -201,7 +202,7 @@ class Port:
         """
         return self.__fem
 
-    def set_fem(self, mesh, dim: int, order: int, fem: str):
+    def set_fem(self, fem: FEM):  # mesh, dim: int, order: int, fem: str):
         """This function sets the Meshfem getfem object defining the finite element method to use to discretize the port.
 
 
@@ -216,10 +217,18 @@ class Port:
         """
         # TO DO: handle more FE
 
-        if fem == "CG":
-            fem_str = "FEM_PK(" + str(mesh.dim()) + "," + str(order) + ")"
-        elif fem == "DG":
-            fem_str = "FEM_PK_DISCONTINUOUS(" + str(mesh.dim()) + "," + str(order) + ")"
+        if fem.get_type() == "CG":
+            fem_str = (
+                "FEM_PK(" + str(fem.get_mesh().dim()) + "," + str(fem.get_order()) + ")"
+            )
+        elif fem.get_type() == "DG":
+            fem_str = (
+                "FEM_PK_DISCONTINUOUS("
+                + str(fem.get_mesh().dim())
+                + ","
+                + str(fem.get_order())
+                + ")"
+            )
         else:
             raise ValueError(
                 "Unknown fem "
@@ -229,7 +238,7 @@ class Port:
                 + "\nUse the gf_model `Model` attribute to set it directly"
             )
 
-        self.__fem = gf.MeshFem(mesh, dim)
+        self.__fem = gf.MeshFem(fem.get_mesh(), fem.get_dim())
         self.__fem.set_fem(gf.Fem(fem_str))
 
         self.__isSet = True

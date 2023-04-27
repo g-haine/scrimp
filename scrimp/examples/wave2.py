@@ -15,6 +15,7 @@
 """
 from scrimp import *
 from utils.mesh import set_verbose_gf
+from itertools import zip_longest
 
 
 def wave():
@@ -35,40 +36,33 @@ def wave():
 
     ## Define the variables and their discretizations
 
-    # Add a state
-    state = State("q", "Strain", "vector-field")
-    wave.add_state(state)
-    # Add its co-state
-    wave.add_costate(CoState("e_q", "Stress", state))
-    # Add a Finite Element Method to the `port`
-    wave.add_FEM("q", 1, FEM="DG")
-    # Add a (possibly space-varying) parameter to the `port`
-    wave.add_parameter(
-        Parameter("T", "Young's modulus", "tensor-field", "[[5+x,x*y],[x*y,2+y]]", "q")
-    )
+    states = [
+        State("q", "Strain", "vector-field"),
+        State("p", "Linear momentum", "scalar-field"),
+    ]
+    costates = [
+        CoState("e_q", "Stress", states[0]),
+        CoState("e_p", "Velocity", states[1]),
+    ]
+    params = [
+        Parameter("T", "Young's modulus", "tensor-field", "[[5+x,x*y],[x*y,2+y]]", "q"),
+        Parameter("rho", "Mass density", "scalar-field", "3-x", "p"),
+        Parameter("nu", "viscosity", "scalar-field", "0.05*x", ports[0].get_name()),
+    ]
+    FEMs = [
+        tuple("q", 1, FEM="DG"),
+        tuple("p", 2, FEM="CG"),
+        tuple("Damping", 1, FEM="DG"),
+        tuple("Boundary control (bottom)", 1, FEM="DG"),
+        tuple("Boundary control (right)", 1, FEM="DG"),
+        tuple("Boundary control (top)", 1, FEM="DG"),
+        tuple("Boundary control (left)", 1, FEM="DG"),
+    ]
+    ports = [
+        Port("Damping", "f_r", "e_r", "scalar-field"),
+    ]
 
-    # Add a state
-    state = State("p", "Linear momentum", "scalar-field")
-    wave.add_state(state)
-    # Add its co-state
-    wave.add_costate(CoState("e_p", "Velocity", state))
-    # Add a Finite Element Method to the `port`
-    wave.add_FEM("p", 2, FEM="CG")
-    # Add a (possibly space-varying) parameter to the `port`
-    wave.add_parameter(Parameter("rho", "Mass density", "scalar-field", "3-x", "p"))
-
-    # Add a resistive `port`
-    port = Port("Damping", "f_r", "e_r", "scalar-field")
-    wave.add_port(port)
-    # Add a FEM on it
-    wave.add_FEM("Damping", 1, FEM="DG")
-    # Attach a damping parameter to it
-    wave.add_parameter(
-        Parameter("nu", "viscosity", "scalar-field", "0.05*x", port.get_name())
-    )
-
-    # Add a control `port` on the bottom part of the boundary (Neumann, thus position='effort' - default)
-    wave.add_control_port(
+    control_ports = [
         Control_Port(
             "Boundary control (bottom)",
             "U_B",
@@ -77,11 +71,7 @@ def wave():
             "Velocity trace",
             "scalar-field",
             region=10,
-        )
-    )
-    wave.add_FEM("Boundary control (bottom)", 1, FEM="DG")
-    # Add a control `port` on the right part of the boundary (Neumann, thus position='effort' - default)
-    wave.add_control_port(
+        ),
         Control_Port(
             "Boundary control (right)",
             "U_R",
@@ -90,11 +80,7 @@ def wave():
             "Velocity trace",
             "scalar-field",
             region=11,
-        )
-    )
-    wave.add_FEM("Boundary control (right)", 1, FEM="DG")
-    # Add a control `port` on the top part of the boundary (Neumann, thus position='effort' - default)
-    wave.add_control_port(
+        ),
         Control_Port(
             "Boundary control (top)",
             "U_T",
@@ -103,11 +89,7 @@ def wave():
             "Velocity trace",
             "scalar-field",
             region=12,
-        )
-    )
-    wave.add_FEM("Boundary control (top)", 1, FEM="DG")
-    # Add a control `port` on the left part of the boundary (Dirichlet, thus position='flow')
-    wave.add_control_port(
+        ),
         Control_Port(
             "Boundary control (left)",
             "U_L",
@@ -117,59 +99,81 @@ def wave():
             "scalar-field",
             region=13,
             position="flow",
-        )
-    )
-    wave.add_FEM("Boundary control (left)", 1, FEM="DG")
+        ),
+    ]
 
-    # Set the Hamiltonian (can be done later, even after solve)
-    wave.hamiltonian.add_term(Term("Potential energy", "0.5*q.T.q", [1]))
-    wave.hamiltonian.add_term(Term("Kinetic energy", "0.5*p*p/rho", [1]))
+    for state, costate, param, fem, port, control_port in zip_longest(
+        states, costates, params, FEMs, ports, control_ports
+    ):
+        if state is not None:
+            # Add a state
+            wave.add_state(state)
+        if costate is not None:
+            # Add its co-state
+            wave.add_costate(costate)
+        if fem is not None:
+            # Add a Finite Element Method to the `port`
+            wave.add_FEM(fem)
+        if param is not None:
+            # Add a (possibly space-varying) parameter to the `port`
+            wave.add_parameter(param)
+        if port is not None:
+            # Add a resistive `port`
+            wave.add_port(port)
+        if control_port is not None:
+            # Add a control `port` on the bottom part of the boundary (Neumann, thus position='effort' - default)
+            wave.add_control_port()
+
+    terms = [
+        Term("Potential energy", "0.5*q.T.q", [1]),
+        Term("Kinetic energy", "0.5*p*p/rho", [1]),
+    ]
+
+    for term in terms:
+        # Set the Hamiltonian (can be done later, even after solve)
+        wave.hamiltonian.add_term(term)
+
     wave.hamiltonian.set_name("Mechanical energy")
 
-    ## Define the Dirac structure via getfem `brick` = non-zero block matrix
+    bricks = [
+        ## Define the Dirac structure via getfem `brick` = non-zero block matrix
+        # Add the mass matrices from the left-hand side: the `flow` part of the Dirac structure
+        Brick("M_q", "q.Test_q", [1], dt=True, position="flow"),
+        Brick("M_p", "p*Test_p", [1], dt=True, position="flow"),
+        Brick("M_r", "f_r*Test_f_r", [1], position="flow"),
+        Brick("M_Y_B", "Y_B*Test_Y_B", [10], position="flow"),
+        Brick("M_Y_R", "Y_R*Test_Y_R", [11], position="flow"),
+        Brick("M_Y_T", "Y_T*Test_Y_T", [12], position="flow"),
+        # The Dirichlet term is applied via Lagrange multiplier == the colocated output
+        Brick("M_Y_L", "U_L*Test_Y_L", [13], position="flow"),
+        # Add the matrices from the right-hand side: the `effort` part of the Dirac structure
+        Brick("D", "Grad(e_p).Test_q", [1], position="effort"),
+        Brick("-D^T", "-e_q.Grad(Test_p)", [1], position="effort"),
+        Brick("I_r", "e_r*Test_p", [1], position="effort"),
+        Brick("B_B", "U_B*Test_p", [10], position="effort"),
+        Brick("B_R", "U_R*Test_p", [11], position="effort"),
+        Brick("B_T", "U_T*Test_p", [12], position="effort"),
+        # The Dirichlet term is applied via Lagrange multiplier == the colocated output
+        Brick("B_L", "Y_L*Test_p", [13], position="effort"),
+        Brick("-I_r^T", "-e_p*Test_f_r", [1], position="effort"),
+        Brick("C_B", "-e_p*Test_Y_B", [10], position="effort"),
+        Brick("C_R", "-e_p*Test_Y_R", [11], position="effort"),
+        Brick("C_T", "-e_p*Test_Y_T", [12], position="effort"),
+        Brick("C_L", "-e_p*Test_Y_L", [13], position="effort"),
+        ## Define the constitutive relations as getfem `brick`
+        # Hooke's law under implicit form - M_e_q e_q + CR_q q = 0
+        Brick("-M_e_q", "-e_q.Test_e_q", [1]),
+        Brick("CR_q", "q.T.Test_e_q", [1]),
+        # Linear momentum definition under implicit form - M_e_p e_p + CR_p p = 0
+        Brick("-M_e_p", "-e_p*Test_e_p", [1]),
+        Brick("CR_p", "p/rho*Test_e_p", [1]),
+        # Linear viscous fluid damping - M_e_r e_r + CR_r f_r = 0
+        Brick("-M_e_r", "-e_r*Test_e_r", [1]),
+        Brick("CR_r", "nu*f_r*Test_e_r", [1]),
+    ]
 
-    # Add the mass matrices from the left-hand side: the `flow` part of the Dirac structure
-    wave.add_brick(Brick("M_q", "q.Test_q", [1], dt=True, position="flow"))
-    wave.add_brick(Brick("M_p", "p*Test_p", [1], dt=True, position="flow"))
-    wave.add_brick(Brick("M_r", "f_r*Test_f_r", [1], position="flow"))
-    wave.add_brick(Brick("M_Y_B", "Y_B*Test_Y_B", [10], position="flow"))
-    wave.add_brick(Brick("M_Y_R", "Y_R*Test_Y_R", [11], position="flow"))
-    wave.add_brick(Brick("M_Y_T", "Y_T*Test_Y_T", [12], position="flow"))
-    # The Dirichlet term is applied via Lagrange multiplier == the colocated output
-    wave.add_brick(Brick("M_Y_L", "U_L*Test_Y_L", [13], position="flow"))
-
-    # Add the matrices from the right-hand side: the `effort` part of the Dirac structure
-    wave.add_brick(Brick("D", "Grad(e_p).Test_q", [1], position="effort"))
-
-    wave.add_brick(Brick("-D^T", "-e_q.Grad(Test_p)", [1], position="effort"))
-    wave.add_brick(Brick("I_r", "e_r*Test_p", [1], position="effort"))
-    wave.add_brick(Brick("B_B", "U_B*Test_p", [10], position="effort"))
-    wave.add_brick(Brick("B_R", "U_R*Test_p", [11], position="effort"))
-    wave.add_brick(Brick("B_T", "U_T*Test_p", [12], position="effort"))
-    # The Dirichlet term is applied via Lagrange multiplier == the colocated output
-    wave.add_brick(Brick("B_L", "Y_L*Test_p", [13], position="effort"))
-
-    wave.add_brick(Brick("-I_r^T", "-e_p*Test_f_r", [1], position="effort"))
-
-    wave.add_brick(Brick("C_B", "-e_p*Test_Y_B", [10], position="effort"))
-    wave.add_brick(Brick("C_R", "-e_p*Test_Y_R", [11], position="effort"))
-    wave.add_brick(Brick("C_T", "-e_p*Test_Y_T", [12], position="effort"))
-    wave.add_brick(Brick("C_L", "-e_p*Test_Y_L", [13], position="effort"))
-
-    ## Define the constitutive relations as getfem `brick`
-
-    # Hooke's law under implicit form - M_e_q e_q + CR_q q = 0
-    wave.add_brick(Brick("-M_e_q", "-e_q.Test_e_q", [1]))
-    wave.add_brick(Brick("CR_q", "q.T.Test_e_q", [1]))
-
-    # Linear momentum definition under implicit form - M_e_p e_p + CR_p p = 0
-    wave.add_brick(Brick("-M_e_p", "-e_p*Test_e_p", [1]))
-    wave.add_brick(Brick("CR_p", "p/rho*Test_e_p", [1]))
-
-    # Linear viscous fluid damping - M_e_r e_r + CR_r f_r = 0
-    wave.add_brick(Brick("-M_e_r", "-e_r*Test_e_r", [1]))
-    wave.add_brick(Brick("CR_r", "nu*f_r*Test_e_r", [1]))
-
+    for brick in bricks:
+        wave.add_brick(brick)
     ## Initialize the problem
 
     # Set the control functions (automatic construction of bricks such that -M_u u + f(t) = 0)

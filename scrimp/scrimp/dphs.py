@@ -34,7 +34,6 @@ comm = PETSc.COMM_WORLD
 from utils.linalg import extract_gmm_to_petsc, convert_PETSc_to_scipy
 
 
-
 from scrimp.domain import Domain
 from scrimp.state import State
 from scrimp.costate import CoState
@@ -42,9 +41,11 @@ from scrimp.port import Port, Parameter
 from scrimp.control import Control_Port
 from scrimp.brick import Brick
 from scrimp.hamiltonian import Term, Hamiltonian
+from scrimp.fem import FEM
 
 
-module_path=os.path.join(__file__[:-15],"outputs")
+module_path = os.path.join(__file__[:-15], "outputs")
+
 
 class DPHS:
     """
@@ -64,7 +65,7 @@ class DPHS:
         """
         # Set the log file
         logging.basicConfig(
-            filename=os.path.join(module_path,"log", filename_log),
+            filename=os.path.join(module_path, "log", filename_log),
             encoding="utf-8",
             level=logging.DEBUG,
             filemode="w",
@@ -198,7 +199,7 @@ class DPHS:
         self.ports[port.get_name()] = port
         logging.debug(f"port: {port.get_name()} has been added")
 
-    def add_FEM(self, name_port, order, FEM="CG"):
+    def add_FEM(self, fem: FEM):  # name_port, order, FEM="CG"):
         """This function defines a FEM (Finite Element Method) for the variables associated to a `port` of the dpHs
 
         This FEM is a member of the `port`, but it is linked to the getfem `Model` at this stage
@@ -213,77 +214,71 @@ class DPHS:
         FEM (str): the FE to use, default `CG` for the classical Lagrange element, see port.set_FEM() for more details
         """
 
+        name_port = fem.get_name()
         assert self.domain.get_isSet(), "Domain must be setted before adding FEM"
 
         assert name_port in self.ports.keys(), ("Port", name_port, "does not exist")
 
+        port = self.ports[name_port]
         # Select the right dimension
-        if self.ports[name_port].get_kind() == "scalar-field":
+        if port.get_kind() == "scalar-field":
             dim = 1
-        elif self.ports[name_port].get_kind() == "vector-field":
-            dim = self.domain.get_dim()[self.ports[name_port].get_mesh_id()]
+        elif port.get_kind() == "vector-field":
+            dim = self.domain.get_dim()[port.get_mesh_id()]
         else:
-            raise ValueError(
-                "Unknown kind of variables", self.ports[name_port].get_kind()
-            )
+            raise ValueError("Unknown kind of variables", port.get_kind())
 
-        self.ports[name_port].set_fem(
-            self.domain.get_mesh()[self.ports[name_port].get_mesh_id()], dim, order, FEM
-        )
+        fem.set_dim(dim)
+        fem.set_mesh(self.domain.get_mesh()[port.get_mesh_id()])
+
+        port.set_fem(fem)
 
         # If region is not None, the variable is restricted to the region of mesh_id. Useful for boundary ports or interconnected dpHs on the same mesh
-        if self.ports[name_port].get_region() is not None:
+        if port.get_region() is not None:
             self.gf_model.add_filtered_fem_variable(
-                self.ports[name_port].get_flow(),
-                self.ports[name_port].get_fem(),
-                self.ports[name_port].get_region(),
+                port.get_flow(),
+                port.get_fem(),
+                port.get_region(),
             )
         else:
-            self.gf_model.add_fem_variable(
-                self.ports[name_port].get_flow(), self.ports[name_port].get_fem()
-            )
+            self.gf_model.add_fem_variable(port.get_flow(), port.get_fem())
 
         # If the port is algebraic and not substituted, we also add the effort to the list of variables
-        if (
-            self.ports[name_port].get_algebraic()
-            and not self.ports[name_port].get_substituted()
-        ):
-            if self.ports[name_port].get_region() is not None:
+        if port.get_algebraic() and not port.get_substituted():
+            if port.get_region() is not None:
                 self.gf_model.add_filtered_fem_variable(
-                    self.ports[name_port].get_effort(),
-                    self.ports[name_port].get_fem(),
-                    self.ports[name_port].get_region(),
+                    port.get_effort(),
+                    port.get_fem(),
+                    port.get_region(),
                 )
             else:
-                self.gf_model.add_fem_variable(
-                    self.ports[name_port].get_effort(), self.ports[name_port].get_fem()
-                )
+                self.gf_model.add_fem_variable(port.get_effort(), port.get_fem())
 
         # If the port is dynamic and the co-state is not substituted, the co-state must be added as an unknown variable
-        if self.ports[name_port].get_effort() in self.costates.keys():
-            assert not self.ports[name_port].get_algebraic(), (
+        if port.get_effort() in self.costates.keys():
+            assert not port.get_algebraic(), (
                 "Port",
                 name_port,
                 "should not be algebraic because",
-                self.ports[name_port].get_effort(),
+                port.get_effort(),
                 "is a co-state",
             )
-            if not self.ports[name_port].get_substituted():
-                if self.ports[name_port].get_region() is not None:
+            if not port.get_substituted():
+                if port.get_region() is not None:
                     self.gf_model.add_filtered_fem_variable(
-                        self.ports[name_port].get_effort(),
-                        self.ports[name_port].get_fem(),
-                        self.ports[name_port].get_region(),
+                        port.get_effort(),
+                        port.get_fem(),
+                        port.get_region(),
                     )
                 else:
                     self.gf_model.add_fem_variable(
-                        self.ports[name_port].get_effort(),
-                        self.ports[name_port].get_fem(),
+                        port.get_effort(),
+                        port.get_fem(),
                     )
 
         # If the port is dynamic, the state needs initialization for time-resolution
-        if not self.ports[name_port].get_algebraic():
-            self.initial_value_setted[self.ports[name_port].get_flow()] = False
+        if not port.get_algebraic():
+            self.initial_value_setted[port.get_flow()] = False
 
     def add_parameter(self, parameter: Parameter):
         """This function defines a time-independent possibly space-varying parameter (x, y and z are the space variables to use) associated to a `port` of the dpHs
