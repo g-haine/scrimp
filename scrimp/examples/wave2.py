@@ -18,7 +18,7 @@ from utils.mesh import set_verbose_gf
 from itertools import zip_longest
 
 
-def wave():
+def wave_eq():
     """
     A structure-preserving discretization of the wave equation with boundary control
 
@@ -44,22 +44,13 @@ def wave():
         CoState("e_q", "Stress", states[0]),
         CoState("e_p", "Velocity", states[1]),
     ]
+    ports = [
+        Port("Damping", "f_r", "e_r", "scalar-field"),
+    ]
     params = [
         Parameter("T", "Young's modulus", "tensor-field", "[[5+x,x*y],[x*y,2+y]]", "q"),
         Parameter("rho", "Mass density", "scalar-field", "3-x", "p"),
         Parameter("nu", "viscosity", "scalar-field", "0.05*x", ports[0].get_name()),
-    ]
-    FEMs = [
-        tuple("q", 1, FEM="DG"),
-        tuple("p", 2, FEM="CG"),
-        tuple("Damping", 1, FEM="DG"),
-        tuple("Boundary control (bottom)", 1, FEM="DG"),
-        tuple("Boundary control (right)", 1, FEM="DG"),
-        tuple("Boundary control (top)", 1, FEM="DG"),
-        tuple("Boundary control (left)", 1, FEM="DG"),
-    ]
-    ports = [
-        Port("Damping", "f_r", "e_r", "scalar-field"),
     ]
 
     control_ports = [
@@ -102,6 +93,17 @@ def wave():
         ),
     ]
 
+    FEMs = [
+        # name of the variable: (is the same of states, ports and controls ports), order, FEM
+        FEM(states[0].get_name(), 1, "DG"),
+        FEM(states[1].get_name(), 2, "CG"),
+        FEM(ports[0].get_name(), 1, "DG"),
+        FEM(control_ports[0].get_name(), 1, "DG"),
+        FEM(control_ports[1].get_name(), 1, "DG"),
+        FEM(control_ports[2].get_name(), 1, "DG"),
+        FEM(control_ports[3].get_name(), 1, "DG"),
+    ]
+
     for state, costate, param, fem, port, control_port in zip_longest(
         states, costates, params, FEMs, ports, control_ports
     ):
@@ -122,7 +124,10 @@ def wave():
             wave.add_port(port)
         if control_port is not None:
             # Add a control `port` on the bottom part of the boundary (Neumann, thus position='effort' - default)
-            wave.add_control_port()
+            wave.add_control_port(control_port)
+
+    ## Set Hamiltonian
+    wave.hamiltonian.set_name("Mechanical energy")
 
     terms = [
         Term("Potential energy", "0.5*q.T.q", [1]),
@@ -133,10 +138,8 @@ def wave():
         # Set the Hamiltonian (can be done later, even after solve)
         wave.hamiltonian.add_term(term)
 
-    wave.hamiltonian.set_name("Mechanical energy")
-
+    ## Define the Dirac structure via getfem `brick` = non-zero block matrix
     bricks = [
-        ## Define the Dirac structure via getfem `brick` = non-zero block matrix
         # Add the mass matrices from the left-hand side: the `flow` part of the Dirac structure
         Brick("M_q", "q.Test_q", [1], dt=True, position="flow"),
         Brick("M_p", "p*Test_p", [1], dt=True, position="flow"),
@@ -174,13 +177,13 @@ def wave():
 
     for brick in bricks:
         wave.add_brick(brick)
-    ## Initialize the problem
 
-    # Set the control functions (automatic construction of bricks such that -M_u u + f(t) = 0)
-    wave.set_control("Boundary control (bottom)", "0.")
-    wave.set_control("Boundary control (right)", "0.")
-    wave.set_control("Boundary control (top)", "0.")
-    wave.set_control("Boundary control (left)", "0.1*sin(2.*t)*sin(4*pi*y)")
+    ## Initialize the problem
+    expressions = ["0.", "0.", "0.", "0.1*sin(2.*t)*sin(4*pi*y)"]
+
+    for control_port, expression in zip(control_ports, expressions):
+        # Set the control functions (automatic construction of bricks such that -M_u u + f(t) = 0)
+        wave.set_control(control_port.get_name(), expression)
 
     # Set the initial data
     wave.set_initial_value("q", "[0., 0.]")
@@ -210,4 +213,4 @@ def wave():
 
 
 if __name__ == "__main__":
-    wave = wave()
+    wave = wave_eq()
