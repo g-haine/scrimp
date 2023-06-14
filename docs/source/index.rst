@@ -105,9 +105,9 @@ A basic usage of **SCRIMP** consists in a script with the following steps:
 - Define a Finite Element Method on this port: give at least an order, at first glance, default values are sufficient
 - Define *algebraic ports* (not mandatory) and its FEM
 - Define *control ports* (not mandatory) and its FEM
-- Write down the forms on the *flow* side of the Dirac structure, *i.e.* those defining the matrix :math:`M`
-- Write down the forms on the *effort* side of the Dirac structure, *i.e.* those defining the matrix :math:`J`
-- Write down all the forms defining the *constitutive relations*
+- Write down the forms on the *flow* side of the Dirac structure, *i.e.* the **brick** defining the matrix :math:`M`
+- Write down the forms on the *effort* side of the Dirac structure, *i.e.* th **brick** defining the matrix :math:`J`
+- Write down all the forms defining the *constitutive relations*, always with **bricks**
 - Set up time scheme options: again, at first glance, default values are sufficient
 - Solve
 - Plot
@@ -122,9 +122,9 @@ Credits
 Development
 ===========
 
-Please report bug at: ghislain.haine@isae.fr
+Please report bug at: ghislain.haine@isae.fr, Giuseppe.Ferrarro@isae-supaero.fr
 
-Current developers: Ghislain Haine, Antoine Bendhimerad-Hohl
+Current developers: Antoine Bendhimerad-Hohl, Giuseppe Ferraro, Michel Fournié, Ghislain Haine
 
 Past: Andrea Brugnoli, Melvin Chopin, Florian Monteghetti, Anass Serhani, Xavier Vasseur
 

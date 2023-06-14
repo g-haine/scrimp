@@ -11,19 +11,76 @@ Sub-packages
 
    scrimp.examples
    scrimp.utils
+   scrimp.tests
 
-Distributed port-Hamiltonian system: the scrimp.dpHs module
+Distributed port-Hamiltonian system module
 -----------------------------------------------------------
 
-.. automodule:: scrimp.dpHs
+.. automodule:: scrimp.dphs
    :members:
    :undoc-members:
    :show-inheritance:
 
-Lumped port-Hamiltonian system: the scrimp.lpHs module
-------------------------------------------------------
+Domain module
+-----------------------------------------------------------
 
-.. automodule:: scrimp.lpHs
+.. automodule:: scrimp.domain
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Hamiltonian module
+-----------------------------------------------------------
+
+.. automodule:: scrimp.hamiltonian
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Port module
+-----------------------------------------------------------
+
+.. automodule:: scrimp.port
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+State module
+-----------------------------------------------------------
+
+.. automodule:: scrimp.state
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Co-state module
+-----------------------------------------------------------
+
+.. automodule:: scrimp.costate
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Control module
+-----------------------------------------------------------
+
+.. automodule:: scrimp.control
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Fem module
+-----------------------------------------------------------
+
+.. automodule:: scrimp.fem
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Brick module
+-----------------------------------------------------------
+
+.. automodule:: scrimp.brick
    :members:
    :undoc-members:
    :show-inheritance:

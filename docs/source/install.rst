@@ -4,30 +4,20 @@ How to install
 Anaconda
 --------
 
-The easiest way to install **SCRIMP** is to use *conda environment*.
+The easiest way to install SCRIMP is to use a conda environment.
 
-#. Install `Anaconda <https://www.anaconda.com/>`_
-#. Clone the git repository :code:`git clone https://github.com/g-haine/scrimp`
-#. Create the conda environment :code:`conda env create --file /path/to/scrimp/data/scrimp.yml`
-#. Activate the environment :code:`conda activate scrimp`
-#. Add the *path/to/scrimp* folder to this environment :code:`conda develop /path/to/scrimp/`
-
-Now you can :code:`import scrimp` in your scripts when they are launched from the conda environment *scrimp*.
+1. Install <a href="https://docs.anaconda.com/free/anaconda/install/index.html"> Anaconda</a>
+2. Clone the git repository: ```git clone https://github.com/g-haine/scrimp```
+3. Enter the folder: ```cd scrimp```
+4. Create the conda environment:  ```conda env create --file /path/to/scrimp/scrimp.yml```
+5. Activate the environment:  ```conda activate scrimp```
+6. Add scrimp to the PATH: ```conda develop /path/to/scrimp/```
+7. Finish with pip: ```pip install -e .```
 
 Tests
 -----
 
-You may test your installation by running avalaible examples.
-
-Importation of an example is possible with, *e.g.* for the wave system, :code:`from scrimp.examples.wave import wave`.
-
-Alternatively, you may run all examples with
-
-.. code-block:: python
-    :linenos:
-    
-    from scrimp import test_install
-    test_install()
+You may test your installation by running avalaible examples in the ```examples``` folder.
 
 Code structure
 --------------

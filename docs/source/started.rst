@@ -1,6 +1,8 @@
 Getting started
 ===============
 
+**!TO UPDATE!**
+
 In order to start using **SCRIMP**, you have to work in the conda environment *scrimp* from the installation.
 
 To understand the coding philosophy of **SCRIMP**, let us consider the 1D wave equation with Neumann boundary control
