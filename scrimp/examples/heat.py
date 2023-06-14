@@ -25,7 +25,7 @@ def heat():
     from scrimp import set_verbose_gf
     set_verbose_gf(0)
     
-    from scrimp.dpHs import dpHs
+    from scrimp import dpHs
     
     # Init the distributed port-Hamiltonian system
     heat = dpHs('real')

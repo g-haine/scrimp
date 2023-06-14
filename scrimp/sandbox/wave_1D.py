@@ -14,7 +14,7 @@
 - brief:            1D wave equation
 """
 
-from scrimp.dpHs import dpHs
+from scrimp import dpHs
     
 wave = dpHs('real')
 

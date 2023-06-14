@@ -10,3 +10,16 @@ SCRIMP
 The main objective of a **structure-preserving discretization** in the port-Hamiltonian formalism is to obtain a discrete version of the power balance satisfied by the Hamiltonian functional.
 
 **See the website for more information: https://g-haine.github.io/scrimp/**
+
+# How to install
+The easiest way to install SCRIMP is to use a conda environment.
+
+1. Install <a href="https://docs.anaconda.com/free/anaconda/install/index.html"> Anaconda</a>
+2. Clone the git repository: ```git clone https://github.com/g-haine/scrimp```
+3. Enter the folder: ```cd scrimp```
+4. Pull the branch dev_v2: ```git fetch origin dev_v2:dev_v2``` 
+5. Checkout dev_v2 branch: ```git checkout dev_v2```
+6. Create the conda environment:  ```conda env create --file /path/to/scrimp/scrimp.yml```
+7. Activate the environment:  ```conda activate scrimp```
+8. Add scrimp to the PATH: ```conda develop /path/to/scrimp/```
+9. Finish with pip: ```pip install -e .```

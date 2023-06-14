@@ -1,3 +1,10 @@
 __pycache__/
 docs/build/
-scrimp/outputs/
+outputs/
+logs
+*.log
+*.png
+*.msh
+*.vscode
+dist/
+*egg*
