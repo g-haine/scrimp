@@ -543,7 +543,9 @@ class DPHS:
                 brick.enable_id_bricks(self.gf_model)
 
         self.gf_model.assembly(option="build_rhs")
-        self.rhs = PETSc.Vec().createWithArray(self.gf_model.rhs())
+        size = self.gf_model.nbdof()
+        self.rhs.setValues(range(size), self.gf_model.rhs(),
+                           addv=PETSc.InsertMode.INSERT_VALUES)
 
         for _, brick in self.bricks.items():
             # Disable again all bricks previously enabled
@@ -621,7 +623,7 @@ class DPHS:
         :type F: PETSc.Vec
         """
 
-        self.gf_model.set_time(t)
+        # self.gf_model.set_time(t)
 
         self.assemble_nl_mass()
         self.assemble_nl_stiffness()
@@ -652,7 +654,7 @@ class DPHS:
         :type P: PETSc.Mat
         """
 
-        self.gf_model.set_time(t)
+        # self.gf_model.set_time(t)
 
         # Here improve to avoid re-build when time-step fails and is reduced ?
         # This would forbid or complexify time-varying parameter...
