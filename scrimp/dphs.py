@@ -695,7 +695,7 @@ class DPHS:
         
         if not self.time_scheme.hasName('ts_type') and not self.time_scheme.hasName('ts_ssp'):
             self.time_scheme['ts_type'] = 'bdf'
-            self.time_scheme['ts_bdf_order'] = 1
+            self.time_scheme['ts_bdf_order'] = 2
             
         if not self.time_scheme.hasName('ksp_type'):
             self.time_scheme['ksp_type'] = 'gmres'
@@ -977,14 +977,14 @@ class DPHS:
                 next_saved_at_t = t_0
             if (next_saved_at_t - t <= 0) or (i==-1) or self.stop_TS:
                 sys.stdout.write(
-                    f"\ri={i:8d} t={t:8g} * ({int(time.time() - self.ts_start)}s)         \n"
+                    f"\ri={i:8d} t={t:8g} * ({int(time.time()-self.ts_start)}s)   dt={float(TS.getTimeStep()):8g}      \n"
                 )
                 sys.stdout.flush()
                 self.solution["t"].append(t)
                 self.solution["z"].append(z.copy())
             else:
                 sys.stdout.write(
-                    f"\ri={i:8d} t={t:8g}   ({int(time.time() - self.ts_start)}s)         "
+                    f"\ri={i:8d} t={t:8g}   ({int(time.time()-self.ts_start)}s)   dt={float(TS.getTimeStep()):8g}      "
                 )
                 sys.stdout.flush()
   

@@ -14,7 +14,12 @@
 - brief:            1D wave equation
 """
 
+import tracemalloc
+tracemalloc.start()
+
 from scrimp import *
+from scrimp.utils.mesh import set_verbose_gf
+set_verbose_gf(0)
     
 wave = DPHS("real")
 
@@ -31,10 +36,10 @@ e_p = CoState("e_p", "Velocity", alpha_p)
 wave.add_costate(e_q)
 wave.add_costate(e_p)
 
-left_end = Control_Port("Boundary control (left)", "U_L", "Normal force", "Y_L", "Velocity", "scalar-field", region=10)
-right_end = Control_Port("Boundary control (right)", "U_R", "Normal force", "Y_R", "Velocity", "scalar-field", region=11)
-wave.add_control_port(left_end)
-wave.add_control_port(right_end)
+# left_end = Control_Port("Boundary control (left)", "U_L", "Normal force", "Y_L", "Velocity", "scalar-field", region=10)
+# right_end = Control_Port("Boundary control (right)", "U_R", "Normal force", "Y_R", "Velocity", "scalar-field", region=11)
+# wave.add_control_port(left_end)
+# wave.add_control_port(right_end)
 
 wave.hamiltonian.set_name("Mechanical energy")
 terms = [
@@ -45,14 +50,14 @@ terms = [
 for term in terms:
     wave.hamiltonian.add_term(term)
 
-V_q = FEM("q", 2)
+V_q = FEM("q", 1)
 V_p = FEM("p", 2)
-V_L = FEM("Boundary control (left)", 1)
-V_R = FEM("Boundary control (right)", 1)
+# V_L = FEM("Boundary control (left)", 1)
+# V_R = FEM("Boundary control (right)", 1)
 wave.add_FEM(V_q)
 wave.add_FEM(V_p)
-wave.add_FEM(V_L)
-wave.add_FEM(V_R)
+# wave.add_FEM(V_L)
+# wave.add_FEM(V_R)
 
 T = Parameter("T", "Young\'s modulus", "scalar-field", "3", "q")
 rho = Parameter("rho", "Mass density", "scalar-field", "2 + x*(x-1)", "p")
@@ -63,18 +68,18 @@ bricks = [
     # M matrix, on the flow side
     Brick("M_q", "q * Test_q", [1], dt=True, position="flow"),
     Brick("M_p", "p * Test_p", [1], dt=True, position="flow"),
-    Brick("M_Y_L", "Y_L * Test_Y_L", [10], position="flow"),
-    Brick("M_Y_R", "Y_R * Test_Y_R", [11], position="flow"),
+    # Brick("M_Y_L", "Y_L * Test_Y_L", [10], position="flow"),
+    # Brick("M_Y_R", "Y_R * Test_Y_R", [11], position="flow"),
     
     # J matrix, on the effort side
     Brick("D", "Grad(e_p) * Test_q", [1], position="effort"),
 
     Brick("-D^T", "-e_q * Grad(Test_p)", [1], position="effort"),
-    Brick("B_L", "-U_L * Test_p", [10], position="effort"),
-    Brick("B_R", "U_R * Test_p", [11], position="effort"),
+    # Brick("B_L", "-U_L * Test_p", [10], position="effort"),
+    # Brick("B_R", "U_R * Test_p", [11], position="effort"),
 
-    Brick("-B_L^T", "e_p * Test_Y_L", [10], position="effort"),
-    Brick("-B_R^T", "-e_p * Test_Y_R", [11], position="effort"),
+    # Brick("-B_L^T", "e_p * Test_Y_L", [10], position="effort"),
+    # Brick("-B_R^T", "-e_p * Test_Y_R", [11], position="effort"),
     
     # Constitutive relations
     Brick("-M_e_q", "-e_q * Test_e_q", [1]),
@@ -90,14 +95,32 @@ for brick in bricks:
 ## Initialize the problem
 expression_left = "0."#"sin(pi*t)"
 expression_right = "0."#"-0.25*sin(4*pi*t)"
-wave.set_control("Boundary control (left)", expression_left)
-wave.set_control("Boundary control (right)", expression_right)
+# wave.set_control("Boundary control (left)", expression_left)
+# wave.set_control("Boundary control (right)", expression_right)
 
 q_init = "0."
-p_init = "np.sin(2*np.pi*x)"
+p_init = "4*x*(x-1)"
 wave.set_initial_value("q", q_init)
 wave.set_initial_value("p", p_init)
+
+
+
+snapshot1 = tracemalloc.take_snapshot()
+
+
 
 wave.solve()
 
 wave.plot_Hamiltonian()
+
+
+
+snapshot2 = tracemalloc.take_snapshot()
+
+
+
+top_stats = snapshot2.compare_to(snapshot1, 'lineno')
+
+print("[ Top 50 differences ]")
+for stat in top_stats[:50]:
+    print(stat)
