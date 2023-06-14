@@ -112,6 +112,8 @@ class DPHS:
         self.solution["z"] = list()
         #: To check if the system has been solved
         self.solve_done = False
+        #: To stop TS integration by keeping already computed timesteps if one step fails
+        self.stop_TS = False
         #: A PETSc Vec for residual computation
         self.F = PETSc.Vec().create(comm=comm)
         #: A PETSc Mat for Jacobian computation
@@ -393,7 +395,7 @@ class DPHS:
         self.bricks[name_brick] = brick
 
         # Flows are on the left-hand side => need a minus for fully implicit formulation in time-resolution
-        if position == "flow":
+        if position == "flow" or position == "source":
             form = "-(" + form + ")"
 
         for region in brick.get_regions():
@@ -476,10 +478,10 @@ class DPHS:
                 u + "_source",
                 expression_form,
                 [self.controls[name].get_region()],
-                False,
-                False,
-                "source",
-                self.controls[name].get_mesh_id(),
+                linear=False,
+                dt=False,
+                position="source",
+                mesh_id=self.controls[name].get_mesh_id(),
             )
         )
 
@@ -685,45 +687,51 @@ class DPHS:
 
         for key, value in kwargs.items():
             self.time_scheme[key] = value
-
-        if not self.time_scheme.hasName("ts_equation_type"):
-            self.time_scheme[
-                "ts_equation_type"
-            ] = PETSc.TS.EquationType.DAE_IMPLICIT_INDEX2
-
-        if not self.time_scheme.hasName("ts_type") and not self.time_scheme.hasName(
-            "ts_ssp"
-        ):
-            self.time_scheme["ts_type"] = "cn"
-
-        if not self.time_scheme.hasName("ksp_type"):
-            self.time_scheme["ksp_type"] = "gmres"
-
-        if not self.time_scheme.hasName("pc_type"):
-            self.time_scheme["pc_type"] = "lu"
-
-        if not self.time_scheme.hasName("pc_factor_mat_solver_type"):
-            self.time_scheme["pc_factor_mat_solver_type"] = "superlu"
-
-        if not self.time_scheme.hasName("t_0"):
-            self.time_scheme["t_0"] = 0.0
-
-        if not self.time_scheme.hasName("t_f"):
-            self.time_scheme["t_f"] = 1.0
-
-        if not self.time_scheme.hasName("dt"):
-            self.time_scheme["dt"] = 0.01
-
-        if not self.time_scheme.hasName("dt_save"):
-            self.time_scheme["dt_save"] = 0.01
-
-        if not self.time_scheme.hasName("ts_adapt_dt_max"):
-            self.time_scheme["ts_adapt_dt_max"] = self.time_scheme["dt_save"]
-
-        if not self.time_scheme.hasName("init_step"):
-            self.time_scheme["init_step"] = True
-
-        self.time_scheme["isset"] = True
+        
+        if not self.time_scheme.hasName('ts_equation_type'):
+            self.time_scheme['ts_equation_type'] = PETSc.TS.EquationType.DAE_SEMI_EXPLICIT_INDEX2
+        
+        if not self.time_scheme.hasName('ts_type') and not self.time_scheme.hasName('ts_ssp'):
+            self.time_scheme['ts_type'] = 'bdf'
+            self.time_scheme['ts_bdf_order'] = 1
+            
+        if not self.time_scheme.hasName('ksp_type'):
+            self.time_scheme['ksp_type'] = 'gmres'
+            
+        if not self.time_scheme.hasName('pc_type'):
+            self.time_scheme['pc_type'] = 'lu'
+            
+        if not self.time_scheme.hasName('pc_factor_mat_solver_type'):
+            self.time_scheme['pc_factor_mat_solver_type'] = 'mumps'
+            
+        if not self.time_scheme.hasName('t_0'):
+            self.time_scheme['t_0'] = 0.
+            
+        if not self.time_scheme.hasName('t_f'):
+            self.time_scheme['t_f'] = 1.
+            
+        if not self.time_scheme.hasName('dt'):
+            self.time_scheme['dt'] = 0.01
+            
+        if not self.time_scheme.hasName('dt_save'):
+            self.time_scheme['dt_save'] = 0.01
+            
+        if not self.time_scheme.hasName('ts_adapt_dt_min'):
+            self.time_scheme['ts_adapt_dt_min'] = 0.0001
+            
+        if not self.time_scheme.hasName('adapt_dt_max'):
+            self.time_scheme['ts_adapt_dt_max'] = self.time_scheme['dt_save']
+            
+        if not self.time_scheme.hasName('ts_max_snes_failures'):
+            self.time_scheme['ts_max_snes_failures'] = -1
+            
+        if not self.time_scheme.hasName('ts_max_reject'):
+            self.time_scheme['max_reject'] = -1
+        
+        if not self.time_scheme.hasName('init_step'):
+            self.time_scheme['init_step'] = True
+        
+        self.time_scheme['isset'] = True
 
     def exclude_algebraic_var_from_lte(self, TS):
         """
@@ -767,7 +775,15 @@ class DPHS:
         )
         atol_v_petsc.setArray(atol_v)
         TS.setTolerances(atol=atol_v_petsc)
+        
+    def event(self, TS, t, z, fvalue):
+        fvalue[0] = TS.getTimeStep() - float(self.time_scheme['ts_adapt_dt_min'])
 
+    def postevent(self, TS, event, t, z, forward):
+        print('\n *** AUTOMATIC STOP -- LAST ITERATION *** \n')
+        print(f"dt reached the limit {float(self.time_scheme['ts_adapt_dt_min']):8g}.\n")
+        self.stop_TS = True
+        
     def solve(self):
         """
         Perform the time-resolution of the dpHs thanks to PETSc TS
@@ -815,10 +831,12 @@ class DPHS:
         self.J = self.tangent_stiffness.duplicate()
         self.J.assemble()
 
+        self.rhs.setSizes(self.gf_model.nbdof())
+        self.rhs.setUp()
         self.assemble_rhs()
 
-        self.F = self.tangent_mass.createVecRight()
-        self.buffer = self.tangent_mass.createVecRight()
+        self.F = self.rhs.duplicate()
+        self.buffer = self.rhs.duplicate()
 
         self.ts_start = time.time()
         if (
@@ -842,7 +860,7 @@ class DPHS:
         TS.setTime(float(self.time_scheme["t_0"]))
         TS.setMaxTime(float(self.time_scheme["t_f"]))
         TS.setTimeStep(float(self.time_scheme["dt"]))
-        TS.setMaxSNESFailures(-1)
+        #TS.setMaxSNESFailures(-1)
         TS.setExactFinalTime(PETSc.TS.ExactFinalTime.INTERPOLATE)
         # TS.setExactFinalTime(PETSc.TS.ExactFinalTime.MATCHSTEP)
         TS.setFromOptions()
@@ -889,10 +907,9 @@ class DPHS:
         TS.setIFunction(self.IFunction, self.F)
         TS.setIJacobian(self.IJacobian, self.J)
         TS.setTime(float(self.time_scheme["t_0"]))
-        TS.setMaxTime(float(self.time_scheme["t_0"]) + 1e-6)
-        TS.setTimeStep(1e-6)
-        TS.setMaxSNESFailures(-1)
-        TS.setMaxSteps(2.0)
+        TS.setTimeStep(float(self.time_scheme['dt'])/100.)
+        #TS.setMaxSNESFailures(-1)
+        TS.setMaxSteps(2)
         TS.setExactFinalTime(PETSc.TS.ExactFinalTime.MATCHSTEP)
 
         # Save options for later use and avoid overidden them with the initial step
@@ -904,9 +921,9 @@ class DPHS:
             saved_options["ts_ssp"] = self.time_scheme["ts_ssp"]
             self.time_scheme.delValue("ts_ssp")
         self.time_scheme["ts_type"] = "pseudo"
-        self.time_scheme["ts_pseudo_increment"] = 1.1
-        self.time_scheme["ts_pseudo_fatol"] = 1e-6
-        self.time_scheme["ts_pseudo_frtol"] = 1e-9
+        # self.time_scheme["ts_pseudo_increment"] = 1.1
+        # self.time_scheme["ts_pseudo_fatol"] = 1e-6
+        # self.time_scheme["ts_pseudo_frtol"] = 1e-9
 
         TS.setFromOptions()
         self.exclude_algebraic_var_from_lte(TS)
@@ -921,9 +938,9 @@ class DPHS:
 
         # Delete options for initial step
         self.time_scheme.delValue("ts_type")
-        self.time_scheme.delValue("ts_pseudo_increment")
-        self.time_scheme.delValue("ts_pseudo_fatol")
-        self.time_scheme.delValue("ts_pseudo_frtol")
+        # self.time_scheme.delValue("ts_pseudo_increment")
+        # self.time_scheme.delValue("ts_pseudo_fatol")
+        # self.time_scheme.delValue("ts_pseudo_frtol")
 
         # Re-load previously saved options
         if "ts_type" in saved_options.keys():
@@ -952,11 +969,11 @@ class DPHS:
         """
 
         if not initial_step:
-            if self.solution["t"]:
-                next_saved_at_t = self.solution["t"][-1] + dt_save
+            if self.solution['t']:
+                next_saved_at_t = self.solution['t'][-1] + dt_save
             else:
                 next_saved_at_t = t_0
-            if (next_saved_at_t - t <= 0.1 * TS.getTimeStep()) or (i == -1):
+            if (next_saved_at_t - t <= 0) or (i==-1) or self.stop_TS:
                 sys.stdout.write(
                     f"\ri={i:8d} t={t:8g} * ({int(time.time() - self.ts_start)}s)         \n"
                 )
@@ -968,10 +985,11 @@ class DPHS:
                     f"\ri={i:8d} t={t:8g}   ({int(time.time() - self.ts_start)}s)         "
                 )
                 sys.stdout.flush()
-
-        self.gf_model.to_variables(z.array)  # Update the state in the getfem `Model`
-        self.gf_model.next_iter()  # Says to getfem that we go to the next iteration, not sure if needed
-
+  
+        self.gf_model.set_time(TS.getTime()) # Update the time t in the getfem `Model`
+        self.gf_model.to_variables(TS.getSolution().array) # Update the state in the getfem `Model`
+        self.gf_model.next_iter() # Says to getfem that we go to the next iteration, not sure if needed
+        
     def compute_Hamiltonian(self):
         """
         Compute each `term` constituting the Hamiltonian
@@ -1076,13 +1094,13 @@ class DPHS:
                         "for control port",
                     )
 
-                # Control ports needs a minus for a better plot
-                if port.get_name() in self.controls.keys():
-                    minus = "-"
-                else:
-                    minus = ""
+                # # Control ports needs a minus for a better plot
+                # if port.get_name() in self.controls.keys():
+                #     minus = "-"
+                # else:
+                #     minus = ""
 
-                form = minus + port.get_flow() + times + port.get_effort()
+                form = port.get_flow() + times + port.get_effort()
 
                 self.powers[port.get_name()] = []
                 for t, _ in enumerate(self.solution["t"]):
