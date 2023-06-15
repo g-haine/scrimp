@@ -59,10 +59,13 @@ def shallow_water():
         CoState("e_p", "Velocity", states[1]),
     ]
     ports = []
+    rho = 1025.0
+    g = 9.81
+    nu = 0.001
     params = [
-        Parameter("rho", "Mass density", "scalar-field", "1.", "h"),
-        Parameter("g", "Gravity", "scalar-field", "0.01", "h"),
-        Parameter("nu", "Viscosity", "scalar-field", "0.001", "h"),
+        Parameter("rho", "Mass density", "scalar-field", f"{rho}", "h"),
+        Parameter("g", "Gravity", "scalar-field", f"{g}", "h"),
+        Parameter("nu", "Viscosity", "scalar-field", f"{nu}", "h"),
     ]
 
     control_ports = [
@@ -91,9 +94,9 @@ def shallow_water():
     FEMs = [
         # name of the variable: (is the same of states, ports and controls ports), order, FEM
         FEM(states[0].get_name(), 2, FEM="CG"),
-        FEM(states[1].get_name(), 1, FEM="DG"),
-        FEM(control_ports[0].get_name(), 1, "DG"),
-        FEM(control_ports[1].get_name(), 1, "DG"),
+        FEM(states[1].get_name(), 1, FEM="CG"),
+        FEM(control_ports[0].get_name(), 1, "CG"),
+        FEM(control_ports[1].get_name(), 1, "CG"),
     ]
 
     for state, costate, param, fem, port, control_port in zip_longest(
@@ -146,7 +149,7 @@ def shallow_water():
         Brick("D", "- Grad(e_h) . Test_p * h", [1], linear=False, position="effort"),
         # with the gyroscopic term (beware that "Curl" is not available in the GWFL of getfem)
         Brick("G", "h * (Gyro(p) * e_p) . Test_p", [1], linear=False, 
-              explicit=True, position="effort"),
+               explicit=True, position="effort"),
         Brick("D(v)", "- 2 * nu * h * D(e_p) : D(Test_p)", [1], linear=False, 
                explicit=False, position="effort"),
         Brick("div(v)", "- 2 * nu * h * div(e_p) * div(Test_p)", [1], linear=False, 
@@ -174,15 +177,15 @@ def shallow_water():
 
     ## Initialize the problem
     swe.set_control("Boundary control 0", "0.")
-    swe.set_control("Boundary control 1", "0.*Normal + 0.2*Tangent")
+    swe.set_control("Boundary control 1", "0.*Normal + 2.*Tangent")
 
     # Set the initial data
     swe.set_initial_value(
-        "h", "25."
+        "h", "5."
     )
     swe.set_initial_value(
         "p",
-        "[ -0.2*np.sin(0.5*np.pi*np.sqrt(x*x+y*y))*np.sin(np.arctan2(y,x)), 0.2*np.sin(0.5*np.pi*np.sqrt(x*x+y*y))*np.cos(np.arctan2(y,x))]",
+        f"[ -2*{rho}*np.sin(0.5*np.pi*np.sqrt(x*x+y*y))*np.sin(np.arctan2(y,x)), 2*{rho}*np.sin(0.5*np.pi*np.sqrt(x*x+y*y))*np.cos(np.arctan2(y,x))]",
     )
 
     ## Solve in time

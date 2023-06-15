@@ -391,12 +391,13 @@ class DPHS:
         name_brick = brick.get_name()
         mesh_id = brick.get_mesh_id()
         position = brick.get_position()
+        explicit = brick.get_explicit()
         form = brick.get_form()
 
         self.bricks[name_brick] = brick
 
         # Flows are on the left-hand side => need a minus for fully implicit formulation in time-resolution
-        if position == "flow":
+        if position == "flow" or position == "source" or explicit:
             form = "-(" + form + ")"
 
         for region in brick.get_regions():
@@ -408,7 +409,7 @@ class DPHS:
 
             elif brick.get_position() == "source":
                 id_brick = self.gf_model.add_source_term_brick(
-                    self.domain._int_method[mesh_id], brick.get_name()[:-7], form, region
+                    self.domain._int_method[mesh_id], name_brick[:-7], form, region
                 )
                 s = ("Source form '",)
 
