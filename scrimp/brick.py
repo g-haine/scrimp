@@ -9,6 +9,7 @@ class Brick:
         linear: bool = True,
         dt: bool = False,
         position: str = "constitutive",
+        explicit: bool = False,
         mesh_id: int = 0,
     ):
         """_summary_
@@ -20,6 +21,7 @@ class Brick:
             linear (bool, optional): parameter to help easy identification of linear bricks. Defaults to True.
             dt (bool, optional): parameter to help easy identification of matrices applied to time-derivative of a variable (e.g. mass matrices). Defaults to False.
             position (str, optional): parameter to help easy identification of "where" is the form: in the Dirac structure ('flow' side or 'effort' side), or in the 'constitutive' relations. This serves for both the time-resolution and plotting purposes. Defaults to "constitutive".
+            explicit (str, optional): parameter to indicate wether the brick has to be treated explicitly in the TS process
             mesh_id (int, optional): the id of the mesh where the form applies. Defaults to 0.
         """
 
@@ -31,6 +33,7 @@ class Brick:
         self._linear = linear
         self._dt = dt
         self._position = position
+        self._explicit = explicit
 
     def add_id_brick_to_list(self, id_brick: int):
         """This function adds a brick ID to the brick ID list.
@@ -103,6 +106,14 @@ class Brick:
             int: the id of the mesh where the form applies. Defaults to 0.
         """
         return self._position
+
+    def get_explicit(self) -> bool:
+        """This function returns the boolean that defines wether the brick is explicit or not.
+
+        Returns:
+            bool: parameter to help easy identification of explicit bricks.
+        """
+        return self._linear
 
     def disable_id_bricks(self, gf_model):
         gf_model.disable_bricks(self._id_bricks)

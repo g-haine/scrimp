@@ -28,7 +28,7 @@ import time
 petsc4py.init()
 from petsc4py import PETSc
 
-comm = PETSc.COMM_WORLD
+# comm = PETSc.COMM_WORLD
 
 
 from scrimp.utils.linalg import extract_gmm_to_petsc, convert_PETSc_to_scipy
@@ -85,19 +85,19 @@ class DPHS:
         #: To check if the powers have been computed
         self.powers_computed = False
         #: Tangent (non-linear + linear) mass matrix of the system in PETSc CSR format
-        self.tangent_mass = PETSc.Mat().create(comm=comm)
+        self.tangent_mass = PETSc.Mat().create()#comm=comm)
         #: Non-linear mass matrix of the system in PETSc CSR format
-        self.nl_mass = PETSc.Mat().create(comm=comm)
+        self.nl_mass = PETSc.Mat().create()#comm=comm)
         #: Linear mass matrix of the system in PETSc CSR format
-        self.mass = PETSc.Mat().create(comm=comm)
+        self.mass = PETSc.Mat().create()#comm=comm)
         #: Tangent (non-linear + linear) stiffness matrix of the system in PETSc CSR format
-        self.tangent_stiffness = PETSc.Mat().create(comm=comm)
+        self.tangent_stiffness = PETSc.Mat().create()#comm=comm)
         #: Non-linear stiffness matrix of the system in PETSc CSR format
-        self.nl_stiffness = PETSc.Mat().create(comm=comm)
+        self.nl_stiffness = PETSc.Mat().create()#comm=comm)
         #: Linear stiffness matrix of the system in PETSc CSR format
-        self.stiffness = PETSc.Mat().create(comm=comm)
+        self.stiffness = PETSc.Mat().create()#comm=comm)
         #: rhs of the system in PETSc Vec
-        self.rhs = PETSc.Vec().create(comm=comm)
+        self.rhs = PETSc.Vec().create()#comm=comm)
         #: To check if the initial values have been setted before time-resolution
         self.initial_value_setted = dict()
         #: To check if the PETSc TS time-integration parameters have been setted before time-integration
@@ -115,11 +115,11 @@ class DPHS:
         #: To stop TS integration by keeping already computed timesteps if one step fails
         self.stop_TS = False
         #: A PETSc Vec for residual computation
-        self.F = PETSc.Vec().create(comm=comm)
+        self.F = PETSc.Vec().create()#comm=comm)
         #: A PETSc Mat for Jacobian computation
-        self.J = PETSc.Mat().create(comm=comm)
+        self.J = PETSc.Mat().create()#comm=comm)
         #: A PETSc Vec buffering computation
-        self.buffer = PETSc.Vec().create(comm=comm)
+        self.buffer = PETSc.Vec().create()#comm=comm)
 
         #: A getfem `Model` object that is use as core for the dpHs
         self.gf_model = gf.Model(basis_field)
@@ -171,6 +171,7 @@ class DPHS:
             costate.get_kind(),
             state.get_mesh_id(),
             algebraic=False,
+            dissipative=False,
             substituted=costate.get_substituted(),
             region=state.get_region(),
         )
@@ -395,15 +396,21 @@ class DPHS:
         self.bricks[name_brick] = brick
 
         # Flows are on the left-hand side => need a minus for fully implicit formulation in time-resolution
-        if position == "flow" or position == "source":
+        if position == "flow":
             form = "-(" + form + ")"
 
         for region in brick.get_regions():
-            if brick.get_linear():
+            if brick.get_linear() and not brick.get_position() == "source":
                 id_brick = self.gf_model.add_linear_term(
                     self.domain._int_method[mesh_id], form, region
                 )
                 s = ("Linear form '",)
+
+            elif brick.get_position() == "source":
+                id_brick = self.gf_model.add_source_term_brick(
+                    self.domain._int_method[mesh_id], brick.get_name()[:-7], form, region
+                )
+                s = ("Source form '",)
 
             else:
                 id_brick = self.gf_model.add_nonlinear_term(
@@ -471,7 +478,7 @@ class DPHS:
         )
 
         # Construct the form
-        expression_form = "(" + expression + ")" + times + "Test_" + u
+        expression_form = "-(" + expression + ")"# + times + "Test_" + u
         # Add the source brick
         self.add_brick(
             Brick(
@@ -536,7 +543,7 @@ class DPHS:
         # Maybe due to mass matrices!!!
         for _, brick in self.bricks.items():
             # Enable the bricks that are in 'source' position
-            if brick.get_position() == "source":
+            if brick.get_position() == "source" or brick.get_explicit():
                 brick.enable_id_bricks(self.gf_model)
             # And the non-linear ones (and not dt of course)
             if not brick.get_dt() and not brick.get_linear():
@@ -549,7 +556,7 @@ class DPHS:
 
         for _, brick in self.bricks.items():
             # Disable again all bricks previously enabled
-            if brick.get_position() == "source":
+            if brick.get_position() == "source" or brick.get_explicit():
                 brick.disable_id_bricks(self.gf_model)
             # And the non-linear ones (and not dt of course)
             if not brick.get_dt() and not brick.get_linear():
@@ -581,7 +588,7 @@ class DPHS:
 
         for _, brick in self.bricks.items():
             # Enable the bricks that are non-dynamical and non-linear
-            if not brick.get_dt() and not brick.get_linear():
+            if not brick.get_dt() and not brick.get_linear() and not brick.get_explicit():
                 brick.enable_id_bricks(self.gf_model)
 
         self.gf_model.assembly(option="build_matrix")
@@ -594,7 +601,7 @@ class DPHS:
 
         for _, brick in self.bricks.items():
             # Disable again all bricks previously enabled
-            if not brick.get_dt() and not brick.get_linear():
+            if not brick.get_dt() and not brick.get_linear() and not brick.get_explicit():
                 brick.disable_id_bricks(self.gf_model)
 
     def disable_all_bricks(self):
@@ -690,50 +697,50 @@ class DPHS:
         for key, value in kwargs.items():
             self.time_scheme[key] = value
         
-        if not self.time_scheme.hasName('ts_equation_type'):
-            self.time_scheme['ts_equation_type'] = PETSc.TS.EquationType.DAE_SEMI_EXPLICIT_INDEX2
+        if not self.time_scheme.hasName("ts_equation_type"):
+            self.time_scheme["ts_equation_type"] = PETSc.TS.EquationType.DAE_IMPLICIT_INDEX2
         
-        if not self.time_scheme.hasName('ts_type') and not self.time_scheme.hasName('ts_ssp'):
-            self.time_scheme['ts_type'] = 'bdf'
-            self.time_scheme['ts_bdf_order'] = 2
+        if not self.time_scheme.hasName("ts_type") and not self.time_scheme.hasName("ts_ssp"):
+            self.time_scheme["ts_type"] = "bdf"
+            self.time_scheme["ts_bdf_order"] = 2
             
-        if not self.time_scheme.hasName('ksp_type'):
-            self.time_scheme['ksp_type'] = 'gmres'
+        if not self.time_scheme.hasName("ksp_type"):
+            self.time_scheme["ksp_type"] = "gmres"
             
-        if not self.time_scheme.hasName('pc_type'):
-            self.time_scheme['pc_type'] = 'lu'
+        if not self.time_scheme.hasName("pc_type"):
+            self.time_scheme["pc_type"] = "lu"
             
-        if not self.time_scheme.hasName('pc_factor_mat_solver_type'):
-            self.time_scheme['pc_factor_mat_solver_type'] = 'mumps'
+        if not self.time_scheme.hasName("pc_factor_mat_solver_type"):
+            self.time_scheme["pc_factor_mat_solver_type"] = "mumps"
             
-        if not self.time_scheme.hasName('t_0'):
-            self.time_scheme['t_0'] = 0.
+        if not self.time_scheme.hasName("t_0"):
+            self.time_scheme["t_0"] = 0.
             
-        if not self.time_scheme.hasName('t_f'):
-            self.time_scheme['t_f'] = 1.
+        if not self.time_scheme.hasName("t_f"):
+            self.time_scheme["t_f"] = 1.
             
-        if not self.time_scheme.hasName('dt'):
-            self.time_scheme['dt'] = 0.01
+        if not self.time_scheme.hasName("dt"):
+            self.time_scheme["dt"] = 0.01
             
-        if not self.time_scheme.hasName('dt_save'):
-            self.time_scheme['dt_save'] = 0.01
+        if not self.time_scheme.hasName("dt_save"):
+            self.time_scheme["dt_save"] = 0.01
             
-        if not self.time_scheme.hasName('ts_adapt_dt_min'):
-            self.time_scheme['ts_adapt_dt_min'] = 0.0001
+        if not self.time_scheme.hasName("ts_adapt_dt_min"):
+            self.time_scheme["ts_adapt_dt_min"] = 0.0001
             
-        if not self.time_scheme.hasName('adapt_dt_max'):
-            self.time_scheme['ts_adapt_dt_max'] = self.time_scheme['dt_save']
+        if not self.time_scheme.hasName("adapt_dt_max"):
+            self.time_scheme["ts_adapt_dt_max"] = self.time_scheme["dt_save"]
             
-        if not self.time_scheme.hasName('ts_max_snes_failures'):
-            self.time_scheme['ts_max_snes_failures'] = -1
+        if not self.time_scheme.hasName("ts_max_snes_failures"):
+            self.time_scheme["ts_max_snes_failures"] = -1
             
-        if not self.time_scheme.hasName('ts_max_reject'):
-            self.time_scheme['max_reject'] = -1
+        if not self.time_scheme.hasName("ts_max_reject"):
+            self.time_scheme["max_reject"] = -1
         
-        if not self.time_scheme.hasName('init_step'):
-            self.time_scheme['init_step'] = True
+        if not self.time_scheme.hasName("init_step"):
+            self.time_scheme["init_step"] = True
         
-        self.time_scheme['isset'] = True
+        self.time_scheme["isset"] = True
 
     def exclude_algebraic_var_from_lte(self, TS):
         """
@@ -773,7 +780,7 @@ class DPHS:
             np.zeros(
                 self.gf_model.nbdof(),
             ),
-            comm=comm,
+            #comm=comm,
         )
         atol_v_petsc.setArray(atol_v)
         TS.setTolerances(atol=atol_v_petsc)
@@ -793,8 +800,8 @@ class DPHS:
         The options database is setted in the `time_scheme` attribute
 
         :return:
-            * fill the list solution['t'] with the saved times t
-            * fill the list solution['z'] with the saved solutions at t as PETSc.Vec
+            * fill the list solution["t"] with the saved times t
+            * fill the list solution["z"] with the saved solutions at t as PETSc.Vec
         """
 
         assert self.time_scheme[
@@ -847,7 +854,7 @@ class DPHS:
             self.init_step()
 
         # TS
-        TS = PETSc.TS().create(comm=comm)
+        TS = PETSc.TS().create()#comm=comm)
         monitor = lambda TS, i, t, z: self.monitor(
             TS,
             i,
@@ -857,6 +864,8 @@ class DPHS:
             t_0=float(self.time_scheme["t_0"]),
         )
         TS.setMonitor(monitor)
+        TS.setEventHandler([0], [True], self.event, self.postevent)
+        TS.setEventTolerances(1e-6, vtol=[1e-9])
         TS.setIFunction(self.IFunction, self.F)
         TS.setIJacobian(self.IJacobian, self.J)
         TS.setTime(float(self.time_scheme["t_0"]))
@@ -867,7 +876,7 @@ class DPHS:
         # TS.setExactFinalTime(PETSc.TS.ExactFinalTime.MATCHSTEP)
         TS.setFromOptions()
         self.exclude_algebraic_var_from_lte(TS)
-        TS.solve(PETSc.Vec().createWithArray(self.gf_model.from_variables(), comm=comm))
+        TS.solve(PETSc.Vec().createWithArray(self.gf_model.from_variables()))#, comm=comm))
 
         print(f"Elapsed time: {time.time() - self.ts_start:1.4g}s")
         print(
@@ -895,7 +904,7 @@ class DPHS:
         """
 
         # TS
-        TS = PETSc.TS().create(comm=comm)
+        TS = PETSc.TS().create()#comm=comm)
         monitor = lambda TS, i, t, z: self.monitor(
             TS,
             i,
@@ -933,7 +942,7 @@ class DPHS:
         print(
             "Perform an initial step using pseudo bdf scheme for initial value consistency"
         )
-        TS.solve(PETSc.Vec().createWithArray(self.gf_model.from_variables(), comm=comm))
+        TS.solve(PETSc.Vec().createWithArray(self.gf_model.from_variables()))#, comm=comm))
         print(f"Initialisation done in {time.time() - self.ts_start:1.4g}s")
         TS.reset()
         TS.destroy()
@@ -1162,13 +1171,14 @@ class DPHS:
                 )
             ax.plot(t, power, label=name_port)
             if HamTot is not None:
-                if name_port in self.controls.keys():
+                print("port:", name_port, "is ", self.ports[name_port].get_dissipative())
+                if not self.ports[name_port].get_dissipative():
                     SP_balance -= power
                 else:
                     SP_balance += power
 
         if HamTot is not None:
-            # Check if the balance makes sense: should not have algebraic and substituted port
+            # Check if the balance makes sense: should not have a port which is both algebraic and substituted
             check_makes_sense = True
             for _, port in self.ports.items():
                 if port.get_algebraic() and port.get_substituted():
@@ -1202,7 +1212,7 @@ class DPHS:
                     np.zeros(
                         self.gf_model.nbdof(),
                     ),
-                    comm=comm,
+                    #comm=comm,
                 )
             )
 

@@ -1,7 +1,9 @@
+import getfem as gf
+
 class FEM:
     """This class defines what is a FEM object in SCRIMP."""
 
-    def __init__(self, name, order, FEM="DG") -> None:
+    def __init__(self, name, order, FEM="CG") -> None:
         self.__name = name
         self.__order = order
         self.__type = FEM

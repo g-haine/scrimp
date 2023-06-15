@@ -6,7 +6,7 @@ class Parameter:
     """This class describes the Parameter for a Port."""
 
     def __init__(
-        self, name: str, description: str, kind: str, expression: str, name_port: str
+        self, name: str, description: str, kind: str, expression: str, name_port: str,
     ):
         """This constructor defines the object Parameter for a Port.
 
@@ -80,6 +80,7 @@ class Port:
         mesh_id: int = 0,
         algebraic: bool = True,
         substituted: bool = False,
+        dissipative: bool = False,
         region: int = None,
     ):
         """Constructor of a `port` of a discrete port Hmiltonian system (dpHs).
@@ -92,6 +93,7 @@ class Port:
             mesh_id (int): the id of the mesh where the variables belong
             algebraic (bool): if `False`, the flow variable will be derivated in time at resolution
             substituted (bool): if `True`, the constitutive relation is substituted and there is only a getfem variable for the effort
+            dissipative (bool): for post-processing purpose, indicates wether the port is dissipative-like or not
             region (int): the int identifying the region in mesh_id where the port belong, useful for boundary ports
         """
 
@@ -102,7 +104,8 @@ class Port:
         self.__kind = kind  #: The type of the variables (e.g. `scalar-field`)
         self.__mesh_id = mesh_id  #: The id of the mesh where the variables belong
         self.__algebraic = algebraic  #: If `True`, the equation associated to this port is algebraic, otherwise dynamic and the flow is derivated in time at resoltuion
-        self.__substituted = substituted  #: If `True, the getfem `Model` will only have an unknown variable for the effort: the constitutive relation is substituted into the mass matrix on the flow side
+        self.__substituted = substituted  #: If `True`, the getfem `Model` will only have an unknown variable for the effort: the constitutive relation is substituted into the mass matrix on the flow side
+        self.__dissipative = dissipative  #: If `True`, the power associated must be taken with a negative sign (see plot_hamiltonian in DPHS class)
         self.__parameters = (
             []
         )  #: A list of parameters acting on the variables of the `port`
@@ -184,6 +187,15 @@ class Port:
             bool: value of the subtituted parameter
         """
         return self.__substituted
+
+    def get_dissipative(self) -> bool:
+        """This function gets boolean value for the dissipativeness flag of the port.
+        If `True`, the power associated to the port gets a negative sign
+
+        Returns:
+            bool: value of the dissipativeness flag
+        """
+        return self.__dissipative
 
     def get_region(self) -> int:
         """This function gets the region of the mesh.
@@ -328,7 +340,7 @@ class Port:
         )
         self.__fem.display()
 
-        return f"{self.__name}, {self.__flow}, {self.__effort}, {self.__kind}, {str(self.__mesh_id)}, {str(self.__algebraic)}, {self.__parameters}"
+        return f"{self.__name}, {self.__flow}, {self.__effort}, {self.__kind}, {str(self.__mesh_id)}, {str(self.__algebraic)}, {str(self.__substituted)}, {str(self.__dissipative)}, {self.__parameters}"
 
 
 if __name__ == "__main__":

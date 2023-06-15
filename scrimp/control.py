@@ -31,6 +31,7 @@ class Control_Port(Port):
             mesh_id,
             algebraic=True,
             substituted=False,
+            dissipative=True, #: This allows input/output power to be plotted with the correct sign
             region=region,
         )
 
