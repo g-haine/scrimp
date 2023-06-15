@@ -7,6 +7,7 @@ from PyQt5.QtWidgets import (
     QLabel,
     QLineEdit,
     QGridLayout,
+    QTableWidget,
 )
 
 
@@ -22,9 +23,9 @@ class Window(QtWidgets.QWidget):
     def __init__(self):
         QtWidgets.QWidget.__init__(self)
 
-        self.setWindowTitle("Definition of the domain for the dpHs")
+        self.setWindowTitle("Define the domain for the dpHs")
         self.setFixedWidth(600)
-        self.setFixedHeight(250)
+        self.setFixedHeight(600)
 
         layout = QGridLayout()
 
@@ -52,28 +53,49 @@ class Window(QtWidgets.QWidget):
 
         # setting selection mode property
         list_widget.setSelectionMode(QAbstractItemView.SingleSelection)
-
         layout.addWidget(list_widget, 2, 1)
 
-        label_dphs_type = QLabel('<font size="4"> Type of dpHS </font>')
-        self.line_edit_dphs_type = QLineEdit()
-        self.line_edit_dphs_type.setPlaceholderText(
-            "Please enter the type of the system"
-        )
-        layout.addWidget(label_dphs_type, 3, 0)
-        layout.addWidget(self.line_edit_dphs_type, 3, 1)
+        label_parameter = QLabel('<font size="4"> Parameters</font>')
+        layout.addWidget(label_parameter, 3, 0)
 
         self.button_next = QPushButton("Next >")
         self.button_next.clicked.connect(self.next_page)
 
-        layout.addWidget(self.button_next, 3, 2)
+        layout.addWidget(self.button_next, 5, 2)
 
         self.button_prev = QPushButton("< Prev")
         self.button_prev.clicked.connect(self.previous_page)
 
-        layout.addWidget(self.button_prev, 3, 1)
+        layout.addWidget(self.button_prev, 5, 1)
+
+        # create a QTableWidget
+        self.table = QTableWidget()
+        self.table.setRowCount(2)
+        self.table.setColumnCount(2)
+        self.table.setGeometry(50, 100, 200, 300)
+
+        # adding header to the table
+        header_horizontal = ["Name", "Value"]
+
+        self.table.setHorizontalHeaderLabels(header_horizontal)
+
+        # adjust size columns of horizontal header
+        for i, _ in enumerate(header_horizontal):
+            self.table.setColumnWidth(i, 100)
+
+        layout.addWidget(self.table, 4, 0)
+
+        self.button_new = QPushButton("New")
+        self.button_new.clicked.connect(self.new_rows)
+
+        layout.addWidget(self.button_new, 3, 1)
 
         self.setLayout(layout)
+
+    def new_rows(self):
+        """This function adds 2 rows in the table (1 for state, 1 for co-state)"""
+        count = self.table.rowCount()
+        self.table.insertRow(count)
 
     def next_page(self):
         """This funciont emit the signal to navigate to the next page."""
