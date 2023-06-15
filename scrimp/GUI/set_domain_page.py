@@ -1,4 +1,5 @@
 from PyQt5 import QtCore, QtWidgets
+from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import (
     QListWidget,
     QListWidgetItem,
@@ -8,6 +9,7 @@ from PyQt5.QtWidgets import (
     QLineEdit,
     QGridLayout,
     QTableWidget,
+    QTableWidgetItem,
 )
 
 
@@ -36,61 +38,109 @@ class Window(QtWidgets.QWidget):
             + "</font>"
         )
 
-        layout.addWidget(label_type_domain, 1, 0)
-
         # creating a QListWidget
-        list_widget = QListWidget(self)
+        self.list_widget = QListWidget(self)
 
         # list widget items
         item1 = QListWidgetItem("Rectangle")
-        item2 = QListWidgetItem("Circle")
-        item3 = QListWidgetItem("Other")
+        item2 = QListWidgetItem("Disk")
+        item3 = QListWidgetItem("Concentric")
+        item4 = QListWidgetItem("Interval")
+        item5 = QListWidgetItem("Other")
 
         # adding items to the list widget
-        list_widget.addItem(item1)
-        list_widget.addItem(item2)
-        list_widget.addItem(item3)
+        self.list_widget.addItem(item1)
+        self.list_widget.addItem(item2)
+        self.list_widget.addItem(item3)
+        self.list_widget.addItem(item4)
+        self.list_widget.addItem(item5)
 
         # setting selection mode property
-        list_widget.setSelectionMode(QAbstractItemView.SingleSelection)
-        layout.addWidget(list_widget, 2, 1)
+        self.list_widget.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.list_widget.itemClicked.connect(self.update_table)
 
-        label_parameter = QLabel('<font size="4"> Parameters</font>')
-        layout.addWidget(label_parameter, 3, 0)
+        label_parameter = QLabel('<font size="4"> Parameters:</font>')
 
         self.button_next = QPushButton("Next >")
         self.button_next.clicked.connect(self.next_page)
 
-        layout.addWidget(self.button_next, 5, 2)
-
         self.button_prev = QPushButton("< Prev")
         self.button_prev.clicked.connect(self.previous_page)
 
-        layout.addWidget(self.button_prev, 5, 1)
-
         # create a QTableWidget
         self.table = QTableWidget()
-        self.table.setRowCount(2)
+        self.table.setRowCount(1)
         self.table.setColumnCount(2)
-        self.table.setGeometry(50, 100, 200, 300)
 
         # adding header to the table
         header_horizontal = ["Name", "Value"]
 
         self.table.setHorizontalHeaderLabels(header_horizontal)
 
-        # adjust size columns of horizontal header
         for i, _ in enumerate(header_horizontal):
-            self.table.setColumnWidth(i, 100)
+            self.table.setColumnWidth(i, 152)
 
+        self.button_add = QPushButton("Add")
+        self.button_add.clicked.connect(self.new_rows)
+
+        layout.addWidget(label_type_domain, 1, 0)
+        layout.addWidget(self.list_widget, 2, 1)
+        layout.addWidget(label_parameter, 3, 0)
+        layout.addWidget(self.button_add, 4, 1, Qt.AlignTop)
         layout.addWidget(self.table, 4, 0)
-
-        self.button_new = QPushButton("New")
-        self.button_new.clicked.connect(self.new_rows)
-
-        layout.addWidget(self.button_new, 3, 1)
+        layout.addWidget(self.button_prev, 5, 2)
+        layout.addWidget(self.button_next, 5, 3)
 
         self.setLayout(layout)
+
+    def update_table(self):
+        selection = self.list_widget.currentItem().text()
+
+        if selection == "Rectangle":
+            # remove all the rows
+            self.table.setRowCount(0)
+            # # add 3 rows
+            for _ in range(3):
+                self.table.insertRow(self.table.rowCount())
+
+            self.table.setItem(0, 0, QTableWidgetItem("L"))
+            self.table.setItem(1, 0, QTableWidgetItem("l"))
+            self.table.setItem(2, 0, QTableWidgetItem("h"))
+
+        elif selection == "Disk":
+            # remove all the rows
+            self.table.setRowCount(0)
+            # # add 3 rows
+            for _ in range(2):
+                self.table.insertRow(self.table.rowCount())
+
+            self.table.setItem(0, 0, QTableWidgetItem("R"))
+            self.table.setItem(1, 0, QTableWidgetItem("h"))
+
+        elif selection == "Concentric":
+            # remove all the rows
+            self.table.setRowCount(0)
+            # # add 3 rows
+            for _ in range(3):
+                self.table.insertRow(self.table.rowCount())
+
+            self.table.setItem(0, 0, QTableWidgetItem("R"))
+            self.table.setItem(1, 0, QTableWidgetItem("r"))
+            self.table.setItem(2, 0, QTableWidgetItem("h"))
+
+        elif selection == "Interval":
+            # remove all the rows
+            self.table.setRowCount(0)
+            # # add 3 rows
+            for _ in range(2):
+                self.table.insertRow(self.table.rowCount())
+
+            self.table.setItem(0, 0, QTableWidgetItem("L"))
+            self.table.setItem(1, 0, QTableWidgetItem("h"))
+
+        else:
+            # remove all the rows
+            self.table.setRowCount(0)
 
     def new_rows(self):
         """This function adds 2 rows in the table (1 for state, 1 for co-state)"""
