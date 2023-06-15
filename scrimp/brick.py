@@ -113,7 +113,7 @@ class Brick:
         Returns:
             bool: parameter to help easy identification of explicit bricks.
         """
-        return self._linear
+        return self._explicit
 
     def disable_id_bricks(self, gf_model):
         gf_model.disable_bricks(self._id_bricks)
