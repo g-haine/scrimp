@@ -31,11 +31,23 @@ def shallow_water():
 
     # Init the distributed port-Hamiltonian system
     swe = DPHS("real")
+    
+    ## Macros
+    swe.gf_model.add_macro('div(v)', 'Trace(Grad(v))')
+    # swe.gf_model.add_macro('D(v)', 'Sym(Grad(v))')
+    swe.gf_model.add_macro('Rot', '[[0,1],[-1,0]]')
+    # swe.gf_model.add_macro('Tangent', '(Rot*Normal)')
+    swe.gf_model.add_macro('Curl2D(v)', 'div(Rot*v)')
+    swe.gf_model.add_macro('Gyro(v)', 'Curl2D(v)*Rot')
 
     # Set the domain (using the built-in geometry `Rectangle`)
     # Omega = 1, Gamma_Bottom = 10, Gamma_Right = 11, Gamma_Top = 12, Gamma_Left = 13
-    swe.set_domain(Domain("Disk", {"R": 1, "h": 0.15}))
-
+    swe.set_domain(Domain("Disk", {"R": 1, "h": 0.1}))
+    swe.domain.get_mesh()[0].region_merge(10,11)
+    swe.domain.get_mesh()[0].region_merge(10,12)
+    swe.domain.get_mesh()[0].region_merge(10,13)
+    swe.domain.get_mesh()[0].delete_region([11,12,13])
+    
     ## Define the variables and their discretizations
 
     states = [
@@ -44,32 +56,44 @@ def shallow_water():
     ]
     costates = [
         CoState("e_h", "Pressure", states[0]),
-        CoState("e_p", "Rate of flow", states[1]),
+        CoState("e_p", "Velocity", states[1]),
     ]
     ports = []
     params = [
-        Parameter("rho", "Mass density", "scalar-field", "1000.", "h"),
-        Parameter("g", "Gravity", "scalar-field", "10.", "h"),
+        Parameter("rho", "Mass density", "scalar-field", "1.", "h"),
+        Parameter("g", "Gravity", "scalar-field", "0.01", "h"),
+        # Parameter("nu", "Viscosity", "scalar-field", "0.001", "h"),
     ]
 
     control_ports = [
         Control_Port(
-            "Boundary control",
-            "U",
-            "Normal rate of flow",
-            "Y",
+            "Boundary control 0",
+            "U_0",
+            "Normal velocity",
+            "Y_0",
             "Fluid height",
             "scalar-field",
             region=10,
             position="effort",
         ),
+        # Control_Port(
+        #     "Boundary control 1",
+        #     "U_1",
+        #     "Velocity",
+        #     "Y_1",
+        #     "~Normal derivative",
+        #     "vector-field",
+        #     region=10,
+        #     position="effort",
+        # ),
     ]
 
     FEMs = [
         # name of the variable: (is the same of states, ports and controls ports), order, FEM
-        FEM(states[0].get_name(), 2, FEM="CG"),
+        FEM(states[0].get_name(), 1, FEM="CG"),
         FEM(states[1].get_name(), 1, FEM="DG"),
-        FEM(control_ports[0].get_name(), 2, "CG"),
+        FEM(control_ports[0].get_name(), 1, "DG"),
+        # FEM(control_ports[1].get_name(), 1, "DG"),
     ]
 
     for state, costate, param, fem, port, control_port in zip_longest(
@@ -108,44 +132,48 @@ def shallow_water():
 
     ## Define the Dirac structure via getfem `brick` = non-zero block matrix
     bricks = [
-        # Define the mass matrices of the left-hand side of the 'Dirac structure' (position='flow')
-        Brick("M_h", "h*Test_h", [1], dt=True, position="flow"),
-        Brick("M_p", "p.Test_p", [1], dt=True, position="flow"),
-        Brick("M_Y", "Y*Test_Y", [10], position="flow"),
-        # Define the first line of the right-hand side of the 'Dirac structure' (position='effort')
-        Brick("-D^T", "e_p.Grad(Test_h)", [1], position="effort"),
+        # Define the mass matrices of the left-hand side of the "Dirac structure" (position="flow")
+        Brick("M_h", "h * Test_h", [1], dt=True, position="flow"),
+        Brick("M_p", "h * p . Test_p", [1], dt=True, linear=False, position="flow"),
+        Brick("M_Y_0", "Y_0 * Test_Y_0", [10], position="flow"),
+        # Brick("M_Y_1", "U_1 . Test_Y_1", [10], position="flow"),
+        
+        # Define the first line of the right-hand side of the "Dirac structure" (position="effort")
+        Brick("-D^T", "h * e_p . Grad(Test_h)", [1], linear=False, position="effort"),
         # with the boundary control
-        Brick("B", "-U*Test_h", [10], position="effort"),
-        # Define the second line of the right-hand side of the 'Dirac structure' (position='effort')
-        Brick("D", "-Grad(e_h).Test_p", [1], position="effort"),
-        # with the gyroscopic term (beware that 'Curl' is not available in the GWFL of getfem)
-        Brick(
-            "G",
-            "Trace([[0,1],[-1,0]]*Grad(p/rho))*rho*[[0, 1],[-1, 0]]*e_p/h.Test_p",
-            [1],
-            linear=False,
-            position="effort",
-        ),
-        # Define the third line of the right-hand side of the 'Dirac structure' (position='effort')
-        Brick("C", "e_h*Test_Y", [10], position="effort"),
-        # Define the constitutive relations (position='constitutive', the default value)
+        Brick("B_0", "- U_0 * Test_h", [10], position="effort"),
+        # Define the second line of the right-hand side of the "Dirac structure" (position="effort")
+        Brick("D", "- Grad(e_h) . Test_p * h", [1], linear=False, position="effort"),
+        # with the gyroscopic term (beware that "Curl" is not available in the GWFL of getfem)
+        Brick("G", "rho * h * (Gyro(e_p) * e_p) . Test_p", [1], linear=False, 
+              explicit=False, position="effort"),
+        # Brick("D(v)", "- 2 * nu * h * D(e_p) : D(Test_p)", [1], linear=False, 
+        #       explicit=False, position="effort"),
+        # Brick("div(v)", "- 2 * nu * h * div(e_p) * div(Test_p)", [1], linear=False, 
+        #       explicit=False, position="effort"),
+        # Brick("B_1", "Y_1 . Test_p", [10], position="effort"),
+        # Define the third line of the right-hand side of the "Dirac structure" (position="effort")
+        Brick("C_0", "e_h * Test_Y_0", [10], position="effort"),
+        # Brick("C_1", "- e_p . Test_Y_1", [10], position="effort"),
+        # Define the constitutive relations (position="constitutive", the default value)
         # For e_h: first the mass matrix WITH A MINUS because we want an implicit formulation 0 = - M e_h + F(h)
-        Brick("-M_e_h", "-e_h*Test_e_h", [1]),
+        Brick("-M_e_h", "- e_h * Test_e_h", [1]),
         # second the linear part as a linear brick
-        Brick("CR_h_lin", "rho*g*h*Test_e_h", [1]),
+        Brick("CR_h_lin", "rho * g * h * Test_e_h", [1]),
         # third the non-linear part as a non-linear brick (linear=False)
-        Brick("CR_h_nl", "0.5*p.p*Test_e_h/rho", [1], linear=False),
+        Brick("CR_h_nl", "0.5 * (p . p) / rho * Test_e_h", [1], linear=False, 
+              explicit=False),
         # For e_p: first the mass matrix WITH A MINUS because we want an implicit formulation 0 = - M e_p + F(p)
-        Brick("-M_e_p", "-e_p.Test_e_p", [1]),
+        Brick("-M_e_p", "- e_p . Test_e_p", [1]),
         # second the non-linear brick (linear=False)
-        Brick("CR_p", "h*p.Test_e_p/rho", [1], linear=False),
+        Brick("CR_p", "p / rho . Test_e_p", [1]),
     ]
 
     for brick in bricks:
         swe.add_brick(brick)
 
     ## Initialize the problem
-    expressions = ["0."]
+    expressions = ["h * (0.)"]#, "((0.)*Normal + 0.2*Tangent)"]
 
     for control_port, expression in zip(control_ports, expressions):
         # Set the control functions (automatic construction of bricks such that -M_u u + f(t) = 0)
@@ -153,39 +181,40 @@ def shallow_water():
 
     # Set the initial data
     swe.set_initial_value(
-        "h", "10. + 0.1*np.exp(-50*((x-0.5)*(x-0.5) + (y-0.3)*(y-0.3)))"
+        "h", "10."
     )
     swe.set_initial_value(
         "p",
-        "[ - 10.*np.sin(np.pi*np.sqrt(x*x+y*y))*np.sin(np.arctan2(y,x)), 10.*np.sin(np.pi*np.sqrt(x*x+y*y))*np.cos(np.arctan2(y,x))]",
+        "[ -0.2*np.sin(np.pi*np.sqrt(x*x+y*y))*np.sin(np.arctan2(y,x)), 0.2*np.sin(np.pi*np.sqrt(x*x+y*y))*np.cos(np.arctan2(y,x))]",
     )
 
     ## Solve in time
 
     # Define the time scheme (default ts_type='cn', t_f=1, dt=0.01, etc.)
     swe.set_time_scheme(
-        ts_type="cn",
-        ksp_type="preonly",
-        pc_type="lu",  # pc_factor_mat_solver_type='mumps',
+        ts_type="bdf",
+        bdf_orde=6,
+        ksp_type="gmres",
+        pc_type="lu",  pc_factor_mat_solver_type='mumps',
         t_0=0.0,
         t_f=0.5,
-        dt=0.01,
+        dt=0.0001,
         dt_save=0.01,
+        ts_adapt_dt_min=0.0000001,
         init_step=True,
     )
 
     # Solve the system in time
     swe.solve()
 
-    # Plot the Hamiltonian (with_powers=True will add the time-integration of the product f*e for each algebraic port (f,e))
+    # Plot the Hamiltonian
     swe.plot_Hamiltonian(with_powers=True)
 
     # Saving solutions for ParaView post-processing
-    swe.export_to_pv("h")
-    swe.export_to_pv("p")
+    # swe.export_to_pv("h")
+    # swe.export_to_pv("e_p")
 
     return swe  # For consol use
-
 
 if __name__ == "__main__":
     swe = shallow_water()

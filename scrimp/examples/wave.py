@@ -8,7 +8,7 @@
 
 """
 - file:             examples/wave.py
-- author:           Ghislain Haine
+- authors:          Ghislain Haine, Giuseppe Ferraro
 - date:             22 nov. 2022
 - last modified:    12 dec. 2022
 - brief:            wave system

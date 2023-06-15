@@ -8,9 +8,9 @@
 
 """
 - file:             examples/heat.py
-- author:           Ghislain Haine
+- authors:          Ghislain Haine, Giuseppe Ferraro
 - date:             22 nov. 2022
-- last modified:    12 dec. 2022
+- last modified:    15 jun. 2023
 - brief:            heat system
 """
 from scrimp import *
@@ -42,7 +42,7 @@ def heat_eq():
     ]
     costates = [CoState("T", "Temperature", states[0], substituted=True)]
     ports = [
-        Port("Heat flux", "f_Q", "e_Q", "vector-field"),
+        Port("Heat flux", "f_Q", "e_Q", "vector-field", dissipative=True),
     ]
     params = [
         Parameter("rho", "Mass density times heat capacity", "scalar-field", "1.", "T"),
