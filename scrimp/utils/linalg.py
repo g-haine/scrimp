@@ -23,7 +23,7 @@ from petsc4py import PETSc
 # comm = PETSc.COMM_WORLD
 import scipy.sparse as sp
 
-def extract_gmm_to_petsc(I, J, M, comm=None):
+def extract_gmm_to_petsc(I, J, M, B, comm=None):
     """
     Extract a sub-matrix A from M, on interval I, J
     
@@ -54,17 +54,20 @@ def extract_gmm_to_petsc(I, J, M, comm=None):
     indrow = A_ind[0] 
     indcol = A_ind[1] 
     data = A.csc_val()
+    del A
     
-    B = PETSc.Mat()
+    # B = PETSc.Mat()
     # // attempt gives strange results
     # B.create(comm)
     # B.setSizes(A.size())
     # B.setType('aij')
     # B.setUp()
     
-    B.createAIJ(size=A.size(), csr=(indrow,indcol,data))
-    B.setOption(PETSc.Mat.Option.FORCE_DIAGONAL_ENTRIES, True) # Mandatory for some ksp solvers
-    B.setUp()
+    # B.createAIJ(size=A.size(), csr=(indrow,indcol,data))
+    # B.setOption(PETSc.Mat.Option.FORCE_DIAGONAL_ENTRIES, True) # Mandatory for some ksp solvers
+    # B.setUp()
+    B.zeroEntries()
+    B.setValuesCSR(indrow,indcol,data)
     
     # // attempt gives strange results
     # Istart, Iend = B.getOwnershipRange()

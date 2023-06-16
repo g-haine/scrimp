@@ -23,9 +23,9 @@ import os
 import petsc4py
 import sys
 import time
+import gc
 
-
-petsc4py.init()
+petsc4py.init(sys.argv)
 from petsc4py import PETSc
 
 # comm = PETSc.COMM_WORLD
@@ -509,8 +509,8 @@ class DPHS:
 
         self.gf_model.assembly(option="build_matrix")
         size = self.gf_model.nbdof()
-        self.mass = extract_gmm_to_petsc(
-            [0, size], [0, size], self.gf_model.tangent_matrix()
+        extract_gmm_to_petsc(
+            [0, size], [0, size], self.gf_model.tangent_matrix(), self.mass
         )
 
         for _, brick in self.bricks.items():
@@ -528,8 +528,8 @@ class DPHS:
 
         self.gf_model.assembly(option="build_matrix")
         size = self.gf_model.nbdof()
-        self.stiffness = extract_gmm_to_petsc(
-            [0, size], [0, size], self.gf_model.tangent_matrix()
+        extract_gmm_to_petsc(
+            [0, size], [0, size], self.gf_model.tangent_matrix(), self.stiffness
         )
 
         for _, brick in self.bricks.items():
@@ -552,8 +552,10 @@ class DPHS:
 
         self.gf_model.assembly(option="build_rhs")
         size = self.gf_model.nbdof()
+        # self.rhs.zeroEntries()
         self.rhs.setValues(range(size), self.gf_model.rhs(),
                            addv=PETSc.InsertMode.INSERT_VALUES)
+        # self.rhs.assemble()
 
         for _, brick in self.bricks.items():
             # Disable again all bricks previously enabled
@@ -573,11 +575,11 @@ class DPHS:
 
         self.gf_model.assembly(option="build_matrix")
         size = self.gf_model.nbdof()
-        self.nl_mass = extract_gmm_to_petsc(
-            [0, size], [0, size], self.gf_model.tangent_matrix()
+        extract_gmm_to_petsc(
+            [0, size], [0, size], self.gf_model.tangent_matrix(), self.nl_mass
         )
-        self.tangent_mass = self.mass + self.nl_mass
-        self.tangent_mass.assemble()
+        self.tangent_mass = self.mass.copy()
+        self.tangent_mass.axpy(1,self.nl_mass)
 
         for _, brick in self.bricks.items():
             # Disable again all bricks previously enabled
@@ -594,11 +596,11 @@ class DPHS:
 
         self.gf_model.assembly(option="build_matrix")
         size = self.gf_model.nbdof()
-        self.nl_stiffness = extract_gmm_to_petsc(
-            [0, size], [0, size], self.gf_model.tangent_matrix()
+        extract_gmm_to_petsc(
+            [0, size], [0, size], self.gf_model.tangent_matrix(), self.nl_stiffness
         )
-        self.tangent_stiffness = self.stiffness + self.nl_stiffness
-        self.tangent_stiffness.assemble()
+        self.tangent_stiffness = self.stiffness.copy()
+        self.tangent_stiffness.axpy(1,self.nl_stiffness)
 
         for _, brick in self.bricks.items():
             # Disable again all bricks previously enabled
@@ -676,6 +678,30 @@ class DPHS:
         if A != P:
             print("Operator different from preconditioning")
             A.assemble()
+    
+    def allocate_memory(self):
+        """
+        Pre-allocate memory for matrices and vectors
+        """
+        
+        self.mass.setSizes(self.gf_model.nbdof())
+        self.mass.setOption(PETSc.Mat.Option.FORCE_DIAGONAL_ENTRIES, True)
+        self.mass.setUp()
+        self.nl_mass.setSizes(self.gf_model.nbdof())
+        self.nl_mass.setOption(PETSc.Mat.Option.FORCE_DIAGONAL_ENTRIES, True)
+        self.nl_mass.setUp()
+        self.tangent_mass.setSizes(self.gf_model.nbdof())
+        self.tangent_mass.setOption(PETSc.Mat.Option.FORCE_DIAGONAL_ENTRIES, True)
+        self.tangent_mass.setUp()
+        self.stiffness.setSizes(self.gf_model.nbdof())
+        self.stiffness.setOption(PETSc.Mat.Option.FORCE_DIAGONAL_ENTRIES, True)
+        self.stiffness.setUp()
+        self.nl_stiffness.setSizes(self.gf_model.nbdof())
+        self.nl_stiffness.setOption(PETSc.Mat.Option.FORCE_DIAGONAL_ENTRIES, True)
+        self.nl_stiffness.setUp()
+        self.tangent_stiffness.setSizes(self.gf_model.nbdof())
+        self.tangent_stiffness.setOption(PETSc.Mat.Option.FORCE_DIAGONAL_ENTRIES, True)
+        self.tangent_stiffness.setUp()
 
     def get_cleared_TS_options(self):
         """
@@ -826,6 +852,7 @@ class DPHS:
 
         # Load time scheme options to PETSc
         self.time_scheme = PETSc.Options()
+        self.allocate_memory()
 
         # Initialization
         self.disable_all_bricks()  # enabling is done in assembly accurately
@@ -889,6 +916,7 @@ class DPHS:
         TS.reset()
 
         TS.destroy()
+        gc.collect()
 
         self.enable_all_bricks()
 
@@ -1172,7 +1200,6 @@ class DPHS:
                 )
             ax.plot(t, power, label=name_port)
             if HamTot is not None:
-                print("port:", name_port, "is ", self.ports[name_port].get_dissipative())
                 if not self.ports[name_port].get_dissipative():
                     SP_balance -= power
                 else:
