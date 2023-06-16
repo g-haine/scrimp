@@ -1,6 +1,12 @@
 import sys
 from PyQt5 import QtWidgets
-from GUI import add_port_page, add_state_costate_page, home_page, set_domain_page
+from GUI import (
+    add_parameter_page,
+    add_port_page,
+    add_state_costate_page,
+    home_page,
+    set_domain_page,
+)
 
 
 class Controller:
@@ -12,12 +18,14 @@ class Controller:
         self.set_domain_page = set_domain_page.Window()
         self.add_port_page = add_port_page.Window()
         self.add_state_costate_page = add_state_costate_page.Window()
+        self.add_parameter_page = add_parameter_page.Window()
 
         # the connections
         self.create_DPHS.switch_window.connect(self.show_window)
         self.set_domain_page.switch_window.connect(self.show_window)
         self.add_state_costate_page.switch_window.connect(self.show_window)
         self.add_port_page.switch_window.connect(self.show_window)
+        self.add_parameter_page.switch_window.connect(self.show_window)
 
     def show_window(self, text: str):
         """This function according to the variable text shows the corresponding window of gui.
@@ -34,6 +42,8 @@ class Controller:
             self.add_port_page.show()
         elif text == "create_DHPS_page":
             self.create_DPHS.show()
+        elif text == "add_parameter_page":
+            self.add_parameter_page.show()
         else:
             print("the emitted signal:", text)
             pass
