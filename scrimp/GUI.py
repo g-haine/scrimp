@@ -1,14 +1,15 @@
 import sys
 from PyQt5 import QtWidgets
 from GUI import (
-    set_hamiltonian_page,
-    add_fem_page,
-    add_control_port_page,
-    add_parameter_page,
-    add_port_page,
-    add_state_costate_page,
     home_page,
     set_domain_page,
+    add_state_costate_page,
+    add_port_page,
+    add_parameter_page,
+    add_control_port_page,
+    add_fem_page,
+    set_hamiltonian_page,
+    add_term_page,
 )
 
 
@@ -25,6 +26,7 @@ class Controller:
         self.add_control_port_page = add_control_port_page.Window()
         self.add_fem_page = add_fem_page.Window()
         self.set_hamiltonian_page = set_hamiltonian_page.Window()
+        self.add_term_page = add_term_page.Window()
 
         # the connections
         self.create_DPHS.switch_window.connect(self.show_window)
@@ -35,6 +37,7 @@ class Controller:
         self.add_control_port_page.switch_window.connect(self.show_window)
         self.add_fem_page.switch_window.connect(self.show_window)
         self.set_hamiltonian_page.switch_window.connect(self.show_window)
+        self.add_term_page.switch_window.connect(self.show_window)
 
     def show_window(self, text: str):
         """This function according to the variable text shows the corresponding window of gui.
@@ -59,6 +62,8 @@ class Controller:
             self.add_fem_page.show()
         elif text == "set_hamiltonian_page":
             self.set_hamiltonian_page.show()
+        elif text == "add_term_page":
+            self.add_term_page.show()
         else:
             print("the emitted signal:", text)
             pass
