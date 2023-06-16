@@ -10,6 +10,7 @@ from GUI import (
     add_fem_page,
     set_hamiltonian_page,
     add_term_page,
+    add_brick_page,
 )
 
 
@@ -27,6 +28,7 @@ class Controller:
         self.add_fem_page = add_fem_page.Window()
         self.set_hamiltonian_page = set_hamiltonian_page.Window()
         self.add_term_page = add_term_page.Window()
+        self.add_brick_page = add_brick_page.Window()
 
         # the connections
         self.create_DPHS.switch_window.connect(self.show_window)
@@ -38,6 +40,7 @@ class Controller:
         self.add_fem_page.switch_window.connect(self.show_window)
         self.set_hamiltonian_page.switch_window.connect(self.show_window)
         self.add_term_page.switch_window.connect(self.show_window)
+        self.add_brick_page.switch_window.connect(self.show_window)
 
     def show_window(self, text: str):
         """This function according to the variable text shows the corresponding window of gui.
@@ -64,6 +67,8 @@ class Controller:
             self.set_hamiltonian_page.show()
         elif text == "add_term_page":
             self.add_term_page.show()
+        elif text == "add_brick_page":
+            self.add_brick_page.show()
         else:
             print("the emitted signal:", text)
             pass
