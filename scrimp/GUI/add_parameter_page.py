@@ -89,12 +89,12 @@ class Window(QtWidgets.QWidget):
 
     def next_page(self):
         """This funciont emit the signal to navigate to the next page."""
-        self.switch_window.emit("add_parameter_page")
+        self.switch_window.emit("add_control_port_page")
         self.hide()
 
     def previous_page(self):
         """This funcion emits the signal to navigate to the prvious page."""
-        self.switch_window.emit("add_state_costate_page")
+        self.switch_window.emit("add_port_page")
         self.hide()
 
     def new_parameter(self):
