@@ -19,23 +19,23 @@ class Window(QtWidgets.QWidget):
 
         layout = QGridLayout()
 
-        label_dphs_name = QLabel('<font size="4"> Name for your dpHs</font>')
+        label_dphs_name = QLabel('<font size="4"> Name for your dpHs: </font>')
         self.line_edit_dphs_name = QLineEdit()
         self.line_edit_dphs_name.setPlaceholderText("Please enter the name")
-        layout.addWidget(label_dphs_name, 1, 0)
-        layout.addWidget(self.line_edit_dphs_name, 1, 1)
 
-        linlabel_dphs_type = QLabel('<font size="4"> Type of dpHS </font>')
+        linlabel_dphs_type = QLabel('<font size="4"> Type of dpHS: </font>')
         self.line_edit_dphs_type = QLineEdit()
         self.line_edit_dphs_type.setPlaceholderText(
             "Please enter the type of the system"
         )
-        layout.addWidget(linlabel_dphs_type, 2, 0)
-        layout.addWidget(self.line_edit_dphs_type, 2, 1)
 
         self.button_next = QtWidgets.QPushButton("Next >")
         self.button_next.clicked.connect(self.next_page)
 
+        layout.addWidget(label_dphs_name, 1, 0)
+        layout.addWidget(self.line_edit_dphs_name, 1, 1)
+        layout.addWidget(linlabel_dphs_type, 2, 0)
+        layout.addWidget(self.line_edit_dphs_type, 2, 1)
         layout.addWidget(self.button_next, 3, 2)
 
         self.setLayout(layout)

@@ -1,5 +1,12 @@
 from PyQt5 import QtCore, QtWidgets
-from PyQt5.QtWidgets import QPushButton, QLineEdit, QGridLayout, QTableWidget
+from PyQt5.QtWidgets import (
+    QHBoxLayout,
+    QPushButton,
+    QLineEdit,
+    QGridLayout,
+    QTableWidget,
+)
+from PyQt5.QtCore import Qt
 
 
 class Window(QtWidgets.QWidget):
@@ -15,54 +22,98 @@ class Window(QtWidgets.QWidget):
     def __init__(self):
         QtWidgets.QWidget.__init__(self)
 
-        self.setWindowTitle("Definition of State/s and Co-state/s")
-        self.setGeometry(100, 100, 600, 300)
+        self.setWindowTitle("Definition of State/s and Costate/s")
+        self.setFixedWidth(1100)
+        self.setFixedHeight(600)
+        # self.setGeometry(100, 100, 600, 300)
 
         layout = QGridLayout()
 
         # self.line_edit = QLineEdit()
         # layout.addWidget(self.line_edit)
 
-        # create a QTableWidget
-        self.table = QTableWidget()
-        self.table.setRowCount(2)
-        self.table.setColumnCount(3)
-        self.table.setGeometry(50, 100, 300, 300)
+        # create a QTableWidget States
+        self.table_states = QTableWidget()
+        self.table_states.setRowCount(1)
+        self.table_states.setColumnCount(5)
+        # self.table_states.setGeometry(50, 100, 300, 300)
 
         # adding header to the table
-        header_horizontal = ["Name", "Description", "Kind"]
-        self.header_vertical = ["state", "co-state"]
-        self.table.setHorizontalHeaderLabels(header_horizontal)
-        self.table.setVerticalHeaderLabels(self.header_vertical)
+        header_horizontal_states = ["Name", "Description", "Kind", "Region", "Mesh ID"]
+        self.header_vertical_states = ["state"]
+        self.table_states.setHorizontalHeaderLabels(header_horizontal_states)
+        self.table_states.setVerticalHeaderLabels(self.header_vertical_states)
 
         # adjust size columns of horizontal header
-        for i, _ in enumerate(header_horizontal):
-            self.table.setColumnWidth(i, 115)
+        for i, _ in enumerate(header_horizontal_states):
+            self.table_states.setColumnWidth(i, 150)
 
         # adjust size columns of horizontal header
-        self.table.setColumnWidth(i, 140)
+        self.table_states.setColumnWidth(i, 140)
 
-        layout.addWidget(self.table, 1, 0, 1, 3)
+        self.button_add_state = QPushButton("Add State/Costate")
+        self.button_add_state.clicked.connect(self.new_state)
 
-        self.button_next = QPushButton("New")
-        self.button_next.clicked.connect(self.new_rows)
+        self.button_delete_state = QPushButton("Remove State/Costate")
+        self.button_delete_state.clicked.connect(self.delete_state)
 
-        layout.addWidget(self.button_next, 0, 2)
+        self.button_clear_all = QPushButton("Clear All")
+        self.button_clear_all.clicked.connect(self.clear_all)
 
-        self.button_prev = QPushButton("Delete")
-        self.button_prev.clicked.connect(self.delete_rows)
+        # layout_buttons_state = QHBoxLayout()
 
-        layout.addWidget(self.button_prev, 0, 3)
+        # layout_buttons_state.addWidget(self.button_add_state)
+        # layout_buttons_state.addWidget(self.button_delete_state)
+
+        # cell_double = QTableWidget(layout_buttons_state)
+
+        # create a QTableWidget Co-States
+        self.table_costates = QTableWidget()
+        self.table_costates.setRowCount(1)
+        self.table_costates.setColumnCount(5)
+        # self.table_costates.setGeometry(50, 100, 300, 300)
+
+        # adding header to the table
+        header_horizontal_costates = [
+            "Name",
+            "Description",
+            "State",
+            "Substituted",
+            "Mesh ID",
+        ]
+        self.header_vertical_costates = ["costate"]
+        self.table_costates.setHorizontalHeaderLabels(header_horizontal_costates)
+        self.table_costates.setVerticalHeaderLabels(self.header_vertical_costates)
+
+        # adjust size columns of horizontal header
+        for i, _ in enumerate(header_horizontal_costates):
+            self.table_costates.setColumnWidth(i, 150)
+
+        # adjust size columns of horizontal header
+        self.table_costates.setColumnWidth(i, 140)
+
+        # self.button_add_costate = QPushButton("Add Costate")
+        # self.button_add_costate.clicked.connect(self.new_costate)
+
+        # self.button_delete_costate = QPushButton("Delete Costate")
+        # self.button_delete_costate.clicked.connect(self.delete_costate)
 
         self.button_next = QPushButton("Next >")
         self.button_next.clicked.connect(self.next_page)
 
-        layout.addWidget(self.button_next, 3, 3)
-
         self.button_prev = QPushButton("< Prev")
         self.button_prev.clicked.connect(self.previous_page)
 
-        layout.addWidget(self.button_prev, 3, 2)
+        layout.addWidget(self.table_states, 1, 0, 1, 3)
+        # layout.addWidget(cell_double, 1, 3)
+        layout.addWidget(self.button_clear_all, 0, 1)
+        layout.addWidget(self.button_add_state, 0, 2, Qt.AlignTop)
+        layout.addWidget(self.button_delete_state, 0, 3, Qt.AlignTop)
+        layout.addWidget(self.table_costates, 3, 0, 1, 3)
+        # layout.addWidget(self.button_add_costate, 2, 2)
+        # layout.addWidget(self.button_delete_costate, 2, 3)
+        layout.addWidget(self.button_next, 4, 3)
+        layout.addWidget(self.button_prev, 4, 2)
 
         self.setLayout(layout)
 
@@ -76,22 +127,43 @@ class Window(QtWidgets.QWidget):
         self.switch_window.emit("set_domain_page")
         self.hide()
 
-    def new_rows(self):
+    def new_state(self):
         """This function adds 2 rows in the table (1 for state, 1 for co-state)"""
-        count = self.table.rowCount()
-        for _ in range(2):
-            self.table.insertRow(count)
-        self.header_vertical += ["state", "co-state"]
-        self.table.setVerticalHeaderLabels(self.header_vertical)
+        count = self.table_states.rowCount()
+        self.table_states.insertRow(count)
+        self.header_vertical_states += ["state"]
+        self.table_states.setVerticalHeaderLabels(self.header_vertical_states)
+        self.new_costate()
 
-    def delete_rows(self):
+    def delete_state(self):
         """This function removes 2 rows in the table (1 for state, 1 for co-state)"""
-        if len(self.header_vertical) > 2:
-            self.header_vertical.pop()
-            self.header_vertical.pop()
-            self.table.setVerticalHeaderLabels(self.header_vertical)
+        if len(self.header_vertical_states) > 1:
+            self.header_vertical_states.pop()
+            self.table_states.setVerticalHeaderLabels(self.header_vertical_states)
 
-            for _ in range(2):
-                self.table.removeRow(self.table.rowCount() - 1)
+            self.table_states.removeRow(self.table_states.rowCount() - 1)
+            self.delete_costate()
         else:
             print("not enough element to delete!")
+
+    def new_costate(self):
+        """This function adds 2 rows in the table (1 for state, 1 for co-state)"""
+        count = self.table_costates.rowCount()
+        self.table_costates.insertRow(count)
+        self.header_vertical_costates += ["costate"]
+        self.table_costates.setVerticalHeaderLabels(self.header_vertical_costates)
+
+    def delete_costate(self):
+        """This function removes 2 rows in the table (1 for state, 1 for co-state)"""
+        if len(self.header_vertical_costates) > 1:
+            self.header_vertical_costates.pop()
+            self.table_costates.setVerticalHeaderLabels(self.header_vertical_costates)
+
+            self.table_costates.removeRow(self.table_costates.rowCount() - 1)
+        else:
+            print("not enough element to delete!")
+
+    def clear_all(self):
+        self.table_states.setRowCount(0)
+        self.table_costates.setRowCount(0)
+        self.new_state()
