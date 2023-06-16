@@ -23,7 +23,7 @@ class Window(QtWidgets.QWidget):
         QtWidgets.QWidget.__init__(self)
 
         self.setWindowTitle("Definition of Control control_port/s")
-        self.setFixedWidth(1400)
+        self.setFixedWidth(1700)
         self.setFixedHeight(600)
         # self.setGeometry(100, 100, 600, 300)
 
@@ -42,7 +42,8 @@ class Window(QtWidgets.QWidget):
             "Name Control",
             "Description Control",
             "Name Observation",
-            "Description Observation" "Kind",
+            "Description Observation",
+            "Kind",
             "Region",
             "Mesh ID",
         ]
@@ -58,7 +59,7 @@ class Window(QtWidgets.QWidget):
 
         # adjust size columns of horizontal header
         for i, _ in enumerate(header_horizontal_control_ports):
-            self.table_control_ports.setColumnWidth(i, 130)
+            self.table_control_ports.setColumnWidth(i, 145)
 
         self.button_add_control_port = QPushButton("Add control_port")
         self.button_add_control_port.clicked.connect(self.new_control_port)
