@@ -6,7 +6,7 @@ Anaconda
 
 The easiest way to install SCRIMP is to use a conda environment.
 
-1. Install <a href="https://docs.anaconda.com/free/anaconda/install/index.html"> Anaconda</a>
+1. Install `Anaconda <https://docs.anaconda.com/free/anaconda/install/index.html>`_
 2. Clone the git repository: ```git clone https://github.com/g-haine/scrimp```
 3. Enter the folder: ```cd scrimp```
 4. Create the conda environment:  ```conda env create --file /path/to/scrimp/scrimp.yml```
