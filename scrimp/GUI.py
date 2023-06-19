@@ -1,7 +1,7 @@
 import sys
 from PyQt5 import QtWidgets
 from GUI import (
-    home_page,
+    create_dphs_page,
     set_domain_page,
     add_state_costate_page,
     add_port_page,
@@ -23,7 +23,7 @@ class Controller:
 
     def __init__(self):
         # the pages that are included in the GUI
-        self.create_dphs = home_page.Window()
+        self.create_dphs = create_dphs_page.Window()
         self.set_domain_page = set_domain_page.Window()
         self.add_port_page = add_port_page.Window()
         self.add_state_costate_page = add_state_costate_page.Window()
