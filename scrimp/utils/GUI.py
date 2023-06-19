@@ -12,4 +12,5 @@ gui_pages = [
     "add_expression_page",
     "add_initial_value_page",
     "set_time_scheme_page",
+    "generate_code_page",
 ]
