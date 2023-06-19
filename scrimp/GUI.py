@@ -12,6 +12,8 @@ from GUI import (
     add_term_page,
     add_brick_page,
     add_expression_page,
+    add_initial_value_page,
+    set_time_scheme_page,
 )
 
 
@@ -31,6 +33,8 @@ class Controller:
         self.add_term_page = add_term_page.Window()
         self.add_brick_page = add_brick_page.Window()
         self.add_expression_page = add_expression_page.Window()
+        self.add_initial_value_page = add_initial_value_page.Window()
+        self.set_time_scheme_page = set_time_scheme_page.Window()
 
         # the connections
         self.create_dphs.switch_window.connect(self.show_window)
@@ -44,6 +48,8 @@ class Controller:
         self.add_term_page.switch_window.connect(self.show_window)
         self.add_brick_page.switch_window.connect(self.show_window)
         self.add_expression_page.switch_window.connect(self.show_window)
+        self.add_initial_value_page.switch_window.connect(self.show_window)
+        self.set_time_scheme_page.switch_window.connect(self.show_window)
 
     def show_window(self, text: str):
         """This function according to the variable text shows the corresponding window of gui.
@@ -74,6 +80,10 @@ class Controller:
             self.add_brick_page.show()
         elif text == "add_expression_page":
             self.add_expression_page.show()
+        elif text == "add_initial_value_page":
+            self.add_initial_value_page.show()
+        elif text == "set_time_scheme_page":
+            self.set_time_scheme_page.show()
         else:
             print("the emitted signal:", text)
             pass

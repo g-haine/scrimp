@@ -10,4 +10,6 @@ gui_pages = [
     "add_term_page",
     "add_brick_page",
     "add_expression_page",
+    "add_initial_value_page",
+    "set_time_scheme_page",
 ]
