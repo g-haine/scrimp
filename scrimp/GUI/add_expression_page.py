@@ -97,7 +97,7 @@ class Window(QtWidgets.QWidget):
 
     def next_page(self):
         """This funciont emit the signal to navigate to the next page."""
-        self.switch_window.emit("add_initial_values_page")
+        self.switch_window.emit("add_initial_value_page")
         self.hide()
 
     def previous_page(self):

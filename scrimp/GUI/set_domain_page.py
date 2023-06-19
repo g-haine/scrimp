@@ -90,8 +90,8 @@ class Window(QtWidgets.QWidget):
         layout.addWidget(label_parameter, 3, 0)
         layout.addWidget(self.button_add, 4, 1, Qt.AlignTop)
         layout.addWidget(self.table, 4, 0)
-        layout.addWidget(self.button_prev, 5, 2)
-        layout.addWidget(self.button_next, 5, 3)
+        layout.addWidget(self.button_prev, 5, 3)
+        layout.addWidget(self.button_next, 5, 4)
 
         self.comboBox = QComboBox()
         self.comboBox.addItems(gui_pages)
@@ -99,7 +99,7 @@ class Window(QtWidgets.QWidget):
 
         # There is an alternate signal to send the text.
         self.comboBox.currentTextChanged.connect(self.text_changed)
-        layout.addWidget(self.comboBox, 5, 1)
+        layout.addWidget(self.comboBox, 5, 2)
 
         self.setLayout(layout)
 

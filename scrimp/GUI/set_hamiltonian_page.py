@@ -35,8 +35,8 @@ class Window(QtWidgets.QWidget):
         layout.addWidget(label_hamiltonian_name, 1, 0)
         layout.addWidget(self.line_edit_hamiltonian_name, 1, 1)
 
-        layout.addWidget(self.button_next, 4, 3)
-        layout.addWidget(self.button_prev, 4, 2)
+        layout.addWidget(self.button_next, 4, 4)
+        layout.addWidget(self.button_prev, 4, 3)
 
         self.comboBox = QComboBox()
         self.comboBox.addItems(gui_pages)
@@ -44,7 +44,7 @@ class Window(QtWidgets.QWidget):
 
         # There is an alternate signal to send the text.
         self.comboBox.currentTextChanged.connect(self.text_changed)
-        layout.addWidget(self.comboBox, 4, 1)
+        layout.addWidget(self.comboBox, 4, 2)
 
         self.setLayout(layout)
 

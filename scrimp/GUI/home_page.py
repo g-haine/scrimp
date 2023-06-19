@@ -37,7 +37,7 @@ class Window(QtWidgets.QWidget):
         layout.addWidget(self.line_edit_dphs_name, 1, 1)
         layout.addWidget(linlabel_dphs_type, 2, 0)
         layout.addWidget(self.line_edit_dphs_type, 2, 1)
-        layout.addWidget(self.button_next, 3, 2)
+        layout.addWidget(self.button_next, 3, 3)
 
         self.comboBox = QComboBox()
         self.comboBox.addItems(gui_pages)
@@ -45,7 +45,7 @@ class Window(QtWidgets.QWidget):
 
         # There is an alternate signal to send the text.
         self.comboBox.currentTextChanged.connect(self.text_changed)
-        layout.addWidget(self.comboBox, 4, 1)
+        layout.addWidget(self.comboBox, 3, 2)
 
         self.setLayout(layout)
 
