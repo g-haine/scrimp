@@ -11,6 +11,7 @@ from GUI import (
     set_hamiltonian_page,
     add_term_page,
     add_brick_page,
+    add_expression_page,
 )
 
 
@@ -19,7 +20,7 @@ class Controller:
 
     def __init__(self):
         # the pages that are included in the GUI
-        self.create_DPHS = home_page.Window()
+        self.create_dphs = home_page.Window()
         self.set_domain_page = set_domain_page.Window()
         self.add_port_page = add_port_page.Window()
         self.add_state_costate_page = add_state_costate_page.Window()
@@ -29,9 +30,10 @@ class Controller:
         self.set_hamiltonian_page = set_hamiltonian_page.Window()
         self.add_term_page = add_term_page.Window()
         self.add_brick_page = add_brick_page.Window()
+        self.add_expression_page = add_expression_page.Window()
 
         # the connections
-        self.create_DPHS.switch_window.connect(self.show_window)
+        self.create_dphs.switch_window.connect(self.show_window)
         self.set_domain_page.switch_window.connect(self.show_window)
         self.add_state_costate_page.switch_window.connect(self.show_window)
         self.add_port_page.switch_window.connect(self.show_window)
@@ -41,6 +43,7 @@ class Controller:
         self.set_hamiltonian_page.switch_window.connect(self.show_window)
         self.add_term_page.switch_window.connect(self.show_window)
         self.add_brick_page.switch_window.connect(self.show_window)
+        self.add_expression_page.switch_window.connect(self.show_window)
 
     def show_window(self, text: str):
         """This function according to the variable text shows the corresponding window of gui.
@@ -55,8 +58,8 @@ class Controller:
             self.add_state_costate_page.show()
         elif text == "add_port_page":
             self.add_port_page.show()
-        elif text == "create_DHPS_page":
-            self.create_DPHS.show()
+        elif text == "create_dphs_page":
+            self.create_dphs.show()
         elif text == "add_parameter_page":
             self.add_parameter_page.show()
         elif text == "add_control_port_page":
@@ -69,6 +72,8 @@ class Controller:
             self.add_term_page.show()
         elif text == "add_brick_page":
             self.add_brick_page.show()
+        elif text == "add_expression_page":
+            self.add_expression_page.show()
         else:
             print("the emitted signal:", text)
             pass
@@ -81,7 +86,7 @@ def main():
     # screen_size = screen.availableSize()
     # rect = screen.availableGeometry()
     controller = Controller()
-    controller.show_window("create_DHPS_page")
+    controller.show_window("create_dphs_page")
     sys.exit(app.exec_())
 
 

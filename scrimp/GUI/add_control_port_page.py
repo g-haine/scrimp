@@ -5,8 +5,10 @@ from PyQt5.QtWidgets import (
     QLineEdit,
     QGridLayout,
     QTableWidget,
+    QComboBox,
 )
 from PyQt5.QtCore import Qt
+from utils.GUI import gui_pages
 
 
 class Window(QtWidgets.QWidget):
@@ -59,7 +61,7 @@ class Window(QtWidgets.QWidget):
 
         # adjust size columns of horizontal header
         for i, _ in enumerate(header_horizontal_control_ports):
-            self.table_control_ports.setColumnWidth(i, 145)
+            self.table_control_ports.setColumnWidth(i, 155)
 
         self.button_add_control_port = QPushButton("Add control_port")
         self.button_add_control_port.clicked.connect(self.new_control_port)
@@ -92,7 +94,20 @@ class Window(QtWidgets.QWidget):
         layout.addWidget(self.button_next, 4, 3)
         layout.addWidget(self.button_prev, 4, 2)
 
+        self.comboBox = QComboBox()
+        self.comboBox.addItems(gui_pages)
+        self.comboBox.setCurrentText("add_control_port_page")
+
+        # There is an alternate signal to send the text.
+        self.comboBox.currentTextChanged.connect(self.text_changed)
+        layout.addWidget(self.comboBox, 4, 1)
+
         self.setLayout(layout)
+
+    def text_changed(self, page):  # s is a str
+        self.comboBox.setCurrentText("add_control_port_page")
+        self.switch_window.emit(page)
+        self.hide()
 
     def next_page(self):
         """This funciont emit the signal to navigate to the next page."""

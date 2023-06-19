@@ -5,8 +5,10 @@ from PyQt5.QtWidgets import (
     QLineEdit,
     QGridLayout,
     QTableWidget,
+    QComboBox,
 )
 from PyQt5.QtCore import Qt
+from utils.GUI import gui_pages
 
 
 class Window(QtWidgets.QWidget):
@@ -23,7 +25,7 @@ class Window(QtWidgets.QWidget):
         QtWidgets.QWidget.__init__(self)
 
         self.setWindowTitle("Definition of FEM/s")
-        self.setFixedWidth(600)
+        self.setFixedWidth(1700)
         self.setFixedHeight(600)
         # self.setGeometry(100, 100, 600, 300)
 
@@ -46,7 +48,7 @@ class Window(QtWidgets.QWidget):
 
         # adjust size columns of horizontal header
         for i, _ in enumerate(header_horizontal_FEMs):
-            self.table_FEMs.setColumnWidth(i, 130)
+            self.table_FEMs.setColumnWidth(i, 150)
 
         self.button_add_FEM = QPushButton("Add FEM")
         self.button_add_FEM.clicked.connect(self.new_FEM)
@@ -79,7 +81,20 @@ class Window(QtWidgets.QWidget):
         layout.addWidget(self.button_next, 4, 3)
         layout.addWidget(self.button_prev, 4, 2)
 
+        self.comboBox = QComboBox()
+        self.comboBox.addItems(gui_pages)
+        self.comboBox.setCurrentText("add_fem_page")
+
+        # There is an alternate signal to send the text.
+        self.comboBox.currentTextChanged.connect(self.text_changed)
+        layout.addWidget(self.comboBox, 4, 1)
+
         self.setLayout(layout)
+
+    def text_changed(self, page):  # s is a str
+        self.comboBox.setCurrentText("add_fem_page")
+        self.switch_window.emit(page)
+        self.hide()
 
     def next_page(self):
         """This funciont emit the signal to navigate to the next page."""

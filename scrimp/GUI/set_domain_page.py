@@ -1,5 +1,6 @@
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtCore import Qt
+from utils.GUI import gui_pages
 from PyQt5.QtWidgets import (
     QListWidget,
     QListWidgetItem,
@@ -9,6 +10,7 @@ from PyQt5.QtWidgets import (
     QLineEdit,
     QGridLayout,
     QTableWidget,
+    QComboBox,
     QTableWidgetItem,
 )
 
@@ -26,7 +28,7 @@ class Window(QtWidgets.QWidget):
         QtWidgets.QWidget.__init__(self)
 
         self.setWindowTitle("Define the domain for the dpHs")
-        self.setFixedWidth(600)
+        self.setFixedWidth(1700)
         self.setFixedHeight(600)
 
         layout = QGridLayout()
@@ -78,7 +80,7 @@ class Window(QtWidgets.QWidget):
         self.table.setHorizontalHeaderLabels(header_horizontal)
 
         for i, _ in enumerate(header_horizontal):
-            self.table.setColumnWidth(i, 152)
+            self.table.setColumnWidth(i, 150)
 
         self.button_add = QPushButton("Add")
         self.button_add.clicked.connect(self.new_rows)
@@ -91,7 +93,20 @@ class Window(QtWidgets.QWidget):
         layout.addWidget(self.button_prev, 5, 2)
         layout.addWidget(self.button_next, 5, 3)
 
+        self.comboBox = QComboBox()
+        self.comboBox.addItems(gui_pages)
+        self.comboBox.setCurrentText("set_domain_page")
+
+        # There is an alternate signal to send the text.
+        self.comboBox.currentTextChanged.connect(self.text_changed)
+        layout.addWidget(self.comboBox, 5, 1)
+
         self.setLayout(layout)
+
+    def text_changed(self, page):  # s is a str
+        self.comboBox.setCurrentText("set_domain_page")
+        self.switch_window.emit(page)
+        self.hide()
 
     def update_table(self):
         selection = self.list_widget.currentItem().text()
