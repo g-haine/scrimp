@@ -1,4 +1,4 @@
-name: scrimp-dev
+name: scrimp
 channels:
   - conda-forge
 dependencies:
