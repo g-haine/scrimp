@@ -28,8 +28,8 @@ import gc
 petsc4py.init(sys.argv)
 from petsc4py import PETSc
 
-# comm = PETSc.COMM_WORLD
-
+comm = PETSc.COMM_WORLD
+rank = comm.getRank()
 
 from scrimp.utils.linalg import extract_gmm_to_petsc, convert_PETSc_to_scipy
 
@@ -56,14 +56,16 @@ class DPHS:
         :param basis_field: basis field for unknowns (must be `real` or `complex`)
         :type basis_field: str
         """
-        # Set the log file
-        logging.basicConfig(
-            filename=os.path.join(module_path, "log", filename_log),
-            encoding="utf-8",
-            level=logging.DEBUG,
-            filemode="w",
-            format="",
-        )
+        
+        if rank==0:
+            # Set the log file
+            logging.basicConfig(
+                filename=os.path.join(module_path, "log", filename_log),
+                encoding="utf-8",
+                level=logging.DEBUG,
+                filemode="w",
+                format="",
+            )
         #: The `domain` of a dpHs is an object that handle mesh(es) and dict of regions with getfem indices (for each mesh), useful to define `bricks` (i.e. forms) in the getfem syntax
         self.domain = None
         #: Clear and init `time_scheme` member, which embed PETSc TS options database
@@ -85,19 +87,19 @@ class DPHS:
         #: To check if the powers have been computed
         self.powers_computed = False
         #: Tangent (non-linear + linear) mass matrix of the system in PETSc CSR format
-        self.tangent_mass = PETSc.Mat().create()#comm=comm)
+        self.tangent_mass = PETSc.Mat().create(comm=comm)
         #: Non-linear mass matrix of the system in PETSc CSR format
-        self.nl_mass = PETSc.Mat().create()#comm=comm)
+        self.nl_mass = PETSc.Mat().create(comm=comm)
         #: Linear mass matrix of the system in PETSc CSR format
-        self.mass = PETSc.Mat().create()#comm=comm)
+        self.mass = PETSc.Mat().create(comm=comm)
         #: Tangent (non-linear + linear) stiffness matrix of the system in PETSc CSR format
-        self.tangent_stiffness = PETSc.Mat().create()#comm=comm)
+        self.tangent_stiffness = PETSc.Mat().create(comm=comm)
         #: Non-linear stiffness matrix of the system in PETSc CSR format
-        self.nl_stiffness = PETSc.Mat().create()#comm=comm)
+        self.nl_stiffness = PETSc.Mat().create(comm=comm)
         #: Linear stiffness matrix of the system in PETSc CSR format
-        self.stiffness = PETSc.Mat().create()#comm=comm)
+        self.stiffness = PETSc.Mat().create(comm=comm)
         #: rhs of the system in PETSc Vec
-        self.rhs = PETSc.Vec().create()#comm=comm)
+        self.rhs = PETSc.Vec().create(comm=comm)
         #: To check if the initial values have been setted before time-resolution
         self.initial_value_setted = dict()
         #: To check if the PETSc TS time-integration parameters have been setted before time-integration
@@ -115,12 +117,12 @@ class DPHS:
         #: To stop TS integration by keeping already computed timesteps if one step fails
         self.stop_TS = False
         #: A PETSc Vec for residual computation
-        self.F = PETSc.Vec().create()#comm=comm)
+        self.F = PETSc.Vec().create(comm=comm)
         #: A PETSc Mat for Jacobian computation
-        self.J = PETSc.Mat().create()#comm=comm)
+        self.J = PETSc.Mat().create(comm=comm)
         #: A PETSc Vec buffering computation
-        self.buffer = PETSc.Vec().create()#comm=comm)
-
+        self.buffer = PETSc.Mat().create(comm=comm)
+    
         #: A getfem `Model` object that is use as core for the dpHs
         self.gf_model = gf.Model(basis_field)
         #: Says to getfem that the `Model` is time-dependent
@@ -131,8 +133,9 @@ class DPHS:
         self.gf_model.add_macro("x", "X(1)")
         self.gf_model.add_macro("y", "X(2)")
         self.gf_model.add_macro("z", "X(3)")
-
-        print("A model with", basis_field, "unknowns has been initialized")
+    
+        if rank==0:
+            print("A model with", basis_field, "unknowns has been initialized")
 
     def set_domain(self, domain: Domain):
         """This function sets a domain for the dphp.
@@ -143,7 +146,8 @@ class DPHS:
             parameters (dict): parameters for the construction, either for built in, or user-defined auxiliary script
         """
         self.domain = domain
-        logging.debug(f"domain: {domain.get_name()} has been set")
+        if rank==0:
+            logging.debug(f"domain: {domain.get_name()} has been set")
 
     def add_state(self, state: State):
         """This functions adds a state to the dpHS.
@@ -151,7 +155,6 @@ class DPHS:
         Args:
             state (State): the state
         """
-
         self.states[state.get_name()] = state
         logging.debug(f"state: {state.get_name()} has been added")
 
@@ -180,12 +183,13 @@ class DPHS:
         state.set_port(port)
         costate.set_port(port)
 
-        logging.debug(
-            f"costate: {costate.get_name()} has been added to state: {costate.get_state().get_name()}"
-        )
-        logging.debug(
-            f"state: {state.get_name()} has new costate: {state.get_costate().get_name()}"
-        )
+        if rank==0:
+            logging.debug(
+                f"costate: {costate.get_name()} has been added to state: {costate.get_state().get_name()}"
+            )
+            logging.debug(
+                f"state: {state.get_name()} has new costate: {state.get_costate().get_name()}"
+            )
 
     def add_port(self, port: Port):
         """This function adds a `port` object to the dpHs
@@ -287,9 +291,10 @@ class DPHS:
         parameter (Parameter): the parameter"""
         name_port = parameter.get_name_port()
         self.ports[name_port].add_parameter(parameter)
-        logging.debug(
-            f"parameter: {parameter.get_name()} has been added to port: {parameter.get_name_port()}"
-        )
+        if rank==0:
+            logging.debug(
+                f"parameter: {parameter.get_name()} has been added to port: {parameter.get_name_port()}"
+            )
 
         if self.ports[name_port].get_is_set():
             self.init_parameter(parameter.get_name(), name_port)
@@ -309,9 +314,10 @@ class DPHS:
         evaluation = self.ports[name_port].init_parameter(
             name, self.ports[name_port].get_parameter(name).get_expression()
         )
-        logging.debug(
-            f"expression: {self.ports[name_port].get_parameter(name).get_expression()} for parameter: {name} of port: {name_port}"
-        )
+        if rank==0:
+            logging.debug(
+                f"expression: {self.ports[name_port].get_parameter(name).get_expression()} for parameter: {name} of port: {name_port}"
+            )
 
         sizes = None
         if self.ports[name_port].get_parameter(name).get_kind() == "tensor-field":
@@ -320,9 +326,10 @@ class DPHS:
         self.gf_model.add_initialized_fem_data(
             name, self.ports[name_port].get_fem(), evaluation, sizes=sizes
         )
-        logging.debug(
-            f"parameter: {name} has been initialized with the FEM of port: {name_port}"
-        )
+        if rank==0:
+            logging.debug(
+                f"parameter: {name} has been initialized with the FEM of port: {name_port}"
+            )
 
     def set_initial_value(self, name_variable, expression):
         """This function sets the initial value of the variable `name_variable` of the dpHs from an expression
@@ -365,9 +372,10 @@ class DPHS:
 
         self.set_from_vector(name_variable, initial_value)
         self.initial_value_setted[name_variable] = True
-        logging.debug(
-            f"variable: {name_variable} has been initialized with: {expression}"
-        )
+        if rank==0:
+            logging.debug(
+                f"variable: {name_variable} has been initialized with: {expression}"
+            )
 
     def set_from_vector(self, name_variable, x):
         """This function sets the value of the variable `name_variable` in the getfem `Model` from a numpy vector
@@ -378,7 +386,8 @@ class DPHS:
         """
 
         self.gf_model.set_variable(name_variable, x)
-        logging.debug(f"value: {x} has been set for variable: {name_variable}")
+        if rank==0:
+            logging.debug(f"value: {x} has been set for variable: {name_variable}")
 
     def add_brick(self, brick: Brick):
         """This function adds a `brick` in the getfem `Model` thanks to a form in GWFL getfem language
@@ -419,14 +428,16 @@ class DPHS:
                 )
                 s = ("Non-linear form '",)
 
-            logging.debug(
-                f"{s},{self.bricks[name_brick].get_form()} has been added as: {position} relation on region: {region} of mesh: {mesh_id}"
-            )
+            if rank==0:
+                logging.debug(
+                    f"{s},{self.bricks[name_brick].get_form()} has been added as: {position} relation on region: {region} of mesh: {mesh_id}"
+                )
 
             self.bricks[name_brick].add_id_brick_to_list(id_brick)
-            logging.debug(
-                f"brick IDs: {id_brick} has been added to brick: {name_brick}"
-            )
+            if rank==0:
+                logging.debug(
+                    f"brick IDs: {id_brick} has been added to brick: {name_brick}"
+                )
 
     def add_control_port(self, control_port: Control_Port):
         """This function adds a control `port` to the dpHs
@@ -436,7 +447,8 @@ class DPHS:
         """
 
         self.controls[control_port.get_name()] = control_port
-        logging.debug(f"control_port: {control_port.get_name()} has been added")
+        if rank==0:
+            logging.debug(f"control_port: {control_port.get_name()} has been added")
         self.add_port(control_port)
 
     def set_control(self, name, expression):
@@ -493,11 +505,13 @@ class DPHS:
             )
         )
 
-        logging.debug(
-            f"Control function has been setted to: {u} = {expression} on region: {self.controls[name].get_region()} of mesh: {self.controls[name].get_mesh_id()}"
-        )
+        if rank==0:
+            logging.debug(
+                f"Control function has been setted to: {u} = {expression} on region: {self.controls[name].get_region()} of mesh: {self.controls[name].get_mesh_id()}"
+            )
         self.controls[name].get_is_set()
-        logging.debug(f"control port: {self.controls[name]} has been set:")
+        if rank==0:
+            logging.debug(f"control port: {self.controls[name]} has been set:")
 
     def assemble_mass(self):
         """This function performs the assembly of the bricks dt=True and linear=True and set the PETSc.Mat attribute `mass`"""
@@ -508,10 +522,16 @@ class DPHS:
                 brick.enable_id_bricks(self.gf_model)
 
         self.gf_model.assembly(option="build_matrix")
-        size = self.gf_model.nbdof()
+        # size = self.gf_model.nbdof()
+        # extract_gmm_to_petsc(
+        #     [0, size], [0, size], self.gf_model.tangent_matrix(), self.mass
+        # )
+        rows = self.mass.getOwnershipRange()
+        cols = self.mass.getOwnershipRangeColumn()
         extract_gmm_to_petsc(
-            [0, size], [0, size], self.gf_model.tangent_matrix(), self.mass
+            [rows[0], rows[1]], [cols[0], cols[1]], self.gf_model.tangent_matrix(), self.mass
         )
+        
 
         for _, brick in self.bricks.items():
             # Disable again all bricks previously enabled
@@ -527,10 +547,16 @@ class DPHS:
                 brick.enable_id_bricks(self.gf_model)
 
         self.gf_model.assembly(option="build_matrix")
-        size = self.gf_model.nbdof()
+        # size = self.gf_model.nbdof()
+        # extract_gmm_to_petsc(
+        #     [0, size], [0, size], self.gf_model.tangent_matrix(), self.stiffness
+        # )
+        rows = self.stiffness.getOwnershipRange()
+        cols = self.stiffness.getOwnershipRangeColumn()
         extract_gmm_to_petsc(
-            [0, size], [0, size], self.gf_model.tangent_matrix(), self.stiffness
+            [rows[0], rows[1]], [cols[0], cols[1]], self.gf_model.tangent_matrix(), self.stiffness
         )
+        
 
         for _, brick in self.bricks.items():
             # Disable again all bricks previously enabled
@@ -555,7 +581,8 @@ class DPHS:
         # self.rhs.zeroEntries()
         self.rhs.setValues(range(size), self.gf_model.rhs(),
                            addv=PETSc.InsertMode.INSERT_VALUES)
-        # self.rhs.assemble()
+        self.rhs.assemble()
+        
 
         for _, brick in self.bricks.items():
             # Disable again all bricks previously enabled
@@ -574,10 +601,16 @@ class DPHS:
                 brick.enable_id_bricks(self.gf_model)
 
         self.gf_model.assembly(option="build_matrix")
-        size = self.gf_model.nbdof()
+        # size = self.gf_model.nbdof()
+        # extract_gmm_to_petsc(
+        #     [0, size], [0, size], self.gf_model.tangent_matrix(), self.nl_mass
+        # )
+        rows = self.nl_mass.getOwnershipRange()
+        cols = self.nl_mass.getOwnershipRangeColumn()
         extract_gmm_to_petsc(
-            [0, size], [0, size], self.gf_model.tangent_matrix(), self.nl_mass
+            [rows[0], rows[1]], [cols[0], cols[1]], self.gf_model.tangent_matrix(), self.nl_mass
         )
+        
         self.tangent_mass = self.mass.copy()
         self.tangent_mass.axpy(1,self.nl_mass)
 
@@ -595,10 +628,18 @@ class DPHS:
                 brick.enable_id_bricks(self.gf_model)
 
         self.gf_model.assembly(option="build_matrix")
-        size = self.gf_model.nbdof()
+        
+        
+        # size = self.gf_model.nbdof()
+        # extract_gmm_to_petsc(
+        #     [0, size], [0, size], self.gf_model.tangent_matrix(), self.nl_stiffness
+        # )
+        rows = self.nl_stiffness.getOwnershipRange()
+        cols = self.nl_stiffness.getOwnershipRangeColumn()
         extract_gmm_to_petsc(
-            [0, size], [0, size], self.gf_model.tangent_matrix(), self.nl_stiffness
+            [rows[0], rows[1]], [cols[0], cols[1]], self.gf_model.tangent_matrix(), self.nl_stiffness
         )
+        
         self.tangent_stiffness = self.stiffness.copy()
         self.tangent_stiffness.axpy(1,self.nl_stiffness)
 
@@ -634,10 +675,9 @@ class DPHS:
         """
 
         # self.gf_model.set_time(t)
-
         self.assemble_nl_mass()
         self.assemble_nl_stiffness()
-
+        
         self.tangent_mass.mult(zd, self.buffer)
         self.tangent_stiffness.multAdd(z, self.buffer, F)
 
@@ -676,7 +716,8 @@ class DPHS:
         P.axpy(sig, self.tangent_mass)
 
         if A != P:
-            print("Operator different from preconditioning")
+            if rank==0:
+                print("Operator different from preconditioning")
             A.assemble()
     
     def allocate_memory(self):
@@ -686,22 +727,33 @@ class DPHS:
         
         self.mass.setSizes(self.gf_model.nbdof())
         self.mass.setOption(PETSc.Mat.Option.FORCE_DIAGONAL_ENTRIES, True)
+        self.mass.setType("aij")
         self.mass.setUp()
         self.nl_mass.setSizes(self.gf_model.nbdof())
         self.nl_mass.setOption(PETSc.Mat.Option.FORCE_DIAGONAL_ENTRIES, True)
+        self.nl_mass.setType("aij")
         self.nl_mass.setUp()
         self.tangent_mass.setSizes(self.gf_model.nbdof())
         self.tangent_mass.setOption(PETSc.Mat.Option.FORCE_DIAGONAL_ENTRIES, True)
+        self.tangent_mass.setType("aij")
         self.tangent_mass.setUp()
         self.stiffness.setSizes(self.gf_model.nbdof())
         self.stiffness.setOption(PETSc.Mat.Option.FORCE_DIAGONAL_ENTRIES, True)
+        self.stiffness.setType("aij")
         self.stiffness.setUp()
         self.nl_stiffness.setSizes(self.gf_model.nbdof())
         self.nl_stiffness.setOption(PETSc.Mat.Option.FORCE_DIAGONAL_ENTRIES, True)
+        self.nl_stiffness.setType("aij")
         self.nl_stiffness.setUp()
         self.tangent_stiffness.setSizes(self.gf_model.nbdof())
         self.tangent_stiffness.setOption(PETSc.Mat.Option.FORCE_DIAGONAL_ENTRIES, True)
+        self.tangent_stiffness.setType("aij")
         self.tangent_stiffness.setUp()
+        
+        self.rhs = self.nl_stiffness.createVecRight()
+        self.F = self.nl_stiffness.createVecRight()
+        self.buffer = self.nl_stiffness.createVecRight()
+        
 
     def get_cleared_TS_options(self):
         """
@@ -807,7 +859,7 @@ class DPHS:
             np.zeros(
                 self.gf_model.nbdof(),
             ),
-            #comm=comm,
+            comm=comm,
         )
         atol_v_petsc.setArray(atol_v)
         TS.setTolerances(atol=atol_v_petsc)
@@ -816,8 +868,9 @@ class DPHS:
         fvalue[0] = TS.getTimeStep() - float(self.time_scheme['ts_adapt_dt_min'])
 
     def postevent(self, TS, event, t, z, forward):
-        print('\n *** AUTOMATIC STOP -- LAST ITERATION *** \n')
-        print(f"dt reached the limit {float(self.time_scheme['ts_adapt_dt_min']):8g}.\n")
+        if rank==0:
+            print('\n *** AUTOMATIC STOP -- LAST ITERATION *** \n')
+            print(f"dt reached the limit {float(self.time_scheme['ts_adapt_dt_min']):8g}.\n")
         self.stop_TS = True
         
     def solve(self):
@@ -868,12 +921,14 @@ class DPHS:
         self.J = self.tangent_stiffness.duplicate()
         self.J.assemble()
 
-        self.rhs.setSizes(self.gf_model.nbdof())
-        self.rhs.setUp()
+        # self.rhs.setSizes(self.gf_model.nbdof())
+        # self.rhs.setUp()
         self.assemble_rhs()
 
         self.F = self.rhs.duplicate()
+        self.F.assemble()
         self.buffer = self.rhs.duplicate()
+        self.buffer.assemble()
 
         self.ts_start = time.time()
         if (
@@ -882,7 +937,7 @@ class DPHS:
             self.init_step()
 
         # TS
-        TS = PETSc.TS().create()#comm=comm)
+        TS = PETSc.TS().create(comm=comm)
         monitor = lambda TS, i, t, z: self.monitor(
             TS,
             i,
@@ -893,7 +948,7 @@ class DPHS:
         )
         TS.setMonitor(monitor)
         TS.setEventHandler([0], [True], self.event, self.postevent)
-        TS.setEventTolerances(1e-6, vtol=[1e-9])
+        TS.setEventTolerances(1e-16, vtol=[1e-19])
         TS.setIFunction(self.IFunction, self.F)
         TS.setIJacobian(self.IJacobian, self.J)
         TS.setTime(float(self.time_scheme["t_0"]))
@@ -904,15 +959,21 @@ class DPHS:
         # TS.setExactFinalTime(PETSc.TS.ExactFinalTime.MATCHSTEP)
         TS.setFromOptions()
         self.exclude_algebraic_var_from_lte(TS)
-        TS.solve(PETSc.Vec().createWithArray(self.gf_model.from_variables()))#, comm=comm))
+        
+        InitVec = self.tangent_stiffness.createVecRight()
+        InitVec.setValues(range(self.gf_model.nbdof()), self.gf_model.from_variables(),
+                          addv=PETSc.InsertMode.INSERT_VALUES)
+        InitVec.assemble()
+        TS.solve(InitVec)
 
-        print(f"Elapsed time: {time.time() - self.ts_start:1.4g}s")
-        print(
-            f"Steps: {TS.getStepNumber()} ({TS.getStepRejections()} rejected, {TS.getSNESFailures()} Nonlinear solver failures)"
-        )
-        print(
-            f"Nonlinear iterations: {TS.getSNESIterations()}, Linear iterations: {TS.getKSPIterations()}"
-        )
+        if rank==0:
+            print(f"Elapsed time: {time.time() - self.ts_start:1.4g}s")
+            print(
+                f"Steps: {TS.getStepNumber()} ({TS.getStepRejections()} rejected, {TS.getSNESFailures()} Nonlinear solver failures)"
+            )
+            print(
+                f"Nonlinear iterations: {TS.getSNESIterations()}, Linear iterations: {TS.getKSPIterations()}"
+            )
         TS.reset()
 
         TS.destroy()
@@ -933,7 +994,7 @@ class DPHS:
         """
 
         # TS
-        TS = PETSc.TS().create()#comm=comm)
+        TS = PETSc.TS().create(comm=comm)
         monitor = lambda TS, i, t, z: self.monitor(
             TS,
             i,
@@ -967,12 +1028,20 @@ class DPHS:
 
         TS.setFromOptions()
         self.exclude_algebraic_var_from_lte(TS)
-
-        print(
-            "Perform an initial step using pseudo bdf scheme for initial value consistency"
-        )
-        TS.solve(PETSc.Vec().createWithArray(self.gf_model.from_variables()))#, comm=comm))
-        print(f"Initialisation done in {time.time() - self.ts_start:1.4g}s")
+        
+        if rank==0:
+            print(
+                "Perform an initial step using pseudo bdf scheme for initial value consistency"
+            )
+        
+        InitVec = self.tangent_stiffness.createVecRight()
+        InitVec.setValues(range(self.gf_model.nbdof()), self.gf_model.from_variables(),
+                          addv=PETSc.InsertMode.INSERT_VALUES)
+        InitVec.assemble()
+        TS.solve(InitVec)
+        
+        if rank==0:
+            print(f"Initialisation done in {time.time() - self.ts_start:1.4g}s")
         TS.reset()
         TS.destroy()
 
@@ -1014,18 +1083,21 @@ class DPHS:
             else:
                 next_saved_at_t = t_0
             if (next_saved_at_t - t <= 0) or (i==-1) or self.stop_TS:
-                sys.stdout.write(
-                    f"\ri={i:8d} t={t:8g} * ({int(time.time()-self.ts_start)}s)   dt={float(TS.getTimeStep()):8g}      \n"
-                )
-                sys.stdout.flush()
+                if rank==0:
+                    sys.stdout.write(
+                        f"\ri={i:8d} t={t:8g} * ({int(time.time()-self.ts_start)}s)   dt={float(TS.getTimeStep()):8g}      \n"
+                    )
+                    sys.stdout.flush()
                 self.solution["t"].append(t)
                 self.solution["z"].append(z.copy())
             else:
-                sys.stdout.write(
-                    f"\ri={i:8d} t={t:8g}   ({int(time.time()-self.ts_start)}s)   dt={float(TS.getTimeStep()):8g}      "
-                )
-                sys.stdout.flush()
-  
+                if rank==0:
+                    sys.stdout.write(
+                        f"\ri={i:8d} t={t:8g}   ({int(time.time()-self.ts_start)}s)   dt={float(TS.getTimeStep()):8g}      "
+                    )
+                    sys.stdout.flush()
+        
+        
         self.gf_model.set_time(TS.getTime()) # Update the time t in the getfem `Model`
         self.gf_model.to_variables(TS.getSolution().array) # Update the state in the getfem `Model`
         self.gf_model.next_iter() # Says to getfem that we go to the next iteration, not sure if needed
@@ -1240,7 +1312,7 @@ class DPHS:
                     np.zeros(
                         self.gf_model.nbdof(),
                     ),
-                    #comm=comm,
+                    comm=comm,
                 )
             )
 
