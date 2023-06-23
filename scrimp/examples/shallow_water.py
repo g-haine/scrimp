@@ -42,7 +42,7 @@ def shallow_water():
 
     # Set the domain (using the built-in geometry `Rectangle`)
     # Omega = 1, Gamma_Bottom = 10, Gamma_Right = 11, Gamma_Top = 12, Gamma_Left = 13
-    swe.set_domain(Domain("Disk", {"R": 1, "h": 0.2}))
+    swe.set_domain(Domain("Disk", {"R": 1, "h": 0.15}))
     swe.domain.get_mesh()[0].region_merge(10,11)
     swe.domain.get_mesh()[0].region_merge(10,12)
     swe.domain.get_mesh()[0].region_merge(10,13)
@@ -195,12 +195,12 @@ def shallow_water():
         ts_type="bdf",
         bdf_orde=6,
         ksp_type="gmres",
-        pc_type="lu",  pc_factor_mat_solver_type='mumps',
+        pc_type="lu", # pc_factor_mat_solver_type='mumps',
         t_0=0.0,
         t_f=0.5,
         dt=0.0001,
         dt_save=0.01,
-        ts_adapt_dt_min=0.000001,
+        ts_adapt_dt_min=0.00001,
         init_step=True,
     )
 

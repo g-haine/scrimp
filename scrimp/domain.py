@@ -1,3 +1,12 @@
+import petsc4py
+import sys
+
+petsc4py.init(sys.argv)
+from petsc4py import PETSc
+
+comm = PETSc.COMM_WORLD
+rank = comm.getRank()
+
 import scrimp.utils.mesh
 import getfem as gf
 
@@ -38,7 +47,7 @@ class Domain:
 
             self.set_mim_auto()
 
-            if self._isSet:
+            if self._isSet and rank==0:
                 print("Domain has been setted")
                 self.display()
 
@@ -67,12 +76,13 @@ class Domain:
                 )
             else:
                 self._isSet = False
-                print(
-                    "Integration method has to be setted manually on mesh",
-                    k,
-                    " of dimension",
-                    self._dim[k],
-                )
+                if rank==0:
+                    print(
+                        "Integration method has to be setted manually on mesh",
+                        k,
+                        " of dimension",
+                        self._dim[k],
+                    )
 
     def display(self):
         """

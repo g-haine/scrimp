@@ -45,7 +45,7 @@ def wave_coenergy():
         CoState("e_p", "Velocity", states[1], substituted=True),
     ]
     ports = [
-        Port("Damping", "e_r", "e_r", "scalar-field", substituted=True, region=1),
+        Port("Damping", "e_r", "e_r", "scalar-field", substituted=True, dissipative=True, region=1),
     ]
     params = [
         Parameter(

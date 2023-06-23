@@ -1,8 +1,8 @@
 # SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
 #
-# Copyright (C) 2015-2022 Ghislain Haine
-#
-# See the LICENSE file in the root directory for license information.
+# Copyright (C) 2015-2023 ISAE-SUPAERO
+# GNU - GPL v3
+# See the LICENSE file for license information.
 #
 # github: https://github.com/g-haine/scrimp
 
@@ -13,10 +13,10 @@
 - last modified:    12 dec. 2022
 - brief:            wave system
 """
+
 from scrimp import *
 from scrimp.utils.mesh import set_verbose_gf
 from itertools import zip_longest
-
 
 def wave_eq():
     """
@@ -32,7 +32,7 @@ def wave_eq():
 
     # Set the domain (using the built-in geometry `Rectangle`)
     # Omega = 1, Gamma_Bottom = 10, Gamma_Right = 11, Gamma_Top = 12, Gamma_Left = 13
-    wave.set_domain(Domain("Rectangle", {"L": 2.0, "l": 1.0, "h": 0.15}))
+    wave.set_domain(Domain("Rectangle", {"L": 2.0, "l": 1.0, "h": 0.1}))
 
     ## Define the variables and their discretizations
 
@@ -95,13 +95,13 @@ def wave_eq():
 
     FEMs = [
         # name of the variable: (is the same of states, ports and controls ports), order, FEM
-        FEM(states[0].get_name(), 1, "DG"),
+        FEM(states[0].get_name(), 1, "CG"),
         FEM(states[1].get_name(), 2, "CG"),
-        FEM(ports[0].get_name(), 1, "DG"),
-        FEM(control_ports[0].get_name(), 1, "DG"),
-        FEM(control_ports[1].get_name(), 1, "DG"),
-        FEM(control_ports[2].get_name(), 1, "DG"),
-        FEM(control_ports[3].get_name(), 1, "DG"),
+        FEM(ports[0].get_name(), 1, "CG"),
+        FEM(control_ports[0].get_name(), 1, "CG"),
+        FEM(control_ports[1].get_name(), 1, "CG"),
+        FEM(control_ports[2].get_name(), 1, "CG"),
+        FEM(control_ports[3].get_name(), 1, "CG"),
     ]
 
     for state, costate, param, fem, port, control_port in zip_longest(
@@ -191,7 +191,7 @@ def wave_eq():
 
     ## Solve in time
 
-    # Define the time scheme (default ts_type='cn', t_f=1, dt=0.01, etc.)
+    # Define the time scheme
     wave.set_time_scheme(t_f=2.0, dt=0.01, dt_save=0.01)
 
     # Solve

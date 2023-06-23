@@ -13,33 +13,20 @@
 - last modified:    13 dec. 2022
 - brief:            built-in geometries for direct use in SCRIMP
 """
+import petsc4py
+import sys
+
+petsc4py.init(sys.argv)
+from petsc4py import PETSc
+
+comm = PETSc.COMM_WORLD
+rank = comm.getRank()
 
 import os
 import math
 import gmsh
 import numpy as np
 import getfem as gf
-
-
-#
-# def check_default_path():
-#     """
-#     Check if the default path exists, and create it otherwise
-#     """
-#
-#     path = set_default_path()
-#     if not os.path.exists(path):
-#         os.makedirs(path)
-#
-#
-# def set_default_path():
-#     """
-#     Set the default path folder for outputs to the path of this file + outputs
-#     """
-#
-#     return os.path.join(os.path.dirname(os.path.realpath(__file__)), "outputs")
-#
-
 
 def set_default_path():
     """
@@ -81,36 +68,37 @@ def built_in_geometries():
     :return: Print informations about all available built_in geometries
     """
 
-    print("Available geometries with parameters:")
-    print("=====================================")
-    print("")
-    print(
-        '* `Interval`, {"L": 1, "N": 20}, an segment of size L with N linearly spaced points'
-    )
-    print(
-        "---> Domain `Omega`: 1, Left boundary `Gamma_Left`: 10, Right boundary `Gamma_Right`: 11"
-    )
-    print("")
-    print('* `Disk`, {"R": 1, "h": 0.1}, a disk of radius R with mesh size h')
-    print("---> Domain `Omega`: 1, Boundary `Gamma`: 10")
-    print("")
-    print(
-        '* `Rectangle`, {"L": 2, "l": 1, "h": 0.1}, a rectangle of size L x l with mesh size h'
-    )
-    print(
-        "---> Domain `Omega`: 1, Bottom boundary `Gamma_Bottom`: 10, Right boundary `Gamma_Right`: 11, Top boundary `Gamma_Top`: 12, Left boundary `Gamma_Left`: 13"
-    )
-    print("")
-    print(
-        '* `Concentric`, {"R": 1, "r": 0.6, "h": 0.1}, a disk of radius r surrounded by an annulus of radii r and R with mesh size h'
-    )
-    print(
-        "---> Domain `Omega_Disk`: 1, `Omega_Annulus`: 2, Interface `Interface`: 10, Boundary `Gamma`: 20"
-    )
-    print("")
-    print('* `Ball`, {"R": 1, "h": 0.1}, a ball of radius R with mesh size h')
-    print("---> Domain `Omega`: 1, Boundary `Gamma`: 10")
-    print("")
+    if rank==0:
+        print("Available geometries with parameters:")
+        print("=====================================")
+        print("")
+        print(
+            '* `Interval`, {"L": 1, "N": 20}, an segment of size L with N linearly spaced points'
+        )
+        print(
+            "---> Domain `Omega`: 1, Left boundary `Gamma_Left`: 10, Right boundary `Gamma_Right`: 11"
+        )
+        print("")
+        print('* `Disk`, {"R": 1, "h": 0.1}, a disk of radius R with mesh size h')
+        print("---> Domain `Omega`: 1, Boundary `Gamma`: 10")
+        print("")
+        print(
+            '* `Rectangle`, {"L": 2, "l": 1, "h": 0.1}, a rectangle of size L x l with mesh size h'
+        )
+        print(
+            "---> Domain `Omega`: 1, Bottom boundary `Gamma_Bottom`: 10, Right boundary `Gamma_Right`: 11, Top boundary `Gamma_Top`: 12, Left boundary `Gamma_Left`: 13"
+        )
+        print("")
+        print(
+            '* `Concentric`, {"R": 1, "r": 0.6, "h": 0.1}, a disk of radius r surrounded by an annulus of radii r and R with mesh size h'
+        )
+        print(
+            "---> Domain `Omega_Disk`: 1, `Omega_Annulus`: 2, Interface `Interface`: 10, Boundary `Gamma`: 20"
+        )
+        print("")
+        print('* `Ball`, {"R": 1, "h": 0.1}, a ball of radius R with mesh size h')
+        print("---> Domain `Omega`: 1, Boundary `Gamma`: 10")
+        print("")
 
 
 def Interval(parameters={"L": 1.0, "h": 0.05}, terminal=1):
@@ -168,6 +156,7 @@ def Disk(parameters={"R": 1.0, "h": 0.1}, terminal=1):
     gmsh.initialize()
     # Ask GMSH to display information in the terminal
     gmsh.option.setNumber("General.Terminal", terminal)
+    gmsh.option.setNumber("General.NumThreads", 0) # Use system default
 
     # Create a model and name it "MyCircle"
     model = gmsh.model
@@ -241,6 +230,7 @@ def Rectangle(parameters={"L": 2.0, "l": 1, "h": 0.1}, terminal=1):
 
     gmsh.initialize()
     gmsh.option.setNumber("General.Terminal", terminal)
+    gmsh.option.setNumber("General.NumThreads", 0) # Use system default
 
     model = gmsh.model
     model.add("Rectangle")
@@ -299,6 +289,7 @@ def Concentric(parameters={"R": 1.0, "r": 0.6, "h": 0.1}, terminal=1):
 
     gmsh.initialize()
     gmsh.option.setNumber("General.Terminal", terminal)
+    gmsh.option.setNumber("General.NumThreads", 0) # Use system default
 
     model = gmsh.model
     model.add("Concentric")
@@ -400,6 +391,7 @@ def Ball(parameters={"R": 1.0, "h": 0.1}, terminal=1):
 
     gmsh.initialize()
     gmsh.option.setNumber("General.Terminal", terminal)
+    gmsh.option.setNumber("General.NumThreads", 0) # Use system default
 
     model = gmsh.model
     model.add("Ball")
