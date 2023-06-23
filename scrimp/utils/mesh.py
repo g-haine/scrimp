@@ -28,27 +28,6 @@ import gmsh
 import numpy as np
 import getfem as gf
 
-
-#
-# def check_default_path():
-#     """
-#     Check if the default path exists, and create it otherwise
-#     """
-#
-#     path = set_default_path()
-#     if not os.path.exists(path):
-#         os.makedirs(path)
-#
-#
-# def set_default_path():
-#     """
-#     Set the default path folder for outputs to the path of this file + outputs
-#     """
-#
-#     return os.path.join(os.path.dirname(os.path.realpath(__file__)), "outputs")
-#
-
-
 def set_default_path():
     """
     Set the default path folder for outputs to the path of this file + outputs

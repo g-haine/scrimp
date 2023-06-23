@@ -1,8 +1,8 @@
 # SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
 #
-# Copyright (C) 2015-2022 Ghislain Haine
-#
-# See the LICENSE file in the root directory for license information.
+# Copyright (C) 2015-2023 ISAE-SUPAERO
+# GNU - GPL v3
+# See the LICENSE file for license information.
 #
 # github: https://github.com/g-haine/scrimp
 
@@ -13,10 +13,10 @@
 - last modified:    12 dec. 2022
 - brief:            wave system
 """
+
 from scrimp import *
 from scrimp.utils.mesh import set_verbose_gf
 from itertools import zip_longest
-
 
 def wave_eq():
     """

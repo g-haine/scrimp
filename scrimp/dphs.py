@@ -754,7 +754,6 @@ class DPHS:
         self.F = self.nl_stiffness.createVecRight()
         self.buffer = self.nl_stiffness.createVecRight()
         
-
     def get_cleared_TS_options(self):
         """
         To ensure a safe database for the PETSc TS environment
