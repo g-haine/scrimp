@@ -17,7 +17,7 @@ import scrimp as S
 
 hw = S.DPHS("real")
 
-hw.set_domain(S.Domain("Concentric", {"R": 1., "r": 0.6, "h": 0.05}))
+hw.set_domain(S.Domain("Concentric", {"R": 1., "r": 0.6, "h": 0.025}))
 
 T = S.State("T", "Temperature", "scalar-field", region=1)
 hw.add_state(T)
