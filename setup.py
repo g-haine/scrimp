@@ -1,3 +1,18 @@
+# SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
+#
+# Copyright (C) 2015-2023 ISAE-SUPAERO -- GNU GPLv3
+# 
+# See the LICENSE file for license information.
+#
+# github: https://github.com/g-haine/scrimp
+
+"""
+- file:             brick.py
+- authors:          Giuseppe Ferraro
+- date:             31 may 2023
+- brief:            setup file for install
+"""
+
 import setuptools
 
 with open("scrimp/README.md", "r") as fh:
@@ -10,7 +25,7 @@ setuptools.setup(
 
     version="1.0.0",
 
-    author="G.Ferraro",
+    author="Giuseppe Ferraro",
 
     author_email="giuseppe.ferraro@isae-supaero.fr",
 

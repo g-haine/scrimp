@@ -1,3 +1,29 @@
+# SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
+#
+# Copyright (C) 2015-2023 ISAE-SUPAERO -- GNU GPLv3
+# 
+# See the LICENSE file for license information.
+#
+# github: https://github.com/g-haine/scrimp
+
+"""
+- file:             state.py
+- authors:          Giuseppe Ferraro, Ghislain Haine
+- date:             31 may 2023
+- brief:            class for state object
+"""
+
+import petsc4py
+import sys
+
+petsc4py.init(sys.argv)
+from petsc4py import PETSc
+
+comm = PETSc.COMM_WORLD
+rank = comm.getRank()
+
+import logging
+
 class State:
     """This class defines a State."""
 
@@ -18,6 +44,7 @@ class State:
             region (int, optional): region of the State. Defaults to None.
             mesh_id (int, optional): id of the mesh. Defaults to 0.
         """
+        
         self._name = name
         self._description = description
         self._kind = kind
@@ -39,6 +66,7 @@ class State:
         Returns:
             str: name of the state
         """
+        
         return self._name
 
     def get_description(self) -> str:
@@ -47,6 +75,7 @@ class State:
         Returns:
             str: description of the state
         """
+        
         return self._description
 
     def get_kind(self) -> str:
@@ -55,6 +84,7 @@ class State:
         Returns:
             str: kind of the state
         """
+        
         return self._kind
 
     def get_region(self) -> int:
@@ -63,6 +93,7 @@ class State:
         Returns:
             int: region of the State.
         """
+        
         return self._region
 
     def set_costate(self, costate):
@@ -71,13 +102,22 @@ class State:
         Args:
             costate (Costate): Co-state
         """
-        from scrimp import CoState
 
         if self.get_costate() is None and costate is not None:
-            assert isinstance(costate, CoState)
+            from scrimp.costate import CoState
+            try:
+                assert isinstance(costate, CoState)
+            except AssertionError:
+                logging.error(
+                    "Bad type for costate"
+                )
+                raise TypeError
             self._costate = costate
         else:
-            print("A costate is already present for this state")
+            if rank==0:
+                logging.info(
+                    "A costate is already present for this state"
+                )
 
     def get_costate(self) -> object:
         """This function gets the Co-state of the state
@@ -85,6 +125,7 @@ class State:
         Returns:
             object: Costate
         """
+        
         return self._costate
 
     def set_port(self, port):
@@ -93,13 +134,22 @@ class State:
         Args:
             port (Port): Port
         """
-        from scrimp import Port
 
         if self.get_port() is None and port is not None:
-            assert isinstance(port, Port)
+            from scrimp.port import Port
+            try:
+                assert isinstance(port, Port)
+            except AssertionError:
+                logging.error(
+                    "Bad type for port"
+                )
+                raise TypeError
             self._port = port
         else:
-            print("A port is already present for this state")
+            if rank==0:
+                logging.info(
+                    "A port is already present for this state"
+                )
 
     def get_port(self) -> object:
         """This function gets the port of the state
@@ -107,6 +157,7 @@ class State:
         Returns:
             object: Port
         """
+        
         return self._port
 
     def get_mesh_id(self) -> int:
@@ -117,37 +168,3 @@ class State:
         """
 
         return self._mesh_id
-
-
-# def add_state(self, name, description, kind, region=None, mesh_id=0):
-#     """
-#     Add a variable to the dict `states` of the dpHs
-#
-#     !TO DO: handling of `tensor-field` state
-#
-#     :param name: the name of the state
-#     :type name: str
-#     :param description: a physically motivated description (e.g. `linear momentum`)
-#     :type description: str
-#     :param kind: the unknown type, must be `scalar-field` or `vector-field`
-#     :type kind: str
-#     :param region: the index of the region in mesh_id where the variable belong, useful with multi-domains mesh for interconnected dpHs
-#     :type region: int
-#     :param mesh_id: a state has to be associated to a unique mesh of the 'domain' attribute (overlap needs the definition of two different states with interface interaction)
-#     :type mesh_id: int
-#
-#     :return: append the new state to the dict `states` of the dpHs
-#     """
-#
-#     self.states[name] = {'description': description,
-#                          'kind': kind,
-#                          'region': region,
-#                          'mesh_id': mesh_id,
-#                          'costate': None,
-#                          'port': None}
-#
-#     where = ''
-#     if region is not None:
-#         where = ', in region numbered ' + str(region)
-#     print('A state variable', name, ', describing \'', description, '\', has been initialized as a', kind, 'on mesh',
-#           mesh_id, where)

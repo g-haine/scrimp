@@ -1,57 +1,52 @@
 # SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
 #
-# Copyright (C) 2015-2022 Ghislain Haine
-#
-# See the LICENSE file in the root directory for license information.
+# Copyright (C) 2015-2023 ISAE-SUPAERO -- GNU GPLv3
+# 
+# See the LICENSE file for license information.
 #
 # github: https://github.com/g-haine/scrimp
 
 """
-- file:             examples/wave.py
-- author:           Ghislain Haine
-- date:             22 nov. 2022
-- last modified:    12 dec. 2022
+- file:             examples/wave_web.py
+- authors:          Giuseppe Ferraro, Ghislain Haine
+- date:             31 may 2023
 - brief:            wave system
 """
-from scrimp import *
-from scrimp.utils.mesh import set_verbose_gf
+
+import scrimp as S
 from itertools import zip_longest
 
-
 def wave_eq():
-    """
-    A structure-preserving discretization of the wave equation with boundary control
+    """A structure-preserving discretization of the wave equation with boundary control
 
     Formulation DAE (energy/co-energy), Grad-Grad, Mixed boundary condition on the Rectangle
     """
 
-    set_verbose_gf(0)
-
     # Init the distributed port-Hamiltonian system
-    wave = DPHS("real")
+    wave = S.DPHS("real")
 
     # Set the domain (using the built-in geometry `Rectangle`)
     # Omega = 1, Gamma_Bottom = 10, Gamma_Right = 11, Gamma_Top = 12, Gamma_Left = 13
-    wave.set_domain(Domain("Interval", {"L": 1.0, "h": 0.01}))
+    wave.set_domain(S.Domain("Interval", {"L": 1.0, "h": 0.01}))
 
     ## Define the variables and their discretizations
 
     states = [
-        State("q", "Strain", "scalar-field"),
-        State("p", "Linear momentum", "scalar-field"),
+        S.State("q", "Strain", "scalar-field"),
+        S.State("p", "Linear momentum", "scalar-field"),
     ]
     costates = [
-        CoState("e_q", "Stress", states[0]),
-        CoState("e_p", "Velocity", states[1]),
+        S.CoState("e_q", "Stress", states[0]),
+        S.CoState("e_p", "Velocity", states[1]),
     ]
     ports = []
     params = [
-        Parameter("T", "Young's modulus", "scalar-field", "1", "q"),
-        Parameter("rho", "Mass density", "scalar-field", "1 + x*(1-x)", "p"),
+        S.Parameter("T", "Young's modulus", "scalar-field", "1", "q"),
+        S.Parameter("rho", "Mass density", "scalar-field", "1 + x*(1-x)", "p"),
     ]
 
     control_ports = [
-        Control_Port(
+        S.Control_Port(
             "Boundary control (left)",
             "U_L",
             "Velocity",
@@ -60,7 +55,7 @@ def wave_eq():
             "scalar-field",
             region=10,
         ),
-        Control_Port(
+        S.Control_Port(
             "Boundary control (right)",
             "U_R",
             "Velocity",
@@ -73,10 +68,10 @@ def wave_eq():
 
     FEMs = [
         # name of the variable: (is the same of states, ports and controls ports), order, FEM
-        FEM(states[0].get_name(), 2),
-        FEM(states[1].get_name(), 1),
-        FEM(control_ports[0].get_name(), 1),
-        FEM(control_ports[1].get_name(), 1),
+        S.FEM(states[0].get_name(), 2),
+        S.FEM(states[1].get_name(), 1),
+        S.FEM(control_ports[0].get_name(), 1),
+        S.FEM(control_ports[1].get_name(), 1),
     ]
 
     for state, costate, param, fem, port, control_port in zip_longest(
@@ -105,8 +100,8 @@ def wave_eq():
     wave.hamiltonian.set_name("Mechanical energy")
 
     terms = [
-        Term("Kinetic energy", "0.5*p*p/rho", [1]),
-        Term("Potential energy", "0.5*q*T*q", [1]),
+        S.Term("Kinetic energy", "0.5*p*p/rho", [1]),
+        S.Term("Potential energy", "0.5*q*T*q", [1]),
     ]
 
     for term in terms:
@@ -115,20 +110,20 @@ def wave_eq():
 
     ## Define the Dirac structure via getfem `brick` = non-zero block matrix
     bricks = [
-        Brick("M_q", "q.Test_q", [1], dt=True, position="flow"),
-        Brick("M_p", "p*Test_p", [1], dt=True, position="flow"),
-        Brick("M_Y_L", "Y_L*Test_Y_L", [10], position="flow"),
-        Brick("M_Y_R", "Y_R*Test_Y_R", [11], position="flow"),
-        Brick("D", "Grad(e_p).Test_q", [1], position="effort"),
-        Brick("-D^T", "-e_q.Grad(Test_p)", [1], position="effort"),
-        Brick("B_L", "U_L*Test_p", [10], position="effort"),
-        Brick("B_R", "U_R*Test_p", [11], position="effort"),
-        Brick("-B_L^T", "-e_p*Test_Y_L", [10], position="effort"),
-        Brick("-B_R^T", "-e_p*Test_Y_R", [11], position="effort"),
-        Brick("-M_e_q", "-e_q.Test_e_q", [1]),
-        Brick("CR_q", "q.T*Test_e_q", [1]),
-        Brick("-M_e_p", "-e_p*Test_e_p", [1]),
-        Brick("CR_p", "p/rho*Test_e_p", [1]),
+        S.Brick("M_q", "q.Test_q", [1], dt=True, position="flow"),
+        S.Brick("M_p", "p*Test_p", [1], dt=True, position="flow"),
+        S.Brick("M_Y_L", "Y_L*Test_Y_L", [10], position="flow"),
+        S.Brick("M_Y_R", "Y_R*Test_Y_R", [11], position="flow"),
+        S.Brick("D", "Grad(e_p).Test_q", [1], position="effort"),
+        S.Brick("-D^T", "-e_q.Grad(Test_p)", [1], position="effort"),
+        S.Brick("B_L", "U_L*Test_p", [10], position="effort"),
+        S.Brick("B_R", "U_R*Test_p", [11], position="effort"),
+        S.Brick("-B_L^T", "-e_p*Test_Y_L", [10], position="effort"),
+        S.Brick("-B_R^T", "-e_p*Test_Y_R", [11], position="effort"),
+        S.Brick("-M_e_q", "-e_q.Test_e_q", [1]),
+        S.Brick("CR_q", "q.T*Test_e_q", [1]),
+        S.Brick("-M_e_p", "-e_p*Test_e_p", [1]),
+        S.Brick("CR_p", "p/rho*Test_e_p", [1]),
     ]
 
     for brick in bricks:
@@ -157,7 +152,6 @@ def wave_eq():
     # wave.spy_Dirac()
 
     return wave  # For consol use
-
 
 if __name__ == "__main__":
     wave = wave_eq()

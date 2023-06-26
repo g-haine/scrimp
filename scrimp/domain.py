@@ -1,3 +1,18 @@
+# SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
+#
+# Copyright (C) 2015-2023 ISAE-SUPAERO -- GNU GPLv3
+# 
+# See the LICENSE file for license information.
+#
+# github: https://github.com/g-haine/scrimp
+
+"""
+- file:             domain.py
+- authors:          Giuseppe Ferraro, Ghislain Haine
+- date:             31 may 2023
+- brief:            class for domain object
+"""
+
 import petsc4py
 import sys
 
@@ -9,19 +24,17 @@ rank = comm.getRank()
 
 import scrimp.utils.mesh
 import getfem as gf
-
+import logging
 
 class Domain:
-    """
-    A class handling meshes and indices for regions
+    """A class handling meshes and indices for regions
 
     Lists are used to handle interconnection of pHs, allowing for several meshes in the dpHs.
     """
 
     def __init__(self, name: str, parameters: dict):
-        """
-        Constructor of the `domain` member of a dpHs
-        """
+        """Constructor of the `domain` member of a dpHs"""
+        
         self._name = name
         self._isSet = False  #: A boolean to check if the domain has been setted
         self._mesh = list()  #: A list of getfem Mesh objects
@@ -48,7 +61,9 @@ class Domain:
             self.set_mim_auto()
 
             if self._isSet and rank==0:
-                print("Domain has been setted")
+                logging.info(
+                    "Domain has been setted"
+                )
                 self.display()
 
         # TODO: If not built_in, given from a script 'name.py' or a .geo file with args in the dict 'parameters'
@@ -57,9 +72,7 @@ class Domain:
             pass
 
     def set_mim_auto(self):
-        """
-        Define the integration method to a default choice
-        """
+        """Define the integration method to a default choice"""
 
         for k in range(len(self._mesh)):
             if self._dim[k] == 1:
@@ -77,26 +90,37 @@ class Domain:
             else:
                 self._isSet = False
                 if rank==0:
-                    print(
-                        "Integration method has to be setted manually on mesh",
-                        k,
-                        " of dimension",
-                        self._dim[k],
+                    logging.warning(
+                        f"Integration method has to be setted manually on mesh {k} of dimension {self._dim[k]}"
                     )
 
     def display(self):
-        """
-        A method giving infos about the domain
-        """
+        """A method giving infos about the domain"""
 
-        assert self._isSet, "Domain has not been setted yet"
-
-        print("Domain is setted and contains", len(self._mesh), "mesh:")
-        for k in range(len(self._mesh)):
-            print("=== on mesh", k, " of dim", self._dim[k])
-            print("* Subdomains are:", self._subdomains[k])
-            print("* Boundaries are:", self._boundaries[k])
-            self._mesh[k].display()
+        try:
+            assert self._isSet
+        except AssertionError as err:
+            logging.error(
+                "Domain has not been setted yet"
+            )
+            raise err
+        
+        if rank==0:
+            logging.info(
+                f"Domain is setted and contains {len(self._mesh)} mesh(es):"
+            )
+            for k in range(len(self._mesh)):
+                logging.info(
+                    f"=== on mesh {k} of dim {self._dim[k]}"
+                )
+                logging.info(
+                    f"* Subdomains are: {self._subdomains[k]}"
+                )
+                logging.info(
+                    f"* Boundaries are: {self._boundaries[k]}"
+                )
+                
+                self._mesh[k].display() # GetFEM infos
 
     def get_name(self) -> str:
         """This function get the name of the domain.
@@ -104,6 +128,7 @@ class Domain:
         Returns:
             str: name of the domain.
         """
+        
         return self._name
 
     def get_mesh(self) -> list:
@@ -112,6 +137,7 @@ class Domain:
         Returns:
             list: list of mesh for the domain
         """
+        
         return self._mesh
 
     def get_dim(self) -> list:
@@ -120,6 +146,7 @@ class Domain:
         Returns:
             list: list of dimensions for the domain
         """
+        
         return self._dim
 
     def get_subdomains(self) -> list:
@@ -128,6 +155,7 @@ class Domain:
         Returns:
             list: list of the subdomains for the domain
         """
+        
         return self._subdomains
 
     def get_boundaries(self) -> list:
@@ -136,6 +164,7 @@ class Domain:
         Returns:
             list: list of the boundaries for the domain
         """
+        
         return self._boundaries
 
     def get_isSet(self) -> bool:
@@ -144,4 +173,5 @@ class Domain:
         Returns:
             bool: boolean indicating if a Mesh has been set
         """
+        
         return self._isSet

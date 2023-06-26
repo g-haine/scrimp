@@ -1,7 +1,24 @@
-from scrimp import Port
+# SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
+#
+# Copyright (C) 2015-2023 ISAE-SUPAERO -- GNU GPLv3
+# 
+# See the LICENSE file for license information.
+#
+# github: https://github.com/g-haine/scrimp
 
+"""
+- file:             control.py
+- authors:          Giuseppe Ferraro, Ghislain Haine
+- date:             31 may 2023
+- brief:            class for control port object
+"""
+
+from scrimp.port import Port
+import logging
 
 class Control_Port(Port):
+    """This class defines a Control Port."""
+    
     def __init__(
         self,
         name: str,
@@ -14,6 +31,20 @@ class Control_Port(Port):
         position: str = "effort",
         mesh_id: int = 0,
     ):
+        """_summary_
+
+        Args:
+            name (str): the name of the port, will be used mainly for plotting purpose.
+            name_control (str): the name of the control, used in forms for Brick definition.
+            description_control (str): the physical description of the control, used for plotting purpose.
+            name_observation (str): the name of the observation, used in forms for Brick definition.
+            description_observation (str): the physical description of the observation, used for plotting purpose.
+            kind (str): must be `scalar-field` or `vector-field`.
+            region (int, optional): the region of mesh_id where the control is applied, defaults to None (=everywhere).
+            position (str, optional): says if the control is on the `flow` side or on the `effort` side of the Dirac structure. Defaults to `effort`.
+            mesh_id (int, optional): the id of the mesh where the form applies. Defaults to 0.
+        """
+        
         if position == "effort":
             flow = name_observation
             effort = name_control
@@ -21,7 +52,10 @@ class Control_Port(Port):
             flow = name_control
             effort = name_observation
         else:
-            raise ValueError("Position", position, "is not available for control port")
+            logging.error(
+                f"Position {position} is not available for control port"
+            )
+            raise ValueError
 
         super().__init__(
             name,
@@ -46,6 +80,7 @@ class Control_Port(Port):
         Returns:
             str: the name of the control
         """
+        
         return self.__name_control
 
     def get_name_obervation(self) -> str:
@@ -54,6 +89,7 @@ class Control_Port(Port):
         Returns:
             str: the name of the obervation
         """
+        
         return self.__name_obervation
 
     def get_description_control(self) -> str:
@@ -62,6 +98,7 @@ class Control_Port(Port):
         Returns:
             str: the description of the control
         """
+        
         return self.__description_control
 
     def get_description_observation(self) -> str:
@@ -70,8 +107,8 @@ class Control_Port(Port):
         Returns:
             str: the description of the observation
         """
+        
         return self.__description_observation
-
 
 if __name__ == "__main__":
     Control_Port(
