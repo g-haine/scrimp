@@ -1,6 +1,7 @@
-from PyQt5 import QtCore, QtWidgets
+from PyQt5 import QtCore, QtWidgets, QtGui
 from PyQt5.QtCore import Qt
 from utils.GUI import gui_pages
+
 from PyQt5.QtWidgets import (
     QListWidget,
     QListWidgetItem,
@@ -31,7 +32,7 @@ class Window(QtWidgets.QWidget):
         self.setFixedWidth(1700)
         self.setFixedHeight(600)
 
-        layout = QGridLayout()
+        self.layout = QGridLayout()
 
         label_type_domain = QLabel(
             '<font size="4">'
@@ -44,17 +45,28 @@ class Window(QtWidgets.QWidget):
         self.list_widget = QListWidget(self)
 
         # list widget items
+        item_separator_1D = QListWidgetItem("1D:")
+        item_separator_2D = QListWidgetItem("2D:")
         item1 = QListWidgetItem("Rectangle")
         item2 = QListWidgetItem("Disk")
-        item3 = QListWidgetItem("Concentric")
-        item4 = QListWidgetItem("Interval")
+        item3 = QListWidgetItem("Annulus")
+        item4 = QListWidgetItem("Segment")
         item5 = QListWidgetItem("Other")
 
+        item_separator_1D.setFlags(Qt.NoItemFlags)
+        item_separator_2D.setFlags(Qt.NoItemFlags)
+        item_separator_1D.setForeground(QtGui.QBrush(QtGui.QColor(255, 255, 255)))
+        item_separator_2D.setForeground(QtGui.QBrush(QtGui.QColor(255, 255, 255)))
+        item_separator_1D.setBackground(QtGui.QColor(102, 178, 255))
+        item_separator_2D.setBackground(QtGui.QColor(102, 178, 255))
+
         # adding items to the list widget
+        self.list_widget.addItem(item_separator_1D)
+        self.list_widget.addItem(item4)
+        self.list_widget.addItem(item_separator_2D)
         self.list_widget.addItem(item1)
         self.list_widget.addItem(item2)
         self.list_widget.addItem(item3)
-        self.list_widget.addItem(item4)
         self.list_widget.addItem(item5)
 
         # setting selection mode property
@@ -85,13 +97,13 @@ class Window(QtWidgets.QWidget):
         self.button_add = QPushButton("Add")
         self.button_add.clicked.connect(self.new_rows)
 
-        layout.addWidget(label_type_domain, 1, 0)
-        layout.addWidget(self.list_widget, 2, 1)
-        layout.addWidget(label_parameter, 3, 0)
-        layout.addWidget(self.button_add, 4, 1, Qt.AlignTop)
-        layout.addWidget(self.table, 4, 0)
-        layout.addWidget(self.button_prev, 5, 3)
-        layout.addWidget(self.button_next, 5, 4)
+        self.layout.addWidget(label_type_domain, 1, 0)
+        self.layout.addWidget(self.list_widget, 2, 1)
+        self.layout.addWidget(label_parameter, 3, 0)
+        self.layout.addWidget(self.button_add, 4, 1, Qt.AlignTop)
+        self.layout.addWidget(self.table, 4, 0)
+        self.layout.addWidget(self.button_prev, 5, 3)
+        self.layout.addWidget(self.button_next, 5, 4)
 
         self.comboBox = QComboBox()
         self.comboBox.addItems(gui_pages)
@@ -99,9 +111,10 @@ class Window(QtWidgets.QWidget):
 
         # There is an alternate signal to send the text.
         self.comboBox.currentTextChanged.connect(self.text_changed)
-        layout.addWidget(self.comboBox, 5, 2)
+        self.layout.addWidget(self.comboBox, 5, 2)
 
-        self.setLayout(layout)
+        self.layout.itemAt(3).widget().hide()
+        self.setLayout(self.layout)
 
     def text_changed(self, page):  # s is a str
         self.comboBox.setCurrentText("set_domain_page")
@@ -110,6 +123,11 @@ class Window(QtWidgets.QWidget):
 
     def update_table(self):
         selection = self.list_widget.currentItem().text()
+
+        if selection == "Other":
+            self.layout.itemAt(3).widget().show()
+        else:
+            self.layout.itemAt(3).widget().hide()
 
         if selection == "Rectangle":
             # remove all the rows
@@ -132,7 +150,7 @@ class Window(QtWidgets.QWidget):
             self.table.setItem(0, 0, QTableWidgetItem("R"))
             self.table.setItem(1, 0, QTableWidgetItem("h"))
 
-        elif selection == "Concentric":
+        elif selection == "Annulus":
             # remove all the rows
             self.table.setRowCount(0)
             # # add 3 rows
@@ -143,7 +161,7 @@ class Window(QtWidgets.QWidget):
             self.table.setItem(1, 0, QTableWidgetItem("r"))
             self.table.setItem(2, 0, QTableWidgetItem("h"))
 
-        elif selection == "Interval":
+        elif selection == "Segment":
             # remove all the rows
             self.table.setRowCount(0)
             # # add 3 rows
