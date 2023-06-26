@@ -36,7 +36,7 @@ class Window(QtWidgets.QWidget):
 
         # create a QTableWidget FEMs
         self.table_FEMs = QTableWidget()
-        self.table_FEMs.setRowCount(1)
+        # self.table_FEMs.setRowCount(1)
 
         # adding header to the table
         header_horizontal_FEMs = ["Name", "Order", "FEM"]
@@ -81,6 +81,7 @@ class Window(QtWidgets.QWidget):
         layout.addWidget(self.button_next, 4, 3)
         layout.addWidget(self.button_prev, 4, 2)
 
+        # create navigation list
         self.comboBox = QComboBox()
         self.comboBox.addItems(gui_pages)
         self.comboBox.setCurrentText("add_fem_page")
@@ -90,6 +91,7 @@ class Window(QtWidgets.QWidget):
         layout.addWidget(self.comboBox, 4, 1)
 
         self.setLayout(layout)
+        self.new_FEM()
 
     def text_changed(self, page):  # s is a str
         self.comboBox.setCurrentText("add_fem_page")
@@ -112,6 +114,10 @@ class Window(QtWidgets.QWidget):
         self.table_FEMs.insertRow(count)
         self.header_vertical_FEMs += ["FEM"]
         self.table_FEMs.setVerticalHeaderLabels(self.header_vertical_FEMs)
+        # create table to add in cell of table
+        fem_choice = QComboBox()
+        fem_choice.addItems(["CG", "DG"])
+        self.table_FEMs.setCellWidget(count, 2, fem_choice)
 
     def delete_FEM(self):
         """This function removes 2 rows in the table (1 for FEM, 1 for co-FEM)"""
