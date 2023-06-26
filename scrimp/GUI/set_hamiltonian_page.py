@@ -38,6 +38,7 @@ class Window(QtWidgets.QWidget):
         layout.addWidget(self.button_next, 4, 4)
         layout.addWidget(self.button_prev, 4, 3)
 
+        # create navigation list
         self.comboBox = QComboBox()
         self.comboBox.addItems(gui_pages)
         self.comboBox.setCurrentText("set_hamiltonian_page")

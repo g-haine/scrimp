@@ -89,6 +89,7 @@ class Window(QtWidgets.QWidget):
         layout.addWidget(self.button_next, 4, 3)
         layout.addWidget(self.button_prev, 4, 2)
 
+        # create navigation list
         self.comboBox = QComboBox()
         self.comboBox.addItems(gui_pages)
         self.comboBox.setCurrentText("add_brick_page")

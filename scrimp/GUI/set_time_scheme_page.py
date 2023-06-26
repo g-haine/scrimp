@@ -115,6 +115,7 @@ class Window(QtWidgets.QWidget):
         self.layout.addWidget(self.button_prev, 5, 2)
         self.layout.addWidget(self.button_next, 5, 3)
 
+        # create navigation list
         self.comboBox = QComboBox()
         self.comboBox.addItems(gui_pages)
         self.comboBox.setCurrentText("set_time_scheme_page")

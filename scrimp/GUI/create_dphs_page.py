@@ -39,6 +39,7 @@ class Window(QtWidgets.QWidget):
         layout.addWidget(self.comboBox_dphs_type, 2, 1)
         layout.addWidget(self.button_next, 3, 3)
 
+        # create navigation list
         self.comboBox = QComboBox()
         self.comboBox.addItems(gui_pages)
         self.comboBox.setCurrentText("create_dphs_page")

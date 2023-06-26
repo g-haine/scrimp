@@ -84,6 +84,7 @@ class Window(QtWidgets.QWidget):
         layout.addWidget(self.button_prev, 4, 2)
         layout.addWidget(self.button_next, 4, 3)
 
+        # create navigation list
         self.comboBox = QComboBox()
         self.comboBox.addItems(gui_pages)
         self.comboBox.setCurrentText("add_initial_value_page")
