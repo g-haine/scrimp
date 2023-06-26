@@ -169,5 +169,5 @@ class Window(QtWidgets.QWidget):
 
     def previous_page(self):
         """This funciont emit the signal to navigate to the previous page."""
-        self.switch_window.emit("create_DHPS_page")
+        self.switch_window.emit("create_dphs_page")
         self.hide()

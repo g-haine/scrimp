@@ -33,11 +33,11 @@ class Window(QtWidgets.QWidget):
             self.clear_self_layout()
 
     def clear_self_layout(self):
-        for i in range(2, 8):
+        for i in range(2, 7):
             self.layout.itemAt(i).widget().hide()
 
     def set_self_layout(self):
-        for i in range(2, 8):
+        for i in range(2, 7):
             self.layout.itemAt(i).widget().show()
 
     def __init__(self):
@@ -200,5 +200,5 @@ class Window(QtWidgets.QWidget):
 
     def previous_page(self):
         """This funciont emit the signal to navigate to the previous page."""
-        self.switch_window.emit("set_time_scheme_page")
+        self.switch_window.emit("add_initial_value_page")
         self.hide()
