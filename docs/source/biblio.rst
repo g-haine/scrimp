@@ -5,7 +5,7 @@ Bibliography
 
 Port-Hamiltonian systems is an ever-growing research area as it proposes a powerful framework for the control of multi-physics systems.
 
-The following list of publications, although not exhaustive, presents the main results of ours behind **SCRIMP**.
+The following list of publications presents the main results of ours behind **SCRIMP**.
 
 Articles
 ^^^^^^^^
