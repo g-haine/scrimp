@@ -7,7 +7,7 @@
 # github: https://github.com/g-haine/scrimp
 
 """
-- file:             examples/wave.py
+- file:             examples/wave_coenergy.py
 - authors:          Giuseppe Ferraro, Ghislain Haine
 - date:             22 nov. 2022
 - brief:            wave system
