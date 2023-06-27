@@ -1,6 +1,6 @@
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtWidgets import QFileDialog, QComboBox, QLabel, QLineEdit, QGridLayout
-from utils.GUI import gui_pages
+from utils.GUI import gui_pages, gui_width, gui_height
 
 
 class Window(QtWidgets.QWidget):
@@ -17,8 +17,8 @@ class Window(QtWidgets.QWidget):
         self.setWindowTitle(
             "Generate the Python script for the defined Discrete Port Hamiltonian System"
         )
-        self.setFixedWidth(1700)
-        self.setFixedHeight(600)
+        self.setFixedWidth(gui_width)
+        self.setFixedHeight(gui_height)
 
         layout = QGridLayout()
 

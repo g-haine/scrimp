@@ -1,6 +1,6 @@
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtWidgets import QComboBox, QLabel, QLineEdit, QGridLayout
-from utils.GUI import gui_pages
+from utils.GUI import gui_pages, gui_width, gui_height
 
 
 class Window(QtWidgets.QWidget):
@@ -15,8 +15,8 @@ class Window(QtWidgets.QWidget):
     def __init__(self):
         QtWidgets.QWidget.__init__(self)
         self.setWindowTitle("Definition of new distributed port-Hamiltonian system")
-        self.setFixedWidth(1700)
-        self.setFixedHeight(600)
+        self.setFixedWidth(gui_width)
+        self.setFixedHeight(gui_height)
 
         layout = QGridLayout()
 

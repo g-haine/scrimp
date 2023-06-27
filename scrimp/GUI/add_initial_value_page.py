@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import (
     QComboBox,
 )
 from PyQt5.QtCore import Qt
-from utils.GUI import gui_pages
+from utils.GUI import gui_pages, gui_width, gui_height
 
 
 class Window(QtWidgets.QWidget):
@@ -25,8 +25,8 @@ class Window(QtWidgets.QWidget):
         QtWidgets.QWidget.__init__(self)
 
         self.setWindowTitle("Definition of Initial value/s")
-        self.setFixedWidth(1700)
-        self.setFixedHeight(600)
+        self.setFixedWidth(gui_width)
+        self.setFixedHeight(gui_height)
         # self.setGeometry(100, 100, 600, 300)
 
         layout = QGridLayout()

@@ -1,6 +1,6 @@
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtCore import Qt
-from utils.GUI import gui_pages
+from utils.GUI import gui_pages, gui_width, gui_height
 from PyQt5.QtWidgets import (
     QListWidget,
     QListWidgetItem,
@@ -44,8 +44,8 @@ class Window(QtWidgets.QWidget):
         QtWidgets.QWidget.__init__(self)
 
         self.setWindowTitle("Define the Time scheme")
-        self.setFixedWidth(1700)
-        self.setFixedHeight(600)
+        self.setFixedWidth(gui_width)
+        self.setFixedHeight(gui_height)
 
         self.layout = QGridLayout()
 
