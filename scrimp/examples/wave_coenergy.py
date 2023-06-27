@@ -10,7 +10,7 @@
 - file:             examples/wave_coenergy.py
 - authors:          Giuseppe Ferraro, Ghislain Haine
 - date:             22 nov. 2022
-- brief:            wave system
+- brief:            wave system in co-energy formulation
 """
 
 import scrimp as S
