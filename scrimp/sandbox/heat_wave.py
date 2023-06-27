@@ -17,7 +17,7 @@ import scrimp as S
 
 hw = S.DPHS("real")
 
-hw.set_domain(S.Domain("Concentric", {"R": 1., "r": 0.6, "h": 0.025}))
+hw.set_domain(S.Domain("Concentric", {"R": 1., "r": 0.6, "h": 0.05}))
 
 T = S.State("T", "Temperature", "scalar-field", region=1)
 hw.add_state(T)
@@ -117,7 +117,7 @@ hw.hamiltonian.add_term(S.Term("Potential energy", "0.5*q.Kappa_inv.q", [2]))
 
 hw.plot_Hamiltonian()
 
-# hw.export_to_pv("T")
-# hw.export_to_pv("p")
+hw.export_to_pv("T")
+hw.export_to_pv("p")
 
 # hw.spy_Dirac()

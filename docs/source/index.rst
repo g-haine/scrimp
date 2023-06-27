@@ -34,6 +34,7 @@ Table of Contents
     started
     examples
     scrimp
+    References <biblio>
     ANR Impacts <https://impacts.ens2m.fr/>
     GitHub repo <https://github.com/g-haine/scrimp>
 
