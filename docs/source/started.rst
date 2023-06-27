@@ -1,9 +1,7 @@
 Getting started
 ===============
 
-**!NEED TO BE UPDATE!**
-
-In order to start using **SCRIMP**, you have to work in the conda environment *scrimp* from the installation.
+In order to start using **SCRIMP**, you have to work in the conda environment *scrimp* from the installation by running :code:`conda activate scrimp`.
 
 To understand the coding philosophy of **SCRIMP**, let us consider the 1D wave equation with Neumann boundary control
 
@@ -14,12 +12,12 @@ To understand the coding philosophy of **SCRIMP**, let us consider the 1D wave e
     \rho(x) \partial_{tt}^2 w(t,x) - \partial_x \left( T(x) \partial_x w(t,x) \right) &=& 0, \qquad t \ge 0, x \in (0,1), \\
     \partial_t w(0,x) &=& v(x), \qquad x \in (0,1), \\
     \partial_x w(0,x) &=& s(x), \qquad x \in (0,1), \\
-    \partial_x \left( T(0) w(t,0) \right) &=& u_L(t), \qquad t \ge 0, \\
+    - \partial_x \left( T(0) w(t,0) \right) &=& u_L(t), \qquad t \ge 0, \\
     \partial_x \left( T(1) w(t,1) \right) &=& u_R(t), \qquad t \ge 0.
     \end{array}
     \right.
 
-where :math:`w` denotes the deflection from the equilibrium position of a string, :math:`\rho` is its mass density and :math:`T` the Young's modulus.
+where :math:`w` denotes the deflection from the equilibrium position of a string, :math:`\rho` is its mass density and :math:`T` the Young's modulus. **Note** the minus sign on the control at the left end side, standing for the *outward normal* to the domain :math:`(0,1)`.
 
 The physics giving this equation has to be restated in the port-Hamiltonian formalism first.
 
@@ -57,7 +55,7 @@ Of course, trivial substitutions in this system would lead again to the initial 
 
     \begin{pmatrix} f_q & f_p \end{pmatrix}
     \begin{bmatrix} 0 & \partial_x \\ \partial_x & 0 \end{bmatrix}
-    \begin{pmatrix} e_q \\ e_p \end{pmatrix} = 0.
+    \begin{pmatrix} f_q \\ f_p \end{pmatrix} = 0.
 
 Together with the boundary Neumann condition, and defining *collocated* Dirichlet observations, this defines a (Stokes-) **Dirac structure**, where solutions along time, *i.e.* *trajectories*, will belong.
 
@@ -74,7 +72,7 @@ The port-Hamiltonian system representing a (linear) vibrating string with Neuman
 
     \left\lbrace
     \begin{array}{rcl}
-    e_q(t,0) &=& u_L(t), \\
+    - e_q(t,0) &=& u_L(t), \\
     e_q(t,1) &=& u_R(t), \\
     y_L(t) &=& e_p(t,0), \\
     y_R(t) &=& e_p(t,1),
@@ -96,11 +94,11 @@ The importance of the **Dirac structure** relies, in particular, in the fact tha
 
 .. math::
 
-    \frac{\rm d}{{\rm d}t} \mathcal{H}(t) = \frac{\rm d}{{\rm d}t} \mathcal{H}(\alpha_q(t), \alpha_p(t)) = \underbrace{y_R(t) u_R(t) - y_L(t) u_L(t)}_{\text{power flowing through the boundaries}}
+    \frac{\rm d}{{\rm d}t} \mathcal{H}(t) = \frac{\rm d}{{\rm d}t} \mathcal{H}(\alpha_q(t), \alpha_p(t)) = \underbrace{y_R(t) u_R(t) + y_L(t) u_L(t)}_{\text{power flowing through the boundaries}}
 
 In other words, the **Dirac structure** encodes the way the system communicates with its environment. In the present example, it says that the variation of the total mechanical energy is given by the power supplied to the system at the boundaries.
 
-Each couple :math:`(\partial_t \alpha_q, e_q)`, :math:`(\partial_t \alpha_p, e_p)`, :math:`(u_L, y_L)` and :math:`(u_R, y_R)` is a **port** of the port-Hamiltonian system, and is associated to a term in the **power balance**.
+Each couple :math:`(\partial_t \alpha_q, e_q)`, :math:`(\partial_t \alpha_p, e_p)`, :math:`(u_L, y_L)` and :math:`(u_R, y_R)` is a **port** of the port-Hamiltonian system, and is associated to a physically meaningful term in the **power balance**.
 
 Structure-preserving discretization
 -----------------------------------
@@ -109,7 +107,7 @@ The objective of a structure-preserving discretization method is to obtain a **f
 
 **Remark:** The 1D case does simplify the difficulties coming from the boundary terms. Indeed, here the functional spaces for the controls :math:`u_L`, :math:`u_R` and the observations :math:`y_L`, :math:`y_R` are nothing but :math:`\mathbb{R}`.
 
-Let :math:`\varphi_q` and :math:`\varphi_p` be smooth test functions, and $\delta_{mx}$ denote the Kronecker symbol. One can write the weak formulation of the **Dirac Structure** as follows
+Let :math:`\varphi_q` and :math:`\varphi_p` be smooth test functions, and :math:`\delta_{mx}` denote the Kronecker symbol. One can write the weak formulation of the **Dirac Structure** as follows
 
 .. math::
 
@@ -129,7 +127,7 @@ Integrating by parts the second line make the controls appear
     \left\lbrace
     \begin{array}{rcl}
     \int_0^1 \partial_t \alpha_q(t,x) \varphi_q(x) {\rm d}x &=& \int_0^1 \partial_x e_p(t,x) \varphi_q(x) {\rm d}x, \\
-    \int_0^1 \partial_t \alpha_p(t,x) \varphi_p(x) {\rm d}x &=& - \int_0^1 e_q(t,x) \partial_x \varphi_p(x) {\rm d}x + u_R(t) \varphi_p(1) - u_L(t) \varphi_p(0), \\
+    \int_0^1 \partial_t \alpha_p(t,x) \varphi_p(x) {\rm d}x &=& - \int_0^1 e_q(t,x) \partial_x \varphi_p(x) {\rm d}x + u_R(t) \varphi_p(1) + u_L(t) \varphi_p(0), \\
     y_L(t) &=& \delta_{0x} e_p(t,x), \\
     y_R(t) &=& \delta_{1x} e_p(t,x),
     \end{array}
@@ -143,7 +141,7 @@ Now, let :math:`(\varphi_q^i)_{1 \le i \le N_q}` and :math:`(\varphi_p^i)_{1 \le
     \begin{array}{rcl}
     \sum_{j=1}^{N_q} \int_0^1 \varphi_q^j(x) \varphi_q^i(x) {\rm d}x \, \frac{\rm d}{{\rm d}t} \alpha_q^j(t) &=& \sum_{k=1}^{N_p} \int_0^1 \partial_x \varphi_p^k(x) \varphi_q^j(x) {\rm d}x \, e_p^k(t), \\
     \sum_{\ell=1}^{N_p} \int_0^1 \varphi_p^\ell(x) \varphi_p^k(x) {\rm d}x \, \frac{\rm d}{{\rm d}t} \alpha_p^\ell(t) &=& - \sum_{i=1}^{N_q} \int_0^1 \varphi_q^i(x) \partial_x \varphi_p^k(x) {\rm d}x \, e_q^i(t) \\
-    && \qquad \qquad + u_R(t) \varphi_p^k(1) - u_L(t) \varphi_p^k(0), \\
+    && \qquad \qquad + u_R(t) \varphi_p^k(1) + u_L(t) \varphi_p^k(0), \\
     y_L(t) &=& \sum_{k=1}^{N_p} \varphi_p^k(0) \, e_p^k(t), \\
     y_R(t) &=& \sum_{k=1}^{N_p} \varphi_p^k(1) \, e_p^k(t),
     \end{array}
@@ -195,9 +193,9 @@ where :math:`\underline{\alpha_\star}(t) := \begin{pmatrix} \alpha_\star^1(t) & 
     \qquad
     (B_R)_{k} := \varphi_p^k(1),
 
-The left-hand side constitutes the **flow** of the **Dirac structure**, while the right-hand side is called **effort**.
+Abusing the language, the left-hand side will be called the **flow** of the **Dirac structure** in **SCRIMP**, while the right-hand side will be called the **effort**.
 
-Now one can approximate the **constitutive relations** in those families by projection of their weak formulation
+Now one can approximate the **constitutive relations** in those families by projection of their weak formulations
 
 .. math::
 
@@ -227,7 +225,7 @@ where
     \qquad
     (M_\rho)_{k\ell} := \int_0^1 \frac{\varphi_p^\ell(x)}{\rho(x)} \varphi_p^k(x) {\rm d}x.
 
-Finally, the **discrete Hamiltonian** :math:`\mathcal{H}^d` is defined as the evaluation of :math:`\mathcal{H}^d` on the approximation of the **state variables**
+Finally, the **discrete Hamiltonian** :math:`\mathcal{H}^d` is defined as the evaluation of :math:`\mathcal{H}` on the approximation of the **state variables**
 
 .. math::
 
@@ -237,9 +235,9 @@ The **discrete power balance** is then easily deduced from the above matrix form
 
 .. math::
 
-    \frac{\rm d}{{\rm d}t} \mathcal{H}^d(t) = y_R(t) u_R(t) - y_L(t) u_L(t).
+    \frac{\rm d}{{\rm d}t} \mathcal{H}^d(t) = y_R(t) u_R(t) + y_L(t) u_L(t).
 
-**Remark:** The discrete system that has to be solve numerically is a Differential Algebraic Equation (DAE). There exists some case (as in this example), where one can write the **co-state** formulation of the system by substituting the **constitutive relations** at the continuous level to get a more classical Ordinary Differential Equation (EDO)
+**Remark:** The discrete system that has to be solved numerically is a Differential Algebraic Equation (DAE). There exists some case (as in this example), where one can write the **co-state** formulation of the system by substituting the **constitutive relations** at the continuous level to get a more classical Ordinary Differential Equation (ODE)
 
 .. math::
 
@@ -282,121 +280,140 @@ Coding within SCRIMP
 
 The following code is available in the file :code:`wave_1D.py` of the *sandbox* folder of scrimp.
 
-To start, import the scrimp module `dpHs` for the discretization of *distributed port-Hamiltonian system*, and initiate a dpHs called, *e.g.*, `wave`
-
-.. code-block:: python
-    
-    from scrimp.dpHs import dpHs
-    
-    wave = dpHs('real')
-
-Then, define the domain :math:`\Omega = (0,1)`, with a mesh-size parameter :math:`h`
-
-.. code-block:: python
-   
-    wave.set_domain('Interval', {'L': 1., 'h': 0.01})
-   
-This creates a mesh of the interval :math:`\Omega = (0,1)`. **Important to keep in mind**: the domain is composed of `regions`, denoted by integers. The *built-in* geometry of an interval available in the code returns 1 for the domain :math:`\Omega`, 10 for the left-end and 11 for the right-end. Informations about available geometries and the indices of their regions can be found in the documentation or via :code:`built_in_geometries()` after an import :code:`import scrimp.utils.mesh`.
-
-On this domain, we define two **states** and two **co-states**. At this stage, we only set each couple to be part of the same **port**.
+To start, import **SCRIMP** and create a *distributed port-Hamiltonian system* (DPHS) called, *e.g.*, `wave`
 
 .. code-block:: python
 
-    wave.add_state('q', 'Strain', 'scalar-field')
-    wave.add_costate('e_q', 'Stress', 'q')
+    import scrimp as S
 
-    wave.add_state('p', 'Linear momentum', 'scalar-field')
-    wave.add_costate('v', 'velocity', 'p')
+    wave = S.DPHS("real")
 
-These calls create automatically two *non-algebraic* **ports**, named after their respective **state**. Note that we simplify the notations and do not write `alpha_q` and `alpha_p` but `q` and `p` for the sake of readability.
-
-Finally, we add the two control-observation **ports** with
+Then, define the domain :math:`\Omega = (0,1)`, with a mesh-size parameter :math:`h`, and add it to the *DPHS*
 
 .. code-block:: python
 
-    wave.add_control_port('Boundary control (left)', 'U_L', 'Velocity', 'Y_L', 'Normal force', 'scalar-field', region=10)
-    wave.add_control_port('Boundary control (right)', 'U_R', 'Velocity', 'Y_R', 'Normal force', 'scalar-field', region=11)
+    domain = S.Domain("Interval", {"L": 1., "h": 0.01})
+    wave.set_domain(domain)
+
+This creates a mesh of the interval :math:`\Omega = (0,1)`.
+
+**Important to keep in mind**: the domain is composed of `regions`, denoted by integers. The *built-in* geometry of an interval available in the code returns 1 for the domain :math:`\Omega`, 10 for the left-end and 11 for the right-end. Informations about available geometries and the indices of their regions can be found in the documentation or *via* the function :code:`built_in_geometries()` available in :code:`scrimp.utils.mesh`.
+
+On this domain, we define two **states** and add them to the *DPHS*
+
+.. code-block:: python
+
+    alpha_q = S.State("q", "Strain", "scalar-field")
+    alpha_p = S.State("p", "Linear momentum", "scalar-field")
+    wave.add_state(alpha_q)
+    wave.add_state(alpha_p)
+
+and the two associated **co-states**
+
+.. code-block:: python
+
+    e_q = S.CoState("e_q", "Stress", alpha_q)
+    e_p = S.CoState("e_p", "Velocity", alpha_p)
+    wave.add_costate(e_q)
+    wave.add_costate(e_p)
+
+These latter calls create automatically two *non-algebraic* **ports**, named after their respective **state**. Note that we simplify the notations and do not write `alpha_q` and `alpha_p` but `q` and `p` for the sake of readability.
+
+Finally, we create and add the two control-observation **ports** with
+
+.. code-block:: python
+
+    left_end = S.Control_Port("Boundary control (left)", "U_L", "Normal force", "Y_L", "Velocity", "scalar-field", region=10)
+    right_end = S.Control_Port("Boundary control (right)", "U_R", "Normal force", "Y_R", "Velocity", "scalar-field", region=11)
+    wave.add_control_port(left_end)
+    wave.add_control_port(right_end)
 
 Note the crucial keyword *region* to restrict each port to its end. By default, it would apply everywhere.
 
-**Syntaxic note:** although :math:`y` is the observation in the theory of port-Hamiltonian systems, it is also the second space variable in N-D problems. This name is thus reserved for this aim and forbidden in all definitions of a dpHs. Nevertheless, the code being case-sensitive, it is possible to name the observation :code:`Y`. To avoid mistakes, we take the habit to always use this syntax, this is why we denoted our controls and observations with capital letters even if the problem does not occur in this example.
+**Syntaxic note:** although :math:`y` is the observation in the theory of port-Hamiltonian systems, it is also the second space variable for N-D problems. This name is thus reserved for this latter aim and forbidden in all definitions of a *DPHS*. Nevertheless, the code being case-sensitive, it is possible to name the observation :code:`Y`. To avoid mistakes, we take the habit to always use this syntax, this is why we denoted our controls and observations with capital letters even if the problem does not occur in this 1D example.
 
 To be able to write the discrete weak formulation of the system, one need to set four finite element families, associated to each **port**. Only two arguments are mandatory: the *name* of the port and the *degree* of the approximations.
 
 .. code-block:: python
 
-    wave.add_FEM('q', 2)
-    wave.add_FEM('p', 1)
-    wave.add_FEM('Boundary control (left)', 1)
-    wave.add_FEM('Boundary control (right)', 1)
+    V_q = S.FEM("q", 2)
+    V_p = S.FEM("p", 1)
+    V_L = S.FEM("Boundary control (left)", 1)
+    V_R = S.FEM("Boundary control (right)", 1)
 
-This will associated a family of Lagrange finite elements (default choice) to each port, with the prescribed order. Remember that the boundary is only 2 disconnected points in this 1D case, so the only possibility for the finite element is 1 degree of freedom on each of them: Lagrange elements of order 1 is the easy way to do that.
+This will construct a family of Lagrange finite elements (default choice) for each port, with the prescribed order. Remember that the boundary is only 2 disconnected points in this 1D case, so the only possibility for the finite element is 1 degree of freedom on each of them: Lagrange elements of order 1 is the easy way to do that.
 
-It is now possible to write the weak forms defining the matrix :math:`M` of the discrete Dirac structure. Only the non-zero blocks are mandatory. Furthermore, the place of the block is automatically determined by GetFEM. The syntax follow a simple rule: the unknown trial function :code:`q` is automatically associated to the test function :code:`Test_q` (note the capital T), and so on.
-
-.. code-block:: python
-
-    wave.add_brick('M_q', 'q*Test_q', [1], dt=True, position='flow')
-    wave.add_brick('M_p', 'p*Test_p', [1], dt=True, position='flow')
-    wave.add_brick('M_Y_L', 'Y_L*Test_Y_L', [10], position='flow')
-    wave.add_brick('M_Y_R', 'Y_R*Test_Y_R', [11], position='flow')
-
-The first argument is a human-readable name, the second one is the form, the third is a list (hence the [ and ]) of integers, listing all the regions where the form applies. The optional parameter :code:`dt=True` is to inform **SCRIMP** that this block matrix will apply on the time-derivative of the unknown trial function, and finally the option parameter :code:`position='flow'` informs **SCRIMP** that this block is a part of the *flow* side of the Dirac structure. So the above call construct
-
-.. math::
-
-    \begin{bmatrix}
-    M_q & 0 & 0 & 0 \\
-    0 & M_p & 0 & 0 \\
-    0 & 0 & M_{Y_L} & 0 \\
-    0 & 0 & 0 & M_{Y_R}
-    \end{bmatrix}
-    
-Note that in definitive, :code:`M_Y_L` and :code:`M_Y_R` are both equal to 1 in this example.
-
-Following the same principle, we can construct the *effort* side with
+Of course, this *FEM* must be added to the *DPHS*
 
 .. code-block:: python
 
-    wave.add_brick('D', 'Grad(e_p)*Test_q', [1], position='effort')
+    wave.add_FEM(V_q)
+    wave.add_FEM(V_p)
+    wave.add_FEM(V_L)
+    wave.add_FEM(V_R)
 
-    wave.add_brick('-D^T', '-e_q*Grad(Test_p)', [1], position='effort')
-    wave.add_brick('B_L', 'U_L*Test_p', [10], position='effort')
-    wave.add_brick('B_R', 'U_R*Test_p', [11], position='effort')
-
-    wave.add_brick('-B_L^T', '-e_p*Test_Y_L', [10], position='effort')
-    wave.add_brick('-B_R^T', '-e_p*Test_Y_R', [11], position='effort')
-
-As already said, **constitutive relations** are needed to ensure uniqueness, hence well-posedness. The physical parameters of the experiment are gathered in these relations, so the parameters have to be defined first. In **SCRIMP**, a *parameter* is associated to a *port*.
+Finally, the physical parameters of the experiment have to be defined. In **SCRIMP**, a *parameter* is associated to a *port*.
 
 .. code-block:: python
 
-    wave.add_parameter('T', 'Young\'s modulus', 'scalar-field', '1', 'q')
-    wave.add_parameter('rho', 'Mass density', 'scalar-field', '1 + x*(1-x)', 'p')
+    T = S.Parameter("T", "Young's modulus", "scalar-field", "1", "q")
+    rho = S.Parameter("rho", "Mass density", "scalar-field", "1 + x*(1-x)", "p")
+    wave.add_parameter(T)
+    wave.add_parameter(rho)
 
-The first argument will be the string that can be used in forms, the second argument is a human-readable description, the third one set the kind of the parameter, the fourth one is the mathematical expression defining the parameter, and finally the fifth argument is the name of the associated port.
+The first argument will be **the string that can be used in forms**, the second argument is a human-readable description, the third one set the kind of the parameter, the fourth one is the mathematical expression defining the parameter, and finally the fifth argument is the *name* of the associated port.
 
-These parameters at hand, one can now define the constitutive relations.
+It is now possible to write the weak forms defining the system. *Only the non-zero blocks* are mandatory. Furthermore, the place of the block is automatically determined by GetFEM. The syntax follow a simple rule: the unknown trial function :code:`q` is automatically associated to the test function :code:`Test_q` (note the capital T on :code:`Test`), and so on.
 
-**Syntaxic note:** the constitutive relations have to be written under an implicit formulation F = 0. Keep in mind that a minus sign will often appear because of that.
+Like we did for each call, the first step is to create the object, then to add it to the *DPHS*. As there is a lot of *bricks*, let us make a loop using a python *list*
 
 .. code-block:: python
 
-    wave.add_brick('-M_e_q', '-e_q*Test_e_q', [1])
-    wave.add_brick('CR_q', 'q*T*Test_e_q', [1])
+    bricks = [
+        # M matrix, on the flow side
+        S.Brick("M_q", "q * Test_q", [1], dt=True, position="flow"),
+        S.Brick("M_p", "p * Test_p", [1], dt=True, position="flow"),
+        S.Brick("M_Y_L", "Y_L * Test_Y_L", [10], position="flow"),
+        S.Brick("M_Y_R", "Y_R * Test_Y_R", [11], position="flow"),
 
-    wave.add_brick('-M_e_p', '-e_p*Test_e_p', [1])
-    wave.add_brick('CR_p', 'p/rho*Test_e_p', [1])
+        # J matrix, on the effort side
+        S.Brick("D", "Grad(e_p) * Test_q", [1], position="effort"),
+
+        S.Brick("-D^T", "-e_q * Grad(Test_p)", [1], position="effort"),
+        S.Brick("B_L", "-U_L * Test_p", [10], position="effort"),
+        S.Brick("B_R", "U_R * Test_p", [11], position="effort"),
+
+        S.Brick("-B_L^T", "e_p * Test_Y_L", [10], position="effort"),
+        S.Brick("-B_R^T", "-e_p * Test_Y_R", [11], position="effort"),
+
+        # Constitutive relations
+        S.Brick("-M_e_q", "-e_q * Test_e_q", [1]),
+        S.Brick("CR_q", "q*T * Test_e_q", [1]),
+
+        S.Brick("-M_e_p", "-e_p * Test_e_p", [1]),
+        S.Brick("CR_p", "p/rho * Test_e_p", [1]),
+        ]
+
+    for brick in bricks:
+        wave.add_brick(brick)
+
+The first argument of a *brick* is a human-readable name, the second one is the form, the third is a list (hence the [ and ]) of integers, listing all the regions where the form applies. The optional parameter :code:`dt=True` is to inform **SCRIMP** that this block matrix will apply on the time-derivative of the unknown trial function, and finally the option parameter :code:`position='flow'` informs **SCRIMP** that this block is a part of the *flow side* of the Dirac structure, :code:`position='effort'` do the same for the *effort side*, and without this keyword, **SCRIMP** places the *brick* as part of the *constitutive relations*.
+
+**Syntaxic note:** the constitutive relations have to be written under an implicit formulation :math:`F = 0`. Keep in mind that a minus sign will often appear because of that.
 
 The port-Hamiltonian system is now fully stated. It remains to set the initial values of the states and the controls before solving
 
 .. code-block:: python
 
-    wave.set_control('Boundary control (left)', 'sin(2*pi*t)')
-    wave.set_control('Boundary control (right)', '0.')
+    expression_left = "-sin(2*pi*t)"
+    expression_right = "0."
+    wave.set_control("Boundary control (left)", expression_left)
+    wave.set_control("Boundary control (right)", expression_right)
 
-    wave.set_initial_value('q', '10.')
-    wave.set_initial_value('p', 'np.exp(-50.*(x-0.5)*(x-0.5))')
+    q_init = "2.*np.exp(-50.*(x-0.5)*(x-0.5))"
+    p_init = "0."
+    wave.set_initial_value("q", q_init)
+    wave.set_initial_value("p", p_init)
 
 We can now solve the system (with default experiment parameter)
 
@@ -408,8 +425,14 @@ To end, one can also add the Hamiltonian terms and plot the contribution of each
 
 .. code-block:: python
 
-    wave.set_Hamiltonian_term('Kinetic energy', '0.5*p*p/rho', [1])
-    wave.set_Hamiltonian_term('Potential energy', '0.5*q*T*q', [1])
+    wave.hamiltonian.set_name("Mechanical energy")
+    terms = [
+        S.Term("Kinetic energy", "0.5*p*p/rho", [1]),
+        S.Term("Potential energy", "0.5*q*T*q", [1]),
+    ]
+
+    for term in terms:
+        wave.hamiltonian.add_term(term)
 
     wave.plot_Hamiltonian()
 
@@ -417,7 +440,7 @@ One can appreciate the *structure-preserving* property by looking at the dashed 
 
 .. math::
 
-    \mathcal{H}^d(t) - \int_0^t u_R(s) y_R(s) {\rm d}s + \int_0^t u_L(s) y_L(s) {\rm d}s
+    \mathcal{H}^d(t) + \int_0^t u_R(s) y_R(s) {\rm d}s + \int_0^t u_L(s) y_L(s) {\rm d}s
 
 .. image:: Hamiltonian-wave-1D-started.png
     :width: 600px

@@ -1,4 +1,0 @@
-Going further
-=============
-
-**!TO DO!**

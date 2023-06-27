@@ -35,7 +35,6 @@ right_end = S.Control_Port("Boundary control (right)", "U_R", "Normal force", "Y
 wave.add_control_port(left_end)
 wave.add_control_port(right_end)
 
-
 V_q = S.FEM("q", 2)
 V_p = S.FEM("p", 1)
 V_L = S.FEM("Boundary control (left)", 1)
@@ -45,7 +44,7 @@ wave.add_FEM(V_p)
 wave.add_FEM(V_L)
 wave.add_FEM(V_R)
 
-T = S.Parameter("T", "Young\'s modulus", "scalar-field", "1", "q")
+T = S.Parameter("T", "Young's modulus", "scalar-field", "1", "q")
 rho = S.Parameter("rho", "Mass density", "scalar-field", "1 + x*(1-x)", "p")
 wave.add_parameter(T)
 wave.add_parameter(rho)
@@ -101,3 +100,4 @@ for term in terms:
     wave.hamiltonian.add_term(term)
 
 wave.plot_Hamiltonian()
+

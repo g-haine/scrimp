@@ -8,7 +8,7 @@
 
 project = 'SCRIMP'
 copyright = '2015-2023 ISAE-SUPAERO'
-author = 'Ghislain Haine, Giuseppe Ferraro'
+author = 'Giuseppe Ferraro, Michel Fournié, Ghislain Haine'
 release = '1.0.0'
 version = '1.0.1'
 

@@ -11,9 +11,8 @@ Sub-packages
 
    scrimp.examples
    scrimp.utils
-   scrimp.tests
 
-Distributed port-Hamiltonian system module
+Distributed port-Hamiltonian system
 -----------------------------------------------------------
 
 .. automodule:: scrimp.dphs
@@ -21,7 +20,7 @@ Distributed port-Hamiltonian system module
    :undoc-members:
    :show-inheritance:
 
-Domain module
+Domain
 -----------------------------------------------------------
 
 .. automodule:: scrimp.domain
@@ -29,7 +28,7 @@ Domain module
    :undoc-members:
    :show-inheritance:
 
-Hamiltonian module
+Hamiltonian / Term
 -----------------------------------------------------------
 
 .. automodule:: scrimp.hamiltonian
@@ -37,7 +36,7 @@ Hamiltonian module
    :undoc-members:
    :show-inheritance:
 
-Port module
+Port / Parameter
 -----------------------------------------------------------
 
 .. automodule:: scrimp.port
@@ -45,7 +44,7 @@ Port module
    :undoc-members:
    :show-inheritance:
 
-State module
+State
 -----------------------------------------------------------
 
 .. automodule:: scrimp.state
@@ -53,7 +52,7 @@ State module
    :undoc-members:
    :show-inheritance:
 
-Co-state module
+Co-state
 -----------------------------------------------------------
 
 .. automodule:: scrimp.costate
@@ -61,7 +60,7 @@ Co-state module
    :undoc-members:
    :show-inheritance:
 
-Control module
+Control
 -----------------------------------------------------------
 
 .. automodule:: scrimp.control
@@ -69,7 +68,7 @@ Control module
    :undoc-members:
    :show-inheritance:
 
-Fem module
+FEM
 -----------------------------------------------------------
 
 .. automodule:: scrimp.fem
@@ -77,18 +76,10 @@ Fem module
    :undoc-members:
    :show-inheritance:
 
-Brick module
+Brick
 -----------------------------------------------------------
 
 .. automodule:: scrimp.brick
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-General functions
------------------
-
-.. automodule:: scrimp
    :members:
    :undoc-members:
    :show-inheritance:
