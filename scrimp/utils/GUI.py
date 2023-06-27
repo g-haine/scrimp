@@ -17,6 +17,7 @@ gui_pages = [
 
 gui_width = 1700
 gui_height = 600
+button_size = (200, 150, 100, 40)
 
 from PyQt5.QtWidgets import (
     QHBoxLayout,
@@ -26,14 +27,95 @@ from PyQt5.QtWidgets import (
     QTableWidget,
     QComboBox,
     QLabel,
+    QTextEdit,
 )
+from PyQt5.QtGui import QTextCharFormat, QFont, QTextCursor
 
 
 class Help:
-    def __init__(self, layout):
-        self.label_name = None
-        self.label_description = None
-        self.label_ie = "i.e."
-        self.label_ie_example = None
+    """This class define an help section in the window of the GUI.
+    Each time a field is selected it will show the description of the field and an example
+    of how to use it.
+    """
 
-        pass
+    def __init__(self, layout, row: int, col: int):
+        # self.label_name = QLabel()
+        # self.label_description = QLabel()
+        # self.label_ie = QLabel("i.e.")
+        # self.label_ie_example = QLabel()
+
+        # layout.addWidget(self.label_name, row, col)
+        # layout.addWidget(self.label_description, row + 1, col)
+        # layout.addWidget(self.label_ie, row + 2, col)
+        # layout.addWidget(self.label_ie_example, row + 3, col)
+        self.textEdit_help = QTextEdit()
+        self.textEdit_help.setReadOnly(True)
+        self.textEdit_help.setFixedHeight(350)
+        self.label_help = QLabel("Help:")
+
+        self.cursor = self.textEdit_help.textCursor()
+        self.layout = layout
+        self.layout.addWidget(self.label_help, row - 1, col)
+        self.layout.addWidget(self.textEdit_help, row, col)
+
+        self.layout.itemAt(self.layout.count() - 2).widget().hide()
+        self.layout.itemAt(self.layout.count() - 1).widget().hide()
+
+    def clear(self):
+        self.textEdit_help.clear()
+        self.layout.itemAt(self.layout.count() - 2).widget().hide()
+        self.layout.itemAt(self.layout.count() - 1).widget().hide()
+
+    def updateFields(self, name: str, description: str, example: str):
+        """This function update the labels of the Help"
+
+        Args:
+            name (str): name of the selected field in the GUI
+            description (str): description of the field.
+            example (str): an example of how to use the field
+        """
+        self.textEdit_help.clear()
+        self.layout.itemAt(self.layout.count() - 2).widget().show()
+        self.layout.itemAt(self.layout.count() - 1).widget().show()
+        s1 = name + "\n"
+        s2 = "_" * 20 + "\n"
+        s3 = description + "\n\n"
+        s4 = ""
+        if example != "":
+            s4 = "i.e.\n"
+        s5 = example
+        self.textEdit_help.setPlainText(s1 + s2 + s3 + s4 + s5)
+
+        # set font 1st string
+        format_1 = QTextCharFormat()
+        format_1.setFont(QFont("Arial", 16, QFont.Bold))
+        self.cursor.setPosition(0)
+        self.cursor.movePosition(QTextCursor.EndOfLine, QTextCursor.KeepAnchor)
+        self.cursor.mergeCharFormat(format_1)
+
+        # skip one line/string
+        self.cursor.movePosition(QTextCursor.NextBlock)
+
+        # set font 3rd string
+        format_2 = QTextCharFormat()
+        format_2.setFont(QFont("Arial", 16))
+        self.cursor.movePosition(QTextCursor.NextBlock)
+        self.cursor.movePosition(QTextCursor.EndOfLine, QTextCursor.KeepAnchor)
+        self.cursor.mergeCharFormat(format_2)
+
+        # skip one line/string
+        self.cursor.movePosition(QTextCursor.NextBlock)
+
+        # set font 4th string
+        format_3 = QTextCharFormat()
+        format_3.setFont(QFont("Courier", 12, QFont.Bold, italic=True))
+        self.cursor.movePosition(QTextCursor.NextBlock)
+        self.cursor.movePosition(QTextCursor.EndOfLine, QTextCursor.KeepAnchor)
+        self.cursor.mergeCharFormat(format_3)
+
+        # set font 5th string
+        format_3 = QTextCharFormat()
+        format_3.setFont(QFont("Courier", 12, italic=True))
+        self.cursor.movePosition(QTextCursor.NextBlock)
+        self.cursor.movePosition(QTextCursor.EndOfLine, QTextCursor.KeepAnchor)
+        self.cursor.mergeCharFormat(format_3)
