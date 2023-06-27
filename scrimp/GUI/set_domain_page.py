@@ -1,6 +1,6 @@
 from PyQt5 import QtCore, QtWidgets, QtGui
 from PyQt5.QtCore import Qt
-from utils.GUI import gui_pages, gui_width, gui_height
+from utils.GUI import gui_pages, gui_width, gui_height, Help
 
 from PyQt5.QtWidgets import (
     QListWidget,
@@ -83,7 +83,6 @@ class Window(QtWidgets.QWidget):
 
         # create a QTableWidget
         self.table = QTableWidget()
-        self.table.setRowCount(1)
         self.table.setColumnCount(2)
 
         # adding header to the table
@@ -96,14 +95,10 @@ class Window(QtWidgets.QWidget):
 
         self.button_add = QPushButton("Add")
         self.button_add.clicked.connect(self.new_rows)
+        self.button_add.resize(100, 50)
 
-        self.layout.addWidget(label_type_domain, 1, 0)
-        self.layout.addWidget(self.list_widget, 2, 1)
-        self.layout.addWidget(label_parameter, 3, 0)
-        self.layout.addWidget(self.button_add, 4, 1, Qt.AlignTop)
-        self.layout.addWidget(self.table, 4, 0)
-        self.layout.addWidget(self.button_prev, 5, 3)
-        self.layout.addWidget(self.button_next, 5, 4)
+        self.button_delete = QPushButton("Remove")
+        self.button_delete.clicked.connect(self.delete)
 
         # create navigation list
         self.comboBox = QComboBox()
@@ -112,23 +107,106 @@ class Window(QtWidgets.QWidget):
 
         # There is an alternate signal to send the text.
         self.comboBox.currentTextChanged.connect(self.text_changed)
-        self.layout.addWidget(self.comboBox, 5, 2)
+
+        self.layout.addWidget(label_type_domain, 1, 0)
+        self.layout.addWidget(self.list_widget, 2, 0)
+        self.layout.addWidget(label_parameter, 3, 0)
+        self.layout.addWidget(self.button_add, 4, 1, Qt.AlignTop)
+        self.layout.addWidget(self.button_delete, 4, 2, Qt.AlignTop)
+        self.layout.addWidget(self.table, 4, 0)
+        self.layout.addWidget(self.comboBox, 5, 3)
+        self.layout.addWidget(self.button_prev, 5, 4)
+        self.layout.addWidget(self.button_next, 5, 5)
 
         self.layout.itemAt(3).widget().hide()
+        self.layout.itemAt(4).widget().hide()
+
         self.setLayout(self.layout)
+
+        self.help = Help(self.layout, 4, 2)
+        self.table.itemClicked.connect(self.update_help)
+        # help.updateField("Length", "Length of the segment", "AB a segment in 1D.")
+
+    def update_help(self):
+        item = self.table.currentItem()
+        if item is not None:
+            text = item.text()
+            col = item.column()
+            selection = self.list_widget.currentItem().text()
+            print(f"col:{col},text:{text},selection:{selection}")
+
+            if selection != "Other":
+                description = None
+                example = None
+
+                if col == 0:
+                    self.layout.itemAt(self.layout.count() - 1).widget().show()
+
+                    if text == "L":
+                        if selection == "Segment":
+                            description = "Lenght of the segment"
+                            example = "in a segment AB, L=15, implies a distance of 15 meters between the vertex AB."
+
+                        elif selection == "Rectangle":
+                            description = "Lenght of the longer base of the rectangle"
+                            example = "in a rectangle ABCD, if AB is the longer side, L is its lenght."
+
+                    if text == "l":
+                        description = "Lenght of the shorter base of the rectangle"
+                        example = "in a rectangle ABCD, if BC is the shorter side, l is its lenght."
+
+                    elif text == "h":
+                        description = "The step of integration"
+                        example = ""
+
+                    elif text == "R":
+                        if selection == "Disk":
+                            description = "Rayon of the disk"
+                            example = ""
+
+                        elif selection == "Annulus":
+                            description = "Lenght of the longer rayon of the annulus"
+                            example = (
+                                "in an annulus, R is the rayon of the outer circle."
+                            )
+
+                    elif text == "r":
+                        description = "Lenght of the shorter rayon of the annulus"
+                        example = "in an annulus, R is the rayon of the inner circle."
+
+                    self.help.updateFields(text, description, example)
+
+            else:
+                self.help.clear()
+                self.layout.itemAt(self.layout.count() - 1).widget().hide()
+
+        else:
+            self.help.clear()
+            self.layout.itemAt(self.layout.count() - 1).widget().hide()
 
     def text_changed(self, page):  # s is a str
         self.comboBox.setCurrentText("set_domain_page")
         self.switch_window.emit(page)
         self.hide()
 
+    def delete(self):
+        """This function removes 2 rows in the table (1 for state, 1 for co-state)"""
+        if self.table.rowCount() >= 1:
+            self.table.removeRow(self.table.rowCount() - 1)
+        else:
+            print("not enough element to delete!")
+
     def update_table(self):
         selection = self.list_widget.currentItem().text()
+        self.help.clear()
+        # self.update_help()
 
         if selection == "Other":
             self.layout.itemAt(3).widget().show()
+            self.layout.itemAt(4).widget().show()
         else:
             self.layout.itemAt(3).widget().hide()
+            self.layout.itemAt(4).widget().hide()
 
         if selection == "Rectangle":
             # remove all the rows
