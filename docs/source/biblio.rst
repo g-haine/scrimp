@@ -1,51 +1,59 @@
+.. _biblio:
+
 Bibliography
 ============
 
-**!TO DO!**
-
 Port-Hamiltonian systems is an ever-growing research area as it proposes a powerful framework for the control of multi-physics systems.
 
-The following list of publications, although not exhaustive, presents the main results behind **SCRIMP**.
-
-Port-Hamiltonian systems
-------------------------
+The following list of publications, although not exhaustive, presents the main results of ours behind **SCRIMP**.
 
 Articles
 ^^^^^^^^
 
-#. 
-#. 
-#. 
-#. 
-#. 
+* Haine, Ghislain and Matignon, Denis and Serhani, Anass. **Numerical Analysis of a Structure-Preserving Space-Discretization for an Anisotropic and Heterogeneous Boundary Controlled N-Dimensional Wave Equation As a Port-Hamiltonian System.** (2023) *International Journal of Numerical Analysis and Modeling*, 20 (1). 92-133. `DOI:10.4208/ijnam2023-1005 <https://doi.org/10.4208/ijnam2023-1005>`_
+* Haine, Ghislain and Matignon, Denis and Monteghetti, Florian. **Long-time behavior of a coupled heat-wave system using a structure-preserving finite element method.** (2022) *Mathematical Reports*, 22 (1-2). 187-215. `PDF <http://imar.ro/journals/Mathematical_Reports/Pdfs/2022/1-2/11.pdf>`_
+* Mora, Luis A. and Le Gorrec, Yann and Matignon, Denis and Ramirez, Hector and Yuz, Juan I.. **On port-Hamiltonian formulations of 3-dimensional compressible Newtonian fluids.** (2021) *Physics of Fluids*, 33 (11). 117117. `DOI:10.1063/5.0067784 <https://doi.org/10.1063/5.0067784>`_
+* Cardoso-Ribeiro, Flávio Luiz and Matignon, Denis and Lefèvre, Laurent. **A Partitioned Finite Element Method for power-preserving discretization of open systems of conservation laws.** (2021) *IMA Journal of Mathematical Control and Information*, 38 (2). 493-533. `DOI:10.1093/imamci/dnaa038 <https://doi.org/10.1093/imamci/dnaa038>`_
+* Brugnoli, Andrea and Haine, Ghislain and Serhani, Anass and Vasseur, Xavier. **Numerical Approximation of Port-Hamiltonian Systems for Hyperbolic or Parabolic PDEs with Boundary Control.** (2021) *Journal of Applied Mathematics and Physics*, 09 (06). 1278-1321. `DOI:10.4236/jamp.2021.96088 <https://doi.org/10.4236/jamp.2021.96088>`_
+* Brugnoli, Andrea and Alazard, Daniel and Pommier-Budinger, Valérie and Matignon, Denis. **Port-Hamiltonian flexible multibody dynamics.** (2021) *Multibody System Dynamics*, 51 (3). 343-375. `DOI:10.1007/s11044-020-09758-6 <https://doi.org/10.1007/s11044-020-09758-6>`_
+* Brugnoli, Andrea and Alazard, Daniel and Pommier-Budinger, Valérie and Matignon, Denis. **A port-Hamiltonian formulation of linear thermoelasticity and its mixed finite element discretization.** (2021) *Journal of Thermal Stresses*, 44 (6). 643-661. `DOI:10.1080/01495739.2021.1917322 <https://doi.org/10.1080/01495739.2021.1917322>`_
+* Cardoso-Ribeiro, Flávio Luiz and Matignon, Denis and Pommier-Budinger, Valérie. **Port-Hamiltonian model of two-dimensional shallow water equations in moving containers.** (2020) *IMA Journal of Mathematical Control and Information*, 37 (4). 1348-1366. `DOI:10.1093/imamci/dnaa016 <https://doi.org/10.1093/imamci/dnaa016>`_
+* Brugnoli, Andrea and Alazard, Daniel and Pommier-Budinger, Valérie and Matignon, Denis. **Port-Hamiltonian formulation and symplectic discretization of plate models Part I: Mindlin model for thick plates.** (2019) *Applied Mathematical Modelling*, 75. 940-960. `DOI:10.1016/j.apm.2019.04.035 <https://doi.org/10.1016/j.apm.2019.04.035>`_
+* Brugnoli, Andrea and Alazard, Daniel and Pommier-Budinger, Valérie and Matignon, Denis. **Port-Hamiltonian formulation and symplectic discretization of plate models. Part II : Kirchhoff model for thin plates.** (2019) *Applied Mathematical Modelling*, 75. 961-981. `DOI:10.1016/j.apm.2019.04.036 <https://doi.org/10.1016/j.apm.2019.04.036>`_
+* Aoues, Saïd and Cardoso-Ribeiro, Flávio Luiz and Matignon, Denis and Alazard, Daniel. **Modeling and Control of a Rotating Flexible Spacecraft: A Port-Hamiltonian Approach.** (2019) *IEEE Transactions on Control Systems Technology*, 27 (1). 355-362. `DOI:10.1109/TCST.2017.2771244 <http://dx.doi.org/10.1109/TCST.2017.2771244>`_
+* Cardoso-Ribeiro, Flávio Luiz and Matignon, Denis and Pommier-Budinger, Valérie. **A port-Hamiltonian model of liquid sloshing in moving containers and application to a fluid-structure system.** (2017) *Journal of Fluids and Structures*, 69. 402-427. `DOI:10.1016/j.jfluidstructs.2016.12.007 <http://dx.doi.org/10.1016/j.jfluidstructs.2016.12.007>`_
+
+Book Chapters
+^^^^^^^^^^^^^
+
+* Haine, Ghislain and Matignon, Denis. **Structure-Preserving Discretization of a Coupled Heat-Wave System, as Interconnected Port-Hamiltonian Systems.** (2021) In: *Geometric Science of Information.* Springer International Publishing AG, 191-199. `DOI:10.1007/978-3-030-80209-7_22 <https://doi.org/10.1007/978-3-030-80209-7_22>`_
+* Serhani, Anass and Matignon, Denis and Haine, Ghislain. **A Partitioned Finite Element Method for the Structure-Preserving Discretization of Damped Infinite-Dimensional Port-Hamiltonian Systems with Boundary Control.** (2019) In: *Geometric Science of Information.* Springer International Publishing AG, Cham, Suisse, 549-558. `DOI:10.1007/978-3-030-26980-7_57 <https://doi.org/10.1007/978-3-030-26980-7_57>`_
 
 Proceedings
 ^^^^^^^^^^^
 
-#. 
-#. 
-#. 
-#. 
-#. 
-
-Structure-preserving discretization
------------------------------------
-
-Articles
-^^^^^^^^
-
-#. 
-#. 
-#. 
-#. 
-#. 
-
-Proceedings
-^^^^^^^^^^^
-
-#. 
-#. 
-#. 
-#. 
-#. 
-
+* Brugnoli, Andrea and Haine, Ghislain and Matignon, Denis. **Explicit structure-preserving discretization of port-Hamiltonian systems with mixed boundary control.** (2022) In: 25th International Symposium on Mathematical Theory of Networks and Systems (MTNS 2022), 12 September 2022 - 16 September 2022 (Bayreuth, Germany). 
+* Haine, Ghislain and Matignon, Denis and Monteghetti, Florian. **Structure-preserving discretization of Maxwell’s equations as a port-Hamiltonian system.** (2022) In: 25th International Symposium on Mathematical Theory of Networks and Systems (MTNS 2022), 12 September 2022 - 16 September 2022 (Bayreuth, Germany). 
+* Haine, Ghislain and Lefèvre, Laurent and Matignon, Denis. **PFEM: a mixed structure-preserving discretization method for port-Hamiltonian systems.** (2022) In: International Workshop on Operator Theory and its Applications, 6 September 2022 - 10 September 2022 (Cracovie, Poland). 
+* Brugnoli, Andrea and Matignon, Denis. **A port-Hamiltonian formulation for the full von-Kármán plate model.** (2022) In: 10th European Nonlinear Dynamics Conference (ENOC), 17 July 2022 - 22 July 2022 (Lyon, France). 
+* Cardoso-Ribeiro, Flávio Luiz and Matignon, Denis and Lefèvre, Laurent. **A Partitioned Finite Element Method (PFEM) for power-preserving discretization of port-Hamiltonian systems (pHs) with polynomial nonlinearity.** (2022) In: European Nonlinear Dynamics Conference (ENOC 2022), 17 July 2022 - 22 July 2022 (Lyon, France). 
+* Hélie, Thomas and Matignon, Denis. **Nonlinear damping laws preserving the eigenstructure of the momentum space for conservative linear PDE problems: a port-Hamiltonian modelling.** (2022) In: 10th European Nonlinear Dynamics Conference (ENOC), 17 July 2022 - 22 July 2022 (Lyon, France). 
+*  Bendimerad-Hohl, Antoine and Haine, Ghislain and Matignon, Denis and Maschke, Bernhard. **Structure-preserving discretization of a coupled Allen-Cahn and heat equation system.** (2022) In: 4th IFAC Workshop on Thermodynamic Foundations of Mathematical Systems Theory - TFMST 2022, 25 July 2022 - 27 July 2022 (Montreal, Canada).
+* Cardoso-Ribeiro, Flávio Luiz and Matignon, Denis and Lefèvre, Laurent. **Dissipative Shallow Water Equations: a port-Hamiltonian formulation.** (2021) In: Lagrangian and Hamiltonian Methodes for Nonlinear Control (7th LHMNC 2021), 11 October 2021 - 13 October 2021 (Berlin, Germany). 
+* Haine, Ghislain and Matignon, Denis. **Incompressible Navier-Stokes Equation as port-Hamiltonian systems: velocity formulation versus vorticity formulation.** (2021) In: Lagrangian and Hamiltonian Methodes for Nonlinear Control (7th LHMNC 2021), 11 October 2021 - 13 October 2021 (Berlin, Germany). 
+*  Brugnoli, Andrea and Rashad, Ramy and Califano, Federico and Stramigioli, Stefano and Matignon, Denis. **Mixed finite elements for port-Hamiltonian models of von Kármán beams.** (2021) In: Lagrangian and Hamiltonian Methodes for Nonlinear Control (LHMNLC 2021), 11 October 2021 - 13 October 2021 (Berlin, Germany).
+* Brugnoli, Andrea and Alazard, Daniel and Pommier-Budinger, Valérie and Matignon, Denis. **Structure-preserving discretization of port-Hamiltonian plate models.** (2021) In: Mathematical Theory of Networks and Systems, August 2021 - August 2021 (Cambridge, United Kingdom). 
+* Brugnoli, Andrea and Matignon, Denis and Haine, Ghislain and Serhani, Anass. **Numerics for Physics-Based PDEs with Boundary Control: the Partitioned Finite Element Method for Port-Hamiltonian Systems.** (2021) In: SIAM Conference on Computational Science and Engineering (CSE21), 1 March 2021 - 5 March 2021 (Virtual conference).
+* Brugnoli, Andrea and Cardoso-Ribeiro, Flávio Luiz and Haine, Ghislain and Kotyczka, Paul. **Partitioned finite element method for structured discretization with mixed boundary conditions.** (2020) In: 21th IFAC World Congress, 11 July 2020 - 17 July 2020 (Berlin, Germany).
+* Mora, Luis A. and Gorrec, Yann Le and Matignon, Denis and Ramirez, Hector and Yuz, Juan I.. **About Dissipative and Pseudo Port-Hamiltonian Formulations of Irreversible Newtonian Compressible Flows.** (2020) In: The 21st World Congress of The International Federation of Automatic Control (IFAC 2020), 11 July 2020 - 17 July 2020 (Vitual event, Germany).
+* Payen, Gabriel and Matignon, Denis and Haine, Ghislain. **Modelling and structure-preserving discretization of Maxwell’s equations as port-Hamiltonian system.** (2020) In: The 21st World Congress of The International Federation of Automatic Control (IFAC 2020), 11 July 2020 - 17 July 2020 (Virtual event, Germany). 
+* Treton, Anne-Sophie and Haine, Ghislain and Matignon, Denis. **Modelling the 1D piston problem as interconnected port-Hamiltonian systems.** (2020) In: The 21st World Congress of The International Federation of Automatic Control (IFAC 2020), 11 July 2020 - 17 July 2020 (Virtual event, Germany). 
+* Brugnoli, Andrea and Alazard, Daniel and Pommier-Budinger, Valérie and Matignon, Denis. **Interconnection of the Kirchhoff plate within the port-Hamiltonian framework.** (2020) In: 2019 IEEE 58th Conference on Decision and Control (CDC), 11 December 2019 - 13 December 2019 (Nice, France). 
+* Cardoso-Ribeiro, Flávio Luiz and Brugnoli, Andrea and Matignon, Denis and Lefèvre, Laurent. **Port-Hamiltonian modeling, discretization and feedback control of a circular water tank.** (2020) In: 2019 IEEE 58th Conference on Decision and Control (CDC), 11 December 2019 - 13 December 2019 (Nice, France). 
+*  Serhani, Anass and Haine, Ghislain and Matignon, Denis. **Anisotropic heterogeneous n-D heat equation with boundary control and observation : I. Modeling as port-Hamiltonian system.** (2019) In: 3rd IFAC Workshop on Thermodynamic Foundations for a Mathematical Systems Theory (TFMST 2019), 3 July 2019 - 5 July 2019 (Louvain-la-Neuve, Belgium).
+*  Serhani, Anass and Haine, Ghislain and Matignon, Denis. **Anisotropic heterogeneous n-D heat equation with boundary control and observation : II. Structure-preserving discretization.** (2019) In: 3rd IFAC Workshop on Thermodynamic Foundations for a Mathematical Systems Theory (TFMST 2019), 3 July 2019 - 5 July 2019 (Louvain-la-Neuve, Belgium).
+* Brugnoli, Andrea and Alazard, Daniel and Pommier-Budinger, Valérie and Matignon, Denis. **Partitioned finite element method for the Mindlin plate as a port-Hamiltonian system.** (2019) In: 3nd IFAC Workshop on Control of Systems Governed by Partial Differential Equations CPDE 2019, 20 May 2019 - 24 May 2019 (Oaxaca, Mexico). (Unpublished) 
+* Serhani, Anass and Matignon, Denis and Haine, Ghislain. **Partitioned Finite Element Method for port-Hamiltonian systems with Boundary Damping: Anisotropic Heterogeneous 2D wave equations.** (2019) In: 3rd IFAC/IEEE CSS Workshop on Control of Systems Governed by Partial Differential Equations CPDE and XI Workshop Control of Distributed Parameter Systems (CDPS 2019), 20 May 2019 - 24 May 2019 (Oaxaca, Mexico). 
+* Cardoso-Ribeiro, Flávio Luiz and Matignon, Denis and Lefèvre, Laurent. **A structure-preserving Partitioned Finite Element Method for the 2D wave equation.** (2018) In: 6th IFAC Workshop on Lagrangian and Hamiltonian Methods for Nonlinear Control, 1 May 2018 - 4 May 2018 (Valparaíso, Chile).
+* Alazard, Daniel and Aoues, Saïd and Cardoso-Ribeiro, Flávio Luiz and Matignon, Denis. **Disturbance rejection for a rotating flexible spacecraft: a port-Hamiltonian approach.** (2018) In: 6th IFAC Workshop on Lagrangian and Hamiltonian Methods for Nonlinear Control, 1 May 2018 - 4 May 2018 (Valparaíso, Chile).
+* Serhani, Anass and Matignon, Denis and Haine, Ghislain. **Structure-Preserving Finite Volume Method for 2D Linear and Non-Linear Port-Hamiltonian Systems.** (2018) In: 6th IFAC Workshop on Lagrangian and Hamiltonian Methods for Nonlinear Control, 1 May 2018 - 4 May 2018 (Valparaíso, Chile). 

@@ -1,7 +1,7 @@
 Examples
 ========
 
-Here are provided some examples coming from our publications.
+Here are provided some examples coming from our `publications <biblio>`_.
 
 .. toctree::
    :maxdepth: 1
