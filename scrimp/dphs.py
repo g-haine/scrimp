@@ -208,10 +208,13 @@ class DPHS:
         """
         
         self.ports[port.get_name()] = port
+        where =""
+        if port.get_region() is not None:
+            where = f"on region {port.get_region()}"
         
         if rank==0:
             logging.info(
-                f"port: {port.get_name()} has been added"
+                f"port: {port.get_name()} has been added {where}"
             )
 
     def add_FEM(self, fem: FEM):
@@ -600,10 +603,7 @@ class DPHS:
             [rows[0], rows[1]], [cols[0], cols[1]], self.gf_model.tangent_matrix(), self.mass
         )
 
-        for _, brick in self.bricks.items():
-            # Disable again all bricks previously enabled
-            if brick.get_dt() and brick.get_linear():
-                brick.disable_id_bricks(self.gf_model)
+        self.disable_all_bricks()
 
     def assemble_stiffness(self):
         """This function performs the assembly of the bricks dt=False and linear=True and set the PETSc.Mat attribute `stiffness`"""
@@ -620,10 +620,7 @@ class DPHS:
             [rows[0], rows[1]], [cols[0], cols[1]], self.gf_model.tangent_matrix(), self.stiffness
         )
         
-        for _, brick in self.bricks.items():
-            # Disable again all bricks previously enabled
-            if not brick.get_dt() and brick.get_linear():
-                brick.disable_id_bricks(self.gf_model)
+        self.disable_all_bricks()
 
     def assemble_rhs(self):
         """This function performs the assembly of the rhs and set the PETSc.Vec attribute `rhs`"""
@@ -642,13 +639,7 @@ class DPHS:
                            addv=PETSc.InsertMode.INSERT_VALUES)
         self.rhs.assemble()
         
-        for _, brick in self.bricks.items():
-            # Disable again all bricks previously enabled
-            if brick.get_position() == "source" or brick.get_explicit():
-                brick.disable_id_bricks(self.gf_model)
-            # And the non-linear ones (and not dt of course)
-            if not brick.get_dt() and not brick.get_linear():
-                brick.disable_id_bricks(self.gf_model)
+        self.disable_all_bricks()
 
     def assemble_nl_mass(self):
         """This function performs the assembly of the bricks dt=True and linear=False and set the PETSc.Mat attribute `nl_mass`"""
@@ -667,10 +658,7 @@ class DPHS:
         self.tangent_mass = self.mass.copy()
         self.tangent_mass.axpy(1,self.nl_mass)
 
-        for _, brick in self.bricks.items():
-            # Disable again all bricks previously enabled
-            if brick.get_dt() and not brick.get_linear():
-                brick.disable_id_bricks(self.gf_model)
+        self.disable_all_bricks()
 
     def assemble_nl_stiffness(self):
         """This function performs the assembly of the bricks dt=False and linear=False and set the PETSc.Mat attribute `nl_stiffness`"""
@@ -689,10 +677,7 @@ class DPHS:
         self.tangent_stiffness = self.stiffness.copy()
         self.tangent_stiffness.axpy(1,self.nl_stiffness)
 
-        for _, brick in self.bricks.items():
-            # Disable again all bricks previously enabled
-            if not brick.get_dt() and not brick.get_linear() and not brick.get_explicit():
-                brick.disable_id_bricks(self.gf_model)
+        self.disable_all_bricks()
 
     def disable_all_bricks(self):
         """This function disables all bricks in the `Model`"""
