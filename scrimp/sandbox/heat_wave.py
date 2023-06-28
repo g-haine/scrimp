@@ -7,7 +7,7 @@
 # github: https://github.com/g-haine/scrimp
 
 """
-- file:             examples/heat_wave.py
+- file:             sandbox/heat_wave.py
 - authors:          Giuseppe Ferraro, Ghislain Haine
 - date:             15 dec. 2022
 - brief:            a 2D coupled heat-wave system
@@ -17,7 +17,7 @@ import scrimp as S
 
 hw = S.DPHS("real")
 
-hw.set_domain(S.Domain("Concentric", {"R": 1., "r": 0.6, "h": 0.05}))
+hw.set_domain(S.Domain("Concentric", {"R": 1., "r": 0.6, "h": 0.1}))
 
 T = S.State("T", "Temperature", "scalar-field", region=1)
 hw.add_state(T)
@@ -99,7 +99,7 @@ hw.add_brick(S.Brick("-B_w_bnd^T", "q.Normal*Test_Y_w_bnd", [20], position="effo
 
 # === Gyrator
 
-hw.set_control("Interface Heat", "Y_w")
+hw.set_control("Interface Heat", "Y_w") # Care must be taken, the Normal vector has an opposite sign
 hw.set_control("Interface Wave", "Y_T")
 hw.set_control("Boundary Wave", "0.")
 

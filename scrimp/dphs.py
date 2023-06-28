@@ -1281,12 +1281,12 @@ class DPHS:
                 if self.ports[name_port].get_dissipative():
                     ax.plot(t, -power, label=name_port)
                 else:
-                    ax.plot(t, -power, label=name_port)
+                    ax.plot(t, power, label=name_port)
             if HamTot is not None:
-                if not self.ports[name_port].get_dissipative():
-                    SP_balance -= power
-                else:
+                if self.ports[name_port].get_dissipative():
                     SP_balance += power
+                else:
+                    SP_balance -= power
 
         if HamTot is not None:
             # Check if the balance makes sense: should not have a port which is both algebraic and substituted

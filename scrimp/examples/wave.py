@@ -187,7 +187,7 @@ def wave_eq():
     ## Solve in time
 
     # Define the time scheme
-    wave.set_time_scheme(t_f=0.2, dt=0.01, dt_save=0.01)
+    wave.set_time_scheme(t_f=2., dt_save=0.01)
 
     # Solve
     wave.solve()
@@ -202,7 +202,7 @@ def wave_eq():
     wave.export_to_pv("p")
 
     # Plot the matrices representing the Dirac structure
-    wave.spy_Dirac()
+    # wave.spy_Dirac()
 
     return wave  # For consol use
 

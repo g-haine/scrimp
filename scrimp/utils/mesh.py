@@ -69,6 +69,10 @@ def built_in_geometries():
 
 def Interval(parameters={"L": 1.0, "h": 0.05}, terminal=1):
     """The geometry of a segment (0,L) with mesh size h
+    
+    Domain `Omega`: 1, 
+    Left boundary `Gamma_Left`: 10, 
+    Right boundary `Gamma_Right`: 11
 
     Args:
         parameters (dict): The dictionary of parameters for the geometry
@@ -111,6 +115,9 @@ def Interval(parameters={"L": 1.0, "h": 0.05}, terminal=1):
 def Disk(parameters={"R": 1.0, "h": 0.1}, terminal=1):
     """The geometry of a Disk center in (0,0) with radius R and mesh size h
 
+    Domain `Omega`: 1, 
+    Boundary `Gamma`: 10
+    
     Args:
         parameters (dict): The dictionary of parameters for the geometry
         terminal (int): An option to print meshing infos in the prompt, value `0` (quiet) or `1` (verbose, default)
@@ -190,6 +197,12 @@ def Disk(parameters={"R": 1.0, "h": 0.1}, terminal=1):
 
 def Rectangle(parameters={"L": 2.0, "l": 1, "h": 0.1}, terminal=1):
     """The geometry of a Rectangle (0,L)x(0,l) with mesh size h
+    
+    Domain `Omega`: 1, 
+    Bottom boundary `Gamma_Bottom`: 10, 
+    Right boundary `Gamma_Right`: 11, 
+    Top boundary `Gamma_Top`: 12, 
+    Left boundary `Gamma_Left`: 13
 
     Args:
         parameters (dict): The dictionary of parameters for the geometry
@@ -247,6 +260,11 @@ def Rectangle(parameters={"L": 2.0, "l": 1, "h": 0.1}, terminal=1):
 
 def Concentric(parameters={"R": 1.0, "r": 0.6, "h": 0.1}, terminal=1):
     """The geometry of a Disk of radius r surrounded by an annulus of radii r and R with mesh size h
+
+    Domain `Omega_Disk`: 1, 
+    Domain `Omega_Annulus`: 2, 
+    Interface `Interface`: 10, 
+    Boundary `Gamma`: 20
 
     Args:
         parameters (dict): The dictionary of parameters for the geometry
@@ -340,6 +358,9 @@ def Concentric(parameters={"R": 1.0, "r": 0.6, "h": 0.1}, terminal=1):
 
 def Ball(parameters={"R": 1.0, "h": 0.1}, terminal=1):
     """The geometry of a Ball of radius R centered in (0,0,0) with mesh size h
+
+    Domain `Omega`: 1, 
+    Boundary `Gamma`: 10
 
     Args:
         parameters (dict): The dictionary of parameters for the geometry

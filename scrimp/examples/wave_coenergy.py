@@ -166,6 +166,5 @@ def wave_coenergy():
 
     return wave  # For consol use
 
-
 if __name__ == "__main__":
     wave = wave_coenergy()

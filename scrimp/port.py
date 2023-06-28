@@ -110,7 +110,7 @@ class Port:
         mesh_id: int = 0,
         algebraic: bool = True,
         substituted: bool = False,
-        dissipative: bool = False,
+        dissipative: bool = True,
         region: int = None,
     ):
         """Constructor of a `port` of a discrete port Hmiltonian system (dpHs).
@@ -123,7 +123,7 @@ class Port:
             mesh_id (int): the id of the mesh where the variables belong
             algebraic (bool): if `False`, the flow variable will be derivated in time at resolution
             substituted (bool): if `True`, the constitutive relation is substituted and there is only a getfem variable for the effort
-            dissipative (bool): for post-processing purpose, indicates wether the port is dissipative-like or not
+            dissipative (bool, optional): for post-processing purpose, indicates wether the port is dissipative-like or not. Defaults to `True`
             region (int): the int identifying the region in mesh_id where the port belong, useful for boundary ports
         """
 

@@ -13,7 +13,7 @@ FE_Flux_order = 1
 
 # Time scheme
 t_0 = 0.0
-t_f = 1.0
+t_f = 2.0
 dt = h/10.
 dt_save = 0.01
 ts_adapt_dt_min = h/1000.
@@ -114,7 +114,7 @@ AC.add_brick(S.Brick('CR_AC', 'F_AC/Eta.Test_E_AC', [1]))
 
 AC.add_brick(S.Brick('-M_e_Phi', '-e_Phi.Test_e_Phi', [1]))
 AC.add_brick(S.Brick('CR_e_Phi_1', f"Delta_s*Diff({expr_p_i}, Phi, Test_e_Phi)", [1], linear=False, explicit=False))
-AC.add_brick(S.Brick('CR_e_Phi_2', f"w*Diff({expr_p_w}, Phi, Test_e_Phi)", [1], linear=False, explicit=True))
+AC.add_brick(S.Brick('CR_e_Phi_2', f"w*Diff({expr_p_w}, Phi, Test_e_Phi)", [1], linear=False, explicit=False))
 
 AC.add_brick(S.Brick('-M_e_Psi', '-e_Psi*Test_e_Psi', [1]))
 AC.add_brick(S.Brick('CR_e_Psi', 'epsilon*Psi*Test_e_Psi', [1]))

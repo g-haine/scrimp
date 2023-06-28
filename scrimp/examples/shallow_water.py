@@ -201,7 +201,7 @@ def shallow_water():
     swe.solve()
 
     # Plot the Hamiltonian
-    swe.plot_Hamiltonian(with_powers=True)
+    swe.plot_Hamiltonian(with_powers=False)
 
     # Saving solutions for ParaView post-processing
     swe.export_to_pv("h")
