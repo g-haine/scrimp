@@ -65,7 +65,7 @@ class Control_Port(Port):
             mesh_id,
             algebraic=True,
             substituted=False,
-            dissipative=True, #: This allows input/output power to be plotted with the correct sign
+            dissipative=True, #: This allows to compute correctly the balance and to be plot with an opposite sign
             region=region,
         )
 
@@ -73,6 +73,7 @@ class Control_Port(Port):
         self.__name_observation = name_observation
         self.__description_control = description_control
         self.__description_observation = description_observation
+        self.__position = position
 
     def get_name_control(self) -> str:
         """This function gets the name of the control.
@@ -90,7 +91,7 @@ class Control_Port(Port):
             str: the name of the obervation
         """
         
-        return self.__name_obervation
+        return self.__name_observation
 
     def get_description_control(self) -> str:
         """This function gets the description of the control.
@@ -110,6 +111,15 @@ class Control_Port(Port):
         
         return self.__description_observation
 
+    def get_position(self) -> str:
+        """This function gets the position of the control in the Dirac structure.
+
+        Returns:
+            str: the position of the control
+        """
+        
+        return self.__position
+
 if __name__ == "__main__":
     Control_Port(
         "Boundary control (bottom)",
@@ -119,4 +129,5 @@ if __name__ == "__main__":
         "Velocity trace",
         "scalar-field",
         region=10,
+        position="effort"
     )

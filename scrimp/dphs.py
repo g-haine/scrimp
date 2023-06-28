@@ -876,7 +876,7 @@ class DPHS:
     def event(self, TS, t, z, fvalue):
         """Check if the time step is not too small"""
         
-        fvalue[0] = TS.getTimeStep() - float(self.time_scheme['ts_adapt_dt_min'])
+        fvalue[0] = TS.getTimeStep() - float(self.time_scheme["ts_adapt_dt_min"])
 
     def postevent(self, TS, event, t, z, forward):
         """If the time step is too small, ask for the end of the simulation"""
@@ -1020,7 +1020,6 @@ class DPHS:
         TS.setIFunction(self.IFunction, self.F)
         TS.setIJacobian(self.IJacobian, self.J)
         TS.setTime(float(self.time_scheme["t_0"]))
-        TS.setTimeStep(float(self.time_scheme['dt'])/100.)
         TS.setMaxSteps(2)
         TS.setExactFinalTime(PETSc.TS.ExactFinalTime.MATCHSTEP)
 
@@ -1032,14 +1031,21 @@ class DPHS:
         if self.time_scheme.hasName("ts_ssp"):
             saved_options["ts_ssp"] = self.time_scheme["ts_ssp"]
             self.time_scheme.delValue("ts_ssp")
+        if self.time_scheme.hasName("dt"):
+            saved_options["dt"] = float(self.time_scheme["dt"])
+        if self.time_scheme.hasName("ts_adapt_dt_min"):
+            saved_options["ts_adapt_dt_min"] = float(self.time_scheme["ts_adapt_dt_min"])
         self.time_scheme["ts_type"] = "pseudo"
+        self.time_scheme["ts_adapt_dt_min"] = 1e-24
+        
+        TS.setTimeStep(1e-12)
 
         TS.setFromOptions()
         self.exclude_algebraic_var_from_lte(TS)
         
         if rank==0:
             logging.info(
-                "Perform an initial step using pseudo bdf scheme for initial value consistency"
+                "Perform an initial step using a pseudo bdf scheme for initial value consistency"
             )
         
         InitVec = self.tangent_stiffness.createVecRight()
@@ -1060,10 +1066,8 @@ class DPHS:
         self.time_scheme.delValue("ts_type")
 
         # Re-load previously saved options
-        if "ts_type" in saved_options.keys():
-            self.time_scheme["ts_type"] = saved_options["ts_type"]
-        if "ts_ssp" in saved_options.keys():
-            self.time_scheme["ts_ssp"] = saved_options["ts_ssp"]
+        for key in saved_options.keys():
+            self.time_scheme[key] = saved_options[key]
 
     def monitor(self, TS, i, t, z, dt_save=1, t_0=0.0, initial_step=False):
         """Monitor to use during iterations of time-integration at each successful time step
@@ -1274,7 +1278,10 @@ class DPHS:
             for k in range(1, t.size):
                 power[k] = power[k - 1] + 0.5 * (t[k] - t[k - 1]) * (values[k - 1] + values[k])
             if rank==0:
-                ax.plot(t, power, label=name_port)
+                if self.ports[name_port].get_dissipative():
+                    ax.plot(t, -power, label=name_port)
+                else:
+                    ax.plot(t, -power, label=name_port)
             if HamTot is not None:
                 if not self.ports[name_port].get_dissipative():
                     SP_balance -= power

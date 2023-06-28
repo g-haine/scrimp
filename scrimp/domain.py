@@ -74,6 +74,8 @@ class Domain:
     def set_mim_auto(self):
         """Define the integration method to a default choice"""
 
+        # TODO: Allow for user definition
+        
         for k in range(len(self._mesh)):
             if self._dim[k] == 1:
                 self._int_method.append(
