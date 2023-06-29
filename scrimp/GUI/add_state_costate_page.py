@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import (
     QComboBox,
 )
 from PyQt5.QtCore import Qt
-from utils.GUI import gui_pages, gui_width, gui_height
+from utils.GUI import gui_pages, gui_width, gui_height, Help
 
 
 class Window(QtWidgets.QWidget):
@@ -29,10 +29,10 @@ class Window(QtWidgets.QWidget):
         self.setFixedHeight(gui_height)
         # self.setGeometry(100, 100, 600, 300)
 
-        layout = QGridLayout()
+        self.layout = QGridLayout()
 
         # self.line_edit = QLineEdit()
-        # layout.addWidget(self.line_edit)
+        # self.layout.addWidget(self.line_edit)
 
         # create a QTableWidget States
         self.table_states = QTableWidget()
@@ -99,16 +99,16 @@ class Window(QtWidgets.QWidget):
         self.button_prev = QPushButton("< Prev")
         self.button_prev.clicked.connect(self.previous_page)
 
-        layout.addWidget(self.table_states, 1, 0, 1, 3)
-        # layout.addWidget(cell_double, 1, 3)
-        layout.addWidget(self.button_clear_all, 0, 1)
-        layout.addWidget(self.button_add_state, 0, 2, Qt.AlignTop)
-        layout.addWidget(self.button_delete_state, 0, 3, Qt.AlignTop)
-        layout.addWidget(self.table_costates, 3, 0, 1, 3)
-        # layout.addWidget(self.button_add_costate, 2, 2)
-        # layout.addWidget(self.button_delete_costate, 2, 3)
-        layout.addWidget(self.button_next, 4, 3)
-        layout.addWidget(self.button_prev, 4, 2)
+        self.layout.addWidget(self.table_states, 1, 0, 1, 3)
+        # self.layout.addWidget(cell_double, 1, 3)
+        self.layout.addWidget(self.button_clear_all, 0, 1)
+        self.layout.addWidget(self.button_add_state, 0, 2, Qt.AlignTop)
+        self.layout.addWidget(self.button_delete_state, 0, 3, Qt.AlignTop)
+        self.layout.addWidget(self.table_costates, 3, 0, 1, 3)
+        # self.layout.addWidget(self.button_add_costate, 2, 2)
+        # self.layout.addWidget(self.button_delete_costate, 2, 3)
+        self.layout.addWidget(self.button_next, 4, 4)
+        self.layout.addWidget(self.button_prev, 4, 3)
 
         # create navigation list
         self.comboBox = QComboBox()
@@ -117,9 +117,84 @@ class Window(QtWidgets.QWidget):
 
         # There is an alternate signal to send the text.
         self.comboBox.currentTextChanged.connect(self.text_changed)
-        layout.addWidget(self.comboBox, 4, 1)
+        self.layout.addWidget(self.comboBox, 4, 2)
 
-        self.setLayout(layout)
+        self.setLayout(self.layout)
+
+        self.help = Help(self.layout, 3, 3)
+        self.table_costates.cellClicked.connect(self.update_help_costate)
+        self.table_states.cellClicked.connect(self.update_help_state)
+
+    def update_help_state(self):
+        # item = self.table_states.currentItem()
+        example = ""
+        col = self.table_states.currentColumn()
+
+        if col is not None:
+            text = self.table_states.horizontalHeaderItem(col).text()
+            print(f"col:{col},text:{text},selection:state")
+
+            self.layout.itemAt(self.layout.count() - 1).widget().show()
+            if col == 0:
+                description = "Choose a name for the State"
+
+            elif col == 1:
+                description = "Choose a set of words that can describe your State"
+                example = (
+                    f"If your State is named 'T' you may describe it as 'Temperature'."
+                )
+
+            elif col == 2:
+                description = "Choose what is the kind of your state."
+                example = """It could be one of the following list:
+                \n- scalar-field
+                \n- vector-field
+                \n- tensor-field"""
+            elif col == 3:
+                description = "Choose which is the region that interest your state."
+
+            elif col == 4:
+                description = (
+                    "Choose which is the ID for the mesh that interest your state."
+                )
+                example = "Default is 0."
+
+            self.help.updateFields(text, description, example)
+
+        else:
+            self.help.clear()
+            self.layout.itemAt(self.layout.count() - 1).widget().hide()
+
+    def update_help_costate(self):
+        # item = self.table_states.currentItem()
+        example = ""
+        col = self.table_costates.currentColumn()
+
+        if col is not None:
+            text = self.table_costates.horizontalHeaderItem(col).text()
+            print(f"col:{col},text:{text},selection:costate")
+
+            self.layout.itemAt(self.layout.count() - 1).widget().show()
+            if col == 0:
+                description = "Choose a name for the Costate"
+
+            elif col == 1:
+                description = "Choose a set of words that can describe your Costate"
+                example = (
+                    f"If your State is named 'T' you may describe it as 'Temperature'."
+                )
+
+            elif col == 2:
+                description = "This is the State at wich the costate will be bounded."
+
+            elif col == 3:
+                description = "It is a boolean that defines whether to substitute the variable. Defaults to False"
+
+            self.help.updateFields(text, description, example)
+
+        else:
+            self.help.clear()
+            self.layout.itemAt(self.layout.count() - 1).widget().hide()
 
     def text_changed(self, page):  # s is a str
         self.comboBox.setCurrentText("add_state_costate_page")

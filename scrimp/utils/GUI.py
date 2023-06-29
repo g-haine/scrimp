@@ -39,18 +39,10 @@ class Help:
     """
 
     def __init__(self, layout, row: int, col: int):
-        # self.label_name = QLabel()
-        # self.label_description = QLabel()
-        # self.label_ie = QLabel("i.e.")
-        # self.label_ie_example = QLabel()
-
-        # layout.addWidget(self.label_name, row, col)
-        # layout.addWidget(self.label_description, row + 1, col)
-        # layout.addWidget(self.label_ie, row + 2, col)
-        # layout.addWidget(self.label_ie_example, row + 3, col)
         self.textEdit_help = QTextEdit()
         self.textEdit_help.setReadOnly(True)
         self.textEdit_help.setFixedHeight(350)
+        self.textEdit_help.setFixedWidth(500)
         self.label_help = QLabel("Help:")
 
         self.cursor = self.textEdit_help.textCursor()

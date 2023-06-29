@@ -125,7 +125,6 @@ class Window(QtWidgets.QWidget):
 
         self.help = Help(self.layout, 4, 2)
         self.table.itemClicked.connect(self.update_help)
-        # help.updateField("Length", "Length of the segment", "AB a segment in 1D.")
 
     def update_help(self):
         item = self.table.currentItem()
