@@ -1,5 +1,13 @@
-from PyQt5 import QtCore, QtWidgets
-from PyQt5.QtWidgets import QFileDialog, QComboBox, QLabel, QLineEdit, QGridLayout
+from PyQt5 import QtCore, QtWidgets, QtGui
+from PyQt5.QtWidgets import (
+    QMessageBox,
+    QFileDialog,
+    QComboBox,
+    QLabel,
+    QLineEdit,
+    QGridLayout,
+    QAbstractButton,
+)
 from utils.GUI import gui_pages, gui_width, gui_height
 
 
@@ -41,8 +49,23 @@ class Window(QtWidgets.QWidget):
 
         self.file_path = ""
 
+        self.msg = QMessageBox()
+        self.msg.setWindowTitle("Select Output:")
+        self.msg.setText(
+            "Select your prefered output by clicking on the related button:"
+        )
+        self.msg.setIcon(QMessageBox.Question)
+        self.button_paraview = self.msg.addButton("Paraview", QMessageBox.NoRole)
+        self.button_matplotlib = self.msg.addButton("Matplotlib", QMessageBox.YesRole)
+        self.button_cancel = self.msg.addButton("Cancel", QMessageBox.RejectRole)
+        self.button_paraview.clicked.connect(self.popup_button)
+        self.button_matplotlib.clicked.connect(self.popup_button)
+
         self.button_generate = QtWidgets.QPushButton("Generate")
         self.button_generate.clicked.connect(self.generate_code)
+
+        self.button_generate_run = QtWidgets.QPushButton("Generate and Run")
+        self.button_generate_run.clicked.connect(self.show_message)
 
         self.button_prev = QtWidgets.QPushButton("< Prev")
         self.button_prev.clicked.connect(self.previous_page)
@@ -53,6 +76,7 @@ class Window(QtWidgets.QWidget):
         layout.addWidget(self.line_edit_directory, 2, 1)
         layout.addWidget(self.button_file_dialog, 2, 2)
         layout.addWidget(self.button_generate, 3, 4)
+        layout.addWidget(self.button_generate_run, 3, 5)
         layout.addWidget(self.button_prev, 3, 3)
 
         # create navigation list
@@ -65,6 +89,14 @@ class Window(QtWidgets.QWidget):
         layout.addWidget(self.comboBox, 3, 2)
 
         self.setLayout(layout)
+
+    def show_message(self):
+        self.msg.exec_()
+
+    def popup_button(self, i):
+        button = self.msg.clickedButton()
+        print(button.text())
+        # TODO
 
     def get_path(self):
         self.file_path = str(QFileDialog.getExistingDirectory(self, "Select Directory"))
