@@ -69,7 +69,7 @@ class Window(QtWidgets.QWidget):
         # create a QTableWidget Co-States
         self.table_costates = QTableWidget()
         self.table_costates.setRowCount(1)
-        self.table_costates.setColumnCount(5)
+        self.table_costates.setColumnCount(4)
         # self.table_costates.setGeometry(50, 100, 300, 300)
 
         # adding header to the table
@@ -78,7 +78,6 @@ class Window(QtWidgets.QWidget):
             "Description",
             "State",
             "Substituted",
-            "Mesh ID",
         ]
         self.header_vertical_costates = ["costate"]
         self.table_costates.setHorizontalHeaderLabels(header_horizontal_costates)

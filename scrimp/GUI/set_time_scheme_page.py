@@ -158,11 +158,12 @@ class Window(QtWidgets.QWidget):
             # remove all the rows
             self.table.setRowCount(0)
             # # add 3 rows
-            for _ in range(2):
+            for _ in range(3):
                 self.table.insertRow(self.table.rowCount())
 
-            self.table.setItem(0, 0, QTableWidgetItem("R"))
-            self.table.setItem(1, 0, QTableWidgetItem("h"))
+            self.table.setItem(0, 0, QTableWidgetItem("t_f"))
+            self.table.setItem(1, 0, QTableWidgetItem("dt"))
+            self.table.setItem(2, 0, QTableWidgetItem("pc_type"))
 
         elif selection == "Third":
             # remove all the rows

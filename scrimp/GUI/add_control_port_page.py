@@ -47,6 +47,7 @@ class Window(QtWidgets.QWidget):
             "Description Observation",
             "Kind",
             "Region",
+            "Position",
             "Mesh ID",
         ]
         self.table_control_ports.setColumnCount(len(header_horizontal_control_ports))
