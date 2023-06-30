@@ -82,7 +82,7 @@ class FEM:
         
         return self.__dim
 
-    def get_is_set(self) -> bool:
+    def get_isSet(self) -> bool:
         """This function gets the flag to know if the FEM are set in getfem.
 
         Returns:

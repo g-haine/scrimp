@@ -73,8 +73,6 @@ class DPHS:
         self.controls = dict()
         #: The `Hamiltonian` of a dphs is a list of dict containing several useful information for each term
         self.hamiltonian = Hamiltonian("Hamiltonian")
-        #: Store the computations of the powers f(t)*e(t) on each algebraic port
-        self.powers = dict()
         #: To check if the powers have been computed
         self.powers_computed = False
         #: Tangent (non-linear + linear) mass matrix of the system in PETSc CSR format
@@ -331,7 +329,7 @@ class DPHS:
         
         # Initialization of parameters
         try:
-            assert self.ports[name_port].get_is_set()
+            assert self.ports[name_port].get_isSet()
             self.init_parameter(parameter.get_name(), name_port)
         except AssertionError:
             logging.warning(
@@ -357,7 +355,7 @@ class DPHS:
         
         # Check if the FEM of the `port` has been set
         try:
-            assert self.ports[name_port].get_is_set()
+            assert self.ports[name_port].get_isSet()
         except AssertionError as err:
             logging.error(
                 "The FEM of the port must be set before initializing the parameter"
@@ -582,7 +580,7 @@ class DPHS:
             )
         )
 
-        self.controls[name].get_is_set()
+        self.controls[name].get_isSet()
         if rank==0:
             logging.info(
                 f"Control port: {self.controls[name].get_name()} has been set to: {u} = {expression} on region: {self.controls[name].get_region()} of mesh: {self.controls[name].get_mesh_id()}"
@@ -909,7 +907,7 @@ class DPHS:
                 raise err
         for name_control in self.controls.keys():
             try:
-                assert self.controls[name_control].get_is_set()
+                assert self.controls[name_control].get_isSet()
             except AssertionError as err:
                 logging.error(
                     f"Control {name_control} must be defined before time-resolution"
@@ -1109,7 +1107,10 @@ class DPHS:
         PETSc.garbage_cleanup() # solution saved in getfem, cleaning is safe
 
     def compute_Hamiltonian(self):
-        """Compute each `term` constituting the Hamiltonian"""
+        """Compute each `term` constituting the Hamiltonian
+        
+        Wrapper to the function `compute` of Hamiltonian class
+        """
 
         try:
             assert self.solve_done
@@ -1119,32 +1120,7 @@ class DPHS:
             )
             raise err
         
-        if rank==0:
-            logging.info(
-                "Start computing the Hamiltonian"
-            )
-        start = time.perf_counter()
-        for t, _ in enumerate(self.solution["t"]):
-            self.gf_model.to_variables(self.solution["z"][t])
-            for _, term in enumerate(self.hamiltonian):
-                term_value_at_t = 0.0
-                for region in term.get_regions():
-                    term_value_at_t += gf.asm(
-                        "generic",
-                        self.domain._int_method[term.get_mesh_id()],
-                        0,
-                        term.get_expression(),
-                        region,
-                        self.gf_model,
-                    )
-                term.set_value(term_value_at_t)
-
-        self.hamiltonian.set_is_computed()
-        
-        if rank==0:
-            logging.info(
-                f"Hamiltonian has been computed in {str(time.perf_counter() - start)} s"
-            )
+        self.hamiltonian.compute(self.solution, self.gf_model, self.domain)
 
     def plot_Hamiltonian(self, with_powers=True, save_figure=False, filename="hamiltonian.png"):
         """Plot each term constituting the Hamiltonian and the Hamiltonian
@@ -1152,9 +1128,9 @@ class DPHS:
         May include the `power terms`, i.e. the sum over [t_0, t_f] of the flow/effort product of algebraic ports
 
         Args:
-            with_powers (bool): if `True` (default), the plot will also contains the power of each algebraic ports
-            save_figure (bool): if 'True' (defaults: False), save the plot
-            filename (str): the name of the file where the plot is saved (defaults: `hamiltonian.png`)
+            - with_powers (bool): if `True` (default), the plot will also contains the power of each algebraic ports
+            - save_figure (bool): if 'True' (defaults: False), save the plot
+            - filename (str): the name of the file where the plot is saved (defaults: `hamiltonian.png`)
         """
 
         if not self.hamiltonian.get_is_computed():
@@ -1189,7 +1165,10 @@ class DPHS:
             plt.show()
 
     def compute_powers(self):
-        """Compute each power associated to each algebraic port if it is not substituted (because of the parameter-dependency if it is)"""
+        """Compute each power associated to each algebraic port if it is not substituted (because of the parameter-dependency if it is)
+        
+        Wrapper to the function `compute` of Port class (loop on self.ports)
+        """
 
         try:
             assert self.solve_done
@@ -1205,40 +1184,8 @@ class DPHS:
             )
         start = time.perf_counter()
         for _, port in self.ports.items():
-            if port.get_algebraic() and not port.get_substituted():
-                if port.get_region() == None:
-                    region = -1
-                else:
-                    region = port.get_region()
-
-                if port.get_kind() == "scalar-field":
-                    times = "*"
-                elif port.get_kind() == "vector-field":
-                    times = "."
-                elif port.get_kind() == "tensor-field":
-                    times = ":"
-                else:
-                    logging.error(
-                        f"Unknown kind {port.get_kind()} for control port"
-                    )
-                    raise ValueError
-
-                form = port.get_flow() + times + port.get_effort()
-
-                self.powers[port.get_name()] = []
-                for t, _ in enumerate(self.solution["t"]):
-                    self.gf_model.to_variables(self.solution["z"][t])
-
-                    power_value_at_t = gf.asm(
-                        "generic",
-                        self.domain._int_method[port.get_mesh_id()],
-                        0,
-                        form,
-                        region,
-                        self.gf_model,
-                    )
-                    self.powers[port.get_name()].append(power_value_at_t)
-
+            port.compute(self.solution, self.gf_model, self.domain)
+            
         self.powers_computed = True
         
         if rank==0:
@@ -1271,22 +1218,23 @@ class DPHS:
         if HamTot is not None:
             SP_balance = HamTot.copy()
 
-        for name_port in self.powers.keys():
-            values = np.array(self.powers[name_port])
-            power = np.zeros(t.size)
-            # Integration in time
-            for k in range(1, t.size):
-                power[k] = power[k - 1] + 0.5 * (t[k] - t[k - 1]) * (values[k - 1] + values[k])
-            if rank==0:
-                if self.ports[name_port].get_dissipative():
-                    ax.plot(t, -power, label=name_port)
-                else:
-                    ax.plot(t, power, label=name_port)
-            if HamTot is not None:
-                if self.ports[name_port].get_dissipative():
-                    SP_balance += power
-                else:
-                    SP_balance -= power
+        for _, port in self.ports.items():
+            if port.get_algebraic() and not port.get_substituted():
+                power = port.get_power()
+                values = np.zeros(t.size)
+                # Integration in time
+                for k in range(1, t.size):
+                    values[k] = values[k - 1] + 0.5 * (t[k] - t[k - 1]) * (power[k - 1] + power[k])
+                if rank==0:
+                    if port.get_dissipative():
+                        ax.plot(t, -values, label=port.get_name())
+                    else:
+                        ax.plot(t, values, label=port.get_name())
+                if HamTot is not None:
+                    if port.get_dissipative():
+                        SP_balance += values
+                    else:
+                        SP_balance -= values
 
         if HamTot is not None:
             # Check if the balance makes sense: should not have a port which is both algebraic and substituted
@@ -1408,7 +1356,6 @@ class DPHS:
                     FEM = self.gf_model.mesh_fem_of_variable(name_variable)
                     FEM.export_to_vtu(
                         os.path.join(path, name_variable + f"_{k:05d}.vtu"),
-                        "ascii",
                         FEM,
                         z,
                         name_variable,
@@ -1440,7 +1387,6 @@ class DPHS:
             FEM = self.gf_model.mesh_fem_of_variable(name_variable)
             FEM.export_to_vtu(
                 os.path.join(path, name_variable + "_init.vtu"),
-                "ascii",
                 FEM,
                 z,
                 name_variable,
@@ -1454,7 +1400,6 @@ class DPHS:
             FEM = self.gf_model.mesh_fem_of_variable(name_variable)
             FEM.export_to_vtu(
                 os.path.join(path, name_variable + "_final.vtu"),
-                "ascii",
                 FEM,
                 z,
                 name_variable,
@@ -1465,10 +1410,29 @@ class DPHS:
             )
             raise ValueError
 
+    def extract_solution(self, name_variable) -> list:
+        """This functions is useful (especially in 1D) to handle post-processing
+        by extracting the variable of interest from the PETSc Vec self.solution["z"]
+        
+        Args:
+            name_variable (str): the name of the variable to extract
+            
+        Returns:
+            list(numpy array): a list of numpy array (dofs of name_variable) at each time step (according to self.solution["t"])
+        """
+        
+        dofs = self.gf_model.interval_of_variable(name_variable)
+        variable = []
+        for k, _ in enumerate(self.solution["t"]):
+            variable.append(np.array(self.solution["z"][k].array[dofs[0]:dofs[0]+dofs[1]]))
+        
+        return variable
+
     def display(self, verbose=2):
         """A method giving infos about the dphs
 
-        verbose (int): the level of verbosity (defaults: 2)
+        Args:
+            - verbose (int): the level of verbosity (defaults to 2)
         """
 
         # TODO: improve presentation.

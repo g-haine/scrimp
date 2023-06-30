@@ -142,13 +142,17 @@ AC.plot_Hamiltonian(with_powers=True)
 
 import matplotlib.pyplot as plt  
 import numpy as np  
-dofs_Phi = AC.gf_model.interval_of_variable("Phi")  
+# dofs_Phi = AC.gf_model.interval_of_variable("Phi")  
 
 t = np.array(AC.solution['t'])  
 x = np.linspace(0,L,int(1/h)+1)
-Phi = np.array([AC.solution['z'][k].array[dofs_Phi[0]:dofs_Phi[0]+dofs_Phi[1]] for k in range(len(t))])  
+Phi = AC.extract_solution("Phi")
 
-sol = np.array([AC.solution['z'][k].array[dofs_Phi[0]:dofs_Phi[0]+dofs_Phi[1]] for k in [0,int(len(t)/10),int(1*len(t)/2),int(3*len(t)/4)]])  
+# np.array([AC.solution['z'][k].array[dofs_Phi[0]:dofs_Phi[0]+dofs_Phi[1]] for k in range(len(t))])  
+
+# sol = np.array([AC.solution['z'][k].array[dofs_Phi[0]:dofs_Phi[0]+dofs_Phi[1]] for k in [0,int(len(t)/10),int(1*len(t)/2),int(3*len(t)/4)]])  
+
+sol = np.array([Phi[k] for k in [0,int(len(t)/10),int(1*len(t)/2),int(3*len(t)/4)]])
 
 plt.clf()  
 plt.plot(x,np.transpose(sol))
@@ -170,13 +174,13 @@ import getfem as gf
 
 dofs_phi = AC.gf_model.interval_of_variable("Phi")
 relative = np.zeros(t.size)
-Phi0 = np.array(AC.solution['z'][0].array[dofs_Phi[0]:dofs_Phi[0]+dofs_Phi[1]])
+Phi0 = Phi[0]
 AC.gf_model.set_variable("Phi", Phi0)
 int_Phi0 = gf.asm_generic(AC.domain._int_method[0], 0, "Phi", -1, AC.gf_model)
 int_Phi = np.zeros(t.size)
 for k in range(t.size):
-    Phi = np.array(AC.solution['z'][k].array[dofs_Phi[0]:dofs_Phi[0]+dofs_Phi[1]])
-    AC.gf_model.set_variable("Phi", Phi)
+    Phi_k = np.array(Phi[k])
+    AC.gf_model.set_variable("Phi", Phi_k)
     int_Phi[k] = gf.asm_generic(AC.domain._int_method[0], 0, "Phi", -1, AC.gf_model)
     relative[k] = abs(int_Phi[k])/int_Phi0
 

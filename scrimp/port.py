@@ -22,9 +22,12 @@ from petsc4py import PETSc
 comm = PETSc.COMM_WORLD
 rank = comm.getRank()
 
+from scrimp.domain import Domain
 from scrimp.fem import FEM
 
+import getfem as gf
 import logging
+import time
 
 class Parameter:
     """This class describes the Parameter for a Port."""
@@ -127,7 +130,7 @@ class Port:
             region (int): the int identifying the region in mesh_id where the port belong, useful for boundary ports
         """
 
-        self.__isSet = False  #: A boolean to check if the domain has been setted
+        self.__isSet = False  #: A boolean to check if the domain has been set
         self.__name = name  #: The name of the `port`
         self.__flow = flow  #: The name of the flow variable
         self.__effort = effort  #: The name of the effort variable
@@ -141,8 +144,10 @@ class Port:
         )  #: A list of parameters acting on the variables of the `port`
         self.__fem = None  #: A getfem Meshfem object to discretize the `port`
         self.__region = region  #: If any, the int of the region of mesh_id where the flow/effort variables belong
+        self.__power = list() #: The power flowing through this port
+        self.__is_computed = False #: A boolean flag that indicates if the powers of the `port` has been computed
 
-    def get_is_set(self) -> bool:
+    def get_isSet(self) -> bool:
         """This funcion gets the boolean value that indicates wether the port is set or not.
 
 
@@ -152,7 +157,7 @@ class Port:
         
         return self.__isSet
 
-    def set_is_set(self) -> bool:
+    def set_isSet(self) -> bool:
         """This funcion sets the boolean value that indicates the port is set.
 
 
@@ -266,7 +271,7 @@ class Port:
         fem.set_fem()
 
         try:
-            assert fem.get_is_set()
+            assert fem.get_isSet()
             self.__fem = fem.get_fem()
             self.__isSet = True
         except AssertionError as err:
@@ -337,7 +342,7 @@ class Port:
         for p in self.__parameters:
             if p.get_name() == name:
                 assert self.__isSet, (
-                    "A fem must be setted for port '",
+                    "A fem must be set for port '",
                     self.__name,
                     "' before initialization",
                 )
@@ -353,6 +358,94 @@ class Port:
                 return evaluation
         assert False, ("Parameter", name, "must be added before intialization")
 
+    def set_is_computed(self):
+        """This function sets the power of the Port as computed."""
+        
+        self.__is_computed = True
+
+    def get_is_computed(self) -> bool:
+        """This function returns True if the power of the Port is computed, False otherwise.
+
+        Returns:
+            bool: flag that indicates if the power flowing through the Port has been computed
+        """
+        
+        return self.__is_computed
+    
+    def compute(self, solution: dict, gf_model: gf.Model, domain: Domain):
+        """Compute the power flowing through the algebraic port if it is not substituted (because of the parameter-dependency if it is)
+        
+        Args:
+            - solutions (dict):         The solution of the dphs
+            - gf_model (GetFEM Model):  The model getfem of the dphs
+            - domain (Domain):          The domain of the dphs
+        """
+
+        if self.get_algebraic() and not self.get_substituted():
+            if rank==0:
+                logging.info(
+                    f"Start computing the power flowing through {self.get_name()}"
+                )
+            start = time.perf_counter()
+            if self.get_region() == None:
+                region = -1
+            else:
+                region = self.get_region()
+
+            if self.get_kind() == "scalar-field":
+                times = "*"
+            elif self.get_kind() == "vector-field":
+                times = "."
+            elif self.get_kind() == "tensor-field":
+                times = ":"
+            else:
+                logging.error(
+                    f"Unknown kind {self.get_kind()}"
+                )
+                raise ValueError
+
+            form = self.get_flow() + times + self.get_effort()
+
+            self.__power = []
+            for t, _ in enumerate(solution["t"]):
+                gf_model.to_variables(solution["z"][t])
+
+                power_value_at_t = gf.asm(
+                    "generic",
+                    domain._int_method[self.get_mesh_id()],
+                    0,
+                    form,
+                    region,
+                    gf_model,
+                )
+                self.__power.append(power_value_at_t)
+
+            self.set_is_computed()
+        
+            if rank==0:
+                logging.info(
+                    f"Power in {self.get_name()} has been computed in {time.perf_counter() - start} s"
+                )
+        else:
+            if rank==0:
+                logging.info(
+                    f"Power cannot be computed for dynamic or substituted port {self.get_name()}"
+                )
+
+    def get_power(self):
+        """Gives access to the computed power of the port."""
+
+        try:
+            assert self.__is_computed
+            return self.__power
+        except AssertionError as err:
+            logging.error(
+                "Power for port",
+                self.__name,
+                "has not been computed yet",
+            )
+            raise err
+
     def __str__(self) -> str:
         """This function displays all the info of the port.
 
@@ -360,12 +453,16 @@ class Port:
             str: detailed info of the port
         """
 
-        assert self.__isSet, (
-            "Port",
-            self.__name,
-            "has not been setted yet (a fem is probably missing)",
-        )
-        self.__fem.display()
+        try:
+            assert self.__isSet
+            self.__fem.display()
+        except AssertionError as err:
+            logging.error(
+                "Port",
+                self.__name,
+                "has not been set yet (a fem is probably missing)",
+            )
+            raise err
 
         return f"{self.__name}, {self.__flow}, {self.__effort}, {self.__kind}, {str(self.__mesh_id)}, {str(self.__algebraic)}, {str(self.__substituted)}, {str(self.__dissipative)}, {self.__parameters}"
 

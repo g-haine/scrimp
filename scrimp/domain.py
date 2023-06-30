@@ -36,7 +36,7 @@ class Domain:
         """Constructor of the `domain` member of a dpHs"""
         
         self._name = name
-        self._isSet = False  #: A boolean to check if the domain has been setted
+        self._isSet = False  #: A boolean to check if the domain has been set
         self._mesh = list()  #: A list of getfem Mesh objects
         self._subdomains = list(
             dict()
@@ -62,7 +62,7 @@ class Domain:
 
             if self._isSet and rank==0:
                 logging.info(
-                    "Domain has been setted"
+                    "Domain has been set"
                 )
                 self.display()
 
@@ -93,7 +93,7 @@ class Domain:
                 self._isSet = False
                 if rank==0:
                     logging.warning(
-                        f"Integration method has to be setted manually on mesh {k} of dimension {self._dim[k]}"
+                        f"Integration method has to be set manually on mesh {k} of dimension {self._dim[k]}"
                     )
 
     def display(self):
@@ -103,13 +103,13 @@ class Domain:
             assert self._isSet
         except AssertionError as err:
             logging.error(
-                "Domain has not been setted yet"
+                "Domain has not been set yet"
             )
             raise err
         
         if rank==0:
             logging.info(
-                f"Domain is setted and contains {len(self._mesh)} mesh(es):"
+                f"Domain is set and contains {len(self._mesh)} mesh(es):"
             )
             for k in range(len(self._mesh)):
                 logging.info(
