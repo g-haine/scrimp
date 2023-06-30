@@ -1410,7 +1410,7 @@ class DPHS:
             )
             raise ValueError
 
-    def extract_solution(self, name_variable) -> list:
+    def get_solution(self, name_variable) -> list:
         """This functions is useful (especially in 1D) to handle post-processing
         by extracting the variable of interest from the PETSc Vec self.solution["z"]
         

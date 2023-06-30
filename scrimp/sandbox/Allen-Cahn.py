@@ -146,7 +146,7 @@ import numpy as np
 
 t = np.array(AC.solution['t'])  
 x = np.linspace(0,L,int(1/h)+1)
-Phi = AC.extract_solution("Phi")
+Phi = AC.get_solution("Phi")
 
 # np.array([AC.solution['z'][k].array[dofs_Phi[0]:dofs_Phi[0]+dofs_Phi[1]] for k in range(len(t))])  
 
