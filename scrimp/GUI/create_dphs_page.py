@@ -18,7 +18,7 @@ class Window(QtWidgets.QWidget):
         self.setFixedWidth(gui_width)
         self.setFixedHeight(gui_height)
 
-        layout = QGridLayout()
+        self.layout = QGridLayout()
 
         label_dphs_name = QLabel('<font size="4"> Name for your dpHs: </font>')
         self.line_edit_dphs_name = QLineEdit()
@@ -33,11 +33,11 @@ class Window(QtWidgets.QWidget):
         self.button_next = QtWidgets.QPushButton("Next >")
         self.button_next.clicked.connect(self.next_page)
 
-        layout.addWidget(label_dphs_name, 1, 0)
-        layout.addWidget(self.line_edit_dphs_name, 1, 1)
-        layout.addWidget(linlabel_dphs_type, 2, 0)
-        layout.addWidget(self.comboBox_dphs_type, 2, 1)
-        layout.addWidget(self.button_next, 3, 3)
+        self.layout.addWidget(label_dphs_name, 1, 0)
+        self.layout.addWidget(self.line_edit_dphs_name, 1, 1)
+        self.layout.addWidget(linlabel_dphs_type, 2, 0)
+        self.layout.addWidget(self.comboBox_dphs_type, 2, 1)
+        self.layout.addWidget(self.button_next, 3, 3)
 
         # create navigation list
         self.comboBox = QComboBox()
@@ -46,9 +46,9 @@ class Window(QtWidgets.QWidget):
 
         # There is an alternate signal to send the text.
         self.comboBox.currentTextChanged.connect(self.text_changed)
-        layout.addWidget(self.comboBox, 3, 2)
+        self.layout.addWidget(self.comboBox, 3, 2)
 
-        self.setLayout(layout)
+        self.setLayout(self.layout)
 
     def text_changed(self, page):  # s is a str
         self.comboBox.setCurrentText("create_dphs_page")

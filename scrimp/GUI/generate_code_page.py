@@ -28,7 +28,7 @@ class Window(QtWidgets.QWidget):
         self.setFixedWidth(gui_width)
         self.setFixedHeight(gui_height)
 
-        layout = QGridLayout()
+        self.layout = QGridLayout()
 
         label_filename = QLabel(
             '<font size="4"> Name for your script based on SCRIMP: </font>'
@@ -70,14 +70,14 @@ class Window(QtWidgets.QWidget):
         self.button_prev = QtWidgets.QPushButton("< Prev")
         self.button_prev.clicked.connect(self.previous_page)
 
-        layout.addWidget(label_filename, 1, 0)
-        layout.addWidget(self.line_edit_filname, 1, 1)
-        layout.addWidget(label_directory, 2, 0)
-        layout.addWidget(self.line_edit_directory, 2, 1)
-        layout.addWidget(self.button_file_dialog, 2, 2)
-        layout.addWidget(self.button_generate, 3, 4)
-        layout.addWidget(self.button_generate_run, 3, 5)
-        layout.addWidget(self.button_prev, 3, 3)
+        self.layout.addWidget(label_filename, 1, 0)
+        self.layout.addWidget(self.line_edit_filname, 1, 1)
+        self.layout.addWidget(label_directory, 2, 0)
+        self.layout.addWidget(self.line_edit_directory, 2, 1)
+        self.layout.addWidget(self.button_file_dialog, 2, 2)
+        self.layout.addWidget(self.button_generate, 3, 4)
+        self.layout.addWidget(self.button_generate_run, 3, 5)
+        self.layout.addWidget(self.button_prev, 3, 3)
 
         # create navigation list
         self.comboBox = QComboBox()
@@ -86,9 +86,9 @@ class Window(QtWidgets.QWidget):
 
         # There is an alternate signal to send the text.
         self.comboBox.currentTextChanged.connect(self.text_changed)
-        layout.addWidget(self.comboBox, 3, 2)
+        self.layout.addWidget(self.comboBox, 3, 2)
 
-        self.setLayout(layout)
+        self.setLayout(self.layout)
 
     def show_message(self):
         self.msg.exec_()
