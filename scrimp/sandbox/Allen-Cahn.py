@@ -170,19 +170,9 @@ plt.show()
 # prove to be constant for Cahn-Hilliard, see our GSI 2023
 # must grow here for a solidification process
 
-import getfem as gf
+int_Phi = AC.get_quantity("Phi")
 
-dofs_phi = AC.gf_model.interval_of_variable("Phi")
-relative = np.zeros(t.size)
-Phi0 = Phi[0]
-AC.gf_model.set_variable("Phi", Phi0)
-int_Phi0 = gf.asm_generic(AC.domain._int_method[0], 0, "Phi", -1, AC.gf_model)
-int_Phi = np.zeros(t.size)
-for k in range(t.size):
-    Phi_k = np.array(Phi[k])
-    AC.gf_model.set_variable("Phi", Phi_k)
-    int_Phi[k] = gf.asm_generic(AC.domain._int_method[0], 0, "Phi", -1, AC.gf_model)
-    relative[k] = abs(int_Phi[k])/int_Phi0
+relative = [int_Phi[k]/int_Phi[0] for k in range(len(int_Phi))]
 
 fig = plt.figure(figsize=[8,5])
 ax1 = fig.add_subplot(211)

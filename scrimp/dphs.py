@@ -1420,6 +1420,14 @@ class DPHS:
         Returns:
             list(numpy array): a list of numpy array (dofs of name_variable) at each time step (according to self.solution["t"])
         """
+
+        try:
+            assert self.solve_done
+        except AssertionError as err:
+            logging.error(
+                "The system has not been solved yet"
+            )
+            raise err
         
         dofs = self.gf_model.interval_of_variable(name_variable)
         variable = []
@@ -1427,6 +1435,39 @@ class DPHS:
             variable.append(np.array(self.solution["z"][k].array[dofs[0]:dofs[0]+dofs[1]]))
         
         return variable
+    
+    def get_quantity(self, expression, region=-1, mesh_id=0) -> list:
+        """This functions computes the integral over region of the expression 
+        at each time step
+        
+        Args:
+            - expression (str): the GFWL expression to compute
+            - region (int, optional): the id of the region (defaults to -1)
+            - mesh_id (int, optional): the id of the mesh (defaults to 0)
+            
+        Returns:
+            list(float): a list of float at each time step (according to self.solution["t"])
+        """
+
+        try:
+            assert self.solve_done
+        except AssertionError as err:
+            logging.error(
+                "The system has not been solved yet"
+            )
+            raise err
+
+        values = []
+        for k, t in enumerate(self.solution["t"]):
+            self.gf_model.set_time(t)
+            self.gf_model.to_variables(self.solution["z"][k].array)
+            values.append(
+                    gf.asm_generic(
+                            self.domain._int_method[mesh_id], 0, expression, region, self.gf_model
+                        )
+                )
+        
+        return values
 
     def display(self, verbose=2):
         """A method giving infos about the dphs
