@@ -18,6 +18,8 @@ gui_pages = [
 gui_width = 1700
 gui_height = 600
 button_size = (200, 150, 100, 40)
+main_size_font = "+3"
+secondary_size_font = "+2"
 
 from PyQt5.QtWidgets import (
     QHBoxLayout,
@@ -69,45 +71,31 @@ class Help:
         self.textEdit_help.clear()
         self.layout.itemAt(self.layout.count() - 2).widget().show()
         self.layout.itemAt(self.layout.count() - 1).widget().show()
-        s1 = name + "\n"
-        s2 = "_" * 20 + "\n"
-        s3 = description + "\n\n"
-        s4 = ""
-        if example != "":
-            s4 = "i.e.\n"
-        s5 = example
-        self.textEdit_help.setPlainText(s1 + s2 + s3 + s4 + s5)
 
-        # set font 1st string
-        format_1 = QTextCharFormat()
-        format_1.setFont(QFont("Arial", 16, QFont.Bold))
-        self.cursor.setPosition(0)
-        self.cursor.movePosition(QTextCursor.EndOfLine, QTextCursor.KeepAnchor)
-        self.cursor.mergeCharFormat(format_1)
+        html = None
 
-        # skip one line/string
-        self.cursor.movePosition(QTextCursor.NextBlock)
+        if example == "":
+            html = f"""
+                <font size = {main_size_font}> <b>{name}</b> </font>
+                <br>
+                <font size = {main_size_font}><b>{"_"*20}</b></font>
+                <br><br>
+                <font size = {main_size_font}><a>{description}</a></font>
+                <br>
+                <br>
+                """
+        else:
+            html = f"""
+                <font size = {main_size_font}><b>{name}</b></font>
+                <br>
+                <font size = {main_size_font}><b>{"_" *20}</b></font>
+                <br><br>
+                <font size = {main_size_font}><a>{description}</a></font>
+                <br>
+                <br>
+                <i><font size = {secondary_size_font}><b>i.e.</b></font></i>
+                <br>
+                <i><font size = {secondary_size_font}><a>{example}</a></font></i>
+                """
 
-        # set font 3rd string
-        format_2 = QTextCharFormat()
-        format_2.setFont(QFont("Arial", 16))
-        self.cursor.movePosition(QTextCursor.NextBlock)
-        self.cursor.movePosition(QTextCursor.EndOfLine, QTextCursor.KeepAnchor)
-        self.cursor.mergeCharFormat(format_2)
-
-        # skip one line/string
-        self.cursor.movePosition(QTextCursor.NextBlock)
-
-        # set font 4th string
-        format_3 = QTextCharFormat()
-        format_3.setFont(QFont("Courier", 12, QFont.Bold, italic=True))
-        self.cursor.movePosition(QTextCursor.NextBlock)
-        self.cursor.movePosition(QTextCursor.EndOfLine, QTextCursor.KeepAnchor)
-        self.cursor.mergeCharFormat(format_3)
-
-        # set font 5th string
-        format_3 = QTextCharFormat()
-        format_3.setFont(QFont("Courier", 12, italic=True))
-        self.cursor.movePosition(QTextCursor.NextBlock)
-        self.cursor.movePosition(QTextCursor.EndOfLine, QTextCursor.KeepAnchor)
-        self.cursor.mergeCharFormat(format_3)
+        self.textEdit_help.insertHtml(html)
