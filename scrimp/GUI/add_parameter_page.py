@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import (
     QLineEdit,
     QGridLayout,
     QTableWidget,
+    QTableWidgetItem,
     QComboBox,
 )
 from PyQt5.QtCore import Qt
@@ -36,7 +37,7 @@ class Window(QtWidgets.QWidget):
 
         # create a QTableWidget parameters
         self.table_parameters = QTableWidget()
-        self.table_parameters.setRowCount(1)
+        # self.table_parameters.setRowCount(1)
 
         # adding header to the table
         header_horizontal_parameters = [
@@ -44,7 +45,7 @@ class Window(QtWidgets.QWidget):
             "Description",
             "Kind",
             "Expression",
-            "Name parameter",
+            "Name Port",
         ]
         self.table_parameters.setColumnCount(len(header_horizontal_parameters))
 
@@ -101,6 +102,8 @@ class Window(QtWidgets.QWidget):
         self.help = Help(self.layout, 3, 3)
         self.table_parameters.cellClicked.connect(self.update_help)
 
+        self.new_parameter()
+
     def update_help(self):
         example = ""
         col = self.table_parameters.currentColumn()
@@ -150,12 +153,33 @@ class Window(QtWidgets.QWidget):
         self.switch_window.emit("add_port_page")
         self.hide()
 
+    def choice_clicked(self, text):
+        def foo():
+            print(text)
+            description = ""
+            example = ""
+
+            if text == "Kind":
+                description = "Choose what is the kind of your state."
+                example = """It could be one of the following list:
+                \n- scalar-field
+                \n- vector-field
+                \n- tensor-field"""
+
+            self.help.updateFields(text, description, example)
+
+        return foo
+
     def new_parameter(self):
         """This function adds 2 rows in the table (1 for parameter, 1 for co-parameter)"""
         count = self.table_parameters.rowCount()
         self.table_parameters.insertRow(count)
         self.header_vertical_parameters += ["parameter"]
         self.table_parameters.setVerticalHeaderLabels(self.header_vertical_parameters)
+        parameter_choice_kind = QComboBox()
+        parameter_choice_kind.addItems(["scalar-field", "vector-field", "tensor-field"])
+        parameter_choice_kind.textHighlighted.connect(self.choice_clicked("Kind"))
+        self.table_parameters.setCellWidget(count, 2, parameter_choice_kind)
 
     def delete_parameter(self):
         """This function removes 2 rows in the table (1 for parameter, 1 for co-parameter)"""
