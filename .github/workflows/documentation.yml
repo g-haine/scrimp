@@ -13,16 +13,16 @@ jobs:
         run: |
           sphinx-build -b html docs/source docs/build/html
           sphinx-build -b latex docs/source docs/build/latex
-      - name: LaTeX compilation
-        uses: hspaans/latexmk-action@v1
-        with:
-          format: pdf
-          filename: docs/build/latex/scrimp.tex
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
         if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
         with:
           publish_branch: gh-pages
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: docs/build/html
+          publish_dir: docs/build
           force_orphan: true
+      - name: LaTeX compilation
+        uses: hspaans/latexmk-action@v1
+        with:
+          format: pdf
+          filename: docs/build/latex/scrimp.tex
