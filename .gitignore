@@ -6,5 +6,6 @@ logs
 *.png
 *.msh
 *.vscode
+.spyproject/*
 dist/
 *egg*
