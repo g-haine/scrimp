@@ -15,6 +15,7 @@
 
 import petsc4py
 import sys
+import os
 
 petsc4py.init(sys.argv)
 from petsc4py import PETSc
@@ -25,6 +26,8 @@ rank = comm.getRank()
 import scrimp.utils.mesh
 import getfem as gf
 import logging
+
+module_path = os.path.join(__file__[:-17], "outputs")
 
 class Domain:
     """A class handling meshes and indices for regions
@@ -54,11 +57,8 @@ class Domain:
             gf_mesh = mesh_function(parameters, terminal=0)
             self._mesh.append(gf_mesh[0])
             self._dim.append(gf_mesh[1])
-            self._subdomains = [gf_mesh[2]]
-            self._boundaries = [gf_mesh[3]]
-            self._isSet = True
-
-            self.set_mim_auto()
+            self._subdomains.append(gf_mesh[2])
+            self._boundaries.append(gf_mesh[3])
 
             if self._isSet and rank==0:
                 logging.info(
@@ -68,8 +68,63 @@ class Domain:
 
         # TODO: If not built_in, given from a script 'name.py' or a .geo file with args in the dict 'parameters'
         # should be able to handle several meshes e.g. for interconnections, hence the list type
+        elif os.path.isfile(name):
+            pathname, fileextension = os.path.splitext(name)
+            basename = os.path.basename(name)[:-len(fileextension)]
+            try:
+                assert fileextension in [".msh", ".geo", ".py"]
+                self._name = basename
+                if fileextension==".msh":
+                    pass
+                elif fileextension==".geo":
+                    import gmsh
+                    gmsh.initialize()
+                    gmsh.model.add(basename)
+                    for key, value in parameters.items():
+                        gmsh.parser.setNumber(key, value=[value])
+                    gmsh.merge(name)
+                    gmsh.model.geo.synchronize()
+                    self._dim.append(gmsh.model.getDimension())
+                    subdomains = dict()
+                    for dimTags in gmsh.model.getPhysicalGroups(self._dim[-1]):
+                        subdomains[gmsh.model.getPhysicalName(self._dim[-1], dimTags[1])] = gmsh.model.getEntitiesForPhysicalGroup(self._dim[-1], dimTags[1])[0]
+                    self._subdomains.append(subdomains)
+                    boundaries = dict()
+                    for dimTags in gmsh.model.getPhysicalGroups(self._dim[-1]-1):
+                        boundaries[gmsh.model.getPhysicalName(self._dim[-1]-1, dimTags[1])] = gmsh.model.getEntitiesForPhysicalGroup(self._dim[-1]-1, dimTags[1])[0]
+                    self._boundaries.append(boundaries)
+                    gmsh.model.mesh.generate(gmsh.model.getDimension())
+                    gmsh.write(os.path.join(module_path, "mesh", basename+".msh"))
+                    gmsh.finalize()
+                    self._mesh.append(gf.Mesh("import", "gmsh_with_lower_dim_elt", os.path.join(module_path, "mesh", basename+".msh")))
+                    
+                elif fileextension==".py":
+                    pass
+                else:
+                    logging.error(
+                            f"Construction of Domain fails from {name}"
+                        )
+                    raise NotImplementedError
+            except AssertionError as err:
+                logging.error(
+                        f"Construction of Domain fails from {name}"
+                    )
+                raise err
         else:
-            pass
+            logging.error(
+                    f"Construction of Domain fails from {name}"
+                )
+            raise NotImplementedError
+        
+        self._isSet = True
+
+        self.set_mim_auto()
+
+        if self._isSet and rank==0:
+            logging.info(
+                "Domain has been set"
+            )
+            self.display()
 
     def set_mim_auto(self):
         """Define the integration method to a default choice"""

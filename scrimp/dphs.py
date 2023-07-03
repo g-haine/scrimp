@@ -1345,7 +1345,7 @@ class DPHS:
         if t == "All":
             if rank==0:
                 logging.info(
-                    f"Export all time values of {name_variable} is starting...\n"
+                    f"Export all time values of {name_variable} is starting..."
                 )
             with open(os.path.join(path, name_variable + ".pvd"), "w") as pvd_file:
                 pvd_file.write('<?xml version="1.0"?>\n')
@@ -1376,7 +1376,7 @@ class DPHS:
             pvd_file.close()
             if rank==0:
                 logging.info(
-                    "\rExport is done              \n"
+                    "\rExport is done              "
                 )
         elif t == "Init":
             if rank==0:
