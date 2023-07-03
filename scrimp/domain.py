@@ -35,7 +35,7 @@ class Domain:
     Lists are used to handle interconnection of pHs, allowing for several meshes in the dpHs.
     """
 
-    def __init__(self, name: str, parameters: dict):
+    def __init__(self, name: str, parameters: dict, refine=0, terminal=1):
         """Constructor of the `domain` member of a dpHs"""
         
         self._name = name
@@ -54,7 +54,7 @@ class Domain:
 
         if name in built_in_methods:
             mesh_function = getattr(scrimp.utils.mesh, name)
-            gf_mesh = mesh_function(parameters, terminal=0)
+            gf_mesh = mesh_function(parameters, refine=refine, terminal=0)
             self._mesh.append(gf_mesh[0])
             self._dim.append(gf_mesh[1])
             self._subdomains.append(gf_mesh[2])
@@ -78,6 +78,8 @@ class Domain:
                     pass
                 elif fileextension==".geo":
                     import gmsh
+                    gmsh.option.setNumber("General.Terminal", terminal)
+                    gmsh.option.setNumber("General.NumThreads", 0) # Use system default
                     gmsh.initialize()
                     gmsh.model.add(basename)
                     for key, value in parameters.items():
@@ -94,6 +96,8 @@ class Domain:
                         boundaries[gmsh.model.getPhysicalName(self._dim[-1]-1, dimTags[1])] = gmsh.model.getEntitiesForPhysicalGroup(self._dim[-1]-1, dimTags[1])[0]
                     self._boundaries.append(boundaries)
                     gmsh.model.mesh.generate(gmsh.model.getDimension())
+                    for i in range(refine):
+                        gmsh.model.mesh.refine()
                     gmsh.write(os.path.join(module_path, "mesh", basename+".msh"))
                     gmsh.finalize()
                     self._mesh.append(gf.Mesh("import", "gmsh_with_lower_dim_elt", os.path.join(module_path, "mesh", basename+".msh")))

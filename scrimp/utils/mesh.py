@@ -67,23 +67,24 @@ def built_in_geometries():
         logging.info("")
 
 
-def Interval(parameters={"L": 1.0, "h": 0.05}, terminal=1):
+def Interval(parameters={"L": 1.0, "h": 0.05}, refine=0, terminal=1):
     """The geometry of a segment (0,L) with mesh size h
     
-    Domain `Omega`: 1, 
-    Left boundary `Gamma_Left`: 10, 
-    Right boundary `Gamma_Right`: 11
+    - Domain `Omega`: 1, 
+    - Left boundary `Gamma_Left`: 10, 
+    - Right boundary `Gamma_Right`: 11
 
     Args:
-        parameters (dict): The dictionary of parameters for the geometry
-        terminal (int): An option to print meshing infos in the prompt, value `0` (quiet) or `1` (verbose, default)
+        - parameters (dict): The dictionary of parameters for the geometry
+        - refine (int): Ask for iterative refinements by splitting elements
+        - terminal (int): An option to print meshing infos in the prompt, value `0` (quiet) or `1` (verbose, default)
     
     Returns:
         list[gf.Mesh, int, dict, dict]: The mesh to use with getfem, the dimension, a dict of regions with getfem indices for dim n and a dict of regions with getfem indices for dim n-1
     """
 
     L = parameters["L"]
-    h = parameters["h"]
+    h = parameters["h"]/refine
 
     mesh = gf.Mesh(
         "regular simplices",
@@ -112,15 +113,16 @@ def Interval(parameters={"L": 1.0, "h": 0.05}, terminal=1):
         ]
 
 
-def Disk(parameters={"R": 1.0, "h": 0.1}, terminal=1):
+def Disk(parameters={"R": 1.0, "h": 0.1}, refine=0, terminal=1):
     """The geometry of a Disk center in (0,0) with radius R and mesh size h
 
-    Domain `Omega`: 1, 
-    Boundary `Gamma`: 10
+    - Domain `Omega`: 1, 
+    - Boundary `Gamma`: 10
     
     Args:
-        parameters (dict): The dictionary of parameters for the geometry
-        terminal (int): An option to print meshing infos in the prompt, value `0` (quiet) or `1` (verbose, default)
+        - parameters (dict): The dictionary of parameters for the geometry
+        - refine (int): Ask for iterative refinements by splitting elements
+        - terminal (int): An option to print meshing infos in the prompt, value `0` (quiet) or `1` (verbose, default)
     
     Returns:
         list[gf.Mesh, int, dict, dict]: The mesh to use with getfem, the dimension, a dict of regions with getfem indices for dim n and a dict of regions with getfem indices for dim n-1
@@ -169,6 +171,9 @@ def Disk(parameters={"R": 1.0, "h": 0.1}, terminal=1):
     # Mesh (2D)
     dim = 2
     model.mesh.generate(dim)
+    # Refine
+    for i in range(refine):
+        model.mesh.refine()
     # Write on disk
     gmsh.write(os.path.join(module_path, "mesh", "Disk.msh"))
     # Finalize GMSH
@@ -195,18 +200,19 @@ def Disk(parameters={"R": 1.0, "h": 0.1}, terminal=1):
         ]
 
 
-def Rectangle(parameters={"L": 2.0, "l": 1, "h": 0.1}, terminal=1):
+def Rectangle(parameters={"L": 2.0, "l": 1, "h": 0.1}, refine=0, terminal=1):
     """The geometry of a Rectangle (0,L)x(0,l) with mesh size h
     
-    Domain `Omega`: 1, 
-    Bottom boundary `Gamma_Bottom`: 10, 
-    Right boundary `Gamma_Right`: 11, 
-    Top boundary `Gamma_Top`: 12, 
-    Left boundary `Gamma_Left`: 13
+    - Domain `Omega`: 1, 
+    - Bottom boundary `Gamma_Bottom`: 10, 
+    - Right boundary `Gamma_Right`: 11, 
+    - Top boundary `Gamma_Top`: 12, 
+    - Left boundary `Gamma_Left`: 13
 
     Args:
-        parameters (dict): The dictionary of parameters for the geometry
-        terminal (int): An option to print meshing infos in the prompt, value `0` (quiet) or `1` (verbose, default)
+        - parameters (dict): The dictionary of parameters for the geometry
+        - refine (int): Ask for iterative refinements by splitting elements
+        - terminal (int): An option to print meshing infos in the prompt, value `0` (quiet) or `1` (verbose, default)
     
     Returns:
         list[gf.Mesh, int, dict, dict]: The mesh to use with getfem, the dimension, a dict of regions with getfem indices for dim n and a dict of regions with getfem indices for dim n-1
@@ -240,6 +246,8 @@ def Rectangle(parameters={"L": 2.0, "l": 1, "h": 0.1}, terminal=1):
 
     dim = 2
     model.mesh.generate(dim)
+    for i in range(refine):
+        gmsh.model.mesh.refine()
     gmsh.write(os.path.join(module_path, "mesh", "Rectangle.msh"))
     gmsh.finalize()
 
@@ -258,17 +266,18 @@ def Rectangle(parameters={"L": 2.0, "l": 1, "h": 0.1}, terminal=1):
         ]
 
 
-def Concentric(parameters={"R": 1.0, "r": 0.6, "h": 0.1}, terminal=1):
+def Concentric(parameters={"R": 1.0, "r": 0.6, "h": 0.1}, refine=0, terminal=1):
     """The geometry of a Disk of radius r surrounded by an annulus of radii r and R with mesh size h
 
-    Domain `Omega_Disk`: 1, 
-    Domain `Omega_Annulus`: 2, 
-    Interface `Interface`: 10, 
-    Boundary `Gamma`: 20
+    - Domain `Omega_Disk`: 1, 
+    - Domain `Omega_Annulus`: 2, 
+    - Interface `Interface`: 10, 
+    - Boundary `Gamma`: 20
 
     Args:
-        parameters (dict): The dictionary of parameters for the geometry
-        terminal (int): An option to print meshing infos in the prompt, value `0` (quiet) or `1` (verbose, default)
+        - parameters (dict): The dictionary of parameters for the geometry
+        - refine (int): Ask for iterative refinements by splitting elements
+        - terminal (int): An option to print meshing infos in the prompt, value `0` (quiet) or `1` (verbose, default)
     
     Returns:
         list[gf.Mesh, int, dict, dict]: The mesh to use with getfem, the dimension, a dict of regions with getfem indices for dim n and a dict of regions with getfem indices for dim n-1
@@ -331,6 +340,8 @@ def Concentric(parameters={"R": 1.0, "r": 0.6, "h": 0.1}, terminal=1):
 
     dim = 2
     model.mesh.generate(dim)
+    for i in range(refine):
+        gmsh.model.mesh.refine()
     gmsh.write(os.path.join(module_path, "mesh", "Concentric.msh"))
     gmsh.finalize()
 
@@ -356,15 +367,16 @@ def Concentric(parameters={"R": 1.0, "r": 0.6, "h": 0.1}, terminal=1):
     ]
 
 
-def Ball(parameters={"R": 1.0, "h": 0.1}, terminal=1):
+def Ball(parameters={"R": 1.0, "h": 0.1}, refine=0, terminal=1):
     """The geometry of a Ball of radius R centered in (0,0,0) with mesh size h
 
-    Domain `Omega`: 1, 
-    Boundary `Gamma`: 10
+    - Domain `Omega`: 1, 
+    - Boundary `Gamma`: 10
 
     Args:
-        parameters (dict): The dictionary of parameters for the geometry
-        terminal (int): An option to print meshing infos in the prompt, value `0` (quiet) or `1` (verbose, default)
+        - parameters (dict): The dictionary of parameters for the geometry
+        - refine (int): Ask for iterative refinements by splitting elements
+        - terminal (int): An option to print meshing infos in the prompt, value `0` (quiet) or `1` (verbose, default)
     
     Returns:
         list[gf.Mesh, int, dict, dict]: The mesh to use with getfem, the dimension, a dict of regions with getfem indices for dim n and a dict of regions with getfem indices for dim n-1
@@ -428,6 +440,8 @@ def Ball(parameters={"R": 1.0, "h": 0.1}, terminal=1):
 
     dim = 3
     model.mesh.generate(dim)
+    for i in range(refine):
+        gmsh.model.mesh.refine()
     gmsh.write(os.path.join(module_path, "mesh", "Ball.msh"))
     gmsh.finalize()
 
