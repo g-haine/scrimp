@@ -1,6 +1,8 @@
 Examples
 ========
 
+.. _examples:
+
 Here are provided some examples coming from our `publications <biblio>`_.
 
 .. toctree::
