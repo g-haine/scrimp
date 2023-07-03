@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import (
     QLineEdit,
     QGridLayout,
     QTableWidget,
+    QTableWidgetItem,
     QComboBox,
 )
 from PyQt5.QtCore import Qt
@@ -24,7 +25,7 @@ class Window(QtWidgets.QWidget):
     def __init__(self):
         QtWidgets.QWidget.__init__(self)
 
-        self.setWindowTitle("Definition of Control brick/s")
+        self.setWindowTitle("Definition of Brick/s")
         self.setFixedWidth(gui_width)
         self.setFixedHeight(gui_height)
         # self.setGeometry(100, 100, 600, 300)
@@ -36,7 +37,7 @@ class Window(QtWidgets.QWidget):
 
         # create a QTableWidget bricks
         self.table_bricks = QTableWidget()
-        self.table_bricks.setRowCount(1)
+        # self.table_bricks.setRowCount(1)
 
         # adding header to the table
         header_horizontal_bricks = [
@@ -103,6 +104,8 @@ class Window(QtWidgets.QWidget):
         self.help = Help(self.layout, 3, 3)
         self.table_bricks.cellClicked.connect(self.update_help)
 
+        self.new_brick()
+
     def update_help(self):
         example = ""
         col = self.table_bricks.currentColumn()
@@ -163,12 +166,56 @@ class Window(QtWidgets.QWidget):
         self.switch_window.emit("add_term_page")
         self.hide()
 
+    def choice_clicked(self, text):
+        def foo():
+            print(text)
+            description = ""
+            example = ""
+
+            if text == "Linear":
+                description = (
+                    "This is a parameter to help easy identification of linear bricks."
+                )
+                example = "Defaults is True."
+
+            elif text == "dt":
+                description = "This is a parameter to help easy identification of matrices applied to time derivative of a variable."
+                example = "The mass matrices.\n Defaults to False."
+
+            elif text == "position":
+                description = "It is a boolean that defines whether to substitute the variable. Defaults to False"
+                example = "Default is False"
+
+            self.help.updateFields(text, description, example)
+
+        return foo
+
     def new_brick(self):
         """This function adds 2 rows in the table (1 for brick, 1 for co-brick)"""
         count = self.table_bricks.rowCount()
         self.table_bricks.insertRow(count)
         self.header_vertical_bricks += ["brick"]
         self.table_bricks.setVerticalHeaderLabels(self.header_vertical_bricks)
+
+        brick_choice_linear = QComboBox()
+        brick_choice_linear.addItems(["True", "False"])
+        brick_choice_linear.textHighlighted.connect(self.choice_clicked("Linear"))
+        self.table_bricks.setCellWidget(count, 3, brick_choice_linear)
+
+        brick_choice_dt = QComboBox()
+        brick_choice_dt.addItems(["False", "True"])
+        brick_choice_dt.textHighlighted.connect(self.choice_clicked("dt"))
+        self.table_bricks.setCellWidget(count, 4, brick_choice_dt)
+
+        brick_choice_position = QComboBox()
+        brick_choice_position.addItems(["Contitutive", "?"])
+        brick_choice_position.textHighlighted.connect(self.choice_clicked("dt"))
+        self.table_bricks.setCellWidget(count, 5, brick_choice_position)
+
+        # set defaults
+        # mesh_id
+        new_value = QTableWidgetItem("0")
+        self.table_bricks.setItem(count, 6, new_value)
 
     def delete_brick(self):
         """This function removes 2 rows in the table (1 for brick, 1 for co-brick)"""
