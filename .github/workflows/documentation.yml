@@ -1,5 +1,5 @@
 name: Docs
-on: [push, pull_request, workflow_dispatch]
+on: [push]
 jobs:
   docs:
     runs-on: ubuntu-latest
@@ -11,12 +11,17 @@ jobs:
           pip install sphinx sphinx_rtd_theme
       - name: Sphinx build
         run: |
-          sphinx-build -b html docs/source docs/build
+          sphinx-build -b html docs/source docs/build/html
+          sphinx-build -b latex docs/source docs/build/latex
+      - name: LaTeX compilation
+        run: |
+          cd docs/build/latex
+          make
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
         if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
         with:
           publish_branch: gh-pages
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: docs/build
+          publish_dir: docs/build/html
           force_orphan: true
