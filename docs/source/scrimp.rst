@@ -3,6 +3,8 @@ Code documentation
 
 This documentation is generated automatically from the python source using `SPHINX <https://www.sphinx-doc.org/en/master/>`_.
 
+This documentation is `available in pdf<https://g-haine.github.io/scrimp/latex/scrimp.pdf>`_.
+
 Sub-packages
 ------------
 
