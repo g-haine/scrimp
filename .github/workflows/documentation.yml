@@ -6,25 +6,25 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
+      - name: Install LaTeX
+        run: |
+          sudo apt-get update && sudo apt-get install texlive-full latexmk
       - name: Install dependencies
         run: |
           pip install sphinx sphinx_rtd_theme
       - name: Sphinx build
         run: |
-          sphinx-build -b html docs/source docs/build/html
+          sphinx-build -b html docs/source docs/build
           sphinx-build -b latex docs/source docs/build/latex
-      - name: Deploy
+      - name: LaTeX compilation
+        run: |
+          cd docs/build/latex
+          make
+      - name: Deploy on GitHub pages
         uses: peaceiris/actions-gh-pages@v3
         if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
         with:
           publish_branch: gh-pages
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: docs/build/html
+          publish_dir: docs/build
           force_orphan: true
-      - name: LaTeX compilation
-        run: |
-          cd docs/build/latex
-        uses: hspaans/latexmk-action@v1
-        with:
-          format: pdf
-          filename: scrimp.tex
