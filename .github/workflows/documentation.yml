@@ -9,15 +9,15 @@ jobs:
       - name: Install dependencies
         run: |
           pip install sphinx sphinx_rtd_theme
-          apt-get install latexmk
       - name: Sphinx build
         run: |
           sphinx-build -b html docs/source docs/build/html
           sphinx-build -b latex docs/source docs/build/latex
       - name: LaTeX compilation
-        run: |
-          cd docs/build/latex
-          make
+        uses: hspaans/latexmk-action@v1
+        with:
+          format: pdf
+          filename: docs/build/latex/scrimp.tex
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
         if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
