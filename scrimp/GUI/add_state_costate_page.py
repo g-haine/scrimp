@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import (
     QLineEdit,
     QGridLayout,
     QTableWidget,
+    QTableWidgetItem,
     QComboBox,
 )
 from PyQt5.QtCore import Qt
@@ -36,7 +37,7 @@ class Window(QtWidgets.QWidget):
 
         # create a QTableWidget States
         self.table_states = QTableWidget()
-        self.table_states.setRowCount(1)
+        # self.table_states.setRowCount(1)
         self.table_states.setColumnCount(5)
         # self.table_states.setGeometry(50, 100, 300, 300)
 
@@ -68,7 +69,7 @@ class Window(QtWidgets.QWidget):
 
         # create a QTableWidget Co-States
         self.table_costates = QTableWidget()
-        self.table_costates.setRowCount(1)
+        # self.table_costates.setRowCount(1)
         self.table_costates.setColumnCount(4)
         # self.table_costates.setGeometry(50, 100, 300, 300)
 
@@ -124,6 +125,8 @@ class Window(QtWidgets.QWidget):
         self.help = Help(self.layout, 3, 3)
         self.table_costates.cellClicked.connect(self.update_help_costate)
         self.table_states.cellClicked.connect(self.update_help_state)
+
+        self.new_state()
 
     def update_help_state(self):
         # item = self.table_states.currentItem()
@@ -211,12 +214,40 @@ class Window(QtWidgets.QWidget):
         self.switch_window.emit("set_domain_page")
         self.hide()
 
+    def choice_clicked(self, text):
+        def foo():
+            print(text)
+            description = ""
+            example = ""
+
+            if text == "Kind":
+                description = "Choose what is the kind of your state."
+                example = """It could be one of the following list:
+                \n- scalar-field
+                \n- vector-field
+                \n- tensor-field"""
+
+            elif text == "Substituted":
+                description = "It is a boolean that defines whether to substitute the variable. Defaults to False"
+                example = ""
+            self.help.updateFields(text, description, example)
+
+        return foo
+
     def new_state(self):
         """This function adds 2 rows in the table (1 for state, 1 for co-state)"""
         count = self.table_states.rowCount()
         self.table_states.insertRow(count)
         self.header_vertical_states += ["state"]
         self.table_states.setVerticalHeaderLabels(self.header_vertical_states)
+        state_choice = QComboBox()
+        state_choice.addItems(["scalar-field", "vector-field", "tensor-field"])
+
+        state_choice.textHighlighted.connect(self.choice_clicked("Kind"))
+        self.table_states.setCellWidget(count, 2, state_choice)
+        # set defaults
+        new_value = QTableWidgetItem("0")
+        self.table_states.setItem(count, 4, new_value)
         self.new_costate()
 
     def delete_state(self):
@@ -236,6 +267,11 @@ class Window(QtWidgets.QWidget):
         self.table_costates.insertRow(count)
         self.header_vertical_costates += ["costate"]
         self.table_costates.setVerticalHeaderLabels(self.header_vertical_costates)
+        costate_choice = QComboBox()
+        costate_choice.addItems(["False", "True"])
+
+        costate_choice.textHighlighted.connect(self.choice_clicked("Substituted"))
+        self.table_costates.setCellWidget(count, 3, costate_choice)
 
     def delete_costate(self):
         """This function removes 2 rows in the table (1 for state, 1 for co-state)"""
