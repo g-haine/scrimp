@@ -84,7 +84,7 @@ def Interval(parameters={"L": 1.0, "h": 0.05}, refine=0, terminal=1):
     """
 
     L = parameters["L"]
-    h = parameters["h"]/refine
+    h = parameters["h"]/(refine+1)
 
     mesh = gf.Mesh(
         "regular simplices",

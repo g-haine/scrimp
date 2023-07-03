@@ -78,9 +78,9 @@ class Domain:
                     pass
                 elif fileextension==".geo":
                     import gmsh
+                    gmsh.initialize()
                     gmsh.option.setNumber("General.Terminal", terminal)
                     gmsh.option.setNumber("General.NumThreads", 0) # Use system default
-                    gmsh.initialize()
                     gmsh.model.add(basename)
                     for key, value in parameters.items():
                         gmsh.parser.setNumber(key, value=[value])
@@ -116,7 +116,7 @@ class Domain:
                 raise err
         else:
             logging.error(
-                    f"Construction of Domain fails from {name}"
+                    f"Construction of Domain fails from {name} (this file or function does not exist)"
                 )
             raise NotImplementedError
         
