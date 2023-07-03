@@ -16,7 +16,8 @@ jobs:
       - name: Compile LaTeX
         uses: xu-cheng/latex-action@v2
         with:
-          root_file: docs/build/latex/scrimp.tex
+          root_file: scrimp.tex
+          working_directory: docs/build/latex/
       - name: Deploy on GitHub pages
         uses: peaceiris/actions-gh-pages@v3
         if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
