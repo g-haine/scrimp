@@ -27,7 +27,7 @@ Code structure
 Documentation
 -------------
 
-You can build the documentation locally by running ``make latexpdf`` in the docs folder.
+You can find this documentation `here <https://g-haine.github.io/scrimp/latex/scrimp.pdf>`_.
 
 See `Sphinx <https://www.sphinx-doc.org/>`_ for further informations.
 

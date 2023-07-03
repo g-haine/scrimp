@@ -23,7 +23,7 @@ What is SCRIMP?
 
 **SCRIMP** aims at speeding the coding process of the **Partitioned Finite Element Method** on a wide range of (multi-)physical systems (`Brugnoli *et al.* (2021) <https://doi.org/10.4236/jamp.2021.96088>`_), and scrimp and save time!
 
-The documentation is `available in pdf<https://g-haine.github.io/scrimp/latex/scrimp.pdf>`_.
+The documentation is `available in pdf <https://g-haine.github.io/scrimp/latex/scrimp.pdf>`_.
 
 Table of Contents
 =================
@@ -38,6 +38,7 @@ Table of Contents
     References <biblio>
     ANR Impacts <https://impacts.ens2m.fr/>
     GitHub repo <https://github.com/g-haine/scrimp>
+    PDF documentation <https://g-haine.github.io/scrimp/latex/scrimp.pdf>
 
 ************************
 Port-Hamiltonian systems
