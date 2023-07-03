@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import (
     QLineEdit,
     QGridLayout,
     QTableWidget,
+    QTableWidgetItem,
     QComboBox,
 )
 from PyQt5.QtCore import Qt
@@ -36,7 +37,7 @@ class Window(QtWidgets.QWidget):
 
         # create a QTableWidget terms
         self.table_terms = QTableWidget()
-        self.table_terms.setRowCount(1)
+        # self.table_terms.setRowCount(1)
 
         # adding header to the table
         header_horizontal_terms = ["Description", "Expression", "Regions", "Mesh ID"]
@@ -95,6 +96,8 @@ class Window(QtWidgets.QWidget):
         self.help = Help(self.layout, 3, 3)
         self.table_terms.cellClicked.connect(self.update_help)
 
+        self.new_term()
+
     def update_help(self):
         example = ""
         col = self.table_terms.currentColumn()
@@ -146,6 +149,10 @@ class Window(QtWidgets.QWidget):
         self.table_terms.insertRow(count)
         self.header_vertical_terms += ["term"]
         self.table_terms.setVerticalHeaderLabels(self.header_vertical_terms)
+        # set defaults
+        # mesh_id
+        new_value = QTableWidgetItem("0")
+        self.table_terms.setItem(count, 3, new_value)
 
     def delete_term(self):
         """This function removes 2 rows in the table (1 for term, 1 for co-term)"""
