@@ -19,10 +19,12 @@ jobs:
         with:
           publish_branch: gh-pages
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: docs/build
+          publish_dir: docs/build/html
           force_orphan: true
       - name: LaTeX compilation
+        run: |
+          cd docs/build/latex
         uses: hspaans/latexmk-action@v1
         with:
           format: pdf
-          filename: docs/build/latex/scrimp.tex
+          filename: scrimp.tex
