@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import (
     QLineEdit,
     QGridLayout,
     QTableWidget,
+    QTableWidgetItem,
     QComboBox,
 )
 from PyQt5.QtCore import Qt
@@ -36,7 +37,7 @@ class Window(QtWidgets.QWidget):
 
         # create a QTableWidget ports
         self.table_ports = QTableWidget()
-        self.table_ports.setRowCount(1)
+        # self.table_ports.setRowCount(1)
 
         # adding header to the table
         header_horizontal_ports = [
@@ -104,6 +105,8 @@ class Window(QtWidgets.QWidget):
         self.help = Help(self.layout, 3, 3)
         self.table_ports.cellClicked.connect(self.update_help)
 
+        self.new_port()
+
     def update_help(self):
         example = ""
         col = self.table_ports.currentColumn()
@@ -168,12 +171,59 @@ class Window(QtWidgets.QWidget):
         self.switch_window.emit("add_state_costate_page")
         self.hide()
 
+    def choice_clicked(self, text):
+        def foo():
+            print(text)
+            description = ""
+            example = ""
+
+            if text == "Algebraic":
+                description = "if `False`, the flow variable will be derivated in time at resolution"
+                example = "Default is True."
+
+            elif text == "Kind":
+                description = "Choose what is the kind of your state."
+                example = """It could be one of the following list:
+                \n- scalar-field
+                \n- vector-field
+                \n- tensor-field"""
+
+            elif text == "Substituted":
+                description = "It is a boolean that defines whether to substitute the variable. Defaults to False"
+                example = "Default is False"
+
+            self.help.updateFields(text, description, example)
+
+        return foo
+
     def new_port(self):
         """This function adds 2 rows in the table (1 for port, 1 for co-port)"""
         count = self.table_ports.rowCount()
         self.table_ports.insertRow(count)
         self.header_vertical_ports += ["port"]
         self.table_ports.setVerticalHeaderLabels(self.header_vertical_ports)
+        # create table to add in cell of table
+        port_choice_algebraic = QComboBox()
+        port_choice_algebraic.addItems(["True", "False"])
+        port_choice_algebraic.textHighlighted.connect(self.choice_clicked("Algebraic"))
+        self.table_ports.setCellWidget(count, 5, port_choice_algebraic)
+
+        port_choice_kind = QComboBox()
+        port_choice_kind.addItems(["scalar-field", "vector-field", "tensor-field"])
+        port_choice_kind.textHighlighted.connect(self.choice_clicked("Kind"))
+        self.table_ports.setCellWidget(count, 3, port_choice_kind)
+
+        port_choice_substituted = QComboBox()
+        port_choice_substituted.addItems(["False", "True"])
+        port_choice_substituted.textHighlighted.connect(
+            self.choice_clicked("Substituted")
+        )
+        self.table_ports.setCellWidget(count, 6, port_choice_substituted)
+
+        # set defaults
+        # mesh_id
+        new_value = QTableWidgetItem("0")
+        self.table_ports.setItem(count, 4, new_value)
 
     def delete_port(self):
         """This function removes 2 rows in the table (1 for port, 1 for co-port)"""
