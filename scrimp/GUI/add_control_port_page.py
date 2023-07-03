@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import (
     QLineEdit,
     QGridLayout,
     QTableWidget,
+    QTableWidgetItem,
     QComboBox,
 )
 from PyQt5.QtCore import Qt
@@ -36,7 +37,7 @@ class Window(QtWidgets.QWidget):
 
         # create a QTableWidget control_ports
         self.table_control_ports = QTableWidget()
-        self.table_control_ports.setRowCount(1)
+        # self.table_control_ports.setRowCount(1)
 
         # adding header to the table
         header_horizontal_control_ports = [
@@ -109,6 +110,8 @@ class Window(QtWidgets.QWidget):
         self.help = Help(self.layout, 3, 3)
         self.table_control_ports.cellClicked.connect(self.update_help)
 
+        self.new_control_port()
+
     def update_help(self):
         example = ""
         col = self.table_control_ports.currentColumn()
@@ -179,6 +182,31 @@ class Window(QtWidgets.QWidget):
         self.switch_window.emit("add_parameter_page")
         self.hide()
 
+    def choice_clicked(self, text):
+        def foo():
+            print(text)
+            description = ""
+            example = ""
+
+            if text == "Region":
+                description = "the int identifying the region in mesh_id where the control port belong, useful for boundary ports"
+                example = "Default is None."
+
+            elif text == "Kind":
+                description = "Choose what is the kind of your state."
+                example = """It could be one of the following list:
+                \n- scalar-field
+                \n- vector-field
+                \n- tensor-field"""
+
+            elif text == "Substituted":
+                description = "It is a boolean that defines whether to substitute the variable. Defaults to False"
+                example = "Default is False"
+
+            self.help.updateFields(text, description, example)
+
+        return foo
+
     def new_control_port(self):
         """This function adds 2 rows in the table (1 for control_port, 1 for co-control_port)"""
         count = self.table_control_ports.rowCount()
@@ -187,6 +215,26 @@ class Window(QtWidgets.QWidget):
         self.table_control_ports.setVerticalHeaderLabels(
             self.header_vertical_control_ports
         )
+
+        controlport_choice_kind = QComboBox()
+        controlport_choice_kind.addItems(
+            ["scalar-field", "vector-field", "tensor-field"]
+        )
+        controlport_choice_kind.textHighlighted.connect(self.choice_clicked("Kind"))
+        self.table_control_ports.setCellWidget(count, 5, controlport_choice_kind)
+
+        controlport_choice_region = QComboBox()
+        controlport_choice_region.addItems(["Effort", "Flow"])
+        controlport_choice_region.textHighlighted.connect(self.choice_clicked("Region"))
+        self.table_control_ports.setCellWidget(count, 6, controlport_choice_region)
+
+        # set defaults
+        # region
+        new_value = QTableWidgetItem("None")
+        self.table_control_ports.setItem(count, 7, new_value)
+        # mesh_id
+        new_value = QTableWidgetItem("0")
+        self.table_control_ports.setItem(count, 8, new_value)
 
     def delete_control_port(self):
         """This function removes 2 rows in the table (1 for control_port, 1 for co-control_port)"""
