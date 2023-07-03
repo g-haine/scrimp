@@ -1,6 +1,6 @@
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtCore import Qt
-from utils.GUI import gui_pages, gui_width, gui_height
+from utils.GUI import gui_pages, gui_width, gui_height, Help
 from PyQt5.QtWidgets import (
     QListWidget,
     QListWidgetItem,
@@ -10,6 +10,7 @@ from PyQt5.QtWidgets import (
     QLineEdit,
     QGridLayout,
     QTableWidget,
+    QTableWidgetItem,
     QComboBox,
     QTableWidgetItem,
     QCheckBox,
@@ -127,6 +128,73 @@ class Window(QtWidgets.QWidget):
         self.clear_self_layout()
         self.setLayout(self.layout)
 
+        self.help = Help(self.layout, 4, 1)
+        self.table.cellClicked.connect(self.update_help)
+
+    def update_help(self):
+        item = self.table.currentItem()
+        if item is not None:
+            text = item.text()
+            col = item.column()
+            row = item.row()
+            selection = self.list_widget.currentItem().text()
+            print(f"col:{col},text:{text},selection:{selection}")
+
+            if selection == "First":
+                description = None
+                example = None
+
+                if row == 0:
+                    description = "This is ..."
+
+                elif row == 1:
+                    description = "This is ..."
+
+                elif row == 2:
+                    description = "This is ..."
+
+                elif row == 3:
+                    description = "This is ..."
+
+                elif row == 4:
+                    description = "This is ..."
+
+                elif row == 5:
+                    description = "This is ..."
+
+                elif row == 6:
+                    description = "This is ..."
+
+                elif row == 7:
+                    description = "This is ..."
+
+                elif row == 8:
+                    description = "This is ..."
+
+                elif row == 9:
+                    description = "This is ..."
+
+                self.help.updateFields(text, description, example)
+
+            elif selection == "Second":
+                description = None
+                example = None
+
+                if row == 0:
+                    description = "This is ..."
+
+                elif row == 1:
+                    description = "This is ..."
+
+                elif row == 2:
+                    description = "This is ..."
+
+                self.help.updateFields(text, description, example)
+
+        else:
+            self.help.clear()
+            self.layout.itemAt(self.layout.count() - 1).widget().hide()
+
     def text_changed(self, page):  # s is a str
         self.comboBox.setCurrentText("set_time_scheme_page")
         self.switch_window.emit(page)
@@ -134,6 +202,12 @@ class Window(QtWidgets.QWidget):
 
     def update_table(self):
         selection = self.list_widget.currentItem().text()
+        self.help.clear()
+
+        if selection == "Other":
+            self.layout.itemAt(5).widget().show()
+        else:
+            self.layout.itemAt(5).widget().hide()
 
         if selection == "First":
             # remove all the rows
