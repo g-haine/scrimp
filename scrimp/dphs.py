@@ -485,8 +485,8 @@ class DPHS:
 
         self.bricks[name_brick] = brick
 
-        # Flows are on the left-hand side => need a minus for fully implicit formulation in time-resolution
-        if position == "flow":
+        # Flow and explicit brick need a minus for fully implicit formulation in time-resolution
+        if position == "flow" or brick.get_explicit():
             form = "-(" + form + ")"
 
         for region in brick.get_regions():

@@ -142,11 +142,11 @@ def shallow_water():
         S.Brick("D", "- Grad(e_h) . Test_p * h", [1], linear=False, position="effort"),
         # with the gyroscopic term (beware that "Curl" is not available in the GWFL of getfem)
         S.Brick("G", "h * (Gyro(p) * e_p) . Test_p", [1], linear=False, 
-               explicit=False, position="effort"),
+               explicit=True, position="effort"),
         S.Brick("D(v)", "- 2 * nu * h * D(e_p) : D(Test_p)", [1], linear=False, 
-               explicit=False, position="effort"),
+               explicit=True, position="effort"),
         S.Brick("div(v)", "- 2 * nu * h * div(e_p) * div(Test_p)", [1], linear=False, 
-               explicit=False, position="effort"),
+               explicit=True, position="effort"),
         S.Brick("B_1", "Y_1 . Test_p", [10], position="effort"),
         # Define the third line of the right-hand side of the "Dirac structure" (position="effort")
         S.Brick("C_0", "e_h * Test_Y_0", [10], position="effort"),
@@ -158,7 +158,7 @@ def shallow_water():
         S.Brick("CR_h_lin", "rho * g * h * Test_e_h", [1]),
         # third the non-linear part as a non-linear brick (linear=False)
         S.Brick("CR_h_nl", "0.5 * (p . p) / rho * Test_e_h", [1], linear=False, 
-              explicit=False),
+              explicit=True),
         # For e_p: first the mass matrix WITH A MINUS because we want an implicit formulation 0 = - M e_p + F(p)
         S.Brick("-M_e_p", "- e_p . Test_e_p", [1]),
         # second the non-linear brick (linear=False)
