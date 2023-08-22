@@ -98,24 +98,50 @@ class Controller:
             pass
 
     def generate_code(self):
+        # create folder
         folder = "generated_scripts"
         if not os.path.exists(folder):
-            os.path.makedirs(folder)
-        # crete file
+            os.makedirs(folder)
+
+        # create file
         filename = self.create_dphs.line_edit_dphs_name.text()
-        file = open(os.path.joint(folder, filename + ".py"), "w")
+        file = open(os.path.join(folder, filename + ".py"), "w")
+
         # write heading and imports
         file.write(heading)
+
         # write func definition
         file.write(f"def {filename}_eq():\n")
+
         # write verbosity
         file.write("    set_verbose_gf(0)\n\n")
+
         # create class
         index = self.create_dphs.comboBox_dphs_type.currentIndex()
         type_dphs = self.create_dphs.comboBox_dphs_type.itemText(index)
         file.write(
             f'    # Init the distributed port-Hamiltonian system\n    {filename} = DPHS("{type_dphs}")\n\n'
         )
+
+        # set domain and its parameters
+        type_domain = self.set_domain_page.list_widget.currentItem().text()
+        file.write(
+            f"""    # Set the domain (using the built-in geometry `{type_domain}`)
+    {filename}.set_domain(Domain("{type_domain}",{{"""
+        )
+
+        table = self.set_domain_page.table
+        rows = table.rowCount()
+        for row in range(rows):
+            item = table.item(row, 0)
+            if item is not None:
+                text = item.text()
+                if row + 1 < rows:
+                    file.write(f'"{text}":{table.item(row,1).text()},')
+                else:
+                    file.write(f'"{text}":{table.item(row,1).text()}')
+
+        file.write("}))")
 
         file.close()
         print(f"created {filename}")
