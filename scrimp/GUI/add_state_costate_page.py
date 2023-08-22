@@ -125,8 +125,13 @@ class Window(QtWidgets.QWidget):
         self.help = Help(self.layout, 3, 3)
         self.table_costates.cellClicked.connect(self.update_help_costate)
         self.table_states.cellClicked.connect(self.update_help_state)
+        self.table_costates.cellClicked.connect(self.update_costate_table_by_state)
 
         self.new_state()
+
+    def update_costate_table_by_state(self):
+        row = self.table_costates.currentRow()
+        self.table_costates.setItem(row, 2, self.table_states.item(row, 0).clone())
 
     def update_help_state(self):
         # item = self.table_states.currentItem()
