@@ -16,7 +16,14 @@ from GUI import (
     set_time_scheme_page,
     generate_code_page,
 )
-from utils.GUI import heading
+from utils.GUI import (
+    heading,
+    text_create_class,
+    text_set_domain,
+    text_add_states,
+    text_add_costates,
+    text_add_ports,
+)
 import os
 
 
@@ -117,92 +124,22 @@ class Controller:
         file.write("    set_verbose_gf(0)\n\n")
 
         # create class
-        index = self.create_dphs.comboBox_dphs_type.currentIndex()
-        type_dphs = self.create_dphs.comboBox_dphs_type.itemText(index)
-        file.write(
-            f'    # Init the distributed port-Hamiltonian system\n    {filename} = DPHS("{type_dphs}")\n\n'
-        )
+        text_create_class(self, file, filename)
 
         # set domain and its parameters
-        type_domain = self.set_domain_page.list_widget.currentItem().text()
-        file.write(
-            f"""    # Set the domain (using the built-in geometry `{type_domain}`)
-    {filename}.set_domain(Domain("{type_domain}",{{"""
-        )
-
-        table = self.set_domain_page.table
-        rows = table.rowCount()
-        for row in range(rows):
-            item = table.item(row, 0)
-            if item is not None:
-                text = item.text()
-                if row + 1 < rows:
-                    file.write(f'"{text}":{table.item(row,1).text()},')
-                else:
-                    file.write(f'"{text}":{table.item(row,1).text()}')
-
-        file.write("}))")
+        text_set_domain(self, file, filename)
 
         # define the cariables and their dicretizations
         file.write("    ## Define the variables and their discretizations")
 
         # define State/s
-        table_states = self.add_state_costate_page.table_states
-        rows = table_states.rowCount()
-        cols = table_states.columnCount()
-        file.write(
-            f"""\n\n    # Define State/s`)
-    states = [\n"""
-        )
-
-        for row in range(rows):
-            file.write("    State(")
-            for col in range(cols):
-                item = table_states.item(row, col)
-                if col == 2:
-                    text = table_states.cellWidget(row, col).currentText()
-                    file.write(f'"{text}",')
-                if item is not None:
-                    text = item.text()
-                    if col + 1 < cols:
-                        file.write(f'"{text}",')
-                    else:
-                        file.write(f'"{text}"')
-            if row + 1 < rows:
-                file.write("),\n")
-            else:
-                file.write(")")
-
-        file.write("\n]\n")
+        text_add_states(self, file)
 
         # define Co-State/s
-        table_costates = self.add_state_costate_page.table_costates
-        rows = table_costates.rowCount()
-        cols = table_costates.columnCount()
-        file.write(
-            f"""    # Define Co-State/s`)
-    costates = [\n"""
-        )
+        text_add_costates(self, file)
 
-        for row in range(rows):
-            file.write("    CoState(")
-            for col in range(cols):
-                item = table_costates.item(row, col)
-                if col == 3:
-                    text = table_costates.cellWidget(row, col).currentText()
-                    file.write(f"{text},")
-                if item is not None:
-                    text = item.text()
-                    if col + 1 < cols:
-                        file.write(f'"{text}",')
-                    else:
-                        file.write(f'"{text}"')
-            if row + 1 < rows:
-                file.write("),\n")
-            else:
-                file.write(")")
-
-        file.write("\n]\n")
+        # define Port/s
+        text_add_ports(self, file)
 
         file.close()
         print(f"created {filename}")
