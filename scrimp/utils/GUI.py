@@ -111,13 +111,21 @@ costates = [\n"""
         file.write("    CoState(")
         for col in range(cols):
             item = table_costates.item(row, col)
-            if col == 3:
+            if col == 2:
+                text = f"states[{row}]"
+            elif col == 3:
                 text = table_costates.cellWidget(row, col).currentText()
-            if item is not None:
+
+            elif item is not None:
                 text = item.text()
 
-            file.write(f"{text}")
+            # wether to add "" or not
+            if col not in [2, 3]:
+                file.write(f'"{text}"')
+            else:
+                file.write(f"{text}")
 
+            # wether to add , or not
             if col + 1 < cols:
                 file.write(f",")
 

@@ -139,11 +139,11 @@ class Controller:
         # define Co-State/s
         text_add_costates(self, file)
 
-        # define Port/s
-        text_add_ports(self, file)
+        # # define Port/s
+        # text_add_ports(self, file)
 
-        # define Parameter/s
-        text_add_parameters(self, file)
+        # # define Parameter/s
+        # text_add_parameters(self, file)
 
         file.close()
         print(f"created {filename}")
