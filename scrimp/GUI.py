@@ -16,6 +16,8 @@ from GUI import (
     set_time_scheme_page,
     generate_code_page,
 )
+from utils.GUI import heading
+import os
 
 
 class Controller:
@@ -89,9 +91,34 @@ class Controller:
             self.set_time_scheme_page.show()
         elif text == "generate_code_page":
             self.generate_code_page.show()
+        elif text == "generate_code":
+            self.generate_code()
         else:
             print("the emitted signal:", text)
             pass
+
+    def generate_code(self):
+        folder = "generated_scripts"
+        if not os.path.exists(folder):
+            os.path.makedirs(folder)
+        # crete file
+        filename = self.create_dphs.line_edit_dphs_name.text()
+        file = open(os.path.joint(folder, filename + ".py"), "w")
+        # write heading and imports
+        file.write(heading)
+        # write func definition
+        file.write(f"def {filename}_eq():\n")
+        # write verbosity
+        file.write("    set_verbose_gf(0)\n\n")
+        # create class
+        index = self.create_dphs.comboBox_dphs_type.currentIndex()
+        type_dphs = self.create_dphs.comboBox_dphs_type.itemText(index)
+        file.write(
+            f'    # Init the distributed port-Hamiltonian system\n    {filename} = DPHS("{type_dphs}")\n\n'
+        )
+
+        file.close()
+        print(f"created {filename}")
 
 
 def main():

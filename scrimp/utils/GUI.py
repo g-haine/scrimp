@@ -21,6 +21,23 @@ button_size = (200, 150, 100, 40)
 main_size_font = "+3"
 secondary_size_font = "+2"
 
+
+heading = """# SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
+#
+# Copyright (C) 2015-2022 Ghislain Haine
+#
+# See the LICENSE file in the root directory for license information.
+#
+# github: https://github.com/g-haine/scrimp
+
+from scrimp import *
+from scrimp.utils.mesh import set_verbose_gf
+from itertools import zip_longest
+
+
+"""
+
+
 from PyQt5.QtWidgets import (
     QHBoxLayout,
     QPushButton,

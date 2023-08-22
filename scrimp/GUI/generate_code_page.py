@@ -110,6 +110,7 @@ class Window(QtWidgets.QWidget):
 
     def generate_code(self):
         print("generate code...")
+        self.switch_window.emit("generate_code")
 
     def previous_page(self):
         """This funcion emits the signal to navigate to the prvious page."""
