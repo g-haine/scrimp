@@ -23,6 +23,7 @@ from utils.GUI import (
     text_add_states,
     text_add_costates,
     text_add_ports,
+    text_add_parameters,
 )
 import os
 
@@ -140,6 +141,9 @@ class Controller:
 
         # define Port/s
         text_add_ports(self, file)
+
+        # define Parameter/s
+        text_add_parameters(self, file)
 
         file.close()
         print(f"created {filename}")

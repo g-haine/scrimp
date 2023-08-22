@@ -163,6 +163,37 @@ ports = [\n"""
     file.write("\n]\n")
 
 
+def text_add_parameters(self, file):
+    table_parameters = self.add_parameter_page.table_parameters
+    rows = table_parameters.rowCount()
+    cols = table_parameters.columnCount()
+    file.write(
+        f"""    # Define parameters/s`)
+    parameters = [\n"""
+    )
+
+    for row in range(rows):
+        file.write("        Parameter(")
+        for col in range(cols):
+            item = table_parameters.item(row, col)
+            if col in [2]:
+                text = table_parameters.cellWidget(row, col).currentText()
+            if item is not None:
+                text = item.text()
+
+            file.write(f'"{text}"')
+
+            if col + 1 < cols:
+                file.write(f",")
+
+        if row + 1 < rows:
+            file.write("),\n")
+        else:
+            file.write(")")
+
+    file.write("\n]\n")
+
+
 from PyQt5.QtWidgets import (
     QHBoxLayout,
     QPushButton,
