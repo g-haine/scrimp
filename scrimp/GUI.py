@@ -143,6 +143,67 @@ class Controller:
 
         file.write("}))")
 
+        # define the cariables and their dicretizations
+        file.write("    ## Define the variables and their discretizations")
+
+        # define State/s
+        table_states = self.add_state_costate_page.table_states
+        rows = table_states.rowCount()
+        cols = table_states.columnCount()
+        file.write(
+            f"""\n\n    # Define State/s`)
+    states = [\n"""
+        )
+
+        for row in range(rows):
+            file.write("    State(")
+            for col in range(cols):
+                item = table_states.item(row, col)
+                if col == 2:
+                    text = table_states.cellWidget(row, col).currentText()
+                    file.write(f'"{text}",')
+                if item is not None:
+                    text = item.text()
+                    if col + 1 < cols:
+                        file.write(f'"{text}",')
+                    else:
+                        file.write(f'"{text}"')
+            if row + 1 < rows:
+                file.write("),\n")
+            else:
+                file.write(")")
+
+        file.write("\n]\n")
+
+        # define Co-State/s
+        table_costates = self.add_state_costate_page.table_costates
+        rows = table_costates.rowCount()
+        cols = table_costates.columnCount()
+        file.write(
+            f"""    # Define Co-State/s`)
+    costates = [\n"""
+        )
+
+        for row in range(rows):
+            file.write("    CoState(")
+            for col in range(cols):
+                item = table_costates.item(row, col)
+                if col == 3:
+                    text = table_costates.cellWidget(row, col).currentText()
+                    file.write(f"{text},")
+                if item is not None:
+                    text = item.text()
+                    if col + 1 < cols:
+                        file.write(f'"{text}",')
+                    else:
+                        file.write(f'"{text}"')
+            if row + 1 < rows:
+                file.write("),\n")
+            else:
+                file.write(")")
+
+        file.write("\n]\n")
+
         file.close()
         print(f"created {filename}")
 
