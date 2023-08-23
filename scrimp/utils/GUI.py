@@ -73,7 +73,7 @@ def text_add_states(self, file):
     cols = table_states.columnCount()
     file.write(
         f"""\n\n    # Define State/s`)
-states = [\n"""
+    states = [\n"""
     )
 
     for row in range(rows):
@@ -82,7 +82,7 @@ states = [\n"""
             item = table_states.item(row, col)
             if col == 2:
                 text = table_states.cellWidget(row, col).currentText()
-            if item is not None:
+            elif item is not None:
                 text = item.text()
 
             file.write(f'"{text}"')
@@ -104,7 +104,7 @@ def text_add_costates(self, file):
     cols = table_costates.columnCount()
     file.write(
         f"""    # Define Co-State/s`)
-costates = [\n"""
+    costates = [\n"""
     )
 
     for row in range(rows):
@@ -143,7 +143,7 @@ def text_add_ports(self, file):
     cols = table_ports.columnCount()
     file.write(
         f"""    # Define Ports/s`)
-ports = [\n"""
+    ports = [\n"""
     )
 
     for row in range(rows):
@@ -152,7 +152,7 @@ ports = [\n"""
             item = table_ports.item(row, col)
             if col in [3, 5, 6]:
                 text = table_ports.cellWidget(row, col).currentText()
-            if item is not None:
+            elif item is not None:
                 text = item.text()
 
             if col not in [5, 6]:
@@ -181,12 +181,12 @@ def text_add_parameters(self, file):
     )
 
     for row in range(rows):
-        file.write("        Parameter(")
+        file.write("    Parameter(")
         for col in range(cols):
             item = table_parameters.item(row, col)
             if col in [2]:
                 text = table_parameters.cellWidget(row, col).currentText()
-            if item is not None:
+            elif item is not None:
                 text = item.text()
 
             file.write(f'"{text}"')
