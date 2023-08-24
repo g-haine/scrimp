@@ -27,6 +27,8 @@ from utils.GUI import (
     update_parameters_page,
     text_add_control_ports,
     update_control_ports_page,
+    text_add_FEM,
+    update_FEMs_page,
 )
 import os
 
@@ -89,6 +91,7 @@ class Controller:
             update_control_ports_page(self)
             self.add_control_port_page.show()
         elif text == "add_fem_page":
+            update_FEMs_page(self)
             self.add_fem_page.show()
         elif text == "set_hamiltonian_page":
             self.set_hamiltonian_page.show()
@@ -141,17 +144,20 @@ class Controller:
         # define State/s
         text_add_states(self, file)
 
-        # # define Co-State/s
-        # text_add_costates(self, file)
+        # define Co-State/s
+        text_add_costates(self, file)
 
-        # # define Port/s
-        # text_add_ports(self, file)
+        # define Port/s
+        text_add_ports(self, file)
 
-        # # define Parameter/s
-        # text_add_parameters(self, file)
+        # define Parameter/s
+        text_add_parameters(self, file)
 
-        # # define Control Ports
-        # text_add_control_ports(self, file)
+        # define Control Ports
+        text_add_control_ports(self, file)
+
+        # define FEMs
+        text_add_FEM(self, file)
 
         file.close()
         print(f"created {filename}")

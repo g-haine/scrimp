@@ -255,6 +255,12 @@ class Window(QtWidgets.QWidget):
         self.table_states.setItem(count, 4, new_value)
         self.new_costate()
 
+        for i in range(self.table_states.columnCount()):
+            if i not in [2, 4]:
+                # others
+                new_value = QTableWidgetItem("")
+                self.table_states.setItem(count, i, new_value)
+
     def delete_state(self):
         """This function removes 2 rows in the table (1 for state, 1 for co-state)"""
         if len(self.header_vertical_states) > 1:
@@ -277,6 +283,12 @@ class Window(QtWidgets.QWidget):
 
         costate_choice.textHighlighted.connect(self.choice_clicked("Substituted"))
         self.table_costates.setCellWidget(count, 3, costate_choice)
+
+        for i in range(self.table_costates.columnCount()):
+            if i not in [2, 3]:
+                # others
+                new_value = QTableWidgetItem("")
+                self.table_costates.setItem(count, i, new_value)
 
     def delete_costate(self):
         """This function removes 2 rows in the table (1 for state, 1 for co-state)"""

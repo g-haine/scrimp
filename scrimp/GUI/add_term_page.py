@@ -154,6 +154,12 @@ class Window(QtWidgets.QWidget):
         new_value = QTableWidgetItem("0")
         self.table_terms.setItem(count, 3, new_value)
 
+        for i in range(self.table_terms.columnCount()):
+            if i not in [3]:
+                # others
+                new_value = QTableWidgetItem("")
+                self.table_terms.setItem(count, i, new_value)
+
     def delete_term(self):
         """This function removes 2 rows in the table (1 for term, 1 for co-term)"""
         if len(self.header_vertical_terms) > 1:

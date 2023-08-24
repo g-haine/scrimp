@@ -225,6 +225,12 @@ class Window(QtWidgets.QWidget):
         new_value = QTableWidgetItem("0")
         self.table_ports.setItem(count, 4, new_value)
 
+        for i in range(self.table_ports.columnCount()):
+            if i not in [3, 4, 5, 6]:
+                # others
+                new_value = QTableWidgetItem("")
+                self.table_ports.setItem(count, i, new_value)
+
     def delete_port(self):
         """This function removes 2 rows in the table (1 for port, 1 for co-port)"""
         if len(self.header_vertical_ports) > 1:

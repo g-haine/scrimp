@@ -262,7 +262,12 @@ class Window(QtWidgets.QWidget):
 
         else:
             # remove all the rows
-            self.table.setRowCount(0)
+            self.table.setRowCount(1)
+
+        rows = self.table.countRow()
+        for row in range(rows):
+            new_value = QTableWidgetItem("")
+            self.table.setItem(row, 1, new_value)
 
     def new_rows(self):
         """This function adds 2 rows in the table (1 for state, 1 for co-state)"""

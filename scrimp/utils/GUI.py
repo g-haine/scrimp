@@ -97,7 +97,7 @@ def text_add_states(self, file):
         else:
             file.write(")")
 
-    file.write("\n    ]\n\n")
+    file.write("\n    ]")
 
 
 def text_add_costates(self, file):
@@ -105,7 +105,7 @@ def text_add_costates(self, file):
     rows = table_costates.rowCount()
     cols = table_costates.columnCount()
     file.write(
-        f"""    # Define Co-State/s`)
+        f"""\n\n    # Define Co-State/s`)
     costates = [\n"""
     )
 
@@ -136,7 +136,7 @@ def text_add_costates(self, file):
         else:
             file.write(")")
 
-    file.write("\n    ]\n\n")
+    file.write("\n    ]")
 
 
 def text_add_ports(self, file):
@@ -144,7 +144,7 @@ def text_add_ports(self, file):
     rows = table_ports.rowCount()
     cols = table_ports.columnCount()
     file.write(
-        f"""    # Define Ports/s`)
+        f"""\n\n    # Define Ports/s`)
     ports = [\n"""
     )
 
@@ -170,7 +170,7 @@ def text_add_ports(self, file):
         else:
             file.write(")")
 
-    file.write("\n    ]\n\n")
+    file.write("\n    ]")
 
 
 def text_add_parameters(self, file):
@@ -178,7 +178,7 @@ def text_add_parameters(self, file):
     rows = table_parameters.rowCount()
     cols = table_parameters.columnCount()
     file.write(
-        f"""    # Define parameters/s`)
+        f"""\n\n    # Define parameters/s`)
     parameters = [\n"""
     )
 
@@ -201,7 +201,7 @@ def text_add_parameters(self, file):
         else:
             file.write(")")
 
-    file.write("\n    ]\n\n")
+    file.write("\n    ]")
 
 
 def update_parameters_page(self):
@@ -257,7 +257,7 @@ def text_add_control_ports(self, file):
         else:
             file.write(")")
 
-    file.write("\n    ]\n\n")
+    file.write("\n    ]")
 
 
 def update_control_ports_page(self):
@@ -304,6 +304,72 @@ def update_control_ports_page(self):
             table_control_ports.setItem(row, 6, QtWidgets.QTableWidgetItem(f"{10+row}"))
             if table_control_ports.rowCount() < 2:
                 self.add_control_port_page.new_control_port()
+
+
+def update_FEMs_page(self):
+    """This function updates the add FEM page accounting for the existing states and ports already declared."""
+    table_states = self.add_state_costate_page.table_states
+    rows_states = table_states.rowCount()
+
+    table_ports = self.add_port_page.table_ports
+    rows_ports = table_ports.rowCount()
+
+    table_control_ports = self.add_control_port_page.table_control_ports
+    rows_control_ports = table_control_ports.rowCount()
+
+    table_FEMs = self.add_fem_page.table_FEMs
+
+    for row in range(rows_states):
+        item = table_states.item(row, 0)
+        if item is not None:
+            table_FEMs.setItem(row, 0, item.clone())
+            if table_FEMs.rowCount() < rows_states + rows_ports + rows_control_ports:
+                self.add_fem_page.new_FEM()
+
+    for row in range(rows_ports):
+        item = table_ports.item(row, 0)
+        if item is not None:
+            table_FEMs.setItem(row + rows_states, 0, item.clone())
+            if table_FEMs.rowCount() < rows_states + rows_ports + rows_control_ports:
+                self.add_fem_page.new_FEM()
+
+    for row in range(rows_control_ports):
+        item = table_control_ports.item(row, 0)
+        if item is not None:
+            table_FEMs.setItem(row + rows_states + rows_ports, 0, item.clone())
+            if table_FEMs.rowCount() < rows_states + rows_ports + rows_control_ports:
+                self.add_fem_page.new_FEM()
+
+
+def text_add_FEM(self, file):
+    table_FEMs = self.add_fem_page.table_FEMs
+    rows = table_FEMs.rowCount()
+    cols = table_FEMs.columnCount()
+    file.write(
+        f"""\n\n    # Define FEM/s`)
+    FEMs = [\n"""
+    )
+
+    for row in range(rows):
+        file.write("    FEM(")
+        for col in range(cols):
+            item = table_FEMs.item(row, col)
+            if col == 2:
+                text = table_FEMs.cellWidget(row, col).currentText()
+            elif item is not None:
+                text = item.text()
+
+            file.write(f'"{text}"')
+
+            if col + 1 < cols:
+                file.write(f",")
+
+        if row + 1 < rows:
+            file.write("),\n")
+        else:
+            file.write(")")
+
+    file.write("\n    ]")
 
 
 from PyQt5.QtWidgets import (

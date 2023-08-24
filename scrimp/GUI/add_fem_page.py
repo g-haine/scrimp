@@ -6,6 +6,7 @@ from PyQt5.QtWidgets import (
     QGridLayout,
     QTableWidget,
     QComboBox,
+    QTableWidgetItem,
 )
 from PyQt5.QtCore import Qt
 from utils.GUI import gui_pages, gui_width, gui_height, Help
@@ -158,6 +159,12 @@ class Window(QtWidgets.QWidget):
         fem_choice.addItems(["CG", "DG"])
         fem_choice.textHighlighted.connect(self.fem_choice_clicked)
         self.table_FEMs.setCellWidget(count, 2, fem_choice)
+
+        for i in range(self.table_FEMs.columnCount()):
+            if i != 2:
+                # others
+                new_value = QTableWidgetItem("")
+                self.table_FEMs.setItem(count, i, new_value)
 
     def delete_FEM(self):
         """This function removes 2 rows in the table (1 for FEM, 1 for co-FEM)"""

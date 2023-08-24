@@ -6,6 +6,7 @@ from PyQt5.QtWidgets import (
     QGridLayout,
     QTableWidget,
     QComboBox,
+    QTableWidgetItem,
 )
 from PyQt5.QtCore import Qt
 from utils.GUI import gui_pages, gui_width, gui_height, Help
@@ -136,6 +137,10 @@ class Window(QtWidgets.QWidget):
         self.table_expressions.insertRow(count)
         self.header_vertical_expressions += ["expression"]
         self.table_expressions.setVerticalHeaderLabels(self.header_vertical_expressions)
+
+        for i in range(self.table_expressions.columnCount()):
+            new_value = QTableWidgetItem("")
+            self.table_expressions.setItem(count, i, new_value)
 
     def delete_expression(self):
         """This function removes 2 rows in the table (1 for expression, 1 for co-expression)"""

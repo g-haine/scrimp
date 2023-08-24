@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import (
     QLineEdit,
     QGridLayout,
     QTableWidget,
+    QTableWidgetItem,
     QComboBox,
 )
 from PyQt5.QtCore import Qt
@@ -144,6 +145,10 @@ class Window(QtWidgets.QWidget):
         self.table_initial_values.setVerticalHeaderLabels(
             self.header_vertical_initial_values
         )
+
+        for i in range(self.table_intial_values.columnCount()):
+            new_value = QTableWidgetItem("")
+            self.table_intial_values.setItem(count, i, new_value)
 
     def delete_initial_value(self):
         """This function removes 2 rows in the table (1 for initial_value, 1 for co-initial_value)"""

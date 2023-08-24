@@ -217,6 +217,12 @@ class Window(QtWidgets.QWidget):
         new_value = QTableWidgetItem("0")
         self.table_bricks.setItem(count, 6, new_value)
 
+        for i in range(self.table_bricks.columnCount()):
+            if i not in [3, 4, 5, 6]:
+                # others
+                new_value = QTableWidgetItem("")
+                self.table_bricks.setItem(count, i, new_value)
+
     def delete_brick(self):
         """This function removes 2 rows in the table (1 for brick, 1 for co-brick)"""
         if len(self.header_vertical_bricks) > 1:
