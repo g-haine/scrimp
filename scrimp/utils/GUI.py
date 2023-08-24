@@ -40,6 +40,44 @@ from itertools import zip_longest
 """
 
 
+def text_add_loop(self, file, filename):
+    loop = f"""    for state, costate, param, fem, port, control_port in zip_longest(
+            states, costates, params, FEMs, ports, control_ports
+        ):
+            # Add a state
+            if state is not None:
+                {filename}.add_state(state)
+
+        # Add its co-state        	
+            if costate is not None:
+                {filename}.add_costate(costate)
+
+        # Add a Finite Element Method to the `port`
+            if fem is not None:
+                {filename}.add_FEM(fem)
+
+        # Add a (possibly space-varying) parameter to the `port`
+            if param is not None:
+                {filename}.add_parameter(param)
+                
+        # Add a resistive `port`        	
+            if port is not None:
+                {filename}.add_port(port)
+
+        # Add a control `port` on the boundary (Neumann, thus position='effort' - default)        	
+            if control_port is not None:
+                {filename}.add_control_port(control_port)"""
+
+    file.write(loop)
+
+
+def text_set_hamiltonian(self, file, filename):
+    file.write(
+        f"""\n\n    ## Set Hamiltonian
+    {filename}.hamiltonian.set_name("{self.set_hamiltonian_page.line_edit_hamiltonian_name.text()}")"""
+    )
+
+
 def text_create_class(self, file, filename):
     index = self.create_dphs.comboBox_dphs_type.currentIndex()
     type_dphs = self.create_dphs.comboBox_dphs_type.itemText(index)

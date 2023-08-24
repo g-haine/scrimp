@@ -29,6 +29,8 @@ from utils.GUI import (
     update_control_ports_page,
     text_add_FEM,
     update_FEMs_page,
+    text_add_loop,
+    text_set_hamiltonian,
 )
 import os
 
@@ -135,29 +137,35 @@ class Controller:
         # create class
         text_create_class(self, file, filename)
 
-        # set domain and its parameters
-        text_set_domain(self, file, filename)
+        # # set domain and its parameters
+        # text_set_domain(self, file, filename)
 
-        # define the cariables and their dicretizations
-        file.write("    ## Define the variables and their discretizations")
+        # # define the cariables and their dicretizations
+        # file.write("    ## Define the variables and their discretizations")
 
-        # define State/s
-        text_add_states(self, file)
+        # # define State/s
+        # text_add_states(self, file)
 
-        # define Co-State/s
-        text_add_costates(self, file)
+        # # define Co-State/s
+        # text_add_costates(self, file)
 
-        # define Port/s
-        text_add_ports(self, file)
+        # # define Port/s
+        # text_add_ports(self, file)
 
-        # define Parameter/s
-        text_add_parameters(self, file)
+        # # define Parameter/s
+        # text_add_parameters(self, file)
 
-        # define Control Ports
-        text_add_control_ports(self, file)
+        # # define Control Ports
+        # text_add_control_ports(self, file)
 
-        # define FEMs
-        text_add_FEM(self, file)
+        # # define FEMs
+        # text_add_FEM(self, file)
+
+        # write loop for variables insertion (states,costates,...)
+        text_add_loop(self, file, filename)
+
+        # set Hamiltoniam
+        text_set_hamiltonian(self, file, filename)
 
         file.close()
         print(f"created {filename}")
