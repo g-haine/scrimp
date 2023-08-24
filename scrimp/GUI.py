@@ -24,6 +24,9 @@ from utils.GUI import (
     text_add_costates,
     text_add_ports,
     text_add_parameters,
+    update_parameters_page,
+    text_add_control_ports,
+    update_control_ports_page,
 )
 import os
 
@@ -80,9 +83,10 @@ class Controller:
         elif text == "create_dphs_page":
             self.create_dphs.show()
         elif text == "add_parameter_page":
-            self.update_parameters_page()
+            update_parameters_page(self)
             self.add_parameter_page.show()
         elif text == "add_control_port_page":
+            update_control_ports_page(self)
             self.add_control_port_page.show()
         elif text == "add_fem_page":
             self.add_fem_page.show()
@@ -105,32 +109,6 @@ class Controller:
         else:
             print("the emitted signal:", text)
             pass
-
-    def update_parameters_page(self):
-        """This function updates the add parameter page accounting for the existing states and ports already declared."""
-        table_states = self.add_state_costate_page.table_states
-        rows_states = table_states.rowCount()
-
-        table_ports = self.add_port_page.table_ports
-        rows_ports = table_ports.rowCount()
-
-        table_parameters = self.add_parameter_page.table_parameters
-        rows_parameters = table_parameters.rowCount()
-        # table_parameters.setRowCount(0)
-
-        for row in range(rows_states):
-            item = table_states.item(row, 0)
-            if item is not None:
-                table_parameters.setItem(row, 4, item.clone())
-                if table_parameters.rowCount() < rows_states + rows_ports:
-                    self.add_parameter_page.new_parameter()
-
-        for row in range(rows_ports):
-            item = table_ports.item(row, 0)
-            if item is not None:
-                table_parameters.setItem(row + rows_states, 4, item.clone())
-                if table_parameters.rowCount() < rows_states + rows_ports:
-                    self.add_parameter_page.new_parameter()
 
     def generate_code(self):
         # create folder
@@ -163,14 +141,17 @@ class Controller:
         # define State/s
         text_add_states(self, file)
 
-        # define Co-State/s
-        text_add_costates(self, file)
+        # # define Co-State/s
+        # text_add_costates(self, file)
 
-        # define Port/s
-        text_add_ports(self, file)
+        # # define Port/s
+        # text_add_ports(self, file)
 
-        # define Parameter/s
-        text_add_parameters(self, file)
+        # # define Parameter/s
+        # text_add_parameters(self, file)
+
+        # # define Control Ports
+        # text_add_control_ports(self, file)
 
         file.close()
         print(f"created {filename}")

@@ -1,3 +1,5 @@
+from PyQt5 import QtCore, QtGui, QtWidgets
+
 gui_pages = [
     "create_dphs_page",
     "set_domain_page",
@@ -95,7 +97,7 @@ def text_add_states(self, file):
         else:
             file.write(")")
 
-    file.write("\n]\n")
+    file.write("\n    ]\n\n")
 
 
 def text_add_costates(self, file):
@@ -134,7 +136,7 @@ def text_add_costates(self, file):
         else:
             file.write(")")
 
-    file.write("\n]\n")
+    file.write("\n    ]\n\n")
 
 
 def text_add_ports(self, file):
@@ -168,7 +170,7 @@ def text_add_ports(self, file):
         else:
             file.write(")")
 
-    file.write("\n]\n")
+    file.write("\n    ]\n\n")
 
 
 def text_add_parameters(self, file):
@@ -199,7 +201,109 @@ def text_add_parameters(self, file):
         else:
             file.write(")")
 
-    file.write("\n]\n")
+    file.write("\n    ]\n\n")
+
+
+def update_parameters_page(self):
+    """This function updates the add parameter page accounting for the existing states and ports already declared."""
+    table_states = self.add_state_costate_page.table_states
+    rows_states = table_states.rowCount()
+
+    table_ports = self.add_port_page.table_ports
+    rows_ports = table_ports.rowCount()
+
+    table_parameters = self.add_parameter_page.table_parameters
+
+    for row in range(rows_states):
+        item = table_states.item(row, 0)
+        if item is not None:
+            table_parameters.setItem(row, 4, item.clone())
+            if table_parameters.rowCount() < rows_states + rows_ports:
+                self.add_parameter_page.new_parameter()
+
+    for row in range(rows_ports):
+        item = table_ports.item(row, 0)
+        if item is not None:
+            table_parameters.setItem(row + rows_states, 4, item.clone())
+            if table_parameters.rowCount() < rows_states + rows_ports:
+                self.add_parameter_page.new_parameter()
+
+
+def text_add_control_ports(self, file):
+    table_control_ports = self.add_control_port_page.table_control_ports
+    rows = table_control_ports.rowCount()
+    cols = table_control_ports.columnCount()
+    file.write(
+        f"""\n\n    # Define control_ports/s)
+    control_ports = [\n"""
+    )
+
+    for row in range(rows):
+        file.write("    Control_Port(")
+        for col in range(cols):
+            item = table_control_ports.item(row, col)
+            if col in [5, 7]:
+                text = table_control_ports.cellWidget(row, col).currentText()
+            elif item is not None:
+                text = item.text()
+
+            file.write(f'"{text}"')
+
+            if col + 1 < cols:
+                file.write(f",")
+
+        if row + 1 < rows:
+            file.write("),\n")
+        else:
+            file.write(")")
+
+    file.write("\n    ]\n\n")
+
+
+def update_control_ports_page(self):
+    """This function updates the add control ports page accounting for the specific domain"""
+
+    item = self.set_domain_page.list_widget.currentItem()
+    if item is not None:
+        type_domain = item.text()
+    else:
+        return
+
+    table_control_ports = self.add_control_port_page.table_control_ports
+    table_control_ports.setRowCount(0)
+    self.add_control_port_page.new_control_port()
+
+    if type_domain == "Rectangle":
+        where = ["bottom", "right", "top", "left"]
+        for row in range(4):
+            table_control_ports.setItem(
+                row,
+                0,
+                QtWidgets.QTableWidgetItem(f"Boundary control ({where[row]})"),
+            )
+            table_control_ports.setItem(row, 6, QtWidgets.QTableWidgetItem(f"{10+row}"))
+            if table_control_ports.rowCount() < 4:
+                self.add_control_port_page.new_control_port()
+
+    elif type_domain == "Disck" or type_domain == "Concentric":
+        table_control_ports.setItem(
+            row,
+            0,
+            QtWidgets.QTableWidgetItem(f"Boundary control"),
+        )
+        table_control_ports.setItem(row, 6, QtWidgets.QTableWidgetItem(f"{10+row}"))
+
+    elif type_domain == "Segment":
+        where = ["left", "right"]
+        for row in range(2):
+            table_control_ports.setItem(
+                row,
+                0,
+                QtWidgets.QTableWidgetItem(f"Boundary control ({where[row]})"),
+            )
+            table_control_ports.setItem(row, 6, QtWidgets.QTableWidgetItem(f"{10+row}"))
+            if table_control_ports.rowCount() < 2:
+                self.add_control_port_page.new_control_port()
 
 
 from PyQt5.QtWidgets import (

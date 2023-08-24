@@ -226,15 +226,23 @@ class Window(QtWidgets.QWidget):
         controlport_choice_region = QComboBox()
         controlport_choice_region.addItems(["Effort", "Flow"])
         controlport_choice_region.textHighlighted.connect(self.choice_clicked("Region"))
-        self.table_control_ports.setCellWidget(count, 6, controlport_choice_region)
+        self.table_control_ports.setCellWidget(count, 7, controlport_choice_region)
 
         # set defaults
-        # region
-        new_value = QTableWidgetItem("None")
-        self.table_control_ports.setItem(count, 7, new_value)
-        # mesh_id
-        new_value = QTableWidgetItem("0")
-        self.table_control_ports.setItem(count, 8, new_value)
+
+        for i in range(9):
+            if i == 6:
+                # Region
+                new_value = QTableWidgetItem("None")
+                self.table_control_ports.setItem(count, 6, new_value)
+            elif i == 8:
+                # mesh_id
+                new_value = QTableWidgetItem("0")
+                self.table_control_ports.setItem(count, 8, new_value)
+            else:
+                # others
+                new_value = QTableWidgetItem("")
+                self.table_control_ports.setItem(count, i, new_value)
 
     def delete_control_port(self):
         """This function removes 2 rows in the table (1 for control_port, 1 for co-control_port)"""
