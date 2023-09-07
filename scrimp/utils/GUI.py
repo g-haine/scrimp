@@ -51,57 +51,63 @@ from itertools import zip_longest
 """
 
 
-def text_add_loop(self, file, filename):
-    loop = f"""    for state, costate, param, fem, port, control_port in zip_longest(
-            states, costates, params, FEMs, ports, control_ports
+def text_main(self, file, dphs):
+    file.write(f"\n    return {dphs}\n\n")
+    file.write(f"""if __name__ == "__main__":
+    {dphs} = {dphs}_eq()""")
+
+
+def text_add_loop(self, file, dphs):
+    loop = f"""\n\n    for state, costate, param, fem, port, control_port in zip_longest(
+            states, costates, parameters, FEMs, ports, control_ports
         ):
             # Add a state
             if state is not None:
-                {filename}.add_state(state)
+                {dphs}.add_state(state)
 
         # Add its co-state        	
             if costate is not None:
-                {filename}.add_costate(costate)
+                {dphs}.add_costate(costate)
 
         # Add a Finite Element Method to the `port`
             if fem is not None:
-                {filename}.add_FEM(fem)
+                {dphs}.add_FEM(fem)
 
         # Add a (possibly space-varying) parameter to the `port`
             if param is not None:
-                {filename}.add_parameter(param)
+                {dphs}.add_parameter(param)
                 
         # Add a resistive `port`        	
             if port is not None:
-                {filename}.add_port(port)
+                {dphs}.add_port(port)
 
         # Add a control `port` on the boundary (Neumann, thus position='effort' - default)        	
             if control_port is not None:
-                {filename}.add_control_port(control_port)"""
+                {dphs}.add_control_port(control_port)"""
 
     file.write(loop)
 
 
-def text_set_hamiltonian(self, file, filename):
+def text_set_hamiltonian(self, file, dphs):
     file.write(
         f"""\n\n    ## Set Hamiltonian
-    {filename}.hamiltonian.set_name("{self.set_hamiltonian_page.line_edit_hamiltonian_name.text()}")"""
+    {dphs}.hamiltonian.set_name("{self.set_hamiltonian_page.line_edit_hamiltonian_name.text()}")"""
     )
 
 
-def text_create_class(self, file, filename):
+def text_create_class(self, file, dphs):
     index = self.create_dphs.comboBox_dphs_type.currentIndex()
     type_dphs = self.create_dphs.comboBox_dphs_type.itemText(index)
     file.write(
-        f'    # Init the distributed port-Hamiltonian system\n    {filename} = DPHS("{type_dphs}")\n\n'
+        f'    # Init the distributed port-Hamiltonian system\n    {dphs} = DPHS("{type_dphs}")\n\n'
     )
 
 
-def text_set_domain(self, file, filename):
+def text_set_domain(self, file, dphs):
     type_domain = self.set_domain_page.list_widget.currentItem().text()
     file.write(
         f"""    # Set the domain (using the built-in geometry `{type_domain}`)
-    {filename}.set_domain(Domain("{type_domain}",{{"""
+    {dphs}.set_domain(Domain("{type_domain}",{{"""
     )
 
     table = self.set_domain_page.table
@@ -135,8 +141,12 @@ def text_add_states(self, file):
                 text = table_states.cellWidget(row, col).currentText()
             elif item is not None:
                 text = item.text()
-
-            file.write(f'"{text}"')
+            if col in [3, 4]:
+                if text == "":
+                    text = None
+                file.write(f'{text}')
+            else:
+                file.write(f'"{text}"')
 
             if col + 1 < cols:
                 file.write(f",")
@@ -206,9 +216,11 @@ def text_add_ports(self, file):
             elif item is not None:
                 text = item.text()
 
-            if col not in [5, 6]:
+            if col < 4:
                 file.write(f'"{text}"')
             else:
+                if text == "":
+                    text = None
                 file.write(f"{text}")
 
             if col + 1 < cols:
@@ -296,7 +308,10 @@ def text_add_control_ports(self, file):
             elif item is not None:
                 text = item.text()
 
-            file.write(f'"{text}"')
+            if col not in [6, 8]:
+                file.write(f'{text}')
+            else:
+                file.write(f'"{text}"')
 
             if col + 1 < cols:
                 file.write(f",")
@@ -427,7 +442,10 @@ def text_add_FEM(self, file):
             elif item is not None:
                 text = item.text()
 
-            file.write(f'"{text}"')
+            if col == 1:
+                file.write(f'{text}')
+            else:
+                file.write(f'"{text}"')
 
             if col + 1 < cols:
                 file.write(f",")
@@ -440,7 +458,7 @@ def text_add_FEM(self, file):
     file.write("\n    ]")
 
 
-def text_add_terms(self, file, filename):
+def text_add_terms(self, file, dphs):
     table_terms = self.add_term_page.table_terms
     rows = table_terms.rowCount()
     cols = table_terms.columnCount()
@@ -456,7 +474,7 @@ def text_add_terms(self, file, filename):
             item = table_terms.item(row, col)
             if item is not None:
                 text = item.text()
-            if col != 3:
+            if col < 2:
                 file.write(f'"{text}"')
             else:
                 file.write(f'[')
@@ -478,11 +496,11 @@ def text_add_terms(self, file, filename):
 
     file.write(
         f"""\n\n    for term in terms:
-        {filename}.hamiltonian.add_term(term)\n"""
+        {dphs}.hamiltonian.add_term(term)\n"""
     )
 
 
-def text_add_bricks(self, file, filename):
+def text_add_bricks(self, file, dphs):
     table_bricks = self.add_brick_page.table_bricks
     rows = table_bricks.rowCount()
     cols = table_bricks.columnCount()
@@ -508,7 +526,7 @@ def text_add_bricks(self, file, filename):
                     else:
                         file.write(f'{region}]')
 
-            elif col not in [3, 4]:
+            elif col not in [3, 4, 6]:
                 file.write(f'"{text}"')
             else:
                 file.write(f"{text}")
@@ -525,11 +543,11 @@ def text_add_bricks(self, file, filename):
 
     file.write(
         f"""\n\n    for brick in bricks:
-        {filename}.add_brick(brick)\n"""
+        {dphs}.add_brick(brick)\n"""
     )
 
 
-def text_add_expressions(self, file, filename):
+def text_add_expressions(self, file, dphs):
     table_expressions = self.add_expression_page.table_expressions
     rows = table_expressions.rowCount()
     cols = table_expressions.columnCount()
@@ -555,11 +573,11 @@ def text_add_expressions(self, file, filename):
 
     file.write(
         f"""\n\n    for control_port, expression in zip(control_ports, expressions):
-        {filename}.set_control(control_port.get_name(), expression)\n"""
+        {dphs}.set_control(control_port.get_name(), expression)\n"""
     )
 
 
-def text_add_initial_values(self, file, filename):
+def text_add_initial_values(self, file, dphs):
     table_initial_values = self.add_initial_value_page.table_initial_values
     rows = table_initial_values.rowCount()
     cols = table_initial_values.columnCount()
@@ -568,7 +586,7 @@ def text_add_initial_values(self, file, filename):
 
     for row in range(rows):
         file.write(
-            f"""    {filename}.set_initial_value(""")
+            f"""    {dphs}.set_initial_value(""")
         for col in range(cols):
 
             item = table_initial_values.item(row, col)
@@ -583,14 +601,14 @@ def text_add_initial_values(self, file, filename):
                 file.write(f")\n")
 
 
-def text_set_time_scheme(self, file, filename):
+def text_set_time_scheme(self, file, dphs):
     checkBox_answer = self.set_time_scheme_page.checkBox_answer
 
     if checkBox_answer.isChecked():
         table = self.set_time_scheme_page.table
         file.write(
-            f"""    # Solve in time
-    {filename}.set_time_scheme("""
+            f"""\n    # Solve in time
+    {dphs}.set_time_scheme("""
         )
 
         rows = table.rowCount()
@@ -606,12 +624,6 @@ def text_set_time_scheme(self, file, filename):
                     file.write(f'{text}={table.item(row,1).text()}')
 
         file.write(")\n")
-
-    else:
-        file.write(
-            f"""    # Solve 
-    {filename}.solve()"""
-        )
 
 
 class Help:

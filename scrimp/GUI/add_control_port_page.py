@@ -51,7 +51,8 @@ class Window(QtWidgets.QWidget):
             "Position",
             "Mesh ID",
         ]
-        self.table_control_ports.setColumnCount(len(header_horizontal_control_ports))
+        self.table_control_ports.setColumnCount(
+            len(header_horizontal_control_ports))
 
         self.header_vertical_control_ports = ["control_port"]
         self.table_control_ports.setHorizontalHeaderLabels(
@@ -69,7 +70,8 @@ class Window(QtWidgets.QWidget):
         self.button_add_control_port.clicked.connect(self.new_control_port)
 
         self.button_delete_control_port = QPushButton("Remove control_port")
-        self.button_delete_control_port.clicked.connect(self.delete_control_port)
+        self.button_delete_control_port.clicked.connect(
+            self.delete_control_port)
 
         self.button_clear_all = QPushButton("Clear All")
         self.button_clear_all.clicked.connect(self.clear_all)
@@ -91,7 +93,8 @@ class Window(QtWidgets.QWidget):
         # layout.addWidget(cell_double, 1, 3)
         self.layout.addWidget(self.button_clear_all, 0, 1)
         self.layout.addWidget(self.button_add_control_port, 0, 2, Qt.AlignTop)
-        self.layout.addWidget(self.button_delete_control_port, 0, 3, Qt.AlignTop)
+        self.layout.addWidget(
+            self.button_delete_control_port, 0, 3, Qt.AlignTop)
 
         self.layout.addWidget(self.button_next, 4, 3)
         self.layout.addWidget(self.button_prev, 4, 2)
@@ -220,13 +223,17 @@ class Window(QtWidgets.QWidget):
         controlport_choice_kind.addItems(
             ["scalar-field", "vector-field", "tensor-field"]
         )
-        controlport_choice_kind.textHighlighted.connect(self.choice_clicked("Kind"))
-        self.table_control_ports.setCellWidget(count, 5, controlport_choice_kind)
+        controlport_choice_kind.textHighlighted.connect(
+            self.choice_clicked("Kind"))
+        self.table_control_ports.setCellWidget(
+            count, 5, controlport_choice_kind)
 
         controlport_choice_region = QComboBox()
-        controlport_choice_region.addItems(["Effort", "Flow"])
-        controlport_choice_region.textHighlighted.connect(self.choice_clicked("Region"))
-        self.table_control_ports.setCellWidget(count, 7, controlport_choice_region)
+        controlport_choice_region.addItems(["effort", "flow"])
+        controlport_choice_region.textHighlighted.connect(
+            self.choice_clicked("Region"))
+        self.table_control_ports.setCellWidget(
+            count, 7, controlport_choice_region)
 
         # set defaults
 
@@ -252,7 +259,8 @@ class Window(QtWidgets.QWidget):
                 self.header_vertical_control_ports
             )
 
-            self.table_control_ports.removeRow(self.table_control_ports.rowCount() - 1)
+            self.table_control_ports.removeRow(
+                self.table_control_ports.rowCount() - 1)
 
         else:
             print("not enough element to delete!")

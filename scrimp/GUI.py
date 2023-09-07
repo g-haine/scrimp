@@ -36,7 +36,8 @@ from utils.GUI import (
     update_expressions_page,
     text_add_expressions,
     text_add_initial_values,
-    text_set_time_scheme
+    text_set_time_scheme,
+    text_main
 
 )
 import os
@@ -119,79 +120,121 @@ class Controller:
             self.generate_code_page.show()
         elif text == "generate_code":
             self.generate_code()
+        elif text in ["Matplotlib", "Paraview"]:
+            filename, dphs = self.generate_code()
+            self.run_code(text, filename, dphs)
         else:
             print("the emitted signal:", text)
             pass
 
     def generate_code(self):
+        """This function retrieves the field from the GUI and create a python script.
+        It return the filename and the name of Discrete Port Hamiltonia System declared.
+
+        Returns:
+            filename (str): name of the python script just generated.
+            dphs (str): name of the dphs used in the script.
+        """
         # create folder
         folder = "generated_scripts"
         if not os.path.exists(folder):
             os.makedirs(folder)
 
         # create file
-        filename = self.create_dphs.line_edit_dphs_name.text()
+        dphs = self.create_dphs.line_edit_dphs_name.text()
+        filename = self.generate_code_page.line_edit_filname.text()
+        folder = self.generate_code_page.line_edit_directory.text()
         file = open(os.path.join(folder, filename + ".py"), "w")
 
         # write heading and imports
         file.write(heading)
 
         # write func definition
-        file.write(f"def {filename}_eq():\n")
+        file.write(f"def {dphs}_eq():\n")
 
         # write verbosity
         file.write("    set_verbose_gf(0)\n\n")
 
         # create class
-        text_create_class(self, file, filename)
+        text_create_class(self, file, dphs)
 
-        # # set domain and its parameters
-        # text_set_domain(self, file, filename)
+        # set domain and its parameters
+        text_set_domain(self, file, dphs)
 
-        # # define the cariables and their dicretizations
-        # file.write("    ## Define the variables and their discretizations")
+        # define the cariables and their dicretizations
+        file.write("    ## Define the variables and their discretizations")
 
-        # # define State/s
-        # text_add_states(self, file)
+        # define State/s
+        text_add_states(self, file)
 
-        # # define Co-State/s
-        # text_add_costates(self, file)
+        # define Co-State/s
+        text_add_costates(self, file)
 
-        # # define Port/s
-        # text_add_ports(self, file)
+        # define Port/s
+        text_add_ports(self, file)
 
-        # # define Parameter/s
-        # text_add_parameters(self, file)
+        # define Parameter/s
+        text_add_parameters(self, file)
 
-        # # define Control Ports
-        # text_add_control_ports(self, file)
+        # define Control Ports
+        text_add_control_ports(self, file)
 
-        # # define FEMs
-        # text_add_FEM(self, file)
+        # define FEMs
+        text_add_FEM(self, file)
 
-        # # write loop for variables insertion (states,costates,...)
-        # text_add_loop(self, file, filename)
+        # write loop for variables insertion (states,costates,...)
+        text_add_loop(self, file, dphs)
 
-        # # set Hamiltoniam
-        # text_set_hamiltonian(self, file, filename)
+        # set Hamiltoniam
+        text_set_hamiltonian(self, file, dphs)
 
-        # # define Term/s
-        # text_add_terms(self, file, filename)
+        # define Term/s
+        text_add_terms(self, file, dphs)
 
-        # # define Brick/s
-        # text_add_bricks(self, file, filename)
+        # define Brick/s
+        text_add_bricks(self, file, dphs)
 
-        # # define Expression/s
-        # text_add_expressions(self, file, filename)
+        # define Expression/s
+        text_add_expressions(self, file, dphs)
 
-        # # define Intial Value/s
-        # text_add_initial_values(self, file, filename)
+        # define Intial Value/s
+        text_add_initial_values(self, file, dphs)
 
         # set time scheme and its parameters
-        text_set_time_scheme(self, file, filename)
+        text_set_time_scheme(self, file, dphs)
+
+        # solve
+        file.write(f"""\n    # Solve\n    {dphs}.solve()""")
+
+        # plot hamiltonian
+        file.write(
+            f"""\n    # Plot the Hamiltonian with the power supplied at the boundary
+    {dphs}.plot_Hamiltonian(save_figure=True)"""
+        )
+
+        # # define main
+        text_main(self, file, dphs)
 
         file.close()
         print(f"created {filename}")
+        return filename, dphs
+
+    def run_code(self, text, filename, dphs):
+        """This function execute the script just generated.
+
+        Args:
+            text (str): the signal emitted from generate_code_page('Matplotlib' or 'GMesh')
+            filename (str): the name of the python script just generated.
+            dphs (str): the name of the dphs used in the script.
+        """
+
+        if text == "Matplotlib":
+            exec(
+                f'import {filename}\n{filename}.{dphs}_eq()')
+
+        else:
+            # TODO
+            pass
 
 
 def main():

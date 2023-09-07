@@ -183,9 +183,9 @@ class Window(QtWidgets.QWidget):
                 description = "This is a parameter to help easy identification of matrices applied to time derivative of a variable."
                 example = "The mass matrices.\n Defaults to False."
 
-            elif text == "position":
-                description = "It is a boolean that defines whether to substitute the variable. Defaults to False"
-                example = "Default is False"
+            elif text == "Position":
+                description = "A parameter to help easy identification of 'where' is the form: in the Dirac structure('flow' side or 'effort' side), or in the 'constitutive' relations. This serves for both the time-resolution and plotting purposes."
+                example = "Defaults to 'constitutive"
 
             self.help.updateFields(text, description, example)
 
@@ -210,9 +210,9 @@ class Window(QtWidgets.QWidget):
         self.table_bricks.setCellWidget(count, 4, brick_choice_dt)
 
         brick_choice_position = QComboBox()
-        brick_choice_position.addItems(["Constitutive", "?"])
+        brick_choice_position.addItems(["constitutive", "flow", "effort"])
         brick_choice_position.textHighlighted.connect(
-            self.choice_clicked("dt"))
+            self.choice_clicked("Position"))
         self.table_bricks.setCellWidget(count, 5, brick_choice_position)
 
         # set defaults

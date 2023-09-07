@@ -41,7 +41,8 @@ class Window(QtWidgets.QWidget):
         self.button_file_dialog = QtWidgets.QPushButton("Select Folder", self)
         self.button_file_dialog.clicked.connect(self.get_path)
 
-        label_directory = QLabel('<font size="4"> The selected directory is: </font>')
+        label_directory = QLabel(
+            '<font size="4"> The selected directory is: </font>')
         self.line_edit_directory = QLineEdit()
         self.line_edit_directory.setPlaceholderText(
             "Insert manually your filepath or click the button on the right to select the directory"
@@ -55,9 +56,12 @@ class Window(QtWidgets.QWidget):
             "Select your prefered output by clicking on the related button:"
         )
         self.msg.setIcon(QMessageBox.Question)
-        self.button_paraview = self.msg.addButton("Paraview", QMessageBox.NoRole)
-        self.button_matplotlib = self.msg.addButton("Matplotlib", QMessageBox.YesRole)
-        self.button_cancel = self.msg.addButton("Cancel", QMessageBox.RejectRole)
+        self.button_paraview = self.msg.addButton(
+            "Paraview", QMessageBox.NoRole)
+        self.button_matplotlib = self.msg.addButton(
+            "Matplotlib", QMessageBox.YesRole)
+        self.button_cancel = self.msg.addButton(
+            "Cancel", QMessageBox.RejectRole)
         self.button_paraview.clicked.connect(self.popup_button)
         self.button_matplotlib.clicked.connect(self.popup_button)
 
@@ -95,11 +99,13 @@ class Window(QtWidgets.QWidget):
 
     def popup_button(self, i):
         button = self.msg.clickedButton()
-        print(button.text())
-        # TODO
+        text = button.text()
+        print(text)
+        self.switch_window.emit(text)
 
     def get_path(self):
-        self.file_path = str(QFileDialog.getExistingDirectory(self, "Select Directory"))
+        self.file_path = str(
+            QFileDialog.getExistingDirectory(self, "Select Directory"))
         print(self.file_path)
         self.line_edit_directory.setText(self.file_path)
 

@@ -35,17 +35,19 @@ def heat_eq():
     # Omega = 1, Gamma_Bottom = 10, Gamma_Right = 11, Gamma_Top = 12, Gamma_Left = 13
     heat.set_domain(Domain("Rectangle", {"L": 2.0, "l": 1.0, "h": 0.15}))
 
-    ## Define the variables and their discretizations
+    # Define the variables and their discretizations
 
     states = [
         State("T", "Temperature", "scalar-field"),
     ]
     costates = [CoState("T", "Temperature", states[0], substituted=True)]
+
     ports = [
         Port("Heat flux", "f_Q", "e_Q", "vector-field"),
     ]
     params = [
-        Parameter("rho", "Mass density times heat capacity", "scalar-field", "1.", "T"),
+        Parameter("rho", "Mass density times heat capacity",
+                  "scalar-field", "1.", "T"),
         Parameter(
             "Lambda",
             "Heat conductivity",
@@ -130,7 +132,7 @@ def heat_eq():
             # Add a control `port` on the bottom part of the boundary (Neumann, thus position='effort' - default)
             heat.add_control_port(control_port)
 
-    ## Set Hamiltonian
+    # Set Hamiltonian
     heat.hamiltonian.set_name("Lyapunov formulation")
 
     terms = [
@@ -141,7 +143,7 @@ def heat_eq():
         # Set the Hamiltonian (can be done later, even after solve)
         heat.hamiltonian.add_term(term)
 
-    ## Define the Dirac structure via getfem `brick` = non-zero block matrix
+    # Define the Dirac structure via getfem `brick` = non-zero block matrix
     bricks = [
         # Add the mass matrices from the left-hand side: the `flow` part of the Dirac structure
         Brick("M_T", "T*rho*Test_T", [1], dt=True, position="flow"),
@@ -163,7 +165,7 @@ def heat_eq():
         Brick("C_R", "e_Q.Normal*Test_Y_R", [11], position="effort"),
         Brick("C_T", "e_Q.Normal*Test_Y_T", [12], position="effort"),
         Brick("C_L", "e_Q.Normal*Test_Y_L", [13], position="effort"),
-        ## Define the constitutive relations as getfem `brick`
+        # Define the constitutive relations as getfem `brick`
         # Fourier's law under implicit form - M_e_Q e_Q + CR_Q Q = 0
         Brick("-M_e_Q", "-e_Q.Test_e_Q", [1]),
         Brick("CR_Q", "f_Q.Lambda.Test_e_Q", [1]),
@@ -172,7 +174,7 @@ def heat_eq():
     for brick in bricks:
         heat.add_brick(brick)
 
-    ## Initialize the problem
+    # Initialize the problem
     expressions = ["t", "t", "t", "0.2"]
 
     for control_port, expression in zip(control_ports, expressions):
@@ -190,7 +192,7 @@ def heat_eq():
     # Solve
     heat.solve()
 
-    ## Post-processing
+    # Post-processing
 
     # Plot the Hamiltonian with the power supplied at the boundary
     heat.plot_Hamiltonian(save_figure=True)
