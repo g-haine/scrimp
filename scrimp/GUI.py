@@ -31,7 +31,8 @@ from utils.GUI import (
     update_FEMs_page,
     text_add_loop,
     text_set_hamiltonian,
-    text_add_terms
+    text_add_terms,
+    text_add_bricks
 )
 import os
 
@@ -168,8 +169,11 @@ class Controller:
         # # set Hamiltoniam
         # text_set_hamiltonian(self, file, filename)
 
-        # define Term/s
-        text_add_terms(self, file, filename)
+        # # define Term/s
+        # text_add_terms(self, file, filename)
+
+        # define Brick/s
+        text_add_bricks(self, file, filename)
 
         file.close()
         print(f"created {filename}")

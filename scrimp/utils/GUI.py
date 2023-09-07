@@ -466,6 +466,53 @@ def text_add_terms(self, file, filename):
     )
 
 
+def text_add_bricks(self, file, filename):
+    table_bricks = self.add_brick_page.table_bricks
+    rows = table_bricks.rowCount()
+    cols = table_bricks.columnCount()
+    file.write(
+        f"""\n\n    # Define Bricks/s`)
+    bricks = [\n"""
+    )
+
+    for row in range(rows):
+        file.write("    Brick(")
+        for col in range(cols):
+            item = table_bricks.item(row, col)
+            if col in [3, 4, 5]:
+                text = table_bricks.cellWidget(row, col).currentText()
+            elif item is not None:
+                text = item.text()
+
+            if col == 2:
+                file.write(f'[')
+                for i, region in enumerate(text.split(",")):
+                    if i + 1 < len(text.split(",")):
+                        file.write(f'{region},')
+                    else:
+                        file.write(f'{region}]')
+
+            elif col not in [3, 4]:
+                file.write(f'"{text}"')
+            else:
+                file.write(f"{text}")
+
+            if col + 1 < cols:
+                file.write(f",")
+
+        if row + 1 < rows:
+            file.write("),\n")
+        else:
+            file.write(")")
+
+    file.write("\n    ]")
+
+    file.write(
+        f"""\n\n    for brick in bricks:
+        {filename}.add_brick(brick)\n"""
+    )
+
+
 class Help:
     """This class define an help section in the window of the GUI.
     Each time a field is selected it will show the description of the field and an example

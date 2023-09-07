@@ -123,8 +123,9 @@ class Window(QtWidgets.QWidget):
 
             elif col == 2:
                 description = (
-                    "Choose the the regions of mesh_id where the form applies."
+                    "Choose the the regions of mesh_id where the form applies. If more than one use a coma ',' to separate them with no spaces in between."
                 )
+                example = "If multiple: 0,1,2"
 
             elif col == 3:
                 description = (
@@ -199,7 +200,8 @@ class Window(QtWidgets.QWidget):
 
         brick_choice_linear = QComboBox()
         brick_choice_linear.addItems(["True", "False"])
-        brick_choice_linear.textHighlighted.connect(self.choice_clicked("Linear"))
+        brick_choice_linear.textHighlighted.connect(
+            self.choice_clicked("Linear"))
         self.table_bricks.setCellWidget(count, 3, brick_choice_linear)
 
         brick_choice_dt = QComboBox()
@@ -208,8 +210,9 @@ class Window(QtWidgets.QWidget):
         self.table_bricks.setCellWidget(count, 4, brick_choice_dt)
 
         brick_choice_position = QComboBox()
-        brick_choice_position.addItems(["Contitutive", "?"])
-        brick_choice_position.textHighlighted.connect(self.choice_clicked("dt"))
+        brick_choice_position.addItems(["Constitutive", "?"])
+        brick_choice_position.textHighlighted.connect(
+            self.choice_clicked("dt"))
         self.table_bricks.setCellWidget(count, 5, brick_choice_position)
 
         # set defaults
@@ -227,7 +230,8 @@ class Window(QtWidgets.QWidget):
         """This function removes 2 rows in the table (1 for brick, 1 for co-brick)"""
         if len(self.header_vertical_bricks) > 1:
             self.header_vertical_bricks.pop()
-            self.table_bricks.setVerticalHeaderLabels(self.header_vertical_bricks)
+            self.table_bricks.setVerticalHeaderLabels(
+                self.header_vertical_bricks)
 
             self.table_bricks.removeRow(self.table_bricks.rowCount() - 1)
 
