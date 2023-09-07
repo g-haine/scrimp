@@ -32,7 +32,10 @@ from utils.GUI import (
     text_add_loop,
     text_set_hamiltonian,
     text_add_terms,
-    text_add_bricks
+    text_add_bricks,
+    update_expressions_page,
+    text_add_expressions
+
 )
 import os
 
@@ -104,6 +107,7 @@ class Controller:
         elif text == "add_brick_page":
             self.add_brick_page.show()
         elif text == "add_expression_page":
+            update_expressions_page(self)
             self.add_expression_page.show()
         elif text == "add_initial_value_page":
             self.add_initial_value_page.show()
@@ -157,8 +161,8 @@ class Controller:
         # # define Parameter/s
         # text_add_parameters(self, file)
 
-        # # define Control Ports
-        # text_add_control_ports(self, file)
+        # define Control Ports
+        text_add_control_ports(self, file)
 
         # # define FEMs
         # text_add_FEM(self, file)
@@ -172,8 +176,11 @@ class Controller:
         # # define Term/s
         # text_add_terms(self, file, filename)
 
-        # define Brick/s
-        text_add_bricks(self, file, filename)
+        # # define Brick/s
+        # text_add_bricks(self, file, filename)
+
+        # # define Expression/s
+        text_add_expressions(self, file, filename)
 
         file.close()
         print(f"created {filename}")

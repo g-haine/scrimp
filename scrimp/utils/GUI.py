@@ -393,6 +393,22 @@ def update_FEMs_page(self):
                 self.add_fem_page.new_FEM()
 
 
+def update_expressions_page(self):
+    """This function updates the add expression page accounting for the existing control ports already declared."""
+
+    table_control_ports = self.add_control_port_page.table_control_ports
+    rows_control_ports = table_control_ports.rowCount()
+
+    table_expressions = self.add_expression_page.table_expressions
+
+    for row in range(rows_control_ports):
+        item = table_control_ports.item(row, 0)
+        if item is not None:
+            table_expressions.setItem(row, 0, item.clone())
+            if table_expressions.rowCount() < rows_control_ports:
+                self.add_expression_page.new_expression()
+
+
 def text_add_FEM(self, file):
     table_FEMs = self.add_fem_page.table_FEMs
     rows = table_FEMs.rowCount()
@@ -510,6 +526,36 @@ def text_add_bricks(self, file, filename):
     file.write(
         f"""\n\n    for brick in bricks:
         {filename}.add_brick(brick)\n"""
+    )
+
+
+def text_add_expressions(self, file, filename):
+    table_expressions = self.add_expression_page.table_expressions
+    rows = table_expressions.rowCount()
+    cols = table_expressions.columnCount()
+    file.write(
+        f"""\n\n    # Define expression/s`)
+    expressions = ["""
+    )
+
+    for row in range(rows):
+
+        for col in range(cols):
+            if col != 0:
+                item = table_expressions.item(row, col)
+                if item is not None:
+                    text = item.text()
+
+                file.write(f'"{text}"')
+
+        if row + 1 < rows:
+            file.write(f",")
+
+    file.write("]")
+
+    file.write(
+        f"""\n\n    for control_port, expression in zip(control_ports, expressions):
+        {filename}.set_control(control_port.get_name(), expression)\n"""
     )
 
 
