@@ -41,7 +41,8 @@ class Window(QtWidgets.QWidget):
 
         # adding header to the table
         header_horizontal_initial_values = ["Variable Name", "Initial Value"]
-        self.table_initial_values.setColumnCount(len(header_horizontal_initial_values))
+        self.table_initial_values.setColumnCount(
+            len(header_horizontal_initial_values))
 
         self.header_vertical_initial_values = ["initial value"]
         self.table_initial_values.setHorizontalHeaderLabels(
@@ -59,7 +60,8 @@ class Window(QtWidgets.QWidget):
         self.button_add_initial_value.clicked.connect(self.new_initial_value)
 
         self.button_delete_initial_value = QPushButton("Remove initial_value")
-        self.button_delete_initial_value.clicked.connect(self.delete_initial_value)
+        self.button_delete_initial_value.clicked.connect(
+            self.delete_initial_value)
 
         self.button_clear_all = QPushButton("Clear All")
         self.button_clear_all.clicked.connect(self.clear_all)
@@ -81,7 +83,8 @@ class Window(QtWidgets.QWidget):
         # layout.addWidget(cell_double, 1, 3)
         self.layout.addWidget(self.button_clear_all, 0, 1)
         self.layout.addWidget(self.button_add_initial_value, 0, 2, Qt.AlignTop)
-        self.layout.addWidget(self.button_delete_initial_value, 0, 3, Qt.AlignTop)
+        self.layout.addWidget(
+            self.button_delete_initial_value, 0, 3, Qt.AlignTop)
         self.layout.addWidget(self.button_prev, 4, 2)
         self.layout.addWidget(self.button_next, 4, 3)
 
@@ -146,9 +149,9 @@ class Window(QtWidgets.QWidget):
             self.header_vertical_initial_values
         )
 
-        for i in range(self.table_intial_values.columnCount()):
+        for i in range(self.table_initial_values.columnCount()):
             new_value = QTableWidgetItem("")
-            self.table_intial_values.setItem(count, i, new_value)
+            self.table_initial_values.setItem(count, i, new_value)
 
     def delete_initial_value(self):
         """This function removes 2 rows in the table (1 for initial_value, 1 for co-initial_value)"""

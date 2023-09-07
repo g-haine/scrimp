@@ -559,6 +559,30 @@ def text_add_expressions(self, file, filename):
     )
 
 
+def text_add_initial_values(self, file, filename):
+    table_initial_values = self.add_initial_value_page.table_initial_values
+    rows = table_initial_values.rowCount()
+    cols = table_initial_values.columnCount()
+    file.write(
+        f"""\n\n    # Define initial_value/s`)\n\n""")
+
+    for row in range(rows):
+        file.write(
+            f"""    {filename}.set_initial_value(""")
+        for col in range(cols):
+
+            item = table_initial_values.item(row, col)
+            if item is not None:
+                text = item.text()
+
+            file.write(f'"{text}"')
+
+            if col + 1 < cols:
+                file.write(f",")
+            else:
+                file.write(f")\n")
+
+
 class Help:
     """This class define an help section in the window of the GUI.
     Each time a field is selected it will show the description of the field and an example

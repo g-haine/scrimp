@@ -34,7 +34,8 @@ from utils.GUI import (
     text_add_terms,
     text_add_bricks,
     update_expressions_page,
-    text_add_expressions
+    text_add_expressions,
+    text_add_initial_values
 
 )
 import os
@@ -161,8 +162,8 @@ class Controller:
         # # define Parameter/s
         # text_add_parameters(self, file)
 
-        # define Control Ports
-        text_add_control_ports(self, file)
+        # # define Control Ports
+        # text_add_control_ports(self, file)
 
         # # define FEMs
         # text_add_FEM(self, file)
@@ -180,7 +181,10 @@ class Controller:
         # text_add_bricks(self, file, filename)
 
         # # define Expression/s
-        text_add_expressions(self, file, filename)
+        # text_add_expressions(self, file, filename)
+
+        # define Intial Value/s
+        text_add_initial_values(self, file, filename)
 
         file.close()
         print(f"created {filename}")
