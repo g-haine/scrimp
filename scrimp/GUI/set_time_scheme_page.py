@@ -264,7 +264,7 @@ class Window(QtWidgets.QWidget):
             # remove all the rows
             self.table.setRowCount(1)
 
-        rows = self.table.countRow()
+        rows = self.table.rowCount()
         for row in range(rows):
             new_value = QTableWidgetItem("")
             self.table.setItem(row, 1, new_value)

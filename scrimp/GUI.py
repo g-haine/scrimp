@@ -35,7 +35,8 @@ from utils.GUI import (
     text_add_bricks,
     update_expressions_page,
     text_add_expressions,
-    text_add_initial_values
+    text_add_initial_values,
+    text_set_time_scheme
 
 )
 import os
@@ -183,8 +184,11 @@ class Controller:
         # # define Expression/s
         # text_add_expressions(self, file, filename)
 
-        # define Intial Value/s
-        text_add_initial_values(self, file, filename)
+        # # define Intial Value/s
+        # text_add_initial_values(self, file, filename)
+
+        # set time scheme and its parameters
+        text_set_time_scheme(self, file, filename)
 
         file.close()
         print(f"created {filename}")

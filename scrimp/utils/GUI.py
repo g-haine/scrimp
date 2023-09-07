@@ -583,6 +583,37 @@ def text_add_initial_values(self, file, filename):
                 file.write(f")\n")
 
 
+def text_set_time_scheme(self, file, filename):
+    checkBox_answer = self.set_time_scheme_page.checkBox_answer
+
+    if checkBox_answer.isChecked():
+        table = self.set_time_scheme_page.table
+        file.write(
+            f"""    # Solve in time
+    {filename}.set_time_scheme("""
+        )
+
+        rows = table.rowCount()
+        for row in range(rows):
+            item = table.item(row, 0)
+            if item is not None:
+                text = item.text()
+                if text in ["pc_type", "ts_type", "ksp_type"]:
+                    file.write(f'{text}="{table.item(row,1).text()}",')
+                elif row + 1 < rows:
+                    file.write(f'{text}={table.item(row,1).text()},')
+                else:
+                    file.write(f'{text}={table.item(row,1).text()}')
+
+        file.write(")\n")
+
+    else:
+        file.write(
+            f"""    # Solve 
+    {filename}.solve()"""
+        )
+
+
 class Help:
     """This class define an help section in the window of the GUI.
     Each time a field is selected it will show the description of the field and an example
