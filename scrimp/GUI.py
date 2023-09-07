@@ -31,6 +31,7 @@ from utils.GUI import (
     update_FEMs_page,
     text_add_loop,
     text_set_hamiltonian,
+    text_add_terms
 )
 import os
 
@@ -161,11 +162,14 @@ class Controller:
         # # define FEMs
         # text_add_FEM(self, file)
 
-        # write loop for variables insertion (states,costates,...)
-        text_add_loop(self, file, filename)
+        # # write loop for variables insertion (states,costates,...)
+        # text_add_loop(self, file, filename)
 
-        # set Hamiltoniam
-        text_set_hamiltonian(self, file, filename)
+        # # set Hamiltoniam
+        # text_set_hamiltonian(self, file, filename)
+
+        # define Term/s
+        text_add_terms(self, file, filename)
 
         file.close()
         print(f"created {filename}")

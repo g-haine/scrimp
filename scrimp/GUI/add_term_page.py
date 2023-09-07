@@ -40,7 +40,8 @@ class Window(QtWidgets.QWidget):
         # self.table_terms.setRowCount(1)
 
         # adding header to the table
-        header_horizontal_terms = ["Description", "Expression", "Regions", "Mesh ID"]
+        header_horizontal_terms = ["Description",
+                                   "Expression", "Regions", "Mesh ID"]
         self.table_terms.setColumnCount(len(header_horizontal_terms))
 
         self.header_vertical_terms = ["term"]
@@ -116,11 +117,11 @@ class Window(QtWidgets.QWidget):
                 example = " Parameters are allowed: 0.5*q.T.q"
 
             elif col == 2:
-                description = "The region ids of the mesh mesh_id where the expression has to be evaluated"
+                description = "The region ids of the mesh mesh_id where the expression has to be evaluated. If more than one use a coma ',' to separate them with no spaces in between."
 
             elif col == 3:
                 description = "Tthe mesh id of the mesh where the regions belong"
-                example = "Default is 0."
+                example = "Default is 0.<br>If multiple: 0,1,2"
 
             self.help.updateFields(text, description, example)
 
@@ -164,7 +165,8 @@ class Window(QtWidgets.QWidget):
         """This function removes 2 rows in the table (1 for term, 1 for co-term)"""
         if len(self.header_vertical_terms) > 1:
             self.header_vertical_terms.pop()
-            self.table_terms.setVerticalHeaderLabels(self.header_vertical_terms)
+            self.table_terms.setVerticalHeaderLabels(
+                self.header_vertical_terms)
 
             self.table_terms.removeRow(self.table_terms.rowCount() - 1)
 

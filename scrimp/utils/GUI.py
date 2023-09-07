@@ -1,3 +1,14 @@
+from PyQt5.QtWidgets import (
+    QHBoxLayout,
+    QPushButton,
+    QLineEdit,
+    QGridLayout,
+    QTableWidget,
+    QComboBox,
+    QLabel,
+    QTextEdit,
+)
+from PyQt5.QtGui import QTextCharFormat, QFont, QTextCursor
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 gui_pages = [
@@ -319,7 +330,8 @@ def update_control_ports_page(self):
                 0,
                 QtWidgets.QTableWidgetItem(f"Boundary control ({where[row]})"),
             )
-            table_control_ports.setItem(row, 6, QtWidgets.QTableWidgetItem(f"{10+row}"))
+            table_control_ports.setItem(
+                row, 6, QtWidgets.QTableWidgetItem(f"{10+row}"))
             if table_control_ports.rowCount() < 4:
                 self.add_control_port_page.new_control_port()
 
@@ -329,7 +341,8 @@ def update_control_ports_page(self):
             0,
             QtWidgets.QTableWidgetItem(f"Boundary control"),
         )
-        table_control_ports.setItem(row, 6, QtWidgets.QTableWidgetItem(f"{10+row}"))
+        table_control_ports.setItem(
+            row, 6, QtWidgets.QTableWidgetItem(f"{10+row}"))
 
     elif type_domain == "Segment":
         where = ["left", "right"]
@@ -339,7 +352,8 @@ def update_control_ports_page(self):
                 0,
                 QtWidgets.QTableWidgetItem(f"Boundary control ({where[row]})"),
             )
-            table_control_ports.setItem(row, 6, QtWidgets.QTableWidgetItem(f"{10+row}"))
+            table_control_ports.setItem(
+                row, 6, QtWidgets.QTableWidgetItem(f"{10+row}"))
             if table_control_ports.rowCount() < 2:
                 self.add_control_port_page.new_control_port()
 
@@ -410,17 +424,46 @@ def text_add_FEM(self, file):
     file.write("\n    ]")
 
 
-from PyQt5.QtWidgets import (
-    QHBoxLayout,
-    QPushButton,
-    QLineEdit,
-    QGridLayout,
-    QTableWidget,
-    QComboBox,
-    QLabel,
-    QTextEdit,
-)
-from PyQt5.QtGui import QTextCharFormat, QFont, QTextCursor
+def text_add_terms(self, file, filename):
+    table_terms = self.add_term_page.table_terms
+    rows = table_terms.rowCount()
+    cols = table_terms.columnCount()
+    file.write(
+        f"""\n\n    # Define Term/s`)
+    terms = [\n"""
+    )
+
+    for row in range(rows):
+        file.write("    Term(")
+
+        for col in range(cols):
+            item = table_terms.item(row, col)
+            if item is not None:
+                text = item.text()
+            if col != 3:
+                file.write(f'"{text}"')
+            else:
+                file.write(f'[')
+                for i, region in enumerate(text.split(",")):
+                    if i + 1 < len(text.split(",")):
+                        file.write(f'{region},')
+                    else:
+                        file.write(f'{region}]')
+
+            if col + 1 < cols:
+                file.write(f",")
+
+        if row + 1 < rows:
+            file.write("),\n")
+        else:
+            file.write(")")
+
+    file.write("\n    ]")
+
+    file.write(
+        f"""\n\n    for term in terms:
+        {filename}.hamiltonian.add_term(term)\n"""
+    )
 
 
 class Help:
