@@ -65,7 +65,7 @@ def text_add_loop(self, file, dphs):
             if state is not None:
                 {dphs}.add_state(state)
 
-        # Add its co-state        	
+        # Add its co-state
             if costate is not None:
                 {dphs}.add_costate(costate)
 
@@ -76,12 +76,12 @@ def text_add_loop(self, file, dphs):
         # Add a (possibly space-varying) parameter to the `port`
             if param is not None:
                 {dphs}.add_parameter(param)
-                
-        # Add a resistive `port`        	
+
+        # Add a resistive `port`
             if port is not None:
                 {dphs}.add_port(port)
 
-        # Add a control `port` on the boundary (Neumann, thus position='effort' - default)        	
+        # Add a control `port` on the boundary (Neumann, thus position='effort' - default)
             if control_port is not None:
                 {dphs}.add_control_port(control_port)"""
 
@@ -105,6 +105,10 @@ def text_create_class(self, file, dphs):
 
 def text_set_domain(self, file, dphs):
     type_domain = self.set_domain_page.list_widget.currentItem().text()
+
+    if type_domain == "Segment":
+        type_domain = "Interval"
+
     file.write(
         f"""    # Set the domain (using the built-in geometry `{type_domain}`)
     {dphs}.set_domain(Domain("{type_domain}",{{"""
@@ -267,27 +271,35 @@ def text_add_parameters(self, file):
 
 def update_parameters_page(self):
     """This function updates the add parameter page accounting for the existing states and ports already declared."""
+    table_parameters = self.add_parameter_page.table_parameters
+
     table_states = self.add_state_costate_page.table_states
     rows_states = table_states.rowCount()
 
-    table_ports = self.add_port_page.table_ports
-    rows_ports = table_ports.rowCount()
+    # it updates only if it didn't do it yet
+    if table_parameters.rowCount() == 0:
+        self.old_n_states = -1
 
-    table_parameters = self.add_parameter_page.table_parameters
+    # it updates only if there is a change in the number of states
+    if self.old_n_states != rows_states:
+        self.old_n_states = rows_states
 
-    for row in range(rows_states):
-        item = table_states.item(row, 0)
-        if item is not None:
-            table_parameters.setItem(row, 4, item.clone())
-            if table_parameters.rowCount() < rows_states + rows_ports:
-                self.add_parameter_page.new_parameter()
+        table_ports = self.add_port_page.table_ports
+        rows_ports = table_ports.rowCount()
 
-    for row in range(rows_ports):
-        item = table_ports.item(row, 0)
-        if item is not None:
-            table_parameters.setItem(row + rows_states, 4, item.clone())
-            if table_parameters.rowCount() < rows_states + rows_ports:
-                self.add_parameter_page.new_parameter()
+        for row in range(rows_states):
+            item = table_states.item(row, 0)
+            if item is not None:
+                table_parameters.setItem(row, 4, item.clone())
+                if table_parameters.rowCount() < rows_states + rows_ports:
+                    self.add_parameter_page.new_parameter()
+
+        for row in range(rows_ports):
+            item = table_ports.item(row, 0)
+            if item is not None:
+                table_parameters.setItem(row + rows_states, 4, item.clone())
+                if table_parameters.rowCount() < rows_states + rows_ports:
+                    self.add_parameter_page.new_parameter()
 
 
 def text_add_control_ports(self, file):
@@ -309,9 +321,9 @@ def text_add_control_ports(self, file):
                 text = item.text()
 
             if col not in [6, 8]:
-                file.write(f'{text}')
-            else:
                 file.write(f'"{text}"')
+            else:
+                file.write(f'{text}')
 
             if col + 1 < cols:
                 file.write(f",")
@@ -326,6 +338,7 @@ def text_add_control_ports(self, file):
 
 def update_control_ports_page(self):
     """This function updates the add control ports page accounting for the specific domain"""
+    table_control_ports = self.add_control_port_page.table_control_ports
 
     item = self.set_domain_page.list_widget.currentItem()
     if item is not None:
@@ -333,95 +346,165 @@ def update_control_ports_page(self):
     else:
         return
 
-    table_control_ports = self.add_control_port_page.table_control_ports
-    table_control_ports.setRowCount(0)
-    self.add_control_port_page.new_control_port()
+    # it updates only if it didn't do it yet
+    if table_control_ports.rowCount() == 0:
+        self.old_domain = -1
 
-    if type_domain == "Rectangle":
-        where = ["bottom", "right", "top", "left"]
-        for row in range(4):
+    # it updates only if there is a change in the domain
+    if self.old_domain != type_domain:
+        self.old_domain = type_domain
+
+        # table_control_ports.setRowCount(0)
+        self.add_control_port_page.new_control_port()
+
+        if type_domain == "Rectangle":
+            where = ["bottom", "right", "top", "left"]
+            control = ["U_B", "U_R", "U_T", "U_L"]
+            observation = ["Y_B", "Y_R", "Y_T", "Y_L"]
+            for row in range(4):
+                # set name
+                table_control_ports.setItem(
+                    row,
+                    0,
+                    QtWidgets.QTableWidgetItem(
+                        f"Boundary control ({where[row]})"),
+                )
+                # set name control
+                table_control_ports.setItem(
+                    row,
+                    1,
+                    QtWidgets.QTableWidgetItem(control[row]),
+                )
+                # set nameobservation
+                table_control_ports.setItem(
+                    row,
+                    3,
+                    QtWidgets.QTableWidgetItem(observation[row]),
+                )
+                table_control_ports.setItem(
+                    row, 6, QtWidgets.QTableWidgetItem(f"{10+row}"))
+                if table_control_ports.rowCount() < 4:
+                    self.add_control_port_page.new_control_port()
+
+        elif type_domain == "Disck" or type_domain == "Concentric":
+            where = ["0", "1"]
+            control = ["U_0", "U_1"]
+            observation = ["Y_0", "Y_1"]
+            # set name
             table_control_ports.setItem(
                 row,
                 0,
-                QtWidgets.QTableWidgetItem(f"Boundary control ({where[row]})"),
+                QtWidgets.QTableWidgetItem(f"Boundary control {where[row]}"),
             )
-            table_control_ports.setItem(
-                row, 6, QtWidgets.QTableWidgetItem(f"{10+row}"))
-            if table_control_ports.rowCount() < 4:
-                self.add_control_port_page.new_control_port()
-
-    elif type_domain == "Disck" or type_domain == "Concentric":
-        table_control_ports.setItem(
-            row,
-            0,
-            QtWidgets.QTableWidgetItem(f"Boundary control"),
-        )
-        table_control_ports.setItem(
-            row, 6, QtWidgets.QTableWidgetItem(f"{10+row}"))
-
-    elif type_domain == "Segment":
-        where = ["left", "right"]
-        for row in range(2):
+            # set name control
             table_control_ports.setItem(
                 row,
-                0,
-                QtWidgets.QTableWidgetItem(f"Boundary control ({where[row]})"),
+                1,
+                QtWidgets.QTableWidgetItem(control[row]),
+            )
+            # set name observation
+            table_control_ports.setItem(
+                row,
+                3,
+                QtWidgets.QTableWidgetItem(observation[row]),
             )
             table_control_ports.setItem(
                 row, 6, QtWidgets.QTableWidgetItem(f"{10+row}"))
-            if table_control_ports.rowCount() < 2:
-                self.add_control_port_page.new_control_port()
+
+        elif type_domain == "Segment":
+            where = ["left", "right"]
+            control = ["U_L", "U_R"]
+            observation = ["Y_L", "Y_R"]
+            for row in range(2):
+                # set name
+                table_control_ports.setItem(
+                    row,
+                    0,
+                    QtWidgets.QTableWidgetItem(
+                        f"Boundary control ({where[row]})"),
+                )
+                # set name control
+                table_control_ports.setItem(
+                    row,
+                    1,
+                    QtWidgets.QTableWidgetItem(control[row]),
+                )
+                # set name observation
+                table_control_ports.setItem(
+                    row,
+                    3,
+                    QtWidgets.QTableWidgetItem(observation[row]),
+                )
+                table_control_ports.setItem(
+                    row, 6, QtWidgets.QTableWidgetItem(f"{10+row}"))
+                if table_control_ports.rowCount() < 2:
+                    self.add_control_port_page.new_control_port()
 
 
 def update_FEMs_page(self):
     """This function updates the add FEM page accounting for the existing states and ports already declared."""
+    table_FEMs = self.add_fem_page.table_FEMs
     table_states = self.add_state_costate_page.table_states
     rows_states = table_states.rowCount()
 
-    table_ports = self.add_port_page.table_ports
-    rows_ports = table_ports.rowCount()
+    # it updates only if it didn't do it yet
+    if table_FEMs.rowCount() == 0:
+        self.old_n_states = -1
 
-    table_control_ports = self.add_control_port_page.table_control_ports
-    rows_control_ports = table_control_ports.rowCount()
+    # it updates only if there is a change in the number of states
+    if self.old_n_states != rows_states:
+        self.old_n_states = rows_states
 
-    table_FEMs = self.add_fem_page.table_FEMs
+        table_ports = self.add_port_page.table_ports
+        rows_ports = table_ports.rowCount()
 
-    for row in range(rows_states):
-        item = table_states.item(row, 0)
-        if item is not None:
-            table_FEMs.setItem(row, 0, item.clone())
-            if table_FEMs.rowCount() < rows_states + rows_ports + rows_control_ports:
+        table_control_ports = self.add_control_port_page.table_control_ports
+        rows_control_ports = table_control_ports.rowCount()
+
+        for row in range(rows_states):
+            item = table_states.item(row, 0)
+            if item is not None:
                 self.add_fem_page.new_FEM()
+                table_FEMs.setItem(row, 0, item.clone())
+                # if table_FEMs.rowCount() < rows_states + rows_ports + rows_control_ports:
 
-    for row in range(rows_ports):
-        item = table_ports.item(row, 0)
-        if item is not None:
-            table_FEMs.setItem(row + rows_states, 0, item.clone())
-            if table_FEMs.rowCount() < rows_states + rows_ports + rows_control_ports:
+        for row in range(rows_ports):
+            item = table_ports.item(row, 0)
+            if item is not None:
                 self.add_fem_page.new_FEM()
+                table_FEMs.setItem(row + rows_states, 0, item.clone())
+                # if table_FEMs.rowCount() < rows_states + rows_ports + rows_control_ports:
 
-    for row in range(rows_control_ports):
-        item = table_control_ports.item(row, 0)
-        if item is not None:
-            table_FEMs.setItem(row + rows_states + rows_ports, 0, item.clone())
-            if table_FEMs.rowCount() < rows_states + rows_ports + rows_control_ports:
+        for row in range(rows_control_ports):
+            item = table_control_ports.item(row, 0)
+            if item is not None:
                 self.add_fem_page.new_FEM()
+                table_FEMs.setItem(row + rows_states +
+                                   rows_ports, 0, item.clone())
+                # if table_FEMs.rowCount() < rows_states + rows_ports + rows_control_ports:
 
 
 def update_expressions_page(self):
     """This function updates the add expression page accounting for the existing control ports already declared."""
+    table_expressions = self.add_expression_page.table_expressions
 
     table_control_ports = self.add_control_port_page.table_control_ports
     rows_control_ports = table_control_ports.rowCount()
 
-    table_expressions = self.add_expression_page.table_expressions
+    # it updates only if it didn't do it yet
+    if table_expressions.rowCount() == 0:
+        self.old_n_control_ports = -1
 
-    for row in range(rows_control_ports):
-        item = table_control_ports.item(row, 0)
-        if item is not None:
-            table_expressions.setItem(row, 0, item.clone())
-            if table_expressions.rowCount() < rows_control_ports:
+    # it updates only if there is a change in the number of control ports
+    if self.old_n_control_ports != rows_control_ports:
+        self.old_n_control_ports = rows_control_ports
+
+        for row in range(rows_control_ports):
+            item = table_control_ports.item(row, 0)
+            if item is not None:
                 self.add_expression_page.new_expression()
+                table_expressions.setItem(row, 0, item.clone())
+                # if table_expressions.rowCount() < rows_control_ports:
 
 
 def text_add_FEM(self, file):
@@ -476,13 +559,15 @@ def text_add_terms(self, file, dphs):
                 text = item.text()
             if col < 2:
                 file.write(f'"{text}"')
-            else:
+            elif col == 2:
                 file.write(f'[')
                 for i, region in enumerate(text.split(",")):
                     if i + 1 < len(text.split(",")):
                         file.write(f'{region},')
                     else:
                         file.write(f'{region}]')
+            else:
+                file.write(f'{text}')
 
             if col + 1 < cols:
                 file.write(f",")
@@ -582,7 +667,7 @@ def text_add_initial_values(self, file, dphs):
     rows = table_initial_values.rowCount()
     cols = table_initial_values.columnCount()
     file.write(
-        f"""\n\n    # Define initial_value/s`)\n\n""")
+        f"""\n\n    # Define initial_value/s\n""")
 
     for row in range(rows):
         file.write(
@@ -624,6 +709,16 @@ def text_set_time_scheme(self, file, dphs):
                     file.write(f'{text}={table.item(row,1).text()}')
 
         file.write(")\n")
+
+
+def text_solve(self, file, dphs):
+    file.write(f"""\n    # Solve\n    {dphs}.solve()""")
+
+
+def text_plot(self, file, dphs):
+    file.write(f"""\n\n    # Plot the Hamiltonian with the power supplied at the boundary
+    {dphs}.plot_Hamiltonian(save_figure=True)\n"""
+               )
 
 
 class Help:

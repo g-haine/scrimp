@@ -50,8 +50,10 @@ class Window(QtWidgets.QWidget):
         self.table_parameters.setColumnCount(len(header_horizontal_parameters))
 
         self.header_vertical_parameters = ["parameter"]
-        self.table_parameters.setHorizontalHeaderLabels(header_horizontal_parameters)
-        self.table_parameters.setVerticalHeaderLabels(self.header_vertical_parameters)
+        self.table_parameters.setHorizontalHeaderLabels(
+            header_horizontal_parameters)
+        self.table_parameters.setVerticalHeaderLabels(
+            self.header_vertical_parameters)
 
         # adjust size columns of horizontal header
         for i, _ in enumerate(header_horizontal_parameters):
@@ -102,7 +104,7 @@ class Window(QtWidgets.QWidget):
         self.help = Help(self.layout, 3, 3)
         self.table_parameters.cellClicked.connect(self.update_help)
 
-        self.new_parameter()
+        # self.new_parameter()
 
     def update_help(self):
         example = ""
@@ -175,10 +177,13 @@ class Window(QtWidgets.QWidget):
         count = self.table_parameters.rowCount()
         self.table_parameters.insertRow(count)
         self.header_vertical_parameters += ["parameter"]
-        self.table_parameters.setVerticalHeaderLabels(self.header_vertical_parameters)
+        self.table_parameters.setVerticalHeaderLabels(
+            self.header_vertical_parameters)
         parameter_choice_kind = QComboBox()
-        parameter_choice_kind.addItems(["scalar-field", "vector-field", "tensor-field"])
-        parameter_choice_kind.textHighlighted.connect(self.choice_clicked("Kind"))
+        parameter_choice_kind.addItems(
+            ["scalar-field", "vector-field", "tensor-field"])
+        parameter_choice_kind.textHighlighted.connect(
+            self.choice_clicked("Kind"))
         self.table_parameters.setCellWidget(count, 2, parameter_choice_kind)
 
     def delete_parameter(self):
@@ -189,7 +194,8 @@ class Window(QtWidgets.QWidget):
                 self.header_vertical_parameters
             )
 
-            self.table_parameters.removeRow(self.table_parameters.rowCount() - 1)
+            self.table_parameters.removeRow(
+                self.table_parameters.rowCount() - 1)
 
         else:
             print("not enough element to delete!")

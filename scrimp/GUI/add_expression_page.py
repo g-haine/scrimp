@@ -37,15 +37,18 @@ class Window(QtWidgets.QWidget):
 
         # create a QTableWidget expressions
         self.table_expressions = QTableWidget()
-        self.table_expressions.setRowCount(1)
+        # self.table_expressions.setRowCount(1)
 
         # adding header to the table
         header_horizontal_expressions = ["Control Port", "Expression"]
-        self.table_expressions.setColumnCount(len(header_horizontal_expressions))
+        self.table_expressions.setColumnCount(
+            len(header_horizontal_expressions))
 
         self.header_vertical_expressions = ["expression"]
-        self.table_expressions.setHorizontalHeaderLabels(header_horizontal_expressions)
-        self.table_expressions.setVerticalHeaderLabels(self.header_vertical_expressions)
+        self.table_expressions.setHorizontalHeaderLabels(
+            header_horizontal_expressions)
+        self.table_expressions.setVerticalHeaderLabels(
+            self.header_vertical_expressions)
 
         # adjust size columns of horizontal header
         for i, _ in enumerate(header_horizontal_expressions):
@@ -136,7 +139,8 @@ class Window(QtWidgets.QWidget):
         count = self.table_expressions.rowCount()
         self.table_expressions.insertRow(count)
         self.header_vertical_expressions += ["expression"]
-        self.table_expressions.setVerticalHeaderLabels(self.header_vertical_expressions)
+        self.table_expressions.setVerticalHeaderLabels(
+            self.header_vertical_expressions)
 
         for i in range(self.table_expressions.columnCount()):
             new_value = QTableWidgetItem("")
@@ -150,7 +154,8 @@ class Window(QtWidgets.QWidget):
                 self.header_vertical_expressions
             )
 
-            self.table_expressions.removeRow(self.table_expressions.rowCount() - 1)
+            self.table_expressions.removeRow(
+                self.table_expressions.rowCount() - 1)
 
         else:
             print("not enough element to delete!")

@@ -37,7 +37,7 @@ class Window(QtWidgets.QWidget):
 
         # create a QTableWidget initial_values
         self.table_initial_values = QTableWidget()
-        self.table_initial_values.setRowCount(1)
+        # self.table_initial_values.setRowCount(1)
 
         # adding header to the table
         header_horizontal_initial_values = ["Variable Name", "Initial Value"]

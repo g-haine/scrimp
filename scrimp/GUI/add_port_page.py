@@ -105,7 +105,7 @@ class Window(QtWidgets.QWidget):
         self.help = Help(self.layout, 3, 3)
         self.table_ports.cellClicked.connect(self.update_help)
 
-        self.new_port()
+        # self.new_port()
 
     def update_help(self):
         example = ""
@@ -205,11 +205,13 @@ class Window(QtWidgets.QWidget):
         # create table to add in cell of table
         port_choice_algebraic = QComboBox()
         port_choice_algebraic.addItems(["True", "False"])
-        port_choice_algebraic.textHighlighted.connect(self.choice_clicked("Algebraic"))
+        port_choice_algebraic.textHighlighted.connect(
+            self.choice_clicked("Algebraic"))
         self.table_ports.setCellWidget(count, 5, port_choice_algebraic)
 
         port_choice_kind = QComboBox()
-        port_choice_kind.addItems(["scalar-field", "vector-field", "tensor-field"])
+        port_choice_kind.addItems(
+            ["scalar-field", "vector-field", "tensor-field"])
         port_choice_kind.textHighlighted.connect(self.choice_clicked("Kind"))
         self.table_ports.setCellWidget(count, 3, port_choice_kind)
 
@@ -235,7 +237,8 @@ class Window(QtWidgets.QWidget):
         """This function removes 2 rows in the table (1 for port, 1 for co-port)"""
         if len(self.header_vertical_ports) > 1:
             self.header_vertical_ports.pop()
-            self.table_ports.setVerticalHeaderLabels(self.header_vertical_ports)
+            self.table_ports.setVerticalHeaderLabels(
+                self.header_vertical_ports)
 
             self.table_ports.removeRow(self.table_ports.rowCount() - 1)
 
