@@ -37,7 +37,9 @@ from utils.GUI import (
     text_add_expressions,
     text_add_initial_values,
     text_set_time_scheme,
-    text_main
+    text_main,
+    text_solve,
+    text_plot
 
 )
 import os
@@ -204,19 +206,18 @@ class Controller:
         text_set_time_scheme(self, file, dphs)
 
         # solve
-        file.write(f"""\n    # Solve\n    {dphs}.solve()""")
+        text_solve(self, file, dphs)
 
         # plot hamiltonian
-        file.write(
-            f"""\n    # Plot the Hamiltonian with the power supplied at the boundary
-    {dphs}.plot_Hamiltonian(save_figure=True)"""
-        )
+        text_plot(self, file, dphs)
 
         # # define main
         text_main(self, file, dphs)
 
         file.close()
+
         print(f"created {filename}")
+
         return filename, dphs
 
     def run_code(self, text, filename, dphs):

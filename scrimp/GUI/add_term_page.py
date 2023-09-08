@@ -97,7 +97,7 @@ class Window(QtWidgets.QWidget):
         self.help = Help(self.layout, 3, 3)
         self.table_terms.cellClicked.connect(self.update_help)
 
-        self.new_term()
+        # self.new_term()
 
     def update_help(self):
         example = ""

@@ -92,7 +92,7 @@ class Window(QtWidgets.QWidget):
         self.layout.addWidget(self.comboBox, 4, 1)
 
         self.setLayout(self.layout)
-        self.new_FEM()
+        # self.new_FEM()
 
         self.help = Help(self.layout, 3, 3)
         self.table_FEMs.cellClicked.connect(self.update_help)

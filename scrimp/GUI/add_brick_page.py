@@ -104,7 +104,7 @@ class Window(QtWidgets.QWidget):
         self.help = Help(self.layout, 3, 3)
         self.table_bricks.cellClicked.connect(self.update_help)
 
-        self.new_brick()
+        # self.new_brick()
 
     def update_help(self):
         example = ""

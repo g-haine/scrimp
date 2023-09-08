@@ -113,7 +113,7 @@ class Window(QtWidgets.QWidget):
         self.help = Help(self.layout, 3, 3)
         self.table_control_ports.cellClicked.connect(self.update_help)
 
-        self.new_control_port()
+        # self.new_control_port()
 
     def update_help(self):
         example = ""
