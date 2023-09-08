@@ -359,6 +359,7 @@ def update_control_ports_page(self):
 
         if type_domain == "Rectangle":
             where = ["bottom", "right", "top", "left"]
+
             control = ["U_B", "U_R", "U_T", "U_L"]
             observation = ["Y_B", "Y_R", "Y_T", "Y_L"]
             for row in range(4):
@@ -381,12 +382,14 @@ def update_control_ports_page(self):
                     3,
                     QtWidgets.QTableWidgetItem(observation[row]),
                 )
+
                 table_control_ports.setItem(
                     row, 6, QtWidgets.QTableWidgetItem(f"{10+row}"))
                 if table_control_ports.rowCount() < 4:
                     self.add_control_port_page.new_control_port()
 
         elif type_domain == "Disck" or type_domain == "Concentric":
+
             where = ["0", "1"]
             control = ["U_0", "U_1"]
             observation = ["Y_0", "Y_1"]
@@ -408,15 +411,18 @@ def update_control_ports_page(self):
                 3,
                 QtWidgets.QTableWidgetItem(observation[row]),
             )
+
             table_control_ports.setItem(
                 row, 6, QtWidgets.QTableWidgetItem(f"{10+row}"))
 
         elif type_domain == "Segment":
             where = ["left", "right"]
+
             control = ["U_L", "U_R"]
             observation = ["Y_L", "Y_R"]
             for row in range(2):
                 # set name
+
                 table_control_ports.setItem(
                     row,
                     0,
@@ -435,6 +441,7 @@ def update_control_ports_page(self):
                     3,
                     QtWidgets.QTableWidgetItem(observation[row]),
                 )
+
                 table_control_ports.setItem(
                     row, 6, QtWidgets.QTableWidgetItem(f"{10+row}"))
                 if table_control_ports.rowCount() < 2:
@@ -502,6 +509,7 @@ def update_expressions_page(self):
         for row in range(rows_control_ports):
             item = table_control_ports.item(row, 0)
             if item is not None:
+
                 self.add_expression_page.new_expression()
                 table_expressions.setItem(row, 0, item.clone())
                 # if table_expressions.rowCount() < rows_control_ports:
