@@ -62,7 +62,7 @@ class Window(QtWidgets.QWidget):
         self.button_add_brick = QPushButton("Add brick")
         self.button_add_brick.clicked.connect(self.new_brick)
 
-        self.button_delete_brick = QPushButton("Remove brick")
+        self.button_delete_brick = QPushButton("Remove selected brick")
         self.button_delete_brick.clicked.connect(self.delete_brick)
 
         self.button_clear_all = QPushButton("Clear All")
@@ -192,7 +192,7 @@ class Window(QtWidgets.QWidget):
         return foo
 
     def new_brick(self):
-        """This function adds 2 rows in the table (1 for brick, 1 for co-brick)"""
+        """This function adds 1 row in the table for brick"""
         count = self.table_bricks.rowCount()
         self.table_bricks.insertRow(count)
         self.header_vertical_bricks += ["brick"]
@@ -233,7 +233,7 @@ class Window(QtWidgets.QWidget):
             self.table_bricks.setVerticalHeaderLabels(
                 self.header_vertical_bricks)
 
-            self.table_bricks.removeRow(self.table_bricks.rowCount() - 1)
+            self.table_bricks.removeRow(self.table_bricks.currentRow())
 
         else:
             print("not enough element to delete!")

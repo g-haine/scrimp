@@ -57,7 +57,7 @@ class Window(QtWidgets.QWidget):
         self.button_add_expression = QPushButton("Add expression")
         self.button_add_expression.clicked.connect(self.new_expression)
 
-        self.button_delete_expression = QPushButton("Remove expression")
+        self.button_delete_expression = QPushButton("Remove selected expression")
         self.button_delete_expression.clicked.connect(self.delete_expression)
 
         self.button_clear_all = QPushButton("Clear All")
@@ -135,7 +135,7 @@ class Window(QtWidgets.QWidget):
         self.hide()
 
     def new_expression(self):
-        """This function adds 2 rows in the table (1 for expression, 1 for co-expression)"""
+        """This function adds 1 row in the table for expression"""
         count = self.table_expressions.rowCount()
         self.table_expressions.insertRow(count)
         self.header_vertical_expressions += ["expression"]
@@ -155,7 +155,7 @@ class Window(QtWidgets.QWidget):
             )
 
             self.table_expressions.removeRow(
-                self.table_expressions.rowCount() - 1)
+                self.table_expressions.currentRow())
 
         else:
             print("not enough element to delete!")

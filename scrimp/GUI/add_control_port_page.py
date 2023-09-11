@@ -69,7 +69,7 @@ class Window(QtWidgets.QWidget):
         self.button_add_control_port = QPushButton("Add control_port")
         self.button_add_control_port.clicked.connect(self.new_control_port)
 
-        self.button_delete_control_port = QPushButton("Remove control_port")
+        self.button_delete_control_port = QPushButton("Remove selected control_port")
         self.button_delete_control_port.clicked.connect(
             self.delete_control_port)
 
@@ -211,7 +211,7 @@ class Window(QtWidgets.QWidget):
         return foo
 
     def new_control_port(self):
-        """This function adds 2 rows in the table (1 for control_port, 1 for co-control_port)"""
+        """This function adds 1 row in the table for control_port"""
         count = self.table_control_ports.rowCount()
         self.table_control_ports.insertRow(count)
         self.header_vertical_control_ports += ["control_port"]
@@ -260,7 +260,7 @@ class Window(QtWidgets.QWidget):
             )
 
             self.table_control_ports.removeRow(
-                self.table_control_ports.rowCount() - 1)
+                self.table_control_ports.currentRow())
 
         else:
             print("not enough element to delete!")

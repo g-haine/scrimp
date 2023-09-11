@@ -54,7 +54,7 @@ class Window(QtWidgets.QWidget):
         self.button_add_FEM = QPushButton("Add FEM")
         self.button_add_FEM.clicked.connect(self.new_FEM)
 
-        self.button_delete_FEM = QPushButton("Remove FEM")
+        self.button_delete_FEM = QPushButton("Remove selected FEM")
         self.button_delete_FEM.clicked.connect(self.delete_FEM)
 
         self.button_clear_all = QPushButton("Clear All")
@@ -149,7 +149,7 @@ class Window(QtWidgets.QWidget):
         self.help.updateFields(text, description, example)
 
     def new_FEM(self):
-        """This function adds 1 row in the table (1 for FEM, 1 for co-FEM)"""
+        """This function adds 1 row in the table for FEM"""
         count = self.table_FEMs.rowCount()
         self.table_FEMs.insertRow(count)
         self.header_vertical_FEMs += ["FEM"]
@@ -172,7 +172,7 @@ class Window(QtWidgets.QWidget):
             self.header_vertical_FEMs.pop()
             self.table_FEMs.setVerticalHeaderLabels(self.header_vertical_FEMs)
 
-            self.table_FEMs.removeRow(self.table_FEMs.rowCount() - 1)
+            self.table_FEMs.removeRow(self.table_FEMs.currentRow())
 
         else:
             print("not enough element to delete!")

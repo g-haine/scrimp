@@ -63,7 +63,7 @@ class Window(QtWidgets.QWidget):
         self.button_add_port = QPushButton("Add port")
         self.button_add_port.clicked.connect(self.new_port)
 
-        self.button_delete_port = QPushButton("Remove port")
+        self.button_delete_port = QPushButton("Remove selected port")
         self.button_delete_port.clicked.connect(self.delete_port)
 
         self.button_clear_all = QPushButton("Clear All")
@@ -197,7 +197,7 @@ class Window(QtWidgets.QWidget):
         return foo
 
     def new_port(self):
-        """This function adds 2 rows in the table (1 for port, 1 for co-port)"""
+        """This function adds 1 row in the table for port"""
         count = self.table_ports.rowCount()
         self.table_ports.insertRow(count)
         self.header_vertical_ports += ["port"]
@@ -240,7 +240,7 @@ class Window(QtWidgets.QWidget):
             self.table_ports.setVerticalHeaderLabels(
                 self.header_vertical_ports)
 
-            self.table_ports.removeRow(self.table_ports.rowCount() - 1)
+            self.table_ports.removeRow(self.table_ports.currentRow())
 
         else:
             print("not enough element to delete!")

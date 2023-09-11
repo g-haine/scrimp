@@ -54,7 +54,7 @@ class Window(QtWidgets.QWidget):
         self.button_add_state = QPushButton("Add State/Costate")
         self.button_add_state.clicked.connect(self.new_state)
 
-        self.button_delete_state = QPushButton("Remove State/Costate")
+        self.button_delete_state = QPushButton("Remove selected State/Costate")
         self.button_delete_state.clicked.connect(self.delete_state)
 
         self.button_clear_all = QPushButton("Clear All")
@@ -240,7 +240,7 @@ class Window(QtWidgets.QWidget):
         return foo
 
     def new_state(self):
-        """This function adds 2 rows in the table (1 for state, 1 for co-state)"""
+        """This function adds 1 row per each table (1 for state, 1 for co-state)"""
         count = self.table_states.rowCount()
         self.table_states.insertRow(count)
         self.header_vertical_states += ["state"]
@@ -267,13 +267,13 @@ class Window(QtWidgets.QWidget):
             self.header_vertical_states.pop()
             self.table_states.setVerticalHeaderLabels(self.header_vertical_states)
 
-            self.table_states.removeRow(self.table_states.rowCount() - 1)
+            self.table_states.removeRow(self.table_states.currentRow())
             self.delete_costate()
         else:
             print("not enough element to delete!")
 
     def new_costate(self):
-        """This function adds 2 rows in the table (1 for state, 1 for co-state)"""
+        """This function adds 1 row in the table (1 for state, 1 for co-state)"""
         count = self.table_costates.rowCount()
         self.table_costates.insertRow(count)
         self.header_vertical_costates += ["costate"]
@@ -296,7 +296,7 @@ class Window(QtWidgets.QWidget):
             self.header_vertical_costates.pop()
             self.table_costates.setVerticalHeaderLabels(self.header_vertical_costates)
 
-            self.table_costates.removeRow(self.table_costates.rowCount() - 1)
+            self.table_costates.removeRow(self.table_costates.currentRow())
         else:
             print("not enough element to delete!")
 

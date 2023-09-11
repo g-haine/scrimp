@@ -55,7 +55,7 @@ class Window(QtWidgets.QWidget):
         self.button_add_term = QPushButton("Add term")
         self.button_add_term.clicked.connect(self.new_term)
 
-        self.button_delete_term = QPushButton("Remove term")
+        self.button_delete_term = QPushButton("Remove selected term")
         self.button_delete_term.clicked.connect(self.delete_term)
 
         self.button_clear_all = QPushButton("Clear All")
@@ -145,7 +145,7 @@ class Window(QtWidgets.QWidget):
         self.hide()
 
     def new_term(self):
-        """This function adds 2 rows in the table (1 for term, 1 for co-term)"""
+        """This function adds 1 row in the table for term"""
         count = self.table_terms.rowCount()
         self.table_terms.insertRow(count)
         self.header_vertical_terms += ["term"]
@@ -168,7 +168,7 @@ class Window(QtWidgets.QWidget):
             self.table_terms.setVerticalHeaderLabels(
                 self.header_vertical_terms)
 
-            self.table_terms.removeRow(self.table_terms.rowCount() - 1)
+            self.table_terms.removeRow(self.table_terms.currentRow())
 
         else:
             print("not enough element to delete!")

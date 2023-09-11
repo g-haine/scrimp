@@ -62,7 +62,7 @@ class Window(QtWidgets.QWidget):
         self.button_add_parameter = QPushButton("Add parameter")
         self.button_add_parameter.clicked.connect(self.new_parameter)
 
-        self.button_delete_parameter = QPushButton("Remove parameter")
+        self.button_delete_parameter = QPushButton("Remove selected parameter")
         self.button_delete_parameter.clicked.connect(self.delete_parameter)
 
         self.button_clear_all = QPushButton("Clear All")
@@ -173,7 +173,7 @@ class Window(QtWidgets.QWidget):
         return foo
 
     def new_parameter(self):
-        """This function adds 2 rows in the table (1 for parameter, 1 for co-parameter)"""
+        """This function adds 1 row in the table for parameter"""
         count = self.table_parameters.rowCount()
         self.table_parameters.insertRow(count)
         self.header_vertical_parameters += ["parameter"]
@@ -195,7 +195,7 @@ class Window(QtWidgets.QWidget):
             )
 
             self.table_parameters.removeRow(
-                self.table_parameters.rowCount() - 1)
+                self.table_parameters.currentRow())
 
         else:
             print("not enough element to delete!")

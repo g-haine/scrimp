@@ -59,7 +59,7 @@ class Window(QtWidgets.QWidget):
         self.button_add_initial_value = QPushButton("Add initial_value")
         self.button_add_initial_value.clicked.connect(self.new_initial_value)
 
-        self.button_delete_initial_value = QPushButton("Remove initial_value")
+        self.button_delete_initial_value = QPushButton("Remove selected initial_value")
         self.button_delete_initial_value.clicked.connect(
             self.delete_initial_value)
 
@@ -141,7 +141,7 @@ class Window(QtWidgets.QWidget):
         self.hide()
 
     def new_initial_value(self):
-        """This function adds 2 rows in the table (1 for initial_value, 1 for co-initial_value)"""
+        """This function adds 1 row in the table for initial_value"""
         count = self.table_initial_values.rowCount()
         self.table_initial_values.insertRow(count)
         self.header_vertical_initial_values += ["initial_value"]

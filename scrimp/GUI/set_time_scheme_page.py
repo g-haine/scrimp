@@ -270,7 +270,7 @@ class Window(QtWidgets.QWidget):
             self.table.setItem(row, 1, new_value)
 
     def new_rows(self):
-        """This function adds 2 rows in the table (1 for state, 1 for co-state)"""
+        """This function adds 1 row in the table"""
         count = self.table.rowCount()
         self.table.insertRow(count)
 

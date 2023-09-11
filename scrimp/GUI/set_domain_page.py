@@ -97,7 +97,7 @@ class Window(QtWidgets.QWidget):
         self.button_add.clicked.connect(self.new_rows)
         self.button_add.resize(100, 50)
 
-        self.button_delete = QPushButton("Remove")
+        self.button_delete = QPushButton("Remove selected")
         self.button_delete.clicked.connect(self.delete)
 
         # create navigation list
@@ -191,7 +191,7 @@ class Window(QtWidgets.QWidget):
     def delete(self):
         """This function removes 2 rows in the table (1 for state, 1 for co-state)"""
         if self.table.rowCount() >= 1:
-            self.table.removeRow(self.table.rowCount() - 1)
+            self.table.removeRow(self.table.currentRow())
         else:
             print("not enough element to delete!")
 
@@ -254,7 +254,7 @@ class Window(QtWidgets.QWidget):
             self.table.setRowCount(0)
 
     def new_rows(self):
-        """This function adds 2 rows in the table (1 for state, 1 for co-state)"""
+        """This function adds 1 row in the table"""
         count = self.table.rowCount()
         self.table.insertRow(count)
 
