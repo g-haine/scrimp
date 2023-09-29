@@ -98,9 +98,12 @@ class Domain:
                     gmsh.model.mesh.generate(gmsh.model.getDimension())
                     for i in range(refine):
                         gmsh.model.mesh.refine()
-                    gmsh.write(os.path.join(module_path, "mesh", basename+".msh"))
+                    if rank==0:
+                        gmsh.write(os.path.join(module_path, "mesh", basename+".msh"))
+                    comm.barrier()
                     gmsh.finalize()
-                    self._mesh.append(gf.Mesh("import", "gmsh_with_lower_dim_elt", os.path.join(module_path, "mesh", basename+".msh")))
+                    mesh = gf.Mesh("import", "gmsh_with_lower_dim_elt", os.path.join(module_path, "mesh", basename+".msh"))
+                    self._mesh.append(mesh)
                     
                 elif fileextension==".py":
                     pass

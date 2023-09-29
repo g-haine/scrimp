@@ -175,8 +175,10 @@ def Disk(parameters={"R": 1.0, "h": 0.1}, refine=0, terminal=1):
     for i in range(refine):
         model.mesh.refine()
     # Write on disk
-    gmsh.write(os.path.join(module_path, "mesh", "Disk.msh"))
+    if rank==0:
+        gmsh.write(os.path.join(module_path, "mesh", "Disk.msh"))
     # Finalize GMSH
+    comm.barrier()
     gmsh.finalize()
 
     if rank==0:
@@ -246,9 +248,15 @@ def Rectangle(parameters={"L": 2.0, "l": 1, "h": 0.1}, refine=0, terminal=1):
 
     dim = 2
     model.mesh.generate(dim)
+    
+    print("Test")
+    
     for i in range(refine):
         gmsh.model.mesh.refine()
-    gmsh.write(os.path.join(module_path, "mesh", "Rectangle.msh"))
+    if rank==0:
+        gmsh.write(os.path.join(module_path, "mesh", "Rectangle.msh"))
+    # Finalize GMSH
+    comm.barrier()
     gmsh.finalize()
 
     if rank==0:
@@ -342,7 +350,10 @@ def Concentric(parameters={"R": 1.0, "r": 0.6, "h": 0.1}, refine=0, terminal=1):
     model.mesh.generate(dim)
     for i in range(refine):
         gmsh.model.mesh.refine()
-    gmsh.write(os.path.join(module_path, "mesh", "Concentric.msh"))
+    if rank==0:
+        gmsh.write(os.path.join(module_path, "mesh", "Concentric.msh"))
+    # Finalize GMSH
+    comm.barrier()
     gmsh.finalize()
 
     if rank==0:
@@ -442,7 +453,10 @@ def Ball(parameters={"R": 1.0, "h": 0.1}, refine=0, terminal=1):
     model.mesh.generate(dim)
     for i in range(refine):
         gmsh.model.mesh.refine()
-    gmsh.write(os.path.join(module_path, "mesh", "Ball.msh"))
+    if rank==0:
+        gmsh.write(os.path.join(module_path, "mesh", "Ball.msh"))
+    # Finalize GMSH
+    comm.barrier()
     gmsh.finalize()
 
     if rank==0:
@@ -466,3 +480,4 @@ def Ball(parameters={"R": 1.0, "h": 0.1}, refine=0, terminal=1):
         {"Omega": 1}, 
         {"Gamma": 10},
         ]
+

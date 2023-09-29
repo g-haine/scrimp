@@ -9,6 +9,7 @@ dependencies:
   - numpy
   - scipy
   - spyder
+  - paraview
   - petsc4py
   - pip
   - pip:

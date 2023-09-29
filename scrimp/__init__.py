@@ -14,13 +14,21 @@
 """
 
 import os
+import petsc4py
+import sys
 
-module_path = __file__[:-18]
+petsc4py.init(sys.argv)
+from petsc4py import PETSc
 
-for path in [os.path.join("outputs", "log"), os.path.join("outputs", "png"), os.path.join("outputs", "mesh")]:
-    composed_path = os.path.join(module_path, path)
-    if not os.path.isdir(composed_path):
-        os.makedirs(composed_path)
+comm = PETSc.COMM_WORLD
+rank = comm.getRank()
+
+if rank==0:
+    module_path = __file__[:-18]
+    for path in [os.path.join("outputs", "log"), os.path.join("outputs", "png"), os.path.join("outputs", "mesh")]:
+        composed_path = os.path.join(module_path, path)
+        if not os.path.isdir(composed_path):
+            os.makedirs(composed_path)
 
 from scrimp.utils.config import set_verbose
 set_verbose()

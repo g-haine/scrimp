@@ -10,7 +10,7 @@
 - file:             examples/wave_coenergy.py
 - authors:          Giuseppe Ferraro, Ghislain Haine
 - date:             22 nov. 2022
-- brief:            wave system in co-energy formulation
+- brief:            wave equations in co-energy formulation
 """
 
 import scrimp as S
@@ -147,7 +147,11 @@ def wave_coenergy():
     ## Solve in time
 
     # Define the time scheme (default ts_type='cn', t_f=1, dt=0.01, etc.)
-    wave.set_time_scheme(t_f=1.0, dt=0.01, dt_save=0.01)
+    wave.set_time_scheme(
+                         t_f=1.0, 
+                         dt=0.01, 
+                         dt_save=0.01,
+                         )
 
     # Solve
     wave.solve()
