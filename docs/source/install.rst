@@ -29,5 +29,7 @@ Documentation
 
 You can find this documentation `here <https://g-haine.github.io/scrimp/latex/scrimp.pdf>`_.
 
+It is automatically built upon the code comments using sphinx.
+
 See `Sphinx <https://www.sphinx-doc.org/>`_ for further informations.
 

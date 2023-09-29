@@ -3,7 +3,7 @@ Getting started
 
 In order to start using **SCRIMP**, you have to work in the conda environment *scrimp* from the installation by running :code:`conda activate scrimp`.
 
-To understand the coding philosophy of **SCRIMP**, let us consider the 1D wave equation with Neumann boundary control
+To understand the coding philosophy of **SCRIMP**, let us consider the 1D wave equation with Neumann boundary control as a first example
 
 .. math::
 
