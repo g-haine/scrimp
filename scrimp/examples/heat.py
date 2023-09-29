@@ -10,7 +10,7 @@
 - file:             examples/heat.py
 - authors:          Giuseppe Ferraro, Ghislain Haine
 - date:             22 nov. 2022
-- brief:            heat system
+- brief:            heat equation with Lyapunov Hamiltonian
 """
 
 import scrimp as S
@@ -28,14 +28,16 @@ def heat_eq():
 
     # Set the domain (using the built-in geometry `Rectangle`)
     # Omega = 1, Gamma_Bottom = 10, Gamma_Right = 11, Gamma_Top = 12, Gamma_Left = 13
-    heat.set_domain(S.Domain("Rectangle", {"L": 2.0, "l": 1.0, "h": 0.15}))
+    heat.set_domain(S.Domain("Rectangle", {"L": 2.0, "l": 1.0, "h": 0.2}))
 
     ## Define the variables and their discretizations
 
     states = [
         S.State("T", "Temperature", "scalar-field"),
     ]
-    costates = [S.CoState("T", "Temperature", states[0], substituted=True)]
+    costates = [
+        S.CoState("T", "Temperature", states[0], substituted=True)
+    ]
     ports = [
         S.Port("Heat flux", "f_Q", "e_Q", "vector-field", dissipative=True),
     ]
@@ -179,8 +181,16 @@ def heat_eq():
 
     ## Solve in time
 
-    # Define the time scheme (default ts_type='cn', t_f=1, dt=0.01, etc.)
-    heat.set_time_scheme(t_f=1, dt=0.01, pc_type="jacobi")
+    # Define the time scheme
+    heat.set_time_scheme(t_f=1, 
+                         ts_type="bdf", 
+                         bdf_order=4, 
+                         dt=0.01, 
+                         ts_adapt_dt_min=1.e-6, 
+                         ksp_type = "preonly",
+                         pc_type = "lu",
+                         pc_factor_mat_solver_type = "mumps",
+                         )
 
     # Solve
     heat.solve()

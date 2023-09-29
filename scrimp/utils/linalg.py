@@ -36,25 +36,24 @@ def extract_gmm_to_petsc(I, J, M, B, comm=comm):
         PETSc.Mat: matrix with value M(I,J) in CSR format
     """
     
-    R_I = range(I[0],I[0]+I[1]) # Range of lines extraction
-    R_J = range(J[0],J[0]+J[1]) # Range of columns extraction
+    R_I = range(I[0],I[1]) # Range of lines extraction
+    R_J = range(J[0],J[1]) # Range of columns extraction
     
     # Because CSR is CSC of the transpose
     # and CSR is not available in getfem
     # I and J are switched
     # See if it can be optimised
-    A = gf.Spmat('empty', J[1], I[1]) # Pre-allocation
-    A.assign(range(J[1]), range(I[1]), gf.Spmat('copy', M, R_J, R_I))
-    
+    A = gf.Spmat('empty', I[1], J[1]) # Pre-allocation
+    A.assign(R_I, R_J, gf.Spmat('copy', M, R_I, R_J))
     A.transpose()
     A.to_csc()
+    
     A_ind = A.csc_ind() 
     indrow = A_ind[0] 
     indcol = A_ind[1] 
     data = A.csc_val()
     del A
     
-    B.zeroEntries() # Not sure if this is needed, but gives no overhead
     B.setValuesLocalCSR(indrow,indcol,data,addv=PETSc.InsertMode.INSERT_VALUES)
     B.assemble()
     
@@ -74,18 +73,18 @@ def extract_gmm_to_scipy(I,J,M):
         scipy.sparse.csr.csr_matrix: the matrix A in scipy.sparse.csr.csr_matrix format
     """
     
-    R_I = range(I[0],I[0]+I[1]) # Range of lines extraction
-    R_J = range(J[0],J[0]+J[1]) # Range of columns extraction
+    R_I = range(I[0],I[1]) # Range of lines extraction
+    R_J = range(J[0],J[1]) # Range of columns extraction
     
     # Because CSR is CSC of the transpose
     # and CSR is not available in getfem
     # I and J are switched
     # See if it can be optimised
-    A = gf.Spmat('empty', J[1], I[1]) # Pre-allocation
-    A.assign(range(J[1]), range(I[1]), gf.Spmat('copy', M, R_J, R_I))
-    
+    A = gf.Spmat('empty', I[1], J[1]) # Pre-allocation
+    A.assign(R_I, R_J, gf.Spmat('copy', M, R_I, R_J))
     A.transpose()
     A.to_csc()
+    
     A_ind = A.csc_ind() 
     indrow = A_ind[0] 
     indcol = A_ind[1] 

@@ -28,6 +28,7 @@ petsc4py.init(sys.argv)
 from petsc4py import PETSc
 comm = PETSc.COMM_WORLD
 rank = comm.getRank()
+max_rank = comm.getSize()
 
 from scrimp.domain import Domain
 from scrimp.state import State
@@ -105,6 +106,9 @@ class DPHS:
         self.solve_done = False
         #: To stop TS integration by keeping already computed timesteps if one step fails
         self.stop_TS = False
+        #: To speed-up IFunction calls for linear systems
+        self.linear_mass = True
+        self.linear_stiffness = True
         #: A PETSc Vec for residual computation
         self.F = PETSc.Vec().create(comm=comm)
         #: A PETSc Mat for Jacobian computation
@@ -551,9 +555,9 @@ class DPHS:
             )
             raise ValueError
         
-        # form of the mass matrix for the control variable (flow side type => adds a minus)
+        # form of the mass matrix for the control variable
         u = self.controls[name].get_name_control()
-        mass_form = "-" + u + times + "Test_" + u
+        mass_form = u + times + "Test_" + u
 
         self.add_brick(
             Brick(
@@ -589,40 +593,65 @@ class DPHS:
     def assemble_mass(self):
         """This function performs the assembly of the bricks dt=True and linear=True and set the PETSc.Mat attribute `mass`"""
 
+        if rank==0:
+            logging.info(
+                "Starting linear mass matrix assembly..."
+            )
+        
+        start = time.perf_counter()
+        
         for _, brick in self.bricks.items():
             # Enable the bricks that are dynamical and linear
             if brick.get_dt() and brick.get_linear():
                 brick.enable_id_bricks(self.gf_model)
 
         self.gf_model.assembly(option="build_matrix")
-        rows = self.mass.getOwnershipRange()
-        cols = self.mass.getOwnershipRangeColumn()
+        rows = self.nl_stiffness.getOwnershipRange()
+        cols = [0, self.gf_model.nbdof()]
         extract_gmm_to_petsc(
             [rows[0], rows[1]], [cols[0], cols[1]], self.gf_model.tangent_matrix(), self.mass
         )
 
         self.disable_all_bricks()
+        
+        if rank==0:
+            logging.info(
+                f"Linear mass matrix assembly done in {time.perf_counter() - start:1.4g}s"
+            )
+        
 
     def assemble_stiffness(self):
         """This function performs the assembly of the bricks dt=False and linear=True and set the PETSc.Mat attribute `stiffness`"""
 
+        if rank==0:
+            logging.info(
+                "Starting linear stiffness matrix assembly..."
+            )
+            
+        start = time.perf_counter()
+        
         for _, brick in self.bricks.items():
             # Enable the bricks that are non-dynamical and linear
             if not brick.get_dt() and brick.get_linear():
                 brick.enable_id_bricks(self.gf_model)
 
         self.gf_model.assembly(option="build_matrix")
-        rows = self.stiffness.getOwnershipRange()
-        cols = self.stiffness.getOwnershipRangeColumn()
+        rows = self.nl_stiffness.getOwnershipRange()
+        cols = [0, self.gf_model.nbdof()]
         extract_gmm_to_petsc(
             [rows[0], rows[1]], [cols[0], cols[1]], self.gf_model.tangent_matrix(), self.stiffness
         )
         
         self.disable_all_bricks()
+        
+        if rank==0:
+            logging.info(
+                f"Linear stiffness matrix assembly done in {time.perf_counter() - start:1.4g}s"
+            )
 
     def assemble_rhs(self):
         """This function performs the assembly of the rhs and set the PETSc.Vec attribute `rhs`"""
-
+        
         for _, brick in self.bricks.items():
             # Enable the bricks that are in 'source' position
             if brick.get_position() == "source" or brick.get_explicit():
@@ -648,8 +677,8 @@ class DPHS:
                 brick.enable_id_bricks(self.gf_model)
 
         self.gf_model.assembly(option="build_matrix")
-        rows = self.nl_mass.getOwnershipRange()
-        cols = self.nl_mass.getOwnershipRangeColumn()
+        rows = self.nl_stiffness.getOwnershipRange()
+        cols = [0, self.gf_model.nbdof()]
         extract_gmm_to_petsc(
             [rows[0], rows[1]], [cols[0], cols[1]], self.gf_model.tangent_matrix(), self.nl_mass
         )
@@ -657,6 +686,7 @@ class DPHS:
         self.tangent_mass.axpy(1,self.nl_mass)
 
         self.disable_all_bricks()
+        comm.barrier()
 
     def assemble_nl_stiffness(self):
         """This function performs the assembly of the bricks dt=False and linear=False and set the PETSc.Mat attribute `nl_stiffness`"""
@@ -668,7 +698,7 @@ class DPHS:
 
         self.gf_model.assembly(option="build_matrix")
         rows = self.nl_stiffness.getOwnershipRange()
-        cols = self.nl_stiffness.getOwnershipRangeColumn()
+        cols = [0, self.gf_model.nbdof()]
         extract_gmm_to_petsc(
             [rows[0], rows[1]], [cols[0], cols[1]], self.gf_model.tangent_matrix(), self.nl_stiffness
         )
@@ -676,6 +706,7 @@ class DPHS:
         self.tangent_stiffness.axpy(1,self.nl_stiffness)
 
         self.disable_all_bricks()
+        comm.barrier()
 
     def disable_all_bricks(self):
         """This function disables all bricks in the `Model`"""
@@ -699,14 +730,27 @@ class DPHS:
             F (PETSc Vec): the rhs vector
         """
 
-        self.assemble_nl_mass()
-        self.assemble_nl_stiffness()
+        if not self.linear_mass:
+            self.assemble_nl_mass()
+        if not self.linear_stiffness:
+            self.assemble_nl_stiffness()
         
         self.tangent_mass.mult(zd, self.buffer)
         self.tangent_stiffness.multAdd(z, self.buffer, F)
 
         self.assemble_rhs()
         F.axpy(1, self.rhs)
+    
+    def set_linear_flags(self):
+        """
+        This function set the "linear flags" to speed-up IFunction calls for linear systems.
+        """
+        
+        for _, brick in self.bricks.items():
+            if brick.get_dt() and not brick.get_linear():
+                self.linear_mass = False
+            if not brick.get_dt() and not brick.get_linear():
+                self.linear_stiffness = False
 
     def IJacobian(self, TS, t, z, zd, sig, A, P):
         """
@@ -722,8 +766,10 @@ class DPHS:
             P:(PETSc Mat) the jacobian matrix to use for pre-conditionning
         """
 
-        self.assemble_nl_mass()
-        self.assemble_nl_stiffness()
+        if not self.linear_mass:
+            self.assemble_nl_mass()
+        if not self.linear_stiffness:
+            self.assemble_nl_stiffness()
 
         self.tangent_stiffness.copy(P)
         P.axpy(sig, self.tangent_mass)
@@ -766,6 +812,9 @@ class DPHS:
         self.rhs = self.nl_stiffness.createVecRight()
         self.F = self.nl_stiffness.createVecRight()
         self.buffer = self.nl_stiffness.createVecRight()
+        
+        self.Scatter = PETSc.Scatter().toAll(self.F)
+        self.GlobalVec = PETSc.Vec().createSeq(self.gf_model.nbdof())
         
     def get_cleared_TS_options(self):
         """To ensure a safe database for the PETSc TS environment"""
@@ -813,7 +862,7 @@ class DPHS:
             self.time_scheme["dt_save"] = 0.01
             
         if not self.time_scheme.hasName("ts_adapt_dt_min"):
-            self.time_scheme["ts_adapt_dt_min"] = 0.0001
+            self.time_scheme["ts_adapt_dt_min"] = 0.0001 / max_rank
             
         if not self.time_scheme.hasName("adapt_dt_max"):
             self.time_scheme["ts_adapt_dt_max"] = self.time_scheme["dt_save"]
@@ -826,6 +875,12 @@ class DPHS:
         
         if not self.time_scheme.hasName("init_step"):
             self.time_scheme["init_step"] = True
+        
+        if not self.time_scheme.hasName("init_step_nb_iter"):
+            self.time_scheme["init_step_nb_iter"] = 1
+        
+        if not self.time_scheme.hasName("init_step_ts_type"):
+            self.time_scheme["init_step_ts_type"] = "pseudo"
         
         self.time_scheme["isset"] = True
 
@@ -914,6 +969,15 @@ class DPHS:
                 )
                 raise err
 
+        if rank==0:
+            logging.info(
+                f"Simulation is starting on {comm.getSize()} processor(s) (total number of dofs: {self.gf_model.nbdof()})"
+            )
+            
+
+        # Initiliaze the systems flags
+        self.set_linear_flags()
+
         # Initialize time scheme options (without override)
         self.set_time_scheme()
 
@@ -974,10 +1038,16 @@ class DPHS:
         self.exclude_algebraic_var_from_lte(TS)
         
         InitVec = self.tangent_stiffness.createVecRight()
-        InitVec.setValues(range(self.gf_model.nbdof()), self.gf_model.from_variables(),
+        InitVec.zeroEntries()
+        rows = InitVec.getOwnershipRange()
+        range_rows = range(rows[0], rows[1])
+        InitVec.setValuesLocal(range_rows, self.gf_model.from_variables()[range_rows],
                           addv=PETSc.InsertMode.INSERT_VALUES)
         InitVec.assemble()
+        # comm.barrier()
+        
         TS.solve(InitVec)
+        del InitVec
 
         if rank==0:
             logging.info(
@@ -1018,8 +1088,8 @@ class DPHS:
         TS.setIFunction(self.IFunction, self.F)
         TS.setIJacobian(self.IJacobian, self.J)
         TS.setTime(float(self.time_scheme["t_0"]))
-        TS.setMaxSteps(2)
-        TS.setExactFinalTime(PETSc.TS.ExactFinalTime.MATCHSTEP)
+        TS.setMaxSteps(int(self.time_scheme["init_step_nb_iter"]))
+        TS.setExactFinalTime(PETSc.TS.ExactFinalTime.INTERPOLATE)
 
         # Save options for later use and avoid overidden them with the initial step
         saved_options = dict()
@@ -1033,7 +1103,7 @@ class DPHS:
             saved_options["dt"] = float(self.time_scheme["dt"])
         if self.time_scheme.hasName("ts_adapt_dt_min"):
             saved_options["ts_adapt_dt_min"] = float(self.time_scheme["ts_adapt_dt_min"])
-        self.time_scheme["ts_type"] = "pseudo"
+        self.time_scheme["ts_type"] = self.time_scheme["init_step_ts_type"]
         self.time_scheme["ts_adapt_dt_min"] = 1e-24
         
         TS.setTimeStep(1e-12)
@@ -1043,14 +1113,20 @@ class DPHS:
         
         if rank==0:
             logging.info(
-                "Perform an initial step using a pseudo bdf scheme for initial value consistency"
+                f"Perform initialisation using {self.time_scheme['init_step_nb_iter']} step(s) of a {self.time_scheme['init_step_ts_type']} scheme for initial value consistency"
             )
-        
+            
         InitVec = self.tangent_stiffness.createVecRight()
-        InitVec.setValues(range(self.gf_model.nbdof()), self.gf_model.from_variables(),
-                          addv=PETSc.InsertMode.INSERT_VALUES)
+        InitVec.zeroEntries()
+        rows = InitVec.getOwnershipRange()
+        range_rows = range(rows[0], rows[1])
+        InitVec.setValuesLocal(range_rows, self.gf_model.from_variables()[range_rows],
+                               addv=PETSc.InsertMode.INSERT_VALUES)
         InitVec.assemble()
+        # comm.barrier()
+        
         TS.solve(InitVec)
+        del InitVec
         
         if rank==0:
             logging.info(
@@ -1067,7 +1143,7 @@ class DPHS:
         for key in saved_options.keys():
             self.time_scheme[key] = saved_options[key]
 
-    def monitor(self, TS, i, t, z, dt_save=1, t_0=0.0, initial_step=False):
+    def monitor(self, TS, i, t, z, dt_save=1.0, t_0=0.0, initial_step=False):
         """Monitor to use during iterations of time-integration at each successful time step
 
         Args:
@@ -1080,6 +1156,9 @@ class DPHS:
             initial_step (bool): `True` if this is the initial consistency step (default=`False`)
         """
 
+        # self.GlobalVec.zeroEntries()
+        self.Scatter[0].scatter(z,self.GlobalVec)
+        
         if not initial_step:
             if self.solution['t']:
                 next_saved_at_t = self.solution['t'][-1] + dt_save
@@ -1092,7 +1171,7 @@ class DPHS:
                     )
                     sys.stdout.flush()
                 self.solution["t"].append(t)
-                self.solution["z"].append(z.copy())
+                self.solution["z"].append(self.GlobalVec.copy().getArray())
             else:
                 if rank==0:
                     sys.stdout.write(
@@ -1100,11 +1179,13 @@ class DPHS:
                     )
                     sys.stdout.flush()
         
-        self.gf_model.set_time(TS.getTime()) # Update the time t in the getfem `Model`
-        self.gf_model.to_variables(TS.getSolution().array) # Update the state in the getfem `Model`
+        # comm.barrier()
+        self.gf_model.set_time(t) # Update the time t in the getfem `Model`
+        if not self.linear_mass or not self.linear_stiffness: # Needed for non-linear systems only
+            self.gf_model.to_variables(self.GlobalVec.copy().getArray()) # Update the state in the getfem `Model`
         self.gf_model.next_iter() # Says to getfem that we go to the next iteration, not sure if needed
         
-        PETSc.garbage_cleanup() # solution saved in getfem, cleaning is safe
+        PETSc.garbage_cleanup() # solution saved, cleaning is safe
 
     def compute_Hamiltonian(self):
         """Compute each `term` constituting the Hamiltonian
@@ -1151,7 +1232,7 @@ class DPHS:
         if len(self.hamiltonian) > 1 and rank==0:
             ax.plot(t, HamTot, label=self.hamiltonian.get_name())
 
-        if with_powers:
+        if with_powers and rank==0:
             self.plot_powers(ax, HamTot=HamTot)
 
         if rank==0:
@@ -1187,7 +1268,7 @@ class DPHS:
             port.compute(self.solution, self.gf_model, self.domain)
             
         self.powers_computed = True
-        
+            
         if rank==0:
             logging.info(
                 f"Powers have been computed in {time.perf_counter() - start} s"
@@ -1336,7 +1417,9 @@ class DPHS:
             path = os.path.join(module_path, name_variable)
 
         if not os.path.exists(path):
-            os.makedirs(path)
+            if rank==0:
+                os.makedirs(path)
+        comm.barrier()
 
         # Get the dofs of name_variable
         I = self.gf_model.interval_of_variable(name_variable)
@@ -1432,7 +1515,7 @@ class DPHS:
         dofs = self.gf_model.interval_of_variable(name_variable)
         variable = []
         for k, _ in enumerate(self.solution["t"]):
-            variable.append(np.array(self.solution["z"][k].array[dofs[0]:dofs[0]+dofs[1]]))
+            variable.append(np.array(self.solution["z"][k][dofs[0]:dofs[0]+dofs[1]]))
         
         return variable
     
@@ -1460,7 +1543,7 @@ class DPHS:
         values = []
         for k, t in enumerate(self.solution["t"]):
             self.gf_model.set_time(t)
-            self.gf_model.to_variables(self.solution["z"][k].array)
+            self.gf_model.to_variables(self.solution["z"][k])
             values.append(
                     gf.asm_generic(
                             self.domain._int_method[mesh_id], 0, expression, region, self.gf_model
@@ -1496,3 +1579,4 @@ class DPHS:
 
             for _, port in self.ports.items():
                 print(port)
+
