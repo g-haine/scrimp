@@ -134,7 +134,7 @@ def wave_coenergy():
         wave.add_brick(brick)
 
     ## Initialize the problem
-    expressions = ["0.005*Y"]
+    expressions = ["-0.5*Y"]
 
     for control_port, expression in zip(control_ports, expressions):
         # Set the control functions (automatic construction of bricks such that -M_u u + f(t) = 0)

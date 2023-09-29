@@ -27,7 +27,6 @@ def shallow_water():
     
     ## Macros
     swe.gf_model.add_macro('div(v)', 'Trace(Grad(v))')
-    swe.gf_model.add_macro('D(v)', 'Sym(Grad(v))')
     swe.gf_model.add_macro('Rot', '[[0,1],[-1,0]]')
     swe.gf_model.add_macro('Tangent', '(Rot*Normal)')
     swe.gf_model.add_macro('Curl2D(v)', 'div(Rot*v)')
