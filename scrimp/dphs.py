@@ -882,6 +882,9 @@ class DPHS:
         if not self.time_scheme.hasName("init_step_ts_type"):
             self.time_scheme["init_step_ts_type"] = "pseudo"
         
+        if not self.time_scheme.hasName("init_step_dt"):
+            self.time_scheme["init_step_dt"] = 0.0001
+        
         self.time_scheme["isset"] = True
 
     def exclude_algebraic_var_from_lte(self, TS):
@@ -1106,14 +1109,14 @@ class DPHS:
         self.time_scheme["ts_type"] = self.time_scheme["init_step_ts_type"]
         self.time_scheme["ts_adapt_dt_min"] = 1e-24
         
-        TS.setTimeStep(1e-12)
+        TS.setTimeStep(float(self.time_scheme["init_step_dt"]))
 
         TS.setFromOptions()
         self.exclude_algebraic_var_from_lte(TS)
         
         if rank==0:
             logging.info(
-                f"Perform initialisation using {self.time_scheme['init_step_nb_iter']} step(s) of a {self.time_scheme['init_step_ts_type']} scheme for initial value consistency"
+                f"Perform initialisation using {self.time_scheme['init_step_nb_iter']} step(s) of a {self.time_scheme['init_step_ts_type']} scheme, with timestep {self.time_scheme['init_step_dt']}, for initial value consistency"
             )
             
         InitVec = self.tangent_stiffness.createVecRight()
@@ -1164,7 +1167,7 @@ class DPHS:
                 next_saved_at_t = self.solution['t'][-1] + dt_save
             else:
                 next_saved_at_t = t_0
-            if (next_saved_at_t - t <= 0) or (i==-1) or self.stop_TS:
+            if (i==0) or (next_saved_at_t - t <= 0) or (i==-1) or self.stop_TS:
                 if rank==0:
                     sys.stdout.write(
                         f"\ri={i:8d} t={t:8g} * ({int(time.perf_counter()-self.ts_start)}s)   dt={float(TS.getTimeStep()):8g}        \n"

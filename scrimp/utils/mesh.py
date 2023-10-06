@@ -249,8 +249,6 @@ def Rectangle(parameters={"L": 2.0, "l": 1, "h": 0.1}, refine=0, terminal=1):
     dim = 2
     model.mesh.generate(dim)
     
-    print("Test")
-    
     for i in range(refine):
         gmsh.model.mesh.refine()
     if rank==0:
