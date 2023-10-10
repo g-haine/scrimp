@@ -38,23 +38,12 @@ def heat_eq():
     costates = [
         S.CoState("T", "Temperature", states[0], substituted=True)
     ]
-<<<<<<< HEAD
-=======
-    costates = [CoState("T", "Temperature", states[0], substituted=True)]
-
->>>>>>> 3849f842fb0aa627462cc3c130e54d7d4dddf796
     ports = [
         S.Port("Heat flux", "f_Q", "e_Q", "vector-field", dissipative=True),
     ]
     params = [
-<<<<<<< HEAD
         S.Parameter("rho", "Mass density times heat capacity", "scalar-field", "1.", "T"),
         S.Parameter(
-=======
-        Parameter("rho", "Mass density times heat capacity",
-                  "scalar-field", "1.", "T"),
-        Parameter(
->>>>>>> 3849f842fb0aa627462cc3c130e54d7d4dddf796
             "Lambda",
             "Heat conductivity",
             "tensor-field",
