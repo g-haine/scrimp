@@ -1,10 +1,9 @@
-from unittest import TestCase
-from hamiltonian import Term
-from scrimp import Domain
+import unittest
+from scrimp import Domain, Term
 import getfem as gf
 
 
-class TestTerm(TestCase):
+class TestTerm(unittest.TestCase):
     def test_get_description(self):
         term = Term("Potential energy", "0.5*q.T.q", [1])
         self.assertEqual(term.get_description(), "Potential energy")
@@ -32,3 +31,6 @@ class TestTerm(TestCase):
         term_value_at_t = 0.0
         term.set_value(term_value_at_t)
         self.assertListEqual(term.get_values(), [0.0])
+
+if __name__ == "__main__":
+    unittest.main()

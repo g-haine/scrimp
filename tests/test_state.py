@@ -1,8 +1,5 @@
 import unittest
-from scrimp import CoState
-from scrimp import State
-from port import Port
-
+from scrimp import State, CoState, Port
 
 class TestState(unittest.TestCase):
     def test_name(self):

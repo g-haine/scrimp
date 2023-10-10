@@ -1,8 +1,7 @@
-from unittest import TestCase
-from hamiltonian import Term, Hamiltonian
+import unittest
+from scrimp import Term, Hamiltonian
 
-
-class TestHamiltonian(TestCase):
+class TestHamiltonian(unittest.TestCase):
     def test_add_term(self):
         hamiltonian = Hamiltonian("hamiltonian")
         term = Term("Potential energy", "0.5*q.T.q", [1])
@@ -34,3 +33,6 @@ class TestHamiltonian(TestCase):
         self.assertFalse(hamiltonian.get_is_computed())
         hamiltonian.set_is_computed()
         self.assertTrue(hamiltonian.get_is_computed())
+
+if __name__ == "__main__":
+    unittest.main()

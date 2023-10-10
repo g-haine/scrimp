@@ -1,5 +1,5 @@
 import unittest
-from port import Parameter
+from scrimp import Parameter
 
 
 class TestParameter(unittest.TestCase):
