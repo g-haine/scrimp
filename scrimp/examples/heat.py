@@ -30,7 +30,7 @@ def heat_eq():
     # Omega = 1, Gamma_Bottom = 10, Gamma_Right = 11, Gamma_Top = 12, Gamma_Left = 13
     heat.set_domain(S.Domain("Rectangle", {"L": 2.0, "l": 1.0, "h": 0.2}))
 
-    ## Define the variables and their discretizations
+    # Define the variables and their discretizations
 
     states = [
         S.State("T", "Temperature", "scalar-field"),
@@ -38,12 +38,23 @@ def heat_eq():
     costates = [
         S.CoState("T", "Temperature", states[0], substituted=True)
     ]
+<<<<<<< HEAD
+=======
+    costates = [CoState("T", "Temperature", states[0], substituted=True)]
+
+>>>>>>> 3849f842fb0aa627462cc3c130e54d7d4dddf796
     ports = [
         S.Port("Heat flux", "f_Q", "e_Q", "vector-field", dissipative=True),
     ]
     params = [
+<<<<<<< HEAD
         S.Parameter("rho", "Mass density times heat capacity", "scalar-field", "1.", "T"),
         S.Parameter(
+=======
+        Parameter("rho", "Mass density times heat capacity",
+                  "scalar-field", "1.", "T"),
+        Parameter(
+>>>>>>> 3849f842fb0aa627462cc3c130e54d7d4dddf796
             "Lambda",
             "Heat conductivity",
             "tensor-field",
@@ -127,7 +138,7 @@ def heat_eq():
             # Add a control `port` on the bottom part of the boundary (Neumann, thus position='effort' - default)
             heat.add_control_port(control_port)
 
-    ## Set Hamiltonian
+    # Set Hamiltonian
     heat.hamiltonian.set_name("Lyapunov formulation")
 
     terms = [
@@ -138,7 +149,7 @@ def heat_eq():
         # Set the Hamiltonian (can be done later, even after solve)
         heat.hamiltonian.add_term(term)
 
-    ## Define the Dirac structure via getfem `brick` = non-zero block matrix
+    # Define the Dirac structure via getfem `brick` = non-zero block matrix
     bricks = [
         # Add the mass matrices from the left-hand side: the `flow` part of the Dirac structure
         S.Brick("M_T", "T*rho*Test_T", [1], dt=True, position="flow"),
@@ -169,7 +180,7 @@ def heat_eq():
     for brick in bricks:
         heat.add_brick(brick)
 
-    ## Initialize the problem
+    # Initialize the problem
     expressions = ["t", "t", "t", "0.2"]
 
     for control_port, expression in zip(control_ports, expressions):
@@ -195,7 +206,7 @@ def heat_eq():
     # Solve
     heat.solve()
 
-    ## Post-processing
+    # Post-processing
 
     # Plot the Hamiltonian with the power supplied at the boundary
     heat.plot_Hamiltonian(save_figure=True)
