@@ -9,8 +9,8 @@
 project = 'SCRIMP'
 copyright = '2015-2023 ISAE-SUPAERO'
 author = 'Giuseppe Ferraro, Michel Fournié, Ghislain Haine'
-release = '1.0'
-version = '1.0.5'
+release = '1.1'
+version = '1.1.0'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
