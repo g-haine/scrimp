@@ -1,133 +1,90 @@
 # SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
 #
-# Copyright (C) 2015-2023 Ghislain Haine
-#
-# See the LICENSE file in the root directory for license information.
+# Copyright (C) 2015-2023 ISAE-SUPAERO -- GNU GPLv3
+# 
+# See the LICENSE file for license information.
 #
 # github: https://github.com/g-haine/scrimp
 
 """
 - file:             utils/mesh.py
-- author:           Ghislain Haine
+- authors:          Ghislain Haine
 - date:             22 nov. 2022
-- last modified:    13 dec. 2022
 - brief:            built-in geometries for direct use in SCRIMP
 """
+
+import petsc4py
+import sys
+
+petsc4py.init(sys.argv)
+from petsc4py import PETSc
+
+comm = PETSc.COMM_WORLD
+rank = comm.getRank()
 
 import os
 import math
 import gmsh
 import numpy as np
 import getfem as gf
+import logging
 
-
-#
-# def check_default_path():
-#     """
-#     Check if the default path exists, and create it otherwise
-#     """
-#
-#     path = set_default_path()
-#     if not os.path.exists(path):
-#         os.makedirs(path)
-#
-#
-# def set_default_path():
-#     """
-#     Set the default path folder for outputs to the path of this file + outputs
-#     """
-#
-#     return os.path.join(os.path.dirname(os.path.realpath(__file__)), "outputs")
-#
-
-
-def set_default_path():
-    """
-    Set the default path folder for outputs to the path of this file + outputs
-    """
-
-    return os.path.join(os.path.dirname(os.path.realpath(__file__)), "outputs")
-
-
-def set_verbose_gf(verbose):
-    """
-    Set the verbosity level of getfem
-
-    :param verbose: the level
-    :type verbose: int
-    """
-
-    gf.util_trace_level(verbose)
-    gf.util_warning_level(verbose)
-
-
-def check_default_path():
-    """
-    Check if the default path exists, and create it otherwise
-    """
-
-    path = set_default_path()
-    if not os.path.exists(path):
-        os.makedirs(path)
-
-check_default_path()
-
+module_path = os.path.join(__file__[:-21], "outputs")
 
 def built_in_geometries():
-    """
-    A function to get all the infos about available built_in geometries
+    """A function to get all the infos about available built_in geometries"""
 
-    :param: None
-    :return: Print informations about all available built_in geometries
-    """
-
-    print("Available geometries with parameters:")
-    print("=====================================")
-    print("")
-    print(
-        '* `Interval`, {"L": 1, "N": 20}, an segment of size L with N linearly spaced points'
-    )
-    print(
-        "---> Domain `Omega`: 1, Left boundary `Gamma_Left`: 10, Right boundary `Gamma_Right`: 11"
-    )
-    print("")
-    print('* `Disk`, {"R": 1, "h": 0.1}, a disk of radius R with mesh size h')
-    print("---> Domain `Omega`: 1, Boundary `Gamma`: 10")
-    print("")
-    print(
-        '* `Rectangle`, {"L": 2, "l": 1, "h": 0.1}, a rectangle of size L x l with mesh size h'
-    )
-    print(
-        "---> Domain `Omega`: 1, Bottom boundary `Gamma_Bottom`: 10, Right boundary `Gamma_Right`: 11, Top boundary `Gamma_Top`: 12, Left boundary `Gamma_Left`: 13"
-    )
-    print("")
-    print(
-        '* `Concentric`, {"R": 1, "r": 0.6, "h": 0.1}, a disk of radius r surrounded by an annulus of radii r and R with mesh size h'
-    )
-    print(
-        "---> Domain `Omega_Disk`: 1, `Omega_Annulus`: 2, Interface `Interface`: 10, Boundary `Gamma`: 20"
-    )
-    print("")
-    print('* `Ball`, {"R": 1, "h": 0.1}, a ball of radius R with mesh size h')
-    print("---> Domain `Omega`: 1, Boundary `Gamma`: 10")
-    print("")
+    if rank==0:
+        logging.info("Available geometries with parameters:")
+        logging.info("=====================================")
+        logging.info("")
+        logging.info(
+            '* `Interval`, {"L": 1, "N": 20}, an segment of size L with N linearly spaced points'
+        )
+        logging.info(
+            "---> Domain `Omega`: 1, Left boundary `Gamma_Left`: 10, Right boundary `Gamma_Right`: 11"
+        )
+        logging.info("")
+        logging.info('* `Disk`, {"R": 1, "h": 0.1}, a disk of radius R with mesh size h')
+        logging.info("---> Domain `Omega`: 1, Boundary `Gamma`: 10")
+        logging.info("")
+        logging.info(
+            '* `Rectangle`, {"L": 2, "l": 1, "h": 0.1}, a rectangle of size L x l with mesh size h'
+        )
+        logging.info(
+            "---> Domain `Omega`: 1, Bottom boundary `Gamma_Bottom`: 10, Right boundary `Gamma_Right`: 11, Top boundary `Gamma_Top`: 12, Left boundary `Gamma_Left`: 13"
+        )
+        logging.info("")
+        logging.info(
+            '* `Concentric`, {"R": 1, "r": 0.6, "h": 0.1}, a disk of radius r surrounded by an annulus of radii r and R with mesh size h'
+        )
+        logging.info(
+            "---> Domain `Omega_Disk`: 1, `Omega_Annulus`: 2, Interface `Interface`: 10, Boundary `Gamma`: 20"
+        )
+        logging.info("")
+        logging.info('* `Ball`, {"R": 1, "h": 0.1}, a ball of radius R with mesh size h')
+        logging.info("---> Domain `Omega`: 1, Boundary `Gamma`: 10")
+        logging.info("")
 
 
-def Interval(parameters={"L": 1.0, "h": 0.05}, terminal=1):
-    """
-    The geometry of a segment (0,L) with mesh size h
+def Interval(parameters={"L": 1.0, "h": 0.05}, refine=0, terminal=1):
+    """The geometry of a segment (0,L) with mesh size h
+    
+    - Domain `Omega`: 1, 
+    - Left boundary `Gamma_Left`: 10, 
+    - Right boundary `Gamma_Right`: 11
 
-    :param parameters: The dictionary of parameters for the geometry
-    :type parameters: dict
-    :param terminal: An option to print meshing infos in the prompt, value `0` (quiet) or `1` (verbose, default)
-    :type terminal: int
-
-    :return: The mesh to use with getfem, the dimension, a dict of regions with getfem indices for dim n and a dict of regions with getfem indices for dim n-1
-    :rtype: list[gf.Mesh, int, dict, dict]
+    Args:
+        - parameters (dict): The dictionary of parameters for the geometry
+        - refine (int): Ask for iterative refinements by splitting elements
+        - terminal (int): An option to print meshing infos in the prompt, value `0` (quiet) or `1` (verbose, default)
+    
+    Returns:
+        list[gf.Mesh, int, dict, dict]: The mesh to use with getfem, the dimension, a dict of regions with getfem indices for dim n and a dict of regions with getfem indices for dim n-1
     """
 
     L = parameters["L"]
-    h = parameters["h"]
+    h = parameters["h"]/(refine+1)
 
     mesh = gf.Mesh(
         "regular simplices",
@@ -143,22 +100,32 @@ def Interval(parameters={"L": 1.0, "h": 0.05}, terminal=1):
     mesh.set_region(10, mesh.faces_from_pid(mesh.pid_from_coords(0.0)))
     mesh.set_region(11, mesh.faces_from_pid(mesh.pid_from_coords(L)))
 
-    print("Interval (0," + str(L) + ") has been meshed")
+    if rank==0:
+        logging.info(
+            f"Interval (0, {L}) has been meshed"
+        )
 
-    return [mesh, 1, {"Omega": 1}, {"Gamma_Left": 10, "Gamma_Right": 11}]
+    return [
+        mesh, 
+        1, 
+        {"Omega": 1}, 
+        {"Gamma_Left": 10, "Gamma_Right": 11},
+        ]
 
 
-def Disk(parameters={"R": 1.0, "h": 0.1}, terminal=1):
-    """
-    The geometry of a Disk center in (0,0) with radius R and mesh size h
+def Disk(parameters={"R": 1.0, "h": 0.1}, refine=0, terminal=1):
+    """The geometry of a Disk center in (0,0) with radius R and mesh size h
 
-    :param parameters: The dictionary of parameters for the geometry
-    :type parameters: dict
-    :param terminal: An option to print meshing infos in the prompt, value `0` (quiet) or `1` (verbose, default)
-    :type terminal: int
-
-    :return: The mesh to use with getfem, the dimension, a dict of regions with getfem indices for dim n and a dict of regions with getfem indices for dim n-1
-    :rtype: list[gf.Mesh, int, dict, dict]
+    - Domain `Omega`: 1, 
+    - Boundary `Gamma`: 10
+    
+    Args:
+        - parameters (dict): The dictionary of parameters for the geometry
+        - refine (int): Ask for iterative refinements by splitting elements
+        - terminal (int): An option to print meshing infos in the prompt, value `0` (quiet) or `1` (verbose, default)
+    
+    Returns:
+        list[gf.Mesh, int, dict, dict]: The mesh to use with getfem, the dimension, a dict of regions with getfem indices for dim n and a dict of regions with getfem indices for dim n-1
     """
 
     h = parameters["h"]
@@ -168,6 +135,7 @@ def Disk(parameters={"R": 1.0, "h": 0.1}, terminal=1):
     gmsh.initialize()
     # Ask GMSH to display information in the terminal
     gmsh.option.setNumber("General.Terminal", terminal)
+    gmsh.option.setNumber("General.NumThreads", 0) # Use system default
 
     # Create a model and name it "MyCircle"
     model = gmsh.model
@@ -203,36 +171,53 @@ def Disk(parameters={"R": 1.0, "h": 0.1}, terminal=1):
     # Mesh (2D)
     dim = 2
     model.mesh.generate(dim)
+    # Refine
+    for i in range(refine):
+        model.mesh.refine()
     # Write on disk
-    path = set_default_path()
-    gmsh.write(os.path.join(path, "Disk.msh"))
+    if rank==0:
+        gmsh.write(os.path.join(module_path, "mesh", "Disk.msh"))
     # Finalize GMSH
+    comm.barrier()
     gmsh.finalize()
 
-    print("Disk with radius", R, "has been meshed")
-
+    if rank==0:
+        logging.info(
+            f"Disk with radius {R} has been meshed"
+        )
+    
     # GetFEM mesh
-    mesh = gf.Mesh("import", "gmsh_with_lower_dim_elt", os.path.join(path, "Disk.msh"))
+    mesh = gf.Mesh("import", "gmsh_with_lower_dim_elt", os.path.join(module_path, "mesh", "Disk.msh"))
     # Glue boundaries CircleArc
     mesh.region_merge(10, 11)
     mesh.region_merge(10, 12)
     # Delete those which have been glued
     mesh.delete_region([11, 12])
 
-    return [mesh, dim, {"Omega": 1}, {"Gamma": 10}]
+    return [
+        mesh, 
+        dim, 
+        {"Omega": 1}, 
+        {"Gamma": 10},
+        ]
 
 
-def Rectangle(parameters={"L": 2.0, "l": 1, "h": 0.1}, terminal=1):
-    """
-    The geometry of a Rectangle (0,L)x(0,l) with mesh size h
+def Rectangle(parameters={"L": 2.0, "l": 1, "h": 0.1}, refine=0, terminal=1):
+    """The geometry of a Rectangle (0,L)x(0,l) with mesh size h
+    
+    - Domain `Omega`: 1, 
+    - Bottom boundary `Gamma_Bottom`: 10, 
+    - Right boundary `Gamma_Right`: 11, 
+    - Top boundary `Gamma_Top`: 12, 
+    - Left boundary `Gamma_Left`: 13
 
-    :param parameters: The dictionary of parameters for the geometry
-    :type parameters: dict
-    :param terminal: An option to print meshing infos in the prompt, value `0` (quiet) or `1` (verbose, default)
-    :type terminal: int
-
-    :return: The mesh to use with getfem, the dimension, a dict of regions with getfem indices for dim n and a dict of regions with getfem indices for dim n-1
-    :rtype: list[gf.Mesh, int, dict, dict]
+    Args:
+        - parameters (dict): The dictionary of parameters for the geometry
+        - refine (int): Ask for iterative refinements by splitting elements
+        - terminal (int): An option to print meshing infos in the prompt, value `0` (quiet) or `1` (verbose, default)
+    
+    Returns:
+        list[gf.Mesh, int, dict, dict]: The mesh to use with getfem, the dimension, a dict of regions with getfem indices for dim n and a dict of regions with getfem indices for dim n-1
     """
 
     h = parameters["h"]
@@ -241,6 +226,7 @@ def Rectangle(parameters={"L": 2.0, "l": 1, "h": 0.1}, terminal=1):
 
     gmsh.initialize()
     gmsh.option.setNumber("General.Terminal", terminal)
+    gmsh.option.setNumber("General.NumThreads", 0) # Use system default
 
     model = gmsh.model
     model.add("Rectangle")
@@ -262,35 +248,45 @@ def Rectangle(parameters={"L": 2.0, "l": 1, "h": 0.1}, terminal=1):
 
     dim = 2
     model.mesh.generate(dim)
-    path = set_default_path()
-    gmsh.write(os.path.join(path, "Rectangle.msh"))
+    
+    for i in range(refine):
+        gmsh.model.mesh.refine()
+    if rank==0:
+        gmsh.write(os.path.join(module_path, "mesh", "Rectangle.msh"))
+    # Finalize GMSH
+    comm.barrier()
     gmsh.finalize()
 
-    print("Rectangle (0," + str(L) + ")x(0," + str(l) + ") has been meshed")
+    if rank==0:
+        logging.info(
+            "Rectangle (0," + str(L) + ")x(0," + str(l) + ") has been meshed"
+        )
 
-    mesh = gf.Mesh(
-        "import", "gmsh_with_lower_dim_elt", os.path.join(path, "Rectangle.msh")
-    )
+    mesh = gf.Mesh("import", "gmsh_with_lower_dim_elt", os.path.join(module_path, "mesh", "Rectangle.msh"))
 
     return [
         mesh,
         dim,
         {"Omega": 1},
         {"Gamma_Bottom": 10, "Gamma_Right": 11, "Gamma_Top": 12, "Gamma_Left": 13},
-    ]
+        ]
 
 
-def Concentric(parameters={"R": 1.0, "r": 0.6, "h": 0.1}, terminal=1):
-    """
-    The geometry of a Disk of radius r surrounded by an annulus of radii r and R with mesh size h
+def Concentric(parameters={"R": 1.0, "r": 0.6, "h": 0.1}, refine=0, terminal=1):
+    """The geometry of a Disk of radius r surrounded by an annulus of radii r and R with mesh size h
 
-    :param parameters: The dictionary of parameters for the geometry
-    :type parameters: dict
-    :param terminal: An option to print meshing infos in the prompt, value `0` (quiet) or `1` (verbose, default)
-    :type terminal: int
+    - Domain `Omega_Disk`: 1, 
+    - Domain `Omega_Annulus`: 2, 
+    - Interface `Interface`: 10, 
+    - Boundary `Gamma`: 20
 
-    :return: The mesh to use with getfem, the dimension, a dict of regions with getfem indices for dim n and a dict of regions with getfem indices for dim n-1
-    :rtype: list[gf.Mesh, int, dict, dict]
+    Args:
+        - parameters (dict): The dictionary of parameters for the geometry
+        - refine (int): Ask for iterative refinements by splitting elements
+        - terminal (int): An option to print meshing infos in the prompt, value `0` (quiet) or `1` (verbose, default)
+    
+    Returns:
+        list[gf.Mesh, int, dict, dict]: The mesh to use with getfem, the dimension, a dict of regions with getfem indices for dim n and a dict of regions with getfem indices for dim n-1
     """
 
     h = parameters["h"]
@@ -299,6 +295,7 @@ def Concentric(parameters={"R": 1.0, "r": 0.6, "h": 0.1}, terminal=1):
 
     gmsh.initialize()
     gmsh.option.setNumber("General.Terminal", terminal)
+    gmsh.option.setNumber("General.NumThreads", 0) # Use system default
 
     model = gmsh.model
     model.add("Concentric")
@@ -349,23 +346,20 @@ def Concentric(parameters={"R": 1.0, "r": 0.6, "h": 0.1}, terminal=1):
 
     dim = 2
     model.mesh.generate(dim)
-    path = set_default_path()
-    gmsh.write(os.path.join(path, "Concentric.msh"))
+    for i in range(refine):
+        gmsh.model.mesh.refine()
+    if rank==0:
+        gmsh.write(os.path.join(module_path, "mesh", "Concentric.msh"))
+    # Finalize GMSH
+    comm.barrier()
     gmsh.finalize()
 
-    print(
-        "A disk of radius "
-        + str(r)
-        + " surrounded by an annulus of radii "
-        + str(r)
-        + " and "
-        + str(R)
-        + " has been meshed"
-    )
+    if rank==0:
+        logging.info(
+            f"A disk of radius {r} surrounded by an annulus of radii {r} and {R} has been meshed"
+        )
 
-    mesh = gf.Mesh(
-        "import", "gmsh_with_lower_dim_elt", os.path.join(path, "Concentric.msh")
-    )
+    mesh = gf.Mesh("import", "gmsh_with_lower_dim_elt", os.path.join(module_path, "mesh", "Concentric.msh"))
     mesh.region_merge(10, 11)
     mesh.region_merge(10, 12)
     mesh.delete_region([11, 12])
@@ -382,17 +376,19 @@ def Concentric(parameters={"R": 1.0, "r": 0.6, "h": 0.1}, terminal=1):
     ]
 
 
-def Ball(parameters={"R": 1.0, "h": 0.1}, terminal=1):
-    """
-    The geometry of a Ball of radius R centered in (0,0,0) with mesh size h
+def Ball(parameters={"R": 1.0, "h": 0.1}, refine=0, terminal=1):
+    """The geometry of a Ball of radius R centered in (0,0,0) with mesh size h
 
-    :param parameters: The dictionary of parameters for the geometry
-    :type parameters: dict
-    :param terminal: An option to print meshing infos in the prompt, value `0` (quiet) or `1` (verbose, default)
-    :type terminal: int
+    - Domain `Omega`: 1, 
+    - Boundary `Gamma`: 10
 
-    :return: The mesh to use with getfem, the dimension, a dict of regions with getfem indices for dim n and a dict of regions with getfem indices for dim n-1
-    :rtype: list[gf.Mesh, int, dict, dict]
+    Args:
+        - parameters (dict): The dictionary of parameters for the geometry
+        - refine (int): Ask for iterative refinements by splitting elements
+        - terminal (int): An option to print meshing infos in the prompt, value `0` (quiet) or `1` (verbose, default)
+    
+    Returns:
+        list[gf.Mesh, int, dict, dict]: The mesh to use with getfem, the dimension, a dict of regions with getfem indices for dim n and a dict of regions with getfem indices for dim n-1
     """
 
     h = parameters["h"]
@@ -400,6 +396,7 @@ def Ball(parameters={"R": 1.0, "h": 0.1}, terminal=1):
 
     gmsh.initialize()
     gmsh.option.setNumber("General.Terminal", terminal)
+    gmsh.option.setNumber("General.NumThreads", 0) # Use system default
 
     model = gmsh.model
     model.add("Ball")
@@ -452,13 +449,20 @@ def Ball(parameters={"R": 1.0, "h": 0.1}, terminal=1):
 
     dim = 3
     model.mesh.generate(dim)
-    path = set_default_path()
-    gmsh.write(os.path.join(path, "Ball.msh"))
+    for i in range(refine):
+        gmsh.model.mesh.refine()
+    if rank==0:
+        gmsh.write(os.path.join(module_path, "mesh", "Ball.msh"))
+    # Finalize GMSH
+    comm.barrier()
     gmsh.finalize()
 
-    print("A ball of radius " + str(R) + " has been meshed")
+    if rank==0:
+        logging.info(
+            "A ball of radius " + str(R) + " has been meshed"
+        )
 
-    mesh = gf.Mesh("import", "gmsh", os.path.join(path, "Ball.msh"))
+    mesh = gf.Mesh("import", "gmsh", os.path.join(module_path, "mesh", "Ball.msh"))
     mesh.region_merge(10, 11)
     mesh.region_merge(10, 12)
     mesh.region_merge(10, 13)
@@ -468,4 +472,10 @@ def Ball(parameters={"R": 1.0, "h": 0.1}, terminal=1):
     mesh.region_merge(10, 17)
     mesh.delete_region([11, 12, 13, 14, 15, 16, 17])
 
-    return [mesh, dim, {"Omega": 1}, {"Gamma": 10}]
+    return [
+        mesh, 
+        dim, 
+        {"Omega": 1}, 
+        {"Gamma": 10},
+        ]
+

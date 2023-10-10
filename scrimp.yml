@@ -1,4 +1,4 @@
-name: scrimp-dev
+name: scrimp
 channels:
   - conda-forge
 dependencies:
@@ -9,6 +9,7 @@ dependencies:
   - numpy
   - scipy
   - spyder
+  - paraview
   - petsc4py
   - pip
   - pip:

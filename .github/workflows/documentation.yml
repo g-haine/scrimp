@@ -1,18 +1,24 @@
 name: Docs
-on: [push, pull_request, workflow_dispatch]
+on: [push]
 jobs:
   docs:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - uses: actions/setup-python@v2
-      - name: Install dependencies
+      - name: Install sphinx dependencies
         run: |
           pip install sphinx sphinx_rtd_theme
       - name: Sphinx build
         run: |
           sphinx-build -b html docs/source docs/build
-      - name: Deploy
+          sphinx-build -b latex docs/source docs/build/latex
+      - name: Compile LaTeX
+        uses: xu-cheng/latex-action@v2
+        with:
+          root_file: scrimp.tex
+          working_directory: docs/build/latex/
+      - name: Deploy on GitHub pages
         uses: peaceiris/actions-gh-pages@v3
         if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
         with:

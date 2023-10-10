@@ -1,54 +1,60 @@
 # SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
 #
-# Copyright (C) 2015-2022 Ghislain Haine
-#
-# See the LICENSE file in the root directory for license information.
+# Copyright (C) 2015-2023 ISAE-SUPAERO -- GNU GPLv3
+# 
+# See the LICENSE file for license information.
 #
 # github: https://github.com/g-haine/scrimp
 
 """
 - file:             examples/heat.py
-- author:           Ghislain Haine
+- authors:          Giuseppe Ferraro, Ghislain Haine
 - date:             22 nov. 2022
-- last modified:    12 dec. 2022
-- brief:            heat system
+- brief:            heat equation with Lyapunov Hamiltonian
 """
-from scrimp import *
-from scrimp.utils.mesh import set_verbose_gf
+
+import scrimp as S
 from itertools import zip_longest
 
-
 def heat_eq():
-    """
-    A structure-preserving discretization of the heat equation with boundary control
+    """A structure-preserving discretization of the heat equation with boundary control
 
     Formulation co-energy (constitutive relation from variational derivative of H is substituted),
     Lyapunov L^2 functional, Div-Div, Mixed boundary condition on the Rectangle
     """
 
-    set_verbose_gf(0)
-
     # Init the distributed port-Hamiltonian system
-    heat = DPHS("real")
+    heat = S.DPHS("real")
 
     # Set the domain (using the built-in geometry `Rectangle`)
     # Omega = 1, Gamma_Bottom = 10, Gamma_Right = 11, Gamma_Top = 12, Gamma_Left = 13
-    heat.set_domain(Domain("Rectangle", {"L": 2.0, "l": 1.0, "h": 0.15}))
+    heat.set_domain(S.Domain("Rectangle", {"L": 2.0, "l": 1.0, "h": 0.2}))
 
     # Define the variables and their discretizations
 
     states = [
-        State("T", "Temperature", "scalar-field"),
+        S.State("T", "Temperature", "scalar-field"),
     ]
+    costates = [
+        S.CoState("T", "Temperature", states[0], substituted=True)
+    ]
+<<<<<<< HEAD
+=======
     costates = [CoState("T", "Temperature", states[0], substituted=True)]
 
+>>>>>>> 3849f842fb0aa627462cc3c130e54d7d4dddf796
     ports = [
-        Port("Heat flux", "f_Q", "e_Q", "vector-field"),
+        S.Port("Heat flux", "f_Q", "e_Q", "vector-field", dissipative=True),
     ]
     params = [
+<<<<<<< HEAD
+        S.Parameter("rho", "Mass density times heat capacity", "scalar-field", "1.", "T"),
+        S.Parameter(
+=======
         Parameter("rho", "Mass density times heat capacity",
                   "scalar-field", "1.", "T"),
         Parameter(
+>>>>>>> 3849f842fb0aa627462cc3c130e54d7d4dddf796
             "Lambda",
             "Heat conductivity",
             "tensor-field",
@@ -58,7 +64,7 @@ def heat_eq():
     ]
 
     control_ports = [
-        Control_Port(
+        S.Control_Port(
             "Boundary control (bottom)",
             "U_B",
             "Temperature",
@@ -68,7 +74,7 @@ def heat_eq():
             region=10,
             position="effort",
         ),
-        Control_Port(
+        S.Control_Port(
             "Boundary control (right)",
             "U_R",
             "Temperature",
@@ -78,7 +84,7 @@ def heat_eq():
             region=11,
             position="effort",
         ),
-        Control_Port(
+        S.Control_Port(
             "Boundary control (top)",
             "U_T",
             "Temperature",
@@ -88,7 +94,7 @@ def heat_eq():
             region=12,
             position="effort",
         ),
-        Control_Port(
+        S.Control_Port(
             "Boundary control (left)",
             "U_L",
             "Normal heat flux",
@@ -102,12 +108,12 @@ def heat_eq():
 
     FEMs = [
         # name of the variable: (is the same of states, ports and controls ports), order, FEM
-        FEM(states[0].get_name(), 1, FEM="CG"),
-        FEM(ports[0].get_name(), 2, FEM="CG"),
-        FEM(control_ports[0].get_name(), 1, FEM="CG"),
-        FEM(control_ports[1].get_name(), 1, FEM="CG"),
-        FEM(control_ports[2].get_name(), 1, FEM="CG"),
-        FEM(control_ports[3].get_name(), 1, FEM="CG"),
+        S.FEM(states[0].get_name(), 1, FEM="CG"),
+        S.FEM(ports[0].get_name(), 2, FEM="CG"),
+        S.FEM(control_ports[0].get_name(), 1, FEM="CG"),
+        S.FEM(control_ports[1].get_name(), 1, FEM="CG"),
+        S.FEM(control_ports[2].get_name(), 1, FEM="CG"),
+        S.FEM(control_ports[3].get_name(), 1, FEM="CG"),
     ]
 
     for state, costate, param, fem, port, control_port in zip_longest(
@@ -136,7 +142,7 @@ def heat_eq():
     heat.hamiltonian.set_name("Lyapunov formulation")
 
     terms = [
-        Term("L^2-norm", "0.5*T*rho*T", [1]),
+        S.Term("L^2-norm", "0.5*T*rho*T", [1]),
     ]
 
     for term in terms:
@@ -146,29 +152,29 @@ def heat_eq():
     # Define the Dirac structure via getfem `brick` = non-zero block matrix
     bricks = [
         # Add the mass matrices from the left-hand side: the `flow` part of the Dirac structure
-        Brick("M_T", "T*rho*Test_T", [1], dt=True, position="flow"),
-        Brick("M_Q", "f_Q.Test_f_Q", [1], position="flow"),
-        Brick("M_Y_B", "Y_B*Test_Y_B", [10], position="flow"),
-        Brick("M_Y_R", "Y_R*Test_Y_R", [11], position="flow"),
-        Brick("M_Y_T", "Y_T*Test_Y_T", [12], position="flow"),
+        S.Brick("M_T", "T*rho*Test_T", [1], dt=True, position="flow"),
+        S.Brick("M_Q", "f_Q.Test_f_Q", [1], position="flow"),
+        S.Brick("M_Y_B", "Y_B*Test_Y_B", [10], position="flow"),
+        S.Brick("M_Y_R", "Y_R*Test_Y_R", [11], position="flow"),
+        S.Brick("M_Y_T", "Y_T*Test_Y_T", [12], position="flow"),
         # Normal trace is imposed by Lagrange multiplier on the left side == the collocated output
-        Brick("M_Y_L", "U_L*Test_Y_L", [13], position="flow"),
+        S.Brick("M_Y_L", "U_L*Test_Y_L", [13], position="flow"),
         # Add the matrices from the right-hand side: the `effort` part of the Dirac structure
-        Brick("D", "-Div(e_Q)*Test_T", [1], position="effort"),
-        Brick("-D^T", "T*Div(Test_f_Q)", [1], position="effort"),
-        Brick("B_B", "-U_B*Test_f_Q.Normal", [10], position="effort"),
-        Brick("B_R", "-U_R*Test_f_Q.Normal", [11], position="effort"),
-        Brick("B_T", "-U_T*Test_f_Q.Normal", [12], position="effort"),
+        S.Brick("D", "-Div(e_Q)*Test_T", [1], position="effort"),
+        S.Brick("-D^T", "T*Div(Test_f_Q)", [1], position="effort"),
+        S.Brick("B_B", "-U_B*Test_f_Q.Normal", [10], position="effort"),
+        S.Brick("B_R", "-U_R*Test_f_Q.Normal", [11], position="effort"),
+        S.Brick("B_T", "-U_T*Test_f_Q.Normal", [12], position="effort"),
         # Normal trace is imposed by Lagrange multiplier on the left side == the collocated output
-        Brick("B_L", "-Y_L*Test_f_Q.Normal", [13], position="effort"),
-        Brick("C_B", "e_Q.Normal*Test_Y_B", [10], position="effort"),
-        Brick("C_R", "e_Q.Normal*Test_Y_R", [11], position="effort"),
-        Brick("C_T", "e_Q.Normal*Test_Y_T", [12], position="effort"),
-        Brick("C_L", "e_Q.Normal*Test_Y_L", [13], position="effort"),
-        # Define the constitutive relations as getfem `brick`
+        S.Brick("B_L", "-Y_L*Test_f_Q.Normal", [13], position="effort"),
+        S.Brick("C_B", "e_Q.Normal*Test_Y_B", [10], position="effort"),
+        S.Brick("C_R", "e_Q.Normal*Test_Y_R", [11], position="effort"),
+        S.Brick("C_T", "e_Q.Normal*Test_Y_T", [12], position="effort"),
+        S.Brick("C_L", "e_Q.Normal*Test_Y_L", [13], position="effort"),
+        ## Define the constitutive relations as getfem `brick`
         # Fourier's law under implicit form - M_e_Q e_Q + CR_Q Q = 0
-        Brick("-M_e_Q", "-e_Q.Test_e_Q", [1]),
-        Brick("CR_Q", "f_Q.Lambda.Test_e_Q", [1]),
+        S.Brick("-M_e_Q", "-e_Q.Test_e_Q", [1]),
+        S.Brick("CR_Q", "f_Q.Lambda.Test_e_Q", [1]),
     ]
 
     for brick in bricks:
@@ -186,8 +192,16 @@ def heat_eq():
 
     ## Solve in time
 
-    # Define the time scheme (default ts_type='cn', t_f=1, dt=0.01, etc.)
-    heat.set_time_scheme(t_f=1, dt=0.01, pc_type="jacobi")
+    # Define the time scheme
+    heat.set_time_scheme(t_f=1, 
+                         ts_type="bdf", 
+                         bdf_order=4, 
+                         dt=0.01, 
+                         ts_adapt_dt_min=1.e-6, 
+                         ksp_type = "preonly",
+                         pc_type = "lu",
+                         pc_factor_mat_solver_type = "mumps",
+                         )
 
     # Solve
     heat.solve()
@@ -205,7 +219,6 @@ def heat_eq():
     # heat.spy_Dirac()
 
     return heat  # For consol use
-
 
 if __name__ == "__main__":
     heat = heat_eq()

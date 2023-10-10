@@ -1,10 +1,15 @@
-scrimp.utils package
+scrimp.utils
 ====================
 
-Submodules
-----------
+Config
+------------------------
 
-scrimp.utils.linalg module
+.. automodule:: scrimp.utils.config
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Linear algebra
 --------------------------
 
 .. automodule:: scrimp.utils.linalg
@@ -12,18 +17,10 @@ scrimp.utils.linalg module
    :undoc-members:
    :show-inheritance:
 
-scrimp.utils.mesh module
+Mesh
 ------------------------
 
 .. automodule:: scrimp.utils.mesh
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Module contents
----------------
-
-.. automodule:: scrimp.utils
    :members:
    :undoc-members:
    :show-inheritance:

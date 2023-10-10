@@ -6,13 +6,13 @@ Anaconda
 
 The easiest way to install SCRIMP is to use a conda environment.
 
-1. Install <a href="https://docs.anaconda.com/free/anaconda/install/index.html"> Anaconda</a>
-2. Clone the git repository: ```git clone https://github.com/g-haine/scrimp```
-3. Enter the folder: ```cd scrimp```
-4. Create the conda environment:  ```conda env create --file /path/to/scrimp/scrimp.yml```
-5. Activate the environment:  ```conda activate scrimp```
-6. Add scrimp to the PATH: ```conda develop /path/to/scrimp/```
-7. Finish with pip: ```pip install -e .```
+1. Install `Anaconda <https://docs.anaconda.com/free/anaconda/install/index.html>`_
+2. Clone the git repository: ``git clone https://github.com/g-haine/scrimp``
+3. Enter the folder: ``cd scrimp``
+4. Create the conda environment:  ``conda env create --file /path/to/scrimp/scrimp.yml``
+5. Activate the environment:  ``conda activate scrimp``
+6. Add scrimp to the PATH: ``conda develop /path/to/scrimp/``
+7. Finish with pip: ``pip install -e .``
 
 Tests
 -----
@@ -27,7 +27,9 @@ Code structure
 Documentation
 -------------
 
-You can build the documentation locally by running `sphinx-build` in the docs folder.
+You can find this documentation `here <https://g-haine.github.io/scrimp/latex/scrimp.pdf>`_.
+
+It is automatically built upon the code comments using sphinx.
 
 See `Sphinx <https://www.sphinx-doc.org/>`_ for further informations.
 

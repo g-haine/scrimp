@@ -7,10 +7,10 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = 'SCRIMP'
-copyright = '2015-2022 Ghislain Haine'
-author = 'Ghislain Haine'
-release = '0.5.0'
-version = '0.5.0'
+copyright = '2015-2023 ISAE-SUPAERO'
+author = 'Giuseppe Ferraro, Michel Fournié, Ghislain Haine'
+release = '1.0'
+version = '1.0.5'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration

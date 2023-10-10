@@ -9,7 +9,7 @@ SCRIMP
 
 The main objective of a **structure-preserving discretization** in the port-Hamiltonian formalism is to obtain a discrete version of the power balance satisfied by the Hamiltonian functional.
 
-**See the website for more information: https://g-haine.github.io/scrimp/**
+**See the website for more information and documentation: https://g-haine.github.io/scrimp/**
 
 # How to install
 The easiest way to install SCRIMP is to use a conda environment.

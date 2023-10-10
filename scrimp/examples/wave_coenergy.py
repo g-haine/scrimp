@@ -1,62 +1,57 @@
 # SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
 #
-# Copyright (C) 2015-2022 Ghislain Haine
-#
-# See the LICENSE file in the root directory for license information.
+# Copyright (C) 2015-2023 ISAE-SUPAERO -- GNU GPLv3
+# 
+# See the LICENSE file for license information.
 #
 # github: https://github.com/g-haine/scrimp
 
 """
-- file:             examples/wave.py
-- author:           Ghislain Haine
+- file:             examples/wave_coenergy.py
+- authors:          Giuseppe Ferraro, Ghislain Haine
 - date:             22 nov. 2022
-- last modified:    12 dec. 2022
-- brief:            wave system
+- brief:            wave equations in co-energy formulation
 """
-from scrimp import *
-from scrimp.utils.mesh import set_verbose_gf
+
+import scrimp as S
 from itertools import zip_longest
 
-
 def wave_coenergy():
-    """
-    A structure-preserving discretization of the wave equation with boundary control
+    """A structure-preserving discretization of the wave equation with boundary control
 
     Formulation co-energy, Grad-Grad, output feedback law at the boundary, damping on a subdomain
     """
 
-    set_verbose_gf(0)
-
     # Init the distributed port-Hamiltonian system
-    wave = DPHS("real")
+    wave = S.DPHS("real")
 
     # Set the domain (using the built-in geometry `Rectangle`)
     # Omega = 1, Gamma_Bottom = 10, Gamma_Right = 11, Gamma_Top = 12, Gamma_Left = 13
-    wave.set_domain(Domain("Concentric", {"R": 1.0, "r": 0.6, "h": 0.15}))
+    wave.set_domain(S.Domain("Concentric", {"R": 1.0, "r": 0.6, "h": 0.15}))
 
     ## Define the variables and their discretizations
 
     states = [
-        State("q", "Stress", "vector-field"),
-        State("p", "Velocity", "scalar-field"),
+        S.State("q", "Stress", "vector-field"),
+        S.State("p", "Velocity", "scalar-field"),
     ]
     costates = [
-        CoState("e_q", "Stress", states[0], substituted=True),
-        CoState("e_p", "Velocity", states[1], substituted=True),
+        S.CoState("e_q", "Stress", states[0], substituted=True),
+        S.CoState("e_p", "Velocity", states[1], substituted=True),
     ]
     ports = [
-        Port("Damping", "e_r", "e_r", "scalar-field", substituted=True, region=1),
+        S.Port("Damping", "e_r", "e_r", "scalar-field", substituted=True, dissipative=True, region=1),
     ]
     params = [
-        Parameter(
+        S.Parameter(
             "Tinv",
             "Young's modulus inverse",
             "tensor-field",
             "[[5+x,x*y],[x*y,2+y]]",
             "q",
         ),
-        Parameter("rho", "Mass density", "scalar-field", "3-x", "p"),
-        Parameter(
+        S.Parameter("rho", "Mass density", "scalar-field", "3-x", "p"),
+        S.Parameter(
             "nu",
             "Viscosity",
             "scalar-field",
@@ -66,7 +61,7 @@ def wave_coenergy():
     ]
 
     control_ports = [
-        Control_Port(
+        S.Control_Port(
             "Boundary control",
             "U",
             "Normal force",
@@ -79,10 +74,10 @@ def wave_coenergy():
 
     FEMs = [
         # name of the variable: (is the same of states, ports and controls ports), order, FEM
-        FEM(states[0].get_name(), 1, "DG"),
-        FEM(states[1].get_name(), 2, "CG"),
-        FEM(ports[0].get_name(), 1, "DG"),
-        FEM(control_ports[0].get_name(), 1, "DG"),
+        S.FEM(states[0].get_name(), 1, "DG"),
+        S.FEM(states[1].get_name(), 2, "CG"),
+        S.FEM(ports[0].get_name(), 1, "DG"),
+        S.FEM(control_ports[0].get_name(), 1, "DG"),
     ]
 
     for state, costate, param, fem, port, control_port in zip_longest(
@@ -111,8 +106,8 @@ def wave_coenergy():
     wave.hamiltonian.set_name("Mechanical energy")
 
     terms = [
-        Term("Potential energy", "0.5*q.Tinv.q", [1, 2]),
-        Term("Kinetic energy", "0.5*p*p*rho", [1, 2]),
+        S.Term("Potential energy", "0.5*q.Tinv.q", [1, 2]),
+        S.Term("Kinetic energy", "0.5*p*p*rho", [1, 2]),
     ]
 
     for term in terms:
@@ -122,24 +117,24 @@ def wave_coenergy():
     ## Define the Dirac structure via getfem `brick` = non-zero block matrix
     bricks = [
         # Add the mass matrices from the left-hand side: the `flow` part of the Dirac structure
-        Brick("M_q", "q.Tinv.Test_q", [1, 2], dt=True, position="flow"),
-        Brick("M_p", "p*rho*Test_p", [1, 2], dt=True, position="flow"),
-        Brick("M_r", "e_r/nu*Test_e_r", [1], position="flow"),
-        Brick("M_Y", "Y*Test_Y", [20], position="flow"),
+        S.Brick("M_q", "q.Tinv.Test_q", [1, 2], dt=True, position="flow"),
+        S.Brick("M_p", "p*rho*Test_p", [1, 2], dt=True, position="flow"),
+        S.Brick("M_r", "e_r/nu*Test_e_r", [1], position="flow"),
+        S.Brick("M_Y", "Y*Test_Y", [20], position="flow"),
         # Add the matrices from the right-hand side: the `effort` part of the Dirac structure
-        Brick("D", "Grad(p).Test_q", [1, 2], position="effort"),
-        Brick("-D^T", "-q.Grad(Test_p)", [1, 2], position="effort"),
-        Brick("I_r", "e_r*Test_p", [1], position="effort"),
-        Brick("B", "U*Test_p", [20], position="effort"),
-        Brick("-I_r^T", "-p*Test_e_r", [1], position="effort"),
-        Brick("-B^T", "-p*Test_Y", [20], position="effort"),
+        S.Brick("D", "Grad(p).Test_q", [1, 2], position="effort"),
+        S.Brick("-D^T", "-q.Grad(Test_p)", [1, 2], position="effort"),
+        S.Brick("I_r", "e_r*Test_p", [1], position="effort"),
+        S.Brick("B", "U*Test_p", [20], position="effort"),
+        S.Brick("-I_r^T", "-p*Test_e_r", [1], position="effort"),
+        S.Brick("-B^T", "-p*Test_Y", [20], position="effort"),
     ]
 
     for brick in bricks:
         wave.add_brick(brick)
 
     ## Initialize the problem
-    expressions = ["0.005*Y"]
+    expressions = ["-0.5*Y"]
 
     for control_port, expression in zip(control_ports, expressions):
         # Set the control functions (automatic construction of bricks such that -M_u u + f(t) = 0)
@@ -152,7 +147,11 @@ def wave_coenergy():
     ## Solve in time
 
     # Define the time scheme (default ts_type='cn', t_f=1, dt=0.01, etc.)
-    wave.set_time_scheme(t_f=1.0, dt=0.01, dt_save=0.01)
+    wave.set_time_scheme(
+                         t_f=1.0, 
+                         dt=0.01, 
+                         dt_save=0.01,
+                         )
 
     # Solve
     wave.solve()
@@ -170,7 +169,6 @@ def wave_coenergy():
     # wave.spy_Dirac()
 
     return wave  # For consol use
-
 
 if __name__ == "__main__":
     wave = wave_coenergy()

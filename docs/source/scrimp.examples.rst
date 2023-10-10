@@ -1,10 +1,9 @@
-scrimp.examples package
+scrimp.examples
 =======================
 
-Submodules
-----------
+The equations are explained `here <examples>`_.
 
-scrimp.examples.heat module
+Heat
 ---------------------------
 
 .. automodule:: scrimp.examples.heat
@@ -13,7 +12,7 @@ scrimp.examples.heat module
    :undoc-members:
    :show-inheritance:
 
-scrimp.examples.shallow\_water module
+Shallow water
 -------------------------------------
 
 .. automodule:: scrimp.examples.shallow_water
@@ -22,7 +21,7 @@ scrimp.examples.shallow\_water module
    :undoc-members:
    :show-inheritance:
 
-scrimp.examples.wave module
+Wave
 ---------------------------
 
 .. automodule:: scrimp.examples.wave
@@ -31,10 +30,8 @@ scrimp.examples.wave module
    :undoc-members:
    :show-inheritance:
 
-Module contents
----------------
-
-.. automodule:: scrimp.examples
+.. automodule:: scrimp.examples.wave_coenergy
+   :noindex:
    :members:
    :undoc-members:
    :show-inheritance:

@@ -12,7 +12,7 @@
 .. image:: WorkFlow/workflow.png
     :width: 600px
     :height: 200px
-    :alt: Work Flow
+    :alt: WorkFlow
     :align: center
 
 ***************
@@ -23,6 +23,7 @@ What is SCRIMP?
 
 **SCRIMP** aims at speeding the coding process of the **Partitioned Finite Element Method** on a wide range of (multi-)physical systems (`Brugnoli *et al.* (2021) <https://doi.org/10.4236/jamp.2021.96088>`_), and scrimp and save time!
 
+The documentation is `available in pdf <https://g-haine.github.io/scrimp/latex/scrimp.pdf>`_.
 
 Table of Contents
 =================
@@ -34,8 +35,10 @@ Table of Contents
     started
     examples
     scrimp
+    References <biblio>
     ANR Impacts <https://impacts.ens2m.fr/>
     GitHub repo <https://github.com/g-haine/scrimp>
+    PDF documentation <https://g-haine.github.io/scrimp/latex/scrimp.pdf>
 
 ************************
 Port-Hamiltonian systems
@@ -46,7 +49,7 @@ What are they?
 
 Let us sketch a rough portrait of port-Hamiltonian systems as they are considered in **SCRIMP**.
 
-Port-Hamiltonian systems constitute a strongly structured class of control systems with collocated observation. It relies on a functional form :math:`H` (the **Hamiltonian**), whose variables :math:`\alpha_i` are the **states** of the system. The **co-states** :math:`M_i e_i := \delta_{\alpha_i} H` are defined as the variational derivative of the Hamiltonian with respect to the states, on the metric induced by the :math:`M_i` matrices.
+Port-Hamiltonian systems constitute a strongly structured class of control systems with collocated observation. It relies on a functional form :math:`\mathcal{H}` (the **Hamiltonian**), whose variables :math:`\alpha_i` are the **states** of the system. The **co-states** :math:`M_i e_i := \delta_{\alpha_i} \mathcal{H}` are defined as the variational derivative of the Hamiltonian with respect to the states, on the metric induced by the :math:`M_i` matrices.
 
 The dynamics is provided *via* trajectories belonging in a **Dirac** structure, which can be represented by two matrices (of operators) :math:`M` symmetric and :math:`J` skew-symmetric as
 
@@ -61,7 +64,7 @@ together with **constitutive relations**
 
 .. math::
 
-    M_i e_i(t) = \delta_{\alpha_i(t)} H(\alpha_1(t), \cdots, \alpha_k(t))
+    M_i e_i(t) = \delta_{\alpha_i(t)} \mathcal{H}(\alpha_1(t), \cdots, \alpha_k(t))
     \qquad
     \mathcal{N}(t, f_R(t), e_R(t)) = 0
     
@@ -69,9 +72,9 @@ This structure allows to describe the evolution of the Hamiltonian along the tra
 
 .. math::
 
-    \frac{\rm d}{{\rm d}t} H(\alpha_1(t), \cdots, \alpha_k(t)) = - e_R(t)^\top M_R f_R(t) + u_{exp}(t)^\top M_{exp} y_{exp}(t) + u_{imp}(t)^\top M_{imp} y_{imp}(t)
+    \frac{\rm d}{{\rm d}t} \mathcal{H}(\alpha_1(t), \cdots, \alpha_k(t)) = - e_R(t)^\top M_R f_R(t) + u_{exp}(t)^\top M_{exp} y_{exp}(t) + u_{imp}(t)^\top M_{imp} y_{imp}(t)
 
-The first term of the right-hand side stands for a loss of *energy*, hence the name of *resistive port* for the couple :math:`(f_R,e_R)`. The other two terms stands for exchanges with the environment through the *control ports*.
+The first term of the right-hand side stands for a loss of *energy*, hence the name of *resistive port* for the couple :math:`(f_R,e_R)`. The other two terms stands for exchanges with the environment through the *control ports*. One is *explicit*, :math:`u_{exp}`, as a usual forcing term in the equations (its collocated output :math:`y_{exp}` plays no role in the dynamics). The other is *implicit*: :math:`u_{imp}` does not appear directly in the dynamics, and its collocated output :math:`y_{imp}` plays the role of the Lagrange multiplier imposing the value of :math:`u_{imp}`.
 
 Each indexed matrix :math:`M_\ell` is the appropriate sub-matrix of :math:`M`.
 
@@ -87,7 +90,7 @@ A recent scheme, known as the **Partitioned Finite Element Method** (PFEM) (`Car
 The strategy follows three steps, inspired by the Mixed Finite Element Method for steady-state problem with homogeneous boundary condition
 
 * write the weak form of the system;
-* integrate by parts a **partition** of the state (such that the control *appears*); and
+* integrate by parts a **partition** of the state (such that *the control appears*); and
 * project on finite element spaces.
 
 *****************
@@ -101,12 +104,12 @@ As such, these simplifications naturally imply a lack of optimization of the cod
 A basic usage of **SCRIMP** consists in a script with the following steps:
 
 - Define a *domain*
-- Define at least one *state*. And of course, its co-state, in order to get a *dynamical port*
+- Define at least one *state*. And of course, its *co-state*, in order to get a *dynamical port*
 - Define a Finite Element Method on this port: give at least an order, at first glance, default values are sufficient
 - Define *algebraic ports* (not mandatory) and its FEM
 - Define *control ports* (not mandatory) and its FEM
-- Write down the forms on the *flow* side of the Dirac structure, *i.e.* the **brick** defining the matrix :math:`M`
-- Write down the forms on the *effort* side of the Dirac structure, *i.e.* th **brick** defining the matrix :math:`J`
+- Write down the forms on the *flow side* of the Dirac structure, *i.e.* the **brick** defining the matrix :math:`M`
+- Write down the forms on the *effort side* of the Dirac structure, *i.e.* th **brick** defining the matrix :math:`J`
 - Write down all the forms defining the *constitutive relations*, always with **bricks**
 - Set up time scheme options: again, at first glance, default values are sufficient
 - Solve
@@ -165,11 +168,10 @@ One of our choice for IDE is
 
 How to cite SCRIMP?
 ===================
-    
+
 Brugnoli, Andrea and Haine, Ghislain and Serhani, Anass and Vasseur, Xavier.
 *Numerical Approximation of Port-Hamiltonian Systems for Hyperbolic or Parabolic PDEs with Boundary Control.*
 (2021) **Journal of Applied Mathematics and Physics**, 09 (06). 1278-1321.
-
 
 .. code-block:: latex
 

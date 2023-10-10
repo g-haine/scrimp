@@ -1,10 +1,38 @@
-from scrimp import Domain
+# SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
+#
+# Copyright (C) 2015-2023 ISAE-SUPAERO -- GNU GPLv3
+# 
+# See the LICENSE file for license information.
+#
+# github: https://github.com/g-haine/scrimp
+
+"""
+- file:             hamiltonian.py
+- authors:          Giuseppe Ferraro, Ghislain Haine
+- date:             31 may 2023
+- brief:            class for hamiltonian and term objects
+"""
+
+import petsc4py
+import os
+import sys
+
+petsc4py.init(sys.argv)
+from petsc4py import PETSc
+
+comm = PETSc.COMM_WORLD
+rank = comm.getRank()
+
+from scrimp.domain import Domain
 
 import getfem as gf
 import matplotlib.pyplot as plt
 import numpy as np
+import logging
 import time
 
+module_path = os.path.join(__file__[:-22], "outputs")
+print(module_path)
 
 class Term:
     """This class defines a term for the Hamiltoninan."""
@@ -20,6 +48,7 @@ class Term:
             regions (str): the region ids of the mesh mesh_id where the expression has to be evaluated
             mesh_id (sint): the mesh id of the mesh where the regions belong
         """
+        
         self.__description = description
         self.__expression = expression
         self.__regions = regions
@@ -32,6 +61,7 @@ class Term:
         Returns:
             str: description of the term
         """
+        
         return self.__description
 
     def get_expression(self) -> str:
@@ -40,6 +70,7 @@ class Term:
         Returns:
             str: matematical expression of the term.
         """
+        
         return self.__expression
 
     def get_regions(self) -> str:
@@ -48,6 +79,7 @@ class Term:
         Returns:
             str: regions of the termthe region ids of the mesh mesh_id where the expression has to be evaluated
         """
+        
         return self.__regions
 
     def get_mesh_id(self) -> int:
@@ -56,6 +88,7 @@ class Term:
         Returns:
             int: the mesh id of the mesh where the regions belong
         """
+        
         return self.__mesh_id
 
     def get_values(self) -> list:
@@ -64,103 +97,93 @@ class Term:
         Returns:
             list: list of values of the term
         """
+        
         return self.__values.copy()
 
     def set_value(self, value):
-        """This function sets a valeus for the term.
+        """This function sets a value for the term.
 
         Args:
             value : a value for the term
         """
 
-        # TODO assert to check the type of the vlaue
+        try:
+            assert isinstance(value, float)
+        except AssertionError as err:
+            logging.error(
+                "Can't add value {value}, bad type"
+            )
+            raise err
         self.__values.append(value)
 
-
 class Hamiltonian:
+    """This class defines the Hamiltoninan."""
+    
     def __init__(self, name: str) -> None:
+        """This constructor defines the object Hamiltonian functional.
+
+        Args:
+            name (str): the name or description of the Hamiltonian
+        """
+        
         self.__terms = []
         self.__name = name
         self.__is_computed = False
         self.__n = None
 
     def add_term(self, term: Term):
-        """This function add a term to the term list of the Hamiltonian
+        """This function adds a term to the term list of the Hamiltonian
 
         Args:
             term (Term): term for the Hamiltonian
         """
-        assert isinstance(term, Term)
+        
+        try:
+            assert isinstance(term, Term)
+        except AssertionError as err:
+            logging.error(
+                f"Term {term} does not exist."
+            )
+            raise err
+            
         self.__terms.append(term)
 
-    def compute(self, domain: Domain, solution: dict):
+    def compute(self, solution: dict, gf_model: gf.Model, domain: Domain):
+        """Compute each `term` constituting the Hamiltonian
+        
+        Args:
+            - solutions (dict):         The solution of the dphs
+            - gf_model (GetFEM Model):  The model getfem of the dphs
+            - domain (Domain):          The domain of the dphs
         """
-        Compute each `term` constituting the Hamiltonian
-
-        :return: fill the Hamiltonian[term]['values'] with a list of values at times t
-        """
-
-        assert (
-            self.solve_done
-        ), "System has not been solved yet, Hamiltonian can not be computed"
-
-        print("Start computing the Hamiltonian")
+        
+        if rank==0:
+            logging.info(
+                "Start computing the Hamiltonian"
+            )
+        
         start = time.perf_counter()
-        for t in range(len(solution["t"])):
-            self.gf_model.to_variables(solution["z"][t])
-            for term in self.__terms:
+        for t, _ in enumerate(solution["t"]):
+            gf_model.to_variables(solution["z"][t])
+            for _, term in enumerate(self):
                 term_value_at_t = 0.0
                 for region in term.get_regions():
                     term_value_at_t += gf.asm(
                         "generic",
-                        domain.int_method[term.get_mesh_id()],
+                        domain._int_method[term.get_mesh_id()],
                         0,
                         term.get_expression(),
                         region,
-                        self.gf_model,
+                        gf_model,
                     )
-                self.add_term(term_value_at_t)
+                term.set_value(term_value_at_t)
 
-        print("Hamiltonian has been computed in", time.perf_counter() - start, "s")
-        self.__is_computed = True
-
-    def plot_Hamiltonian(self, solution: dict, with_powers=True):
-        """
-        Plot each term constituting the Hamiltonian and the Hamiltonian
-
-        May include the power terms
-
-        :param with_powers: if `True` (default), the plot wil also contains the power of each algebraic ports
-        :type with_powers: bool
-
-        :return: a matplotlib figure
-        """
-
-        if not self.__is_computed:
-            self.compute()
-
-        t = np.array(solution["t"])
-        fig = plt.figure(figsize=[8, 5])
-        ax = fig.add_subplot(111)
-        HamTot = np.zeros(t.size)
-
-        for term in self.__terms:
-            values = np.array(term.get_values())
-            HamTot += values
-            ax.plot(t, values, label=term.get_description())
-
-        if len(self.__terms) > 1:
-            ax.plot(t, HamTot, label=self.__name)
-
-        if with_powers:
-            self.plot_powers(ax, HamTot=HamTot)
-
-        ax.legend()
-        ax.grid(axis="both")
-        ax.set_xlabel("time t")
-        ax.set_ylabel("Hamiltonian terms")
-        ax.set_title("Evolution of Hamiltonian terms")
-        plt.show()
+        self.set_is_computed()
+        
+        if rank==0:
+            logging.info(
+                f"Hamiltonian has been computed in {str(time.perf_counter() - start)} s"
+            )
 
     def get_name(self) -> str:
         """This function returns the name of the Hamiltonion.
@@ -205,6 +228,7 @@ class Hamiltonian:
         Returns:
             list: list of terms of the Hamiltonian.
         """
+        
         return self.__terms.copy()
 
     def __getitem__(self, index) -> Term:
@@ -216,19 +240,25 @@ class Hamiltonian:
         Returns:
             Term: _description_
         """
+        
         try:
             return self.__terms[index]
-        except IndexError:
-            print(f"index {index} out of {len(self.__terms)}")
+        except IndexError as err:
+            logging.error(
+                f"index {index} out of {len(self.__terms)}"
+            )
+            raise err
 
     def set_is_computed(self):
         """This function sets the Hamiltonian as computed."""
+        
         self.__is_computed = True
 
     def get_is_computed(self) -> bool:
         """This function returns True if the Hamiltonian is computed, False otherwise.
 
         Returns:
-            bool: _description_
+            bool: flag that indicates if the hamiltonian terms have been computed
         """
+        
         return self.__is_computed
