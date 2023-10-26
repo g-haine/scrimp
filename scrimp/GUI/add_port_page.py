@@ -120,10 +120,10 @@ class Window(QtWidgets.QWidget):
                 description = "Choose a name for the Port"
 
             elif col == 1:
-                description = "Choose a the name of the Flow variable."
+                description = "Choose the name of the Flow variable."
 
             elif col == 2:
-                description = "Choose a the name of the Effort variable."
+                description = "Choose the name of the Effort variable."
 
             elif col == 3:
                 description = "Choose what is the kind of your state."
@@ -147,7 +147,7 @@ class Window(QtWidgets.QWidget):
                 example = "Default is False."
 
             elif col == 7:
-                description = "the int identifying the region in mesh_id where the port belong, useful for boundary ports"
+                description = "the integer identifying the region in the mesh where the port belong, useful for boundary ports"
                 example = "Default is None."
 
             self.help.updateFields(text, description, example)
@@ -182,7 +182,7 @@ class Window(QtWidgets.QWidget):
                 example = "Default is True."
 
             elif text == "Kind":
-                description = "Choose what is the kind of your state."
+                description = "Choose what is the kind of your Control Port."
                 example = """It could be one of the following list:
                 \n- scalar-field
                 \n- vector-field

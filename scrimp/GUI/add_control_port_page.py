@@ -69,7 +69,8 @@ class Window(QtWidgets.QWidget):
         self.button_add_control_port = QPushButton("Add control_port")
         self.button_add_control_port.clicked.connect(self.new_control_port)
 
-        self.button_delete_control_port = QPushButton("Remove selected control_port")
+        self.button_delete_control_port = QPushButton(
+            "Remove selected control_port")
         self.button_delete_control_port.clicked.connect(
             self.delete_control_port)
 
@@ -151,7 +152,7 @@ class Window(QtWidgets.QWidget):
                 \n- tensor-field"""
 
             elif col == 6:
-                description = "the int identifying the region in mesh_id where the control port belong, useful for boundary ports"
+                description = "the integer identifying the region in the mesh where the Control Port belong, useful for boundary ports"
                 example = "Default is None."
 
             elif col == 7:
@@ -191,20 +192,18 @@ class Window(QtWidgets.QWidget):
             description = ""
             example = ""
 
-            if text == "Region":
-                description = "the int identifying the region in mesh_id where the control port belong, useful for boundary ports"
-                example = "Default is None."
+            if text == "Position":
+                description = (
+                    "Defines wether the Control Port is an 'effort' or a 'flow'."
+                )
+                example = "Default is effort."
 
             elif text == "Kind":
-                description = "Choose what is the kind of your state."
+                description = "Choose what is the kind of your Control Port."
                 example = """It could be one of the following list:
                 \n- scalar-field
                 \n- vector-field
                 \n- tensor-field"""
-
-            elif text == "Substituted":
-                description = "It is a boolean that defines whether to substitute the variable. Defaults to False"
-                example = "Default is False"
 
             self.help.updateFields(text, description, example)
 
@@ -228,12 +227,12 @@ class Window(QtWidgets.QWidget):
         self.table_control_ports.setCellWidget(
             count, 5, controlport_choice_kind)
 
-        controlport_choice_region = QComboBox()
-        controlport_choice_region.addItems(["effort", "flow"])
-        controlport_choice_region.textHighlighted.connect(
-            self.choice_clicked("Region"))
+        controlport_choice_poistion = QComboBox()
+        controlport_choice_poistion.addItems(["effort", "flow"])
+        controlport_choice_poistion.textHighlighted.connect(
+            self.choice_clicked("Position"))
         self.table_control_ports.setCellWidget(
-            count, 7, controlport_choice_region)
+            count, 7, controlport_choice_poistion)
 
         # set defaults
 

@@ -123,7 +123,7 @@ class Window(QtWidgets.QWidget):
 
             elif col == 2:
                 description = (
-                    "Choose the the regions of mesh_id where the form applies. If more than one use a coma ',' to separate them with no spaces in between."
+                    "Choose the the regions of mesh where the form applies. If more than one use a coma ',' to separate them with no spaces in between."
                 )
                 example = "If multiple: 0,1,2"
 
@@ -143,7 +143,7 @@ class Window(QtWidgets.QWidget):
                 Defaults to 'constitutive'"""
 
             elif col == 6:
-                description = "Choose he id of the mesh where the form applies."
+                description = "Choose the ID of the mesh where the form applies."
                 example = "Default is 0."
 
             self.help.updateFields(text, description, example)

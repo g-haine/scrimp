@@ -122,7 +122,7 @@ class Window(QtWidgets.QWidget):
                 description = "Choose a set of words to describe the Parameter."
 
             elif col == 2:
-                description = "Choose what is the kind of your state."
+                description = "Choose what is the kind of your Parameter."
                 example = """It could be one of the following list:
                 \n- scalar-field
                 \n- vector-field
@@ -132,7 +132,7 @@ class Window(QtWidgets.QWidget):
                 description = "Choose an expression for your Parameter ."
 
             elif col == 4:
-                description = "This is the port at wich the parameter is bounded."
+                description = "This is the port at which the parameter is tied to."
 
             self.help.updateFields(text, description, example)
 
@@ -162,7 +162,7 @@ class Window(QtWidgets.QWidget):
             example = ""
 
             if text == "Kind":
-                description = "Choose what is the kind of your state."
+                description = "Choose what is the kind of your Parameter."
                 example = """It could be one of the following list:
                 \n- scalar-field
                 \n- vector-field

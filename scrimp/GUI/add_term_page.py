@@ -113,14 +113,14 @@ class Window(QtWidgets.QWidget):
                 example = "Kinetic energy"
 
             elif col == 1:
-                description = "Choose a the formula, using the Model variables, defining the term."
+                description = "Choose the formula, using the Model variables, to define the term."
                 example = " Parameters are allowed: 0.5*q.T.q"
 
             elif col == 2:
-                description = "The region ids of the mesh mesh_id where the expression has to be evaluated. If more than one use a coma ',' to separate them with no spaces in between."
+                description = "The region IDs of the mesh where the expression has to be evaluated. If more than one use a coma ',' to separate them with no spaces in between."
 
             elif col == 3:
-                description = "Tthe mesh id of the mesh where the regions belong"
+                description = "Tthe mesh ID of the mesh where the regions belong to."
                 example = "Default is 0.<br>If multiple: 0,1,2"
 
             self.help.updateFields(text, description, example)

@@ -57,7 +57,8 @@ class Window(QtWidgets.QWidget):
         self.button_add_expression = QPushButton("Add expression")
         self.button_add_expression.clicked.connect(self.new_expression)
 
-        self.button_delete_expression = QPushButton("Remove selected expression")
+        self.button_delete_expression = QPushButton(
+            "Remove selected expression")
         self.button_delete_expression.clicked.connect(self.delete_expression)
 
         self.button_clear_all = QPushButton("Clear All")
@@ -109,10 +110,10 @@ class Window(QtWidgets.QWidget):
             self.layout.itemAt(self.layout.count() - 1).widget().show()
 
             if col == 0:
-                description = "Insert the name of the Control Port at wich the expression has to be bind"
+                description = "Insert the name of the Control Port at which the expression is tied to"
 
             elif col == 1:
-                description = "Choose a source term expression for the control port"
+                description = "Choose a source term expression for the Control Port"
             self.help.updateFields(text, description, example)
 
         else:

@@ -42,7 +42,8 @@ class Window(QtWidgets.QWidget):
         # self.table_states.setGeometry(50, 100, 300, 300)
 
         # adding header to the table
-        header_horizontal_states = ["Name", "Description", "Kind", "Region", "Mesh ID"]
+        header_horizontal_states = [
+            "Name", "Description", "Kind", "Region", "Mesh ID"]
         self.header_vertical_states = ["state"]
         self.table_states.setHorizontalHeaderLabels(header_horizontal_states)
         self.table_states.setVerticalHeaderLabels(self.header_vertical_states)
@@ -81,8 +82,10 @@ class Window(QtWidgets.QWidget):
             "Substituted",
         ]
         self.header_vertical_costates = ["costate"]
-        self.table_costates.setHorizontalHeaderLabels(header_horizontal_costates)
-        self.table_costates.setVerticalHeaderLabels(self.header_vertical_costates)
+        self.table_costates.setHorizontalHeaderLabels(
+            header_horizontal_costates)
+        self.table_costates.setVerticalHeaderLabels(
+            self.header_vertical_costates)
 
         # adjust size columns of horizontal header
         for i, _ in enumerate(header_horizontal_costates):
@@ -125,13 +128,15 @@ class Window(QtWidgets.QWidget):
         self.help = Help(self.layout, 3, 3)
         self.table_costates.cellClicked.connect(self.update_help_costate)
         self.table_states.cellClicked.connect(self.update_help_state)
-        self.table_costates.cellClicked.connect(self.update_costate_table_by_state)
+        self.table_costates.cellClicked.connect(
+            self.update_costate_table_by_state)
 
         self.new_state()
 
     def update_costate_table_by_state(self):
         row = self.table_costates.currentRow()
-        self.table_costates.setItem(row, 2, self.table_states.item(row, 0).clone())
+        self.table_costates.setItem(
+            row, 2, self.table_states.item(row, 0).clone())
 
     def update_help_state(self):
         # item = self.table_states.currentItem()
@@ -193,7 +198,7 @@ class Window(QtWidgets.QWidget):
                 )
 
             elif col == 2:
-                description = "This is the State at wich the costate will be bounded."
+                description = "This is the State at which the Costate will be bounded."
 
             elif col == 3:
                 description = "It is a boolean that defines whether to substitute the variable. Defaults to False"
@@ -265,7 +270,8 @@ class Window(QtWidgets.QWidget):
         """This function removes 2 rows in the table (1 for state, 1 for co-state)"""
         if len(self.header_vertical_states) > 1:
             self.header_vertical_states.pop()
-            self.table_states.setVerticalHeaderLabels(self.header_vertical_states)
+            self.table_states.setVerticalHeaderLabels(
+                self.header_vertical_states)
 
             self.table_states.removeRow(self.table_states.currentRow())
             self.delete_costate()
@@ -277,11 +283,13 @@ class Window(QtWidgets.QWidget):
         count = self.table_costates.rowCount()
         self.table_costates.insertRow(count)
         self.header_vertical_costates += ["costate"]
-        self.table_costates.setVerticalHeaderLabels(self.header_vertical_costates)
+        self.table_costates.setVerticalHeaderLabels(
+            self.header_vertical_costates)
         costate_choice = QComboBox()
         costate_choice.addItems(["False", "True"])
 
-        costate_choice.textHighlighted.connect(self.choice_clicked("Substituted"))
+        costate_choice.textHighlighted.connect(
+            self.choice_clicked("Substituted"))
         self.table_costates.setCellWidget(count, 3, costate_choice)
 
         for i in range(self.table_costates.columnCount()):
@@ -294,7 +302,8 @@ class Window(QtWidgets.QWidget):
         """This function removes 2 rows in the table (1 for state, 1 for co-state)"""
         if len(self.header_vertical_costates) > 1:
             self.header_vertical_costates.pop()
-            self.table_costates.setVerticalHeaderLabels(self.header_vertical_costates)
+            self.table_costates.setVerticalHeaderLabels(
+                self.header_vertical_costates)
 
             self.table_costates.removeRow(self.table_costates.currentRow())
         else:

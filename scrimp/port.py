@@ -1,7 +1,7 @@
 # SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
 #
 # Copyright (C) 2015-2023 ISAE-SUPAERO -- GNU GPLv3
-# 
+#
 # See the LICENSE file for license information.
 #
 # github: https://github.com/g-haine/scrimp
@@ -13,21 +13,20 @@
 - brief:            class for port and parameter objects
 """
 
+import time
+import logging
+import getfem as gf
+from scrimp.fem import FEM
+from scrimp.domain import Domain
+from petsc4py import PETSc
 import petsc4py
 import sys
 
 petsc4py.init(sys.argv)
-from petsc4py import PETSc
 
 comm = PETSc.COMM_WORLD
 rank = comm.getRank()
 
-from scrimp.domain import Domain
-from scrimp.fem import FEM
-
-import getfem as gf
-import logging
-import time
 
 class Parameter:
     """This class describes the Parameter for a Port."""
@@ -44,7 +43,7 @@ class Parameter:
             expression (str): expression of the parameter
             name_port (str): name of the Port to apply the parameter
         """
-        
+
         self.__name = name
         self.__description = description
         self.__kind = kind
@@ -57,7 +56,7 @@ class Parameter:
         Returns:
             str: name of the parameter
         """
-        
+
         return self.__name
 
     def get_description(self) -> str:
@@ -66,7 +65,7 @@ class Parameter:
         Returns:
             str: description of the parameter
         """
-        
+
         return self.__description
 
     def get_kind(self) -> str:
@@ -75,7 +74,7 @@ class Parameter:
         Returns:
             str: kind of the parameter
         """
-        
+
         return self.__kind
 
     def get_expression(self) -> str:
@@ -84,7 +83,7 @@ class Parameter:
         Returns:
             str: matematical expression of the parameter.
         """
-        
+
         return self.__expression
 
     def get_name_port(self) -> str:
@@ -93,7 +92,7 @@ class Parameter:
         Returns:
             str: name of the port whose the parameter is bounded.
         """
-        
+
         return self.__name_port
 
 
@@ -127,7 +126,7 @@ class Port:
             algebraic (bool): if `False`, the flow variable will be derivated in time at resolution
             substituted (bool): if `True`, the constitutive relation is substituted and there is only a getfem variable for the effort
             dissipative (bool, optional): for post-processing purpose, indicates wether the port is dissipative-like or not. Defaults to `True`
-            region (int): the int identifying the region in mesh_id where the port belong, useful for boundary ports
+            region (int): the integer identifying the region in the mesh where the port belong, useful for boundary ports
         """
 
         self.__isSet = False  #: A boolean to check if the domain has been set
@@ -136,16 +135,21 @@ class Port:
         self.__effort = effort  #: The name of the effort variable
         self.__kind = kind  #: The type of the variables (e.g. `scalar-field`)
         self.__mesh_id = mesh_id  #: The id of the mesh where the variables belong
-        self.__algebraic = algebraic  #: If `True`, the equation associated to this port is algebraic, otherwise dynamic and the flow is derivated in time at resoltuion
-        self.__substituted = substituted  #: If `True`, the getfem `Model` will only have an unknown variable for the effort: the constitutive relation is substituted into the mass matrix on the flow side
-        self.__dissipative = dissipative  #: If `True`, the power associated must be taken with a negative sign (see plot_hamiltonian in DPHS class)
+        #: If `True`, the equation associated to this port is algebraic, otherwise dynamic and the flow is derivated in time at resoltuion
+        self.__algebraic = algebraic
+        #: If `True`, the getfem `Model` will only have an unknown variable for the effort: the constitutive relation is substituted into the mass matrix on the flow side
+        self.__substituted = substituted
+        #: If `True`, the power associated must be taken with a negative sign (see plot_hamiltonian in DPHS class)
+        self.__dissipative = dissipative
         self.__parameters = (
             []
         )  #: A list of parameters acting on the variables of the `port`
         self.__fem = None  #: A getfem Meshfem object to discretize the `port`
-        self.__region = region  #: If any, the int of the region of mesh_id where the flow/effort variables belong
-        self.__power = list() #: The power flowing through this port
-        self.__is_computed = False #: A boolean flag that indicates if the powers of the `port` has been computed
+        #: If any, the int of the region of mesh_id where the flow/effort variables belong
+        self.__region = region
+        self.__power = list()  # : The power flowing through this port
+        # : A boolean flag that indicates if the powers of the `port` has been computed
+        self.__is_computed = False
 
     def get_isSet(self) -> bool:
         """This funcion gets the boolean value that indicates wether the port is set or not.
@@ -154,7 +158,7 @@ class Port:
         Returns:
             bool: value that indicates if the port is set.
         """
-        
+
         return self.__isSet
 
     def set_isSet(self) -> bool:
@@ -164,7 +168,7 @@ class Port:
         Returns:
             bool: value that indicates if the port is set.
         """
-        
+
         self.__isSet = True
 
     def get_name(self) -> str:
@@ -173,7 +177,7 @@ class Port:
         Returns:
             str: name of the port
         """
-        
+
         return self.__name
 
     def get_flow(self) -> str:
@@ -182,7 +186,7 @@ class Port:
         Returns:
             str: name of the flow variable
         """
-        
+
         return self.__flow
 
     def get_effort(self) -> str:
@@ -191,7 +195,7 @@ class Port:
         Returns:
             str: name of the effort variable
         """
-        
+
         return self.__effort
 
     def get_kind(self) -> str:
@@ -200,7 +204,7 @@ class Port:
         Returns:
             str: type of the variables (e.g. `scalar-field`)
         """
-        
+
         return self.__kind
 
     def get_mesh_id(self) -> int:
@@ -209,7 +213,7 @@ class Port:
         Returns:
             int: The id of the mesh where the variables belong
         """
-        
+
         return self.__mesh_id
 
     def get_algebraic(self) -> bool:
@@ -219,7 +223,7 @@ class Port:
         Returns:
             bool: value of the algebraic parameter
         """
-        
+
         return self.__algebraic
 
     def get_substituted(self) -> bool:
@@ -229,7 +233,7 @@ class Port:
         Returns:
             bool: value of the subtituted parameter
         """
-        
+
         return self.__substituted
 
     def get_dissipative(self) -> bool:
@@ -239,7 +243,7 @@ class Port:
         Returns:
             bool: value of the dissipativeness flag
         """
-        
+
         return self.__dissipative
 
     def get_region(self) -> int:
@@ -249,7 +253,7 @@ class Port:
         Returns:
             int: region of the mesh
         """
-        
+
         return self.__region
 
     def get_fem(self):
@@ -258,7 +262,7 @@ class Port:
         Returns:
             _type_: the getfem Meshfem object to discretize the port
         """
-        
+
         return self.__fem
 
     def set_fem(self, fem: FEM):
@@ -289,11 +293,11 @@ class Port:
         Returns:
             Parameter: the desired parameter, None otherwise
         """
-        
+
         for p in self.__parameters:
             if p.get_name() == name:
                 return p
-        
+
         logging.error(
             f"Parameter with name: {name} does not exit!"
         )
@@ -305,7 +309,7 @@ class Port:
         Returns:
             list(Parameter): list of all the parameters inserted for the port
         """
-        
+
         return self.__parameters.copy()
 
     def add_parameter(self, parameter: Parameter) -> bool:
@@ -318,7 +322,7 @@ class Port:
             bool: True if the insertion has been complete correctly, False otherwise
 
         """
-        
+
         if isinstance(parameter, Parameter):
             self.__parameters.append(parameter)
             return True
@@ -360,7 +364,7 @@ class Port:
 
     def set_is_computed(self):
         """This function sets the power of the Port as computed."""
-        
+
         self.__is_computed = True
 
     def get_is_computed(self) -> bool:
@@ -369,12 +373,12 @@ class Port:
         Returns:
             bool: flag that indicates if the power flowing through the Port has been computed
         """
-        
+
         return self.__is_computed
-    
+
     def compute(self, solution: dict, gf_model: gf.Model, domain: Domain):
         """Compute the power flowing through the algebraic port if it is not substituted (because of the parameter-dependency if it is)
-        
+
         Args:
             - solutions (dict):         The solution of the dphs
             - gf_model (GetFEM Model):  The model getfem of the dphs
@@ -382,7 +386,7 @@ class Port:
         """
 
         if self.get_algebraic() and not self.get_substituted():
-            if rank==0:
+            if rank == 0:
                 logging.info(
                     f"Start computing the power flowing through {self.get_name()}"
                 )
@@ -421,13 +425,13 @@ class Port:
                 self.__power.append(power_value_at_t)
 
             self.set_is_computed()
-        
-            if rank==0:
+
+            if rank == 0:
                 logging.info(
                     f"Power in {self.get_name()} has been computed in {time.perf_counter() - start} s"
                 )
         else:
-            if rank==0:
+            if rank == 0:
                 logging.info(
                     f"Power cannot be computed for dynamic or substituted port {self.get_name()}"
                 )
@@ -474,4 +478,3 @@ if __name__ == "__main__":
     )
     p.add_parameter(p)
     print(p)
-    
