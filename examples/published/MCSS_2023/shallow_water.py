@@ -250,37 +250,37 @@ def shallow_water(experiment=0,formulation="grad"):
     bricks = [
         # Define the mass matrices of the left-hand side of the "Dirac structure"
         S.Brick("M_h", "h * Test_h", [1], dt=True, position="flow"),
-        S.Brick("M_p", "h * p . Test_p", [1], dt=True, linear=False, position="flow"),
+        S.Brick("M_p[h]", "h * p . Test_p", [1], dt=True, linear=False, position="flow"),
         # with the gyroscopic term
-        S.Brick("G", "h * (Gyro(p) * e_p) . Test_p", [1], linear=False, explicit=False, position="effort"),
+        S.Brick("G[h,p]", "h * (Gyro(p) * e_p) . Test_p", [1], linear=False, explicit=False, position="effort"),
         
         # Define the constitutive relations
         # For e_h: first the mass matrix WITH A MINUS because we want an implicit formulation: 0 = - M e_h + F(h)
-        S.Brick("-M_e_h", "- e_h * Test_e_h", [1]),
+        S.Brick("-M_h", "- e_h * Test_e_h", [1]),
         # second the linear part as a linear brick
-        S.Brick("CR_h_lin", "rho * g * h * Test_e_h", [1]),
+        S.Brick("P_h", "rho * g * h * Test_e_h", [1]),
         # third the non-linear part as a non-linear brick
-        S.Brick("CR_h_nl", "0.5 * (p . p) / rho * Test_e_h", [1], linear=False, explicit=False),
+        S.Brick("K_h[p]", "0.5 * (p . p) / rho * Test_e_h", [1], linear=False, explicit=False),
         
         # For e_p: first the mass matrix WITH A MINUS because we want an implicit formulation: 0 = - M e_p + F(p)
-        S.Brick("-M_e_p", "- h * e_p . Test_e_p", [1], linear=False, explicit=False),
+        S.Brick("-M_p[h]", "- h * e_p . Test_e_p", [1], linear=False, explicit=False),
         # second the non-linear brick
-        S.Brick("CR_p", "h * p / rho . Test_e_p", [1], linear=False, explicit=False),
+        S.Brick("K_p[h]", "h * p / rho . Test_e_p", [1], linear=False, explicit=False),
     ]
     
-    Brick_Du = S.Brick("D(v)", "- 2 * mu * h * D(e_p) : D(Test_p)", [1], linear=False, explicit=False, position="effort")
-    Brick_divu = S.Brick("div(v)", "- 2 * mu * h * div(e_p) * div(Test_p)", [1], linear=False, explicit=False, position="effort")
-    Brick_Lagrange_multiplier = S.Brick("B", "h * Y . Test_p", [10], linear=False, explicit=False, position="effort")
-    Brick_constraint_mass = S.Brick("M_Y", "h * U . Test_Y", [10], linear=False, explicit=False, position="flow")
-    Brick_constraint = S.Brick("-B^T", "- h * e_p . Test_Y", [10], linear=False, explicit=False, position="effort")
+    Brick_Du = S.Brick("-2 mu R_Grad[h]", "- 2 * mu * h * D(e_p) : D(Test_p)", [1], linear=False, explicit=False, position="effort")
+    Brick_divu = S.Brick("-2 mu R_div[h]", "- 2 * mu * h * div(e_p) * div(Test_p)", [1], linear=False, explicit=False, position="effort")
+    Brick_Lagrange_multiplier = S.Brick("-B_\partial[h]", "h * Y . Test_p", [10], linear=False, explicit=False, position="effort")
+    Brick_constraint_mass = S.Brick("M_\partial[h]", "h * U . Test_Y", [10], linear=False, explicit=False, position="flow")
+    Brick_constraint = S.Brick("B_\partial[h]^T", "- h * e_p . Test_Y", [10], linear=False, explicit=False, position="effort")
     
     # The `grad` formulation always needs the following bricks
     if formulation=="grad":
-        bricks.append(S.Brick("M_Y_n", "h * Y_n * Test_Y_n", [10], linear=False, explicit=False, position="flow"))
-        bricks.append(S.Brick("-D^T", "h * e_p . Grad(Test_h)", [1], linear=False, explicit=False, position="effort"))
-        bricks.append(S.Brick("B_n", "- h * U_n * Test_h", [10], linear=False, explicit=False, position="effort"))
-        bricks.append(S.Brick("D", "- h * Grad(e_h) . Test_p", [1], linear=False, explicit=False, position="effort"))
-        bricks.append(S.Brick("-B_n^T", "- h * e_h * Test_Y_n", [10], linear=False, explicit=False, position="effort"))
+        bricks.append(S.Brick("M_n[h]", "h * Y_n * Test_Y_n", [10], linear=False, explicit=False, position="flow"))
+        bricks.append(S.Brick("D[h]", "h * e_p . Grad(Test_h)", [1], linear=False, explicit=False, position="effort"))
+        bricks.append(S.Brick("-B_n[h]", "- h * U_n * Test_h", [10], linear=False, explicit=False, position="effort"))
+        bricks.append(S.Brick("-D[h]^T", "- h * Grad(e_h) . Test_p", [1], linear=False, explicit=False, position="effort"))
+        bricks.append(S.Brick("B_n[h]^T", "- h * e_h * Test_Y_n", [10], linear=False, explicit=False, position="effort"))
         if experiment in [1,2,3]:
             bricks.append(Brick_Du)
             bricks.append(Brick_divu)
@@ -289,12 +289,12 @@ def shallow_water(experiment=0,formulation="grad"):
             bricks.append(Brick_constraint)
     # The `div` formulation
     if formulation=="div":
-        bricks.append(S.Brick("D", "- div(h * e_p) * Test_h", [1], linear=False, explicit=False, position="effort"))
-        bricks.append(S.Brick("-D^T", "e_h * div(h * Test_p)", [1], linear=False, explicit=False, position="effort"))
+        bricks.append(S.Brick("D[h]", "- div(h * e_p) * Test_h", [1], linear=False, explicit=False, position="effort"))
+        bricks.append(S.Brick("-D[h]^T", "e_h * div(h * Test_p)", [1], linear=False, explicit=False, position="effort"))
         if experiment==0:
-            bricks.append(S.Brick("B_n", "- h * Y_n * Test_p . Normal", [10], linear=False, explicit=False, position="effort"))
-            bricks.append(S.Brick("M_Y_n", "h * U_n * Test_Y_n", [10], linear=False, explicit=False, position="flow"))
-            bricks.append(S.Brick("-B_n^T", "h * (e_p . Normal) * Test_Y_n", [10], linear=False, explicit=False, position="effort"))
+            bricks.append(S.Brick("-B_n[h]", "- h * Y_n * Test_p . Normal", [10], linear=False, explicit=False, position="effort"))
+            bricks.append(S.Brick("M_n[h]", "h * U_n * Test_Y_n", [10], linear=False, explicit=False, position="flow"))
+            bricks.append(S.Brick("B_n[h]^T", "h * (e_p . Normal) * Test_Y_n", [10], linear=False, explicit=False, position="effort"))
         if experiment in [1,2,3]:
             bricks.append(Brick_Du)
             bricks.append(Brick_divu)
