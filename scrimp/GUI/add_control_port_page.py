@@ -22,8 +22,9 @@ class Window(QtWidgets.QWidget):
 
     switch_window = QtCore.pyqtSignal(str)
 
-    def __init__(self):
+    def __init__(self,session):
         QtWidgets.QWidget.__init__(self)
+        self.session  = session
 
         self.setWindowTitle("Definition of Control control_port/s")
         self.setFixedWidth(gui_width)
@@ -219,9 +220,15 @@ class Window(QtWidgets.QWidget):
         )
 
         controlport_choice_kind = QComboBox()
-        controlport_choice_kind.addItems(
-            ["scalar-field", "vector-field", "tensor-field"]
-        )
+        if "domain" in self.session.keys() and self.session["domain"] == "Segment":
+            controlport_choice_kind.addItems(
+                ["scalar-field"]
+            )
+        else:
+            controlport_choice_kind.addItems(
+                ["scalar-field", "vector-field", "tensor-field"]
+            )
+            
         controlport_choice_kind.textHighlighted.connect(
             self.choice_clicked("Kind"))
         self.table_control_ports.setCellWidget(

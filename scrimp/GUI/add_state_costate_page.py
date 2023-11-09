@@ -22,8 +22,9 @@ class Window(QtWidgets.QWidget):
 
     switch_window = QtCore.pyqtSignal(str)
 
-    def __init__(self):
+    def __init__(self,session):
         QtWidgets.QWidget.__init__(self)
+        self.session  = session
 
         self.setWindowTitle("Definition of State/s and Costate/s")
         self.setFixedWidth(gui_width)
@@ -131,7 +132,7 @@ class Window(QtWidgets.QWidget):
         self.table_costates.cellClicked.connect(
             self.update_costate_table_by_state)
 
-        self.new_state()
+        #self.new_state()
 
     def update_costate_table_by_state(self):
         row = self.table_costates.currentRow()
@@ -158,11 +159,11 @@ class Window(QtWidgets.QWidget):
                 )
 
             elif col == 2:
-                description = "Choose what is the kind of your state."
-                example = """It could be one of the following list:
+                description = """Choose what is the kind of your state.\nIt could be one of the following list:
                 \n- scalar-field
                 \n- vector-field
                 \n- tensor-field"""
+                example = "In 1D everything must be scalar-field."
             elif col == 3:
                 description = "Choose which is the region that interest your state."
 
@@ -231,11 +232,11 @@ class Window(QtWidgets.QWidget):
             example = ""
 
             if text == "Kind":
-                description = "Choose what is the kind of your state."
-                example = """It could be one of the following list:
+                description = """Choose what is the kind of your state.\nIt could be one of the following list:
                 \n- scalar-field
                 \n- vector-field
                 \n- tensor-field"""
+                example = "In 1D everything must be scalar-field."
 
             elif text == "Substituted":
                 description = "It is a boolean that defines whether to substitute the variable. Defaults to False"
@@ -250,11 +251,18 @@ class Window(QtWidgets.QWidget):
         self.table_states.insertRow(count)
         self.header_vertical_states += ["state"]
         self.table_states.setVerticalHeaderLabels(self.header_vertical_states)
-        state_choice = QComboBox()
-        state_choice.addItems(["scalar-field", "vector-field", "tensor-field"])
+        state_choice_kind = QComboBox()
+        if "domain" in self.session.keys() and self.session["domain"] == "Segment":
+            state_choice_kind.addItems(
+                ["scalar-field"]
+            )
+        else:
+            state_choice_kind.addItems(
+                ["scalar-field", "vector-field", "tensor-field"]
+            )
 
-        state_choice.textHighlighted.connect(self.choice_clicked("Kind"))
-        self.table_states.setCellWidget(count, 2, state_choice)
+        state_choice_kind.textHighlighted.connect(self.choice_clicked("Kind"))
+        self.table_states.setCellWidget(count, 2, state_choice_kind)
         # set defaults
         new_value = QTableWidgetItem("0")
         self.table_states.setItem(count, 4, new_value)
@@ -285,12 +293,12 @@ class Window(QtWidgets.QWidget):
         self.header_vertical_costates += ["costate"]
         self.table_costates.setVerticalHeaderLabels(
             self.header_vertical_costates)
-        costate_choice = QComboBox()
-        costate_choice.addItems(["False", "True"])
+        costate_choice_kind = QComboBox()
+        costate_choice_kind.addItems(["False", "True"])
 
-        costate_choice.textHighlighted.connect(
+        costate_choice_kind.textHighlighted.connect(
             self.choice_clicked("Substituted"))
-        self.table_costates.setCellWidget(count, 3, costate_choice)
+        self.table_costates.setCellWidget(count, 3, costate_choice_kind)
 
         for i in range(self.table_costates.columnCount()):
             if i not in [2, 3]:

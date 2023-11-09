@@ -41,8 +41,9 @@ class Window(QtWidgets.QWidget):
         for i in range(2, 7):
             self.layout.itemAt(i).widget().show()
 
-    def __init__(self):
+    def __init__(self,session):
         QtWidgets.QWidget.__init__(self)
+        self.session  = session
 
         self.setWindowTitle("Define the Time scheme")
         self.setFixedWidth(gui_width)

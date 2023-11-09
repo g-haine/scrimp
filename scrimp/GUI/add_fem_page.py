@@ -22,8 +22,9 @@ class Window(QtWidgets.QWidget):
 
     switch_window = QtCore.pyqtSignal(str)
 
-    def __init__(self):
+    def __init__(self,session):
         QtWidgets.QWidget.__init__(self)
+        self.session  = session
 
         self.setWindowTitle("Definition of FEM/s")
         self.setFixedWidth(gui_width)
@@ -144,8 +145,8 @@ class Window(QtWidgets.QWidget):
         description = "Select the type of FEM."
         text = "FEM"
         example = """\n
-        CG stands for ...\n
-        DG stands for ..."""
+        CG stands for Continuous Galerkin\n
+        DG stands for Discontinuous Galerkin"""
         self.help.updateFields(text, description, example)
 
     def new_FEM(self):

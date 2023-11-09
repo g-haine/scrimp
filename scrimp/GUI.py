@@ -49,21 +49,22 @@ class Controller:
     """This class magage the navigation of the GUI."""
 
     def __init__(self):
+        self.session = {}
         # the pages that are included in the GUI
-        self.create_dphs = create_dphs_page.Window()
-        self.set_domain_page = set_domain_page.Window()
-        self.add_port_page = add_port_page.Window()
-        self.add_state_costate_page = add_state_costate_page.Window()
-        self.add_parameter_page = add_parameter_page.Window()
-        self.add_control_port_page = add_control_port_page.Window()
-        self.add_fem_page = add_fem_page.Window()
-        self.set_hamiltonian_page = set_hamiltonian_page.Window()
-        self.add_term_page = add_term_page.Window()
-        self.add_brick_page = add_brick_page.Window()
-        self.add_expression_page = add_expression_page.Window()
-        self.add_initial_value_page = add_initial_value_page.Window()
-        self.set_time_scheme_page = set_time_scheme_page.Window()
-        self.generate_code_page = generate_code_page.Window()
+        self.create_dphs = create_dphs_page.Window(self.session)
+        self.set_domain_page = set_domain_page.Window(self.session)
+        self.add_port_page = add_port_page.Window(self.session)
+        self.add_state_costate_page = add_state_costate_page.Window(self.session)
+        self.add_parameter_page = add_parameter_page.Window(self.session)
+        self.add_control_port_page = add_control_port_page.Window(self.session)
+        self.add_fem_page = add_fem_page.Window(self.session)
+        self.set_hamiltonian_page = set_hamiltonian_page.Window(self.session)
+        self.add_term_page = add_term_page.Window(self.session)
+        self.add_brick_page = add_brick_page.Window(self.session)
+        self.add_expression_page = add_expression_page.Window(self.session)
+        self.add_initial_value_page = add_initial_value_page.Window(self.session)
+        self.set_time_scheme_page = set_time_scheme_page.Window(self.session)
+        self.generate_code_page = generate_code_page.Window(self.session)
 
         # the connections
         self.create_dphs.switch_window.connect(self.show_window)

@@ -22,8 +22,9 @@ class Window(QtWidgets.QWidget):
 
     switch_window = QtCore.pyqtSignal(str)
 
-    def __init__(self):
+    def __init__(self,session):
         QtWidgets.QWidget.__init__(self)
+        self.session  = session
 
         self.setWindowTitle("Definition of Port/s")
         self.setFixedWidth(gui_width)
@@ -126,11 +127,11 @@ class Window(QtWidgets.QWidget):
                 description = "Choose the name of the Effort variable."
 
             elif col == 3:
-                description = "Choose what is the kind of your state."
-                example = """It could be one of the following list:
+                description = """Choose what is the kind of your state.\nIt could be one of the following list:
                 \n- scalar-field
                 \n- vector-field
                 \n- tensor-field"""
+                example = "In 1D everything must be scalar-field."
 
             elif col == 4:
                 description = (
@@ -210,8 +211,14 @@ class Window(QtWidgets.QWidget):
         self.table_ports.setCellWidget(count, 5, port_choice_algebraic)
 
         port_choice_kind = QComboBox()
-        port_choice_kind.addItems(
-            ["scalar-field", "vector-field", "tensor-field"])
+        if "domain" in self.session.keys() and self.session["domain"] == "Segment":
+            port_choice_kind.addItems(
+                ["scalar-field"]
+            )
+        else:
+            port_choice_kind.addItems(
+                ["scalar-field", "vector-field", "tensor-field"]
+            )
         port_choice_kind.textHighlighted.connect(self.choice_clicked("Kind"))
         self.table_ports.setCellWidget(count, 3, port_choice_kind)
 

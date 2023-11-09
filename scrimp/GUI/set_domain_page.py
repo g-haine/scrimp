@@ -25,8 +25,9 @@ class Window(QtWidgets.QWidget):
 
     switch_window = QtCore.pyqtSignal(str)
 
-    def __init__(self):
+    def __init__(self,session):
         QtWidgets.QWidget.__init__(self)
+        self.session  = session
 
         self.setWindowTitle("Define the domain for the dpHs")
         self.setFixedWidth(gui_width)
@@ -55,8 +56,10 @@ class Window(QtWidgets.QWidget):
 
         item_separator_1D.setFlags(Qt.NoItemFlags)
         item_separator_2D.setFlags(Qt.NoItemFlags)
-        item_separator_1D.setForeground(QtGui.QBrush(QtGui.QColor(255, 255, 255)))
-        item_separator_2D.setForeground(QtGui.QBrush(QtGui.QColor(255, 255, 255)))
+        item_separator_1D.setForeground(
+            QtGui.QBrush(QtGui.QColor(255, 255, 255)))
+        item_separator_2D.setForeground(
+            QtGui.QBrush(QtGui.QColor(255, 255, 255)))
         item_separator_1D.setBackground(QtGui.QColor(102, 178, 255))
         item_separator_2D.setBackground(QtGui.QColor(102, 178, 255))
 
@@ -155,23 +158,23 @@ class Window(QtWidgets.QWidget):
                         example = "in a rectangle ABCD, if BC is the shorter side, l is its lenght."
 
                     elif text == "h":
-                        description = "The step of integration"
+                        description = "The mesh size parameter"
                         example = ""
 
                     elif text == "R":
                         if selection == "Disk":
-                            description = "Rayon of the disk"
+                            description = "radius of the disk"
                             example = ""
 
                         elif selection == "Annulus":
-                            description = "Lenght of the longer rayon of the annulus"
+                            description = "Lenght of the longer radius of the annulus"
                             example = (
-                                "in an annulus, R is the rayon of the outer circle."
+                                "in an annulus, R is the radius of the outer circle."
                             )
 
                     elif text == "r":
-                        description = "Lenght of the shorter rayon of the annulus"
-                        example = "in an annulus, R is the rayon of the inner circle."
+                        description = "Lenght of the shorter radius of the annulus"
+                        example = "in an annulus, R is the radius of the inner circle."
 
                     self.help.updateFields(text, description, example)
 
@@ -197,6 +200,8 @@ class Window(QtWidgets.QWidget):
 
     def update_table(self):
         selection = self.list_widget.currentItem().text()
+        self.session["domain"] = selection
+        
         self.help.clear()
         # self.update_help()
 

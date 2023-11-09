@@ -12,8 +12,9 @@ class Window(QtWidgets.QWidget):
 
     switch_window = QtCore.pyqtSignal(str)
 
-    def __init__(self):
+    def __init__(self,session):
         QtWidgets.QWidget.__init__(self)
+        self.session  = session
         self.setWindowTitle("Definition of new distributed port-Hamiltonian system")
         self.setFixedWidth(gui_width)
         self.setFixedHeight(gui_height)

@@ -22,8 +22,9 @@ class Window(QtWidgets.QWidget):
 
     switch_window = QtCore.pyqtSignal(str)
 
-    def __init__(self):
+    def __init__(self,session):
         QtWidgets.QWidget.__init__(self)
+        self.session  = session
 
         self.setWindowTitle("Definition of Parameter/s")
         self.setFixedWidth(gui_width)
@@ -180,8 +181,14 @@ class Window(QtWidgets.QWidget):
         self.table_parameters.setVerticalHeaderLabels(
             self.header_vertical_parameters)
         parameter_choice_kind = QComboBox()
-        parameter_choice_kind.addItems(
-            ["scalar-field", "vector-field", "tensor-field"])
+        if "domain" in self.session.keys() and self.session["domain"] == "Segment":
+            parameter_choice_kind.addItems(
+                ["scalar-field"]
+            )
+        else:
+            parameter_choice_kind.addItems(
+                ["scalar-field", "vector-field", "tensor-field"]
+            )
         parameter_choice_kind.textHighlighted.connect(
             self.choice_clicked("Kind"))
         self.table_parameters.setCellWidget(count, 2, parameter_choice_kind)
