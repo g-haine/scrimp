@@ -92,15 +92,19 @@ class Controller:
         if text == "set_domain_page":
             self.set_domain_page.show()
         elif text == "add_state_costate_page":
+            self.add_state_costate_page.update_page()
             self.add_state_costate_page.show()
         elif text == "add_port_page":
+            self.add_port_page.update_page()
             self.add_port_page.show()
         elif text == "create_dphs_page":
             self.create_dphs.show()
         elif text == "add_parameter_page":
+            self.add_parameter_page.update_page()
             update_parameters_page(self)
             self.add_parameter_page.show()
         elif text == "add_control_port_page":
+            self.add_control_port_page.update_page()
             update_control_ports_page(self)
             self.add_control_port_page.show()
         elif text == "add_fem_page":

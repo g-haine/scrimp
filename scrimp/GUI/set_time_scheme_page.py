@@ -275,6 +275,9 @@ class Window(QtWidgets.QWidget):
         count = self.table.rowCount()
         self.table.insertRow(count)
 
+    def update_page(self):
+        pass
+
     def next_page(self):
         """This funciont emit the signal to navigate to the next page."""
         self.switch_window.emit("generate_code_page")

@@ -162,6 +162,20 @@ class Window(QtWidgets.QWidget):
         self.switch_window.emit(page)
         self.hide()
 
+    
+    def update_page(self):
+        for row in range(self.table_ports.rowCount()):
+            comboBox = self.table_ports.cellWidget(row,3)
+            comboBox.clear()
+            if "domain" in self.session.keys() and self.session["domain"] == "Segment":
+                comboBox.addItems(
+                    ["scalar-field"]
+                )
+            else:
+                comboBox.addItems(
+                    ["scalar-field", "vector-field", "tensor-field"]
+                )
+
     def next_page(self):
         """This funciont emit the signal to navigate to the next page."""
         self.switch_window.emit("add_parameter_page")

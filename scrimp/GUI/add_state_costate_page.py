@@ -132,7 +132,7 @@ class Window(QtWidgets.QWidget):
         self.table_costates.cellClicked.connect(
             self.update_costate_table_by_state)
 
-        #self.new_state()
+        self.new_state()
 
     def update_costate_table_by_state(self):
         row = self.table_costates.currentRow()
@@ -214,6 +214,19 @@ class Window(QtWidgets.QWidget):
         self.comboBox.setCurrentText("add_state_costate_page")
         self.switch_window.emit(page)
         self.hide()
+
+    def update_page(self):
+        for row in range(self.table_states.rowCount()):
+            comboBox = self.table_states.cellWidget(row,2)
+            comboBox.clear()
+            if "domain" in self.session.keys() and self.session["domain"] == "Segment":
+                comboBox.addItems(
+                    ["scalar-field"]
+                )
+            else:
+                comboBox.addItems(
+                    ["scalar-field", "vector-field", "tensor-field"]
+                )
 
     def next_page(self):
         """This funciont emit the signal to navigate to the next page."""
