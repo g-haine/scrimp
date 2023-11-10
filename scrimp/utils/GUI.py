@@ -7,9 +7,12 @@ from PyQt5.QtWidgets import (
     QComboBox,
     QLabel,
     QTextEdit,
+    QMessageBox
 )
-from PyQt5.QtGui import QTextCharFormat, QFont, QTextCursor
+
+from PyQt5.QtGui import QTextCharFormat, QFont, QTextCursor, QColor
 from PyQt5 import QtCore, QtGui, QtWidgets
+import keyword
 
 gui_pages = [
     "create_dphs_page",
@@ -35,6 +38,8 @@ main_size_font = "+3"
 secondary_size_font = "+2"
 
 
+black_listed_words = keyword.kwlist + [""]
+
 heading = """# SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
 #
 # Copyright (C) 2015-2022 Ghislain Haine
@@ -50,7 +55,47 @@ from itertools import zip_longest
 
 """
 
+def check_black_listed_words(self,table,table_name):
+    
+    """This function checks if the field in the passed table contains a black listed word. It returns True if the there is a violation.
 
+    Returns:
+        bool: True if a black listed word was found, else True.
+    """
+    violantion = False
+    list_violations = []
+    cols = table.columnCount()
+    rows = table.rowCount()
+    
+    for row in range(rows):
+        for col in range(cols):
+            # if col is not None and row is not None:
+            name = ""
+            item = table.item(row,col)
+            if item is not None:
+                name = item.text() 
+            
+                if name != "" and name in self.session["black_listed_words"]:
+                    print("name not valid")
+                    violantion = True
+                    table.item(row,col).setBackground(QColor(255,204,203))
+                    list_violations.append(f"Cell {row}:{col} contains black listed word: {name}")
+                else:
+                    item.setBackground(QColor(255,255,255))
+        
+    
+    #from IPython import embed; embed()
+    if len(list_violations) > 0:
+        self.msg = QMessageBox()
+        self.msg.setWindowTitle(f"Warning in Table {table_name}")
+        self.msg.setText("\n".join(list_violations)
+            
+        )
+        self.msg.exec_()
+        print(list_violations)
+    
+    return violantion
+    
 def text_main(self, file, dphs):
     file.write(f"\n    return {dphs}\n\n")
     file.write(f"""if __name__ == "__main__":

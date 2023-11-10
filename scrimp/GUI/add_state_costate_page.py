@@ -1,4 +1,5 @@
 from PyQt5 import QtCore, QtWidgets
+from PyQt5.QtGui import QColor
 from PyQt5.QtWidgets import (
     QHBoxLayout,
     QPushButton,
@@ -7,9 +8,11 @@ from PyQt5.QtWidgets import (
     QTableWidget,
     QTableWidgetItem,
     QComboBox,
+    QMessageBox
 )
+
 from PyQt5.QtCore import Qt
-from utils.GUI import gui_pages, gui_width, gui_height, Help
+from utils.GUI import gui_pages, gui_width, gui_height, Help,check_black_listed_words
 
 
 class Window(QtWidgets.QWidget):
@@ -230,13 +233,18 @@ class Window(QtWidgets.QWidget):
 
     def next_page(self):
         """This funciont emit the signal to navigate to the next page."""
-        self.switch_window.emit("add_port_page")
-        self.hide()
+        if not (check_black_listed_words(self,self.table_states, "States") or check_black_listed_words(self,self.table_costates,"Costates")):
+            self.switch_window.emit("add_port_page")
+            self.hide()
 
     def previous_page(self):
         """This funcion emits the signal to navigate to the prvious page."""
-        self.switch_window.emit("set_domain_page")
-        self.hide()
+        if not (check_black_listed_words(self,self.table_states, "States") or check_black_listed_words(self,self.table_costates,"Costates")):
+            self.switch_window.emit("set_domain_page")
+            self.hide()
+
+
+
 
     def choice_clicked(self, text):
         def foo():

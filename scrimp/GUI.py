@@ -18,6 +18,7 @@ from GUI import (
 )
 from utils.GUI import (
     heading,
+    black_listed_words,
     text_create_class,
     text_set_domain,
     text_add_states,
@@ -39,8 +40,7 @@ from utils.GUI import (
     text_set_time_scheme,
     text_main,
     text_solve,
-    text_plot
-
+    text_plot,
 )
 import os
 
@@ -50,6 +50,7 @@ class Controller:
 
     def __init__(self):
         self.session = {}
+        self.session["black_listed_words"] = black_listed_words
         # the pages that are included in the GUI
         self.create_dphs = create_dphs_page.Window(self.session)
         self.set_domain_page = set_domain_page.Window(self.session)
