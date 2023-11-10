@@ -140,57 +140,57 @@ class Window(QtWidgets.QWidget):
             row = item.row()
             selection = self.list_widget.currentItem().text()
             print(f"col:{col},text:{text},selection:{selection}")
+            if col == 0:
+                if selection == "First":
+                    description = None
+                    example = None
 
-            if selection == "First":
-                description = None
-                example = None
+                    if row == 0:
+                        description = "This is ..."
 
-                if row == 0:
-                    description = "This is ..."
+                    elif row == 1:
+                        description = "This is ..."
 
-                elif row == 1:
-                    description = "This is ..."
+                    elif row == 2:
+                        description = "This is ..."
 
-                elif row == 2:
-                    description = "This is ..."
+                    elif row == 3:
+                        description = "This is ..."
 
-                elif row == 3:
-                    description = "This is ..."
+                    elif row == 4:
+                        description = "This is ..."
 
-                elif row == 4:
-                    description = "This is ..."
+                    elif row == 5:
+                        description = "This is ..."
 
-                elif row == 5:
-                    description = "This is ..."
+                    elif row == 6:
+                        description = "This is ..."
 
-                elif row == 6:
-                    description = "This is ..."
+                    elif row == 7:
+                        description = "This is ..."
 
-                elif row == 7:
-                    description = "This is ..."
+                    elif row == 8:
+                        description = "This is ..."
 
-                elif row == 8:
-                    description = "This is ..."
+                    elif row == 9:
+                        description = "This is ..."
 
-                elif row == 9:
-                    description = "This is ..."
+                    self.help.updateFields(text, description, example)
 
-                self.help.updateFields(text, description, example)
+                elif selection == "Second":
+                    description = None
+                    example = None
 
-            elif selection == "Second":
-                description = None
-                example = None
+                    if row == 0:
+                        description = "This is ..."
 
-                if row == 0:
-                    description = "This is ..."
+                    elif row == 1:
+                        description = "This is ..."
 
-                elif row == 1:
-                    description = "This is ..."
+                    elif row == 2:
+                        description = "This is ..."
 
-                elif row == 2:
-                    description = "This is ..."
-
-                self.help.updateFields(text, description, example)
+                    self.help.updateFields(text, description, example)
 
         else:
             self.help.clear()
