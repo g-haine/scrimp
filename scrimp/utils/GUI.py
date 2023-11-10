@@ -330,6 +330,28 @@ def text_add_parameters(self, file):
     file.write("\n    ]")
 
 
+
+def update_intial_values_page(self):
+    """This function updates the add parameter page accounting for the existing states and ports already declared."""
+    table_initial_values = self.add_initial_value_page.table_initial_values
+
+    table_states = self.add_state_costate_page.table_states
+    rows_states = table_states.rowCount()
+
+    # it updates only if it didn't do it yet
+    if table_initial_values.rowCount() == 0:
+        self.old_n_states = -1
+
+    # it updates only if there is a change in the number of states
+    if self.old_n_states != rows_states:
+        self.old_n_states = rows_states
+
+        for row in range(rows_states):
+            item = table_states.item(row, 0)
+            if item is not None:
+                self.add_initial_value_page.new_initial_value()
+                table_initial_values.setItem(row, 0, item.clone())
+
 def update_parameters_page(self):
     """This function updates the add parameter page accounting for the existing states and ports already declared."""
     table_parameters = self.add_parameter_page.table_parameters

@@ -41,6 +41,7 @@ from utils.GUI import (
     text_main,
     text_solve,
     text_plot,
+    update_intial_values_page
 )
 import os
 
@@ -122,6 +123,7 @@ class Controller:
             self.add_expression_page.show()
         elif text == "add_initial_value_page":
             self.add_initial_value_page.show()
+            update_intial_values_page(self)
         elif text == "set_time_scheme_page":
             self.set_time_scheme_page.show()
         elif text == "generate_code_page":
