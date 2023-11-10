@@ -1,6 +1,6 @@
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtWidgets import QComboBox, QLabel, QLineEdit, QGridLayout
-from utils.GUI import gui_pages, gui_width, gui_height
+from utils.GUI import gui_pages, gui_width, gui_height,check_black_listed_words
 
 
 class Window(QtWidgets.QWidget):
@@ -52,18 +52,21 @@ class Window(QtWidgets.QWidget):
 
     def text_changed(self, page):  # s is a str
         self.comboBox.setCurrentText("set_hamiltonian_page")
-        self.switch_window.emit(page)
-        self.hide()
+        if not check_black_listed_words(self,self.line_edit_hamiltonian_name, "Set Hamiltonian Names") :
+            self.switch_window.emit(page)
+            self.hide()
 
     def update_page(self):
         pass
 
     def next_page(self):
         """This funciont emit the signal to navigate to the next page."""
-        self.switch_window.emit("add_term_page")
-        self.hide()
+        if not check_black_listed_words(self,self.line_edit_hamiltonian_name, "Set Hamiltonian Names") :
+            self.switch_window.emit("add_term_page")
+            self.hide()
 
     def previous_page(self):
         """This funcion emits the signal to navigate to the prvious page."""
-        self.switch_window.emit("add_fem_page")
-        self.hide()
+        if not check_black_listed_words(self,self.line_edit_hamiltonian_name, "Set Hamiltonian Names") :
+            self.switch_window.emit("add_fem_page")
+            self.hide()

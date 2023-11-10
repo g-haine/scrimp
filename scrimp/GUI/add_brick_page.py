@@ -9,7 +9,7 @@ from PyQt5.QtWidgets import (
     QComboBox,
 )
 from PyQt5.QtCore import Qt
-from utils.GUI import gui_pages, gui_width, gui_height, Help
+from utils.GUI import gui_pages, gui_width, gui_height, Help, check_black_listed_words
 
 
 class Window(QtWidgets.QWidget):
@@ -155,21 +155,24 @@ class Window(QtWidgets.QWidget):
 
     def text_changed(self, page):  # s is a str
         self.comboBox.setCurrentText("add_brick_page")
-        self.switch_window.emit(page)
-        self.hide()
+        if not check_black_listed_words(self,self.table_bricks, "Bricks") :
+            self.switch_window.emit(page)
+            self.hide()
 
     def update_page(self):
         pass
 
     def next_page(self):
         """This funciont emit the signal to navigate to the next page."""
-        self.switch_window.emit("add_expression_page")
-        self.hide()
+        if not check_black_listed_words(self,self.table_bricks, "Bricks") :
+            self.switch_window.emit("add_expression_page")
+            self.hide()
 
     def previous_page(self):
         """This funcion emits the signal to navigate to the prvious page."""
-        self.switch_window.emit("add_term_page")
-        self.hide()
+        if not check_black_listed_words(self,self.table_bricks, "Bricks") :
+            self.switch_window.emit("add_term_page")
+            self.hide()
 
     def choice_clicked(self, text):
         def foo():

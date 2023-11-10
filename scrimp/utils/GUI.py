@@ -55,7 +55,7 @@ from itertools import zip_longest
 
 """
 
-def check_black_listed_words(self,table,table_name):
+def check_black_listed_words(self,widget,widget_name):
     
     """This function checks if the field in the passed table contains a black listed word. It returns True if the there is a violation.
 
@@ -64,30 +64,46 @@ def check_black_listed_words(self,table,table_name):
     """
     violantion = False
     list_violations = []
-    cols = table.columnCount()
-    rows = table.rowCount()
+    self.msg = QMessageBox()
     
-    for row in range(rows):
-        for col in range(cols):
-            # if col is not None and row is not None:
-            name = ""
-            item = table.item(row,col)
-            if item is not None:
-                name = item.text() 
-            
-                if name != "" and name in self.session["black_listed_words"]:
-                    print("name not valid")
-                    violantion = True
-                    table.item(row,col).setBackground(QColor(255,204,203))
-                    list_violations.append(f"Cell {row}:{col} contains black listed word: {name}")
-                else:
-                    item.setBackground(QColor(255,255,255))
+    if isinstance(widget,QLineEdit):
+        name = widget.text()
+        if name is not None and name != "" and name in self.session["black_listed_words"]:
+            print("name not valid")
+            violantion = True
+            widget.setStyleSheet("background-color:rgb(255,204,203)")
+            list_violations.append(f"black listed word: {name}")
+        else:
+            widget.setStyleSheet("background-color:rgb(255,255,255)")
+        self.msg.setWindowTitle(f"Warning in QLineEdit: {widget_name}")
+    
+    if isinstance(widget,QTableWidget):
+        table = widget
+        table_name = widget_name
+        cols = table.columnCount()
+        rows = table.rowCount()
         
-    
+        for row in range(rows):
+            for col in range(cols):
+                # if col is not None and row is not None:
+                name = ""
+                item = table.item(row,col)
+                if item is not None:
+                    name = item.text() 
+                
+                    if name is not None and name != "" and name in self.session["black_listed_words"]:
+                        print("name not valid")
+                        violantion = True
+                        table.item(row,col).setBackground(QColor(255,204,203))
+                        list_violations.append(f"Cell {row}:{col} contains black listed word: {name}")
+                    else:
+                        item.setBackground(QColor(255,255,255))
+            
+            self.msg.setWindowTitle(f"Warning in Table {table_name}")
+        
     #from IPython import embed; embed()
     if len(list_violations) > 0:
-        self.msg = QMessageBox()
-        self.msg.setWindowTitle(f"Warning in Table {table_name}")
+        
         self.msg.setText("\n".join(list_violations)
             
         )

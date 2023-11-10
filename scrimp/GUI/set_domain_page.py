@@ -1,6 +1,6 @@
 from PyQt5 import QtCore, QtWidgets, QtGui
 from PyQt5.QtCore import Qt
-from utils.GUI import gui_pages, gui_width, gui_height, Help
+from utils.GUI import gui_pages, gui_width, gui_height, Help, check_black_listed_words
 
 from PyQt5.QtWidgets import (
     QListWidget,
@@ -188,8 +188,9 @@ class Window(QtWidgets.QWidget):
 
     def text_changed(self, page):  # s is a str
         self.comboBox.setCurrentText("set_domain_page")
-        self.switch_window.emit(page)
-        self.hide()
+        if not check_black_listed_words(self,self.table, "Domain") :
+            self.switch_window.emit(page)
+            self.hide()
 
     def delete(self):
         """This function removes 2 rows in the table (1 for state, 1 for co-state)"""
@@ -268,10 +269,12 @@ class Window(QtWidgets.QWidget):
 
     def next_page(self):
         """This funciont emit the signal to navigate to the next page."""
-        self.switch_window.emit("add_state_costate_page")
-        self.hide()
+        if not check_black_listed_words(self,self.table, "Domain") :
+            self.switch_window.emit("add_state_costate_page")
+            self.hide()
 
     def previous_page(self):
         """This funciont emit the signal to navigate to the previous page."""
-        self.switch_window.emit("create_dphs_page")
-        self.hide()
+        if not check_black_listed_words(self,self.table, "Domain") :
+            self.switch_window.emit("create_dphs_page")
+            self.hide()

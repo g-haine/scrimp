@@ -1,6 +1,6 @@
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtCore import Qt
-from utils.GUI import gui_pages, gui_width, gui_height, Help
+from utils.GUI import gui_pages, gui_width, gui_height, Help, check_black_listed_words
 from PyQt5.QtWidgets import (
     QListWidget,
     QListWidgetItem,
@@ -198,8 +198,9 @@ class Window(QtWidgets.QWidget):
 
     def text_changed(self, page):  # s is a str
         self.comboBox.setCurrentText("set_time_scheme_page")
-        self.switch_window.emit(page)
-        self.hide()
+        if not check_black_listed_words(self,self.table, "Set Time scheme tabke") :
+            self.switch_window.emit(page)
+            self.hide()
 
     def update_table(self):
         selection = self.list_widget.currentItem().text()
@@ -280,10 +281,12 @@ class Window(QtWidgets.QWidget):
 
     def next_page(self):
         """This funciont emit the signal to navigate to the next page."""
-        self.switch_window.emit("generate_code_page")
-        self.hide()
+        if not check_black_listed_words(self,self.table, "Set Time scheme tabke") :
+            self.switch_window.emit("generate_code_page")
+            self.hide()
 
     def previous_page(self):
         """This funciont emit the signal to navigate to the previous page."""
-        self.switch_window.emit("add_initial_value_page")
-        self.hide()
+        if not check_black_listed_words(self,self.table, "Set Time scheme tabke") :
+            self.switch_window.emit("add_initial_value_page")
+            self.hide()

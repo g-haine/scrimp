@@ -12,7 +12,7 @@ from PyQt5.QtWidgets import (
 )
 
 from PyQt5.QtCore import Qt
-from utils.GUI import gui_pages, gui_width, gui_height, Help,check_black_listed_words
+from utils.GUI import gui_pages, gui_width, gui_height, Help, check_black_listed_words
 
 
 class Window(QtWidgets.QWidget):
@@ -215,8 +215,9 @@ class Window(QtWidgets.QWidget):
 
     def text_changed(self, page):  # s is a str
         self.comboBox.setCurrentText("add_state_costate_page")
-        self.switch_window.emit(page)
-        self.hide()
+        if not (check_black_listed_words(self,self.table_states, "States") or check_black_listed_words(self,self.table_costates,"Costates")):
+            self.switch_window.emit(page)
+            self.hide()
 
     def update_page(self):
         for row in range(self.table_states.rowCount()):
