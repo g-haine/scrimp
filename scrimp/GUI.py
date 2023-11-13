@@ -115,8 +115,10 @@ class Controller:
         elif text == "set_hamiltonian_page":
             self.set_hamiltonian_page.show()
         elif text == "add_term_page":
+            self.add_term_page.update_page(self)
             self.add_term_page.show()
         elif text == "add_brick_page":
+            self.add_brick_page.update_page(self)
             self.add_brick_page.show()
         elif text == "add_expression_page":
             update_expressions_page(self)
