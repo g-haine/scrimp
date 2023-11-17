@@ -55,6 +55,28 @@ from itertools import zip_longest
 
 """
 
+def update_list_variables(list_variables,table,name_table):
+    rows = table.rowCount()
+
+    items = []
+    for row in range(rows):
+        if name_table == "state": 
+            items.append(table.item(row,0))
+
+        if name_table == "port": 
+            items.append(table.item(row,1))
+            items.append(table.item(row,2))
+
+        if name_table == "control_port": 
+            items.append(table.item(row,1))
+            items.append(table.item(row,3))
+    
+    for item in items:
+        if item is not None:
+            variable_name = item.text()
+            if variable_name not in list_variables and variable_name != "":
+                list_variables.append(variable_name)
+
 def check_black_listed_words(self,widget,widget_name):
     
     """This function checks if the field in the passed table contains a black listed word. It returns True if the there is a violation.
@@ -116,6 +138,13 @@ def text_main(self, file, dphs):
     file.write(f"\n    return {dphs}\n\n")
     file.write(f"""if __name__ == "__main__":
     {dphs} = {dphs}_eq()""")
+
+
+def text_export_variables(self,file,dphs,export_variable):
+    if export_variable:
+        file.write(f"\n    # export variable for Paraview") 
+        for variable in self.session["selected_variables"]:
+            file.write(f"\n    {dphs}.export_to_pv('{variable}')")
 
 
 def text_add_loop(self, file, dphs):
