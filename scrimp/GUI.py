@@ -15,6 +15,7 @@ from GUI import (
     add_initial_value_page,
     set_time_scheme_page,
     generate_code_page,
+    export_variable_page
 )
 from utils.GUI import (
     heading,
@@ -41,7 +42,8 @@ from utils.GUI import (
     text_main,
     text_solve,
     text_plot,
-    update_intial_values_page
+    update_intial_values_page,
+    text_export_variables
 )
 import os
 
@@ -51,6 +53,7 @@ class Controller:
 
     def __init__(self):
         self.session = {}
+        self.session["variables"] = []
         self.session["black_listed_words"] = black_listed_words
         # the pages that are included in the GUI
         self.create_dphs = create_dphs_page.Window(self.session)
@@ -67,6 +70,7 @@ class Controller:
         self.add_initial_value_page = add_initial_value_page.Window(self.session)
         self.set_time_scheme_page = set_time_scheme_page.Window(self.session)
         self.generate_code_page = generate_code_page.Window(self.session)
+        self.export_variable_page = export_variable_page.Window(self.session)
 
         # the connections
         self.create_dphs.switch_window.connect(self.show_window)
@@ -83,6 +87,7 @@ class Controller:
         self.add_initial_value_page.switch_window.connect(self.show_window)
         self.set_time_scheme_page.switch_window.connect(self.show_window)
         self.generate_code_page.switch_window.connect(self.show_window)
+        self.export_variable_page.switch_window.connect(self.show_window)
 
     def show_window(self, text: str):
         """This function according to the variable text shows the corresponding window of gui.
@@ -132,14 +137,20 @@ class Controller:
             self.generate_code_page.show()
         elif text == "generate_code":
             self.generate_code()
-        elif text in ["Matplotlib", "Paraview"]:
+        elif text == "Matplotlib":
             filename, dphs = self.generate_code()
             self.run_code(text, filename, dphs)
+        elif text == "Paraview":
+            self.export_variable_page.update_page()
+            self.export_variable_page.show()
+        elif text == "start_Paraview":
+            filename, dphs = self.generate_code(True)
+            self.run_code(text, None,None)
         else:
             print("the emitted signal:", text)
             pass
 
-    def generate_code(self):
+    def generate_code(self,export_variables=False):
         """This function retrieves the field from the GUI and create a python script.
         It return the filename and the name of Discrete Port Hamiltonia System declared.
 
@@ -218,6 +229,9 @@ class Controller:
         # solve
         text_solve(self, file, dphs)
 
+        # export solutions for ParaView
+        text_export_variables(self,file,dphs,export_variables)
+
         # plot hamiltonian
         text_plot(self, file, dphs)
 
@@ -243,6 +257,10 @@ class Controller:
             exec(
                 f'import {filename}\n{filename}.{dphs}_eq()')
 
+        
+        elif text == "start_Paraview":
+            print(f"Selected Variable to Export: {self.session['selected_variables']}")
+            os.system("paraview")
         else:
             # TODO
             pass

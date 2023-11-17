@@ -9,7 +9,7 @@ from PyQt5.QtWidgets import (
     QComboBox,
 )
 from PyQt5.QtCore import Qt
-from utils.GUI import gui_pages, gui_width, gui_height, Help, check_black_listed_words
+from utils.GUI import gui_pages, gui_width, gui_height, Help, check_black_listed_words,update_list_variables
 
 
 class Window(QtWidgets.QWidget):
@@ -160,6 +160,7 @@ class Window(QtWidgets.QWidget):
     def text_changed(self, page):  # s is a str
         self.comboBox.setCurrentText("add_port_page")
         if not check_black_listed_words(self,self.table_ports, "Ports") :
+            update_list_variables(self.session["variables"],self.table_ports,"port")
             self.switch_window.emit(page)
             self.hide()
 
@@ -180,12 +181,14 @@ class Window(QtWidgets.QWidget):
     def next_page(self):
         """This funciont emit the signal to navigate to the next page."""
         if not check_black_listed_words(self,self.table_ports, "Ports") :
+            update_list_variables(self.session["variables"],self.table_ports,"port")
             self.switch_window.emit("add_parameter_page")
             self.hide()
 
     def previous_page(self):
         """This funcion emits the signal to navigate to the prvious page."""
         if not check_black_listed_words(self,self.table_ports, "Ports") :
+            update_list_variables(self.session["variables"],self.table_ports,"port")
             self.switch_window.emit("add_state_costate_page")
             self.hide()
 
