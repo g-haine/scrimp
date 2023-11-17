@@ -7,6 +7,7 @@ from PyQt5.QtWidgets import (
     QTableWidget,
     QTableWidgetItem,
     QComboBox,
+    QLabel
 )
 from PyQt5.QtCore import Qt
 from utils.GUI import gui_pages, gui_width, gui_height, Help, check_black_listed_words
@@ -91,6 +92,10 @@ class Window(QtWidgets.QWidget):
         self.layout.addWidget(self.button_next, 4, 3)
         self.layout.addWidget(self.button_prev, 4, 2)
 
+        # resume session
+        self.label_session = QLabel()
+        self.layout.addWidget(self.label_session, 3, 1)
+
         # create navigation list
         self.comboBox = QComboBox()
         self.comboBox.addItems(gui_pages)
@@ -147,7 +152,7 @@ class Window(QtWidgets.QWidget):
             self.switch_window.emit(page)
             self.hide()
 
-    def update_page(self):
+    def update_page(self,gui):
         for row in range(self.table_parameters.rowCount()):
             comboBox = self.table_parameters.cellWidget(row,2)
             comboBox.clear()
@@ -159,6 +164,34 @@ class Window(QtWidgets.QWidget):
                 comboBox.addItems(
                     ["scalar-field", "vector-field", "tensor-field"]
                 )
+            
+
+        table_ports = gui.add_port_page.table_ports
+
+        s = ""
+            
+        def itemToString(s,table,type_table):
+            cols = [0]
+            rows = table.rowCount()
+            s+=f"{type_table}: "
+            if "ontrol" in type_table:
+                cols = [1,3]
+            for row in range(rows):
+                for col in cols:
+                    item = table.item(row,col)
+                    if item is not None:
+                        s += item.text()
+                    if row < rows-1:
+                        s+=", "
+                    else:
+                        s+="\n"
+            return s
+        
+
+        s = itemToString(s,table_ports,"Ports")
+
+        
+        self.label_session.setText(s)
 
     def next_page(self):
         """This funciont emit the signal to navigate to the next page."""

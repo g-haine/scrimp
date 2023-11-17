@@ -102,7 +102,7 @@ class Controller:
         elif text == "create_dphs_page":
             self.create_dphs.show()
         elif text == "add_parameter_page":
-            self.add_parameter_page.update_page()
+            self.add_parameter_page.update_page(self)
             update_parameters_page(self)
             self.add_parameter_page.show()
         elif text == "add_control_port_page":
@@ -185,7 +185,7 @@ class Controller:
         # define Port/s
         text_add_ports(self, file)
 
-        # define Parameter/s
+        # # define Parameter/s
         text_add_parameters(self, file)
 
         # define Control Ports
