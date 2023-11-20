@@ -259,8 +259,13 @@ class Controller:
 
         elif text == "start_Paraview":
             print(f"Selected Variable to Export: {self.session['selected_variables']}")
-            os.system("paraview")
-
+            
+            for variable in self.session["selected_variables"]:
+                path = self.session["path_to_export_varaible"]
+                if path is not None:
+                    os.system(f"paraview {os.path.join(path,variable,variable)}.pvd")
+                else:
+                    os.system(f"paraview {os.path.join(variable,variable)}.pvd")
 
 def main():
     """The main function that launches the GUI."""

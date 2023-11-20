@@ -1,5 +1,5 @@
 from PyQt5 import QtCore, QtWidgets
-from PyQt5.QtWidgets import QLabel,  QGridLayout ,QCheckBox
+from PyQt5.QtWidgets import QLabel,  QGridLayout ,QCheckBox,QFileDialog,QLineEdit
 from utils.GUI import gui_pages, gui_width, gui_height
 
 
@@ -26,8 +26,12 @@ class Window(QtWidgets.QWidget):
 
         self.button_export = QtWidgets.QPushButton("Export")
         self.button_export.clicked.connect(self.export_selected_variables)
+        self.button_file_dialog = QtWidgets.QPushButton("...", self)
+        self.button_file_dialog.clicked.connect(self.get_path)
+        self.line_edit_directory = QLineEdit("Path")
 
         self.layout.addWidget(label, 1, 0)
+        
 
 
 
@@ -46,7 +50,18 @@ class Window(QtWidgets.QWidget):
             self.layout.addWidget(self.listCheckBox[i+1],i+3,0)
         
         self.layout.addWidget(self.label_hidden, len(self.listCheckBox)+2, 0)
-        self.layout.addWidget(self.button_export, len(self.listCheckBox)+3, 0)
+        self.layout.addWidget(self.line_edit_directory, len(self.listCheckBox)+3, 0)
+        self.layout.addWidget(self.button_file_dialog, len(self.listCheckBox)+3, 1)
+        self.layout.addWidget(self.button_export, len(self.listCheckBox)+3, 2)
+
+
+    def get_path(self):
+        self.file_path = str(
+            QFileDialog.getExistingDirectory(self, "Select Directory"))
+        print(self.file_path)
+        self.line_edit_directory.setText(self.file_path)
+        self.session["path_to_export_varaible"] = self.file_path
+        print(self.session["path_to_export_varaible"])
 
     def export_selected_variables(self):
         if len(self.session["variables"])>0:
