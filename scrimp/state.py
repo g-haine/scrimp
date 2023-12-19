@@ -1,7 +1,7 @@
 # SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
 #
 # Copyright (C) 2015-2023 ISAE-SUPAERO -- GNU GPLv3
-# 
+#
 # See the LICENSE file for license information.
 #
 # github: https://github.com/g-haine/scrimp
@@ -24,6 +24,7 @@ rank = comm.getRank()
 
 import logging
 
+
 class State:
     """This class defines a State."""
 
@@ -44,7 +45,7 @@ class State:
             region (int, optional): region of the State. Defaults to None.
             mesh_id (int, optional): id of the mesh. Defaults to 0.
         """
-        
+
         self._name = name
         self._description = description
         self._kind = kind
@@ -66,7 +67,7 @@ class State:
         Returns:
             str: name of the state
         """
-        
+
         return self._name
 
     def get_description(self) -> str:
@@ -75,7 +76,7 @@ class State:
         Returns:
             str: description of the state
         """
-        
+
         return self._description
 
     def get_kind(self) -> str:
@@ -84,7 +85,7 @@ class State:
         Returns:
             str: kind of the state
         """
-        
+
         return self._kind
 
     def get_region(self) -> int:
@@ -93,7 +94,7 @@ class State:
         Returns:
             int: region of the State.
         """
-        
+
         return self._region
 
     def set_costate(self, costate):
@@ -105,19 +106,16 @@ class State:
 
         if self.get_costate() is None and costate is not None:
             from scrimp.costate import CoState
+
             try:
                 assert isinstance(costate, CoState)
             except AssertionError:
-                logging.error(
-                    "Bad type for costate"
-                )
+                logging.error("Bad type for costate")
                 raise TypeError
             self._costate = costate
         else:
-            if rank==0:
-                logging.info(
-                    "A costate is already present for this state"
-                )
+            if rank == 0:
+                logging.info("A costate is already present for this state")
 
     def get_costate(self) -> object:
         """This function gets the Co-state of the state
@@ -125,7 +123,7 @@ class State:
         Returns:
             object: Costate
         """
-        
+
         return self._costate
 
     def set_port(self, port):
@@ -137,19 +135,16 @@ class State:
 
         if self.get_port() is None and port is not None:
             from scrimp.port import Port
+
             try:
                 assert isinstance(port, Port)
             except AssertionError:
-                logging.error(
-                    "Bad type for port"
-                )
+                logging.error("Bad type for port")
                 raise TypeError
             self._port = port
         else:
-            if rank==0:
-                logging.info(
-                    "A port is already present for this state"
-                )
+            if rank == 0:
+                logging.info("A port is already present for this state")
 
     def get_port(self) -> object:
         """This function gets the port of the state
@@ -157,7 +152,7 @@ class State:
         Returns:
             object: Port
         """
-        
+
         return self._port
 
     def get_mesh_id(self) -> int:

@@ -1,7 +1,7 @@
 # SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
 #
 # Copyright (C) 2015-2023 ISAE-SUPAERO -- GNU GPLv3
-# 
+#
 # See the LICENSE file for license information.
 #
 # github: https://github.com/g-haine/scrimp
@@ -13,6 +13,7 @@
 - brief:            functions to initialize SCRIMP
 """
 
+import gmsh
 import os
 import petsc4py
 import sys
@@ -23,14 +24,19 @@ from petsc4py import PETSc
 comm = PETSc.COMM_WORLD
 rank = comm.getRank()
 
-if rank==0:
+if rank == 0:
     module_path = __file__[:-18]
-    for path in [os.path.join("outputs", "log"), os.path.join("outputs", "png"), os.path.join("outputs", "mesh")]:
+    for path in [
+        os.path.join("outputs", "log"),
+        os.path.join("outputs", "png"),
+        os.path.join("outputs", "mesh"),
+    ]:
         composed_path = os.path.join(module_path, path)
         if not os.path.isdir(composed_path):
             os.makedirs(composed_path)
 
 from scrimp.utils.config import set_verbose
+
 set_verbose()
 
 from scrimp.dphs import DPHS

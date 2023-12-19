@@ -127,9 +127,7 @@ class DPHS:
         self.gf_model.add_macro("z", "X(3)")
 
         if rank == 0:
-            logging.info(
-                f"A model with {basis_field} unknowns has been initialized"
-            )
+            logging.info(f"A model with {basis_field} unknowns has been initialized")
 
     def set_domain(self, domain: Domain):
         """This function sets a domain for the dphs.
@@ -143,9 +141,7 @@ class DPHS:
 
         self.domain = domain
         if rank == 0:
-            logging.info(
-                f"domain: {domain.get_name()} has been set"
-            )
+            logging.info(f"domain: {domain.get_name()} has been set")
 
     def add_state(self, state: State):
         """This functions adds a state to state dict of the dphs.
@@ -157,9 +153,7 @@ class DPHS:
         self.states[state.get_name()] = state
 
         if rank == 0:
-            logging.info(
-                f"state: {state.get_name()} has been added"
-            )
+            logging.info(f"state: {state.get_name()} has been added")
 
     def add_costate(self, costate: CoState):
         """This function adds a costate to the costate dict of the dphs, then defines and adds the dynamical port gathering the couple (State, CoState).
@@ -215,9 +209,7 @@ class DPHS:
             where = f"on region {port.get_region()}"
 
         if rank == 0:
-            logging.info(
-                f"port: {port.get_name()} has been added {where}"
-            )
+            logging.info(f"port: {port.get_name()} has been added {where}")
 
     def add_FEM(self, fem: FEM):
         """This function adds a FEM (Finite Element Method) for the variables associated to a port of the dphs
@@ -232,9 +224,7 @@ class DPHS:
         try:
             assert self.domain.get_isSet()
         except AssertionError as err:
-            logging.error(
-                "Domain must be set before adding FEM"
-            )
+            logging.error("Domain must be set before adding FEM")
             raise err
 
         # Check if the `port` is in the dict of the dphs
@@ -242,9 +232,7 @@ class DPHS:
         try:
             assert name_port in self.ports.keys()
         except AssertionError as err:
-            logging.error(
-                f"Port {name_port} does not exist"
-            )
+            logging.error(f"Port {name_port} does not exist")
             raise err
 
         # Select the dimension, according to the `kind` of the `port`
@@ -254,9 +242,7 @@ class DPHS:
         elif port.get_kind() == "vector-field":
             dim = self.domain.get_dim()[port.get_mesh_id()]
         else:
-            logging.error(
-                f"Unknown kind of variables {port.get_kind()}"
-            )
+            logging.error(f"Unknown kind of variables {port.get_kind()}")
             raise ValueError
 
         # Set the dimension in the `fem`
@@ -288,8 +274,7 @@ class DPHS:
                     port.get_region(),
                 )
             else:
-                self.gf_model.add_fem_variable(
-                    port.get_effort(), port.get_fem())
+                self.gf_model.add_fem_variable(port.get_effort(), port.get_fem())
 
         # If the port is dynamic and the co-state is not substituted, the co-state must be added as an unknown variable
         if port.get_effort() in self.costates.keys():
@@ -353,9 +338,7 @@ class DPHS:
         try:
             assert name_port in self.ports.keys()
         except AssertionError as err:
-            logging.error(
-                f"The port {name_port} does not exist"
-            )
+            logging.error(f"The port {name_port} does not exist")
             raise err
 
         # Check if the FEM of the `port` has been set
@@ -384,9 +367,7 @@ class DPHS:
         elif kind == "scalar-field":
             sizes = 1
         else:
-            logging.error(
-                f"Unknown kind of parameter {kind}"
-            )
+            logging.error(f"Unknown kind of parameter {kind}")
             raise ValueError
 
         # Add the parameter in getfem
@@ -409,13 +390,9 @@ class DPHS:
 
         if name_variable in self.initial_value_set.keys():
             if self.initial_value_set[name_variable]:
-                logging.warning(
-                    f"defining again the initial value of {name_variable}"
-                )
+                logging.warning(f"defining again the initial value of {name_variable}")
         else:
-            logging.error(
-                f"Variable {name_variable} does not need initialization"
-            )
+            logging.error(f"Variable {name_variable} does not need initialization")
             raise ValueError
 
         evaluation = self.gf_model.mesh_fem_of_variable(name_variable).eval(
@@ -443,18 +420,14 @@ class DPHS:
         try:
             assert not initial_value.all() == None
         except AssertionError as err:
-            logging.error(
-                f"{name_variable} can not be found in ports"
-            )
+            logging.error(f"{name_variable} can not be found in ports")
             raise err
 
         self.set_from_vector(name_variable, initial_value)
         self.initial_value_set[name_variable] = True
 
         if rank == 0:
-            logging.info(
-                f"{name_variable} has been initialized with: {expression}"
-            )
+            logging.info(f"{name_variable} has been initialized with: {expression}")
 
     def set_from_vector(self, name_variable, x):
         """This function sets the value of the variable `name_variable` in the getfem `Model` from a numpy vector
@@ -467,12 +440,8 @@ class DPHS:
         self.gf_model.set_variable(name_variable, x)
 
         if rank == 0:
-            logging.info(
-                f"{name_variable} has been set"
-            )
-            logging.debug(
-                f"{name_variable} new value is: {x}"
-            )
+            logging.info(f"{name_variable} has been set")
+            logging.debug(f"{name_variable} new value is: {x}")
 
     def add_brick(self, brick: Brick):
         """This function adds a `brick` in the getfem `Model` thanks to a form in GWFL getfem language
@@ -503,8 +472,7 @@ class DPHS:
 
             elif brick.get_position() == "source":
                 id_brick = self.gf_model.add_source_term_brick(
-                    self.domain._int_method[mesh_id], name_brick[:-
-                                                                 7], form, region
+                    self.domain._int_method[mesh_id], name_brick[:-7], form, region
                 )
                 s = "Source form "
 
@@ -552,9 +520,7 @@ class DPHS:
         elif kind == "tensor-field":
             times = ":"
         else:
-            logging.error(
-                f"Unknown kind of control {kind}"
-            )
+            logging.error(f"Unknown kind of control {kind}")
             raise ValueError
 
         # form of the mass matrix for the control variable
@@ -596,9 +562,7 @@ class DPHS:
         """This function performs the assembly of the bricks dt=True and linear=True and set the PETSc.Mat attribute `mass`"""
 
         if rank == 0:
-            logging.info(
-                "Starting linear mass matrix assembly..."
-            )
+            logging.info("Starting linear mass matrix assembly...")
 
         start = time.perf_counter()
 
@@ -611,8 +575,10 @@ class DPHS:
         rows = self.nl_stiffness.getOwnershipRange()
         cols = [0, self.gf_model.nbdof()]
         extract_gmm_to_petsc(
-            [rows[0], rows[1]], [cols[0], cols[1]
-                                 ], self.gf_model.tangent_matrix(), self.mass
+            [rows[0], rows[1]],
+            [cols[0], cols[1]],
+            self.gf_model.tangent_matrix(),
+            self.mass,
         )
 
         self.disable_all_bricks()
@@ -626,9 +592,7 @@ class DPHS:
         """This function performs the assembly of the bricks dt=False and linear=True and set the PETSc.Mat attribute `stiffness`"""
 
         if rank == 0:
-            logging.info(
-                "Starting linear stiffness matrix assembly..."
-            )
+            logging.info("Starting linear stiffness matrix assembly...")
 
         start = time.perf_counter()
 
@@ -641,8 +605,10 @@ class DPHS:
         rows = self.nl_stiffness.getOwnershipRange()
         cols = [0, self.gf_model.nbdof()]
         extract_gmm_to_petsc(
-            [rows[0], rows[1]], [cols[0], cols[1]
-                                 ], self.gf_model.tangent_matrix(), self.stiffness
+            [rows[0], rows[1]],
+            [cols[0], cols[1]],
+            self.gf_model.tangent_matrix(),
+            self.stiffness,
         )
 
         self.disable_all_bricks()
@@ -665,8 +631,9 @@ class DPHS:
 
         self.gf_model.assembly(option="build_rhs")
         size = self.gf_model.nbdof()
-        self.rhs.setValues(range(size), self.gf_model.rhs(),
-                           addv=PETSc.InsertMode.INSERT_VALUES)
+        self.rhs.setValues(
+            range(size), self.gf_model.rhs(), addv=PETSc.InsertMode.INSERT_VALUES
+        )
         self.rhs.assemble()
 
         self.disable_all_bricks()
@@ -683,8 +650,10 @@ class DPHS:
         rows = self.nl_stiffness.getOwnershipRange()
         cols = [0, self.gf_model.nbdof()]
         extract_gmm_to_petsc(
-            [rows[0], rows[1]], [cols[0], cols[1]
-                                 ], self.gf_model.tangent_matrix(), self.nl_mass
+            [rows[0], rows[1]],
+            [cols[0], cols[1]],
+            self.gf_model.tangent_matrix(),
+            self.nl_mass,
         )
         self.tangent_mass = self.mass.copy()
         self.tangent_mass.axpy(1, self.nl_mass)
@@ -697,15 +666,21 @@ class DPHS:
 
         for _, brick in self.bricks.items():
             # Enable the bricks that are non-dynamical and non-linear
-            if not brick.get_dt() and not brick.get_linear() and not brick.get_explicit():
+            if (
+                not brick.get_dt()
+                and not brick.get_linear()
+                and not brick.get_explicit()
+            ):
                 brick.enable_id_bricks(self.gf_model)
 
         self.gf_model.assembly(option="build_matrix")
         rows = self.nl_stiffness.getOwnershipRange()
         cols = [0, self.gf_model.nbdof()]
         extract_gmm_to_petsc(
-            [rows[0], rows[1]], [cols[0], cols[1]
-                                 ], self.gf_model.tangent_matrix(), self.nl_stiffness
+            [rows[0], rows[1]],
+            [cols[0], cols[1]],
+            self.gf_model.tangent_matrix(),
+            self.nl_stiffness,
         )
         self.tangent_stiffness = self.stiffness.copy()
         self.tangent_stiffness.axpy(1, self.nl_stiffness)
@@ -781,9 +756,7 @@ class DPHS:
 
         if A != P:
             if rank == 0:
-                logging.info(
-                    "Operator different from preconditioning"
-                )
+                logging.info("Operator different from preconditioning")
             A.assemble()
 
     def allocate_memory(self):
@@ -798,8 +771,7 @@ class DPHS:
         self.nl_mass.setType("aij")
         self.nl_mass.setUp()
         self.tangent_mass.setSizes(self.gf_model.nbdof())
-        self.tangent_mass.setOption(
-            PETSc.Mat.Option.FORCE_DIAGONAL_ENTRIES, True)
+        self.tangent_mass.setOption(PETSc.Mat.Option.FORCE_DIAGONAL_ENTRIES, True)
         self.tangent_mass.setType("aij")
         self.tangent_mass.setUp()
         self.stiffness.setSizes(self.gf_model.nbdof())
@@ -807,13 +779,11 @@ class DPHS:
         self.stiffness.setType("aij")
         self.stiffness.setUp()
         self.nl_stiffness.setSizes(self.gf_model.nbdof())
-        self.nl_stiffness.setOption(
-            PETSc.Mat.Option.FORCE_DIAGONAL_ENTRIES, True)
+        self.nl_stiffness.setOption(PETSc.Mat.Option.FORCE_DIAGONAL_ENTRIES, True)
         self.nl_stiffness.setType("aij")
         self.nl_stiffness.setUp()
         self.tangent_stiffness.setSizes(self.gf_model.nbdof())
-        self.tangent_stiffness.setOption(
-            PETSc.Mat.Option.FORCE_DIAGONAL_ENTRIES, True)
+        self.tangent_stiffness.setOption(PETSc.Mat.Option.FORCE_DIAGONAL_ENTRIES, True)
         self.tangent_stiffness.setType("aij")
         self.tangent_stiffness.setUp()
 
@@ -842,9 +812,13 @@ class DPHS:
             self.time_scheme[key] = value
 
         if not self.time_scheme.hasName("ts_equation_type"):
-            self.time_scheme["ts_equation_type"] = PETSc.TS.EquationType.DAE_IMPLICIT_INDEX2
+            self.time_scheme[
+                "ts_equation_type"
+            ] = PETSc.TS.EquationType.DAE_IMPLICIT_INDEX2
 
-        if not self.time_scheme.hasName("ts_type") and not self.time_scheme.hasName("ts_ssp"):
+        if not self.time_scheme.hasName("ts_type") and not self.time_scheme.hasName(
+            "ts_ssp"
+        ):
             self.time_scheme["ts_type"] = "bdf"
             self.time_scheme["ts_bdf_order"] = 2
 
@@ -858,10 +832,10 @@ class DPHS:
             self.time_scheme["pc_factor_mat_solver_type"] = "mumps"
 
         if not self.time_scheme.hasName("t_0"):
-            self.time_scheme["t_0"] = 0.
+            self.time_scheme["t_0"] = 0.0
 
         if not self.time_scheme.hasName("t_f"):
-            self.time_scheme["t_f"] = 1.
+            self.time_scheme["t_f"] = 1.0
 
         if not self.time_scheme.hasName("dt"):
             self.time_scheme["dt"] = 0.01
@@ -947,9 +921,7 @@ class DPHS:
 
         self.stop_TS = True
         if rank == 0:
-            logging.info(
-                "\n *** AUTOMATIC STOP -- LAST ITERATION *** \n"
-            )
+            logging.info("\n *** AUTOMATIC STOP -- LAST ITERATION *** \n")
             logging.info(
                 f"dt reached the limit {float(self.time_scheme['ts_adapt_dt_min']):8g}.\n"
             )
@@ -1028,14 +1000,16 @@ class DPHS:
         # TS
         TS = PETSc.TS().create(comm=comm)
 
-        def monitor(TS, i, t, z): return self.monitor(
-            TS,
-            i,
-            t,
-            z,
-            dt_save=float(self.time_scheme["dt_save"]),
-            t_0=float(self.time_scheme["t_0"]),
-        )
+        def monitor(TS, i, t, z):
+            return self.monitor(
+                TS,
+                i,
+                t,
+                z,
+                dt_save=float(self.time_scheme["dt_save"]),
+                t_0=float(self.time_scheme["t_0"]),
+            )
+
         TS.setMonitor(monitor)
         TS.setEventHandler([0], [True], self.event, self.postevent)
         TS.setEventTolerances(1e-16, vtol=[1e-19])
@@ -1052,8 +1026,11 @@ class DPHS:
         InitVec.zeroEntries()
         rows = InitVec.getOwnershipRange()
         range_rows = range(rows[0], rows[1])
-        InitVec.setValuesLocal(range_rows, self.gf_model.from_variables()[range_rows],
-                               addv=PETSc.InsertMode.INSERT_VALUES)
+        InitVec.setValuesLocal(
+            range_rows,
+            self.gf_model.from_variables()[range_rows],
+            addv=PETSc.InsertMode.INSERT_VALUES,
+        )
         InitVec.assemble()
         # comm.barrier()
 
@@ -1061,9 +1038,7 @@ class DPHS:
         del InitVec
 
         if rank == 0:
-            logging.info(
-                f"Elapsed time: {time.perf_counter() - self.ts_start:1.4g}s"
-            )
+            logging.info(f"Elapsed time: {time.perf_counter() - self.ts_start:1.4g}s")
             logging.info(
                 f"Steps: {TS.getStepNumber()} ({TS.getStepRejections()} rejected, {TS.getSNESFailures()} Nonlinear solver failures)"
             )
@@ -1087,15 +1062,17 @@ class DPHS:
         # TS
         TS = PETSc.TS().create(comm=comm)
 
-        def monitor(TS, i, t, z): return self.monitor(
-            TS,
-            i,
-            t,
-            z,
-            dt_save=1.0,
-            t_0=float(self.time_scheme["t_0"]),
-            initial_step=True,
-        )
+        def monitor(TS, i, t, z):
+            return self.monitor(
+                TS,
+                i,
+                t,
+                z,
+                dt_save=1.0,
+                t_0=float(self.time_scheme["t_0"]),
+                initial_step=True,
+            )
+
         TS.setMonitor(monitor)
         TS.setIFunction(self.IFunction, self.F)
         TS.setIJacobian(self.IJacobian, self.J)
@@ -1115,7 +1092,8 @@ class DPHS:
             saved_options["dt"] = float(self.time_scheme["dt"])
         if self.time_scheme.hasName("ts_adapt_dt_min"):
             saved_options["ts_adapt_dt_min"] = float(
-                self.time_scheme["ts_adapt_dt_min"])
+                self.time_scheme["ts_adapt_dt_min"]
+            )
         self.time_scheme["ts_type"] = self.time_scheme["init_step_ts_type"]
         self.time_scheme["ts_adapt_dt_min"] = 1e-24
 
@@ -1133,8 +1111,11 @@ class DPHS:
         InitVec.zeroEntries()
         rows = InitVec.getOwnershipRange()
         range_rows = range(rows[0], rows[1])
-        InitVec.setValuesLocal(range_rows, self.gf_model.from_variables()[range_rows],
-                               addv=PETSc.InsertMode.INSERT_VALUES)
+        InitVec.setValuesLocal(
+            range_rows,
+            self.gf_model.from_variables()[range_rows],
+            addv=PETSc.InsertMode.INSERT_VALUES,
+        )
         InitVec.assemble()
         # comm.barrier()
 
@@ -1173,8 +1154,8 @@ class DPHS:
         self.Scatter[0].scatter(z, self.GlobalVec)
 
         if not initial_step:
-            if self.solution['t']:
-                next_saved_at_t = self.solution['t'][-1] + dt_save
+            if self.solution["t"]:
+                next_saved_at_t = self.solution["t"][-1] + dt_save
             else:
                 next_saved_at_t = t_0
             if (i == 0) or (next_saved_at_t - t <= 0) or (i == -1) or self.stop_TS:
@@ -1194,7 +1175,9 @@ class DPHS:
 
         # comm.barrier()
         self.gf_model.set_time(t)  # Update the time t in the getfem `Model`
-        if not self.linear_mass or not self.linear_stiffness:  # Needed for non-linear systems only
+        if (
+            not self.linear_mass or not self.linear_stiffness
+        ):  # Needed for non-linear systems only
             # Update the state in the getfem `Model`
             self.gf_model.to_variables(self.GlobalVec.copy().getArray())
         # Says to getfem that we go to the next iteration, not sure if needed
@@ -1218,7 +1201,9 @@ class DPHS:
 
         self.hamiltonian.compute(self.solution, self.gf_model, self.domain)
 
-    def plot_Hamiltonian(self, with_powers=True, save_figure=False, filename="hamiltonian.png"):
+    def plot_Hamiltonian(
+        self, with_powers=True, save_figure=False, filename="hamiltonian.png"
+    ):
         """Plot each term constituting the Hamiltonian and the Hamiltonian
 
         May include the `power terms`, i.e. the sum over [t_0, t_f] of the flow/effort product of algebraic ports
@@ -1257,8 +1242,7 @@ class DPHS:
             ax.set_ylabel("Hamiltonian terms")
             ax.set_title("Evolution of Hamiltonian terms")
             if save_figure:
-                plt.savefig(os.path.join(
-                    module_path, "png", filename), dpi=300)
+                plt.savefig(os.path.join(module_path, "png", filename), dpi=300)
             plt.show()
 
     def compute_powers(self):
@@ -1270,9 +1254,7 @@ class DPHS:
         try:
             assert self.solve_done
         except AssertionError as err:
-            logging.error(
-                "System has not been solved yet, powers can not be computed"
-            )
+            logging.error("System has not been solved yet, powers can not be computed")
             raise err
 
         if rank == 0:
@@ -1321,8 +1303,9 @@ class DPHS:
                 values = np.zeros(t.size)
                 # Integration in time
                 for k in range(1, t.size):
-                    values[k] = values[k - 1] + 0.5 * \
-                        (t[k] - t[k - 1]) * (power[k - 1] + power[k])
+                    values[k] = values[k - 1] + 0.5 * (t[k] - t[k - 1]) * (
+                        power[k - 1] + power[k]
+                    )
                 if rank == 0:
                     if port.get_dissipative():
                         ax.plot(t, -values, label=port.get_name())
@@ -1423,9 +1406,7 @@ class DPHS:
         try:
             assert self.solve_done
         except AssertionError as err:
-            logging.error(
-                "The system has not been solved yet"
-            )
+            logging.error("The system has not been solved yet")
             raise err
 
         if path is not None:
@@ -1469,21 +1450,16 @@ class DPHS:
                         + '" />\n'
                     )
                     if rank == 0:
-                        sys.stdout.write("\rExport time %f" %
-                                         self.solution["t"][k])
+                        sys.stdout.write("\rExport time %f" % self.solution["t"][k])
                         sys.stdout.flush()
                 pvd_file.write("  </Collection>\n")
                 pvd_file.write("</VTKFile>")
             pvd_file.close()
             if rank == 0:
-                logging.info(
-                    "\rExport is done              "
-                )
+                logging.info("\rExport is done              ")
         elif t == "Init":
             if rank == 0:
-                logging.info(
-                    f"Export initial value of {name_variable}"
-                )
+                logging.info(f"Export initial value of {name_variable}")
             z = self.solution["z"][0][J]
             FEM = self.gf_model.mesh_fem_of_variable(name_variable)
             FEM.export_to_vtu(
@@ -1494,9 +1470,7 @@ class DPHS:
             )
         elif t == "Final":
             if rank == 0:
-                logging.info(
-                    f"Export final value of {name_variable}"
-                )
+                logging.info(f"Export final value of {name_variable}")
             z = self.solution["z"][-1][J]
             FEM = self.gf_model.mesh_fem_of_variable(name_variable)
             FEM.export_to_vtu(
@@ -1506,9 +1480,7 @@ class DPHS:
                 name_variable,
             )
         else:
-            logging.error(
-                f"t must be `All`, `Init` or `Final`. Unknown value: {t}"
-            )
+            logging.error(f"t must be `All`, `Init` or `Final`. Unknown value: {t}")
             raise ValueError
 
     def get_solution(self, name_variable) -> list:
@@ -1525,21 +1497,20 @@ class DPHS:
         try:
             assert self.solve_done
         except AssertionError as err:
-            logging.error(
-                "The system has not been solved yet"
-            )
+            logging.error("The system has not been solved yet")
             raise err
 
         dofs = self.gf_model.interval_of_variable(name_variable)
         variable = []
         for k, _ in enumerate(self.solution["t"]):
             variable.append(
-                np.array(self.solution["z"][k][dofs[0]:dofs[0]+dofs[1]]))
+                np.array(self.solution["z"][k][dofs[0] : dofs[0] + dofs[1]])
+            )
 
         return variable
 
     def get_quantity(self, expression, region=-1, mesh_id=0) -> list:
-        """This functions computes the integral over region of the expression 
+        """This functions computes the integral over region of the expression
         at each time step
 
         Args:
@@ -1554,9 +1525,7 @@ class DPHS:
         try:
             assert self.solve_done
         except AssertionError as err:
-            logging.error(
-                "The system has not been solved yet"
-            )
+            logging.error("The system has not been solved yet")
             raise err
 
         values = []
@@ -1565,7 +1534,11 @@ class DPHS:
             self.gf_model.to_variables(self.solution["z"][k])
             values.append(
                 gf.asm_generic(
-                    self.domain._int_method[mesh_id], 0, expression, region, self.gf_model
+                    self.domain._int_method[mesh_id],
+                    0,
+                    expression,
+                    region,
+                    self.gf_model,
                 )
             )
 

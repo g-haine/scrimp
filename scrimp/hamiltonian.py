@@ -110,9 +110,7 @@ class Term:
         try:
             assert isinstance(value, float)
         except AssertionError as err:
-            logging.error(
-                "Can't add value {value}, bad type"
-            )
+            logging.error("Can't add value {value}, bad type")
             raise err
         self.__values.append(value)
 
@@ -142,9 +140,7 @@ class Hamiltonian:
         try:
             assert isinstance(term, Term)
         except AssertionError as err:
-            logging.error(
-                f"Term {term} does not exist."
-            )
+            logging.error(f"Term {term} does not exist.")
             raise err
 
         self.__terms.append(term)
@@ -159,9 +155,7 @@ class Hamiltonian:
         """
 
         if rank == 0:
-            logging.info(
-                "Start computing the Hamiltonian"
-            )
+            logging.info("Start computing the Hamiltonian")
 
         start = time.perf_counter()
         for t, _ in enumerate(solution["t"]):
@@ -245,9 +239,7 @@ class Hamiltonian:
         try:
             return self.__terms[index]
         except IndexError as err:
-            logging.error(
-                f"index {index} out of {len(self.__terms)}"
-            )
+            logging.error(f"index {index} out of {len(self.__terms)}")
             raise err
 
     def set_is_computed(self):

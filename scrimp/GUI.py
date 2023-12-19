@@ -15,7 +15,7 @@ from GUI import (
     add_initial_value_page,
     set_time_scheme_page,
     generate_code_page,
-    export_variable_page
+    export_variable_page,
 )
 from utils.GUI import (
     heading,
@@ -43,7 +43,7 @@ from utils.GUI import (
     text_solve,
     text_plot,
     update_intial_values_page,
-    text_export_variables
+    text_export_variables,
 )
 import os
 
@@ -145,12 +145,12 @@ class Controller:
             self.export_variable_page.show()
         elif text == "start_Paraview":
             filename, dphs = self.generate_code(True)
-            self.run_code(text, None,None)
+            self.run_code(text, None, None)
         else:
             print("the emitted signal:", text)
             pass
 
-    def generate_code(self,export_variables=False):
+    def generate_code(self, export_variables=False):
         """This function retrieves the field from the GUI and create a python script.
         It return the filename and the name of Discrete Port Hamiltonia System declared.
 
@@ -230,7 +230,7 @@ class Controller:
         text_solve(self, file, dphs)
 
         # export solutions for ParaView
-        text_export_variables(self,file,dphs,export_variables)
+        text_export_variables(self, file, dphs, export_variables)
 
         # plot hamiltonian
         text_plot(self, file, dphs)
@@ -254,18 +254,18 @@ class Controller:
         """
 
         if text == "Matplotlib":
-            exec(
-                f'import {filename}\n{filename}.{dphs}_eq()')
+            exec(f"import {filename}\n{filename}.{dphs}_eq()")
 
         elif text == "start_Paraview":
             print(f"Selected Variable to Export: {self.session['selected_variables']}")
-            
+
             for variable in self.session["selected_variables"]:
                 path = self.session["path_to_export_varaible"]
                 if path is not None:
                     os.system(f"paraview {os.path.join(path,variable,variable)}.pvd")
                 else:
                     os.system(f"paraview {os.path.join(variable,variable)}.pvd")
+
 
 def main():
     """The main function that launches the GUI."""

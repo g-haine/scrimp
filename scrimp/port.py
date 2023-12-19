@@ -32,7 +32,12 @@ class Parameter:
     """This class describes the Parameter for a Port."""
 
     def __init__(
-        self, name: str, description: str, kind: str, expression: str, name_port: str,
+        self,
+        name: str,
+        description: str,
+        kind: str,
+        expression: str,
+        name_port: str,
     ):
         """This constructor defines the object Parameter for a Port.
 
@@ -279,9 +284,7 @@ class Port:
             self.__fem = fem.get_fem()
             self.__isSet = True
         except AssertionError as err:
-            logging.error(
-                f"Error while setting the FEM of port: {self.get_name()}"
-            )
+            logging.error(f"Error while setting the FEM of port: {self.get_name()}")
             raise err
 
     def get_parameter(self, name) -> Parameter:
@@ -298,9 +301,7 @@ class Port:
             if p.get_name() == name:
                 return p
 
-        logging.error(
-            f"Parameter with name: {name} does not exit!"
-        )
+        logging.error(f"Parameter with name: {name} does not exit!")
         raise AssertionError
 
     def get_parameters(self) -> list:
@@ -327,9 +328,7 @@ class Port:
             self.__parameters.append(parameter)
             return True
         else:
-            logging.error(
-                "Bad type of parameter"
-            )
+            logging.error("Bad type of parameter")
             raise TypeError
 
     def init_parameter(self, name: str, expression: str):
@@ -403,9 +402,7 @@ class Port:
             elif self.get_kind() == "tensor-field":
                 times = ":"
             else:
-                logging.error(
-                    f"Unknown kind {self.get_kind()}"
-                )
+                logging.error(f"Unknown kind {self.get_kind()}")
                 raise ValueError
 
             form = self.get_flow() + times + self.get_effort()
