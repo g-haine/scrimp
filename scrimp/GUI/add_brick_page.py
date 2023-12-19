@@ -1,13 +1,11 @@
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtWidgets import (
-    QHBoxLayout,
     QPushButton,
-    QLineEdit,
     QGridLayout,
     QTableWidget,
     QTableWidgetItem,
     QComboBox,
-    QLabel
+    QLabel,
 )
 from PyQt5.QtCore import Qt
 from utils.GUI import gui_pages, gui_width, gui_height, Help, check_black_listed_words
@@ -23,23 +21,18 @@ class Window(QtWidgets.QWidget):
 
     switch_window = QtCore.pyqtSignal(str)
 
-    def __init__(self,session):
+    def __init__(self, session):
         QtWidgets.QWidget.__init__(self)
-        self.session  = session
+        self.session = session
 
         self.setWindowTitle("Definition of Brick/s")
         self.setFixedWidth(gui_width)
         self.setFixedHeight(gui_height)
-        # self.setGeometry(100, 100, 600, 300)
 
         self.layout = QGridLayout()
 
-        # self.line_edit = QLineEdit()
-        # layout.addWidget(self.line_edit)
-
         # create a QTableWidget bricks
         self.table_bricks = QTableWidget()
-        # self.table_bricks.setRowCount(1)
 
         # adding header to the table
         header_horizontal_bricks = [
@@ -70,13 +63,6 @@ class Window(QtWidgets.QWidget):
         self.button_clear_all = QPushButton("Clear All")
         self.button_clear_all.clicked.connect(self.clear_all)
 
-        # layout_buttons_brick = QHBoxLayout()
-
-        # layout_buttons_brick.addWidget(self.button_add_brick)
-        # layout_buttons_brick.addWidget(self.button_delete_brick)
-
-        # cell_double = QTableWidget(layout_buttons_brick)
-
         self.button_next = QPushButton("Next >")
         self.button_next.clicked.connect(self.next_page)
 
@@ -84,18 +70,16 @@ class Window(QtWidgets.QWidget):
         self.button_prev.clicked.connect(self.previous_page)
 
         self.layout.addWidget(self.table_bricks, 1, 0, 1, 3)
-        # layout.addWidget(cell_double, 1, 3)
         self.layout.addWidget(self.button_clear_all, 0, 1)
         self.layout.addWidget(self.button_add_brick, 0, 2, Qt.AlignTop)
         self.layout.addWidget(self.button_delete_brick, 0, 3, Qt.AlignTop)
 
         self.layout.addWidget(self.button_next, 4, 3)
         self.layout.addWidget(self.button_prev, 4, 2)
-        
+
         # resume session
         self.label_session = QLabel()
         self.layout.addWidget(self.label_session, 3, 1)
-        
 
         # create navigation list
         self.comboBox = QComboBox()
@@ -110,8 +94,6 @@ class Window(QtWidgets.QWidget):
 
         self.help = Help(self.layout, 3, 3)
         self.table_bricks.cellClicked.connect(self.update_help)
-
-        # self.new_brick()
 
     def update_help(self):
         example = ""
@@ -129,9 +111,7 @@ class Window(QtWidgets.QWidget):
                 description = "Insert the form in GWFL getfem language."
 
             elif col == 2:
-                description = (
-                    "Choose the the regions of mesh where the form applies. If more than one use a coma ',' to separate them with no spaces in between."
-                )
+                description = "Choose the the regions of mesh where the form applies. If more than one use a coma ',' to separate them with no spaces in between."
                 example = "If multiple: 0,1,2"
 
             elif col == 3:
@@ -161,52 +141,52 @@ class Window(QtWidgets.QWidget):
 
     def text_changed(self, page):  # s is a str
         self.comboBox.setCurrentText("add_brick_page")
-        if not check_black_listed_words(self,self.table_bricks, "Bricks") :
+        if not check_black_listed_words(self, self.table_bricks, "Bricks"):
             self.switch_window.emit(page)
             self.hide()
 
-    def update_page(self,gui):
+    def update_page(self, gui):
         table_states = gui.add_state_costate_page.table_states
         table_costates = gui.add_state_costate_page.table_costates
         table_ports = gui.add_port_page.table_ports
         table_control_ports = gui.add_control_port_page.table_control_ports
         table_parameters = gui.add_parameter_page.table_parameters
         s = ""
-        
-        def itemToString(s,table,type_table):
+
+        def itemToString(s, table, type_table):
             cols = [0]
             rows = table.rowCount()
-            s+=f"{type_table}: "
+            s += f"{type_table}: "
             if "ontrol" in type_table:
-                cols = [1,3]
+                cols = [1, 3]
             for row in range(rows):
                 for col in cols:
-                    item = table.item(row,col)
+                    item = table.item(row, col)
                     if item is not None:
                         s += item.text()
-                    if row < rows-1:
-                        s+=", "
+                    if row < rows - 1:
+                        s += ", "
                     else:
-                        s+="\n"
+                        s += "\n"
             return s
-        
-        s = itemToString(s,table_states,"States")
-        s = itemToString(s,table_costates,"Costates")
-        s = itemToString(s,table_ports,"Ports")
-        s = itemToString(s,table_control_ports,"Control Ports")
-        s = itemToString(s,table_parameters,"Parameters")
-        
+
+        s = itemToString(s, table_states, "States")
+        s = itemToString(s, table_costates, "Costates")
+        s = itemToString(s, table_ports, "Ports")
+        s = itemToString(s, table_control_ports, "Control Ports")
+        s = itemToString(s, table_parameters, "Parameters")
+
         self.label_session.setText(s)
 
     def next_page(self):
         """This funciont emit the signal to navigate to the next page."""
-        if not check_black_listed_words(self,self.table_bricks, "Bricks") :
+        if not check_black_listed_words(self, self.table_bricks, "Bricks"):
             self.switch_window.emit("add_expression_page")
             self.hide()
 
     def previous_page(self):
         """This funcion emits the signal to navigate to the prvious page."""
-        if not check_black_listed_words(self,self.table_bricks, "Bricks") :
+        if not check_black_listed_words(self, self.table_bricks, "Bricks"):
             self.switch_window.emit("add_term_page")
             self.hide()
 
@@ -243,8 +223,7 @@ class Window(QtWidgets.QWidget):
 
         brick_choice_linear = QComboBox()
         brick_choice_linear.addItems(["True", "False"])
-        brick_choice_linear.textHighlighted.connect(
-            self.choice_clicked("Linear"))
+        brick_choice_linear.textHighlighted.connect(self.choice_clicked("Linear"))
         self.table_bricks.setCellWidget(count, 3, brick_choice_linear)
 
         brick_choice_dt = QComboBox()
@@ -254,8 +233,7 @@ class Window(QtWidgets.QWidget):
 
         brick_choice_position = QComboBox()
         brick_choice_position.addItems(["constitutive", "flow", "effort"])
-        brick_choice_position.textHighlighted.connect(
-            self.choice_clicked("Position"))
+        brick_choice_position.textHighlighted.connect(self.choice_clicked("Position"))
         self.table_bricks.setCellWidget(count, 5, brick_choice_position)
 
         # set defaults
@@ -273,8 +251,7 @@ class Window(QtWidgets.QWidget):
         """This function removes 2 rows in the table (1 for brick, 1 for co-brick)"""
         if len(self.header_vertical_bricks) > 1:
             self.header_vertical_bricks.pop()
-            self.table_bricks.setVerticalHeaderLabels(
-                self.header_vertical_bricks)
+            self.table_bricks.setVerticalHeaderLabels(self.header_vertical_bricks)
 
             self.table_bricks.removeRow(self.table_bricks.currentRow())
 

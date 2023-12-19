@@ -1,8 +1,6 @@
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtWidgets import (
-    QHBoxLayout,
     QPushButton,
-    QLineEdit,
     QGridLayout,
     QTableWidget,
     QTableWidgetItem,
@@ -22,28 +20,22 @@ class Window(QtWidgets.QWidget):
 
     switch_window = QtCore.pyqtSignal(str)
 
-    def __init__(self,session):
+    def __init__(self, session):
         QtWidgets.QWidget.__init__(self)
-        self.session  = session
+        self.session = session
 
         self.setWindowTitle("Definition of Initial value/s")
         self.setFixedWidth(gui_width)
         self.setFixedHeight(gui_height)
-        # self.setGeometry(100, 100, 600, 300)
 
         self.layout = QGridLayout()
 
-        # self.line_edit = QLineEdit()
-        # layout.addWidget(self.line_edit)
-
         # create a QTableWidget initial_values
         self.table_initial_values = QTableWidget()
-        # self.table_initial_values.setRowCount(1)
 
         # adding header to the table
         header_horizontal_initial_values = ["Variable Name", "Initial Value"]
-        self.table_initial_values.setColumnCount(
-            len(header_horizontal_initial_values))
+        self.table_initial_values.setColumnCount(len(header_horizontal_initial_values))
 
         self.header_vertical_initial_values = ["initial value"]
         self.table_initial_values.setHorizontalHeaderLabels(
@@ -61,18 +53,10 @@ class Window(QtWidgets.QWidget):
         self.button_add_initial_value.clicked.connect(self.new_initial_value)
 
         self.button_delete_initial_value = QPushButton("Remove selected initial_value")
-        self.button_delete_initial_value.clicked.connect(
-            self.delete_initial_value)
+        self.button_delete_initial_value.clicked.connect(self.delete_initial_value)
 
         self.button_clear_all = QPushButton("Clear All")
         self.button_clear_all.clicked.connect(self.clear_all)
-
-        # layout_buttons_initial_value = QHBoxLayout()
-
-        # layout_buttons_initial_value.addWidget(self.button_add_initial_value)
-        # layout_buttons_initial_value.addWidget(self.button_delete_initial_value)
-
-        # cell_double = QTableWidget(layout_buttons_initial_value)
 
         self.button_next = QPushButton("Next >")
         self.button_next.clicked.connect(self.next_page)
@@ -81,11 +65,9 @@ class Window(QtWidgets.QWidget):
         self.button_prev.clicked.connect(self.previous_page)
 
         self.layout.addWidget(self.table_initial_values, 1, 0, 1, 3)
-        # layout.addWidget(cell_double, 1, 3)
         self.layout.addWidget(self.button_clear_all, 0, 1)
         self.layout.addWidget(self.button_add_initial_value, 0, 2, Qt.AlignTop)
-        self.layout.addWidget(
-            self.button_delete_initial_value, 0, 3, Qt.AlignTop)
+        self.layout.addWidget(self.button_delete_initial_value, 0, 3, Qt.AlignTop)
         self.layout.addWidget(self.button_prev, 4, 2)
         self.layout.addWidget(self.button_next, 4, 3)
 
@@ -128,7 +110,9 @@ class Window(QtWidgets.QWidget):
 
     def text_changed(self, page):  # s is a str
         self.comboBox.setCurrentText("add_initial_value_page")
-        if not check_black_listed_words(self,self.table_initial_values, "Initial Values") :
+        if not check_black_listed_words(
+            self, self.table_initial_values, "Initial Values"
+        ):
             self.switch_window.emit(page)
             self.hide()
 
@@ -137,13 +121,17 @@ class Window(QtWidgets.QWidget):
 
     def next_page(self):
         """This funciont emit the signal to navigate to the next page."""
-        if not check_black_listed_words(self,self.table_initial_values, "Initial Values") :
+        if not check_black_listed_words(
+            self, self.table_initial_values, "Initial Values"
+        ):
             self.switch_window.emit("set_time_scheme_page")
             self.hide()
 
     def previous_page(self):
         """This funcion emits the signal to navigate to the prvious page."""
-        if not check_black_listed_words(self,self.table_initial_values, "Initial Values") :
+        if not check_black_listed_words(
+            self, self.table_initial_values, "Initial Values"
+        ):
             self.switch_window.emit("add_expression_page")
             self.hide()
 

@@ -8,7 +8,6 @@ from PyQt5.QtWidgets import (
     QAbstractItemView,
     QPushButton,
     QLabel,
-    QLineEdit,
     QGridLayout,
     QTableWidget,
     QComboBox,
@@ -25,9 +24,9 @@ class Window(QtWidgets.QWidget):
 
     switch_window = QtCore.pyqtSignal(str)
 
-    def __init__(self,session):
+    def __init__(self, session):
         QtWidgets.QWidget.__init__(self)
-        self.session  = session
+        self.session = session
 
         self.setWindowTitle("Define the domain for the dpHs")
         self.setFixedWidth(gui_width)
@@ -56,10 +55,8 @@ class Window(QtWidgets.QWidget):
 
         item_separator_1D.setFlags(Qt.NoItemFlags)
         item_separator_2D.setFlags(Qt.NoItemFlags)
-        item_separator_1D.setForeground(
-            QtGui.QBrush(QtGui.QColor(255, 255, 255)))
-        item_separator_2D.setForeground(
-            QtGui.QBrush(QtGui.QColor(255, 255, 255)))
+        item_separator_1D.setForeground(QtGui.QBrush(QtGui.QColor(255, 255, 255)))
+        item_separator_2D.setForeground(QtGui.QBrush(QtGui.QColor(255, 255, 255)))
         item_separator_1D.setBackground(QtGui.QColor(102, 178, 255))
         item_separator_2D.setBackground(QtGui.QColor(102, 178, 255))
 
@@ -188,7 +185,7 @@ class Window(QtWidgets.QWidget):
 
     def text_changed(self, page):  # s is a str
         self.comboBox.setCurrentText("set_domain_page")
-        if not check_black_listed_words(self,self.table, "Domain") :
+        if not check_black_listed_words(self, self.table, "Domain"):
             self.switch_window.emit(page)
             self.hide()
 
@@ -202,9 +199,8 @@ class Window(QtWidgets.QWidget):
     def update_table(self):
         selection = self.list_widget.currentItem().text()
         self.session["domain"] = selection
-        
+
         self.help.clear()
-        # self.update_help()
 
         if selection == "Other":
             self.layout.itemAt(3).widget().show()
@@ -269,12 +265,12 @@ class Window(QtWidgets.QWidget):
 
     def next_page(self):
         """This funciont emit the signal to navigate to the next page."""
-        if not check_black_listed_words(self,self.table, "Domain") :
+        if not check_black_listed_words(self, self.table, "Domain"):
             self.switch_window.emit("add_state_costate_page")
             self.hide()
 
     def previous_page(self):
         """This funciont emit the signal to navigate to the previous page."""
-        if not check_black_listed_words(self,self.table, "Domain") :
+        if not check_black_listed_words(self, self.table, "Domain"):
             self.switch_window.emit("create_dphs_page")
             self.hide()

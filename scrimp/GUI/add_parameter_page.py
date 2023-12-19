@@ -1,14 +1,5 @@
 from PyQt5 import QtCore, QtWidgets
-from PyQt5.QtWidgets import (
-    QHBoxLayout,
-    QPushButton,
-    QLineEdit,
-    QGridLayout,
-    QTableWidget,
-    QTableWidgetItem,
-    QComboBox,
-    QLabel
-)
+from PyQt5.QtWidgets import QPushButton, QGridLayout, QTableWidget, QComboBox, QLabel
 from PyQt5.QtCore import Qt
 from utils.GUI import gui_pages, gui_width, gui_height, Help, check_black_listed_words
 
@@ -23,23 +14,18 @@ class Window(QtWidgets.QWidget):
 
     switch_window = QtCore.pyqtSignal(str)
 
-    def __init__(self,session):
+    def __init__(self, session):
         QtWidgets.QWidget.__init__(self)
-        self.session  = session
+        self.session = session
 
         self.setWindowTitle("Definition of Parameter/s")
         self.setFixedWidth(gui_width)
         self.setFixedHeight(gui_height)
-        # self.setGeometry(100, 100, 600, 300)
 
         self.layout = QGridLayout()
 
-        # self.line_edit = QLineEdit()
-        # layout.addWidget(self.line_edit)
-
         # create a QTableWidget parameters
         self.table_parameters = QTableWidget()
-        # self.table_parameters.setRowCount(1)
 
         # adding header to the table
         header_horizontal_parameters = [
@@ -52,10 +38,8 @@ class Window(QtWidgets.QWidget):
         self.table_parameters.setColumnCount(len(header_horizontal_parameters))
 
         self.header_vertical_parameters = ["parameter"]
-        self.table_parameters.setHorizontalHeaderLabels(
-            header_horizontal_parameters)
-        self.table_parameters.setVerticalHeaderLabels(
-            self.header_vertical_parameters)
+        self.table_parameters.setHorizontalHeaderLabels(header_horizontal_parameters)
+        self.table_parameters.setVerticalHeaderLabels(self.header_vertical_parameters)
 
         # adjust size columns of horizontal header
         for i, _ in enumerate(header_horizontal_parameters):
@@ -70,13 +54,6 @@ class Window(QtWidgets.QWidget):
         self.button_clear_all = QPushButton("Clear All")
         self.button_clear_all.clicked.connect(self.clear_all)
 
-        # layout_buttons_parameter = QHBoxLayout()
-
-        # layout_buttons_parameter.addWidget(self.button_add_parameter)
-        # layout_buttons_parameter.addWidget(self.button_delete_parameter)
-
-        # cell_double = QTableWidget(layout_buttons_parameter)
-
         self.button_next = QPushButton("Next >")
         self.button_next.clicked.connect(self.next_page)
 
@@ -84,7 +61,6 @@ class Window(QtWidgets.QWidget):
         self.button_prev.clicked.connect(self.previous_page)
 
         self.layout.addWidget(self.table_parameters, 1, 0, 1, 3)
-        # layout.addWidget(cell_double, 1, 3)
         self.layout.addWidget(self.button_clear_all, 0, 1)
         self.layout.addWidget(self.button_add_parameter, 0, 2, Qt.AlignTop)
         self.layout.addWidget(self.button_delete_parameter, 0, 3, Qt.AlignTop)
@@ -109,8 +85,6 @@ class Window(QtWidgets.QWidget):
 
         self.help = Help(self.layout, 3, 3)
         self.table_parameters.cellClicked.connect(self.update_help)
-
-        # self.new_parameter()
 
     def update_help(self):
         example = ""
@@ -148,60 +122,53 @@ class Window(QtWidgets.QWidget):
 
     def text_changed(self, page):  # s is a str
         self.comboBox.setCurrentText("add_parameter_page")
-        if not check_black_listed_words(self,self.table_parameters, "Parameters") :
+        if not check_black_listed_words(self, self.table_parameters, "Parameters"):
             self.switch_window.emit(page)
             self.hide()
 
-    def update_page(self,gui):
+    def update_page(self, gui):
         for row in range(self.table_parameters.rowCount()):
-            comboBox = self.table_parameters.cellWidget(row,2)
+            comboBox = self.table_parameters.cellWidget(row, 2)
             comboBox.clear()
             if "domain" in self.session.keys() and self.session["domain"] == "Segment":
-                comboBox.addItems(
-                    ["scalar-field"]
-                )
+                comboBox.addItems(["scalar-field"])
             else:
-                comboBox.addItems(
-                    ["scalar-field", "vector-field", "tensor-field"]
-                )
-            
+                comboBox.addItems(["scalar-field", "vector-field", "tensor-field"])
 
         table_ports = gui.add_port_page.table_ports
 
         s = ""
-            
-        def itemToString(s,table,type_table):
+
+        def itemToString(s, table, type_table):
             cols = [0]
             rows = table.rowCount()
-            s+=f"{type_table}: "
+            s += f"{type_table}: "
             if "ontrol" in type_table:
-                cols = [1,3]
+                cols = [1, 3]
             for row in range(rows):
                 for col in cols:
-                    item = table.item(row,col)
+                    item = table.item(row, col)
                     if item is not None:
                         s += item.text()
-                    if row < rows-1:
-                        s+=", "
+                    if row < rows - 1:
+                        s += ", "
                     else:
-                        s+="\n"
+                        s += "\n"
             return s
-        
 
-        s = itemToString(s,table_ports,"Ports")
+        s = itemToString(s, table_ports, "Ports")
 
-        
         self.label_session.setText(s)
 
     def next_page(self):
         """This funciont emit the signal to navigate to the next page."""
-        if not check_black_listed_words(self,self.table_parameters, "Parameters") :
+        if not check_black_listed_words(self, self.table_parameters, "Parameters"):
             self.switch_window.emit("add_control_port_page")
             self.hide()
 
     def previous_page(self):
         """This funcion emits the signal to navigate to the prvious page."""
-        if not check_black_listed_words(self,self.table_parameters, "Parameters") :
+        if not check_black_listed_words(self, self.table_parameters, "Parameters"):
             self.switch_window.emit("add_port_page")
             self.hide()
 
@@ -227,19 +194,15 @@ class Window(QtWidgets.QWidget):
         count = self.table_parameters.rowCount()
         self.table_parameters.insertRow(count)
         self.header_vertical_parameters += ["parameter"]
-        self.table_parameters.setVerticalHeaderLabels(
-            self.header_vertical_parameters)
+        self.table_parameters.setVerticalHeaderLabels(self.header_vertical_parameters)
         parameter_choice_kind = QComboBox()
         if "domain" in self.session.keys() and self.session["domain"] == "Segment":
-            parameter_choice_kind.addItems(
-                ["scalar-field"]
-            )
+            parameter_choice_kind.addItems(["scalar-field"])
         else:
             parameter_choice_kind.addItems(
                 ["scalar-field", "vector-field", "tensor-field"]
             )
-        parameter_choice_kind.textHighlighted.connect(
-            self.choice_clicked("Kind"))
+        parameter_choice_kind.textHighlighted.connect(self.choice_clicked("Kind"))
         self.table_parameters.setCellWidget(count, 2, parameter_choice_kind)
 
     def delete_parameter(self):
@@ -250,8 +213,7 @@ class Window(QtWidgets.QWidget):
                 self.header_vertical_parameters
             )
 
-            self.table_parameters.removeRow(
-                self.table_parameters.currentRow())
+            self.table_parameters.removeRow(self.table_parameters.currentRow())
 
         else:
             print("not enough element to delete!")

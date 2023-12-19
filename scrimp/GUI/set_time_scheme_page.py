@@ -7,7 +7,6 @@ from PyQt5.QtWidgets import (
     QAbstractItemView,
     QPushButton,
     QLabel,
-    QLineEdit,
     QGridLayout,
     QTableWidget,
     QTableWidgetItem,
@@ -41,9 +40,9 @@ class Window(QtWidgets.QWidget):
         for i in range(2, 7):
             self.layout.itemAt(i).widget().show()
 
-    def __init__(self,session):
+    def __init__(self, session):
         QtWidgets.QWidget.__init__(self)
-        self.session  = session
+        self.session = session
 
         self.setWindowTitle("Define the Time scheme")
         self.setFixedWidth(gui_width)
@@ -198,7 +197,7 @@ class Window(QtWidgets.QWidget):
 
     def text_changed(self, page):  # s is a str
         self.comboBox.setCurrentText("set_time_scheme_page")
-        if not check_black_listed_words(self,self.table, "Set Time scheme tabke") :
+        if not check_black_listed_words(self, self.table, "Set Time scheme tabke"):
             self.switch_window.emit(page)
             self.hide()
 
@@ -281,12 +280,12 @@ class Window(QtWidgets.QWidget):
 
     def next_page(self):
         """This funciont emit the signal to navigate to the next page."""
-        if not check_black_listed_words(self,self.table, "Set Time scheme tabke") :
+        if not check_black_listed_words(self, self.table, "Set Time scheme tabke"):
             self.switch_window.emit("generate_code_page")
             self.hide()
 
     def previous_page(self):
         """This funciont emit the signal to navigate to the previous page."""
-        if not check_black_listed_words(self,self.table, "Set Time scheme tabke") :
+        if not check_black_listed_words(self, self.table, "Set Time scheme tabke"):
             self.switch_window.emit("add_initial_value_page")
             self.hide()

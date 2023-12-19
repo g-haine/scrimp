@@ -1,15 +1,20 @@
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtWidgets import (
-    QHBoxLayout,
     QPushButton,
-    QLineEdit,
     QGridLayout,
     QTableWidget,
     QTableWidgetItem,
     QComboBox,
 )
 from PyQt5.QtCore import Qt
-from utils.GUI import gui_pages, gui_width, gui_height, Help, check_black_listed_words,update_list_variables
+from utils.GUI import (
+    gui_pages,
+    gui_width,
+    gui_height,
+    Help,
+    check_black_listed_words,
+    update_list_variables,
+)
 
 
 class Window(QtWidgets.QWidget):
@@ -22,23 +27,18 @@ class Window(QtWidgets.QWidget):
 
     switch_window = QtCore.pyqtSignal(str)
 
-    def __init__(self,session):
+    def __init__(self, session):
         QtWidgets.QWidget.__init__(self)
-        self.session  = session
+        self.session = session
 
         self.setWindowTitle("Definition of Port/s")
         self.setFixedWidth(gui_width)
         self.setFixedHeight(gui_height)
-        # self.setGeometry(100, 100, 600, 300)
 
         self.layout = QGridLayout()
 
-        # self.line_edit = QLineEdit()
-        # layout.addWidget(self.line_edit)
-
         # create a QTableWidget ports
         self.table_ports = QTableWidget()
-        # self.table_ports.setRowCount(1)
 
         # adding header to the table
         header_horizontal_ports = [
@@ -70,13 +70,6 @@ class Window(QtWidgets.QWidget):
         self.button_clear_all = QPushButton("Clear All")
         self.button_clear_all.clicked.connect(self.clear_all)
 
-        # layout_buttons_port = QHBoxLayout()
-
-        # layout_buttons_port.addWidget(self.button_add_port)
-        # layout_buttons_port.addWidget(self.button_delete_port)
-
-        # cell_double = QTableWidget(layout_buttons_port)
-
         self.button_next = QPushButton("Next >")
         self.button_next.clicked.connect(self.next_page)
 
@@ -84,7 +77,6 @@ class Window(QtWidgets.QWidget):
         self.button_prev.clicked.connect(self.previous_page)
 
         self.layout.addWidget(self.table_ports, 1, 0, 1, 3)
-        # layout.addWidget(cell_double, 1, 3)
         self.layout.addWidget(self.button_clear_all, 0, 1)
         self.layout.addWidget(self.button_add_port, 0, 2, Qt.AlignTop)
         self.layout.addWidget(self.button_delete_port, 0, 3, Qt.AlignTop)
@@ -105,8 +97,6 @@ class Window(QtWidgets.QWidget):
 
         self.help = Help(self.layout, 3, 3)
         self.table_ports.cellClicked.connect(self.update_help)
-
-        # self.new_port()
 
     def update_help(self):
         example = ""
@@ -159,36 +149,31 @@ class Window(QtWidgets.QWidget):
 
     def text_changed(self, page):  # s is a str
         self.comboBox.setCurrentText("add_port_page")
-        if not check_black_listed_words(self,self.table_ports, "Ports") :
-            update_list_variables(self.session["variables"],self.table_ports,"port")
+        if not check_black_listed_words(self, self.table_ports, "Ports"):
+            update_list_variables(self.session["variables"], self.table_ports, "port")
             self.switch_window.emit(page)
             self.hide()
 
-    
     def update_page(self):
         for row in range(self.table_ports.rowCount()):
-            comboBox = self.table_ports.cellWidget(row,3)
+            comboBox = self.table_ports.cellWidget(row, 3)
             comboBox.clear()
             if "domain" in self.session.keys() and self.session["domain"] == "Segment":
-                comboBox.addItems(
-                    ["scalar-field"]
-                )
+                comboBox.addItems(["scalar-field"])
             else:
-                comboBox.addItems(
-                    ["scalar-field", "vector-field", "tensor-field"]
-                )
+                comboBox.addItems(["scalar-field", "vector-field", "tensor-field"])
 
     def next_page(self):
         """This funciont emit the signal to navigate to the next page."""
-        if not check_black_listed_words(self,self.table_ports, "Ports") :
-            update_list_variables(self.session["variables"],self.table_ports,"port")
+        if not check_black_listed_words(self, self.table_ports, "Ports"):
+            update_list_variables(self.session["variables"], self.table_ports, "port")
             self.switch_window.emit("add_parameter_page")
             self.hide()
 
     def previous_page(self):
         """This funcion emits the signal to navigate to the prvious page."""
-        if not check_black_listed_words(self,self.table_ports, "Ports") :
-            update_list_variables(self.session["variables"],self.table_ports,"port")
+        if not check_black_listed_words(self, self.table_ports, "Ports"):
+            update_list_variables(self.session["variables"], self.table_ports, "port")
             self.switch_window.emit("add_state_costate_page")
             self.hide()
 
@@ -223,22 +208,18 @@ class Window(QtWidgets.QWidget):
         self.table_ports.insertRow(count)
         self.header_vertical_ports += ["port"]
         self.table_ports.setVerticalHeaderLabels(self.header_vertical_ports)
+
         # create table to add in cell of table
         port_choice_algebraic = QComboBox()
         port_choice_algebraic.addItems(["True", "False"])
-        port_choice_algebraic.textHighlighted.connect(
-            self.choice_clicked("Algebraic"))
+        port_choice_algebraic.textHighlighted.connect(self.choice_clicked("Algebraic"))
         self.table_ports.setCellWidget(count, 5, port_choice_algebraic)
 
         port_choice_kind = QComboBox()
         if "domain" in self.session.keys() and self.session["domain"] == "Segment":
-            port_choice_kind.addItems(
-                ["scalar-field"]
-            )
+            port_choice_kind.addItems(["scalar-field"])
         else:
-            port_choice_kind.addItems(
-                ["scalar-field", "vector-field", "tensor-field"]
-            )
+            port_choice_kind.addItems(["scalar-field", "vector-field", "tensor-field"])
         port_choice_kind.textHighlighted.connect(self.choice_clicked("Kind"))
         self.table_ports.setCellWidget(count, 3, port_choice_kind)
 
@@ -264,8 +245,7 @@ class Window(QtWidgets.QWidget):
         """This function removes 2 rows in the table (1 for port, 1 for co-port)"""
         if len(self.header_vertical_ports) > 1:
             self.header_vertical_ports.pop()
-            self.table_ports.setVerticalHeaderLabels(
-                self.header_vertical_ports)
+            self.table_ports.setVerticalHeaderLabels(self.header_vertical_ports)
 
             self.table_ports.removeRow(self.table_ports.currentRow())
 

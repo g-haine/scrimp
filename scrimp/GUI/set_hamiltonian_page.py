@@ -1,6 +1,6 @@
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtWidgets import QComboBox, QLabel, QLineEdit, QGridLayout
-from utils.GUI import gui_pages, gui_width, gui_height,check_black_listed_words
+from utils.GUI import gui_pages, gui_width, gui_height, check_black_listed_words
 
 
 class Window(QtWidgets.QWidget):
@@ -12,9 +12,9 @@ class Window(QtWidgets.QWidget):
 
     switch_window = QtCore.pyqtSignal(str)
 
-    def __init__(self,session):
+    def __init__(self, session):
         QtWidgets.QWidget.__init__(self)
-        self.session  = session
+        self.session = session
         self.setWindowTitle("Definition of the Hamiltonian: ")
         self.setFixedWidth(gui_width)
         self.setFixedHeight(gui_height)
@@ -52,7 +52,9 @@ class Window(QtWidgets.QWidget):
 
     def text_changed(self, page):  # s is a str
         self.comboBox.setCurrentText("set_hamiltonian_page")
-        if not check_black_listed_words(self,self.line_edit_hamiltonian_name, "Set Hamiltonian Names") :
+        if not check_black_listed_words(
+            self, self.line_edit_hamiltonian_name, "Set Hamiltonian Names"
+        ):
             self.switch_window.emit(page)
             self.hide()
 
@@ -61,12 +63,16 @@ class Window(QtWidgets.QWidget):
 
     def next_page(self):
         """This funciont emit the signal to navigate to the next page."""
-        if not check_black_listed_words(self,self.line_edit_hamiltonian_name, "Set Hamiltonian Names") :
+        if not check_black_listed_words(
+            self, self.line_edit_hamiltonian_name, "Set Hamiltonian Names"
+        ):
             self.switch_window.emit("add_term_page")
             self.hide()
 
     def previous_page(self):
         """This funcion emits the signal to navigate to the prvious page."""
-        if not check_black_listed_words(self,self.line_edit_hamiltonian_name, "Set Hamiltonian Names") :
+        if not check_black_listed_words(
+            self, self.line_edit_hamiltonian_name, "Set Hamiltonian Names"
+        ):
             self.switch_window.emit("add_fem_page")
             self.hide()

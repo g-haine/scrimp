@@ -1,4 +1,4 @@
-from PyQt5 import QtCore, QtWidgets, QtGui
+from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtWidgets import (
     QMessageBox,
     QFileDialog,
@@ -6,7 +6,6 @@ from PyQt5.QtWidgets import (
     QLabel,
     QLineEdit,
     QGridLayout,
-    QAbstractButton,
 )
 from utils.GUI import gui_pages, gui_width, gui_height
 
@@ -20,9 +19,9 @@ class Window(QtWidgets.QWidget):
 
     switch_window = QtCore.pyqtSignal(str)
 
-    def __init__(self,session):
+    def __init__(self, session):
         QtWidgets.QWidget.__init__(self)
-        self.session  = session
+        self.session = session
         self.setWindowTitle(
             "Generate the Python script for the defined Discrete Port Hamiltonian System"
         )
@@ -42,8 +41,7 @@ class Window(QtWidgets.QWidget):
         self.button_file_dialog = QtWidgets.QPushButton("Select Folder", self)
         self.button_file_dialog.clicked.connect(self.get_path)
 
-        label_directory = QLabel(
-            '<font size="4"> The selected directory is: </font>')
+        label_directory = QLabel('<font size="4"> The selected directory is: </font>')
         self.line_edit_directory = QLineEdit()
         self.line_edit_directory.setPlaceholderText(
             "Insert manually your filepath or click the button on the right to select the directory"
@@ -57,12 +55,9 @@ class Window(QtWidgets.QWidget):
             "Select your prefered output by clicking on the related button:"
         )
         self.msg.setIcon(QMessageBox.Question)
-        self.button_paraview = self.msg.addButton(
-            "Paraview", QMessageBox.NoRole)
-        self.button_matplotlib = self.msg.addButton(
-            "Matplotlib", QMessageBox.YesRole)
-        self.button_cancel = self.msg.addButton(
-            "Cancel", QMessageBox.RejectRole)
+        self.button_paraview = self.msg.addButton("Paraview", QMessageBox.NoRole)
+        self.button_matplotlib = self.msg.addButton("Matplotlib", QMessageBox.YesRole)
+        self.button_cancel = self.msg.addButton("Cancel", QMessageBox.RejectRole)
         self.button_paraview.clicked.connect(self.popup_button)
         self.button_matplotlib.clicked.connect(self.popup_button)
 
@@ -105,8 +100,7 @@ class Window(QtWidgets.QWidget):
         self.switch_window.emit(text)
 
     def get_path(self):
-        self.file_path = str(
-            QFileDialog.getExistingDirectory(self, "Select Directory"))
+        self.file_path = str(QFileDialog.getExistingDirectory(self, "Select Directory"))
         print(self.file_path)
         self.line_edit_directory.setText(self.file_path)
 

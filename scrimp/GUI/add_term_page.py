@@ -1,13 +1,11 @@
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtWidgets import (
-    QHBoxLayout,
     QPushButton,
-    QLineEdit,
     QGridLayout,
     QTableWidget,
     QTableWidgetItem,
     QComboBox,
-    QLabel
+    QLabel,
 )
 from PyQt5.QtCore import Qt
 from utils.GUI import gui_pages, gui_width, gui_height, Help, check_black_listed_words
@@ -23,27 +21,21 @@ class Window(QtWidgets.QWidget):
 
     switch_window = QtCore.pyqtSignal(str)
 
-    def __init__(self,session):
+    def __init__(self, session):
         QtWidgets.QWidget.__init__(self)
-        self.session  = session
+        self.session = session
 
         self.setWindowTitle("Definition of Term/s")
         self.setFixedWidth(gui_width)
         self.setFixedHeight(gui_height)
-        # self.setGeometry(100, 100, 600, 300)
 
         self.layout = QGridLayout()
 
-        # self.line_edit = QLineEdit()
-        # layout.addWidget(self.line_edit)
-
         # create a QTableWidget terms
         self.table_terms = QTableWidget()
-        # self.table_terms.setRowCount(1)
 
         # adding header to the table
-        header_horizontal_terms = ["Description",
-                                   "Expression", "Regions", "Mesh ID"]
+        header_horizontal_terms = ["Description", "Expression", "Regions", "Mesh ID"]
         self.table_terms.setColumnCount(len(header_horizontal_terms))
 
         self.header_vertical_terms = ["term"]
@@ -63,13 +55,6 @@ class Window(QtWidgets.QWidget):
         self.button_clear_all = QPushButton("Clear All")
         self.button_clear_all.clicked.connect(self.clear_all)
 
-        # layout_buttons_term = QHBoxLayout()
-
-        # layout_buttons_term.addWidget(self.button_add_term)
-        # layout_buttons_term.addWidget(self.button_delete_term)
-
-        # cell_double = QTableWidget(layout_buttons_term)
-
         self.button_next = QPushButton("Next >")
         self.button_next.clicked.connect(self.next_page)
 
@@ -84,8 +69,7 @@ class Window(QtWidgets.QWidget):
 
         self.layout.addWidget(self.button_next, 4, 3)
         self.layout.addWidget(self.button_prev, 4, 2)
-        
-        
+
         # resume session
         self.label_session = QLabel()
         self.layout.addWidget(self.label_session, 3, 1)
@@ -120,7 +104,9 @@ class Window(QtWidgets.QWidget):
                 example = "Kinetic energy"
 
             elif col == 1:
-                description = "Choose the formula, using the Model variables, to define the term."
+                description = (
+                    "Choose the formula, using the Model variables, to define the term."
+                )
                 example = " Parameters are allowed: 0.5*q.T.q"
 
             elif col == 2:
@@ -138,54 +124,52 @@ class Window(QtWidgets.QWidget):
 
     def text_changed(self, page):  # s is a str
         self.comboBox.setCurrentText("add_term_page")
-        if not check_black_listed_words(self,self.table_terms, "Terms") :
+        if not check_black_listed_words(self, self.table_terms, "Terms"):
             self.switch_window.emit(page)
             self.hide()
 
-    def update_page(self,gui):
+    def update_page(self, gui):
         table_states = gui.add_state_costate_page.table_states
         table_costates = gui.add_state_costate_page.table_costates
         table_ports = gui.add_port_page.table_ports
         table_control_ports = gui.add_control_port_page.table_control_ports
         table_parameters = gui.add_parameter_page.table_parameters
         s = ""
-        
-        def itemToString(s,table,type_table):
+
+        def itemToString(s, table, type_table):
             cols = [0]
             rows = table.rowCount()
-            s+=f"{type_table}: "
+            s += f"{type_table}: "
             if "ontrol" in type_table:
-                cols = [1,3]
+                cols = [1, 3]
             for row in range(rows):
                 for col in cols:
-                    item = table.item(row,col)
+                    item = table.item(row, col)
                     if item is not None:
                         s += item.text()
-                    if row < rows-1:
-                        s+=", "
+                    if row < rows - 1:
+                        s += ", "
                     else:
-                        s+="\n"
+                        s += "\n"
             return s
-        
-        s = itemToString(s,table_states,"States")
-        s = itemToString(s,table_costates,"Costates")
-        s = itemToString(s,table_ports,"Ports")
-        s = itemToString(s,table_control_ports,"Control Ports")
-        s = itemToString(s,table_parameters,"Parameters")
-        
-        self.label_session.setText(s)
 
-        
+        s = itemToString(s, table_states, "States")
+        s = itemToString(s, table_costates, "Costates")
+        s = itemToString(s, table_ports, "Ports")
+        s = itemToString(s, table_control_ports, "Control Ports")
+        s = itemToString(s, table_parameters, "Parameters")
+
+        self.label_session.setText(s)
 
     def next_page(self):
         """This funciont emit the signal to navigate to the next page."""
-        if not check_black_listed_words(self,self.table_terms, "Terms") :
+        if not check_black_listed_words(self, self.table_terms, "Terms"):
             self.switch_window.emit("add_brick_page")
             self.hide()
 
     def previous_page(self):
         """This funcion emits the signal to navigate to the prvious page."""
-        if not check_black_listed_words(self,self.table_terms, "Terms") :
+        if not check_black_listed_words(self, self.table_terms, "Terms"):
             self.switch_window.emit("set_hamiltonian_page")
             self.hide()
 
@@ -210,8 +194,7 @@ class Window(QtWidgets.QWidget):
         """This function removes 2 rows in the table (1 for term, 1 for co-term)"""
         if len(self.header_vertical_terms) > 1:
             self.header_vertical_terms.pop()
-            self.table_terms.setVerticalHeaderLabels(
-                self.header_vertical_terms)
+            self.table_terms.setVerticalHeaderLabels(self.header_vertical_terms)
 
             self.table_terms.removeRow(self.table_terms.currentRow())
 

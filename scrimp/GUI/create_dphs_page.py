@@ -1,6 +1,6 @@
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtWidgets import QComboBox, QLabel, QLineEdit, QGridLayout
-from utils.GUI import gui_pages, gui_width, gui_height,check_black_listed_words
+from utils.GUI import gui_pages, gui_width, gui_height, check_black_listed_words
 
 
 class Window(QtWidgets.QWidget):
@@ -12,9 +12,9 @@ class Window(QtWidgets.QWidget):
 
     switch_window = QtCore.pyqtSignal(str)
 
-    def __init__(self,session):
+    def __init__(self, session):
         QtWidgets.QWidget.__init__(self)
-        self.session  = session
+        self.session = session
         self.setWindowTitle("Definition of new distributed port-Hamiltonian system")
         self.setFixedWidth(gui_width)
         self.setFixedHeight(gui_height)
@@ -53,7 +53,9 @@ class Window(QtWidgets.QWidget):
 
     def text_changed(self, page):  # s is a str
         self.comboBox.setCurrentText("create_dphs_page")
-        if not check_black_listed_words(self,self.line_edit_dphs_name, "Name for your dpHs") :
+        if not check_black_listed_words(
+            self, self.line_edit_dphs_name, "Name for your dpHs"
+        ):
             self.switch_window.emit(page)
             self.hide()
 
@@ -62,6 +64,8 @@ class Window(QtWidgets.QWidget):
 
     def next_page(self):
         """This funciont emit the signal to navigate to next page."""
-        if not check_black_listed_words(self,self.line_edit_dphs_name, "Name for your dpHs") :
+        if not check_black_listed_words(
+            self, self.line_edit_dphs_name, "Name for your dpHs"
+        ):
             self.switch_window.emit("set_domain_page")
             self.hide()
