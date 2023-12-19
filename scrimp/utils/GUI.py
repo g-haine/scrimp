@@ -7,7 +7,7 @@ from PyQt5.QtWidgets import (
     QComboBox,
     QLabel,
     QTextEdit,
-    QMessageBox
+    QMessageBox,
 )
 
 from PyQt5.QtGui import QTextCharFormat, QFont, QTextCursor, QColor
@@ -55,30 +55,31 @@ from itertools import zip_longest
 
 """
 
-def update_list_variables(list_variables,table,name_table):
+
+def update_list_variables(list_variables, table, name_table):
     rows = table.rowCount()
 
     items = []
     for row in range(rows):
-        if name_table == "state": 
-            items.append(table.item(row,0))
+        if name_table == "state":
+            items.append(table.item(row, 0))
 
-        if name_table == "port": 
-            items.append(table.item(row,1))
-            items.append(table.item(row,2))
+        if name_table == "port":
+            items.append(table.item(row, 1))
+            items.append(table.item(row, 2))
 
-        if name_table == "control_port": 
-            items.append(table.item(row,1))
-            items.append(table.item(row,3))
-    
+        if name_table == "control_port":
+            items.append(table.item(row, 1))
+            items.append(table.item(row, 3))
+
     for item in items:
         if item is not None:
             variable_name = item.text()
             if variable_name not in list_variables and variable_name != "":
                 list_variables.append(variable_name)
 
-def check_black_listed_words(self,widget,widget_name):
-    
+
+def check_black_listed_words(self, widget, widget_name):
     """This function checks if the field in the passed table contains a black listed word. It returns True if the there is a violation.
 
     Returns:
@@ -87,10 +88,14 @@ def check_black_listed_words(self,widget,widget_name):
     violantion = False
     list_violations = []
     self.msg = QMessageBox()
-    
-    if isinstance(widget,QLineEdit):
+
+    if isinstance(widget, QLineEdit):
         name = widget.text()
-        if name is not None and name != "" and name in self.session["black_listed_words"]:
+        if (
+            name is not None
+            and name != ""
+            and name in self.session["black_listed_words"]
+        ):
             print("name not valid")
             violantion = True
             widget.setStyleSheet("background-color:rgb(255,204,203)")
@@ -98,51 +103,57 @@ def check_black_listed_words(self,widget,widget_name):
         else:
             widget.setStyleSheet("background-color:rgb(255,255,255)")
         self.msg.setWindowTitle(f"Warning in QLineEdit: {widget_name}")
-    
-    if isinstance(widget,QTableWidget):
+
+    if isinstance(widget, QTableWidget):
         table = widget
         table_name = widget_name
         cols = table.columnCount()
         rows = table.rowCount()
-        
+
         for row in range(rows):
             for col in range(cols):
                 # if col is not None and row is not None:
                 name = ""
-                item = table.item(row,col)
+                item = table.item(row, col)
                 if item is not None:
-                    name = item.text() 
-                
-                    if name is not None and name != "" and name in self.session["black_listed_words"]:
+                    name = item.text()
+
+                    if (
+                        name is not None
+                        and name != ""
+                        and name in self.session["black_listed_words"]
+                    ):
                         print("name not valid")
                         violantion = True
-                        table.item(row,col).setBackground(QColor(255,204,203))
-                        list_violations.append(f"Cell {row}:{col} contains black listed word: {name}")
+                        table.item(row, col).setBackground(QColor(255, 204, 203))
+                        list_violations.append(
+                            f"Cell {row}:{col} contains black listed word: {name}"
+                        )
                     else:
-                        item.setBackground(QColor(255,255,255))
-            
+                        item.setBackground(QColor(255, 255, 255))
+
             self.msg.setWindowTitle(f"Warning in Table {table_name}")
-        
-    #from IPython import embed; embed()
+
+    # from IPython import embed; embed()
     if len(list_violations) > 0:
-        
-        self.msg.setText("\n".join(list_violations)
-            
-        )
+        self.msg.setText("\n".join(list_violations))
         self.msg.exec_()
         print(list_violations)
-    
+
     return violantion
-    
+
+
 def text_main(self, file, dphs):
     file.write(f"\n    return {dphs}\n\n")
-    file.write(f"""if __name__ == "__main__":
-    {dphs} = {dphs}_eq()""")
+    file.write(
+        f"""if __name__ == "__main__":
+    {dphs} = {dphs}_eq()"""
+    )
 
 
-def text_export_variables(self,file,dphs,export_variable):
+def text_export_variables(self, file, dphs, export_variable):
     if export_variable:
-        file.write(f"\n    # export variable for Paraview") 
+        file.write(f"\n    # export variable for Paraview")
         for variable in self.session["selected_variables"]:
             file.write(f"\n    {dphs}.export_to_pv('{variable}')")
 
@@ -238,7 +249,7 @@ def text_add_states(self, file):
             if col in [3, 4]:
                 if text == "":
                     text = None
-                file.write(f'{text}')
+                file.write(f"{text}")
             else:
                 file.write(f'"{text}"')
 
@@ -359,7 +370,6 @@ def text_add_parameters(self, file):
     file.write("\n    ]")
 
 
-
 def update_intial_values_page(self):
     """This function updates the add parameter page accounting for the existing states and ports already declared."""
     table_initial_values = self.add_initial_value_page.table_initial_values
@@ -380,6 +390,7 @@ def update_intial_values_page(self):
             if item is not None:
                 self.add_initial_value_page.new_initial_value()
                 table_initial_values.setItem(row, 0, item.clone())
+
 
 def update_parameters_page(self):
     """This function updates the add parameter page accounting for the existing states and ports already declared."""
@@ -435,7 +446,7 @@ def text_add_control_ports(self, file):
             if col not in [6, 8]:
                 file.write(f'"{text}"')
             else:
-                file.write(f'{text}')
+                file.write(f"{text}")
 
             if col + 1 < cols:
                 file.write(f",")
@@ -479,8 +490,7 @@ def update_control_ports_page(self):
                 table_control_ports.setItem(
                     row,
                     0,
-                    QtWidgets.QTableWidgetItem(
-                        f"Boundary control ({where[row]})"),
+                    QtWidgets.QTableWidgetItem(f"Boundary control ({where[row]})"),
                 )
                 # set name control
                 table_control_ports.setItem(
@@ -496,12 +506,12 @@ def update_control_ports_page(self):
                 )
 
                 table_control_ports.setItem(
-                    row, 6, QtWidgets.QTableWidgetItem(f"{10+row}"))
+                    row, 6, QtWidgets.QTableWidgetItem(f"{10+row}")
+                )
                 if table_control_ports.rowCount() < 4:
                     self.add_control_port_page.new_control_port()
 
         elif type_domain == "Disck" or type_domain == "Concentric":
-
             where = ["0", "1"]
             control = ["U_0", "U_1"]
             observation = ["Y_0", "Y_1"]
@@ -524,8 +534,7 @@ def update_control_ports_page(self):
                 QtWidgets.QTableWidgetItem(observation[row]),
             )
 
-            table_control_ports.setItem(
-                row, 6, QtWidgets.QTableWidgetItem(f"{10+row}"))
+            table_control_ports.setItem(row, 6, QtWidgets.QTableWidgetItem(f"{10+row}"))
 
         elif type_domain == "Segment":
             where = ["left", "right"]
@@ -538,8 +547,7 @@ def update_control_ports_page(self):
                 table_control_ports.setItem(
                     row,
                     0,
-                    QtWidgets.QTableWidgetItem(
-                        f"Boundary control ({where[row]})"),
+                    QtWidgets.QTableWidgetItem(f"Boundary control ({where[row]})"),
                 )
                 # set name control
                 table_control_ports.setItem(
@@ -555,7 +563,8 @@ def update_control_ports_page(self):
                 )
 
                 table_control_ports.setItem(
-                    row, 6, QtWidgets.QTableWidgetItem(f"{10+row}"))
+                    row, 6, QtWidgets.QTableWidgetItem(f"{10+row}")
+                )
                 if table_control_ports.rowCount() < 2:
                     self.add_control_port_page.new_control_port()
 
@@ -598,8 +607,7 @@ def update_FEMs_page(self):
             item = table_control_ports.item(row, 0)
             if item is not None:
                 self.add_fem_page.new_FEM()
-                table_FEMs.setItem(row + rows_states +
-                                   rows_ports, 0, item.clone())
+                table_FEMs.setItem(row + rows_states + rows_ports, 0, item.clone())
                 # if table_FEMs.rowCount() < rows_states + rows_ports + rows_control_ports:
 
 
@@ -621,7 +629,6 @@ def update_expressions_page(self):
         for row in range(rows_control_ports):
             item = table_control_ports.item(row, 0)
             if item is not None:
-
                 self.add_expression_page.new_expression()
                 table_expressions.setItem(row, 0, item.clone())
                 # if table_expressions.rowCount() < rows_control_ports:
@@ -646,7 +653,7 @@ def text_add_FEM(self, file):
                 text = item.text()
 
             if col == 1:
-                file.write(f'{text}')
+                file.write(f"{text}")
             else:
                 file.write(f'"{text}"')
 
@@ -680,14 +687,14 @@ def text_add_terms(self, file, dphs):
             if col < 2:
                 file.write(f'"{text}"')
             elif col == 2:
-                file.write(f'[')
+                file.write(f"[")
                 for i, region in enumerate(text.split(",")):
                     if i + 1 < len(text.split(",")):
-                        file.write(f'{region},')
+                        file.write(f"{region},")
                     else:
-                        file.write(f'{region}]')
+                        file.write(f"{region}]")
             else:
-                file.write(f'{text}')
+                file.write(f"{text}")
 
             if col + 1 < cols:
                 file.write(f",")
@@ -724,12 +731,12 @@ def text_add_bricks(self, file, dphs):
                 text = item.text()
 
             if col == 2:
-                file.write(f'[')
+                file.write(f"[")
                 for i, region in enumerate(text.split(",")):
                     if i + 1 < len(text.split(",")):
-                        file.write(f'{region},')
+                        file.write(f"{region},")
                     else:
-                        file.write(f'{region}]')
+                        file.write(f"{region}]")
 
             elif col not in [3, 4, 6]:
                 file.write(f'"{text}"')
@@ -762,7 +769,6 @@ def text_add_expressions(self, file, dphs):
     )
 
     for row in range(rows):
-
         for col in range(cols):
             if col != 0:
                 item = table_expressions.item(row, col)
@@ -786,14 +792,11 @@ def text_add_initial_values(self, file, dphs):
     table_initial_values = self.add_initial_value_page.table_initial_values
     rows = table_initial_values.rowCount()
     cols = table_initial_values.columnCount()
-    file.write(
-        f"""\n\n    # Define initial_value/s\n""")
+    file.write(f"""\n\n    # Define initial_value/s\n""")
 
     for row in range(rows):
-        file.write(
-            f"""    {dphs}.set_initial_value(""")
+        file.write(f"""    {dphs}.set_initial_value(""")
         for col in range(cols):
-
             item = table_initial_values.item(row, col)
             if item is not None:
                 text = item.text()
@@ -824,9 +827,9 @@ def text_set_time_scheme(self, file, dphs):
                 if text in ["pc_type", "ts_type", "ksp_type"]:
                     file.write(f'{text}="{table.item(row,1).text()}",')
                 elif row + 1 < rows:
-                    file.write(f'{text}={table.item(row,1).text()},')
+                    file.write(f"{text}={table.item(row,1).text()},")
                 else:
-                    file.write(f'{text}={table.item(row,1).text()}')
+                    file.write(f"{text}={table.item(row,1).text()}")
 
         file.write(")\n")
 
@@ -836,9 +839,10 @@ def text_solve(self, file, dphs):
 
 
 def text_plot(self, file, dphs):
-    file.write(f"""\n\n    # Plot the Hamiltonian with the power supplied at the boundary
+    file.write(
+        f"""\n\n    # Plot the Hamiltonian with the power supplied at the boundary
     {dphs}.plot_Hamiltonian(save_figure=True)\n"""
-               )
+    )
 
 
 class Help:
