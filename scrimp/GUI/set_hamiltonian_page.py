@@ -51,6 +51,12 @@ class Window(QtWidgets.QWidget):
         self.setLayout(layout)
 
     def text_changed(self, page):  # s is a str
+        """This function allows the navigation trhough the navigation list.
+        After checking the presence of black listed words, the function hides the current page for showing the selected one.
+
+        Args:
+            page (str): the name of the page.
+        """
         self.comboBox.setCurrentText("set_hamiltonian_page")
         if not check_black_listed_words(
             self, self.line_edit_hamiltonian_name, "Set Hamiltonian Names"
@@ -62,7 +68,7 @@ class Window(QtWidgets.QWidget):
         pass
 
     def next_page(self):
-        """This funciont emit the signal to navigate to the next page."""
+        """This function emits the signal to navigate to the next page."""
         if not check_black_listed_words(
             self, self.line_edit_hamiltonian_name, "Set Hamiltonian Names"
         ):

@@ -104,6 +104,9 @@ class Window(QtWidgets.QWidget):
         self.table_control_ports.cellClicked.connect(self.update_help)
 
     def update_help(self):
+        """This function updates the Help object through its update_fields method.
+        A text, a description and an example are prepared to be passed to the abovementioned method.
+        """
         example = ""
         col = self.table_control_ports.currentColumn()
 
@@ -159,6 +162,12 @@ class Window(QtWidgets.QWidget):
             self.layout.itemAt(self.layout.count() - 1).widget().hide()
 
     def text_changed(self, page):  # s is a str
+        """This function allows the navigation trhough the navigation list.
+        After checking the presence of black listed words, the function hides the current page for showing the selected one.
+
+        Args:
+            page (str): the name of the page.
+        """
         self.comboBox.setCurrentText("add_control_port_page")
         if not check_black_listed_words(
             self, self.table_control_ports, "Control Ports"
@@ -179,7 +188,7 @@ class Window(QtWidgets.QWidget):
                 comboBox.addItems(["scalar-field", "vector-field", "tensor-field"])
 
     def next_page(self):
-        """This funciont emit the signal to navigate to the next page."""
+        """This function emits the signal to navigate to the next page."""
         if not check_black_listed_words(
             self, self.table_control_ports, "Control Ports"
         ):

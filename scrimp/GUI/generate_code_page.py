@@ -105,6 +105,12 @@ class Window(QtWidgets.QWidget):
         self.line_edit_directory.setText(self.file_path)
 
     def text_changed(self, page):  # s is a str
+        """This function allows the navigation trhough the navigation list.
+        After checking the presence of black listed words, the function hides the current page for showing the selected one.
+
+        Args:
+            page (str): the name of the page.
+        """
         self.comboBox.setCurrentText("generate_code_page")
         self.switch_window.emit(page)
         self.hide()
