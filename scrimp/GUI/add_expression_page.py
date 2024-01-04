@@ -118,6 +118,7 @@ class Window(QtWidgets.QWidget):
             self.hide()
 
     def update_page(self):
+        """This function manages the update of the current page."""
         pass
 
     def next_page(self):
@@ -144,7 +145,7 @@ class Window(QtWidgets.QWidget):
             self.table_expressions.setItem(count, i, new_value)
 
     def delete_expression(self):
-        """This function removes 2 rows in the table (1 for expression, 1 for co-expression)"""
+        """This function removes 1 row from the table"""
         if len(self.header_vertical_expressions) > 1:
             self.header_vertical_expressions.pop()
             self.table_expressions.setVerticalHeaderLabels(
@@ -157,5 +158,6 @@ class Window(QtWidgets.QWidget):
             print("not enough element to delete!")
 
     def clear_all(self):
+        """This function removes all the rows from the table."""
         self.table_expressions.setRowCount(0)
         self.new_expression()
