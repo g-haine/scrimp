@@ -179,6 +179,7 @@ class Window(QtWidgets.QWidget):
             self.hide()
 
     def update_page(self):
+        """This function manages the update of the current page."""
         for row in range(self.table_control_ports.rowCount()):
             comboBox = self.table_control_ports.cellWidget(row, 5)
             comboBox.clear()
@@ -210,7 +211,13 @@ class Window(QtWidgets.QWidget):
             self.hide()
 
     def choice_clicked(self, text):
-        def foo():
+        """This function is responsible of the Help object updates.
+
+        Args:
+            text (str): the name of the selected column.
+        """
+
+        def make_update():
             print(text)
             description = ""
             example = ""
@@ -230,7 +237,7 @@ class Window(QtWidgets.QWidget):
 
             self.help.updateFields(text, description, example)
 
-        return foo
+        return make_update
 
     def new_control_port(self):
         """This function adds 1 row in the table for control_port"""
@@ -276,7 +283,7 @@ class Window(QtWidgets.QWidget):
                 self.table_control_ports.setItem(count, i, new_value)
 
     def delete_control_port(self):
-        """This function removes 2 rows in the table (1 for control_port, 1 for co-control_port)"""
+        """This function removes 1 row from the table"""
         if len(self.header_vertical_control_ports) > 1:
             self.header_vertical_control_ports.pop()
             self.table_control_ports.setVerticalHeaderLabels(
@@ -289,5 +296,6 @@ class Window(QtWidgets.QWidget):
             print("not enough element to delete!")
 
     def clear_all(self):
+        """This function removes all the rows from the table."""
         self.table_control_ports.setRowCount(0)
         self.new_control_port()
