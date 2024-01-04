@@ -35,6 +35,7 @@ class Window(QtWidgets.QWidget):
         self.setLayout(self.layout)
 
     def update_page(self):
+        """This function manages the update of the current page."""
         self.label_hidden.setText("")
         self.listCheckBox = [QCheckBox("all")]
 
@@ -51,13 +52,15 @@ class Window(QtWidgets.QWidget):
         self.layout.addWidget(self.button_export, len(self.listCheckBox) + 3, 2)
 
     def get_path(self):
+        """This function retrieves the path where to export tje variables"""
         self.file_path = str(QFileDialog.getExistingDirectory(self, "Select Directory"))
         print(self.file_path)
         self.line_edit_directory.setText(self.file_path)
-        self.session["path_to_export_varaible"] = self.file_path
-        print(self.session["path_to_export_varaible"])
+        self.session["path_to_export_variable"] = self.file_path
+        print(self.session["path_to_export_variable"])
 
     def export_selected_variables(self):
+        """This function export the selected variables in the session object."""
         if len(self.session["variables"]) > 0:
             self.session["selected_variables"] = []
             if self.listCheckBox[0].checkState():  # if all selected

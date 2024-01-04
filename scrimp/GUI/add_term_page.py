@@ -138,6 +138,12 @@ class Window(QtWidgets.QWidget):
             self.hide()
 
     def update_page(self, gui):
+        """This function manages the update of the current page.
+
+        Args:
+            gui (obj): the GUI object
+
+        """
         table_states = gui.add_state_costate_page.table_states
         table_costates = gui.add_state_costate_page.table_costates
         table_ports = gui.add_port_page.table_ports
@@ -200,7 +206,7 @@ class Window(QtWidgets.QWidget):
                 self.table_terms.setItem(count, i, new_value)
 
     def delete_term(self):
-        """This function removes 2 rows in the table (1 for term, 1 for co-term)"""
+        """This function removes 1 row from the table"""
         if len(self.header_vertical_terms) > 1:
             self.header_vertical_terms.pop()
             self.table_terms.setVerticalHeaderLabels(self.header_vertical_terms)
@@ -211,5 +217,6 @@ class Window(QtWidgets.QWidget):
             print("not enough element to delete!")
 
     def clear_all(self):
+        """This function removes all the rows from the table."""
         self.table_terms.setRowCount(0)
         self.new_term()

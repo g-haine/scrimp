@@ -113,10 +113,12 @@ class Window(QtWidgets.QWidget):
         self.new_state()
 
     def update_costate_table_by_state(self):
+        """This function update the Co-state table accorging to the updates of the State table."""
         row = self.table_costates.currentRow()
         self.table_costates.setItem(row, 2, self.table_states.item(row, 0).clone())
 
     def update_help_state(self):
+        """This function update the Help object with the information from the State table."""
         example = ""
         col = self.table_states.currentColumn()
 
@@ -156,6 +158,7 @@ class Window(QtWidgets.QWidget):
             self.layout.itemAt(self.layout.count() - 1).widget().hide()
 
     def update_help_costate(self):
+        """This function update the Help object with the information from the Co-state table."""
         example = ""
         col = self.table_costates.currentColumn()
 
@@ -202,6 +205,7 @@ class Window(QtWidgets.QWidget):
             self.hide()
 
     def update_page(self):
+        """This function manages the update of the current page."""
         for row in range(self.table_states.rowCount()):
             comboBox = self.table_states.cellWidget(row, 2)
             comboBox.clear()
@@ -231,7 +235,13 @@ class Window(QtWidgets.QWidget):
             self.hide()
 
     def choice_clicked(self, text):
-        def foo():
+        """This function is responsible of the Help object updates.
+
+        Args:
+            text (str): the name of the selected column.
+        """
+
+        def make_update():
             print(text)
             description = ""
             example = ""
@@ -248,7 +258,7 @@ class Window(QtWidgets.QWidget):
                 example = ""
             self.help.updateFields(text, description, example)
 
-        return foo
+        return make_update
 
     def new_state(self):
         """This function adds 1 row per each table (1 for state, 1 for co-state)"""
@@ -305,7 +315,7 @@ class Window(QtWidgets.QWidget):
                 self.table_costates.setItem(count, i, new_value)
 
     def delete_costate(self):
-        """This function removes 2 rows in the table (1 for state, 1 for co-state)"""
+        """This function removes 1 row in the table (1 for state, 1 for co-state)"""
         if len(self.header_vertical_costates) > 1:
             self.header_vertical_costates.pop()
             self.table_costates.setVerticalHeaderLabels(self.header_vertical_costates)
@@ -315,6 +325,7 @@ class Window(QtWidgets.QWidget):
             print("not enough element to delete!")
 
     def clear_all(self):
+        """This function removes all the rows from the table."""
         self.table_states.setRowCount(0)
         self.table_costates.setRowCount(0)
         self.new_state()

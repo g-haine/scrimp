@@ -126,6 +126,7 @@ class Window(QtWidgets.QWidget):
             self.hide()
 
     def update_page(self):
+        """This function manages the update of the current page."""
         pass
 
     def next_page(self):
@@ -158,7 +159,7 @@ class Window(QtWidgets.QWidget):
             self.table_initial_values.setItem(count, i, new_value)
 
     def delete_initial_value(self):
-        """This function removes 2 rows in the table (1 for initial_value, 1 for co-initial_value)"""
+        """This function removes 1 row from the table"""
         if len(self.header_vertical_initial_values) > 1:
             self.header_vertical_initial_values.pop()
             self.table_initial_values.setVerticalHeaderLabels(
@@ -173,5 +174,6 @@ class Window(QtWidgets.QWidget):
             print("not enough element to delete!")
 
     def clear_all(self):
+        """This function removes all the rows from the table."""
         self.table_initial_values.setRowCount(0)
         self.new_initial_value()

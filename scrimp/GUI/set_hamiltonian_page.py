@@ -65,6 +65,7 @@ class Window(QtWidgets.QWidget):
             self.hide()
 
     def update_page(self):
+        """This function manages the update of the current page."""
         pass
 
     def next_page(self):

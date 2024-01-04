@@ -136,6 +136,12 @@ class Window(QtWidgets.QWidget):
             self.hide()
 
     def update_page(self, gui):
+        """This function manages the update of the current page.
+
+        Args:
+            gui (obj): the GUI object
+
+        """
         for row in range(self.table_parameters.rowCount()):
             comboBox = self.table_parameters.cellWidget(row, 2)
             comboBox.clear()
@@ -182,7 +188,13 @@ class Window(QtWidgets.QWidget):
             self.hide()
 
     def choice_clicked(self, text):
-        def foo():
+        """This function is responsible of the Help object updates.
+
+        Args:
+            text (str): the name of the selected column.
+        """
+
+        def make_update():
             print(text)
             description = ""
             example = ""
@@ -196,7 +208,7 @@ class Window(QtWidgets.QWidget):
 
             self.help.updateFields(text, description, example)
 
-        return foo
+        return make_update
 
     def new_parameter(self):
         """This function adds 1 row in the table for parameter"""
@@ -215,7 +227,7 @@ class Window(QtWidgets.QWidget):
         self.table_parameters.setCellWidget(count, 2, parameter_choice_kind)
 
     def delete_parameter(self):
-        """This function removes 2 rows in the table (1 for parameter, 1 for co-parameter)"""
+        """This function removes 1 row from the table"""
         if len(self.header_vertical_parameters) > 1:
             self.header_vertical_parameters.pop()
             self.table_parameters.setVerticalHeaderLabels(
@@ -228,5 +240,6 @@ class Window(QtWidgets.QWidget):
             print("not enough element to delete!")
 
     def clear_all(self):
+        """This function removes all the rows from the table."""
         self.table_parameters.setRowCount(0)
         self.new_parameter()

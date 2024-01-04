@@ -216,6 +216,7 @@ class Window(QtWidgets.QWidget):
             self.hide()
 
     def update_table(self):
+        """This function updates the field of the selected time scheme."""
         selection = self.list_widget.currentItem().text()
         self.help.clear()
 
@@ -285,11 +286,12 @@ class Window(QtWidgets.QWidget):
             self.table.setItem(row, 1, new_value)
 
     def new_rows(self):
-        """This function adds 1 row in the table"""
+        """This function adds 1 row from the table"""
         count = self.table.rowCount()
         self.table.insertRow(count)
 
     def update_page(self):
+        """This function manages the update of the current page."""
         pass
 
     def next_page(self):

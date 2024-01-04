@@ -199,13 +199,14 @@ class Window(QtWidgets.QWidget):
             self.hide()
 
     def delete(self):
-        """This function removes 2 rows in the table (1 for state, 1 for co-state)"""
+        """This function removes 1 row from the table"""
         if self.table.rowCount() >= 1:
             self.table.removeRow(self.table.currentRow())
         else:
             print("not enough element to delete!")
 
     def update_table(self):
+        """This function updates the fields of the domain table."""
         selection = self.list_widget.currentItem().text()
         self.session["domain"] = selection
 
@@ -265,11 +266,12 @@ class Window(QtWidgets.QWidget):
             self.table.setRowCount(0)
 
     def new_rows(self):
-        """This function adds 1 row in the table"""
+        """This function adds 1 row from the table"""
         count = self.table.rowCount()
         self.table.insertRow(count)
 
     def update_page(self):
+        """This function manages the update of the current page."""
         pass
 
     def next_page(self):
