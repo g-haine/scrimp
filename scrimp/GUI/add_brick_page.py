@@ -12,8 +12,8 @@ from utils.GUI import gui_pages, gui_width, gui_height, Help, check_black_listed
 
 
 class Window(QtWidgets.QWidget):
-    """This class defines the add brick and cobrick page of the GUI and asks to insert
-    the bricks and co-brick realted to the new distribuited brick-Hamiltonian system.
+    """This class defines the add brick page of the GUI and asks to insert
+    the bricks realted to the new distribuited Port-Hamiltonian system.
 
     Args:
         QtWidgets (_type_): _description_
@@ -155,6 +155,12 @@ class Window(QtWidgets.QWidget):
             self.hide()
 
     def update_page(self, gui):
+        """This function manages the update of the current page.
+
+        Args:
+            gui (obj): the GUI object
+
+        """
         table_states = gui.add_state_costate_page.table_states
         table_costates = gui.add_state_costate_page.table_costates
         table_ports = gui.add_port_page.table_ports
@@ -200,7 +206,13 @@ class Window(QtWidgets.QWidget):
             self.hide()
 
     def choice_clicked(self, text):
-        def foo():
+        """This function is responsible of the Help object updates.
+
+        Args:
+            text (str): the name of the selected column.
+        """
+
+        def make_update():
             print(text)
             description = ""
             example = ""
@@ -221,10 +233,10 @@ class Window(QtWidgets.QWidget):
 
             self.help.updateFields(text, description, example)
 
-        return foo
+        return make_update
 
     def new_brick(self):
-        """This function adds 1 row in the table for brick"""
+        """This function adds 1 row in the table of Bricks"""
         count = self.table_bricks.rowCount()
         self.table_bricks.insertRow(count)
         self.header_vertical_bricks += ["brick"]
@@ -257,7 +269,7 @@ class Window(QtWidgets.QWidget):
                 self.table_bricks.setItem(count, i, new_value)
 
     def delete_brick(self):
-        """This function removes 2 rows in the table (1 for brick, 1 for co-brick)"""
+        """This function removes 1 row from the table"""
         if len(self.header_vertical_bricks) > 1:
             self.header_vertical_bricks.pop()
             self.table_bricks.setVerticalHeaderLabels(self.header_vertical_bricks)
@@ -268,5 +280,6 @@ class Window(QtWidgets.QWidget):
             print("not enough element to delete!")
 
     def clear_all(self):
+        """This function removes all the rows from the table."""
         self.table_bricks.setRowCount(0)
         self.new_brick()
