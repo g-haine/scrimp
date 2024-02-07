@@ -25,7 +25,7 @@ def shallow_water(experiment=0,formulation="grad"):
     
     This script can be used to reproduce the examples shown in the paper:
     @article{
-        author = {Fl\'{a}vio Luiz Cardoso-Ribeiro and Ghislain Haine ans Laurent Lef\`{e}vre and Denis Matignon},
+        author = {Fl\'{a}vio Luiz Cardoso-Ribeiro and Ghislain Haine and Laurent Lef\`{e}vre and Denis Matignon},
         title = {Rotational shallow water equations with viscous damping and boundary control: structure-preserving spatial discretization},
         journal = {},
         volume = {},
@@ -34,7 +34,7 @@ def shallow_water(experiment=0,formulation="grad"):
         year = {2023}
     }
     
-    Example of use: to run experiment 1 on 2 cores with `grad-grad` formulation, run:
+    Example of use: to run experiment 1 on 2 cores with `grad-grad` formulation, write:
         `mpirun -n 2 python shallow_water.py 1 grad`
     
     Outputs may be traced in ParaView with the `PV_trace_experiment.py` file in this folder.

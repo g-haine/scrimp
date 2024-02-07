@@ -862,7 +862,7 @@ class DPHS:
             self.time_scheme["dt_save"] = 0.01
             
         if not self.time_scheme.hasName("ts_adapt_dt_min"):
-            self.time_scheme["ts_adapt_dt_min"] = 0.0001 / max_rank
+            self.time_scheme["ts_adapt_dt_min"] = float(self.time_scheme["dt"])**2 / max_rank
             
         if not self.time_scheme.hasName("adapt_dt_max"):
             self.time_scheme["ts_adapt_dt_max"] = self.time_scheme["dt_save"]
@@ -1324,7 +1324,7 @@ class DPHS:
             # Check if the balance makes sense: should not have a port which is both algebraic and substituted
             check_makes_sense = True
             for _, port in self.ports.items():
-                if port.get_algebraic() and port.get_substituted():
+                if port.get_algebraic() or port.get_substituted():
                     check_makes_sense = False
             if check_makes_sense and rank==0:
                 ax.plot(t, SP_balance, "--", label="Balance")
