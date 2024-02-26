@@ -23,15 +23,9 @@ from petsc4py import PETSc
 comm = PETSc.COMM_WORLD
 rank = comm.getRank()
 
-if rank==0:
-    module_path = __file__[:-18]
-    for path in [os.path.join("outputs", "log"), os.path.join("outputs", "png"), os.path.join("outputs", "mesh")]:
-        composed_path = os.path.join(module_path, path)
-        if not os.path.isdir(composed_path):
-            os.makedirs(composed_path)
-
-from scrimp.utils.config import set_verbose
-set_verbose()
+import scrimp.utils.config
+scrimp.utils.config.set_paths()
+scrimp.utils.config.set_verbose()
 
 from scrimp.dphs import DPHS
 from scrimp.domain import Domain

@@ -41,7 +41,7 @@ from scrimp.hamiltonian import Hamiltonian
 
 from scrimp.utils.linalg import extract_gmm_to_petsc, extract_gmm_to_scipy
 
-module_path = os.path.join(__file__[:-15], "outputs")
+import scrimp.utils.config
 
 class DPHS:
     """A generic class handling distributed pHs using the GetFEM tools
@@ -1206,7 +1206,7 @@ class DPHS:
         
         self.hamiltonian.compute(self.solution, self.gf_model, self.domain)
 
-    def plot_Hamiltonian(self, with_powers=True, save_figure=False, filename="hamiltonian.png"):
+    def plot_Hamiltonian(self, with_powers=True, save_figure=False, filename="Hamiltonian.png"):
         """Plot each term constituting the Hamiltonian and the Hamiltonian
 
         May include the `power terms`, i.e. the sum over [t_0, t_f] of the flow/effort product of algebraic ports
@@ -1214,7 +1214,7 @@ class DPHS:
         Args:
             - with_powers (bool): if `True` (default), the plot will also contains the power of each algebraic ports
             - save_figure (bool): if 'True' (defaults: False), save the plot
-            - filename (str): the name of the file where the plot is saved (defaults: `hamiltonian.png`)
+            - filename (str): the name of the file where the plot is saved (defaults: `Hamiltonian.png`)
         """
 
         if not self.hamiltonian.get_is_computed():
@@ -1245,7 +1245,7 @@ class DPHS:
             ax.set_ylabel("Hamiltonian terms")
             ax.set_title("Evolution of Hamiltonian terms")
             if save_figure:
-                plt.savefig(os.path.join(module_path, "png", filename), dpi=300)
+                plt.savefig(os.path.join(outputs_path, "png", filename), dpi=300)
             plt.show()
 
     def compute_powers(self):
@@ -1396,13 +1396,13 @@ class DPHS:
         # TODO
 
         if path == None:
-            path = module_path
+            path = outputs_path
 
     def export_to_pv(self, name_variable, path=None, t="All"):
         """Export the solution to .vtu file(s) (for ParaView), with associated .pvd if t='All'
 
         name_variable (str): the variable to export
-        path (str): the path of the output file (default: in the `outputs` folder of scrimp)
+        path (str): the path for the output file (default: in the `outputs/pv` folder next to your .py file)
         t (Numpy array): the time values of extraction (default: `All` the stored times), `All`, `Init`, `Final`
         """
 
@@ -1415,9 +1415,9 @@ class DPHS:
             raise err
 
         if path is not None:
-            path = os.path.join(path, name_variable)
+            path = os.path.join(path, "pv", name_variable)
         else:
-            path = os.path.join(module_path, name_variable)
+            path = os.path.join(outputs_path, "pv", name_variable)
 
         if not os.path.exists(path):
             if rank==0:

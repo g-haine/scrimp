@@ -17,13 +17,25 @@ import os
 import logging
 import getfem as gf
 
-module_path = os.path.join(__file__[:-23], "outputs")
+def set_paths(path=None)
+    global module_path, outputs_path
+    
+    if rank==0:
+        if path is None:
+            module_path = os.getcwd()
+        else:
+            module_path = path
+        outputs_path = os.path.join(module_path, "outputs")
+	for path in [os.path.join("outputs", "log"), os.path.join("outputs", "png"), os.path.join("outputs", "mesh"), os.path.join("outputs", "pv")]:
+	    composed_path = os.path.join(module_path, path)
+	    if not os.path.isdir(composed_path):
+		os.makedirs(composed_path)
 
 def set_verbose_gf(verbose):
     """Set the verbosity level of getfem
     
     Args:
-        verbose (int): the level opf verbosity
+        verbose (int): the level of verbosity
     """
 
     gf.util_trace_level(verbose)

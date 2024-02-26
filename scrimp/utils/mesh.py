@@ -29,7 +29,7 @@ import numpy as np
 import getfem as gf
 import logging
 
-module_path = os.path.join(__file__[:-21], "outputs")
+import scrimp.utils.config
 
 def built_in_geometries():
     """A function to get all the infos about available built_in geometries"""
@@ -176,7 +176,7 @@ def Disk(parameters={"R": 1.0, "h": 0.1}, refine=0, terminal=1):
         model.mesh.refine()
     # Write on disk
     if rank==0:
-        gmsh.write(os.path.join(module_path, "mesh", "Disk.msh"))
+        gmsh.write(os.path.join(outputs_path, "mesh", "Disk.msh"))
     # Finalize GMSH
     comm.barrier()
     gmsh.finalize()
@@ -187,7 +187,7 @@ def Disk(parameters={"R": 1.0, "h": 0.1}, refine=0, terminal=1):
         )
     
     # GetFEM mesh
-    mesh = gf.Mesh("import", "gmsh_with_lower_dim_elt", os.path.join(module_path, "mesh", "Disk.msh"))
+    mesh = gf.Mesh("import", "gmsh_with_lower_dim_elt", os.path.join(outputs_path, "mesh", "Disk.msh"))
     # Glue boundaries CircleArc
     mesh.region_merge(10, 11)
     mesh.region_merge(10, 12)
@@ -252,7 +252,7 @@ def Rectangle(parameters={"L": 2.0, "l": 1, "h": 0.1}, refine=0, terminal=1):
     for i in range(refine):
         gmsh.model.mesh.refine()
     if rank==0:
-        gmsh.write(os.path.join(module_path, "mesh", "Rectangle.msh"))
+        gmsh.write(os.path.join(outputs_path, "mesh", "Rectangle.msh"))
     # Finalize GMSH
     comm.barrier()
     gmsh.finalize()
@@ -262,7 +262,7 @@ def Rectangle(parameters={"L": 2.0, "l": 1, "h": 0.1}, refine=0, terminal=1):
             "Rectangle (0," + str(L) + ")x(0," + str(l) + ") has been meshed"
         )
 
-    mesh = gf.Mesh("import", "gmsh_with_lower_dim_elt", os.path.join(module_path, "mesh", "Rectangle.msh"))
+    mesh = gf.Mesh("import", "gmsh_with_lower_dim_elt", os.path.join(outputs_path, "mesh", "Rectangle.msh"))
 
     return [
         mesh,
@@ -349,7 +349,7 @@ def Concentric(parameters={"R": 1.0, "r": 0.6, "h": 0.1}, refine=0, terminal=1):
     for i in range(refine):
         gmsh.model.mesh.refine()
     if rank==0:
-        gmsh.write(os.path.join(module_path, "mesh", "Concentric.msh"))
+        gmsh.write(os.path.join(outputs_path, "mesh", "Concentric.msh"))
     # Finalize GMSH
     comm.barrier()
     gmsh.finalize()
@@ -359,7 +359,7 @@ def Concentric(parameters={"R": 1.0, "r": 0.6, "h": 0.1}, refine=0, terminal=1):
             f"A disk of radius {r} surrounded by an annulus of radii {r} and {R} has been meshed"
         )
 
-    mesh = gf.Mesh("import", "gmsh_with_lower_dim_elt", os.path.join(module_path, "mesh", "Concentric.msh"))
+    mesh = gf.Mesh("import", "gmsh_with_lower_dim_elt", os.path.join(outputs_path, "mesh", "Concentric.msh"))
     mesh.region_merge(10, 11)
     mesh.region_merge(10, 12)
     mesh.delete_region([11, 12])
@@ -452,7 +452,7 @@ def Ball(parameters={"R": 1.0, "h": 0.1}, refine=0, terminal=1):
     for i in range(refine):
         gmsh.model.mesh.refine()
     if rank==0:
-        gmsh.write(os.path.join(module_path, "mesh", "Ball.msh"))
+        gmsh.write(os.path.join(outputs_path, "mesh", "Ball.msh"))
     # Finalize GMSH
     comm.barrier()
     gmsh.finalize()
@@ -462,7 +462,7 @@ def Ball(parameters={"R": 1.0, "h": 0.1}, refine=0, terminal=1):
             "A ball of radius " + str(R) + " has been meshed"
         )
 
-    mesh = gf.Mesh("import", "gmsh", os.path.join(module_path, "mesh", "Ball.msh"))
+    mesh = gf.Mesh("import", "gmsh", os.path.join(outputs_path, "mesh", "Ball.msh"))
     mesh.region_merge(10, 11)
     mesh.region_merge(10, 12)
     mesh.region_merge(10, 13)

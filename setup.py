@@ -7,7 +7,7 @@
 # github: https://github.com/g-haine/scrimp
 
 """
-- file:             brick.py
+- file:             setup.py
 - authors:          Giuseppe Ferraro
 - date:             31 may 2023
 - brief:            setup file for install

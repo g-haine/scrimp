@@ -27,7 +27,7 @@ import scrimp.utils.mesh
 import getfem as gf
 import logging
 
-module_path = os.path.join(__file__[:-17], "outputs")
+import scrimp.utils.config
 
 class Domain:
     """A class handling meshes and indices for regions
@@ -99,10 +99,10 @@ class Domain:
                     for i in range(refine):
                         gmsh.model.mesh.refine()
                     if rank==0:
-                        gmsh.write(os.path.join(module_path, "mesh", basename+".msh"))
+                        gmsh.write(os.path.join(outputs_path, "mesh", basename+".msh"))
                     comm.barrier()
                     gmsh.finalize()
-                    mesh = gf.Mesh("import", "gmsh_with_lower_dim_elt", os.path.join(module_path, "mesh", basename+".msh"))
+                    mesh = gf.Mesh("import", "gmsh_with_lower_dim_elt", os.path.join(outputs_path, "mesh", basename+".msh"))
                     self._mesh.append(mesh)
                     
                 elif fileextension==".py":

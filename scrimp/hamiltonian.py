@@ -31,9 +31,6 @@ import numpy as np
 import logging
 import time
 
-module_path = os.path.join(__file__[:-22], "outputs")
-print(module_path)
-
 class Term:
     """This class defines a term for the Hamiltoninan."""
 
