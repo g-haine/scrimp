@@ -16,7 +16,7 @@
 import scrimp as S
 from itertools import zip_longest
 
-def shallow_water(experiment=0,formulation="grad"):
+def shallow_water(experiment=0, formulation="grad"):
     """
     A structure-preserving discretization of the rotational and dissipative shallow 
     water equation with boundary controls as port-Hamiltonian system.
@@ -34,8 +34,8 @@ def shallow_water(experiment=0,formulation="grad"):
         year = {2023}
     }
     
-    Example of use: to run experiment 1 on 2 cores with `grad-grad` formulation, write:
-        `mpirun -n 2 python shallow_water.py 1 grad`
+    Example of use: to run experiment 1 with `grad-grad` formulation, write:
+        `python shallow_water.py 1 grad`
     
     Outputs may be traced in ParaView with the `PV_trace_experiment.py` file in this folder.
     
@@ -270,9 +270,9 @@ def shallow_water(experiment=0,formulation="grad"):
     
     Brick_Du = S.Brick("-2 mu R_Grad[h]", "- 2 * mu * h * D(e_p) : D(Test_p)", [1], linear=False, explicit=False, position="effort")
     Brick_divu = S.Brick("-2 mu R_div[h]", "- 2 * mu * h * div(e_p) * div(Test_p)", [1], linear=False, explicit=False, position="effort")
-    Brick_Lagrange_multiplier = S.Brick("-B_\partial[h]", "h * Y . Test_p", [10], linear=False, explicit=False, position="effort")
-    Brick_constraint_mass = S.Brick("M_\partial[h]", "h * U . Test_Y", [10], linear=False, explicit=False, position="flow")
-    Brick_constraint = S.Brick("B_\partial[h]^T", "- h * e_p . Test_Y", [10], linear=False, explicit=False, position="effort")
+    Brick_Lagrange_multiplier = S.Brick("-B_b[h]", "h * Y . Test_p", [10], linear=False, explicit=False, position="effort")
+    Brick_constraint_mass = S.Brick("M_b[h]", "h * U . Test_Y", [10], linear=False, explicit=False, position="flow")
+    Brick_constraint = S.Brick("B_b[h]^T", "- h * e_p . Test_Y", [10], linear=False, explicit=False, position="effort")
     
     # The `grad` formulation always needs the following bricks
     if formulation=="grad":
@@ -324,7 +324,7 @@ def shallow_water(experiment=0,formulation="grad"):
     # Define the time scheme
     swe.set_time_scheme(
         ts_type=ts_type,
-        ts_bdf_orde=ts_bdf_order,
+        ts_bdf_order=ts_bdf_order,
         ksp_type=ksp_type,
         pc_type=pc_type,
         pc_factor_mat_solver_type=pc_factor_mat_solver_type,
