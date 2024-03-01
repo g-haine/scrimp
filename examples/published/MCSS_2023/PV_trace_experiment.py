@@ -39,7 +39,6 @@ def trace_experiment(experiment=0, formulation="grad"):
     # set paths
     import os
     path = os.path.join(os.path.join(os.path.dirname(os.path.realpath(__file__)),os.path.join("outputs",formulation)),f'experiment_{experiment}',"pv")
-    print(path)
     if not os.path.isdir(path):
         raise Exception(f'Experiment {experiment} has not been solved yet.')
     path_h = os.path.join(os.path.join(path,'h'), 'h.pvd')

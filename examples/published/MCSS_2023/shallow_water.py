@@ -61,13 +61,13 @@ def shallow_water(experiment=0, formulation="grad"):
         raise ValueError(f'Unknown formulation: {formulation}')
     
     # Experiment parameters
-    dx = 0.1               # Mesh size parameter
+    dx = 0.05               # Mesh size parameter
     rho = 1.0               # Mass density
     g = 0.01                # Gravity constant
     mu = 0.001              # Viscosity
-    FEM_h = ["CG", 1]       # FEM for the h-type variables
-    FEM_p = ["CG", 2]       # FEM for the p-type variables
-    FEM_b = ["CG", 1]       # FEM for the boundary velocity controls and its colocated observations (both tangent and normal components)
+    FEM_h = ["CG", 2]       # FEM for the h-type variables
+    FEM_p = ["CG", 3]       # FEM for the p-type variables
+    FEM_b = ["CG", 2]       # FEM for the boundary velocity controls and its colocated observations (both tangent and normal components)
     # PETSc time-stepper options
     ts_type = "bdf"
     ts_bdf_order = 6 # Not used if ts_type != `bdf`
