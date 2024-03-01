@@ -156,7 +156,7 @@ def shallow_water():
     # Define the time scheme (default ts_type='cn', t_f=1, dt=0.01, etc.)
     swe.set_time_scheme(
         ts_type="bdf",
-        bdf_orde=6,
+        ts_bdf_order=4,
         ksp_type="preonly",
         pc_type="lu",
         pc_factor_mat_solver_type="mumps",

@@ -184,7 +184,7 @@ def heat_eq():
     # Define the time scheme
     heat.set_time_scheme(t_f=1, 
                          ts_type="bdf", 
-                         bdf_order=4, 
+                         ts_bdf_order=4, 
                          dt=0.01, 
                          ts_adapt_dt_min=1.e-6, 
                          ksp_type = "preonly",
