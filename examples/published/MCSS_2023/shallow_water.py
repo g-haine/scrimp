@@ -324,7 +324,7 @@ def shallow_water(experiment=0,formulation="grad"):
     # Define the time scheme
     swe.set_time_scheme(
         ts_type=ts_type,
-        bdf_orde=bdf_order,
+        ts_bdf_orde=ts_bdf_order,
         ksp_type=ksp_type,
         pc_type=pc_type,
         pc_factor_mat_solver_type=pc_factor_mat_solver_type,
