@@ -42,6 +42,7 @@ from scrimp.hamiltonian import Hamiltonian
 from scrimp.utils.linalg import extract_gmm_to_petsc, extract_gmm_to_scipy
 
 import scrimp.utils.config
+outputs_path = scrimp.utils.config.outputs_path
 
 class DPHS:
     """A generic class handling distributed pHs using the GetFEM tools
@@ -869,9 +870,6 @@ class DPHS:
             
         if not self.time_scheme.hasName("ts_max_snes_failures"):
             self.time_scheme["ts_max_snes_failures"] = -1
-            
-        if not self.time_scheme.hasName("ts_max_reject"):
-            self.time_scheme["max_reject"] = -1
         
         if not self.time_scheme.hasName("init_step"):
             self.time_scheme["init_step"] = True
@@ -1047,7 +1045,7 @@ class DPHS:
         InitVec.setValuesLocal(range_rows, self.gf_model.from_variables()[range_rows],
                           addv=PETSc.InsertMode.INSERT_VALUES)
         InitVec.assemble()
-        # comm.barrier()
+        comm.barrier()
         
         TS.solve(InitVec)
         del InitVec
@@ -1126,7 +1124,7 @@ class DPHS:
         InitVec.setValuesLocal(range_rows, self.gf_model.from_variables()[range_rows],
                                addv=PETSc.InsertMode.INSERT_VALUES)
         InitVec.assemble()
-        # comm.barrier()
+        comm.barrier()
         
         TS.solve(InitVec)
         del InitVec
@@ -1324,7 +1322,7 @@ class DPHS:
             # Check if the balance makes sense: should not have a port which is both algebraic and substituted
             check_makes_sense = True
             for _, port in self.ports.items():
-                if port.get_algebraic() or port.get_substituted():
+            	if (port.get_algebraic() and type(port).__name__!="Control_Port") or port.get_substituted():
                     check_makes_sense = False
             if check_makes_sense and rank==0:
                 ax.plot(t, SP_balance, "--", label="Balance")

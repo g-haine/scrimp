@@ -25,7 +25,7 @@ rank = comm.getRank()
 
 import scrimp.utils.config
 scrimp.utils.config.set_paths()
-scrimp.utils.config.set_verbose()
+scrimp.utils.config.set_verbose(1)
 
 from scrimp.dphs import DPHS
 from scrimp.domain import Domain

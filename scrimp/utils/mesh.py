@@ -30,6 +30,7 @@ import getfem as gf
 import logging
 
 import scrimp.utils.config
+outputs_path = scrimp.utils.config.outputs_path
 
 def built_in_geometries():
     """A function to get all the infos about available built_in geometries"""

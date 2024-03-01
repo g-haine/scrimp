@@ -16,20 +16,31 @@
 import os
 import logging
 import getfem as gf
+import sys
 
-def set_paths(path=None)
-    global module_path, outputs_path
+import petsc4py
+petsc4py.init(sys.argv)
+from petsc4py import PETSc
+
+comm = PETSc.COMM_WORLD
+rank = comm.getRank()
+
+def set_paths(path=None):
+	
+    global outputs_path
+    
+    if path is None:
+        module_path = os.getcwd()
+    else:
+        module_path = path
+        
+    outputs_path = os.path.join(module_path, "outputs")
     
     if rank==0:
-        if path is None:
-            module_path = os.getcwd()
-        else:
-            module_path = path
-        outputs_path = os.path.join(module_path, "outputs")
-	for path in [os.path.join("outputs", "log"), os.path.join("outputs", "png"), os.path.join("outputs", "mesh"), os.path.join("outputs", "pv")]:
-	    composed_path = os.path.join(module_path, path)
-	    if not os.path.isdir(composed_path):
-		os.makedirs(composed_path)
+        for path in [os.path.join("outputs", "log"), os.path.join("outputs", "png"), os.path.join("outputs", "mesh"), os.path.join("outputs", "pv")]:
+            composed_path = os.path.join(module_path, path)
+            if not os.path.isdir(composed_path):
+                os.makedirs(composed_path)
 
 def set_verbose_gf(verbose):
     """Set the verbosity level of getfem
@@ -62,24 +73,25 @@ def set_verbose(verbose=1):
     for handler in logging.root.handlers[:]:
         logging.root.removeHandler(handler)
     
-    if verbose==0:
-        # Set the log file
-        logging.basicConfig(
-            filename=os.path.join(module_path, "log", "scrimp.log"),
-            encoding="utf-8",
-            level=logging.DEBUG,
-            filemode="w",
-            format="",
-        )
-        set_verbose_gf(0)
-    elif verbose==1:
-        logging.basicConfig(
-            level=logging.INFO,
-            format="",
-        )
-        set_verbose_gf(0)
-    elif verbose==2:
-        logging.basicConfig(
-            level=logging.DEBUG,
-        )
-        set_verbose_gf(2)
+    if rank==0:
+        if verbose==0:
+            # Set the log file
+            logging.basicConfig(
+                filename=os.path.join(outputs_path, "log", "scrimp.log"),
+                encoding="utf-8",
+                level=logging.ERROR,
+                filemode="w",
+                format="",
+            )
+        elif verbose==1:
+            logging.basicConfig(
+                level=logging.INFO,
+                format="",
+            )
+        elif verbose==2:
+            logging.basicConfig(
+                level=logging.DEBUG,
+                format="",
+            )
+    set_verbose_gf(verbose)
+    

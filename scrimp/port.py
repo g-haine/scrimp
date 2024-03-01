@@ -124,7 +124,7 @@ class Port:
             effort (str): the name of the effort variable
             kind (str): the type of the variables, must be `scalar-field` or `vector-field`
             mesh_id (int): the id of the mesh where the variables belong
-            algebraic (bool): if `False`, the flow variable will be derivated in time at resolution
+            algebraic (bool): if `True`, the equation associated to this port is algebraic, otherwise dynamic
             substituted (bool): if `True`, the constitutive relation is substituted and there is only a getfem variable for the effort
             dissipative (bool, optional): for post-processing purpose, indicates wether the port is dissipative-like or not. Defaults to `True`
             region (int): the int identifying the region in mesh_id where the port belong, useful for boundary ports
@@ -136,7 +136,7 @@ class Port:
         self.__effort = effort  #: The name of the effort variable
         self.__kind = kind  #: The type of the variables (e.g. `scalar-field`)
         self.__mesh_id = mesh_id  #: The id of the mesh where the variables belong
-        self.__algebraic = algebraic  #: If `True`, the equation associated to this port is algebraic, otherwise dynamic and the flow is derivated in time at resoltuion
+        self.__algebraic = algebraic  #: If `True`, the equation associated to this port is algebraic, otherwise dynamic
         self.__substituted = substituted  #: If `True`, the getfem `Model` will only have an unknown variable for the effort: the constitutive relation is substituted into the mass matrix on the flow side
         self.__dissipative = dissipative  #: If `True`, the power associated must be taken with a negative sign (see plot_hamiltonian in DPHS class)
         self.__parameters = (

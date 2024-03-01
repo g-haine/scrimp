@@ -88,7 +88,7 @@ class Control_Port(Port):
         """This function gets the name of the obervation.
 
         Returns:
-            str: the name of the obervation
+            str: the name of the observation
         """
         
         return self.__name_observation
