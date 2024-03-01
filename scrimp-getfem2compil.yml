@@ -1,0 +1,23 @@
+name: scrimp
+channels:
+  - conda-forge
+dependencies:
+  - python=3
+  - conda
+  - cxx-compiler
+  - gfortran
+  - matplotlib
+  - mpi4py
+  - mumps-mpi
+  - numpy
+  - scipy
+  - spyder
+  - superlu
+  - paraview
+  - petsc4py
+  - pip
+  - qhull
+  - pip:
+    - gmsh
+    - sphinx
+    - sphinx_rtd_theme
