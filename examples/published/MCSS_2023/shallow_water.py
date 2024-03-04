@@ -70,7 +70,7 @@ def shallow_water(experiment=0, formulation="grad"):
     FEM_b = ["CG", 2]       # FEM for the boundary velocity controls and its colocated observations (both tangent and normal components)
     # PETSc time-stepper options
     ts_type = "bdf"
-    ts_bdf_order = 6 # Not used if ts_type != `bdf`
+    ts_bdf_order = 2 # Not used if ts_type != `bdf`
     ksp_type = "preonly"
     pc_type = "lu"
     pc_factor_mat_solver_type = "mumps"
