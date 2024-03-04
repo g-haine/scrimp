@@ -49,7 +49,7 @@ def extract_gmm_to_petsc(I, J, M, B, comm=comm):
     A.assign(R_I, R_J, gf.Spmat("copy", M, R_I, R_J))
     A.transpose()
     A.to_csc()
-
+    
     A_ind = A.csc_ind()
     indrow = A_ind[0]
     indcol = A_ind[1]

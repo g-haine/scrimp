@@ -29,6 +29,7 @@ import matplotlib.pyplot as plt
 import matplotlib.pylab as pl
 import numpy as np
 import os
+
 import petsc4py
 import sys
 import time
@@ -1007,7 +1008,7 @@ class DPHS:
                 dt_save=float(self.time_scheme["dt_save"]),
                 t_0=float(self.time_scheme["t_0"]),
             )
-
+        
         TS.setMonitor(monitor)
         TS.setEventHandler([0], [True], self.event, self.postevent)
         TS.setEventTolerances(1e-16, vtol=[1e-19])
@@ -1157,6 +1158,7 @@ class DPHS:
                 next_saved_at_t = self.solution["t"][-1] + dt_save
             else:
                 next_saved_at_t = t_0
+                
             if (i == 0) or (next_saved_at_t - t <= 0) or (i == -1) or self.stop_TS:
                 if rank == 0:
                     sys.stdout.write(
@@ -1172,7 +1174,7 @@ class DPHS:
                     )
                     sys.stdout.flush()
 
-        # comm.barrier()
+        comm.barrier()
         self.gf_model.set_time(t)  # Update the time t in the getfem `Model`
         if (
             not self.linear_mass or not self.linear_stiffness

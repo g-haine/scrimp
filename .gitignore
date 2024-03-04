@@ -10,3 +10,4 @@ logs
 .spyproject/*
 dist/
 *egg*
+*.json
