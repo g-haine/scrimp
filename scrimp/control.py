@@ -1,7 +1,7 @@
 # SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
 #
 # Copyright (C) 2015-2023 ISAE-SUPAERO -- GNU GPLv3
-# 
+#
 # See the LICENSE file for license information.
 #
 # github: https://github.com/g-haine/scrimp
@@ -16,9 +16,10 @@
 from scrimp.port import Port
 import logging
 
+
 class Control_Port(Port):
     """This class defines a Control Port."""
-    
+
     def __init__(
         self,
         name: str,
@@ -44,7 +45,7 @@ class Control_Port(Port):
             position (str, optional): says if the control is on the `flow` side or on the `effort` side of the Dirac structure. Defaults to `effort`.
             mesh_id (int, optional): the id of the mesh where the form applies. Defaults to 0.
         """
-        
+
         if position == "effort":
             flow = name_observation
             effort = name_control
@@ -52,9 +53,7 @@ class Control_Port(Port):
             flow = name_control
             effort = name_observation
         else:
-            logging.error(
-                f"Position {position} is not available for control port"
-            )
+            logging.error(f"Position {position} is not available for control port")
             raise ValueError
 
         super().__init__(
@@ -65,7 +64,7 @@ class Control_Port(Port):
             mesh_id,
             algebraic=True,
             substituted=False,
-            dissipative=True, #: This allows to compute correctly the balance and to be plot with an opposite sign
+            dissipative=True,  #: This allows to compute correctly the balance and to be plot with an opposite sign
             region=region,
         )
 
@@ -81,7 +80,7 @@ class Control_Port(Port):
         Returns:
             str: the name of the control
         """
-        
+
         return self.__name_control
 
     def get_name_obervation(self) -> str:
@@ -90,7 +89,7 @@ class Control_Port(Port):
         Returns:
             str: the name of the observation
         """
-        
+
         return self.__name_observation
 
     def get_description_control(self) -> str:
@@ -99,7 +98,7 @@ class Control_Port(Port):
         Returns:
             str: the description of the control
         """
-        
+
         return self.__description_control
 
     def get_description_observation(self) -> str:
@@ -108,7 +107,7 @@ class Control_Port(Port):
         Returns:
             str: the description of the observation
         """
-        
+
         return self.__description_observation
 
     def get_position(self) -> str:
@@ -117,8 +116,9 @@ class Control_Port(Port):
         Returns:
             str: the position of the control
         """
-        
+
         return self.__position
+
 
 if __name__ == "__main__":
     Control_Port(
@@ -129,5 +129,5 @@ if __name__ == "__main__":
         "Velocity trace",
         "scalar-field",
         region=10,
-        position="effort"
+        position="effort",
     )

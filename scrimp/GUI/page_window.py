@@ -1,4 +1,5 @@
-from PyQt5 import QtWidgets,QtCore
+from PyQt5 import QtWidgets, QtCore
+
 
 class PageWindow(QtWidgets.QMainWindow):
     gotoSignal = QtCore.pyqtSignal(str)

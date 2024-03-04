@@ -1,7 +1,7 @@
 # SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
 #
 # Copyright (C) 2015-2023 ISAE-SUPAERO -- GNU GPLv3
-# 
+#
 # See the LICENSE file for license information.
 #
 # github: https://github.com/g-haine/scrimp
@@ -12,6 +12,7 @@
 - date:             31 may 2023
 - brief:            class for brick object
 """
+
 
 class Brick:
     """This class defines a Brick."""
@@ -32,7 +33,7 @@ class Brick:
         Args:
             name (str): the name of the brick, will be used mainly for plotting purpose.
             form (str): the form in GWFL getfem language.
-            regions (list): the regions of mesh_id where the form applies.
+            regions (list): the regions of mesh where the form applies.
             linear (bool, optional): parameter to help easy identification of linear bricks. Defaults to True.
             dt (bool, optional): parameter to help easy identification of matrices applied to time-derivative of a variable (e.g. mass matrices). Defaults to False.
             position (str, optional): parameter to help easy identification of "where" is the form: in the Dirac structure ('flow' side or 'effort' side), or in the 'constitutive' relations. This serves for both the time-resolution and plotting purposes. Defaults to "constitutive".
@@ -56,7 +57,7 @@ class Brick:
         Args:
             id_brick (int): the id of the brick
         """
-        
+
         self._id_bricks.append(id_brick)
 
     def get_name(self) -> str:
@@ -65,7 +66,7 @@ class Brick:
         Returns:
             str: the name of the brick, will be used mainly for plotting purpose
         """
-        
+
         return self._name
 
     def get_id_bricks(self) -> list:
@@ -74,7 +75,7 @@ class Brick:
         Returns:
             list: the list of integers related to the ids of the bricks.
         """
-        
+
         return self._id_bricks.copy()
 
     def get_form(self) -> str:
@@ -83,7 +84,7 @@ class Brick:
         Returns:
             str: the form in GWFL getfem language.
         """
-        
+
         return self._form
 
     def get_mesh_id(self) -> int:
@@ -92,16 +93,16 @@ class Brick:
         Returns:
             int: the id of the mesh where the form applies.
         """
-        
+
         return self._mesh_id
 
     def get_regions(self) -> list:
         """This function returns the regions of the brick.
 
         Returns:
-            list: the regions of mesh_id where the form applies.
+            list: the regions of mesh where the form applies.
         """
-        
+
         return self._regions
 
     def get_linear(self) -> bool:
@@ -110,7 +111,7 @@ class Brick:
         Returns:
             bool: parameter to help easy identification of linear bricks.
         """
-        
+
         return self._linear
 
     def get_dt(self) -> bool:
@@ -119,7 +120,7 @@ class Brick:
         Returns:
             bool: parameter to help easy identification of matrices applied to time-derivative of a variable (e.g. mass matrices).
         """
-        
+
         return self._dt
 
     def get_position(self) -> int:
@@ -128,7 +129,7 @@ class Brick:
         Returns:
             int: the id of the mesh where the form applies. Defaults to 0.
         """
-        
+
         return self._position
 
     def get_explicit(self) -> bool:
@@ -137,7 +138,7 @@ class Brick:
         Returns:
             bool: parameter to help easy identification of explicit bricks.
         """
-        
+
         return self._explicit
 
     def disable_id_bricks(self, gf_model):

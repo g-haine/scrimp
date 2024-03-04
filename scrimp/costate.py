@@ -1,7 +1,7 @@
 # SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
 #
 # Copyright (C) 2015-2023 ISAE-SUPAERO -- GNU GPLv3
-# 
+#
 # See the LICENSE file for license information.
 #
 # github: https://github.com/g-haine/scrimp
@@ -16,6 +16,7 @@
 from scrimp.state import State
 import logging
 
+
 class CoState(State):
     """This class defines a Co-State."""
 
@@ -28,15 +29,13 @@ class CoState(State):
             state (State): the State to which the Co-State is bounded
             substituted (bool, optional): boolean that defines whether to substitute the variable. Defaults to False.
         """
-        
+
         try:
             assert isinstance(state, State)
         except AssertionError as err:
-            logging.error(
-                f"State {state} must be added before its co-state"
-            )
+            logging.error(f"State {state} must be added before its co-state")
             raise err
-        
+
         super().__init__(
             name, description, state.get_kind(), state.get_region(), state.get_mesh_id()
         )
@@ -58,7 +57,7 @@ class CoState(State):
         Returns:
             object: State
         """
-        
+
         return self._state
 
     def get_substituted(self) -> bool:
@@ -67,8 +66,9 @@ class CoState(State):
         Returns:
             bool: boolean indicating wether to substitute the variable
         """
-        
+
         return self._substituted
+
 
 if __name__ == "__main__":
     print("COSTATE module OK!")

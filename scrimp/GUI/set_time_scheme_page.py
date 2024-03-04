@@ -1,13 +1,12 @@
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtCore import Qt
-from utils.GUI import gui_pages, gui_width, gui_height, Help
+from utils.GUI import gui_pages, gui_width, gui_height, Help, check_black_listed_words
 from PyQt5.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QAbstractItemView,
     QPushButton,
     QLabel,
-    QLineEdit,
     QGridLayout,
     QTableWidget,
     QTableWidgetItem,
@@ -27,6 +26,7 @@ class Window(QtWidgets.QWidget):
     switch_window = QtCore.pyqtSignal(str)
 
     def check_state(self):
+        """This function checks wether or not the checkbox has been checked and update the page accordingly."""
         print("clicked")
         if self.checkBox_answer.isChecked():
             self.set_self_layout()
@@ -34,15 +34,18 @@ class Window(QtWidgets.QWidget):
             self.clear_self_layout()
 
     def clear_self_layout(self):
+        """This function clears the layout object."""
         for i in range(2, 7):
             self.layout.itemAt(i).widget().hide()
 
     def set_self_layout(self):
+        """This function presets the layout object."""
         for i in range(2, 7):
             self.layout.itemAt(i).widget().show()
 
-    def __init__(self):
+    def __init__(self, session):
         QtWidgets.QWidget.__init__(self)
+        self.session = session
 
         self.setWindowTitle("Define the Time scheme")
         self.setFixedWidth(gui_width)
@@ -132,6 +135,10 @@ class Window(QtWidgets.QWidget):
         self.table.cellClicked.connect(self.update_help)
 
     def update_help(self):
+        """This function updates the Help object through its update_fields method.
+        A text, a description and an example are prepared to be passed to the abovementioned method.
+        """
+
         item = self.table.currentItem()
         if item is not None:
             text = item.text()
@@ -139,68 +146,77 @@ class Window(QtWidgets.QWidget):
             row = item.row()
             selection = self.list_widget.currentItem().text()
             print(f"col:{col},text:{text},selection:{selection}")
+            if col == 0:
+                if selection == "First":
+                    description = None
+                    example = None
 
-            if selection == "First":
-                description = None
-                example = None
+                    if row == 0:
+                        description = "This is ..."
 
-                if row == 0:
-                    description = "This is ..."
+                    elif row == 1:
+                        description = "This is ..."
 
-                elif row == 1:
-                    description = "This is ..."
+                    elif row == 2:
+                        description = "This is ..."
 
-                elif row == 2:
-                    description = "This is ..."
+                    elif row == 3:
+                        description = "This is ..."
 
-                elif row == 3:
-                    description = "This is ..."
+                    elif row == 4:
+                        description = "This is ..."
 
-                elif row == 4:
-                    description = "This is ..."
+                    elif row == 5:
+                        description = "This is ..."
 
-                elif row == 5:
-                    description = "This is ..."
+                    elif row == 6:
+                        description = "This is ..."
 
-                elif row == 6:
-                    description = "This is ..."
+                    elif row == 7:
+                        description = "This is ..."
 
-                elif row == 7:
-                    description = "This is ..."
+                    elif row == 8:
+                        description = "This is ..."
 
-                elif row == 8:
-                    description = "This is ..."
+                    elif row == 9:
+                        description = "This is ..."
 
-                elif row == 9:
-                    description = "This is ..."
+                    self.help.updateFields(text, description, example)
 
-                self.help.updateFields(text, description, example)
+                elif selection == "Second":
+                    description = None
+                    example = None
 
-            elif selection == "Second":
-                description = None
-                example = None
+                    if row == 0:
+                        description = "This is ..."
 
-                if row == 0:
-                    description = "This is ..."
+                    elif row == 1:
+                        description = "This is ..."
 
-                elif row == 1:
-                    description = "This is ..."
+                    elif row == 2:
+                        description = "This is ..."
 
-                elif row == 2:
-                    description = "This is ..."
-
-                self.help.updateFields(text, description, example)
+                    self.help.updateFields(text, description, example)
 
         else:
             self.help.clear()
             self.layout.itemAt(self.layout.count() - 1).widget().hide()
 
     def text_changed(self, page):  # s is a str
+        """This function allows the navigation trhough the navigation list.
+        After checking the presence of black listed words, the function hides the current page for showing the selected one.
+
+        Args:
+            page (str): the name of the page.
+        """
+
         self.comboBox.setCurrentText("set_time_scheme_page")
-        self.switch_window.emit(page)
-        self.hide()
+        if not check_black_listed_words(self, self.table, "Set Time scheme tabke"):
+            self.switch_window.emit(page)
+            self.hide()
 
     def update_table(self):
+        """This function updates the field of the selected time scheme."""
         selection = self.list_widget.currentItem().text()
         self.help.clear()
 
@@ -270,16 +286,22 @@ class Window(QtWidgets.QWidget):
             self.table.setItem(row, 1, new_value)
 
     def new_rows(self):
-        """This function adds 1 row in the table"""
+        """This function adds 1 row from the table"""
         count = self.table.rowCount()
         self.table.insertRow(count)
 
+    def update_page(self):
+        """This function manages the update of the current page."""
+        pass
+
     def next_page(self):
-        """This funciont emit the signal to navigate to the next page."""
-        self.switch_window.emit("generate_code_page")
-        self.hide()
+        """This function emits the signal to navigate to the next page."""
+        if not check_black_listed_words(self, self.table, "Set Time scheme tabke"):
+            self.switch_window.emit("generate_code_page")
+            self.hide()
 
     def previous_page(self):
-        """This funciont emit the signal to navigate to the previous page."""
-        self.switch_window.emit("add_initial_value_page")
-        self.hide()
+        """This function emits the signal to navigate to the previous page."""
+        if not check_black_listed_words(self, self.table, "Set Time scheme tabke"):
+            self.switch_window.emit("add_initial_value_page")
+            self.hide()

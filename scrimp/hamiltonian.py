@@ -1,7 +1,7 @@
 # SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
 #
 # Copyright (C) 2015-2023 ISAE-SUPAERO -- GNU GPLv3
-# 
+#
 # See the LICENSE file for license information.
 #
 # github: https://github.com/g-haine/scrimp
@@ -13,23 +13,21 @@
 - brief:            class for hamiltonian and term objects
 """
 
+import time
+import logging
+import numpy as np
+import matplotlib.pyplot as plt
+import getfem as gf
+from scrimp.domain import Domain
+from petsc4py import PETSc
 import petsc4py
 import os
 import sys
 
 petsc4py.init(sys.argv)
-from petsc4py import PETSc
 
 comm = PETSc.COMM_WORLD
 rank = comm.getRank()
-
-from scrimp.domain import Domain
-
-import getfem as gf
-import matplotlib.pyplot as plt
-import numpy as np
-import logging
-import time
 
 class Term:
     """This class defines a term for the Hamiltoninan."""
@@ -42,10 +40,10 @@ class Term:
         Args:
             description (str): the name or description of the term (e.g. 'Kinetic energy')
             expression (str): the formula, using the `Model` variables, defining the term. Parameters are allowed (e.g. '0.5*q.T.q')
-            regions (str): the region ids of the mesh mesh_id where the expression has to be evaluated
-            mesh_id (sint): the mesh id of the mesh where the regions belong
+            regions (str): the region IDs of the mesh where the expression has to be evaluated
+            mesh_id (sint): the mesh id of the mesh where the regions belong to.
         """
-        
+
         self.__description = description
         self.__expression = expression
         self.__regions = regions
@@ -58,7 +56,7 @@ class Term:
         Returns:
             str: description of the term
         """
-        
+
         return self.__description
 
     def get_expression(self) -> str:
@@ -67,25 +65,25 @@ class Term:
         Returns:
             str: matematical expression of the term.
         """
-        
+
         return self.__expression
 
     def get_regions(self) -> str:
         """This function gets the regions of the term.
 
         Returns:
-            str: regions of the termthe region ids of the mesh mesh_id where the expression has to be evaluated
+            str: regions of the termthe region IDs of the mesh where the expression has to be evaluated
         """
-        
+
         return self.__regions
 
     def get_mesh_id(self) -> int:
-        """This function gets the mesh id of the mesh where the regions belong.
+        """This function gets the mesh id of the mesh where the regions belong to..
 
         Returns:
-            int: the mesh id of the mesh where the regions belong
+            int: the mesh id of the mesh where the regions belong to.
         """
-        
+
         return self.__mesh_id
 
     def get_values(self) -> list:
@@ -94,7 +92,7 @@ class Term:
         Returns:
             list: list of values of the term
         """
-        
+
         return self.__values.copy()
 
     def set_value(self, value):
@@ -107,22 +105,21 @@ class Term:
         try:
             assert isinstance(value, float)
         except AssertionError as err:
-            logging.error(
-                "Can't add value {value}, bad type"
-            )
+            logging.error("Can't add value {value}, bad type")
             raise err
         self.__values.append(value)
 
+
 class Hamiltonian:
     """This class defines the Hamiltoninan."""
-    
+
     def __init__(self, name: str) -> None:
         """This constructor defines the object Hamiltonian functional.
 
         Args:
             name (str): the name or description of the Hamiltonian
         """
-        
+
         self.__terms = []
         self.__name = name
         self.__is_computed = False
@@ -134,31 +131,27 @@ class Hamiltonian:
         Args:
             term (Term): term for the Hamiltonian
         """
-        
+
         try:
             assert isinstance(term, Term)
         except AssertionError as err:
-            logging.error(
-                f"Term {term} does not exist."
-            )
+            logging.error(f"Term {term} does not exist.")
             raise err
-            
+
         self.__terms.append(term)
 
     def compute(self, solution: dict, gf_model: gf.Model, domain: Domain):
         """Compute each `term` constituting the Hamiltonian
-        
+
         Args:
             - solutions (dict):         The solution of the dphs
             - gf_model (GetFEM Model):  The model getfem of the dphs
             - domain (Domain):          The domain of the dphs
         """
-        
-        if rank==0:
-            logging.info(
-                "Start computing the Hamiltonian"
-            )
-        
+
+        if rank == 0:
+            logging.info("Start computing the Hamiltonian")
+
         start = time.perf_counter()
         for t, _ in enumerate(solution["t"]):
             gf_model.to_variables(solution["z"][t])
@@ -176,8 +169,8 @@ class Hamiltonian:
                 term.set_value(term_value_at_t)
 
         self.set_is_computed()
-        
-        if rank==0:
+
+        if rank == 0:
             logging.info(
                 f"Hamiltonian has been computed in {str(time.perf_counter() - start)} s"
             )
@@ -225,7 +218,7 @@ class Hamiltonian:
         Returns:
             list: list of terms of the Hamiltonian.
         """
-        
+
         return self.__terms.copy()
 
     def __getitem__(self, index) -> Term:
@@ -237,18 +230,16 @@ class Hamiltonian:
         Returns:
             Term: _description_
         """
-        
+
         try:
             return self.__terms[index]
         except IndexError as err:
-            logging.error(
-                f"index {index} out of {len(self.__terms)}"
-            )
+            logging.error(f"index {index} out of {len(self.__terms)}")
             raise err
 
     def set_is_computed(self):
         """This function sets the Hamiltonian as computed."""
-        
+
         self.__is_computed = True
 
     def get_is_computed(self) -> bool:
@@ -257,5 +248,5 @@ class Hamiltonian:
         Returns:
             bool: flag that indicates if the hamiltonian terms have been computed
         """
-        
+
         return self.__is_computed

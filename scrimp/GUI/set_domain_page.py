@@ -1,6 +1,6 @@
 from PyQt5 import QtCore, QtWidgets, QtGui
 from PyQt5.QtCore import Qt
-from utils.GUI import gui_pages, gui_width, gui_height, Help
+from utils.GUI import gui_pages, gui_width, gui_height, Help, check_black_listed_words
 
 from PyQt5.QtWidgets import (
     QListWidget,
@@ -8,7 +8,6 @@ from PyQt5.QtWidgets import (
     QAbstractItemView,
     QPushButton,
     QLabel,
-    QLineEdit,
     QGridLayout,
     QTableWidget,
     QComboBox,
@@ -25,8 +24,9 @@ class Window(QtWidgets.QWidget):
 
     switch_window = QtCore.pyqtSignal(str)
 
-    def __init__(self):
+    def __init__(self, session):
         QtWidgets.QWidget.__init__(self)
+        self.session = session
 
         self.setWindowTitle("Define the domain for the dpHs")
         self.setFixedWidth(gui_width)
@@ -127,6 +127,9 @@ class Window(QtWidgets.QWidget):
         self.table.itemClicked.connect(self.update_help)
 
     def update_help(self):
+        """This function updates the Help object through its update_fields method.
+        A text, a description and an example are prepared to be passed to the abovementioned method.
+        """
         item = self.table.currentItem()
         if item is not None:
             text = item.text()
@@ -155,23 +158,23 @@ class Window(QtWidgets.QWidget):
                         example = "in a rectangle ABCD, if BC is the shorter side, l is its lenght."
 
                     elif text == "h":
-                        description = "The step of integration"
+                        description = "The mesh size parameter"
                         example = ""
 
                     elif text == "R":
                         if selection == "Disk":
-                            description = "Rayon of the disk"
+                            description = "radius of the disk"
                             example = ""
 
                         elif selection == "Annulus":
-                            description = "Lenght of the longer rayon of the annulus"
+                            description = "Lenght of the longer radius of the annulus"
                             example = (
-                                "in an annulus, R is the rayon of the outer circle."
+                                "in an annulus, R is the radius of the outer circle."
                             )
 
                     elif text == "r":
-                        description = "Lenght of the shorter rayon of the annulus"
-                        example = "in an annulus, R is the rayon of the inner circle."
+                        description = "Lenght of the shorter radius of the annulus"
+                        example = "in an annulus, R is the radius of the inner circle."
 
                     self.help.updateFields(text, description, example)
 
@@ -184,21 +187,30 @@ class Window(QtWidgets.QWidget):
             self.layout.itemAt(self.layout.count() - 1).widget().hide()
 
     def text_changed(self, page):  # s is a str
+        """This function allows the navigation trhough the navigation list.
+        After checking the presence of black listed words, the function hides the current page for showing the selected one.
+
+        Args:
+            page (str): the name of the page.
+        """
         self.comboBox.setCurrentText("set_domain_page")
-        self.switch_window.emit(page)
-        self.hide()
+        if not check_black_listed_words(self, self.table, "Domain"):
+            self.switch_window.emit(page)
+            self.hide()
 
     def delete(self):
-        """This function removes 2 rows in the table (1 for state, 1 for co-state)"""
+        """This function removes 1 row from the table"""
         if self.table.rowCount() >= 1:
             self.table.removeRow(self.table.currentRow())
         else:
             print("not enough element to delete!")
 
     def update_table(self):
+        """This function updates the fields of the domain table."""
         selection = self.list_widget.currentItem().text()
+        self.session["domain"] = selection
+
         self.help.clear()
-        # self.update_help()
 
         if selection == "Other":
             self.layout.itemAt(3).widget().show()
@@ -254,16 +266,22 @@ class Window(QtWidgets.QWidget):
             self.table.setRowCount(0)
 
     def new_rows(self):
-        """This function adds 1 row in the table"""
+        """This function adds 1 row from the table"""
         count = self.table.rowCount()
         self.table.insertRow(count)
 
+    def update_page(self):
+        """This function manages the update of the current page."""
+        pass
+
     def next_page(self):
-        """This funciont emit the signal to navigate to the next page."""
-        self.switch_window.emit("add_state_costate_page")
-        self.hide()
+        """This function emits the signal to navigate to the next page."""
+        if not check_black_listed_words(self, self.table, "Domain"):
+            self.switch_window.emit("add_state_costate_page")
+            self.hide()
 
     def previous_page(self):
-        """This funciont emit the signal to navigate to the previous page."""
-        self.switch_window.emit("create_dphs_page")
-        self.hide()
+        """This function emits the signal to navigate to the previous page."""
+        if not check_black_listed_words(self, self.table, "Domain"):
+            self.switch_window.emit("create_dphs_page")
+            self.hide()

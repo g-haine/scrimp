@@ -1,15 +1,20 @@
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtWidgets import (
-    QHBoxLayout,
     QPushButton,
-    QLineEdit,
     QGridLayout,
     QTableWidget,
     QTableWidgetItem,
     QComboBox,
 )
 from PyQt5.QtCore import Qt
-from utils.GUI import gui_pages, gui_width, gui_height, Help
+from utils.GUI import (
+    gui_pages,
+    gui_width,
+    gui_height,
+    Help,
+    check_black_listed_words,
+    update_list_variables,
+)
 
 
 class Window(QtWidgets.QWidget):
@@ -22,22 +27,18 @@ class Window(QtWidgets.QWidget):
 
     switch_window = QtCore.pyqtSignal(str)
 
-    def __init__(self):
+    def __init__(self, session):
         QtWidgets.QWidget.__init__(self)
+        self.session = session
 
         self.setWindowTitle("Definition of Control control_port/s")
         self.setFixedWidth(gui_width)
         self.setFixedHeight(gui_height)
-        # self.setGeometry(100, 100, 600, 300)
 
         self.layout = QGridLayout()
 
-        # self.line_edit = QLineEdit()
-        # layout.addWidget(self.line_edit)
-
         # create a QTableWidget control_ports
         self.table_control_ports = QTableWidget()
-        # self.table_control_ports.setRowCount(1)
 
         # adding header to the table
         header_horizontal_control_ports = [
@@ -51,8 +52,7 @@ class Window(QtWidgets.QWidget):
             "Position",
             "Mesh ID",
         ]
-        self.table_control_ports.setColumnCount(
-            len(header_horizontal_control_ports))
+        self.table_control_ports.setColumnCount(len(header_horizontal_control_ports))
 
         self.header_vertical_control_ports = ["control_port"]
         self.table_control_ports.setHorizontalHeaderLabels(
@@ -70,18 +70,10 @@ class Window(QtWidgets.QWidget):
         self.button_add_control_port.clicked.connect(self.new_control_port)
 
         self.button_delete_control_port = QPushButton("Remove selected control_port")
-        self.button_delete_control_port.clicked.connect(
-            self.delete_control_port)
+        self.button_delete_control_port.clicked.connect(self.delete_control_port)
 
         self.button_clear_all = QPushButton("Clear All")
         self.button_clear_all.clicked.connect(self.clear_all)
-
-        # layout_buttons_control_port = QHBoxLayout()
-
-        # layout_buttons_control_port.addWidget(self.button_add_control_port)
-        # layout_buttons_control_port.addWidget(self.button_delete_control_port)
-
-        # cell_double = QTableWidget(layout_buttons_control_port)
 
         self.button_next = QPushButton("Next >")
         self.button_next.clicked.connect(self.next_page)
@@ -90,11 +82,9 @@ class Window(QtWidgets.QWidget):
         self.button_prev.clicked.connect(self.previous_page)
 
         self.layout.addWidget(self.table_control_ports, 1, 0, 1, 3)
-        # layout.addWidget(cell_double, 1, 3)
         self.layout.addWidget(self.button_clear_all, 0, 1)
         self.layout.addWidget(self.button_add_control_port, 0, 2, Qt.AlignTop)
-        self.layout.addWidget(
-            self.button_delete_control_port, 0, 3, Qt.AlignTop)
+        self.layout.addWidget(self.button_delete_control_port, 0, 3, Qt.AlignTop)
 
         self.layout.addWidget(self.button_next, 4, 3)
         self.layout.addWidget(self.button_prev, 4, 2)
@@ -113,9 +103,10 @@ class Window(QtWidgets.QWidget):
         self.help = Help(self.layout, 3, 3)
         self.table_control_ports.cellClicked.connect(self.update_help)
 
-        # self.new_control_port()
-
     def update_help(self):
+        """This function updates the Help object through its update_fields method.
+        A text, a description and an example are prepared to be passed to the abovementioned method.
+        """
         example = ""
         col = self.table_control_ports.currentColumn()
 
@@ -151,7 +142,7 @@ class Window(QtWidgets.QWidget):
                 \n- tensor-field"""
 
             elif col == 6:
-                description = "the int identifying the region in mesh_id where the control port belong, useful for boundary ports"
+                description = "the integer identifying the region in the mesh where the Control Port belong, useful for boundary ports"
                 example = "Default is None."
 
             elif col == 7:
@@ -171,44 +162,82 @@ class Window(QtWidgets.QWidget):
             self.layout.itemAt(self.layout.count() - 1).widget().hide()
 
     def text_changed(self, page):  # s is a str
+        """This function allows the navigation trhough the navigation list.
+        After checking the presence of black listed words, the function hides the current page for showing the selected one.
+
+        Args:
+            page (str): the name of the page.
+        """
         self.comboBox.setCurrentText("add_control_port_page")
-        self.switch_window.emit(page)
-        self.hide()
+        if not check_black_listed_words(
+            self, self.table_control_ports, "Control Ports"
+        ):
+            update_list_variables(
+                self.session["variables"], self.table_control_ports, "control_port"
+            )
+            self.switch_window.emit(page)
+            self.hide()
+
+    def update_page(self):
+        """This function manages the update of the current page."""
+        for row in range(self.table_control_ports.rowCount()):
+            comboBox = self.table_control_ports.cellWidget(row, 5)
+            comboBox.clear()
+            if "domain" in self.session.keys() and self.session["domain"] == "Segment":
+                comboBox.addItems(["scalar-field"])
+            else:
+                comboBox.addItems(["scalar-field", "vector-field", "tensor-field"])
 
     def next_page(self):
-        """This funciont emit the signal to navigate to the next page."""
-        self.switch_window.emit("add_fem_page")
-        self.hide()
+        """This function emits the signal to navigate to the next page."""
+        if not check_black_listed_words(
+            self, self.table_control_ports, "Control Ports"
+        ):
+            update_list_variables(
+                self.session["variables"], self.table_control_ports, "control_port"
+            )
+            self.switch_window.emit("add_fem_page")
+            self.hide()
 
     def previous_page(self):
         """This funcion emits the signal to navigate to the prvious page."""
-        self.switch_window.emit("add_parameter_page")
-        self.hide()
+        if not check_black_listed_words(
+            self, self.table_control_ports, "Control Ports"
+        ):
+            update_list_variables(
+                self.session["variables"], self.table_control_ports, "control_port"
+            )
+            self.switch_window.emit("add_parameter_page")
+            self.hide()
 
     def choice_clicked(self, text):
-        def foo():
+        """This function is responsible of the Help object updates.
+
+        Args:
+            text (str): the name of the selected column.
+        """
+
+        def make_update():
             print(text)
             description = ""
             example = ""
 
-            if text == "Region":
-                description = "the int identifying the region in mesh_id where the control port belong, useful for boundary ports"
-                example = "Default is None."
+            if text == "Position":
+                description = (
+                    "Defines wether the Control Port is an 'effort' or a 'flow'."
+                )
+                example = "Default is effort."
 
             elif text == "Kind":
-                description = "Choose what is the kind of your state."
+                description = "Choose what is the kind of your Control Port."
                 example = """It could be one of the following list:
                 \n- scalar-field
                 \n- vector-field
                 \n- tensor-field"""
 
-            elif text == "Substituted":
-                description = "It is a boolean that defines whether to substitute the variable. Defaults to False"
-                example = "Default is False"
-
             self.help.updateFields(text, description, example)
 
-        return foo
+        return make_update
 
     def new_control_port(self):
         """This function adds 1 row in the table for control_port"""
@@ -220,20 +249,22 @@ class Window(QtWidgets.QWidget):
         )
 
         controlport_choice_kind = QComboBox()
-        controlport_choice_kind.addItems(
-            ["scalar-field", "vector-field", "tensor-field"]
-        )
-        controlport_choice_kind.textHighlighted.connect(
-            self.choice_clicked("Kind"))
-        self.table_control_ports.setCellWidget(
-            count, 5, controlport_choice_kind)
+        if "domain" in self.session.keys() and self.session["domain"] == "Segment":
+            controlport_choice_kind.addItems(["scalar-field"])
+        else:
+            controlport_choice_kind.addItems(
+                ["scalar-field", "vector-field", "tensor-field"]
+            )
 
-        controlport_choice_region = QComboBox()
-        controlport_choice_region.addItems(["effort", "flow"])
-        controlport_choice_region.textHighlighted.connect(
-            self.choice_clicked("Region"))
-        self.table_control_ports.setCellWidget(
-            count, 7, controlport_choice_region)
+        controlport_choice_kind.textHighlighted.connect(self.choice_clicked("Kind"))
+        self.table_control_ports.setCellWidget(count, 5, controlport_choice_kind)
+
+        controlport_choice_poistion = QComboBox()
+        controlport_choice_poistion.addItems(["effort", "flow"])
+        controlport_choice_poistion.textHighlighted.connect(
+            self.choice_clicked("Position")
+        )
+        self.table_control_ports.setCellWidget(count, 7, controlport_choice_poistion)
 
         # set defaults
 
@@ -252,19 +283,19 @@ class Window(QtWidgets.QWidget):
                 self.table_control_ports.setItem(count, i, new_value)
 
     def delete_control_port(self):
-        """This function removes 2 rows in the table (1 for control_port, 1 for co-control_port)"""
+        """This function removes 1 row from the table"""
         if len(self.header_vertical_control_ports) > 1:
             self.header_vertical_control_ports.pop()
             self.table_control_ports.setVerticalHeaderLabels(
                 self.header_vertical_control_ports
             )
 
-            self.table_control_ports.removeRow(
-                self.table_control_ports.currentRow())
+            self.table_control_ports.removeRow(self.table_control_ports.currentRow())
 
         else:
             print("not enough element to delete!")
 
     def clear_all(self):
+        """This function removes all the rows from the table."""
         self.table_control_ports.setRowCount(0)
         self.new_control_port()

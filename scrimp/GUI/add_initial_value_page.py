@@ -1,15 +1,13 @@
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtWidgets import (
-    QHBoxLayout,
     QPushButton,
-    QLineEdit,
     QGridLayout,
     QTableWidget,
     QTableWidgetItem,
     QComboBox,
 )
 from PyQt5.QtCore import Qt
-from utils.GUI import gui_pages, gui_width, gui_height, Help
+from utils.GUI import gui_pages, gui_width, gui_height, Help, check_black_listed_words
 
 
 class Window(QtWidgets.QWidget):
@@ -22,27 +20,22 @@ class Window(QtWidgets.QWidget):
 
     switch_window = QtCore.pyqtSignal(str)
 
-    def __init__(self):
+    def __init__(self, session):
         QtWidgets.QWidget.__init__(self)
+        self.session = session
 
         self.setWindowTitle("Definition of Initial value/s")
         self.setFixedWidth(gui_width)
         self.setFixedHeight(gui_height)
-        # self.setGeometry(100, 100, 600, 300)
 
         self.layout = QGridLayout()
 
-        # self.line_edit = QLineEdit()
-        # layout.addWidget(self.line_edit)
-
         # create a QTableWidget initial_values
         self.table_initial_values = QTableWidget()
-        # self.table_initial_values.setRowCount(1)
 
         # adding header to the table
         header_horizontal_initial_values = ["Variable Name", "Initial Value"]
-        self.table_initial_values.setColumnCount(
-            len(header_horizontal_initial_values))
+        self.table_initial_values.setColumnCount(len(header_horizontal_initial_values))
 
         self.header_vertical_initial_values = ["initial value"]
         self.table_initial_values.setHorizontalHeaderLabels(
@@ -60,18 +53,10 @@ class Window(QtWidgets.QWidget):
         self.button_add_initial_value.clicked.connect(self.new_initial_value)
 
         self.button_delete_initial_value = QPushButton("Remove selected initial_value")
-        self.button_delete_initial_value.clicked.connect(
-            self.delete_initial_value)
+        self.button_delete_initial_value.clicked.connect(self.delete_initial_value)
 
         self.button_clear_all = QPushButton("Clear All")
         self.button_clear_all.clicked.connect(self.clear_all)
-
-        # layout_buttons_initial_value = QHBoxLayout()
-
-        # layout_buttons_initial_value.addWidget(self.button_add_initial_value)
-        # layout_buttons_initial_value.addWidget(self.button_delete_initial_value)
-
-        # cell_double = QTableWidget(layout_buttons_initial_value)
 
         self.button_next = QPushButton("Next >")
         self.button_next.clicked.connect(self.next_page)
@@ -80,11 +65,9 @@ class Window(QtWidgets.QWidget):
         self.button_prev.clicked.connect(self.previous_page)
 
         self.layout.addWidget(self.table_initial_values, 1, 0, 1, 3)
-        # layout.addWidget(cell_double, 1, 3)
         self.layout.addWidget(self.button_clear_all, 0, 1)
         self.layout.addWidget(self.button_add_initial_value, 0, 2, Qt.AlignTop)
-        self.layout.addWidget(
-            self.button_delete_initial_value, 0, 3, Qt.AlignTop)
+        self.layout.addWidget(self.button_delete_initial_value, 0, 3, Qt.AlignTop)
         self.layout.addWidget(self.button_prev, 4, 2)
         self.layout.addWidget(self.button_next, 4, 3)
 
@@ -103,6 +86,9 @@ class Window(QtWidgets.QWidget):
         self.table_initial_values.cellClicked.connect(self.update_help)
 
     def update_help(self):
+        """This function updates the Help object through its update_fields method.
+        A text, a description and an example are prepared to be passed to the abovementioned method.
+        """
         example = ""
         col = self.table_initial_values.currentColumn()
 
@@ -126,19 +112,38 @@ class Window(QtWidgets.QWidget):
             self.layout.itemAt(self.layout.count() - 1).widget().hide()
 
     def text_changed(self, page):  # s is a str
+        """This function allows the navigation trhough the navigation list.
+        After checking the presence of black listed words, the function hides the current page for showing the selected one.
+
+        Args:
+            page (str): the name of the page.
+        """
         self.comboBox.setCurrentText("add_initial_value_page")
-        self.switch_window.emit(page)
-        self.hide()
+        if not check_black_listed_words(
+            self, self.table_initial_values, "Initial Values"
+        ):
+            self.switch_window.emit(page)
+            self.hide()
+
+    def update_page(self):
+        """This function manages the update of the current page."""
+        pass
 
     def next_page(self):
-        """This funciont emit the signal to navigate to the next page."""
-        self.switch_window.emit("set_time_scheme_page")
-        self.hide()
+        """This function emits the signal to navigate to the next page."""
+        if not check_black_listed_words(
+            self, self.table_initial_values, "Initial Values"
+        ):
+            self.switch_window.emit("set_time_scheme_page")
+            self.hide()
 
     def previous_page(self):
         """This funcion emits the signal to navigate to the prvious page."""
-        self.switch_window.emit("add_expression_page")
-        self.hide()
+        if not check_black_listed_words(
+            self, self.table_initial_values, "Initial Values"
+        ):
+            self.switch_window.emit("add_expression_page")
+            self.hide()
 
     def new_initial_value(self):
         """This function adds 1 row in the table for initial_value"""
@@ -154,7 +159,7 @@ class Window(QtWidgets.QWidget):
             self.table_initial_values.setItem(count, i, new_value)
 
     def delete_initial_value(self):
-        """This function removes 2 rows in the table (1 for initial_value, 1 for co-initial_value)"""
+        """This function removes 1 row from the table"""
         if len(self.header_vertical_initial_values) > 1:
             self.header_vertical_initial_values.pop()
             self.table_initial_values.setVerticalHeaderLabels(
@@ -169,5 +174,6 @@ class Window(QtWidgets.QWidget):
             print("not enough element to delete!")
 
     def clear_all(self):
+        """This function removes all the rows from the table."""
         self.table_initial_values.setRowCount(0)
         self.new_initial_value()

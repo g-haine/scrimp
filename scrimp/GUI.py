@@ -15,9 +15,11 @@ from GUI import (
     add_initial_value_page,
     set_time_scheme_page,
     generate_code_page,
+    export_variable_page,
 )
 from utils.GUI import (
     heading,
+    black_listed_words,
     text_create_class,
     text_set_domain,
     text_add_states,
@@ -39,8 +41,9 @@ from utils.GUI import (
     text_set_time_scheme,
     text_main,
     text_solve,
-    text_plot
-
+    text_plot,
+    update_intial_values_page,
+    text_export_variables,
 )
 import os
 
@@ -49,21 +52,25 @@ class Controller:
     """This class magage the navigation of the GUI."""
 
     def __init__(self):
+        self.session = {}
+        self.session["variables"] = []
+        self.session["black_listed_words"] = black_listed_words
         # the pages that are included in the GUI
-        self.create_dphs = create_dphs_page.Window()
-        self.set_domain_page = set_domain_page.Window()
-        self.add_port_page = add_port_page.Window()
-        self.add_state_costate_page = add_state_costate_page.Window()
-        self.add_parameter_page = add_parameter_page.Window()
-        self.add_control_port_page = add_control_port_page.Window()
-        self.add_fem_page = add_fem_page.Window()
-        self.set_hamiltonian_page = set_hamiltonian_page.Window()
-        self.add_term_page = add_term_page.Window()
-        self.add_brick_page = add_brick_page.Window()
-        self.add_expression_page = add_expression_page.Window()
-        self.add_initial_value_page = add_initial_value_page.Window()
-        self.set_time_scheme_page = set_time_scheme_page.Window()
-        self.generate_code_page = generate_code_page.Window()
+        self.create_dphs = create_dphs_page.Window(self.session)
+        self.set_domain_page = set_domain_page.Window(self.session)
+        self.add_port_page = add_port_page.Window(self.session)
+        self.add_state_costate_page = add_state_costate_page.Window(self.session)
+        self.add_parameter_page = add_parameter_page.Window(self.session)
+        self.add_control_port_page = add_control_port_page.Window(self.session)
+        self.add_fem_page = add_fem_page.Window(self.session)
+        self.set_hamiltonian_page = set_hamiltonian_page.Window(self.session)
+        self.add_term_page = add_term_page.Window(self.session)
+        self.add_brick_page = add_brick_page.Window(self.session)
+        self.add_expression_page = add_expression_page.Window(self.session)
+        self.add_initial_value_page = add_initial_value_page.Window(self.session)
+        self.set_time_scheme_page = set_time_scheme_page.Window(self.session)
+        self.generate_code_page = generate_code_page.Window(self.session)
+        self.export_variable_page = export_variable_page.Window(self.session)
 
         # the connections
         self.create_dphs.switch_window.connect(self.show_window)
@@ -80,6 +87,7 @@ class Controller:
         self.add_initial_value_page.switch_window.connect(self.show_window)
         self.set_time_scheme_page.switch_window.connect(self.show_window)
         self.generate_code_page.switch_window.connect(self.show_window)
+        self.export_variable_page.switch_window.connect(self.show_window)
 
     def show_window(self, text: str):
         """This function according to the variable text shows the corresponding window of gui.
@@ -91,15 +99,19 @@ class Controller:
         if text == "set_domain_page":
             self.set_domain_page.show()
         elif text == "add_state_costate_page":
+            self.add_state_costate_page.update_page()
             self.add_state_costate_page.show()
         elif text == "add_port_page":
+            self.add_port_page.update_page()
             self.add_port_page.show()
         elif text == "create_dphs_page":
             self.create_dphs.show()
         elif text == "add_parameter_page":
+            self.add_parameter_page.update_page(self)
             update_parameters_page(self)
             self.add_parameter_page.show()
         elif text == "add_control_port_page":
+            self.add_control_port_page.update_page()
             update_control_ports_page(self)
             self.add_control_port_page.show()
         elif text == "add_fem_page":
@@ -108,28 +120,37 @@ class Controller:
         elif text == "set_hamiltonian_page":
             self.set_hamiltonian_page.show()
         elif text == "add_term_page":
+            self.add_term_page.update_page(self)
             self.add_term_page.show()
         elif text == "add_brick_page":
+            self.add_brick_page.update_page(self)
             self.add_brick_page.show()
         elif text == "add_expression_page":
             update_expressions_page(self)
             self.add_expression_page.show()
         elif text == "add_initial_value_page":
             self.add_initial_value_page.show()
+            update_intial_values_page(self)
         elif text == "set_time_scheme_page":
             self.set_time_scheme_page.show()
         elif text == "generate_code_page":
             self.generate_code_page.show()
         elif text == "generate_code":
             self.generate_code()
-        elif text in ["Matplotlib", "Paraview"]:
+        elif text == "Matplotlib":
             filename, dphs = self.generate_code()
             self.run_code(text, filename, dphs)
+        elif text == "Paraview":
+            self.export_variable_page.update_page()
+            self.export_variable_page.show()
+        elif text == "start_Paraview":
+            filename, dphs = self.generate_code(True)
+            self.run_code(text, None, None)
         else:
             print("the emitted signal:", text)
             pass
 
-    def generate_code(self):
+    def generate_code(self, export_variables=False):
         """This function retrieves the field from the GUI and create a python script.
         It return the filename and the name of Discrete Port Hamiltonia System declared.
 
@@ -175,7 +196,7 @@ class Controller:
         # define Port/s
         text_add_ports(self, file)
 
-        # define Parameter/s
+        # # define Parameter/s
         text_add_parameters(self, file)
 
         # define Control Ports
@@ -208,6 +229,9 @@ class Controller:
         # solve
         text_solve(self, file, dphs)
 
+        # export solutions for ParaView
+        text_export_variables(self, file, dphs, export_variables)
+
         # plot hamiltonian
         text_plot(self, file, dphs)
 
@@ -230,12 +254,17 @@ class Controller:
         """
 
         if text == "Matplotlib":
-            exec(
-                f'import {filename}\n{filename}.{dphs}_eq()')
+            exec(f"import {filename}\n{filename}.{dphs}_eq()")
 
-        else:
-            # TODO
-            pass
+        elif text == "start_Paraview":
+            print(f"Selected Variable to Export: {self.session['selected_variables']}")
+
+            for variable in self.session["selected_variables"]:
+                path = self.session["path_to_export_varaible"]
+                if path is not None:
+                    os.system(f"paraview {os.path.join(path,variable,variable)}.pvd")
+                else:
+                    os.system(f"paraview {os.path.join(variable,variable)}.pvd")
 
 
 def main():

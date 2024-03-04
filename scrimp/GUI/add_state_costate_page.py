@@ -1,15 +1,21 @@
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtWidgets import (
-    QHBoxLayout,
     QPushButton,
-    QLineEdit,
     QGridLayout,
     QTableWidget,
     QTableWidgetItem,
     QComboBox,
 )
+
 from PyQt5.QtCore import Qt
-from utils.GUI import gui_pages, gui_width, gui_height, Help
+from utils.GUI import (
+    gui_pages,
+    gui_width,
+    gui_height,
+    Help,
+    check_black_listed_words,
+    update_list_variables,
+)
 
 
 class Window(QtWidgets.QWidget):
@@ -22,24 +28,19 @@ class Window(QtWidgets.QWidget):
 
     switch_window = QtCore.pyqtSignal(str)
 
-    def __init__(self):
+    def __init__(self, session):
         QtWidgets.QWidget.__init__(self)
+        self.session = session
 
         self.setWindowTitle("Definition of State/s and Costate/s")
         self.setFixedWidth(gui_width)
         self.setFixedHeight(gui_height)
-        # self.setGeometry(100, 100, 600, 300)
 
         self.layout = QGridLayout()
 
-        # self.line_edit = QLineEdit()
-        # self.layout.addWidget(self.line_edit)
-
         # create a QTableWidget States
         self.table_states = QTableWidget()
-        # self.table_states.setRowCount(1)
         self.table_states.setColumnCount(5)
-        # self.table_states.setGeometry(50, 100, 300, 300)
 
         # adding header to the table
         header_horizontal_states = ["Name", "Description", "Kind", "Region", "Mesh ID"]
@@ -60,18 +61,9 @@ class Window(QtWidgets.QWidget):
         self.button_clear_all = QPushButton("Clear All")
         self.button_clear_all.clicked.connect(self.clear_all)
 
-        # layout_buttons_state = QHBoxLayout()
-
-        # layout_buttons_state.addWidget(self.button_add_state)
-        # layout_buttons_state.addWidget(self.button_delete_state)
-
-        # cell_double = QTableWidget(layout_buttons_state)
-
         # create a QTableWidget Co-States
         self.table_costates = QTableWidget()
-        # self.table_costates.setRowCount(1)
         self.table_costates.setColumnCount(4)
-        # self.table_costates.setGeometry(50, 100, 300, 300)
 
         # adding header to the table
         header_horizontal_costates = [
@@ -88,12 +80,6 @@ class Window(QtWidgets.QWidget):
         for i, _ in enumerate(header_horizontal_costates):
             self.table_costates.setColumnWidth(i, 150)
 
-        # self.button_add_costate = QPushButton("Add Costate")
-        # self.button_add_costate.clicked.connect(self.new_costate)
-
-        # self.button_delete_costate = QPushButton("Delete Costate")
-        # self.button_delete_costate.clicked.connect(self.delete_costate)
-
         self.button_next = QPushButton("Next >")
         self.button_next.clicked.connect(self.next_page)
 
@@ -101,13 +87,10 @@ class Window(QtWidgets.QWidget):
         self.button_prev.clicked.connect(self.previous_page)
 
         self.layout.addWidget(self.table_states, 1, 0, 1, 3)
-        # self.layout.addWidget(cell_double, 1, 3)
         self.layout.addWidget(self.button_clear_all, 0, 1)
         self.layout.addWidget(self.button_add_state, 0, 2, Qt.AlignTop)
         self.layout.addWidget(self.button_delete_state, 0, 3, Qt.AlignTop)
         self.layout.addWidget(self.table_costates, 3, 0, 1, 3)
-        # self.layout.addWidget(self.button_add_costate, 2, 2)
-        # self.layout.addWidget(self.button_delete_costate, 2, 3)
         self.layout.addWidget(self.button_next, 4, 4)
         self.layout.addWidget(self.button_prev, 4, 3)
 
@@ -130,11 +113,12 @@ class Window(QtWidgets.QWidget):
         self.new_state()
 
     def update_costate_table_by_state(self):
+        """This function update the Co-state table accorging to the updates of the State table."""
         row = self.table_costates.currentRow()
         self.table_costates.setItem(row, 2, self.table_states.item(row, 0).clone())
 
     def update_help_state(self):
-        # item = self.table_states.currentItem()
+        """This function update the Help object with the information from the State table."""
         example = ""
         col = self.table_states.currentColumn()
 
@@ -153,11 +137,11 @@ class Window(QtWidgets.QWidget):
                 )
 
             elif col == 2:
-                description = "Choose what is the kind of your state."
-                example = """It could be one of the following list:
+                description = """Choose what is the kind of your state.\nIt could be one of the following list:
                 \n- scalar-field
                 \n- vector-field
                 \n- tensor-field"""
+                example = "In 1D everything must be scalar-field."
             elif col == 3:
                 description = "Choose which is the region that interest your state."
 
@@ -174,7 +158,7 @@ class Window(QtWidgets.QWidget):
             self.layout.itemAt(self.layout.count() - 1).widget().hide()
 
     def update_help_costate(self):
-        # item = self.table_states.currentItem()
+        """This function update the Help object with the information from the Co-state table."""
         example = ""
         col = self.table_costates.currentColumn()
 
@@ -193,7 +177,7 @@ class Window(QtWidgets.QWidget):
                 )
 
             elif col == 2:
-                description = "This is the State at wich the costate will be bounded."
+                description = "This is the State at which the Costate will be bounded."
 
             elif col == 3:
                 description = "It is a boolean that defines whether to substitute the variable. Defaults to False"
@@ -205,39 +189,76 @@ class Window(QtWidgets.QWidget):
             self.layout.itemAt(self.layout.count() - 1).widget().hide()
 
     def text_changed(self, page):  # s is a str
+        """This function allows the navigation trhough the navigation list.
+        After checking the presence of black listed words, the function hides the current page for showing the selected one.
+
+        Args:
+            page (str): the name of the page.
+        """
         self.comboBox.setCurrentText("add_state_costate_page")
-        self.switch_window.emit(page)
-        self.hide()
+        if not (
+            check_black_listed_words(self, self.table_states, "States")
+            or check_black_listed_words(self, self.table_costates, "Costates")
+        ):
+            update_list_variables(self.session["variables"], self.table_states, "state")
+            self.switch_window.emit(page)
+            self.hide()
+
+    def update_page(self):
+        """This function manages the update of the current page."""
+        for row in range(self.table_states.rowCount()):
+            comboBox = self.table_states.cellWidget(row, 2)
+            comboBox.clear()
+            if "domain" in self.session.keys() and self.session["domain"] == "Segment":
+                comboBox.addItems(["scalar-field"])
+            else:
+                comboBox.addItems(["scalar-field", "vector-field", "tensor-field"])
 
     def next_page(self):
-        """This funciont emit the signal to navigate to the next page."""
-        self.switch_window.emit("add_port_page")
-        self.hide()
+        """This function emits the signal to navigate to the next page."""
+        if not (
+            check_black_listed_words(self, self.table_states, "States")
+            or check_black_listed_words(self, self.table_costates, "Costates")
+        ):
+            update_list_variables(self.session["variables"], self.table_states, "state")
+            self.switch_window.emit("add_port_page")
+            self.hide()
 
     def previous_page(self):
         """This funcion emits the signal to navigate to the prvious page."""
-        self.switch_window.emit("set_domain_page")
-        self.hide()
+        if not (
+            check_black_listed_words(self, self.table_states, "States")
+            or check_black_listed_words(self, self.table_costates, "Costates")
+        ):
+            update_list_variables(self.session["variables"], self.table_states, "state")
+            self.switch_window.emit("set_domain_page")
+            self.hide()
 
     def choice_clicked(self, text):
-        def foo():
+        """This function is responsible of the Help object updates.
+
+        Args:
+            text (str): the name of the selected column.
+        """
+
+        def make_update():
             print(text)
             description = ""
             example = ""
 
             if text == "Kind":
-                description = "Choose what is the kind of your state."
-                example = """It could be one of the following list:
+                description = """Choose what is the kind of your state.\nIt could be one of the following list:
                 \n- scalar-field
                 \n- vector-field
                 \n- tensor-field"""
+                example = "In 1D everything must be scalar-field."
 
             elif text == "Substituted":
                 description = "It is a boolean that defines whether to substitute the variable. Defaults to False"
                 example = ""
             self.help.updateFields(text, description, example)
 
-        return foo
+        return make_update
 
     def new_state(self):
         """This function adds 1 row per each table (1 for state, 1 for co-state)"""
@@ -245,11 +266,14 @@ class Window(QtWidgets.QWidget):
         self.table_states.insertRow(count)
         self.header_vertical_states += ["state"]
         self.table_states.setVerticalHeaderLabels(self.header_vertical_states)
-        state_choice = QComboBox()
-        state_choice.addItems(["scalar-field", "vector-field", "tensor-field"])
+        state_choice_kind = QComboBox()
+        if "domain" in self.session.keys() and self.session["domain"] == "Segment":
+            state_choice_kind.addItems(["scalar-field"])
+        else:
+            state_choice_kind.addItems(["scalar-field", "vector-field", "tensor-field"])
 
-        state_choice.textHighlighted.connect(self.choice_clicked("Kind"))
-        self.table_states.setCellWidget(count, 2, state_choice)
+        state_choice_kind.textHighlighted.connect(self.choice_clicked("Kind"))
+        self.table_states.setCellWidget(count, 2, state_choice_kind)
         # set defaults
         new_value = QTableWidgetItem("0")
         self.table_states.setItem(count, 4, new_value)
@@ -278,11 +302,11 @@ class Window(QtWidgets.QWidget):
         self.table_costates.insertRow(count)
         self.header_vertical_costates += ["costate"]
         self.table_costates.setVerticalHeaderLabels(self.header_vertical_costates)
-        costate_choice = QComboBox()
-        costate_choice.addItems(["False", "True"])
+        costate_choice_kind = QComboBox()
+        costate_choice_kind.addItems(["False", "True"])
 
-        costate_choice.textHighlighted.connect(self.choice_clicked("Substituted"))
-        self.table_costates.setCellWidget(count, 3, costate_choice)
+        costate_choice_kind.textHighlighted.connect(self.choice_clicked("Substituted"))
+        self.table_costates.setCellWidget(count, 3, costate_choice_kind)
 
         for i in range(self.table_costates.columnCount()):
             if i not in [2, 3]:
@@ -291,7 +315,7 @@ class Window(QtWidgets.QWidget):
                 self.table_costates.setItem(count, i, new_value)
 
     def delete_costate(self):
-        """This function removes 2 rows in the table (1 for state, 1 for co-state)"""
+        """This function removes 1 row in the table (1 for state, 1 for co-state)"""
         if len(self.header_vertical_costates) > 1:
             self.header_vertical_costates.pop()
             self.table_costates.setVerticalHeaderLabels(self.header_vertical_costates)
@@ -301,6 +325,7 @@ class Window(QtWidgets.QWidget):
             print("not enough element to delete!")
 
     def clear_all(self):
+        """This function removes all the rows from the table."""
         self.table_states.setRowCount(0)
         self.table_costates.setRowCount(0)
         self.new_state()
