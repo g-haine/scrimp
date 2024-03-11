@@ -27,7 +27,10 @@ import logging
 
 
 class FEM:
-    """This class defines what is a FEM object in SCRIMP."""
+    """This class defines what is a FEM object in SCRIMP.
+    
+       An negative order allows to access to GetFEM syntax for the FEM, e.g., by setting FEM="FEM_HERMITE(2)" for Hermite FE in dimension 2.
+    """
 
     def __init__(self, name, order, FEM="CG") -> None:
         self.__name = name
@@ -133,17 +136,13 @@ class FEM:
 
     def set_fem(self):
         """This function sets the Meshfem getfem object defining the finite element method to use to discretize the port.
-
-        Args:
-            mesh (gf.Mesh): the mesh where the FE apply
         """
-
-        # TODO: handle more FE
 
         try:
             assert self.get_mesh() is not None
         except AssertionError as err:
-            logging.error("A mesh must be set before adding a FEM.")
+            if rank == 0:
+                logging.error("A mesh must be set before adding a FEM.")
             raise err
 
         known = True
@@ -163,6 +162,25 @@ class FEM:
                 + str(self.get_order())
                 + ")"
             )
+        elif self.get_type() == "RT":
+            fem_str = (
+                "FEM_RTK("
+                + str(self.get_mesh().dim())
+                + ","
+                + str(self.get_order())
+                + ")"
+            )
+            
+        elif self.get_type() == "BDM":
+            fem_str = (
+                "FEM_BDMK("
+                + str(self.get_mesh().dim())
+                + ","
+                + str(self.get_order())
+                + ")"
+            )
+        elif self.get_order() < 0: # Hack to access directly to every FEM in GetFEM
+            fem_str = self.get_type()
         else:
             logging.warning(
                 f"Unknown fem {self.get_type()} in SCRIMP. \nUse the gf_model `Model` attribute to set it directly."
@@ -170,8 +188,23 @@ class FEM:
             known = False
 
         if known:
-            self.__fem = gf.MeshFem(self.get_mesh(), self.get_dim())
-            self.__fem.set_fem(gf.Fem(fem_str))
+            try:
+                self.__fem = gf.MeshFem(self.get_mesh(), self.get_dim())
+                self.__fem.set_fem(gf.Fem(fem_str))
+            except AssertionError as err:
+                if rank == 0:
+                    logging.error(f"Unable to set {self.get_type()}, use classical Lagrange of order 1 as default instead.")
+                self.__order = 1
+                self.__type = "CG"
+                fem_str = (
+                    "FEM_PK("
+                    + str(self.get_mesh().dim())
+                    + ","
+                    + str(self.get_order())
+                    + ")"
+                )
+                self.__fem = gf.MeshFem(self.get_mesh(), self.get_dim())
+                self.__fem.set_fem(gf.Fem(fem_str))
 
             self.__isSet = True
             if rank == 0:

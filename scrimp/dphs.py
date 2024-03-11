@@ -369,9 +369,12 @@ class DPHS:
         elif kind == "scalar-field":
             sizes = 1
         else:
-            logging.error(f"Unknown kind of parameter {kind}")
+            if rank == 0:
+                logging.error(f"Unknown kind of parameter {kind}")
             raise ValueError
 
+        print(evaluation.shape)
+        
         # Add the parameter in getfem
         self.gf_model.add_initialized_fem_data(
             name, self.ports[name_port].get_fem(), evaluation, sizes=sizes

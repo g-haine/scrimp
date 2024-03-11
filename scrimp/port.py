@@ -281,7 +281,8 @@ class Port:
             self.__fem = fem.get_fem()
             self.__isSet = True
         except AssertionError as err:
-            logging.error(f"Error while setting the FEM of port: {self.get_name()}")
+            if rank == 0:
+                logging.error(f"Error while setting the FEM of port: {self.get_name()}")
             raise err
 
     def get_parameter(self, name) -> Parameter:
@@ -325,7 +326,8 @@ class Port:
             self.__parameters.append(parameter)
             return True
         else:
-            logging.error("Bad type of parameter")
+            if rank == 0:
+                logging.error("Bad type of parameter")
             raise TypeError
 
     def init_parameter(self, name: str, expression: str):
@@ -347,14 +349,8 @@ class Port:
                     "' before initialization",
                 )
                 evaluation = self.__fem.eval(expression, globals(), locals())
-                print(
-                    "Parameter",
-                    name,
-                    "has been evaluated with the fem of port '",
-                    p.get_name_port(),
-                    "', with expression:",
-                    expression,
-                )
+                if rank == 0:
+                    logging.info(f"Parameter {name} has been evaluated with the fem of port '{p.get_name_port()}' with expression:{expression}")
                 return evaluation
         assert False, ("Parameter", name, "must be added before intialization")
 

@@ -90,13 +90,13 @@ def wave_eq():
 
     FEMs = [
         # name of the variable: (is the same of states, ports and controls ports), order, FEM
-        S.FEM(states[0].get_name(), 1, "CG"),
+        S.FEM(states[0].get_name(), 1, "DG"),
         S.FEM(states[1].get_name(), 2, "CG"),
-        S.FEM(ports[0].get_name(), 1, "CG"),
-        S.FEM(control_ports[0].get_name(), 1, "CG"),
-        S.FEM(control_ports[1].get_name(), 1, "CG"),
-        S.FEM(control_ports[2].get_name(), 1, "CG"),
-        S.FEM(control_ports[3].get_name(), 1, "CG"),
+        S.FEM(ports[0].get_name(), 1, "DG"),
+        S.FEM(control_ports[0].get_name(), 1, "DG"),
+        S.FEM(control_ports[1].get_name(), 1, "DG"),
+        S.FEM(control_ports[2].get_name(), 1, "DG"),
+        S.FEM(control_ports[3].get_name(), 1, "DG"),
     ]
 
     for state, costate, param, fem, port, control_port in zip_longest(
@@ -188,7 +188,7 @@ def wave_eq():
 
     # Define the time scheme
     wave.set_time_scheme(
-                         t_f=2., 
+                         t_f=0.05, 
                          dt_save=0.01,
                          )
 
@@ -198,11 +198,11 @@ def wave_eq():
     ## Post-processing
 
     # Plot the Hamiltonian with the power supplied at the boundary
-    wave.plot_Hamiltonian(save_figure=True)
+    #wave.plot_Hamiltonian(save_figure=True)
 
     # Export solutions for ParaView
-    wave.export_to_pv("q")
-    wave.export_to_pv("p")
+    #wave.export_to_pv("q")
+    #wave.export_to_pv("p")
 
     # Plot the matrices representing the Dirac structure
     # wave.spy_Dirac()
