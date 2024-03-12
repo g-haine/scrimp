@@ -6,8 +6,11 @@ NoteBooks
 It can be install in the scrimp environment with:
 
 1. `conda activate scrimp`
-2. `conda install jupyter`
+2. `conda install jupyter ipykernel`
+3. `python -m ipykernel install --user --name scrimp --display-name "Python (scrimp)"`
 
 Then, run in the notebooks folder:
 
 `jupyter notebook &`
+
+And choose a notebook to launch.

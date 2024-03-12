@@ -808,7 +808,7 @@ class DPHS:
         """Allows an easy setting of the PETSc TS environment
 
         Args:
-            \**kwargs: PETSc TS options and more (see examples)
+            **kwargs: PETSc TS options and more (see examples)
         """
 
         for key, value in kwargs.items():
@@ -1321,7 +1321,7 @@ class DPHS:
             # Check if the balance makes sense: should not have a port which is both algebraic and substituted
             check_makes_sense = True
             for _, port in self.ports.items():
-            	if (port.get_algebraic() and type(port).__name__!="Control_Port") or port.get_substituted():
+            	if port.get_substituted():
                     check_makes_sense = False
             if check_makes_sense and rank == 0:
                 ax.plot(t, SP_balance, "--", label="Balance")
