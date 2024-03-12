@@ -1414,9 +1414,12 @@ class DPHS:
         else:
             path = os.path.join(outputs_path, "pv", name_variable)
 
-        if not os.path.exists(path):
-            if rank == 0:
-                os.makedirs(path)
+        if rank == 0:
+            # Old pv must be removed first
+            if os.path.exists(path):
+                import shutil
+                shutil.rmtree(path, ignore_errors=True)
+            os.makedirs(path)
         comm.barrier()
 
         # Get the dofs of name_variable
