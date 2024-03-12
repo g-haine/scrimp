@@ -1,13 +1,12 @@
 # SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
 #
-# Copyright (C) 2015-2022 Ghislain Haine
+# Copyright (C) 2015-2024 Ghislain Haine
 #
 # See the LICENSE file in the root directory for license information.
 #
 # github: https://github.com/g-haine/scrimp
 
 from scrimp import *
-from scrimp.utils.mesh import set_verbose_gf
 from itertools import zip_longest
 
 

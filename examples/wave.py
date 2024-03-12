@@ -1,6 +1,6 @@
 # SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
 #
-# Copyright (C) 2015-2023 ISAE-SUPAERO -- GNU GPLv3
+# Copyright (C) 2015-2024 ISAE-SUPAERO -- GNU GPLv3
 # 
 # See the LICENSE file for license information.
 #
@@ -188,7 +188,7 @@ def wave_eq():
 
     # Define the time scheme
     wave.set_time_scheme(
-                         t_f=0.05, 
+                         t_f=2., 
                          dt_save=0.01,
                          )
 
@@ -198,11 +198,11 @@ def wave_eq():
     ## Post-processing
 
     # Plot the Hamiltonian with the power supplied at the boundary
-    #wave.plot_Hamiltonian(save_figure=True)
+    wave.plot_Hamiltonian(save_figure=True)
 
     # Export solutions for ParaView
-    #wave.export_to_pv("q")
-    #wave.export_to_pv("p")
+    wave.export_to_pv("q")
+    wave.export_to_pv("p")
 
     # Plot the matrices representing the Dirac structure
     # wave.spy_Dirac()
