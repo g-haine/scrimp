@@ -372,8 +372,6 @@ class DPHS:
             if rank == 0:
                 logging.error(f"Unknown kind of parameter {kind}")
             raise ValueError
-
-        print(evaluation.shape)
         
         # Add the parameter in getfem
         self.gf_model.add_initialized_fem_data(
