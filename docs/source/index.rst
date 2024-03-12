@@ -25,8 +25,8 @@ What is SCRIMP?
 
 The documentation is `available in pdf <https://g-haine.github.io/scrimp/latex/scrimp.pdf>`_.
 
-Table of Contents
-=================
+SCRIMP in a nutshell
+====================
 
 .. toctree::
     :maxdepth: 2
