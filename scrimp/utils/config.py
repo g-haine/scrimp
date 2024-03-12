@@ -26,6 +26,11 @@ comm = PETSc.COMM_WORLD
 rank = comm.getRank()
 
 def set_paths(path=None):
+    """Set the default path of scrimp
+
+    Args:
+        path (str): the path
+    """
 	
     global outputs_path
     
