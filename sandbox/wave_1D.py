@@ -77,7 +77,6 @@ bricks = [
 for brick in bricks:
     wave.add_brick(brick)
 
-## Initialize the problem
 expression_left = "-sin(2*pi*t)"
 expression_right = "0."
 wave.set_control("Boundary control (left)", expression_left)
@@ -95,7 +94,6 @@ terms = [
     S.Term("Kinetic energy", "0.5*p*p/rho", [1]),
     S.Term("Potential energy", "0.5*q*T*q", [1]),
 ]
-
 for term in terms:
     wave.hamiltonian.add_term(term)
 
