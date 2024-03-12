@@ -1,5 +1,5 @@
 scrimp.examples
-=======================
+===============
 
 The equations are explained `here <examples>`_.
 
@@ -35,3 +35,4 @@ Wave
    :members:
    :undoc-members:
    :show-inheritance:
+   

@@ -14,3 +14,4 @@ Then, run in the notebooks folder:
 `jupyter notebook &`
 
 And choose a notebook to launch.
+

@@ -5,14 +5,15 @@ This documentation is generated automatically from the python source using `SPHI
 
 This documentation is `available in pdf <https://g-haine.github.io/scrimp/latex/scrimp.pdf>`_.
 
-Sub-packages
-------------
+Folders
+-------
 
 .. toctree::
    :maxdepth: 2
 
    scrimp.examples
    scrimp.utils
+   scrimp.sandbox
 
 Distributed port-Hamiltonian system
 -----------------------------------------------------------
@@ -85,3 +86,4 @@ Brick
    :members:
    :undoc-members:
    :show-inheritance:
+   
