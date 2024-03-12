@@ -21,10 +21,4 @@ Then, run in the ``notebooks`` folder:
 `jupyter notebook &`
 
 And choose a notebook to launch.
-
-.. toctree::
-   :maxdepth: 1
-   :glob:
-   
-   examples/notebooks/*
    
