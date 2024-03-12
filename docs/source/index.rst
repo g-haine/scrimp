@@ -25,29 +25,11 @@ What is SCRIMP?
 
 The documentation is `available in pdf <https://g-haine.github.io/scrimp/latex/scrimp.pdf>`_.
 
-SCRIMP in a nutshell
-====================
-
-.. toctree::
-    :maxdepth: 2
-    
-    install
-    started
-    examples
-    notebooks
-    GUI
-    scrimp
-    References <biblio>
-    ANR Impacts <https://impacts.ens2m.fr/>
-    GitHub repo <https://github.com/g-haine/scrimp>
-    PDF documentation <https://g-haine.github.io/scrimp/latex/scrimp.pdf>
-
-************************
 Port-Hamiltonian systems
-************************
+========================
 
 What are they?
-==============
+--------------
 
 Let us sketch a rough portrait of port-Hamiltonian systems as they are considered in **SCRIMP**.
 
@@ -83,7 +65,7 @@ Each indexed matrix :math:`M_\ell` is the appropriate sub-matrix of :math:`M`.
 A very important and useful fact is that the matrices :math:`M` and :math:`J` can depend on time and states!
 
 The Partitioned Finite Element Method
-=====================================
+-------------------------------------
 
 The main objective of a **structure-preserving discretization** in the port-Hamiltonian formalism is to obtain a discrete version of the power balance satisfied by the Hamiltonian functional.
 
@@ -95,9 +77,8 @@ The strategy follows three steps, inspired by the Mixed Finite Element Method fo
 * integrate by parts a **partition** of the state (such that *the control appears*); and
 * project on finite element spaces.
 
-*****************
 Coding philosophy
-*****************
+=================
 
 **SCRIMP** assumes that the final user is not familiar with numerical simulations. The aim is to facilitate the first step from modelisation to simulation by sticking as much as possible to the port-Hamiltonian framework, getting rid of coding issues.
 
@@ -120,6 +101,24 @@ A basic usage of **SCRIMP** consists in a script with the following steps:
 - Export
 
 We try to eliminate as much as possible the *computer-side* of the simulations, by following the port-Hamiltonian vocabulary, always by keeping the possibility of fine tuning available.
+
+************
+User's guide
+************
+
+.. toctree::
+    :maxdepth: 2
+    
+    install
+    started
+    examples
+    notebooks
+    GUI
+    scrimp
+    References <biblio>
+    ANR Impacts <https://impacts.ens2m.fr/>
+    GitHub repo <https://github.com/g-haine/scrimp>
+    PDF documentation <https://g-haine.github.io/scrimp/latex/scrimp.pdf>
 
 *******
 Credits
