@@ -10,3 +10,4 @@ Here are provided some examples coming from our `publications <biblio>`_.
    :glob:
    
    examples/*
+   

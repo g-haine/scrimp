@@ -1,7 +1,7 @@
-.. _biblio:
-
 Bibliography
 ============
+
+.. _biblio:
 
 Port-Hamiltonian systems is an ever-growing research area as it proposes a powerful framework for the control of multi-physics systems.
 
@@ -57,3 +57,4 @@ Proceedings
 * Cardoso-Ribeiro, Flávio Luiz and Matignon, Denis and Lefèvre, Laurent. **A structure-preserving Partitioned Finite Element Method for the 2D wave equation.** (2018) In: 6th IFAC Workshop on Lagrangian and Hamiltonian Methods for Nonlinear Control, 1 May 2018 - 4 May 2018 (Valparaíso, Chile).
 * Alazard, Daniel and Aoues, Saïd and Cardoso-Ribeiro, Flávio Luiz and Matignon, Denis. **Disturbance rejection for a rotating flexible spacecraft: a port-Hamiltonian approach.** (2018) In: 6th IFAC Workshop on Lagrangian and Hamiltonian Methods for Nonlinear Control, 1 May 2018 - 4 May 2018 (Valparaíso, Chile).
 * Serhani, Anass and Matignon, Denis and Haine, Ghislain. **Structure-Preserving Finite Volume Method for 2D Linear and Non-Linear Port-Hamiltonian Systems.** (2018) In: 6th IFAC Workshop on Lagrangian and Hamiltonian Methods for Nonlinear Control, 1 May 2018 - 4 May 2018 (Valparaíso, Chile). 
+

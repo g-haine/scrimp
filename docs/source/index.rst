@@ -34,6 +34,8 @@ Table of Contents
     install
     started
     examples
+    notebooks
+    GUI
     scrimp
     References <biblio>
     ANR Impacts <https://impacts.ens2m.fr/>
@@ -74,7 +76,7 @@ This structure allows to describe the evolution of the Hamiltonian along the tra
 
     \frac{\rm d}{{\rm d}t} \mathcal{H}(\alpha_1(t), \cdots, \alpha_k(t)) = - e_R(t)^\top M_R f_R(t) + u_{exp}(t)^\top M_{exp} y_{exp}(t) + u_{imp}(t)^\top M_{imp} y_{imp}(t)
 
-The first term of the right-hand side stands for a loss of *energy*, hence the name of *resistive port* for the couple :math:`(f_R,e_R)`. The other two terms stands for exchanges with the environment through the *control ports*. One is *explicit*, :math:`u_{exp}`, as a usual forcing term in the equations (its collocated output :math:`y_{exp}` plays no role in the dynamics). The other is *implicit*: :math:`u_{imp}` does not appear directly in the dynamics, and its collocated output :math:`y_{imp}` plays the role of the Lagrange multiplier imposing the value of :math:`u_{imp}`.
+The first term of the right-hand side stands for a loss of *energy*, hence the name of *resistive (or dissipative) port* for the couple :math:`(f_R,e_R)`. The other two terms stands for exchanges with the environment through the *control ports*. One is *explicit*, :math:`u_{exp}`, as a usual forcing term in the equations (its collocated output :math:`y_{exp}` plays no role in the dynamics). The other is *implicit*: :math:`u_{imp}` does not appear directly in the dynamics, and its collocated output :math:`y_{imp}` plays the role of the Lagrange multiplier imposing the value of :math:`u_{imp}`.
 
 Each indexed matrix :math:`M_\ell` is the appropriate sub-matrix of :math:`M`.
 
@@ -108,6 +110,7 @@ A basic usage of **SCRIMP** consists in a script with the following steps:
 - Define a Finite Element Method on this port: give at least an order, at first glance, default values are sufficient
 - Define *algebraic ports* (not mandatory) and its FEM
 - Define *control ports* (not mandatory) and its FEM
+- Define *parameters*
 - Write down the forms on the *flow side* of the Dirac structure, *i.e.* the **brick** defining the matrix :math:`M`
 - Write down the forms on the *effort side* of the Dirac structure, *i.e.* th **brick** defining the matrix :math:`J`
 - Write down all the forms defining the *constitutive relations*, always with **bricks**
@@ -151,11 +154,9 @@ The two **main** libraries used as core for SCRIMP are:
 
 - `PETSc <https://petsc.org/release/>`_ -- The Portable, Extensible Toolkit for Scientific Computation
 
-Meshing is facilitated using (although not mandatory)
-`GMSH <https://gmsh.info/>`_ -- A three-dimensional finite element mesh generator
+Meshing is facilitated using (although not mandatory) `GMSH <https://gmsh.info/>`_ -- A three-dimensional finite element mesh generator
 
-Post-processing visualization is encouraged via
-`ParaView <https://www.paraview.org/>`_ -- Post-processing visualization engine
+Post-processing visualization is encouraged via `ParaView <https://www.paraview.org/>`_ -- Post-processing visualization engine
 
 and finally, SCRIMP also needs for some routines
 
@@ -163,8 +164,7 @@ and finally, SCRIMP also needs for some routines
 
 - `numpy <https://numpy.org/>`_ -- A well-known package for scientific computing
 
-One of our choice for IDE is
-`Spyder <https://www.spyder-ide.org/>`_ -- A scientific Python development environment
+One of our choice for IDE is `Spyder <https://www.spyder-ide.org/>`_ -- A scientific Python development environment
 
 How to cite SCRIMP?
 ===================
