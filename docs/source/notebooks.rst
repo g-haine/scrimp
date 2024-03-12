@@ -3,7 +3,10 @@ Notebooks
 
 .. _notebooks:
 
-Some examples coming from our `publications <biblio>`_ are available in `jupyter notebook<https://jupyter.org/>`__ format inside the ``notebooks`` folder in ``examples``.
+Some examples coming from our `publications <biblio>`_ are available in `jupyter notebook <https://jupyter.org/>`__ format inside the ``notebooks`` folder in ``examples``.
+
+Install jupyter
+---------------
 
 To begin with, you'll need to install jupyter.
 
