@@ -349,10 +349,8 @@ class Port:
                     "' before initialization",
                 )
                 evaluation = self.__fem.eval(expression, globals(), locals())
-                if rank == 0:
-                    logging.info(f"Parameter {name} has been evaluated with the fem of port '{p.get_name_port()}' with expression:{expression}")
                 return evaluation
-        assert False, ("Parameter", name, "must be added before intialization")
+        assert False, (f"Parameter '{name}' must be added before intialization")
 
     def set_is_computed(self):
         """This function sets the power of the Port as computed."""
