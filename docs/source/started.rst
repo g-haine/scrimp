@@ -202,7 +202,8 @@ weak formulation with those families, one has for all
        \left\lbrace
        \begin{array}{rcl}
        \sum_{j=1}^{N_q} \int_0^1 \varphi_q^j(x) \varphi_q^i(x) {\rm d}x \, \frac{\rm d}{{\rm d}t} \alpha_q^j(t) &=& \sum_{\ell=1}^{N_p} \int_0^1 \partial_x \varphi_p^\ell(x) \varphi_q^i(x) {\rm d}x \, e_p^\ell(t), \\
-       \sum_{\ell=1}^{N_p} \int_0^1 \varphi_p^\ell(x) \varphi_p^k(x) {\rm d}x \, \frac{\rm d}{{\rm d}t} \alpha_p^\ell(t) &=& - \sum_{j=1}^{N_q} \int_0^1 \varphi_q^j(x) \partial_x \varphi_p^k(x) {\rm d}x \, e_q^j(t) + u_R(t) \varphi_p^k(1) + u_L(t) \varphi_p^k(0), \\
+       \sum_{\ell=1}^{N_p} \int_0^1 \varphi_p^\ell(x) \varphi_p^k(x) {\rm d}x \, \frac{\rm d}{{\rm d}t} \alpha_p^\ell(t) &=& - \sum_{j=1}^{N_q} \int_0^1 \varphi_q^j(x) \partial_x \varphi_p^k(x) {\rm d}x \, e_q^j(t) \\
+       & \qquad \qquad + u_R(t) \varphi_p^k(1) + u_L(t) \varphi_p^k(0), \\
        y_L(t) &=& \sum_{\ell=1}^{N_p} \varphi_p^\ell(0) \, e_p^\ell(t), \\
        y_R(t) &=& \sum_{\ell=1}^{N_p} \varphi_p^\ell(1) \, e_p^\ell(t),
        \end{array}
@@ -378,11 +379,6 @@ system* (DPHS) called, *e.g.*, ``wave``
     wave = S.DPHS("real")
 
 
-.. parsed-literal::
-
-    A model with real unknowns has been initialized
-
-
 Then, define the domain :math:`\Omega = (0,1)`, with a mesh-size
 parameter :math:`h`, and add it to the *DPHS*
 
@@ -390,23 +386,6 @@ parameter :math:`h`, and add it to the *DPHS*
 
     domain = S.Domain("Interval", {"L": 1., "h": 0.01})
     wave.set_domain(domain)
-
-
-.. parsed-literal::
-
-    Interval (0, 1.0) has been meshed
-    Domain has been set
-    Domain is set and contains 1 mesh(es):
-    === on mesh 0 of dim 1
-    * Subdomains are: {'Omega': 1}
-    * Boundaries are: {'Gamma_Left': 10, 'Gamma_Right': 11}
-    domain: Interval has been set
-
-
-.. parsed-literal::
-
-    message from gf_mesh_get follow:
-    gfMesh object in dimension 1 with 101 points and 100 elements
     
 
 
@@ -430,12 +409,6 @@ On this domain, we define two **states** and add them to the *DPHS*
     wave.add_state(alpha_p)
 
 
-.. parsed-literal::
-
-    state: q has been added
-    state: p has been added
-
-
 and the two associated **co-states**
 
 .. code:: ipython3
@@ -444,16 +417,6 @@ and the two associated **co-states**
     e_p = S.CoState("e_p", "Velocity", alpha_p)
     wave.add_costate(e_q)
     wave.add_costate(e_p)
-
-
-.. parsed-literal::
-
-    port: q has been added 
-    costate: e_q has been added to state: q
-    state: q has new costate: e_q
-    port: p has been added 
-    costate: e_p has been added to state: p
-    state: p has new costate: e_p
 
 
 These latter calls create automatically two *non-algebraic* **ports**,
@@ -469,12 +432,6 @@ Finally, we create and add the two control-observation **ports** with
     right_end = S.Control_Port("Boundary control (right)", "U_R", "Normal force", "Y_R", "Velocity", "scalar-field", region=11)
     wave.add_control_port(left_end)
     wave.add_control_port(right_end)
-
-
-.. parsed-literal::
-
-    port: Boundary control (left) has been added on region 10
-    port: Boundary control (right) has been added on region 11
 
 
 Note the *crucial* keyword ``region`` to restrict each port to its end.
@@ -515,29 +472,6 @@ Of course, this *FEM* must be added to the *DPHS*
     wave.add_FEM(V_p)
     wave.add_FEM(V_L)
     wave.add_FEM(V_R)
-
-
-.. parsed-literal::
-
-    FEM_PK(1,2) has been set for port q
-    FEM_PK(1,1) has been set for port p
-    FEM_PK(1,1) has been set for port Boundary control (left)
-    FEM_PK(1,1) has been set for port Boundary control (right)
-
-
-.. parsed-literal::
-
-    message from gf_mesh_fem_get follow:
-    gfMeshFem object in dimension 1 with 101 points, 100 elements and 201 degrees of freedom
-    
-    message from gf_mesh_fem_get follow:
-    gfMeshFem object in dimension 1 with 101 points, 100 elements and 101 degrees of freedom
-    
-    message from gf_mesh_fem_get follow:
-    gfMeshFem object in dimension 1 with 101 points, 100 elements and 101 degrees of freedom
-    
-    message from gf_mesh_fem_get follow:
-    gfMeshFem object in dimension 1 with 101 points, 100 elements and 101 degrees of freedom
     
 
 
@@ -550,22 +484,6 @@ In **SCRIMP**, a *parameter* is associated to a *port*.
     rho = S.Parameter("rho", "Mass density", "scalar-field", "1 + x*(1-x)", "p")
     wave.add_parameter(T)
     wave.add_parameter(rho)
-
-
-.. parsed-literal::
-
-    T has been added to port: q
-    T has been set to 1 in port: q
-    T has been initialized with the FEM of port: q
-    rho has been added to port: p
-    rho has been set to 1 + x*(1-x) in port: p
-    rho has been initialized with the FEM of port: p
-
-
-.. parsed-literal::
-
-    Parameter T has been evaluated with the fem of port ' q ', with expression: 1
-    Parameter rho has been evaluated with the fem of port ' p ', with expression: 1 + x*(1-x)
 
 
 The first argument will be **the string that can be used in forms**, the
@@ -615,24 +533,6 @@ loop using a python *list*
         wave.add_brick(brick)
 
 
-.. parsed-literal::
-
-    Linear form  'q * Test_q' has been added as: flow relation on region: 1 of mesh: 0
-    Linear form  'p * Test_p' has been added as: flow relation on region: 1 of mesh: 0
-    Linear form  'Y_L * Test_Y_L' has been added as: flow relation on region: 10 of mesh: 0
-    Linear form  'Y_R * Test_Y_R' has been added as: flow relation on region: 11 of mesh: 0
-    Linear form  'Grad(e_p) * Test_q' has been added as: effort relation on region: 1 of mesh: 0
-    Linear form  '-e_q * Grad(Test_p)' has been added as: effort relation on region: 1 of mesh: 0
-    Linear form  '-U_L * Test_p' has been added as: effort relation on region: 10 of mesh: 0
-    Linear form  'U_R * Test_p' has been added as: effort relation on region: 11 of mesh: 0
-    Linear form  'e_p * Test_Y_L' has been added as: effort relation on region: 10 of mesh: 0
-    Linear form  '-e_p * Test_Y_R' has been added as: effort relation on region: 11 of mesh: 0
-    Linear form  '-e_q * Test_e_q' has been added as: constitutive relation on region: 1 of mesh: 0
-    Linear form  'q*T * Test_e_q' has been added as: constitutive relation on region: 1 of mesh: 0
-    Linear form  '-e_p * Test_e_p' has been added as: constitutive relation on region: 1 of mesh: 0
-    Linear form  'p/rho * Test_e_p' has been added as: constitutive relation on region: 1 of mesh: 0
-
-
 The first argument of a *brick* is a human-readable name, the second one
 is the form, the third is a list (hence the [ and ]) of integers,
 listing all the regions where the form applies. The optional parameter
@@ -664,111 +564,11 @@ controls and the initial values of the states before solving
     wave.set_initial_value("p", p_init)
 
 
-.. parsed-literal::
-
-    Linear form  'U_L*Test_U_L' has been added as: constitutive relation on region: 10 of mesh: 0
-    Source form  '-sin(2*pi*t)' has been added as: source relation on region: 10 of mesh: 0
-    Control port: Boundary control (left) has been set to: U_L = -sin(2*pi*t) on region: 10 of mesh: 0
-    Linear form  'U_R*Test_U_R' has been added as: constitutive relation on region: 11 of mesh: 0
-    Source form  '0.' has been added as: source relation on region: 11 of mesh: 0
-    Control port: Boundary control (right) has been set to: U_R = 0. on region: 11 of mesh: 0
-    q has been set
-    q has been initialized with: 2.*np.exp(-50.*(x-0.5)*(x-0.5))
-    p has been set
-    p has been initialized with: 0.
-
-
 We can now solve the system (with default experiment parameters)
 
 .. code:: ipython3
 
     wave.solve()
-
-
-.. parsed-literal::
-
-    Simulation is starting on 1 processor(s) (total number of dofs: 608)
-    Starting linear mass matrix assembly...
-    Linear mass matrix assembly done in 0.002105s
-    Starting linear stiffness matrix assembly...
-    Linear stiffness matrix assembly done in 0.00446s
-    Perform initialisation using 1 step(s) of a pseudo scheme, with timestep 0.0001, for initial value consistency
-    Initialisation done in 0.009892s
-
-
-.. parsed-literal::
-
-    i=       0 t=       0 * (0s)   dt=    0.01        
-    i=       6 t=0.0120268 * (0s)   dt=0.0027987          
-    i=      10 t=0.0244885 * (0s)   dt=0.00327865        
-    i=      13 t=0.0350813 * (0s)   dt=0.00384092        
-    i=      16 t=0.0469262 * (0s)   dt=0.00416157        
-    i=      19 t=0.0598345 * (0s)   dt=0.00454352        
-    i=      22 t=0.0739263 * (0s)   dt=0.00494197        
-    i=      24 t=0.0839397 * (0s)   dt=0.00520643        
-    i=      26 t=0.0944573 * (0s)   dt=0.00543161        
-    i=      28 t=0.105429 * (0s)   dt=0.00563995        
-    i=      30 t=0.116813 * (0s)   dt=0.00583887        
-    i=      32 t=0.128588 * (0s)   dt=0.00603022        
-    i=      34 t=0.140741 * (0s)   dt=0.00621763        
-    i=      36 t=0.153268 * (0s)   dt=0.0064063         
-    i=      38 t=0.166174 * (0s)   dt=0.00659759        
-    i=      40 t=0.179459 * (0s)   dt=0.0067888         
-    i=      42 t=0.193143 * (0s)   dt=0.00699427        
-    i=      44 t=0.207272 * (0s)   dt=0.00730122        
-    i=      46 t=0.222046 * (0s)   dt=0.00765459        
-    i=      48 t=0.237537 * (0s)   dt=0.00801048        
-    i=      50 t=0.253726 * (0s)   dt=0.00833539        
-    i=      52 t=0.270534 * (0s)   dt=0.00858688        
-    i=      54 t=0.287796 * (0s)   dt=0.0087346         
-    i=      56 t=0.305298 * (0s)   dt=0.00877456        
-    i=      58 t= 0.32283 * (0s)   dt=0.00871865        
-    i=      60 t=0.340208 * (0s)   dt=0.008582          
-    i=      62 t=0.357279 * (0s)   dt=0.00838234        
-    i=      64 t=0.373927 * (0s)   dt=0.00814446        
-    i=      66 t=0.390121 * (0s)   dt=0.00809961        
-    i=      68 t= 0.40638 * (0s)   dt=0.00822429        
-    i=      70 t=0.422881 * (0s)   dt=0.00831953        
-    i=      72 t= 0.43956 * (0s)   dt=0.00839918        
-    i=      74 t=0.456398 * (0s)   dt=0.00847901        
-    i=      76 t=0.473393 * (0s)   dt=0.00854623        
-    i=      78 t=0.490505 * (0s)   dt=0.00856802        
-    i=      80 t=0.507622 * (0s)   dt=0.00850619        
-    i=      82 t=0.524566 * (0s)   dt=0.00834436        
-    i=      84 t=0.541143 * (0s)   dt=0.00813297        
-    i=      86 t= 0.55739 * (0s)   dt=0.00811974        
-    i=      88 t=0.573685 * (0s)   dt=0.0082766         
-    i=      90 t=0.590362 * (0s)   dt=0.00852908        
-    i=      92 t=0.607542 * (0s)   dt=0.00876053        
-    i=      94 t=0.625159 * (0s)   dt=0.00893357        
-    i=      96 t=0.643085 * (0s)   dt=0.0090367         
-    i=      98 t=0.661188 * (0s)   dt=0.00908205        
-    i=     100 t=0.679359 * (0s)   dt=0.00908947        
-    i=     102 t=0.697534 * (0s)   dt=0.00908143        
-    i=     104 t=0.715691 * (0s)   dt=0.00906852        
-    i=     106 t=0.733822 * (0s)   dt=0.00905899        
-    i=     108 t=0.751944 * (0s)   dt=0.00907731        
-    i=     110 t=0.770133 * (0s)   dt=0.00917161        
-    i=     112 t=0.788568 * (0s)   dt=0.00939168        
-    i=     114 t=0.807503 * (0s)   dt=0.00969069        
-    i=     116 t=0.826981 * (0s)   dt=0.00979765        
-    i=     118 t=0.846517 * (0s)   dt=0.00966198        
-    i=     120 t=0.865778 * (0s)   dt=0.00953904        
-    i=     122 t= 0.88477 * (0s)   dt=0.00932303        
-    i=     124 t= 0.90325 * (0s)   dt=0.0089666        
-    i=     126 t=0.920988 * (0s)   dt=0.00860856        
-    i=     128 t=0.938327 * (0s)   dt=0.00885408        
-    i=     130 t=0.956202 * (0s)   dt=0.00918025        
-    i=     132 t=0.974674 * (0s)   dt=0.00938192        
-    i=     134 t=0.993512 * (0s)   dt=0.00952301        
-    i=      -1 t=       1 * (0s)   dt=0.00958927        
-
-
-.. parsed-literal::
-
-    Elapsed time: 0.7264s
-    Steps: 135 (4 rejected, 0 Nonlinear solver failures)
-    Nonlinear iterations: 141, Linear iterations: 141
 
 
 To end, one can also add the Hamiltonian terms and plot the contribution
@@ -786,20 +586,6 @@ of each port to the balance equation
         wave.hamiltonian.add_term(term)
     
     wave.plot_Hamiltonian()
-
-
-.. parsed-literal::
-
-    Start computing the Hamiltonian
-    Hamiltonian has been computed in 0.014486966654658318 s
-    Start computing the powers (substituted ports are not automated)
-    Power cannot be computed for dynamic or substituted port q
-    Power cannot be computed for dynamic or substituted port p
-    Start computing the power flowing through Boundary control (left)
-    Power in Boundary control (left) has been computed in 0.004346055909991264 s
-    Start computing the power flowing through Boundary control (right)
-    Power in Boundary control (right) has been computed in 0.0040855854749679565 s
-    Powers have been computed in 0.011739080771803856 s
 
 
 
