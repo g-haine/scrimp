@@ -528,7 +528,7 @@ class DPHS:
 
         # form of the mass matrix for the control variable
         u = self.controls[name].get_name_control()
-        mass_form = u + times + "Test_" + u
+        mass_form = "-" + u + times + "Test_" + u
 
         self.add_brick(
             Brick(
