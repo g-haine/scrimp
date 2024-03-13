@@ -545,6 +545,8 @@ Now we can set the Hamiltonian and plot it.
     
     # Plot the Hamiltonian and save the output
     wave.plot_Hamiltonian(save_figure=True)
+    
+.. image:: Wave_Hamiltonian_conservative.png
 
 Adding Damping to the dphs
 ==========================
@@ -731,6 +733,8 @@ Now one can define and plot the Hamiltonian.
     
     # Plot the Hamiltonian and save the output
     wave_diss.plot_Hamiltonian(save_figure=True)
+    
+.. image:: Wave_Hamiltonian_dissipative.png
 
 .. automodule:: scrimp.examples.wave
    :members:
