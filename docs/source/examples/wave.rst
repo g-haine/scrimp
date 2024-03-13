@@ -212,7 +212,6 @@ and
        (M_q)_{ij} := \int_\Omega \varphi_q^j(x) \varphi_q^i(x) {\rm d}x,
        \qquad
        (M_p)_{k\ell} := \int_\Omega \varphi_p^\ell(x) \varphi_p^k(x) {\rm d}x,
-       \qquad
 
 .. _weak-form-matrices-2:
 
@@ -222,13 +221,15 @@ and
        (M_N)_{m_Nn_N} := \int_{\Gamma_N} \psi_N^{n_N}(s) \psi_N^{m_N}(s) {\rm d}s,
        \qquad
        (M_D)_{m_Dn_D} := \int_{\Gamma_D} \psi_D^{n_D}(s) \psi_D^{m_D}(s) {\rm d}s,
-       \qquad
 
 .. math::
 
 
        (D)_{i\ell} := \int_\Omega {\rm grad} \left( \varphi_p^\ell(x) \right) \cdot \varphi_q^i(x) {\rm d}x,
-       \qquad
+
+.. math::
+
+
        (B_N)_{n_Nk} := \int_{\Gamma_N} \varphi_p^k(s) \psi_N^{n_N}(s) {\rm d}s,
        \qquad
        (B_D)_{m_D\ell} := \int_{\Gamma_D} \varphi_p^\ell(s) \psi_D^{m_D}(s) {\rm d}s,
