@@ -372,7 +372,7 @@ The following code is available in the file ``wave_1D.py`` of the
 To start, import **SCRIMP** and create a *distributed port-Hamiltonian
 system* (DPHS) called, *e.g.*, ``wave``
 
-.. code:: ipython3
+.. code:: python
 
     import scrimp as S
         
@@ -382,7 +382,7 @@ system* (DPHS) called, *e.g.*, ``wave``
 Then, define the domain :math:`\Omega = (0,1)`, with a mesh-size
 parameter :math:`h`, and add it to the *DPHS*
 
-.. code:: ipython3
+.. code:: python
 
     domain = S.Domain("Interval", {"L": 1., "h": 0.01})
     wave.set_domain(domain)
@@ -401,7 +401,7 @@ the function ``built_in_geometries()`` available in
 
 On this domain, we define two **states** and add them to the *DPHS*
 
-.. code:: ipython3
+.. code:: python
 
     alpha_q = S.State("q", "Strain", "scalar-field")
     alpha_p = S.State("p", "Linear momentum", "scalar-field")
@@ -411,7 +411,7 @@ On this domain, we define two **states** and add them to the *DPHS*
 
 and the two associated **co-states**
 
-.. code:: ipython3
+.. code:: python
 
     e_q = S.CoState("e_q", "Stress", alpha_q)
     e_p = S.CoState("e_p", "Velocity", alpha_p)
@@ -426,7 +426,7 @@ notations and do not write ``alpha_q`` and ``alpha_p`` but ``q`` and
 
 Finally, we create and add the two control-observation **ports** with
 
-.. code:: ipython3
+.. code:: python
 
     left_end = S.Control_Port("Boundary control (left)", "U_L", "Normal force", "Y_L", "Velocity", "scalar-field", region=10)
     right_end = S.Control_Port("Boundary control (right)", "U_R", "Normal force", "Y_R", "Velocity", "scalar-field", region=11)
@@ -451,7 +451,7 @@ need to set four finite element families, associated to each **port**.
 Only two arguments are mandatory: the *name* of the port and the
 *degree* of the approximations.
 
-.. code:: ipython3
+.. code:: python
 
     V_q = S.FEM("q", 2)
     V_p = S.FEM("p", 1)
@@ -466,7 +466,7 @@ them: Lagrange elements of order 1 is the easy way to do that.
 
 Of course, this *FEM* must be added to the *DPHS*
 
-.. code:: ipython3
+.. code:: python
 
     wave.add_FEM(V_q)
     wave.add_FEM(V_p)
@@ -478,7 +478,7 @@ Of course, this *FEM* must be added to the *DPHS*
 Finally, the physical parameters of the experiment have to be defined.
 In **SCRIMP**, a *parameter* is associated to a *port*.
 
-.. code:: ipython3
+.. code:: python
 
     T = S.Parameter("T", "Young's modulus", "scalar-field", "1", "q")
     rho = S.Parameter("rho", "Mass density", "scalar-field", "1 + x*(1-x)", "p")
@@ -502,7 +502,7 @@ Like we did for each call, the first step is to create the object, then
 to add it to the *DPHS*. As there is a lot of *bricks*, let us make a
 loop using a python *list*
 
-.. code:: ipython3
+.. code:: python
 
     bricks = [
         # M matrix, on the flow side
@@ -551,7 +551,7 @@ will often appear because of that.
 The port-Hamiltonian system is now fully stated. It remains to set the
 controls and the initial values of the states before solving
 
-.. code:: ipython3
+.. code:: python
 
     expression_left = "-sin(2*pi*t)"
     expression_right = "0."
@@ -566,7 +566,7 @@ controls and the initial values of the states before solving
 
 We can now solve the system (with default experiment parameters)
 
-.. code:: ipython3
+.. code:: python
 
     wave.solve()
 
@@ -574,7 +574,7 @@ We can now solve the system (with default experiment parameters)
 To end, one can also add the Hamiltonian terms and plot the contribution
 of each port to the balance equation
 
-.. code:: ipython3
+.. code:: python
 
     wave.hamiltonian.set_name("Mechanical energy")
     terms = [

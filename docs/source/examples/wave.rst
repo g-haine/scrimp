@@ -2,8 +2,10 @@ The wave equation
 =================
 
 Let us consider the 2D wave equation with *mixed* boundary controls on a
-bounded rectangle :math:`\Omega := (0, L) \times (0, \ell)`. The
-deflection of the membrane from the equilibrium :math:`w` satisfies
+bounded rectangle :math:`\Omega := (0, L) \times (0, \ell)`, with boundaries
+:math:`\Gamma_N := \left( (0, L) \times \{ 0, \ell \} \right) \cup \left( \{ L \} \times (0, \ell) \right)` and :math:`\Gamma_D := \{ 0 \} \times (0, \ell)`
+
+The deflection of the membrane from the equilibrium :math:`w` satisfies
 classicaly
 
 .. math::
@@ -14,8 +16,8 @@ classicaly
        \rho(x) \partial_{tt}^2 w(t,x) - {\rm div} \left( T(x) \cdot {\rm grad} \left( w(t,x) \right) \right) &=& 0, \qquad t \ge 0, x \in \Omega, \\
        \partial_t w(0,x) &=& v_0(x), \qquad x \in \Omega, \\
        \partial_x w(0,x) &=& s_0(x), \qquad x \in \Omega, \\
-       T(s) \cdot {\rm grad} \left( w(t,s) \right) &=& u_N(t,s), \qquad t \ge 0, s \in \Gamma_N := \left( (0, L) \times \{ 0, \ell \} \right) \cup \left( \{ L \} \times (0, \ell) \right), \\
-       \partial_t w(t,s) &=& u_D(t,s), \qquad t \ge 0, s \in \Gamma_D := \{ 0 \} \times (0, \ell),
+       T(s) \cdot {\rm grad} \left( w(t,s) \right) &=& u_N(t,s), \qquad t \ge 0, s \in \Gamma_N, \\
+       \partial_t w(t,s) &=& u_D(t,s), \qquad t \ge 0, s \in \Gamma_D,
        \end{array}
        \right.
 
@@ -101,7 +103,7 @@ The **power balance** satisfied by the **Hamiltonian** is
 .. math::
 
 
-       \frac{\rm d}{{\rm d}t} \mathcal{H}(t) = \frac{\rm d}{{\rm d}t} \mathcal{H}(\alpha_q(t), \alpha_p(t)) = \underbrace{\left\langle y_N(t,\cdot), u_N(t,\cdot)\right\rangle_{\Gamma_N}}_{\text{power flowing through the Neumann boundaries}} + \underbrace{\left\langle u_D(t,\cdot), y_D(t,\cdot) \right\rangle_{\Gamma_D}}_{\text{power flowing through the Dirichlet boundary}},
+       \underbrace{\left\langle y_N(t,\cdot), u_N(t,\cdot)\right\rangle_{\Gamma_N}}_{\text{power flowing through the Neumann boundaries}} + \underbrace{\left\langle u_D(t,\cdot), y_D(t,\cdot) \right\rangle_{\Gamma_D}}_{\text{power flowing through the Dirichlet boundary}},
 
 where :math:`\left\langle \cdot, \cdot \right\rangle_{\Gamma}` is a
 boundary duality bracket :math:`H^\frac12, H^{-\frac12}` at the boundary
@@ -114,7 +116,8 @@ Let :math:`\varphi_q` and :math:`\varphi_p` be smooth test functions on
 :math:`\Omega`, and :math:`\psi_N` and :math:`\psi_D` be smooth test
 functions on :math:`\Gamma_N` and :math:`\Gamma_D` respectively. One can
 write the weak formulation of the **Dirac Structure** as follows
-(weak-form)=
+
+.. _weak-form:
 
 .. math::
 
@@ -149,7 +152,8 @@ boundary reduce to simple :math:`L^2` scalar products.
 Writing the discrete weak formulation with those families, one has for
 all :math:`1 \le i \le N_q`, all :math:`1 \le k \le N_p`, all
 :math:`1 \le m_N \le N_N` and all :math:`1 \le m_D \le N_D`
-(weak-form-IBP)=
+
+.. _weak-form-IBP:
 
 .. math::
 
@@ -157,7 +161,9 @@ all :math:`1 \le i \le N_q`, all :math:`1 \le k \le N_p`, all
        \left\lbrace
        \begin{array}{rcl}
        \sum_{j=1}^{N_q} \int_\Omega \varphi_q^j(x) \varphi_q^i(x) {\rm d}x \, \frac{\rm d}{{\rm d}t} \alpha_q^j(t) &=& \sum_{\ell=1}^{N_p} \int_\Omega {\rm grad} \left( \varphi_p^\ell(x) \right) \cdot \varphi_q^i(x) {\rm d}x \, e_p^\ell(t), \\
-       \sum_{\ell=1}^{N_p} \int_\Omega \varphi_p^\ell(x) \varphi_p^k(x) {\rm d}x \, \frac{\rm d}{{\rm d}t} \alpha_p^\ell(t) &=& - \sum_{j=1}^{N_q} \int_\Omega \varphi_q^j(x) \cdot {\rm grad} \left( \varphi_p^k(x) \right) {\rm d}x \, e_q^j(t) + \sum_{n_N=1}^{N_N} \int_{\Gamma_N} \varphi_p^k(s) \psi_N^{n_N}(s) {\rm d}s \, u_N^{n_N}(t) + \sum_{n_D=1}^{N_D} \int_{\Gamma_D} \varphi_p^k(s) \psi_D^{n_D}(s) {\rm d}s \, y_D^{n_D}(t), \\
+       \sum_{\ell=1}^{N_p} \int_\Omega \varphi_p^\ell(x) \varphi_p^k(x) {\rm d}x \, \frac{\rm d}{{\rm d}t} \alpha_p^\ell(t) &=& - \sum_{j=1}^{N_q} \int_\Omega \varphi_q^j(x) \cdot {\rm grad} \left( \varphi_p^k(x) \right) {\rm d}x \, e_q^j(t) \\
+       && \quad + \sum_{n_N=1}^{N_N} \int_{\Gamma_N} \varphi_p^k(s) \psi_N^{n_N}(s) {\rm d}s \, u_N^{n_N}(t) \\
+       && \qquad + \sum_{n_D=1}^{N_D} \int_{\Gamma_D} \varphi_p^k(s) \psi_D^{n_D}(s) {\rm d}s \, y_D^{n_D}(t), \\
        \sum_{n_N=1}^{N_N} \left\langle \psi_N^{n_N}, \psi_N^{m_N} \right\rangle_{\Gamma_N} \, y_N^{n_N}(t) &=& \sum_{\ell=1}^{N_p} \int_{\Gamma_N} \varphi_p^\ell(s) \psi_N^{m_N}(s) {\rm d}s \, e_p^\ell(t), \\
        \sum_{n_D=1}^{N_D} \left\langle \psi_D^{n_D}, \psi_D^{m_D} \right\rangle_{\Gamma_D} \, u_D^{n_D}(t) &=& \sum_{\ell=1}^{N_p} \int_{\Gamma_D} \varphi_p^\ell(s) \psi_D^{m_D}(s) {\rm d}s \, e_p^\ell(t),
        \end{array}
@@ -196,7 +202,9 @@ which rewrites in matrix form
 
 where
 :math:`\underline{\star}(t) := \begin{pmatrix} \star^1(t) & \cdots & \star^{N_\star} \end{pmatrix}^\top`
-and (weak-form-matrices-1)=
+and
+
+.. _weak-form-matrices-1:
 
 .. math::
 
@@ -205,12 +213,16 @@ and (weak-form-matrices-1)=
        \qquad
        (M_p)_{k\ell} := \int_\Omega \varphi_p^\ell(x) \varphi_p^k(x) {\rm d}x,
        \qquad
+
+.. _weak-form-matrices-2:
+
+.. math::
+
+
        (M_N)_{m_Nn_N} := \int_{\Gamma_N} \psi_N^{n_N}(s) \psi_N^{m_N}(s) {\rm d}s,
        \qquad
        (M_D)_{m_Dn_D} := \int_{\Gamma_D} \psi_D^{n_D}(s) \psi_D^{m_D}(s) {\rm d}s,
        \qquad
-
-(weak-form-matrices-2)=
 
 .. math::
 
@@ -247,7 +259,9 @@ formulation of the constitutive relation
        \end{array}
        \right.
 
-where (weak-form-matrices-3)=
+where
+
+.. _weak-form-matrices-3:
 
 .. math::
 
@@ -279,14 +293,14 @@ Simulations
 
 Let us start by importing the scrimp package
 
-.. code:: ipython3
+.. code:: python
 
     # Import scrimp
     import scrimp as S
 
 Now define a real Distributed Port-Hamiltonian System
 
-.. code:: ipython3
+.. code:: python
 
     # Init the distributed port-Hamiltonian system
     wave = S.DPHS("real")
@@ -295,7 +309,7 @@ The domain is 2-dimensional, and is a rectangle of length 2 and width 1.
 We use the built-in geometry ``Rectangle`` and choose a mesh size
 parameter of 0.1 with the following command.
 
-.. code:: ipython3
+.. code:: python
 
     # Set the domain (using the built-in geometry `Rectangle`)
     # Labels: Omega = 1, Gamma_Bottom = 10, Gamma_Right = 11, Gamma_Top = 12, Gamma_Left = 13
@@ -307,7 +321,7 @@ parameter of 0.1 with the following command.
 Defining the states and co-states, care must be taken: the Strain is a
 **vector-field**.
 
-.. code:: ipython3
+.. code:: python
 
     # Define the variables and their discretizations
     states = [
@@ -339,7 +353,7 @@ a consequence for the port at boundary 13, as it is then in the *flow*
 part of the Dirac structure, as can be seen in ` <weak-form-ibp>`__. We
 indicate this using the keyword ``position="flow"``.
 
-.. code:: ipython3
+.. code:: python
 
     # Define the control ports
     control_ports = [
@@ -401,7 +415,7 @@ variables, either the control, or the observation, is at most a
 discontinuous Galerkin of order :math:`k-1` approximation. Hence the
 following choices, with :math:`k=2`.
 
-.. code:: ipython3
+.. code:: python
 
     # Define the Finite Elements Method of each port
     FEMs = [
@@ -423,7 +437,7 @@ always linked to a port (*i.e.*, to a pair *flow-effort*). In
 particular, a parameter linked to a port that is a vector-field, should
 be a **tensor-field**.
 
-.. code:: ipython3
+.. code:: python
 
     # Define physical parameters
     parameters = [
@@ -448,7 +462,7 @@ site <https://getfem.org/userdoc/gasm_high.html?highlight=gwfl>`__.
 For the block matrices appearing against time derivative of a variable,
 it is crucial not to forget the keyword ``dt=True``.
 
-.. code:: ipython3
+.. code:: python
 
     # Define the pHs via `Brick` == non-zero block matrices == variational terms
     bricks = [
@@ -490,7 +504,7 @@ The last step is to initialize the dphs, by providing the control
 functions and the initial values for :math:`q` and :math:`p` (*i.e.*,
 the variables that are derivated in time in the model).
 
-.. code:: ipython3
+.. code:: python
 
     ## Initialize the problem
     # The controls expression, ordered as the control_ports
@@ -510,7 +524,7 @@ the variables that are derivated in time in the model).
 
 It remains to solve!
 
-.. code:: ipython3
+.. code:: python
 
     ## Solve in time
     # Define the time scheme ("cn" is Crank-Nicolson)
@@ -524,7 +538,7 @@ It remains to solve!
 
 Now we can set the Hamiltonian and plot it.
 
-.. code:: ipython3
+.. code:: python
 
     ## Post-processing
     # Set Hamiltonian's name
@@ -597,7 +611,7 @@ Another simulation
 
 Let us start a new simulation with damping.
 
-.. code:: ipython3
+.. code:: python
 
     # Clear GetFEM of the previous problem
     wave.gf_model.clear()
@@ -623,7 +637,7 @@ objects, *i.e.* we only append the ``FEM`` of the resistive port to the
 list of previously defined ``FEM`` objects. We choose continuous
 Galerkin of order 2, as the resistive effort is of :math:`p`-type.
 
-.. code:: ipython3
+.. code:: python
 
     # Define a dissipative port
     port_diss = S.Port("Damping", "f_r", "e_r", "scalar-field")
@@ -641,7 +655,7 @@ Galerkin of order 2, as the resistive effort is of :math:`p`-type.
 The parameter :math:`\nu` is obviously linked to the ``Damping`` port.
 It can be heterogeneous, as for the other parameters.
 
-.. code:: ipython3
+.. code:: python
 
     # Define a Parameter on the dissipative port
     parameters.append(S.Parameter("nu", "viscosity", "scalar-field", "0.5*(2.0-x)", "Damping"))
@@ -654,7 +668,7 @@ Looking at ` <with-diss>`__, only 3 non-zero block matrices have to be
 added to the list of the laready constructed bricks, for the Dirac
 structure part.
 
-.. code:: ipython3
+.. code:: python
 
     # Mass matrix
     bricks.append(S.Brick("M_r", "f_r*Test_f_r", [1], position="flow"))
@@ -666,7 +680,7 @@ structure part.
 Finally, 2 bricks are needed to discretize the resistive constitutive
 relation.
 
-.. code:: ipython3
+.. code:: python
 
     # Constitutive relation: linear viscous fluid damping `- M_e_r e_r + CR_r f_r = 0`
     bricks.append(S.Brick("-M_e_r", "-e_r*Test_e_r", [1]))
@@ -675,7 +689,7 @@ relation.
 Again, we use the previsouly defined ``Brick`` objects, thus, the whole
 system is constructed by adding all the bricks.
 
-.. code:: ipython3
+.. code:: python
 
     # Then add all bricks into the new dphs
     for brick in bricks:
@@ -684,7 +698,7 @@ system is constructed by adding all the bricks.
 The initialization and solve steps are identical to the previous
 conservative case.
 
-.. code:: ipython3
+.. code:: python
 
     ## Initialize the `new` problem
     # Add each expression to its control_port
@@ -708,7 +722,7 @@ conservative case.
 
 Now one can define and plot the Hamiltonian.
 
-.. code:: ipython3
+.. code:: python
 
     ## Post-processing
     # Set Hamiltonian's name
