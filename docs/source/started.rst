@@ -72,8 +72,8 @@ Of course, trivial substitutions in this system would lead again to the
 initial string equation in second-order form. However, by keeping the
 system as is, an important structure appears. Indeed, the matrix of
 operators above is *formally* skew-symmetric. In other words, for all
-test functions :math:``f_q`` and :math:``f_p`` (compactly supported
-:math:``C^\infty`` functions), one has thanks to integration by parts
+test functions :math:`f_q` and :math:`f_p` (compactly supported
+:math:`C^\infty` functions), one has thanks to integration by parts
 
 .. math::
 
@@ -538,9 +538,9 @@ is the form, the third is a list (hence the [ and ]) of integers,
 listing all the regions where the form applies. The optional parameter
 ``dt=True`` is to inform **SCRIMP** that this block matrix will apply on
 the time-derivative of the unknown trial function, and finally the
-option parameter ``position='flow'`` informs **SCRIMP** that this block
+option parameter ``position="flow"`` informs **SCRIMP** that this block
 is a part of the *flow side* of the Dirac structure,
-``position='effort'`` do the same for the *effort side*, and without
+``position="effort"`` do the same for the *effort side*, and without
 this keyword, **SCRIMP** places the *brick* as part of the *constitutive
 relations*.
 
