@@ -581,7 +581,7 @@ introduce this hidden port, by denoting :math:`f_r` the flow and
 :math:`e_r` the effort, as follows:
 
 .. math::
-
+    :label: with-diss
 
        \begin{pmatrix} \partial_t \alpha_q \\ \partial_t \alpha_p \\ f_r \end{pmatrix}
        =
