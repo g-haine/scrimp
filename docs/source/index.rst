@@ -114,8 +114,8 @@ User's guide
     examples
     notebooks
     GUI
-    scrimp
     References <biblio>
+    scrimp
     ANR Impacts <https://impacts.ens2m.fr/>
     GitHub repo <https://github.com/g-haine/scrimp>
     PDF documentation <https://g-haine.github.io/scrimp/latex/scrimp.pdf>

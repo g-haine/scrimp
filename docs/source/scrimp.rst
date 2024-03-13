@@ -1,12 +1,11 @@
+******************
 Code documentation
-==================
+******************
 
-This documentation is generated automatically from the python source using `SPHINX <https://www.sphinx-doc.org/en/master/>`_.
-
-This documentation is `available in pdf <https://g-haine.github.io/scrimp/latex/scrimp.pdf>`_.
+This part of the documentation is generated automatically from the python source using `SPHINX <https://www.sphinx-doc.org/en/master/>`_.
 
 Folders
--------
+=======
 
 .. toctree::
    :maxdepth: 2
@@ -16,7 +15,7 @@ Folders
    scrimp.sandbox
 
 Distributed port-Hamiltonian system
------------------------------------------------------------
+===================================
 
 .. automodule:: scrimp.dphs
    :members:
@@ -24,7 +23,7 @@ Distributed port-Hamiltonian system
    :show-inheritance:
 
 Domain
------------------------------------------------------------
+======
 
 .. automodule:: scrimp.domain
    :members:
@@ -32,7 +31,7 @@ Domain
    :show-inheritance:
 
 Hamiltonian / Term
------------------------------------------------------------
+==================
 
 .. automodule:: scrimp.hamiltonian
    :members:
@@ -40,7 +39,7 @@ Hamiltonian / Term
    :show-inheritance:
 
 Port / Parameter
------------------------------------------------------------
+================
 
 .. automodule:: scrimp.port
    :members:
@@ -48,7 +47,7 @@ Port / Parameter
    :show-inheritance:
 
 State
------------------------------------------------------------
+=====
 
 .. automodule:: scrimp.state
    :members:
@@ -56,7 +55,7 @@ State
    :show-inheritance:
 
 Co-state
------------------------------------------------------------
+========
 
 .. automodule:: scrimp.costate
    :members:
@@ -64,7 +63,7 @@ Co-state
    :show-inheritance:
 
 Control
------------------------------------------------------------
+=======
 
 .. automodule:: scrimp.control
    :members:
@@ -72,7 +71,7 @@ Control
    :show-inheritance:
 
 FEM
------------------------------------------------------------
+===
 
 .. automodule:: scrimp.fem
    :members:
@@ -80,7 +79,7 @@ FEM
    :show-inheritance:
 
 Brick
------------------------------------------------------------
+=====
 
 .. automodule:: scrimp.brick
    :members:
