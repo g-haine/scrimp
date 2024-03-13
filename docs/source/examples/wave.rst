@@ -3,7 +3,7 @@ The wave equation
 
 Let us consider the 2D wave equation with *mixed* boundary controls on a
 bounded rectangle :math:`\Omega := (0, L) \times (0, \ell)`, with boundaries
-:math:`\Gamma_N := \left( (0, L) \times \{ 0, \ell \} \right) \cup \left( \{ L \} \times (0, \ell) \right)` and :math:`\Gamma_D := \{ 0 \} \times (0, \ell)`
+:math:`\Gamma_N := \left( (0, L) \times \{ 0, \ell \} \right) \cup \left( \{ L \} \times (0, \ell) \right)` and :math:`\Gamma_D := \{ 0 \} \times (0, \ell)`.
 
 The deflection of the membrane from the equilibrium :math:`w` satisfies
 classicaly
@@ -117,10 +117,8 @@ Let :math:`\varphi_q` and :math:`\varphi_p` be smooth test functions on
 functions on :math:`\Gamma_N` and :math:`\Gamma_D` respectively. One can
 write the weak formulation of the **Dirac Structure** as follows
 
-.. _weak-form:
-
 .. math::
-
+    :label: weak-form
 
        \left\lbrace
        \begin{array}{rcl}
@@ -153,10 +151,8 @@ Writing the discrete weak formulation with those families, one has for
 all :math:`1 \le i \le N_q`, all :math:`1 \le k \le N_p`, all
 :math:`1 \le m_N \le N_N` and all :math:`1 \le m_D \le N_D`
 
-.. _weak-form-IBP:
-
 .. math::
-
+    :label: weak-form-IBP
 
        \left\lbrace
        \begin{array}{rcl}
@@ -204,19 +200,15 @@ where
 :math:`\underline{\star}(t) := \begin{pmatrix} \star^1(t) & \cdots & \star^{N_\star} \end{pmatrix}^\top`
 and
 
-.. _weak-form-matrices-1:
-
 .. math::
-
+    :label: weak-form-matrices-1
 
        (M_q)_{ij} := \int_\Omega \varphi_q^j(x) \varphi_q^i(x) {\rm d}x,
        \qquad
        (M_p)_{k\ell} := \int_\Omega \varphi_p^\ell(x) \varphi_p^k(x) {\rm d}x,
 
-.. _weak-form-matrices-2:
-
 .. math::
-
+    :label: weak-form-matrices-2
 
        (M_N)_{m_Nn_N} := \int_{\Gamma_N} \psi_N^{n_N}(s) \psi_N^{m_N}(s) {\rm d}s,
        \qquad
@@ -262,10 +254,8 @@ formulation of the constitutive relation
 
 where
 
-.. _weak-form-matrices-3:
-
 .. math::
-
+    :label: weak-form-matrices-3
 
        (M_T)_{ij} := \int_\Omega \varphi_q^j(x) \cdot T(x) \cdot \varphi_q^i(x) {\rm d}x,
        \qquad
@@ -349,9 +339,9 @@ Indeed in the above example, we choose Neumann boundary condition on
 :math:`\Gamma_N`, *i.e.* on 10, 11 and 12, while we choose Dirichlet
 boundary condition on :math:`\Gamma_D`, *i.e.* on 13.
 
-The choice to integrate by part the second line of ` <weak-form>`__ has
+The choice to integrate by part the second line of :eq:`weak-form` has
 a consequence for the port at boundary 13, as it is then in the *flow*
-part of the Dirac structure, as can be seen in ` <weak-form-ibp>`__. We
+part of the Dirac structure, as can be seen in :eq:`weak-form-ibp`. We
 indicate this using the keyword ``position="flow"``.
 
 .. code:: python
@@ -406,7 +396,7 @@ of a simulation. Indeed, it can result in a failing time scheme, or a
 very instable solution. A key-point to take a first decision is to
 remember which field needs regularity (in the :math:`L^2`-sense) in the
 Dirac structure. In our case, the :math:`p`-type variables should be at
-least :math:`H^1(\Omega)`, as can be inferred from ` <weak-form-IBP>`__.
+least :math:`H^1(\Omega)`, as can be inferred from :eq:`weak-form-IBP`.
 Hence, a first choice for the :math:`p`-type variables is to take
 continuous Galerkin finite elements of order :math:`k`. Since the time
 derivative of :math:`q` will be, more or less, a gradient of a
@@ -452,8 +442,8 @@ be a **tensor-field**.
 
 It is time to define the bricks of our model, *i.e.* the block matrices
 of our discretization, providing the weak forms given in
-` <weak-form-matrices-1>`__, ` <weak-form-matrices-2>`__, and
-` <weak-form-matrices-3>`__.
+:eq:`weak-form-matrices-1`, :eq:`weak-form-matrices-2`, and
+:eq:`weak-form-matrices-3`.
 
 This is probably the most difficult part of the process, and care must
 be taken. Remember that the syntax is the Generic Weak-Form Language
@@ -665,7 +655,7 @@ It can be heterogeneous, as for the other parameters.
     for parameter in parameters:
         wave_diss.add_parameter(parameter)
 
-Looking at ` <with-diss>`__, only 3 non-zero block matrices have to be
+Looking at :eq:`with-diss`, only 3 non-zero block matrices have to be
 added to the list of the laready constructed bricks, for the Dirac
 structure part.
 
