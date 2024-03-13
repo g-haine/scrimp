@@ -16,6 +16,9 @@ It can be done in the scrimp environment with:
 2. `conda install jupyter ipykernel`
 3. `python -m ipykernel install --user --name scrimp --display-name "Python (scrimp)"`
 
+Run jupyter
+-----------
+
 Then, run in the ``notebooks`` folder:
 
 `jupyter notebook &`
