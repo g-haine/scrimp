@@ -341,7 +341,7 @@ boundary condition on :math:`\Gamma_D`, *i.e.* on 13.
 
 The choice to integrate by part the second line of :eq:`weak-form` has
 a consequence for the port at boundary 13, as it is then in the *flow*
-part of the Dirac structure, as can be seen in :eq:`weak-form-ibp`. We
+part of the Dirac structure, as can be seen in :eq:`weak-form-IBP`. We
 indicate this using the keyword ``position="flow"``.
 
 .. code:: python
