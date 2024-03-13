@@ -103,7 +103,7 @@ The **power balance** satisfied by the **Hamiltonian** is
 .. math::
 
 
-       \underbrace{\left\langle y_N(t,\cdot), u_N(t,\cdot)\right\rangle_{\Gamma_N}}_{\text{power flowing through the Neumann boundaries}} + \underbrace{\left\langle u_D(t,\cdot), y_D(t,\cdot) \right\rangle_{\Gamma_D}}_{\text{power flowing through the Dirichlet boundary}},
+       \frac{\rm d}{{\rm d}t} \mathcal{H}(t) = \underbrace{\left\langle y_N(t,\cdot), u_N(t,\cdot)\right\rangle_{\Gamma_N}}_{\text{power flowing through }\Gamma_N} + \underbrace{\left\langle u_D(t,\cdot), y_D(t,\cdot) \right\rangle_{\Gamma_D}}_{\text{power flowing through }\Gamma_D},
 
 where :math:`\left\langle \cdot, \cdot \right\rangle_{\Gamma}` is a
 boundary duality bracket :math:`H^\frac12, H^{-\frac12}` at the boundary
@@ -598,6 +598,13 @@ degrees of freedom, as two extra variables have to be discretized.
 Nevertheless, in more complicated situations (*e.g.* dealing with
 non-linearities), this is the price to pay to recover a correct discrete
 power balance.
+
+The **power balance** satisfied by the **Hamiltonian** is then
+
+.. math::
+
+
+       \frac{\rm d}{{\rm d}t} \mathcal{H}(t) = \underbrace{-\int_\Omega \nu(x) f_r^2(t,x)}_{\text{dissipated power}} \underbrace{+ \left\langle y_N(t,\cdot), u_N(t,\cdot)\right\rangle_{\Gamma_N}}_{\text{power flowing through }\Gamma_N} \underbrace{+ \left\langle u_D(t,\cdot), y_D(t,\cdot) \right\rangle_{\Gamma_D}}_{\text{power flowing through }\Gamma_D},
 
 Another simulation
 ------------------
