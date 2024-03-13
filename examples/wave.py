@@ -45,7 +45,7 @@ def wave_eq():
     params = [
         S.Parameter("T", "Young's modulus", "tensor-field", "[[5+x,x*y],[x*y,2+y]]", "q"),
         S.Parameter("rho", "Mass density", "scalar-field", "3-x", "p"),
-        S.Parameter("nu", "viscosity", "scalar-field", "0.05*x", "Damping"),
+        S.Parameter("nu", "viscosity", "scalar-field", "0.5*(2.0-x)", "Damping"),
     ]
 
     control_ports = [
@@ -88,8 +88,8 @@ def wave_eq():
         ),
     ]
 
+    # Define the Finite Elements Method of each port
     FEMs = [
-        # name of the variable: (is the same of states, ports and controls ports), order, FEM
         S.FEM(states[0].get_name(), 1, "DG"),
         S.FEM(states[1].get_name(), 2, "CG"),
         S.FEM(ports[0].get_name(), 1, "DG"),
@@ -133,7 +133,7 @@ def wave_eq():
         # Set the Hamiltonian (can be done later, even after solve)
         wave.hamiltonian.add_term(term)
 
-    ## Define the Dirac structure via getfem `brick` = non-zero block matrix
+    ## Define the pHs via `Brick` == non-zero block matrices == variational terms
     bricks = [
         # Add the mass matrices from the left-hand side: the `flow` part of the Dirac structure
         S.Brick("M_q", "q.Test_q", [1], dt=True, position="flow"),
@@ -158,14 +158,14 @@ def wave_eq():
         S.Brick("C_R", "-e_p*Test_Y_R", [11], position="effort"),
         S.Brick("C_T", "-e_p*Test_Y_T", [12], position="effort"),
         S.Brick("C_L", "-e_p*Test_Y_L", [13], position="effort"),
-        ## Define the constitutive relations as getfem `brick`
-        # Hooke's law under implicit form - M_e_q e_q + CR_q q = 0
+        ## Define the constitutive relations
+        # Hooke's law under implicit form `- M_e_q e_q + CR_q q = 0`
         S.Brick("-M_e_q", "-e_q.Test_e_q", [1]),
         S.Brick("CR_q", "q.T.Test_e_q", [1]),
-        # Linear momentum definition under implicit form - M_e_p e_p + CR_p p = 0
+        # Linear momentum definition under implicit form `- M_e_p e_p + CR_p p = 0`
         S.Brick("-M_e_p", "-e_p*Test_e_p", [1]),
         S.Brick("CR_p", "p/rho*Test_e_p", [1]),
-        # Linear viscous fluid damping - M_e_r e_r + CR_r f_r = 0
+        # Linear viscous fluid damping `- M_e_r e_r + CR_r f_r = 0`
         S.Brick("-M_e_r", "-e_r*Test_e_r", [1]),
         S.Brick("CR_r", "nu*f_r*Test_e_r", [1]),
     ]
@@ -174,21 +174,22 @@ def wave_eq():
         wave.add_brick(brick)
 
     ## Initialize the problem
-    expressions = ["0.", "0.", "0.", "0.1*sin(2.*t)*sin(4*pi*y)"]
+    t_f = 5.0
+    expressions = ["0.", "0.", "0.", f"0.1*sin(4.*t)*sin(4*pi*y)*exp(-10.*pow((0.5*{t_f}-t),2))"]
 
     for control_port, expression in zip(control_ports, expressions):
-        # Set the control functions (automatic construction of bricks such that -M_u u + f(t) = 0)
+        # Set the control functions: it automatically constructs the related `Brick`s such that `- M_u u + f(t) = 0`
         wave.set_control(control_port.get_name(), expression)
 
     # Set the initial data
     wave.set_initial_value("q", "[0., 0.]")
-    wave.set_initial_value("p", "2.72**(-20*((x-0.5)*(x-0.5)+(y-0.5)*(y-0.5)))")
+    wave.set_initial_value("p", "3**(-20*((x-0.5)*(x-0.5)+(y-0.5)*(y-0.5)))")
 
     ## Solve in time
 
     # Define the time scheme
-    wave.set_time_scheme(
-                         t_f=2., 
+    wave.set_time_scheme(ts_type="cn",
+                         t_f=t_f, 
                          dt_save=0.01,
                          )
 
@@ -201,13 +202,11 @@ def wave_eq():
     wave.plot_Hamiltonian(save_figure=True)
 
     # Export solutions for ParaView
-    wave.export_to_pv("q")
-    wave.export_to_pv("p")
-
-    # Plot the matrices representing the Dirac structure
-    # wave.spy_Dirac()
+    # wave.export_to_pv("q")
+    # wave.export_to_pv("p")
 
     return wave  # For consol use
 
 if __name__ == "__main__":
     wave = wave_eq()
+    
