@@ -549,7 +549,7 @@ Now we can set the Hamiltonian and plot it.
 .. image:: Wave_Hamiltonian_conservative.png
 
 Adding Damping to the dphs
-==========================
+--------------------------
 
 The remining part of the notebook is focused on the way to deal with
 *dissipativity*, hence using an **algebraic port**.
