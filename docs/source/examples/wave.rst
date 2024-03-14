@@ -123,7 +123,7 @@ write the weak formulation of the **Dirac Structure** as follows
        \left\lbrace
        \begin{array}{rcl}
        \int_\Omega \partial_t \alpha_q(t,x) \varphi_q(x) {\rm d}x &=& \int_\Omega {\rm grad} \left( e_p(t,x) \right) \cdot \varphi_q(x) {\rm d}x, \\
-       \int_\Omega \partial_t \alpha_p(t,x) \varphi_p(x) {\rm d}x &=& \int_\Omega {\rm div} e_q(t,x) \varphi_p(x) {\rm d}x, \\
+       \int_\Omega \partial_t \alpha_p(t,x) \varphi_p(x) {\rm d}x &=& \int_\Omega {\rm div} \left( e_q(t,x) \right) \varphi_p(x) {\rm d}x, \\
        \left\langle y_N, \psi_N \right\rangle_{\Gamma_N} &=& \left\langle e_p, \psi_N \right\rangle_{\Gamma_N}, \\
        \left\langle u_D, \psi_D \right\rangle_{\Gamma_D} &=& \left\langle e_p, \psi_D \right\rangle_{\Gamma_D}.
        \end{array}
@@ -140,11 +140,11 @@ the observation :math:`y_D` appear
 Now, let :math:`(\varphi_q^i)_{1 \le i \le N_q} \subset L^2(\Omega)` and
 :math:`(\varphi_p^k)_{1 \le k \le N_p} \subset H^1(\Omega)` be two
 finite families of approximations for the :math:`q`-type port and the
-:math:`p`-type port respectively, typically continuous and discontinuous
+:math:`p`-type port respectively, typically discontinuous and continuous
 Galerkin finite elements respectively. Denote also
-:math:`(\psi_N^m)_{1 \le m \le N_N} \subset H^{\frac12}(\Gamma_N)` and
-:math:`(\psi_D^m)_{1 \le m \le N_D} \subset H^{\frac12}(\Gamma_D)`. In
-particular, the latter choices implies the duality brackets at the
+:math:`(\psi_N^m)_{1 \le m_N \le N_N} \subset H^{\frac12}(\Gamma_N)` and
+:math:`(\psi_D^m)_{1 \le m_D \le N_D} \subset H^{\frac12}(\Gamma_D)`. In
+particular, the latter choices imply that the duality brackets at the
 boundary reduce to simple :math:`L^2` scalar products.
 
 Writing the discrete weak formulation with those families, one has for
@@ -203,7 +203,7 @@ and
 .. math::
     :label: weak-form-matrices-1
 
-       (M_q)_{ij} := \int_\Omega \varphi_q^j(x) \varphi_q^i(x) {\rm d}x,
+       (M_q)_{ij} := \int_\Omega \varphi_q^j(x) \cdot \varphi_q^i(x) {\rm d}x,
        \qquad
        (M_p)_{k\ell} := \int_\Omega \varphi_p^\ell(x) \varphi_p^k(x) {\rm d}x,
 
@@ -279,8 +279,8 @@ skew-symmetry of :math:`J`
 
        \frac{\rm d}{{\rm d}t} \mathcal{H}^d(t) = \underline{y_N}(t)^\top M_N \underline{u_N}(t) + \underline{u_D}(t)^\top M_D \underline{y_D}(t).
 
-Simulations
------------
+Simulation
+----------
 
 Let us start by importing the scrimp package
 
