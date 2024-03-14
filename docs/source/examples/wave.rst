@@ -1,6 +1,8 @@
 The wave equation
 =================
 
+.. _Wave_2D:
+
 .. automodule:: scrimp.examples.wave
    :members:
    :undoc-members:

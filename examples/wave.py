@@ -33,7 +33,7 @@ def wave_eq():
     # And add it to the dphs
     wave.set_domain(rectangle)
 
-    # Define the variables and their discretizations
+    # Define the variables
     states = [
         S.State("q", "Strain", "vector-field"),
         S.State("p", "Linear momentum", "scalar-field"),

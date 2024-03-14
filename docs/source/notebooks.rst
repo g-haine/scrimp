@@ -24,4 +24,13 @@ Then, run in the ``notebooks`` folder:
 `jupyter notebook &`
 
 And choose a notebook to launch.
+
+If you aim at learning **SCRIMP**, the preferred order to study the notebooks is:
+
+* Wave_1D
+* Wave_2D
+* Heat_2D
+* Wave_2D_CoEnergy
+* Heat_Wave_2D
+* Shallow_water_2D
    
