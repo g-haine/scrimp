@@ -1,6 +1,11 @@
 The wave equation
 =================
 
+.. automodule:: scrimp.examples.wave
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Let us consider the 2D wave equation with *mixed* boundary controls on a
 bounded rectangle :math:`\Omega := (0, L) \times (0, \ell)`, with boundaries
 :math:`\Gamma_N := \left( (0, L) \times \{ 0, \ell \} \right) \cup \left( \{ L \} \times (0, \ell) \right)` and :math:`\Gamma_D := \{ 0 \} \times (0, \ell)`.
@@ -743,7 +748,3 @@ Now one can define and plot the Hamiltonian.
     
 .. image:: Wave_Hamiltonian_dissipative.png
 
-.. automodule:: scrimp.examples.wave
-   :members:
-   :undoc-members:
-   :show-inheritance:

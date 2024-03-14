@@ -1,6 +1,11 @@
 The heat equation
 =================
 
+.. automodule:: scrimp.examples.heat
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 This example is the first simple case of intrinsically port-Hamiltonian
 Differential Algebraic Equation (known as pH-DAE).
 
@@ -508,7 +513,3 @@ The Hamiltonian may be defined, computed and plot.
 
 .. image:: Heat_Hamiltonian.png
 
-.. automodule:: scrimp.examples.heat
-   :members:
-   :undoc-members:
-   :show-inheritance:
