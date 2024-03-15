@@ -210,9 +210,6 @@ def heat_wave_eq(heat_region=1, wave_region=2):
     # Add them to the Hamiltonian
     for term in terms:
         hw.hamiltonian.add_term(term)
-    
-    hw.export_to_pv("T")
-    hw.export_to_pv("p")
 
     # Plot the Hamiltonian and save the output
     hw.plot_Hamiltonian(save_figure=True, filename="Hamiltonian_Heat_Wave_2D.png")
