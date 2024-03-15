@@ -103,7 +103,7 @@ def heat_wave_eq(heat_region=1, wave_region=2):
         ),
     ]
 
-    # Add it to the dphs
+    # Add them to the dphs
     for ctrl_port in control_ports:
         hw.add_control_port(ctrl_port)
 
@@ -148,8 +148,8 @@ def heat_wave_eq(heat_region=1, wave_region=2):
         
         S.Brick("D_T", "e_Q.Grad(Test_T)", [heat_region], position="effort"),
         S.Brick("D_T^T", "-Grad(T).Test_e_Q", [heat_region], position="effort"),
-        S.Brick("B_T", "-U_T*Test_T", [10], position="effort"),
-        S.Brick("B_T^T", "-T*Test_Y_T", [10], position="effort"),
+        S.Brick("B_T", "U_T*Test_T", [10], position="effort"),
+        S.Brick("B_T^T", "T*Test_Y_T", [10], position="effort"),
 
         # === Wave: grad-grad
         S.Brick("M_p", "p*rho*Test_p", [wave_region], dt=True, position="flow"),
@@ -163,19 +163,19 @@ def heat_wave_eq(heat_region=1, wave_region=2):
         
     ]
     # === Boundary depends on where is the heat equation / wave equation
-    if heat_region==1:
+    if wave_region==1:
+        bricks.append(S.Brick("M_Y_bnd", "U_bnd*Test_Y_bnd", [20], position="flow"))
+        bricks.append(S.Brick("B_bnd", "Y_bnd*Test_T", [20], position="effort"))
+        bricks.append(S.Brick("B_bnd^T", "T*Test_Y_bnd", [20], position="effort"))
+    else:
         bricks.append(S.Brick("M_Y_bnd", "U_bnd*Test_Y_bnd", [20], position="flow"))
         bricks.append(S.Brick("B_bnd", "Y_bnd*Test_p", [20], position="effort"))
         bricks.append(S.Brick("B_bnd^T", "p*Test_Y_bnd", [20], position="effort"))
-    else:
-        bricks.append(S.Brick("M_Y_bnd", "U_bnd*Test_Y_bnd", [20], position="flow"))
-        bricks.append(S.Brick("B_bnd", "-Y_bnd*Test_T", [20], position="effort"))
-        bricks.append(S.Brick("B_bnd^T", "-T*Test_Y_bnd", [20], position="effort"))
     for brick in bricks:
         hw.add_brick(brick)
     
     # Set the controls
-    # === Transformer Interconnection
+    # === Transformer interconnection
     hw.set_control("Interface Heat", "U_w")
     hw.set_control("Interface Wave", "U_T") 
     # === Dirichlet boundary condition
@@ -210,6 +210,8 @@ def heat_wave_eq(heat_region=1, wave_region=2):
     # Add them to the Hamiltonian
     for term in terms:
         hw.hamiltonian.add_term(term)
+    
+    hw.export_to_pv("p")
 
     # Plot the Hamiltonian and save the output
     hw.plot_Hamiltonian(save_figure=True, filename="Hamiltonian_Heat_Wave_2D.png")
