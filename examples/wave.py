@@ -193,7 +193,7 @@ def wave_eq():
         wave.hamiltonian.add_term(term)
 
     # Plot the Hamiltonian and save the output
-    wave.plot_Hamiltonian(save_figure=True)
+    wave.plot_Hamiltonian(save_figure=True, filename="Hamiltonian_Wave_2D_Conservative.png")
 
 
     ## Adding Damping to the dphs
@@ -286,7 +286,7 @@ def wave_eq():
         wave_diss.hamiltonian.add_term(term)
 
     # Plot the Hamiltonian and save the output
-    wave_diss.plot_Hamiltonian(save_figure=True)
+    wave_diss.plot_Hamiltonian(save_figure=True, filename="Hamiltonian_Wave_2D_Dissipative.png")
     
     return wave, wave_diss
 

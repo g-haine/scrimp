@@ -551,7 +551,7 @@ Now we can set the Hamiltonian and plot it.
         wave.hamiltonian.add_term(term)
     
     # Plot the Hamiltonian and save the output
-    wave.plot_Hamiltonian(save_figure=True)
+    wave.plot_Hamiltonian(save_figure=True, filename="Hamiltonian_Wave_2D_Conservative.png")
     
 .. image:: Wave_Hamiltonian_conservative.png
 
@@ -746,7 +746,7 @@ Now one can define and plot the Hamiltonian.
         wave_diss.hamiltonian.add_term(term)
     
     # Plot the Hamiltonian and save the output
-    wave_diss.plot_Hamiltonian(save_figure=True)
+    wave_diss.plot_Hamiltonian(save_figure=True, filename="Hamiltonian_Wave_2D_Dissipative.png")
     
 .. image:: Wave_Hamiltonian_dissipative.png
 

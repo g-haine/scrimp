@@ -52,8 +52,7 @@ At the discrete level, this allows to reduce the number of degrees of
 freedom by two.
 
 **Remark:** In the example, :math:`\nu` only acts on a sub-domain,
-*i.e.* it is theoretically null on the complementary, and thus could not
-be invert! To be able to invert it, it is then mandatory to restrict the
+*i.e.* it is theoretically null on the complementary, and thus is not invertible! To be able to invert it, it is then mandatory to restrict the
 dissipative port to the sub-domain where :math:`\nu>0`.
 
 Simulation
@@ -135,7 +134,6 @@ The sequel is as for the already seen examples.
 
     # Define the Finite Elements Method of each port
     FEMs = [
-        # name of the variable: (is the same of states, ports and controls ports), order, FEM
         S.FEM(states[0].get_name(), 1, "DG"),
         S.FEM(states[1].get_name(), 2, "CG"),
         S.FEM(ports[0].get_name(), 1, "DG"),

@@ -509,7 +509,7 @@ The Hamiltonian may be defined, computed and plot.
         heat.hamiltonian.add_term(term)
     
     # Plot the Hamiltonian
-    heat.plot_Hamiltonian(save_figure=True)
+    heat.plot_Hamiltonian(save_figure=True, filename="Hamiltonian_Heat_2D.png")
 
 .. image:: Heat_Hamiltonian.png
 

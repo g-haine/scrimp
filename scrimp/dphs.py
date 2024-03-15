@@ -1202,6 +1202,24 @@ class DPHS:
             raise err
 
         self.hamiltonian.compute(self.solution, self.gf_model, self.domain)
+    
+    def get_Hamiltonian(self):
+        """This function returns the Hamiltonian in function of time
+        
+        Returns:
+            numpy array: time array of the values of the Hamiltonian.
+        """
+        
+        if not self.hamiltonian.get_is_computed():
+            self.compute_Hamiltonian()
+
+        t = np.array(self.solution["t"])
+        HamTot = np.zeros(t.size)
+        for _, term in enumerate(self.hamiltonian):
+            values = np.array(term.get_values())
+            HamTot += values
+            
+        return HamTot
 
     def plot_Hamiltonian(self, with_powers=True, save_figure=False, filename="Hamiltonian.png"):
         """Plot each term constituting the Hamiltonian and the Hamiltonian

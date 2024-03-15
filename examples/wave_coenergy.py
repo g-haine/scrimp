@@ -77,7 +77,6 @@ def wave_coenergy_eq():
     
     # Define the Finite Elements Method of each port
     FEMs = [
-        # name of the variable: (is the same of states, ports and controls ports), order, FEM
         S.FEM(states[0].get_name(), 1, "DG"),
         S.FEM(states[1].get_name(), 2, "CG"),
         S.FEM(ports[0].get_name(), 1, "DG"),

@@ -185,7 +185,7 @@ def heat_eq():
         heat.hamiltonian.add_term(term)
 
     # Plot the Hamiltonian
-    heat.plot_Hamiltonian(save_figure=True)
+    heat.plot_Hamiltonian(save_figure=True, filename="Hamiltonian_Heat_2D.png")
 
     return heat
 
