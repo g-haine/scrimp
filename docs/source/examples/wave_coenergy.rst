@@ -1,7 +1,7 @@
 Another wave equation
 =====================
 
-.. _Wave2Dcoenergy:
+.. _Wave_2D_coenergy:
 
 .. automodule:: scrimp.examples.wave_coenergy
    :members:
@@ -10,7 +10,7 @@ Another wave equation
 
 The objective of this example is to show how sub-domains may be used,
 and how substitutions reduce the computational burden: it assumes that
-`this 2D wave example <Wave2D>`_ has
+`this 2D wave example <https://g-haine.github.io/scrimp/examples/wave.html>`_ has
 already been studied.
 
 Substitutions

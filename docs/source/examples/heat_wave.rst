@@ -9,11 +9,11 @@ Heat wave coupling
    :show-inheritance:
 
 It is assumed that the `2D wave
-equation <Wave_2D>`_, the
+equation <https://g-haine.github.io/scrimp/examples/wave.html>`_, the
 `2D wave equation in co-energy
-formulation <Wave_2D_coenergy>`_
+formulation <https://g-haine.github.io/scrimp/examples/wave_coenergy.html>`_
 and the `2D heat
-equation <Heat_2D>`_ have
+equation <https://g-haine.github.io/scrimp/examples/heat.html>`_ have
 already been studied.
 
 The objective of this example is to deal with interconnection in the
