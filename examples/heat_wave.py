@@ -19,7 +19,7 @@ import scrimp as S
 def heat_wave_eq(heat_region=1, wave_region=2):
     """A structure-preserving discretization of a coupled heat-wave equation
 
-    Co-energy formulations, heat: Grad-Grad, wave: Grad-Grad, transformer interconnection
+    Co-energy formulations, heat: div-div, wave: grad-grad, gyrator interconnection
     On the `Concentric` built-in geometry: 1: internal disk, 2: exterior annulus
     
     Args:
@@ -38,8 +38,6 @@ def heat_wave_eq(heat_region=1, wave_region=2):
     hw.set_domain(omega)
     
     # Define the states and costates, needs the heat and wave region's labels
-    heat_region = 1
-    wave_region = 2
     states = [
         S.State("T", "Temperature", "scalar-field", region=heat_region),
         S.State("p", "Velocity", "scalar-field", region=wave_region),
@@ -108,10 +106,10 @@ def heat_wave_eq(heat_region=1, wave_region=2):
         hw.add_control_port(ctrl_port)
 
     # Define the Finite Elements Method of each port
-    k = 2
+    k = 1
     FEMs = [
-        S.FEM("T", k+1, "CG"),
-        S.FEM("Heat flux", k, "DG"),
+        S.FEM("T", k, "DG"),
+        S.FEM("Heat flux", k+1, "CG"),
         S.FEM("Interface Heat", k, "DG"),
         S.FEM("p", k+1, "CG"),
         S.FEM("q", k, "DG"),
@@ -123,50 +121,35 @@ def heat_wave_eq(heat_region=1, wave_region=2):
     for FEM in FEMs:
         hw.add_FEM(FEM)
     
-    # Define physical parameters: care must be taken, 
-    # in the co-energy formulation, some parameters are
-    # inverted in comparison to the classical formulation
-    parameters = [
-        S.Parameter("rho_CV", "Mass density times heat capacity", "scalar-field", "1.", "T"),
-        S.Parameter("Lambda_inv", "Heat conductivity", "tensor-field", "[[1., 0.],[0., 1.]]", "Heat flux"),
-        S.Parameter("rho", "Mass density", "scalar-field", "1.", "p"),
-        S.Parameter("Kappa_inv", "Inverse of Young\"s modulus", "tensor-field", "[[1., 0.],[0., 1.]]", "q"),
-    ]
-
-    # Add them to the dphs
-    for parameter in parameters:
-        hw.add_parameter(parameter)
-    
     # Define the pHs via `Brick` == non-zero block matrices == variational terms
     # Since we use co-energy formulation, constitutive relations are already taken into
     # account in the mass matrices M_q and M_p
     bricks = [
         # === Heat: div-div
-        S.Brick("M_T", "T*rho_CV*Test_T", [heat_region], dt=True, position="flow"),
-        S.Brick("M_Q", "e_Q.Lambda_inv.Test_e_Q", [heat_region], position="flow"),
+        S.Brick("M_T", "T*Test_T", [heat_region], dt=True, position="flow"),
+        S.Brick("M_Q", "e_Q.Test_e_Q", [heat_region], position="flow"),
         S.Brick("M_Y_T", "Y_T*Test_Y_T", [10], position="flow"),
         
-        S.Brick("D_T", "e_Q.Grad(Test_T)", [heat_region], position="effort"),
-        S.Brick("D_T^T", "-Grad(T).Test_e_Q", [heat_region], position="effort"),
-        S.Brick("B_T", "U_T*Test_T", [10], position="effort"),
-        S.Brick("B_T^T", "T*Test_Y_T", [10], position="effort"),
+        S.Brick("D_T", "-Div(e_Q)*Test_T", [heat_region], position="effort"),
+        S.Brick("D_T^T", "T*Div(Test_e_Q)", [heat_region], position="effort"),
+        S.Brick("B_T", "U_T*Test_e_Q.Normal", [10], position="effort"),
+        S.Brick("B_T^T", "e_Q.Normal*Test_Y_T", [10], position="effort"),
 
         # === Wave: grad-grad
-        S.Brick("M_p", "p*rho*Test_p", [wave_region], dt=True, position="flow"),
-        S.Brick("M_q", "q.Kappa_inv.Test_q", [wave_region], dt=True, position="flow"),
+        S.Brick("M_p", "p*Test_p", [wave_region], dt=True, position="flow"),
+        S.Brick("M_q", "q.Test_q", [wave_region], dt=True, position="flow"),
         S.Brick("M_Y_w", "Y_w*Test_Y_w", [10], position="flow"),
         
         S.Brick("D_w", "-q.Grad(Test_p)", [wave_region], position="effort"),
         S.Brick("-D_w^T", "Grad(p).Test_q", [wave_region], position="effort"),
         S.Brick("B_w", "U_w*Test_p", [10], position="effort"),
         S.Brick("B_w^T", "p*Test_Y_w", [10], position="effort"),
-        
     ]
     # === Boundary depends on where is the heat equation / wave equation
     if wave_region==1:
-        bricks.append(S.Brick("M_Y_bnd", "U_bnd*Test_Y_bnd", [20], position="flow"))
-        bricks.append(S.Brick("B_bnd", "Y_bnd*Test_T", [20], position="effort"))
-        bricks.append(S.Brick("B_bnd^T", "T*Test_Y_bnd", [20], position="effort"))
+        bricks.append(S.Brick("M_Y_bnd", "Y_bnd*Test_Y_bnd", [20], position="flow"))
+        bricks.append(S.Brick("B_bnd", "U_bnd*Test_e_Q.Normal", [20], position="effort"))
+        bricks.append(S.Brick("B_bnd^T", "e_Q.Normal*Test_Y_bnd", [20], position="effort"))
     else:
         bricks.append(S.Brick("M_Y_bnd", "U_bnd*Test_Y_bnd", [20], position="flow"))
         bricks.append(S.Brick("B_bnd", "Y_bnd*Test_p", [20], position="effort"))
@@ -175,9 +158,10 @@ def heat_wave_eq(heat_region=1, wave_region=2):
         hw.add_brick(brick)
     
     # Set the controls
-    # === Transformer interconnection
-    hw.set_control("Interface Heat", "U_w")
-    hw.set_control("Interface Wave", "U_T") 
+    # === Gyrator interconnection
+    hw.set_control("Interface Heat", "Y_w") 
+    # CAREFUL: the numerical normal is the same for both sub-domains! Hence the minus sign. 
+    hw.set_control("Interface Wave", "-Y_T") 
     # === Dirichlet boundary condition
     hw.set_control("Boundary", "0.")
 
@@ -189,10 +173,12 @@ def heat_wave_eq(heat_region=1, wave_region=2):
     ## Solve in time
     # Define the time scheme ("bdf" is backward differentiation formula)
     hw.set_time_scheme(ts_type="bdf",
-                       ts_bdf_order=2,
                        t_f=15.,
                        dt=0.001,
                        dt_save=0.05,
+                       ksp_type="preonly",
+                       pc_type="lu",
+                       pc_factor_mat_solver_type="mumps",
                        )
 
     # Solve
@@ -203,18 +189,16 @@ def heat_wave_eq(heat_region=1, wave_region=2):
     hw.hamiltonian.set_name("Hamiltonian")
     # Define each Hamiltonian Term
     terms = [
-        S.Term("Lyapunov heat", "0.5*rho_CV*T*T", [heat_region]),
-        S.Term("Kinetic energy", "0.5*rho*p*p", [wave_region]),
-        S.Term("Potential energy", "0.5*q.Kappa_inv.q", [wave_region]),
+        S.Term("Lyapunov heat", "0.5*T*T", [heat_region]),
+        S.Term("Kinetic energy", "0.5*p*p", [wave_region]),
+        S.Term("Potential energy", "0.5*q.q", [wave_region]),
     ]
     # Add them to the Hamiltonian
     for term in terms:
         hw.hamiltonian.add_term(term)
-    
-    hw.export_to_pv("p")
 
     # Plot the Hamiltonian and save the output
-    hw.plot_Hamiltonian(save_figure=True, filename="Hamiltonian_Heat_Wave_2D.png")
+    hw.plot_Hamiltonian(save_figure=True, filename="Hamiltonian_Heat"+str(heat_region)+"_Wave"+str(wave_region)+"_2D.png")
     
     # Plot the Hamiltonian in log-log scale
     t = hw.solution["t"]

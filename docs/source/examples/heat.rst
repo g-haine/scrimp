@@ -1,6 +1,8 @@
 The heat equation
 =================
 
+.. _Heat_2D:
+
 .. automodule:: scrimp.examples.heat
    :members:
    :undoc-members:
