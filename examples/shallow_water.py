@@ -123,9 +123,7 @@ def shallow_water_eq():
     # Define the pHs via `Brick` == non-zero block matrices == variational terms
     # Some macros for the sake of readability
     swe.gf_model.add_macro('div(v)', 'Trace(Grad(v))')
-    swe.gf_model.add_macro('D(v)', 'Sym(Grad(v))')
     swe.gf_model.add_macro('Rot', '[[0,1],[-1,0]]')
-    swe.gf_model.add_macro('Tangent', '(Rot*Normal)')
     swe.gf_model.add_macro('Curl2D(v)', 'div(Rot*v)')
     swe.gf_model.add_macro('Gyro(v)', 'Curl2D(v)*Rot')
     bricks = [

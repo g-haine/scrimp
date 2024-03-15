@@ -152,7 +152,7 @@ Structure-preserving discretization
 -  The heat equation
 
 We use the div-div formulation already presented in the `2D heat
-equation <Heat_2D>`_
+equation <https://g-haine.github.io/scrimp/examples/heat.html>`_
 example, *i.e.* we obtain the following system
 
 .. math::
@@ -187,7 +187,7 @@ example, *i.e.* we obtain the following system
 -  The wave equation
 
 We use the grad-grad formulation already presented in the `2D wave
-equation <Wave_2D>`_
+equation <https://g-haine.github.io/scrimp/examples/wave.html>`_
 example, *i.e.* we obtain the following system
 
 .. math::
