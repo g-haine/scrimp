@@ -1,7 +1,7 @@
 The wave equation
 =================
 
-.. _Wave_2D:
+.. _Wave2D:
 
 .. automodule:: scrimp.examples.wave
    :members:
