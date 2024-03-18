@@ -8,6 +8,9 @@ The heat equation
    :undoc-members:
    :show-inheritance:
 
+Setting
+-------
+
 This example is the first simple case of intrinsically port-Hamiltonian
 Differential Algebraic Equation (known as pH-DAE).
 

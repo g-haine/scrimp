@@ -8,6 +8,9 @@ The shallow water equation
    :undoc-members:
    :show-inheritance:
 
+Setting
+-------
+
 The objective of this example is to show how to deal with
 **non-linearity**.
 

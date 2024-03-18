@@ -8,6 +8,9 @@ Heat wave coupling
    :undoc-members:
    :show-inheritance:
 
+Setting
+-------
+
 It is assumed that the `2D wave
 equation <https://g-haine.github.io/scrimp/examples/wave.html>`_, the
 `2D wave equation in co-energy

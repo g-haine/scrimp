@@ -8,6 +8,9 @@ The wave equation
    :undoc-members:
    :show-inheritance:
 
+Setting
+-------
+
 Let us consider the 2D wave equation with *mixed* boundary controls on a
 bounded rectangle :math:`\Omega := (0, L) \times (0, \ell)`, with boundaries
 :math:`\Gamma_N := \left( (0, L) \times \{ 0, \ell \} \right) \cup \left( \{ L \} \times (0, \ell) \right)` and :math:`\Gamma_D := \{ 0 \} \times (0, \ell)`.

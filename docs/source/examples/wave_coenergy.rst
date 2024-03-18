@@ -8,6 +8,9 @@ Another wave equation
    :undoc-members:
    :show-inheritance:
 
+Setting
+-------
+
 The objective of this example is to show how sub-domains may be used,
 and how substitutions reduce the computational burden: it assumes that
 `this 2D wave example <https://g-haine.github.io/scrimp/examples/wave.html>`_ has

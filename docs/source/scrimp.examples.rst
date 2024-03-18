@@ -1,6 +1,8 @@
 scrimp.examples
 ===============
 
+We provide some examples coming from our `publications <biblio>`_.
+
 The equations are explained `here <examples>`_.
 
 Wave
