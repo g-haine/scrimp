@@ -3,7 +3,7 @@ The wave equation
 
 .. _Wave_2D:
 
-.. automodule:: scrimp.examples.wave
+.. automodule:: examples.wave
    :members:
    :undoc-members:
    :show-inheritance:

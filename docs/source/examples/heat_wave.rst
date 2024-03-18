@@ -3,7 +3,7 @@ Heat wave coupling
 
 .. _Heat_Wave_2D:
 
-.. automodule:: scrimp.examples.heat_wave
+.. automodule:: examples.heat_wave
    :members:
    :undoc-members:
    :show-inheritance:

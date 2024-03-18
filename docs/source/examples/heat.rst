@@ -3,7 +3,7 @@ The heat equation
 
 .. _Heat_2D:
 
-.. automodule:: scrimp.examples.heat
+.. automodule:: examples.heat
    :members:
    :undoc-members:
    :show-inheritance:

@@ -3,7 +3,7 @@ Another wave equation
 
 .. _Wave_2D_coenergy:
 
-.. automodule:: scrimp.examples.wave_coenergy
+.. automodule:: examples.wave_coenergy
    :members:
    :undoc-members:
    :show-inheritance:
