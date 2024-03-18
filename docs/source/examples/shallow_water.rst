@@ -330,8 +330,7 @@ And the control ports.
 Regarding the FEM, this is more challenging, as non-linearity are
 present. Nevertheless, let us stick to the way we choose until now:
 since the :math:`h`-type variables will be derivated, thus we choose
-continuous Galerkin approximations of order :math:`k+1`. The other
-variables are taken as discontinuous Galerkin approximations of order
+continuous Galerkin approximations of order :math:`k+1`. The other energy variable is taken as continuous Galerkin approximation of order :math:`k`, while boundary terms are given by discontinuous Galerkin approximations of order
 :math:`k`.
 
 .. code:: python
