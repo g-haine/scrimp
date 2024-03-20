@@ -1,6 +1,3 @@
-SCRIMP
-======
-
 # What is [SCRIMP](https://g-haine.github.io/scrimp/)?
 
 **[SCRIMP](https://g-haine.github.io/scrimp/)** (Simulation and ContRol of Interactions in Multi-Physics) is a python package of methods and classes for the structure-preserving discretization and simulation of multi-physics models, using the formalism of port-Hamiltonian systems ([van der Schaft and Maschke (2002)](https://doi.org/10.1016/S0393-0440(01)00083-3)). 
