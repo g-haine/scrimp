@@ -59,6 +59,8 @@ class Controller:
         self.session = {}
         self.session["variables"] = []
         self.session["black_listed_words"] = black_listed_words
+        self.session["filename"] = ""
+        self.session["filepath"] = ""
         self.session["create_dphs_page"] = {}
         self.session["set_domain_page"] = {}
         self.session["add_state_costate_page"] = {}
@@ -135,6 +137,7 @@ class Controller:
             self.add_port_page.update_page()
             self.add_port_page.show()
         elif text == "create_dphs_page":
+            self.create_dphs.update_page()
             if "read_from_file" in self.session.keys():
                 self.load_session()
             self.create_dphs.show()
@@ -166,6 +169,7 @@ class Controller:
         elif text == "set_time_scheme_page":
             self.set_time_scheme_page.show()
         elif text == "generate_code_page":
+            self.generate_code_page.update_page()
             self.generate_code_page.show()
         elif text == "generate_code":
             self.generate_code()
@@ -426,11 +430,10 @@ class Controller:
         for row in range(rows):
             l_row = []
             for col in range(cols):
-                if col != 0:
-                    item = table_expressions.item(row, col)
-                    if item is not None:
-                        text = item.text()
-                l_row.append(text)
+                item = table_expressions.item(row, col)
+                if item is not None:
+                    text = item.text()
+                    l_row.append(text)
             l.append(l_row)
 
         if len(l) > 0:
@@ -473,10 +476,12 @@ class Controller:
                         l_row.append(text)
                 l.append(l_row)
 
-        if len(l) > 0:
-            if self.set_time_scheme_page.list_widget.currentItem() is not None:
-                time_scheme = self.set_time_scheme_page.list_widget.currentItem().text()
-                self.session["set_time_scheme_page"]["time_scheme"] = time_scheme
+            if len(l) > 0:
+                if self.set_time_scheme_page.list_widget.currentItem() is not None:
+                    time_scheme = (
+                        self.set_time_scheme_page.list_widget.currentItem().text()
+                    )
+                    self.session["set_time_scheme_page"]["time_scheme"] = time_scheme
 
             self.session["set_time_scheme_page"]["parameters"] = l
 
@@ -487,9 +492,9 @@ class Controller:
         file_path = self.create_dphs.file_path
 
         if filename is None or filename == "":
-            filename = "last.session"
+            filename = "last"
 
-        with open(os.path.join(file_path, filename), "wb") as f:
+        with open(os.path.join(file_path, filename + ".session"), "wb") as f:
             pickle.dump(self.session, f)
 
     def load_session(self):
@@ -791,9 +796,9 @@ class Controller:
         file_path = self.create_dphs.file_path
 
         if filename is None or filename == "":
-            filename = "last.session"
+            filename = "last"
 
-        with open(os.path.join(file_path, filename), "wb") as f:
+        with open(os.path.join(file_path, filename + ".session"), "wb") as f:
             pickle.dump(self.session, f)
 
     def generate_code(self, export_variables=False):

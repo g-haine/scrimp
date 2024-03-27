@@ -120,18 +120,25 @@ class Window(QtWidgets.QWidget):
         if not check_black_listed_words(
             self, self.line_edit_dphs_name, "Name for your dpHs"
         ):
+            self.update_session()
             self.switch_window.emit(page)
             self.hide()
 
     def update_page(self):
         """This function manages the update of the current page."""
-        pass
+        self.line_edit_filname.setText(self.session["filename"])
+        self.line_edit_directory.setText(self.session["filepath"])
+
+    def update_session(self):
+        self.session["filename"] = self.line_edit_filname.text()
+        self.session["filepath"] = self.line_edit_directory.text()
 
     def next_page(self):
         """This function emits the signal to navigate to next page."""
         if not check_black_listed_words(
             self, self.line_edit_dphs_name, "Name for your dpHs"
         ):
+            self.update_session()
             self.switch_window.emit("set_domain_page")
             self.hide()
 
