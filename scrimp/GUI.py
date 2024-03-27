@@ -59,6 +59,22 @@ class Controller:
         self.session = {}
         self.session["variables"] = []
         self.session["black_listed_words"] = black_listed_words
+        self.session["create_dphs_page"] = {}
+        self.session["set_domain_page"] = {}
+        self.session["add_state_costate_page"] = {}
+        self.session["add_port_page"] = {}
+        self.session["add_parameter_page"] = {}
+        self.session["add_control_port_page"] = {}
+        self.session["add_fem_page"] = {}
+        self.session["set_hamiltonian_page"] = {}
+        self.session["add_fem_page"] = {}
+        self.session["add_term_page"] = {}
+        self.session["add_brick_page"] = {}
+        self.session["add_expression_page"] = {}
+        self.session["add_initial_value_page"] = {}
+        self.session["set_time_scheme_page"] = {}
+        self.session["generate_code_page"] = {}
+        self.session["auto_save"] = False
         # the pages that are included in the GUI
         self.welcome_page = welcome_page.Window(self.session)
         self.load_page = load_page.Window(self.session)
@@ -119,6 +135,8 @@ class Controller:
             self.add_port_page.update_page()
             self.add_port_page.show()
         elif text == "create_dphs_page":
+            if "read_from_file" in self.session.keys():
+                self.load_session()
             self.create_dphs.show()
         elif text == "add_parameter_page":
             self.add_parameter_page.update_page(self)
@@ -168,24 +186,10 @@ class Controller:
             print("the emitted signal:", text)
             pass
 
-        self.save_session()
+        if self.session["auto_save"]:
+            self.save_session()
 
     def save_session(self):
-        self.session["create_dphs_page"] = {}
-        self.session["set_domain_page"] = {}
-        self.session["add_state_costate_page"] = {}
-        self.session["add_port_page"] = {}
-        self.session["add_parameter_page"] = {}
-        self.session["add_control_port_page"] = {}
-        self.session["add_fem_page"] = {}
-        self.session["set_hamiltonian_page"] = {}
-        self.session["add_fem_page"] = {}
-        self.session["add_term_page"] = {}
-        self.session["add_brick_page"] = {}
-        self.session["add_expression_page"] = {}
-        self.session["add_initial_value_page"] = {}
-        self.session["set_time_scheme_page"] = {}
-        self.session["generate_code_page"] = {}
 
         # create_dphs_page
         self.session["create_dphs_page"][
@@ -195,6 +199,310 @@ class Controller:
         index = self.create_dphs.comboBox_dphs_type.currentIndex()
         type_dphs = self.create_dphs.comboBox_dphs_type.itemText(index)
         self.session["create_dphs_page"]["comboBox_dphs_type"] = type_dphs
+
+        # set domain page
+        if self.set_domain_page.list_widget.currentItem() is not None:
+            type_domain = self.set_domain_page.list_widget.currentItem().text()
+            self.session["set_domain_page"]["list_widget"] = type_domain
+        l = []
+        table = self.set_domain_page.table
+        for row in range(table.rowCount()):
+            item = table.item(row, 1)
+            if item is not None:
+                text = item.text()
+                l.append(text)
+
+        if len(l) > 0:
+            self.session["set_domain_page"]["parameters"] = l
+
+        # add_state_page
+        table_states = self.add_state_costate_page.table_states
+        rows = table_states.rowCount()
+        cols = table_states.columnCount()
+        l = []
+        for row in range(rows):
+            l_row = []
+            text = ""
+            for col in range(cols):
+                item = table_states.item(row, col)
+                if col == 2:
+                    cell = table_states.cellWidget(row, col)
+                    if cell is not None:
+                        text = cell.currentText()
+                elif item is not None:
+                    text = item.text()
+                if col in [3, 4]:
+                    if text == "":
+                        text = None
+                l_row.append(text)
+            l.append(l_row)
+
+        if len(l) > 0:
+            self.session["add_state_costate_page"]["states"] = l
+
+        # add_costate_page
+        table_costates = self.add_state_costate_page.table_costates
+        rows = table_costates.rowCount()
+        cols = table_costates.columnCount()
+        l = []
+        for row in range(rows):
+            l_row = []
+            text = ""
+            for col in range(cols):
+                item = table_costates.item(row, col)
+
+                if col == 2:
+                    text = f"states[{row}]"
+                elif col == 3:
+                    cell = table_costates.cellWidget(row, col)
+                    if cell is not None:
+                        text = cell.currentText()
+                elif item is not None:
+                    text = item.text()
+
+                l_row.append(text)
+            l.append(l_row)
+
+        if len(l) > 0:
+            self.session["add_state_costate_page"]["costates"] = l
+
+        # add_port_page
+        table_ports = self.add_port_page.table_ports
+        rows = table_ports.rowCount()
+        cols = table_ports.columnCount()
+        l = []
+        for row in range(rows):
+            l_row = []
+            text = ""
+            for col in range(cols):
+                item = table_ports.item(row, col)
+
+                if col in [3, 5, 6]:
+                    cell = table_ports.cellWidget(row, col)
+                    if cell is not None:
+                        text = cell.currentText()
+                elif item is not None:
+                    text = item.text()
+
+                l_row.append(text)
+            l.append(l_row)
+
+        if len(l) > 0:
+            self.session["add_port_page"]["ports"] = l
+
+        # add_parameter_page
+        table_parameters = self.add_parameter_page.table_parameters
+        rows = table_parameters.rowCount()
+        cols = table_parameters.columnCount()
+
+        l = []
+        for row in range(rows):
+            l_row = []
+            text = ""
+            for col in range(cols):
+                item = table_parameters.item(row, col)
+                text = ""
+                if col in [2]:
+                    cell = table_parameters.cellWidget(row, col)
+                    if cell is not None:
+                        text = cell.currentText()
+                elif item is not None:
+                    text = item.text()
+                l_row.append(text)
+            l.append(l_row)
+
+        if len(l) > 0:
+            self.session["add_parameter_page"]["parameters"] = l
+
+        # add_control_port_page
+        table_control_ports = self.add_control_port_page.table_control_ports
+        rows = table_control_ports.rowCount()
+        cols = table_control_ports.columnCount()
+
+        l = []
+        for row in range(rows):
+            l_row = []
+            text = ""
+            for col in range(cols):
+                item = table_control_ports.item(row, col)
+                text = ""
+                if col in [5, 7]:
+                    cell = table_control_ports.cellWidget(row, col)
+                    if cell is not None:
+                        text = cell.currentText()
+                elif item is not None:
+                    text = item.text()
+                l_row.append(text)
+            l.append(l_row)
+
+        if len(l) > 0:
+            self.session["add_control_port_page"]["control_ports"] = l
+
+        # add_fem_page
+        table_FEMs = self.add_fem_page.table_FEMs
+        rows = table_FEMs.rowCount()
+        cols = table_FEMs.columnCount()
+
+        l = []
+        for row in range(rows):
+            l_row = []
+            for col in range(cols):
+                item = table_FEMs.item(row, col)
+                if col == 2:
+                    cell = table_FEMs.cellWidget(row, col)
+                    if cell is not None:
+                        text = cell.currentText()
+                elif item is not None:
+                    text = item.text()
+                l_row.append(text)
+            l.append(l_row)
+
+        if len(l) > 0:
+            self.session["add_fem_page"]["fems"] = l
+
+        # set_hamiltonian_page
+        self.session["set_hamiltonian_page"][
+            "name_hamiltonian"
+        ] = self.set_hamiltonian_page.line_edit_hamiltonian_name.text()
+
+        # add_term_page
+        table_terms = self.add_term_page.table_terms
+        rows = table_terms.rowCount()
+        cols = table_terms.columnCount()
+
+        l = []
+        for row in range(rows):
+            l_row = []
+            l_regions = []
+            for col in range(cols):
+                item = table_terms.item(row, col)
+                text = ""
+                if item is not None:
+                    text = item.text()
+                elif col == 2:
+                    for i, region in enumerate(text.split(",")):
+                        l_regions.append(region)
+                    l_row.append(l_regions)
+                l_row.append(text)
+            l.append(l_row)
+
+        if len(l) > 0:
+            self.session["add_term_page"]["terms"] = l
+
+        # add_brick_page
+        table_bricks = self.add_brick_page.table_bricks
+        rows = table_bricks.rowCount()
+        cols = table_bricks.columnCount()
+        l = []
+        for row in range(rows):
+            l_row = []
+            l_regions = []
+            for col in range(cols):
+                item = table_bricks.item(row, col)
+                text = ""
+                if col in [3, 4, 5]:
+                    cell = table_bricks.cellWidget(row, col)
+                    if cell is not None:
+                        text = cell.currentText()
+                elif item is not None:
+                    text = item.text()
+
+                if col == 2:
+                    for i, region in enumerate(text.split(",")):
+                        l_regions.append(region)
+                    l_row.append(l_regions)
+                else:
+                    l_row.append(text)
+            l.append(l_row)
+
+        if len(l) > 0:
+            self.session["add_brick_page"]["bricks"] = l
+
+        # add_expression_page
+        table_expressions = self.add_expression_page.table_expressions
+        rows = table_expressions.rowCount()
+        cols = table_expressions.columnCount()
+        l = []
+        for row in range(rows):
+            l_row = []
+            for col in range(cols):
+                if col != 0:
+                    item = table_expressions.item(row, col)
+                    if item is not None:
+                        text = item.text()
+                l_row.append(text)
+            l.append(l_row)
+
+        if len(l) > 0:
+            self.session["add_expression_page"]["expressions"] = l
+
+        # add_initial_value_page
+        table_initial_values = self.add_initial_value_page.table_initial_values
+        rows = table_initial_values.rowCount()
+        cols = table_initial_values.columnCount()
+        l = []
+        for row in range(rows):
+            l_row = []
+            for col in range(cols):
+                item = table_initial_values.item(row, col)
+                if item is not None:
+                    text = item.text()
+                l_row.append(text)
+            l.append(l_row)
+
+        if len(l) > 0:
+            self.session["add_initial_value_page"]["initial_values"] = l
+
+        # set_time_scheme_page
+        checkBox_answer = self.set_time_scheme_page.checkBox_answer
+
+        if checkBox_answer.isChecked():
+
+            table = self.set_time_scheme_page.table
+
+            rows = table.rowCount()
+            cols = table.columnCount()
+            l = []
+            for row in range(rows):
+                l_row = []
+                for col in range(cols):
+                    item = table.item(row, col)
+                    text = ""
+                    if item is not None:
+                        text = item.text()
+                        l_row.append(text)
+                l.append(l_row)
+
+        if len(l) > 0:
+            if self.set_time_scheme_page.list_widget.currentItem() is not None:
+                time_scheme = self.set_time_scheme_page.list_widget.currentItem().text()
+                self.session["set_time_scheme_page"]["time_scheme"] = time_scheme
+
+            self.session["set_time_scheme_page"]["parameters"] = l
+
+        # generate_code_page
+
+        # store session
+        filename = self.create_dphs.line_edit_filname.text()
+        file_path = self.create_dphs.file_path
+
+        if filename is None or filename == "":
+            filename = "last_session"
+
+        with open(os.path.join(file_path, filename), "wb") as f:
+            pickle.dump(self.session, f)
+
+    def load_session(self):
+
+        # create_dphs_page
+        self.create_dphs.line_edit_dphs_name.setText(
+            self.session["create_dphs_page"]["line_edit_dphs_name"]
+        )
+
+        index = 0  # self.create_dphs.comboBox_dphs_type.currentIndex()
+        if self.session["create_dphs_page"]["comboBox_dphs_type"] == "complex":
+            index = 1
+        self.create_dphs.comboBox_dphs_type.setCurrentIndex(index)
 
         # set domain page
         if self.set_domain_page.list_widget.currentItem() is not None:

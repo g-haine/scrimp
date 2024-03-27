@@ -15,7 +15,7 @@ class Window(QtWidgets.QWidget):
     def __init__(self, session):
         QtWidgets.QWidget.__init__(self)
         self.session = session
-        self.setWindowTitle("Load a script")
+        self.setWindowTitle("Load a former GUI session")
         self.setFixedWidth(gui_width)
         self.setFixedHeight(gui_height)
 
@@ -70,7 +70,10 @@ class Window(QtWidgets.QWidget):
 
     def next_page(self):
         """This function emits the signal to navigate to next page."""
+        import os
 
+        if os.path.exists(self.file_path):
+            self.session["read_from_file"] = self.file_path
         self.switch_window.emit("create_dphs_page")
         self.hide()
 
