@@ -487,7 +487,7 @@ class Controller:
         file_path = self.create_dphs.file_path
 
         if filename is None or filename == "":
-            filename = "last_session"
+            filename = "last.session"
 
         with open(os.path.join(file_path, filename), "wb") as f:
             pickle.dump(self.session, f)
@@ -791,7 +791,7 @@ class Controller:
         file_path = self.create_dphs.file_path
 
         if filename is None or filename == "":
-            filename = "last_session"
+            filename = "last.session"
 
         with open(os.path.join(file_path, filename), "wb") as f:
             pickle.dump(self.session, f)

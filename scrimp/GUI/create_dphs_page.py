@@ -1,5 +1,12 @@
 from PyQt5 import QtCore, QtWidgets
-from PyQt5.QtWidgets import QComboBox, QLabel, QLineEdit, QGridLayout, QFileDialog
+from PyQt5.QtWidgets import (
+    QComboBox,
+    QLabel,
+    QLineEdit,
+    QGridLayout,
+    QFileDialog,
+    QCheckBox,
+)
 from utils.GUI import gui_pages, gui_width, gui_height, check_black_listed_words
 
 
@@ -46,6 +53,14 @@ class Window(QtWidgets.QWidget):
             "Please enter the name of your Discrete Port Hamiltonian System."
         )
 
+        self.label_question = QLabel(
+            "!! Check to enable the auto save mode to store your session on the GUI !!:"
+        )
+
+        self.checkBox_answer = QCheckBox()
+        self.checkBox_answer.setChecked(self.session["auto_save"])
+        self.checkBox_answer.toggled.connect(self.check_state)
+
         linlabel_dphs_type = QLabel('<font size="4"> Type of dpHS: </font>')
         self.comboBox_dphs_type = QComboBox()
         self.comboBox_dphs_type.addItems(["real", "complex"])
@@ -65,8 +80,10 @@ class Window(QtWidgets.QWidget):
         self.layout.addWidget(self.line_edit_dphs_name, 3, 1)
         self.layout.addWidget(linlabel_dphs_type, 4, 0)
         self.layout.addWidget(self.comboBox_dphs_type, 4, 1)
-        self.layout.addWidget(self.button_prev, 5, 2)
-        self.layout.addWidget(self.button_next, 5, 3)
+        self.layout.addWidget(self.label_question, 5, 0)
+        self.layout.addWidget(self.checkBox_answer, 5, 1)
+        self.layout.addWidget(self.button_prev, 6, 2)
+        self.layout.addWidget(self.button_next, 6, 3)
 
         # create navigation list
         self.comboBox = QComboBox()
@@ -75,9 +92,17 @@ class Window(QtWidgets.QWidget):
 
         # There is an alternate signal to send the text.
         self.comboBox.currentTextChanged.connect(self.text_changed)
-        self.layout.addWidget(self.comboBox, 5, 1)
+        self.layout.addWidget(self.comboBox, 6, 1)
 
         self.setLayout(self.layout)
+
+    def check_state(self):
+        """This function checks wether or not the checkbox has been checked and update the page accordingly."""
+        print("clicked")
+        if not self.checkBox_answer.isChecked():
+            self.session["auto_save"] = False
+        else:
+            self.session["auto_save"] = True
 
     def get_path(self):
         self.file_path = str(QFileDialog.getExistingDirectory(self, "Select Directory"))
