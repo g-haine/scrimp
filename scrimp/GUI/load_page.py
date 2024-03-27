@@ -15,21 +15,13 @@ class Window(QtWidgets.QWidget):
     def __init__(self, session):
         QtWidgets.QWidget.__init__(self)
         self.session = session
-        self.setWindowTitle("Definition of new distributed port-Hamiltonian system")
+        self.setWindowTitle("Load a script")
         self.setFixedWidth(gui_width)
         self.setFixedHeight(gui_height)
 
         self.layout = QGridLayout()
 
-        label_filename = QLabel(
-            '<font size="4"> Name for your script based on SCRIMP: </font>'
-        )
-        self.line_edit_filname = QLineEdit()
-        self.line_edit_filname.setPlaceholderText(
-            "Please insert the name for your script"
-        )
-
-        self.button_file_dialog = QtWidgets.QPushButton("Select Folder", self)
+        self.button_file_dialog = QtWidgets.QPushButton("Select File", self)
         self.button_file_dialog.clicked.connect(self.get_path)
 
         label_directory = QLabel('<font size="4"> The selected directory is: </font>')
@@ -40,42 +32,16 @@ class Window(QtWidgets.QWidget):
 
         self.file_path = ""
 
-        label_dphs_name = QLabel('<font size="4"> Name for your dpHs: </font>')
-        self.line_edit_dphs_name = QLineEdit()
-        self.line_edit_dphs_name.setPlaceholderText(
-            "Please enter the name of your Discrete Port Hamiltonian System."
-        )
-
-        linlabel_dphs_type = QLabel('<font size="4"> Type of dpHS: </font>')
-        self.comboBox_dphs_type = QComboBox()
-        self.comboBox_dphs_type.addItems(["real", "complex"])
-
         self.button_next = QtWidgets.QPushButton("Next >")
         self.button_next.clicked.connect(self.next_page)
         self.button_prev = QtWidgets.QPushButton("< Prev")
         self.button_prev.clicked.connect(self.previous_page)
 
-        self.layout.addWidget(label_filename, 1, 0)
-        self.layout.addWidget(self.line_edit_filname, 1, 1)
-        self.layout.addWidget(label_directory, 2, 0)
-        self.layout.addWidget(self.line_edit_directory, 2, 1)
-        self.layout.addWidget(self.button_file_dialog, 2, 2)
-
-        self.layout.addWidget(label_dphs_name, 3, 0)
-        self.layout.addWidget(self.line_edit_dphs_name, 3, 1)
-        self.layout.addWidget(linlabel_dphs_type, 4, 0)
-        self.layout.addWidget(self.comboBox_dphs_type, 4, 1)
+        self.layout.addWidget(label_directory, 1, 0)
+        self.layout.addWidget(self.line_edit_directory, 1, 1)
+        self.layout.addWidget(self.button_file_dialog, 1, 2)
         self.layout.addWidget(self.button_prev, 5, 2)
         self.layout.addWidget(self.button_next, 5, 3)
-
-        # create navigation list
-        self.comboBox = QComboBox()
-        self.comboBox.addItems(gui_pages)
-        self.comboBox.setCurrentText("create_dphs_page")
-
-        # There is an alternate signal to send the text.
-        self.comboBox.currentTextChanged.connect(self.text_changed)
-        self.layout.addWidget(self.comboBox, 5, 1)
 
         self.setLayout(self.layout)
 
@@ -100,20 +66,15 @@ class Window(QtWidgets.QWidget):
 
     def update_page(self):
         """This function manages the update of the current page."""
-        pass
+        self.session["cursor_on_page"] = "load_page"
 
     def next_page(self):
         """This function emits the signal to navigate to next page."""
-        if not check_black_listed_words(
-            self, self.line_edit_dphs_name, "Name for your dpHs"
-        ):
-            self.switch_window.emit("set_domain_page")
-            self.hide()
+
+        self.switch_window.emit("create_dphs_page")
+        self.hide()
 
     def previous_page(self):
         """This funcion emits the signal to navigate to the prvious page."""
-        if self.session["cursor_on_page"] == "load_page":
-            self.switch_window.emit("load_page")
-        else:
-            self.switch_window.emit("welcome_page")
+        self.switch_window.emit("welcome_page")
         self.hide()

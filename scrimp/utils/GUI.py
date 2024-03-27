@@ -12,6 +12,8 @@ import keyword
 
 # list of GUI's pages
 gui_pages = [
+    "welcome_page",
+    "load_page",
     "create_dphs_page",
     "set_domain_page",
     "add_state_costate_page",
