@@ -129,6 +129,12 @@ class Window(QtWidgets.QWidget):
         self.line_edit_filname.setText(self.session["filename"])
         self.line_edit_directory.setText(self.session["filepath"])
 
+        if (
+            "read_from_file" in self.session.keys()
+            and not self.session["create_dphs_page"]["loaded_from_file"]
+        ):
+            self.load_session_from_file()
+
     def update_session(self):
         self.session["filename"] = self.line_edit_filname.text()
         self.session["filepath"] = self.line_edit_directory.text()
@@ -149,3 +155,22 @@ class Window(QtWidgets.QWidget):
         else:
             self.switch_window.emit("welcome_page")
         self.hide()
+
+    def load_session_from_file(self):
+        # create_dphs_page
+        self.line_edit_dphs_name.setText(
+            self.session["read_from_file"]["dict"]["create_dphs_page"][
+                "line_edit_dphs_name"
+            ]
+        )
+
+        index = 0  # self.comboBox_dphs_type.currentIndex()
+        if (
+            self.session["read_from_file"]["dict"]["create_dphs_page"][
+                "comboBox_dphs_type"
+            ]
+            == "complex"
+        ):
+            index = 1
+        self.comboBox_dphs_type.setCurrentIndex(index)
+        self.session["create_dphs_page"]["loaded_from_file"] = True

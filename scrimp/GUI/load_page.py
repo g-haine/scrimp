@@ -1,6 +1,7 @@
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtWidgets import QComboBox, QLabel, QLineEdit, QGridLayout, QFileDialog
 from utils.GUI import gui_pages, gui_width, gui_height, check_black_listed_words
+import pickle
 
 
 class Window(QtWidgets.QWidget):
@@ -46,9 +47,12 @@ class Window(QtWidgets.QWidget):
         self.setLayout(self.layout)
 
     def get_path(self):
-        self.file_path = str(QFileDialog.getExistingDirectory(self, "Select Directory"))
+        self.file_path = QFileDialog.getOpenFileName(
+            self, "Open file", "c:\\", "session files (*.session)"
+        )
+
         print(self.file_path)
-        self.line_edit_directory.setText(self.file_path)
+        self.line_edit_directory.setText(self.file_path[0])
 
     def text_changed(self, page):  # s is a str
         """This function allows the navigation trhough the navigation list.
@@ -70,14 +74,22 @@ class Window(QtWidgets.QWidget):
 
     def next_page(self):
         """This function emits the signal to navigate to next page."""
+        self.file_path = [self.line_edit_directory.text()]
+
         import os
 
-        if os.path.exists(self.file_path):
-            self.session["read_from_file"] = self.file_path
-        self.switch_window.emit("create_dphs_page")
-        self.hide()
+        if os.path.isfile(self.file_path[0]):
+            self.session["read_from_file"] = {"filepath": self.file_path}
+            self.load_session_from_file()
+            self.switch_window.emit("create_dphs_page")
+            self.hide()
+        # TODO alert message file not valid
 
     def previous_page(self):
         """This funcion emits the signal to navigate to the prvious page."""
         self.switch_window.emit("welcome_page")
         self.hide()
+
+    def load_session_from_file(self):
+        with open(self.session["read_from_file"]["filepath"][0], "rb") as f:
+            self.session["read_from_file"]["dict"] = pickle.load(f)
