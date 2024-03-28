@@ -176,6 +176,27 @@ class Window(QtWidgets.QWidget):
 
         self.label_session.setText(s)
 
+        if (
+            "read_from_file" in self.session.keys()
+            and not self.session["add_term_page"]["loaded_from_file"]
+        ):
+            self.load_session_from_file()
+
+    def load_session_from_file(self):
+        if "terms" in self.session["read_from_file"]["dict"]["add_term_page"].keys():
+
+            self.table_terms.setRowCount(0)
+            row = 0
+            for term in self.session["read_from_file"]["dict"]["add_term_page"][
+                "terms"
+            ]:
+                self.new_term()
+                for col, param in enumerate(term):
+                    self.table_terms.setItem(row, col, QTableWidgetItem(param))
+
+                row += 1
+        self.session["add_term_page"]["loaded_from_file"] = True
+
     def next_page(self):
         """This function emits the signal to navigate to the next page."""
         if not check_black_listed_words(self, self.table_terms, "Terms"):

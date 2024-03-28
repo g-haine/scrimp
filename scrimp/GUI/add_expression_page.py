@@ -119,7 +119,29 @@ class Window(QtWidgets.QWidget):
 
     def update_page(self):
         """This function manages the update of the current page."""
-        pass
+        if (
+            "read_from_file" in self.session.keys()
+            and not self.session["add_expression_page"]["loaded_from_file"]
+        ):
+            self.load_session_from_file()
+
+    def load_session_from_file(self):
+        if (
+            "expressions"
+            in self.session["read_from_file"]["dict"]["add_expression_page"].keys()
+        ):
+
+            self.table_expressions.setRowCount(0)
+            row = 0
+            for expression in self.session["read_from_file"]["dict"][
+                "add_expression_page"
+            ]["expressions"]:
+                self.new_expression()
+                for col, param in enumerate(expression):
+                    self.table_expressions.setItem(row, col, QTableWidgetItem(param))
+
+                row += 1
+        self.session["add_expression_page"]["loaded_from_file"] = True
 
     def next_page(self):
         """This function emits the signal to navigate to the next page."""

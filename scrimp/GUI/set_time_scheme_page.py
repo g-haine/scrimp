@@ -292,7 +292,47 @@ class Window(QtWidgets.QWidget):
 
     def update_page(self):
         """This function manages the update of the current page."""
-        pass
+        if (
+            "read_from_file" in self.session.keys()
+            and not self.session["set_time_scheme_page"]["loaded_from_file"]
+        ):
+            self.load_session_from_file()
+
+    def load_session_from_file(self):
+        if (
+            "parameters"
+            in self.session["read_from_file"]["dict"]["set_time_scheme_page"].keys()
+        ):
+            self.checkBox_answer.setCheckState(True)
+            self.check_state()
+            # set time_scheme page
+            time_scheme_to_row = {
+                "First": 0,
+                "Second": 1,
+                "Third": 2,
+                "Fourth": 3,
+                "Other": 4,
+            }
+
+            row = time_scheme_to_row[
+                self.session["read_from_file"]["dict"]["set_time_scheme_page"][
+                    "time_scheme"
+                ]
+            ]
+            self.list_widget.setCurrentRow(row)
+
+            self.update_table()
+            self.table.setRowCount(0)
+            for i, param in enumerate(
+                self.session["read_from_file"]["dict"]["set_time_scheme_page"][
+                    "parameters"
+                ]
+            ):
+                self.new_rows()
+                self.table.setItem(i, 0, QTableWidgetItem(param[0]))
+                self.table.setItem(i, 1, QTableWidgetItem(param[1]))
+
+        self.session["set_time_scheme_page"]["loaded_from_file"] = True
 
     def next_page(self):
         """This function emits the signal to navigate to the next page."""

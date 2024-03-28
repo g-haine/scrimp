@@ -120,7 +120,7 @@ class Window(QtWidgets.QWidget):
                 description = "Choose the name of the Effort variable."
 
             elif col == 3:
-                description = """Choose what is the kind of your state.\nIt could be one of the following list:
+                description = """Choose what is the kind of your port.\nIt could be one of the following list:
                 \n- scalar-field
                 \n- vector-field
                 \n- tensor-field"""
@@ -172,6 +172,43 @@ class Window(QtWidgets.QWidget):
                 comboBox.addItems(["scalar-field"])
             else:
                 comboBox.addItems(["scalar-field", "vector-field", "tensor-field"])
+        if (
+            "read_from_file" in self.session.keys()
+            and not self.session["add_port_page"]["loaded_from_file"]
+        ):
+            self.load_session_from_file()
+
+    def load_session_from_file(self):
+        if "ports" in self.session["read_from_file"]["dict"]["add_port_page"].keys():
+            type_to_index = {
+                "scalar-field": 0,
+                "vector-field": 1,
+                "tensor-field": 2,
+            }
+
+            bool_to_index_algebraic = {"False": 0, "True": 1}
+            bool_to_index_substituted = {"False": 0, "True": 1}
+
+            self.table_ports.setRowCount(0)
+
+            row = 0
+            for port in self.session["read_from_file"]["dict"]["add_port_page"][
+                "ports"
+            ]:
+                self.new_port()
+                for col, param in enumerate(port):
+                    if col not in [3, 5, 6]:
+                        self.table_ports.setItem(row, col, QTableWidgetItem(param))
+                    else:
+                        if col == 3:
+                            index = type_to_index[param]
+                        elif col == 5:
+                            index = bool_to_index_algebraic[param]
+                        elif col == 6:
+                            index = bool_to_index_substituted[param]
+                        self.table_ports.cellWidget(row, col).setCurrentIndex(index)
+                row += 1
+        self.session["add_port_page"]["loaded_from_file"] = True
 
     def next_page(self):
         """This function emits the signal to navigate to the next page."""
@@ -184,7 +221,7 @@ class Window(QtWidgets.QWidget):
         """This funcion emits the signal to navigate to the prvious page."""
         if not check_black_listed_words(self, self.table_ports, "Ports"):
             update_list_variables(self.session["variables"], self.table_ports, "port")
-            self.switch_window.emit("add_state_costate_page")
+            self.switch_window.emit("add_port_page")
             self.hide()
 
     def choice_clicked(self, text):
