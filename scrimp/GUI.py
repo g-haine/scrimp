@@ -1,7 +1,7 @@
 import re
 import sys
 from PyQt5 import QtWidgets
-import pickle
+import json
 from GUI import (
     welcome_page,
     load_page,
@@ -496,8 +496,8 @@ class Controller:
         if filename is None or filename == "":
             filename = "last"
 
-        with open(os.path.join(file_path, filename + ".session"), "wb") as f:
-            pickle.dump(self.session, f)
+        with open(os.path.join(file_path, filename + ".session.json"), "w") as f:
+            json.dump(self.session, f, indent=4)
 
     def generate_code(self, export_variables=False):
         """This function retrieves the field from the GUI and create a python script.
@@ -524,8 +524,8 @@ class Controller:
         # write func definition
         file.write(f"def {dphs}_eq():\n")
 
-        # write verbosity
-        file.write("    set_verbose_gf(0)\n\n")
+        # # write verbosity
+        # file.write("    set_verbose_gf(0)\n\n")
 
         # create class
         text_create_class(self, file, dphs)

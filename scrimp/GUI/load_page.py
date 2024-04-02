@@ -1,7 +1,7 @@
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtWidgets import QComboBox, QLabel, QLineEdit, QGridLayout, QFileDialog
 from utils.GUI import gui_pages, gui_width, gui_height, check_black_listed_words
-import pickle
+import json
 
 
 class Window(QtWidgets.QWidget):
@@ -91,5 +91,7 @@ class Window(QtWidgets.QWidget):
         self.hide()
 
     def load_session_from_file(self):
-        with open(self.session["read_from_file"]["filepath"][0], "rb") as f:
-            self.session["read_from_file"]["dict"] = pickle.load(f)
+        """This function load the session object from a json file."""
+
+        with open(self.session["read_from_file"]["filepath"][0], "r") as f:
+            self.session["read_from_file"]["dict"] = json.load(f)

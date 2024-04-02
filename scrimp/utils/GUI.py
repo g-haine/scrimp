@@ -51,7 +51,6 @@ heading = """# SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
 # github: https://github.com/g-haine/scrimp
 
 from scrimp import *
-from scrimp.utils.mesh import set_verbose_gf
 from itertools import zip_longest
 
 
