@@ -33,7 +33,7 @@ dependencies:
   - c-compiler=1.7.0=hd590300_0
   - ca-certificates=2024.2.2=hbcca054_0
   - cairo=1.18.0=h3faef2a_0
-  - certifi=2024.2.2=pyhd8ed1ab_0
+  - certifi=2024.2.2=py312h06a4308_0
   - cffi=1.16.0=py312hf06ca03_0
   - cgns=4.4.0=h1704e6f_2
   - chardet=5.2.0=py312h7900ff3_1
@@ -412,4 +412,4 @@ dependencies:
       - gmsh==4.12.2
       - sphinx-rtd-theme==2.0.0
       - sphinxcontrib-jquery==4.1
-prefix: /opt/anaconda3/envs/scrimp
+

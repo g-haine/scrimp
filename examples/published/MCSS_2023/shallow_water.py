@@ -31,7 +31,7 @@ def shallow_water(experiment=0, formulation="grad"):
         volume = {},
         issue = {},
         pages = {},
-        year = {2023}
+        year = {2024}
     }
     
     Example of use: to run experiment 1 with `grad-grad` formulation, write:
@@ -65,12 +65,13 @@ def shallow_water(experiment=0, formulation="grad"):
     rho = 1.0               # Mass density
     g = 0.01                # Gravity constant
     mu = 0.001              # Viscosity
-    FEM_h = ["CG", 2]       # FEM for the h-type variables
-    FEM_p = ["CG", 3]       # FEM for the p-type variables
-    FEM_b = ["CG", 2]       # FEM for the boundary velocity controls and its colocated observations (both tangent and normal components)
+    k = 2
+    FEM_h = ["CG", k]       # FEM for the h-type variables
+    FEM_p = ["CG", k]       # FEM for the p-type variables
+    FEM_b = ["CG", k]       # FEM for the boundary velocity controls and its colocated observations (both tangent and normal components)
     # PETSc time-stepper options
     ts_type = "bdf"
-    ts_bdf_order = 2 # Not used if ts_type != `bdf`
+    ts_bdf_order = 6 # Not used if ts_type != `bdf`
     ksp_type = "preonly"
     pc_type = "lu"
     pc_factor_mat_solver_type = "mumps"
@@ -84,6 +85,7 @@ def shallow_water(experiment=0, formulation="grad"):
     init_step_nb_iter = 2 # Not used if init_step = False
     init_step_ts_type = "pseudo" # Not used if init_step = False
     init_step_dt = 0.1*ts_adapt_dt_min # Not used if init_step = False
+    integrateAfter = True # Used to integrate in time the sum of powers (False = sum of integrations)
     if experiment==0:
         geometry = "Rectangle"  # Geometry of the domain
         L = 2.                  # Length of the rectangular tank
@@ -120,7 +122,7 @@ def shallow_water(experiment=0, formulation="grad"):
         h_init = "50."
         p_init = "[ 0., 0. ]"
         # Controls
-        U_n = f"0.1 * min(t,1) * y*(y-{L}/4) * (sign(x-{L})+1)"     # Normal value
+        U_n = f"0.1 * min(t,1) * y * ({L}/4-y) * (sign(x-{L})+1)" # Normal value
         U_t = "0."                                                  # Tangent value
         # Long emptying, double final time
         t_f *= 2.
@@ -270,9 +272,9 @@ def shallow_water(experiment=0, formulation="grad"):
     
     Brick_Du = S.Brick("-2 mu R_Grad[h]", "- 2 * mu * h * D(e_p) : D(Test_p)", [1], linear=False, explicit=False, position="effort")
     Brick_divu = S.Brick("-2 mu R_div[h]", "- 2 * mu * h * div(e_p) * div(Test_p)", [1], linear=False, explicit=False, position="effort")
-    Brick_Lagrange_multiplier = S.Brick("-B_b[h]", "h * Y . Test_p", [10], linear=False, explicit=False, position="effort")
+    Brick_Lagrange_multiplier = S.Brick("B_b[h]", "h * Y . Test_p", [10], linear=False, explicit=False, position="effort")
     Brick_constraint_mass = S.Brick("M_b[h]", "h * U . Test_Y", [10], linear=False, explicit=False, position="flow")
-    Brick_constraint = S.Brick("B_b[h]^T", "- h * e_p . Test_Y", [10], linear=False, explicit=False, position="effort")
+    Brick_constraint = S.Brick("B_b[h]^T", "h * e_p . Test_Y", [10], linear=False, explicit=False, position="effort")
     
     # The `grad` formulation always needs the following bricks
     if formulation=="grad":
@@ -280,7 +282,7 @@ def shallow_water(experiment=0, formulation="grad"):
         bricks.append(S.Brick("D[h]", "h * e_p . Grad(Test_h)", [1], linear=False, explicit=False, position="effort"))
         bricks.append(S.Brick("-B_n[h]", "- h * U_n * Test_h", [10], linear=False, explicit=False, position="effort"))
         bricks.append(S.Brick("-D[h]^T", "- h * Grad(e_h) . Test_p", [1], linear=False, explicit=False, position="effort"))
-        bricks.append(S.Brick("B_n[h]^T", "- h * e_h * Test_Y_n", [10], linear=False, explicit=False, position="effort"))
+        bricks.append(S.Brick("-B_n[h]^T", "- h * e_h * Test_Y_n", [10], linear=False, explicit=False, position="effort"))
         if experiment in [1,2,3]:
             bricks.append(Brick_Du)
             bricks.append(Brick_divu)
@@ -292,7 +294,7 @@ def shallow_water(experiment=0, formulation="grad"):
         bricks.append(S.Brick("D[h]", "- div(h * e_p) * Test_h", [1], linear=False, explicit=False, position="effort"))
         bricks.append(S.Brick("-D[h]^T", "e_h * div(h * Test_p)", [1], linear=False, explicit=False, position="effort"))
         if experiment==0:
-            bricks.append(S.Brick("-B_n[h]", "- h * Y_n * Test_p . Normal", [10], linear=False, explicit=False, position="effort"))
+            bricks.append(S.Brick("B_n[h]", "h * Y_n * Test_p . Normal", [10], linear=False, explicit=False, position="effort"))
             bricks.append(S.Brick("M_n[h]", "h * U_n * Test_Y_n", [10], linear=False, explicit=False, position="flow"))
             bricks.append(S.Brick("B_n[h]^T", "h * (e_p . Normal) * Test_Y_n", [10], linear=False, explicit=False, position="effort"))
         if experiment in [1,2,3]:
@@ -382,45 +384,65 @@ def shallow_water(experiment=0, formulation="grad"):
     t = np.array(swe.solution["t"])
     HamTot = np.zeros(t.size)
     TotalEnergy = np.zeros(t.size) # Will contain every energy parts (including integration over time of dissipated and boundary powers)
+    TotalEnergyPowers = np.zeros(t.size) # The same but powers are summed before integration over time
     Terms = swe.hamiltonian.get_terms()
     for term in Terms:
         HamTot += np.array(term.get_values())
         TotalEnergy += np.array(term.get_values())
+        TotalEnergyPowers += np.array(term.get_values())
+    Powers = []
     if experiment in [1,2,3]:
         # The dissipation induced by D(e_p) in the model
         D_diss = np.array(swe.get_quantity("2 * mu * h * D(e_p) : D(e_p)"))
+        Powers.append(D_diss)
         int_dt_D_diss = 0.5*(D_diss[0:-1] + D_diss[1:])*(t[1:]-t[0:-1])
         int_D_diss = np.array([int_dt_D_diss[0:k].sum() for k in range(len(t))]) # integration over time
         
         # The dissipation induced by div(e_p) in the model
         div_diss = np.array(swe.get_quantity("2 * mu * h * div(e_p) * div(e_p)"))
+        Powers.append(div_diss)
         int_dt_div_diss = 0.5*(div_diss[0:-1] + div_diss[1:])*(t[1:]-t[0:-1])
         int_div_diss = np.array([int_dt_div_diss[0:k].sum() for k in range(len(t))]) # integration over time
         
         TotalEnergy += int_D_diss + int_div_diss
     
     # The power flowing through the control ports
-    Powers = []
+    Energies = []
     if formulation=="grad":
-        power = np.array(swe.get_quantity("h * U_n * Y_n", region=10))
+        power = np.array(swe.get_quantity("-h * U_n * Y_n", region=10))
+        Powers.append(power)
         energy_dt = 0.5*(power[0:-1] + power[1:])*(t[1:]-t[0:-1])
-        Powers.append(np.array([energy_dt[0:k].sum() for k in range(len(t))])) # integration over time
+        Energies.append(np.array([energy_dt[0:k].sum() for k in range(len(t))])) # integration over time
         if experiment in [1,2,3]:
-            power = np.array(swe.get_quantity("h * U . Y", region=10))
+            power = np.array(swe.get_quantity("-h * U . Y", region=10))
+            Powers.append(power)
             energy_dt = 0.5*(power[0:-1] + power[1:])*(t[1:]-t[0:-1])
-            Powers.append(np.array([energy_dt[0:k].sum() for k in range(len(t))])) # integration over time
+            Energies.append(np.array([energy_dt[0:k].sum() for k in range(len(t))])) # integration over time
     if formulation=="div":
         if experiment==0:
-            power = np.array(swe.get_quantity("h * U_n * Y_n", region=10))
+            power = np.array(swe.get_quantity("-h * U_n * Y_n", region=10))
+            Powers.append(power)
             energy_dt = 0.5*(power[0:-1] + power[1:])*(t[1:]-t[0:-1])
-            Powers.append(np.array([energy_dt[0:k].sum() for k in range(len(t))])) # integration over time
+            Energies.append(np.array([energy_dt[0:k].sum() for k in range(len(t))])) # integration over time
         if experiment in [1,2,3]:
-            power = np.array(swe.get_quantity("h * U . Y", region=10))
+            power = np.array(swe.get_quantity("-h * U . Y", region=10))
+            Powers.append(power)
             energy_dt = 0.5*(power[0:-1] + power[1:])*(t[1:]-t[0:-1])
-            Powers.append(np.array([energy_dt[0:k].sum() for k in range(len(t))])) # integration over time
+            Energies.append(np.array([energy_dt[0:k].sum() for k in range(len(t))])) # integration over time
     
-    for power in Powers: # see Theorem 5 for the sign convention
-        TotalEnergy -= power
+    for energy in Energies:
+        TotalEnergy += energy
+    
+    TotalPowers = np.zeros(t.size)
+    for power in Powers:
+        TotalPowers += power
+    TotalPowers_dt = 0.5*(TotalPowers[0:-1] + TotalPowers[1:])*(t[1:]-t[0:-1])
+    TotalEnergyPowers += np.array([TotalPowers_dt[0:k].sum() for k in range(len(t))])
+    
+    if integrateAfter:
+        TotalE = TotalEnergyPowers
+    else:
+        TotalE = TotalEnergy
     
     plt.rcParams['text.usetex'] = True
     plt.rcParams['font.size'] = 32
@@ -439,7 +461,7 @@ def shallow_water(experiment=0, formulation="grad"):
         
         fig = plt.figure(figsize=figsize)
         ax = fig.add_subplot(111)
-        ax.plot(t, (TotalEnergy-TotalEnergy[0])/np.max(TotalEnergy), "r--")
+        ax.plot(t, (TotalE-TotalE[0])/np.max(TotalE), "r--")
         ax.legend(["Total energy"])
         plt.xlabel("Time (s)")
         plt.ylabel("Variation (relative)")
@@ -455,7 +477,7 @@ def shallow_water(experiment=0, formulation="grad"):
         else:
             plots = [411,412,413,414]
         ax1 = fig.add_subplot(plots[0])
-        ax1.plot(t, HamTot, "r-", t, TotalEnergy, "r--")
+        ax1.plot(t, HamTot, "r-", t, TotalE, "r--")
         ax1.grid(axis="both")
         plt.tick_params('x', labelbottom=False)
         ax2 = fig.add_subplot(plots[1], sharex=ax1)
@@ -467,18 +489,18 @@ def shallow_water(experiment=0, formulation="grad"):
         ax3.grid(axis="both")
         plt.tick_params('x', labelbottom=False)
         ax4 = fig.add_subplot(plots[3], sharex=ax1)
-        ax4.plot(t, Powers[0], "m-")
-        legend = ["Hamiltonian", "Total Energy", Terms[1].get_description(), Terms[0].get_description(), control_ports[0].get_name()]
+        ax4.plot(t, Energies[0], "m-")
+        legend = ["Hamiltonian", "Total energy", Terms[1].get_description(), Terms[0].get_description(), r"$\mathcal{S} u^0$"]
         if experiment in [1,2,3] and formulation=="grad":
-            ax4.plot(t, Powers[1], "m--")
-            legend.append(control_ports[1].get_name())
+            ax4.plot(t, Energies[1], "m--")
+            legend.append(r"$\mathcal{S} \mathbf{u}$")
         ax4.grid(axis="both")
         if experiment in [1,2,3]:
             plt.tick_params('x', labelbottom=False)
             ax5 = fig.add_subplot(plots[4], sharex=ax1)
             ax5.plot(t, int_D_diss, "g-", t, int_div_diss, "g--")
-            legend.append("Dissipation D(u)")
-            legend.append("Dissipation div(u)")
+            legend.append(r"$\mathcal{D}_{Grad}$")
+            legend.append(r"$\mathcal{D}_{div}$")
             ax5.grid(axis="both")
         fig.legend(legend)
         plt.xlabel("Time (s)")
@@ -493,22 +515,22 @@ def shallow_water(experiment=0, formulation="grad"):
         else:
             plots = [211,212]
         ax1 = fig.add_subplot(plots[0])
-        ax1.plot(t, HamTot, "r-", t, TotalEnergy, "r--")
+        ax1.plot(t, HamTot, "r-", t, TotalE, "r--")
         ax1.grid(axis="both")
         plt.tick_params('x', labelbottom=False)
         ax2 = fig.add_subplot(plots[1], sharex=ax1)
-        ax2.plot(t, Powers[0], "m-")
-        legend = ["Hamiltonian", "Total Energy", r""+control_ports[0].get_name()]
+        ax2.plot(t, Energies[0], "m-")
+        legend = ["Hamiltonian", "Total energy", r"$\mathcal{S} u^0$"]
         if experiment in [1,2,3] and formulation=="grad":
-            ax2.plot(t, Powers[1], "m--")
-            legend.append(r""+control_ports[1].get_name())
+            ax2.plot(t, Energies[1], "m--")
+            legend.append(r"$\mathcal{S} \mathbf{u}$")
         ax2.grid(axis="both")
         if experiment in [1,2,3]:
             plt.tick_params('x', labelbottom=False)
             ax3 = fig.add_subplot(plots[2], sharex=ax1)
             ax3.plot(t, int_D_diss, "g-", t, int_div_diss, "g--")
-            legend.append("Dissipation D(u)")
-            legend.append("Dissipation div(u)")
+            legend.append(r"$\mathcal{D}_{Grad}$")
+            legend.append(r"$\mathcal{D}_{div}$")
             ax3.grid(axis="both")
         fig.legend(legend)
         plt.xlabel("Time (s)")

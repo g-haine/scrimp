@@ -297,21 +297,21 @@ def trace_experiment(experiment=0, formulation="grad"):
     # reset view to fit data
     renderView1.ResetCamera(True)
     if experiment in [0,1,2]:
-        renderView1.CameraParallelScale = 0.7
+        renderView1.CameraParallelScale = 0.65
     else:
-        renderView1.CameraParallelScale = 1.4
+        renderView1.CameraParallelScale = 1.35
     
     # change scalar bar placement
-    hLUTColorBar.WindowLocation = 'Any Location'
-    hLUTColorBar.Orientation = 'Horizontal'
-    hLUTColorBar.Position = [0.1, 0.03]
-    hLUTColorBar.ScalarBarLength = 0.33
+    # hLUTColorBar.WindowLocation = 'Any Location'
+    # hLUTColorBar.Orientation = 'Horizontal'
+    # hLUTColorBar.Position = [0.1, 0.03]
+    # hLUTColorBar.ScalarBarLength = 0.33
     
     # change scalar bar placement
-    e_pLUTColorBar.WindowLocation = 'Any Location'
-    e_pLUTColorBar.Orientation = 'Horizontal'
-    e_pLUTColorBar.Position = [0.55, 0.03]
-    e_pLUTColorBar.ScalarBarLength = 0.33
+    # e_pLUTColorBar.WindowLocation = 'Any Location'
+    # e_pLUTColorBar.Orientation = 'Horizontal'
+    # e_pLUTColorBar.Position = [0.55, 0.03]
+    # e_pLUTColorBar.ScalarBarLength = 0.33
 
     # get the time-keeper
     timeKeeper1 = pvs.GetTimeKeeper()

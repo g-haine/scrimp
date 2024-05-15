@@ -173,7 +173,7 @@ def heat_wave_eq(heat_region=1, wave_region=2):
     ## Solve in time
     # Define the time scheme ("bdf" is backward differentiation formula)
     hw.set_time_scheme(ts_type="bdf",
-                       t_f=15.,
+                       t_f=9.,
                        dt=0.001,
                        dt_save=0.05,
                        ksp_type="preonly",
@@ -212,6 +212,9 @@ def heat_wave_eq(heat_region=1, wave_region=2):
     ax.set_ylabel("Hamiltonian")
     ax.set_title("Evolution of the Hamiltonian (log-log)")
     plt.show()
+    
+    hw.export_to_pv("p")
+    hw.export_to_pv("T")
     
     return hw
 

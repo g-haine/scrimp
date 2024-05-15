@@ -366,6 +366,10 @@ def Concentric(parameters={"R": 1.0, "r": 0.6, "h": 0.1}, refine=0, terminal=1):
     mesh.region_merge(20, 21)
     mesh.region_merge(20, 22)
     mesh.delete_region([21, 22])
+    
+    # Ensure interface belongs to both domain 
+    mesh.region_merge(1, 10)
+    mesh.region_merge(2, 10)
 
     return [
         mesh,
