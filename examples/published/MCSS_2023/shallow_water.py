@@ -122,7 +122,7 @@ def shallow_water(experiment=0, formulation="grad"):
         h_init = "50."
         p_init = "[ 0., 0. ]"
         # Controls
-        U_n = f"0.1 * min(t,1) * y * ({L}/4-y) * (sign(x-{L})+1)" # Normal value
+        U_n = f"0.1 * min(t,1) * y * ({L}/4-y) * (sign(x-{L})+1)"   # Normal value
         U_t = "0."                                                  # Tangent value
         # Long emptying, double final time
         t_f *= 2.
@@ -137,6 +137,8 @@ def shallow_water(experiment=0, formulation="grad"):
         # Controls
         U_n = "0."      # Normal value
         U_t = f"{c}"    # Tangent value
+        # Long time behavior, decuple final time
+        t_f *= 10.
     
     # Init the distributed port-Hamiltonian system
     swe = S.DPHS("real")
