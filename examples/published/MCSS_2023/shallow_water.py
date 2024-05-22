@@ -65,10 +65,10 @@ def shallow_water(experiment=0, formulation="grad"):
     rho = 1.0               # Mass density
     g = 0.01                # Gravity constant
     mu = 0.001              # Viscosity
-    k = 2
-    FEM_h = ["CG", k]       # FEM for the h-type variables
-    FEM_p = ["CG", k]       # FEM for the p-type variables
-    FEM_b = ["CG", k]       # FEM for the boundary velocity controls and its colocated observations (both tangent and normal components)
+    order = 2
+    FEM_h = ["CG", order]       # FEM for the h-type variables
+    FEM_p = ["CG", order]       # FEM for the p-type variables
+    FEM_b = ["CG", order]       # FEM for the boundary velocity controls and its colocated observations (both tangent and normal components)
     # PETSc time-stepper options
     ts_type = "bdf"
     ts_bdf_order = 6 # Not used if ts_type != `bdf`
@@ -89,6 +89,12 @@ def shallow_water(experiment=0, formulation="grad"):
     if experiment==0:
         geometry = "Rectangle"  # Geometry of the domain
         L = 2.                  # Length of the rectangular tank
+        # FEM of the h-type variables increased without dissipation and grad
+        # Otherwise p-type increased without dissipation and div
+        if formulation=="grad":
+            FEM_h = ["CG", order+1]
+        elif formulation=="div":
+            FEM_p = ["CG", order+1]
         # Initial data
         k = 0.25
         c = 0.5
@@ -450,10 +456,10 @@ def shallow_water(experiment=0, formulation="grad"):
     plt.rcParams['font.size'] = 32
     figsize = [16,10]
     if rank==0:        
-        fig = plt.figure(figsize=figsize)
+        fig = plt.figure(figsize=figsize, layout="constrained")
         ax = fig.add_subplot(111)
         ax.plot(t, HamTot, "r-")
-        ax.legend("Hamiltonian")
+        fig.legend("Hamiltonian", loc='outside center right')
         plt.xlabel("Time (s)")
         plt.ylabel("Energy (J)")
         fig.suptitle("Evolution of the Hamiltonian")
@@ -461,10 +467,10 @@ def shallow_water(experiment=0, formulation="grad"):
         fig.savefig(os.path.join(path,"Hamiltonian.svg"))
         plt.close(fig)
         
-        fig = plt.figure(figsize=figsize)
+        fig = plt.figure(figsize=figsize, layout="constrained")
         ax = fig.add_subplot(111)
         ax.plot(t, (TotalE-TotalE[0])/np.max(TotalE), "r--")
-        ax.legend(["Total energy"])
+        fig.legend(["Total energy"], loc='outside center right')
         plt.xlabel("Time (s)")
         plt.ylabel("Variation (relative)")
         fig.suptitle("Relative variation of the total energy")
@@ -472,7 +478,7 @@ def shallow_water(experiment=0, formulation="grad"):
         fig.savefig(os.path.join(path,"Total_energy_variation.svg"))
         plt.close(fig)
         
-        fig = plt.figure(figsize=figsize)
+        fig = plt.figure(figsize=figsize, layout="constrained")
         fig.suptitle("Evolution of the energies")
         if experiment in [1,2,3]:
             plots = [511,512,513,514,515]
@@ -504,13 +510,13 @@ def shallow_water(experiment=0, formulation="grad"):
             legend.append(r"$\mathcal{D}_{Grad}$")
             legend.append(r"$\mathcal{D}_{div}$")
             ax5.grid(axis="both")
-        fig.legend(legend)
+        fig.legend(legend, loc='outside center right')
         plt.xlabel("Time (s)")
         fig.supylabel("Energies (J)")
         fig.savefig(os.path.join(path,"Balance_complete.svg"))
         plt.close(fig)
         
-        fig = plt.figure(figsize=figsize)
+        fig = plt.figure(figsize=figsize, layout="constrained")
         fig.suptitle("Evolution of the energies")
         if experiment in [1,2,3]:
             plots = [311,312,313]
@@ -534,7 +540,7 @@ def shallow_water(experiment=0, formulation="grad"):
             legend.append(r"$\mathcal{D}_{Grad}$")
             legend.append(r"$\mathcal{D}_{div}$")
             ax3.grid(axis="both")
-        fig.legend(legend)
+        fig.legend(legend, loc='outside center right')
         plt.xlabel("Time (s)")
         fig.supylabel("Energies (J)")
         fig.savefig(os.path.join(path,"Balance.svg"))
@@ -564,19 +570,19 @@ def shallow_water(experiment=0, formulation="grad"):
         
     if rank==0:        
         legend = []
-        fig = plt.figure(figsize=figsize)
+        fig = plt.figure(figsize=figsize, layout="constrained")
         ax = fig.add_subplot(111)
         if L2_Error_Y_0 is not None:
             error_0 = np.sqrt(L2_Error_Y_0)/(1.+np.sqrt(L2_Y_0))
             ax.plot(t, error_0, "k-")
-            legend.append(r"$L^2$-error along normal ($y^0$)")
+            legend.append(r"$L^2$-error $n$ ($y^0$)")
         if L2_Error_Y_n is not None:
             error_n = np.sqrt(L2_Error_Y_n)/(1.+np.sqrt(L2_Y_n))
             error_t = np.sqrt(L2_Error_Y_t)/(1.+np.sqrt(L2_Y_t))
             ax.plot(t, error_n, "k--", t, error_t, "k:")
-            legend.append(r"$L^2$-error along normal ($\mathbf{y}^\mu \cdot \mathbf{n}$)")
-            legend.append(r"$L^2$-error along tangent ($\mathbf{y}^\mu \cdot \mathbf{t}$)")
-        ax.legend(legend)
+            legend.append(r"$L^2$-error $n$ ($\mathbf{y}^\mu \cdot \mathbf{n}$)")
+            legend.append(r"$L^2$-error $t$ ($\mathbf{y}^\mu \cdot \mathbf{t}$)")
+        fig.legend(legend, loc='outside center right')
         plt.xlabel("Time (s)")
         plt.ylabel(r"$L^2$-error")
         fig.suptitle(r"Relative $L^2$-error: $\left\| Y - Y_{theoretic} \right\|_{L^2(\partial\Omega)} / (1+\left\| Y_{theoretic} \right\|_{L^2(\partial\Omega)})$")
@@ -585,19 +591,19 @@ def shallow_water(experiment=0, formulation="grad"):
         plt.close(fig)
         legend = []
         
-        fig = plt.figure(figsize=figsize)
+        fig = plt.figure(figsize=figsize, layout="constrained")
         ax = fig.add_subplot(111)
         if L1_Error_Y_0 is not None:
             error_0 = L1_Error_Y_0/(1.+L1_Y_0)
             ax.plot(t, error_0, "k-")
-            legend.append(r"$L^1$-error along normal ($y^0$)")
+            legend.append(r"$L^1$-error $n$ ($y^0$)")
         if L1_Error_Y_n is not None:
             error_n = L1_Error_Y_n/(1.+L1_Y_n)
             error_t = L1_Error_Y_t/(1.+L1_Y_t)
             ax.plot(t, error_n, "k--", t, error_t, "k:")
-            legend.append(r"$L^1$-error along normal ($\mathbf{y}^\mu \cdot \mathbf{n}$)")
-            legend.append(r"$L^1$-error along tangent ($\mathbf{y}^\mu \cdot \mathbf{t}$)")
-        ax.legend(legend)
+            legend.append(r"$L^1$-error $n$ ($\mathbf{y}^\mu \cdot \mathbf{n}$)")
+            legend.append(r"$L^1$-error $t$ ($\mathbf{y}^\mu \cdot \mathbf{t}$)")
+        fig.legend(legend, loc='outside center right')
         plt.xlabel("Time (s)")
         plt.ylabel(r"$L^1$-error")
         fig.suptitle(r"Relative $L^1$-error: $\left\| Y - Y_{theoretic} \right\|_{L^1(\partial\Omega)} / (1+\left\| Y_{theoretic} \right\|_{L^1(\partial\Omega)})$")
