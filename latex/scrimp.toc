@@ -1,0 +1,79 @@
+\babel@toc {english}{}\relax 
+\contentsline {chapter}{\numberline {1}What is SCRIMP?}{3}{chapter.1}%
+\contentsline {section}{\numberline {1.1}Port\sphinxhyphen {}Hamiltonian systems}{3}{section.1.1}%
+\contentsline {subsection}{\numberline {1.1.1}What are they?}{3}{subsection.1.1.1}%
+\contentsline {subsection}{\numberline {1.1.2}The Partitioned Finite Element Method}{4}{subsection.1.1.2}%
+\contentsline {section}{\numberline {1.2}Coding philosophy}{4}{section.1.2}%
+\contentsline {chapter}{\numberline {2}User’s guide}{5}{chapter.2}%
+\contentsline {section}{\numberline {2.1}How to install}{5}{section.2.1}%
+\contentsline {subsection}{\numberline {2.1.1}Anaconda}{5}{subsection.2.1.1}%
+\contentsline {subsection}{\numberline {2.1.2}Tests}{5}{subsection.2.1.2}%
+\contentsline {subsection}{\numberline {2.1.3}Code structure}{5}{subsection.2.1.3}%
+\contentsline {subsection}{\numberline {2.1.4}Documentation}{5}{subsection.2.1.4}%
+\contentsline {section}{\numberline {2.2}Getting started}{6}{section.2.2}%
+\contentsline {subsection}{\numberline {2.2.1}Port\sphinxhyphen {}Hamiltonian framework}{6}{subsection.2.2.1}%
+\contentsline {subsection}{\numberline {2.2.2}Structure\sphinxhyphen {}preserving discretization}{7}{subsection.2.2.2}%
+\contentsline {subsection}{\numberline {2.2.3}Coding within SCRIMP}{9}{subsection.2.2.3}%
+\contentsline {section}{\numberline {2.3}Examples}{12}{section.2.3}%
+\contentsline {subsection}{\numberline {2.3.1}The wave equation}{12}{subsection.2.3.1}%
+\contentsline {subsubsection}{Setting}{13}{subsubsection*.8}%
+\contentsline {subsubsection}{Port\sphinxhyphen {}Hamiltonian framework}{13}{subsubsection*.9}%
+\contentsline {subsubsection}{Structure\sphinxhyphen {}preserving discretization}{14}{subsubsection*.10}%
+\contentsline {subsubsection}{Simulation}{15}{subsubsection*.11}%
+\contentsline {subsubsection}{Adding Damping to the dphs}{20}{subsubsection*.12}%
+\contentsline {subsubsection}{Another simulation}{21}{subsubsection*.13}%
+\contentsline {subsection}{\numberline {2.3.2}The heat equation}{23}{subsection.2.3.2}%
+\contentsline {subsubsection}{Setting}{24}{subsubsection*.17}%
+\contentsline {subsubsection}{Port\sphinxhyphen {}Hamiltonian framework}{24}{subsubsection*.18}%
+\contentsline {subsubsection}{Structure\sphinxhyphen {}preserving discretization}{25}{subsubsection*.19}%
+\contentsline {subsubsection}{Simulation}{26}{subsubsection*.20}%
+\contentsline {subsection}{\numberline {2.3.3}Another wave equation}{31}{subsection.2.3.3}%
+\contentsline {subsubsection}{Setting}{31}{subsubsection*.24}%
+\contentsline {subsubsection}{Substitutions}{31}{subsubsection*.25}%
+\contentsline {subsubsection}{Simulation}{31}{subsubsection*.26}%
+\contentsline {subsection}{\numberline {2.3.4}Heat wave coupling}{35}{subsection.2.3.4}%
+\contentsline {subsubsection}{Setting}{36}{subsubsection*.30}%
+\contentsline {subsubsection}{Port\sphinxhyphen {}Hamiltonian framework}{36}{subsubsection*.31}%
+\contentsline {subsubsection}{Structure\sphinxhyphen {}preserving discretization}{37}{subsubsection*.32}%
+\contentsline {subsubsection}{Simulation}{37}{subsubsection*.33}%
+\contentsline {subsection}{\numberline {2.3.5}The shallow water equation}{43}{subsection.2.3.5}%
+\contentsline {subsubsection}{Setting}{43}{subsubsection*.37}%
+\contentsline {subsubsection}{Port\sphinxhyphen {}Hamiltonian framework}{43}{subsubsection*.38}%
+\contentsline {subsubsection}{Structure\sphinxhyphen {}preserving discretization}{44}{subsubsection*.39}%
+\contentsline {subsubsection}{Simulation}{45}{subsubsection*.40}%
+\contentsline {section}{\numberline {2.4}Notebooks}{50}{section.2.4}%
+\contentsline {subsection}{\numberline {2.4.1}Install jupyter}{50}{subsection.2.4.1}%
+\contentsline {subsection}{\numberline {2.4.2}Run jupyter}{50}{subsection.2.4.2}%
+\contentsline {section}{\numberline {2.5}Graphical User Interface}{50}{section.2.5}%
+\contentsline {section}{\numberline {2.6}Bibliography}{50}{section.2.6}%
+\contentsline {subsection}{\numberline {2.6.1}Articles}{51}{subsection.2.6.1}%
+\contentsline {subsection}{\numberline {2.6.2}Book Chapters}{52}{subsection.2.6.2}%
+\contentsline {subsection}{\numberline {2.6.3}Proceedings}{52}{subsection.2.6.3}%
+\contentsline {section}{\numberline {2.7}Code documentation}{54}{section.2.7}%
+\contentsline {subsection}{\numberline {2.7.1}Folders}{54}{subsection.2.7.1}%
+\contentsline {subsubsection}{scrimp.examples}{54}{subsubsection*.44}%
+\contentsline {paragraph}{Wave}{54}{paragraph*.45}%
+\contentsline {paragraph}{Heat}{55}{paragraph*.46}%
+\contentsline {paragraph}{Heat\sphinxhyphen {}Wave coupling}{55}{paragraph*.47}%
+\contentsline {paragraph}{Shallow water}{55}{paragraph*.48}%
+\contentsline {subsubsection}{scrimp.utils}{56}{subsubsection*.49}%
+\contentsline {paragraph}{Config}{56}{paragraph*.50}%
+\contentsline {paragraph}{Linear algebra}{56}{paragraph*.54}%
+\contentsline {paragraph}{Mesh}{57}{paragraph*.58}%
+\contentsline {subsubsection}{scrimp.sandbox}{59}{subsubsection*.65}%
+\contentsline {subsection}{\numberline {2.7.2}Distributed port\sphinxhyphen {}Hamiltonian system}{59}{subsection.2.7.2}%
+\contentsline {subsection}{\numberline {2.7.3}Domain}{65}{subsection.2.7.3}%
+\contentsline {subsection}{\numberline {2.7.4}Hamiltonian / Term}{66}{subsection.2.7.4}%
+\contentsline {subsection}{\numberline {2.7.5}Port / Parameter}{67}{subsection.2.7.5}%
+\contentsline {subsection}{\numberline {2.7.6}State}{71}{subsection.2.7.6}%
+\contentsline {subsection}{\numberline {2.7.7}Co\sphinxhyphen {}state}{72}{subsection.2.7.7}%
+\contentsline {subsection}{\numberline {2.7.8}Control}{72}{subsection.2.7.8}%
+\contentsline {subsection}{\numberline {2.7.9}FEM}{73}{subsection.2.7.9}%
+\contentsline {subsection}{\numberline {2.7.10}Brick}{74}{subsection.2.7.10}%
+\contentsline {chapter}{\numberline {3}Credits}{77}{chapter.3}%
+\contentsline {section}{\numberline {3.1}Development}{77}{section.3.1}%
+\contentsline {section}{\numberline {3.2}Funding}{77}{section.3.2}%
+\contentsline {section}{\numberline {3.3}Third\sphinxhyphen {}party}{77}{section.3.3}%
+\contentsline {section}{\numberline {3.4}How to cite SCRIMP?}{78}{section.3.4}%
+\contentsline {chapter}{Python Module Index}{79}{section*.229}%
+\contentsline {chapter}{Index}{81}{section*.230}%
