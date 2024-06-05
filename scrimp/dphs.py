@@ -847,7 +847,7 @@ class DPHS:
             self.time_scheme["dt_save"] = 0.01
 
         if not self.time_scheme.hasName("ts_adapt_dt_min"):
-            self.time_scheme["ts_adapt_dt_min"] = float(self.time_scheme["dt"])**2 / max_rank
+            self.time_scheme["ts_adapt_dt_min"] = 1.e-2*float(self.time_scheme["dt"])**2 / max_rank
             
         if not self.time_scheme.hasName("adapt_dt_max"):
             self.time_scheme["ts_adapt_dt_max"] = self.time_scheme["dt_save"]
@@ -865,7 +865,7 @@ class DPHS:
             self.time_scheme["init_step_ts_type"] = "pseudo"
 
         if not self.time_scheme.hasName("init_step_dt"):
-            self.time_scheme["init_step_dt"] = 0.0001
+            self.time_scheme["init_step_dt"] = float(self.time_scheme["dt"])**2
 
         self.time_scheme["isset"] = True
 
