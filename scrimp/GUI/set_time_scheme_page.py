@@ -68,17 +68,13 @@ class Window(QtWidgets.QWidget):
         self.list_widget = QListWidget(self)
 
         # list widget items
-        item1 = QListWidgetItem("First")
-        item2 = QListWidgetItem("Second")
-        item3 = QListWidgetItem("Third")
-        item4 = QListWidgetItem("Fourth")
-        item5 = QListWidgetItem("Other")
+        item1 = QListWidgetItem("Default")
+        item2 = QListWidgetItem("General(In progress)")
+        item5 = QListWidgetItem("Custom")
 
         # adding items to the list widget
         self.list_widget.addItem(item1)
         self.list_widget.addItem(item2)
-        self.list_widget.addItem(item3)
-        self.list_widget.addItem(item4)
         self.list_widget.addItem(item5)
 
         # setting selection mode property
@@ -133,6 +129,22 @@ class Window(QtWidgets.QWidget):
 
         self.help = Help(self.layout, 4, 1)
         self.table.cellClicked.connect(self.update_help)
+        self.table.cellClicked.connect(self.update_default_fields)
+
+    def update_default_fields(self):
+        """This function updates the default fields according to defined values of other fields."""
+        item = self.table.item(2, 1)
+        self.table.setItem(6, 1, QTableWidgetItem(item.text()))
+        self.table.item(6, 1).setFlags(QtCore.Qt.ItemFlag.ItemIsEditable)
+        item = QTableWidgetItem("bdf")
+        item.setFlags(QtCore.Qt.ItemFlag.ItemIsEditable)
+        self.table.setItem(3, 1, item)
+        item = QTableWidgetItem("2")
+        item.setFlags(QtCore.Qt.ItemFlag.ItemIsEditable)
+        self.table.setItem(4, 1, item)
+        item = QTableWidgetItem("1e-6")
+        item.setFlags(QtCore.Qt.ItemFlag.ItemIsEditable)
+        self.table.setItem(5, 1, QTableWidgetItem(item))
 
     def update_help(self):
         """This function updates the Help object through its update_fields method.
@@ -198,6 +210,39 @@ class Window(QtWidgets.QWidget):
 
                     self.help.updateFields(text, description, example)
 
+                elif selection == "Default":
+                    description = None
+                    example = None
+
+                    if row == 0:
+                        description = "This is intial time"
+                        example = "0"
+
+                    elif row == 1:
+                        description = "This is final time"
+                        example = "1"
+
+                    elif row == 2:
+                        description = "This is the discrete time-step"
+                        example = "0.01"
+
+                    self.help.updateFields(text, description, example)
+
+                elif selection == "General(In progress)":
+                    description = None
+                    example = None
+
+                    if row == 0:
+                        description = "This is ..."
+
+                    elif row == 1:
+                        description = "This is ..."
+
+                    elif row == 2:
+                        description = "This is ..."
+
+                    self.help.updateFields(text, description, example)
+
         else:
             self.help.clear()
             self.layout.itemAt(self.layout.count() - 1).widget().hide()
@@ -220,12 +265,28 @@ class Window(QtWidgets.QWidget):
         selection = self.list_widget.currentItem().text()
         self.help.clear()
 
-        if selection == "Other":
+        if selection == "Custom":
             self.layout.itemAt(5).widget().show()
         else:
             self.layout.itemAt(5).widget().hide()
 
-        if selection == "First":
+        if selection == "Default":
+            # remove all the rows
+            self.table.setRowCount(0)
+            # # add 3 rows
+            for _ in range(7):
+                self.table.insertRow(self.table.rowCount())
+
+            self.table.setItem(0, 0, QTableWidgetItem("t_0"))
+            self.table.setItem(1, 0, QTableWidgetItem("t_f"))
+            self.table.setItem(2, 0, QTableWidgetItem("dt"))
+            self.table.setItem(2, 1, QTableWidgetItem(""))
+            self.table.setItem(3, 0, QTableWidgetItem("ts_type"))
+            self.table.setItem(4, 0, QTableWidgetItem("ts_bdf_order"))
+            self.table.setItem(5, 0, QTableWidgetItem("ts_adapt_dt_min"))
+            self.table.setItem(6, 0, QTableWidgetItem("dt_save"))
+
+        elif selection == "General(In progress)":
             # remove all the rows
             self.table.setRowCount(0)
             # # add 3 rows
@@ -280,6 +341,7 @@ class Window(QtWidgets.QWidget):
             # remove all the rows
             self.table.setRowCount(1)
 
+        # clears all the field of 2nd column
         rows = self.table.rowCount()
         for row in range(rows):
             new_value = QTableWidgetItem("")
@@ -307,11 +369,9 @@ class Window(QtWidgets.QWidget):
             self.check_state()
             # set time_scheme page
             time_scheme_to_row = {
-                "First": 0,
-                "Second": 1,
-                "Third": 2,
-                "Fourth": 3,
-                "Other": 4,
+                "Default": 0,
+                "General(In progress)": 1,
+                "Custom": 2,
             }
 
             row = time_scheme_to_row[
