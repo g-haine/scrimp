@@ -31,7 +31,7 @@ class Window(QtWidgets.QWidget):
         self.layout = QGridLayout()
 
         label_filename = QLabel(
-            '<font size="4"> Name for your script based on SCRIMP: </font>'
+            '<font size="4"> Name for your script based on SCRIMP (without .py): </font>'
         )
         self.line_edit_filname = QLineEdit()
         self.line_edit_filname.setPlaceholderText(
