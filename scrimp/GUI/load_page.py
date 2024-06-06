@@ -94,6 +94,23 @@ class Window(QtWidgets.QWidget):
                 os.path.isfile(self.file_path[0])
                 and self.file_path[0][-13:] == ".session.json"
             ):
+
+                # restore session file for the new session after loading
+                filedata = None
+                # Read in the file
+                with open(self.file_path[0], "r") as file:
+                    filedata = file.read()
+
+                old_pattern = '"loaded_from_file": true,'
+                new_pattern = '"loaded_from_file": false,'
+
+                # Replace the target string
+                filedata = filedata.replace(old_pattern, new_pattern)
+
+                # Write the file out again
+                with open(self.file_path[0], "w") as file:
+                    file.write(filedata)
+
                 self.session["read_from_file"] = {"filepath": self.file_path}
                 self.load_session_from_file()
                 self.switch_window.emit("create_dphs_page")
