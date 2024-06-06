@@ -283,7 +283,7 @@ class Controller:
             for col in range(cols):
                 item = table_ports.item(row, col)
 
-                if col in [3, 5, 6]:
+                if col in [3, 5, 6, 7]:
                     cell = table_ports.cellWidget(row, col)
                     if cell is not None:
                         text = cell.currentText()

@@ -391,7 +391,7 @@ def text_add_ports(self, file):
         file.write("    Port(")
         for col in range(cols):
             item = table_ports.item(row, col)
-            if col in [3, 5, 6]:
+            if col in [3, 5, 6, 7]:
                 text = table_ports.cellWidget(row, col).currentText()
             elif item is not None:
                 text = item.text()
