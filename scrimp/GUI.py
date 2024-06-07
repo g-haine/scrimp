@@ -187,7 +187,8 @@ class Controller:
             self.export_variable_page.show()
         elif text == "start_Paraview":
             filename, dphs = self.generate_code(True)
-            self.run_code(text, None, None)
+            self.run_code(text, filename, dphs)
+
         else:
             print("the emitted signal:", text)
             pass
@@ -602,22 +603,27 @@ class Controller:
             dphs (str): the name of the dphs used in the script.
         """
         try:
-            if text == "Matplotlib":
-                exec(f"import {filename}\n{filename}.{dphs}_eq()")
+            # if text == "Matplotlib":
+            exec(f"import {filename}\n{filename}.{dphs}_eq()")
 
-            elif text == "start_Paraview":
+            if text == "start_Paraview":
                 print(
                     f"Selected Variable to Export: {self.session['selected_variables']}"
                 )
 
-                for variable in self.session["selected_variables"]:
+                path = None
+                if "path_to_export_varaible" in self.session.keys():
                     path = self.session["path_to_export_varaible"]
+
+                for variable in self.session["selected_variables"]:
                     if path is not None:
                         os.system(
                             f"paraview {os.path.join(path,variable,variable)}.pvd"
                         )
                     else:
-                        os.system(f"paraview {os.path.join(variable,variable)}.pvd")
+                        os.system(
+                            f"paraview {os.path.join(os.getcwd(),'outputs','pv',variable,variable)}.pvd"
+                        )
         except Exception as e:
             print(e)
 
