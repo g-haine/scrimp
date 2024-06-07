@@ -31,7 +31,7 @@ gui_pages = [
 ]
 
 # setting the size of the GUI windows
-gui_width = 1700
+gui_width = 1200
 gui_height = 600
 button_size = (200, 150, 100, 40)
 main_size_font = "+3"

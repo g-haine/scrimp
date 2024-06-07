@@ -610,8 +610,11 @@ class Controller:
                     f"Selected Variable to Export: {self.session['selected_variables']}"
                 )
 
-                for variable in self.session["selected_variables"]:
+                path = None
+                if "path_to_export_varaible" in self.session.keys():
                     path = self.session["path_to_export_varaible"]
+
+                for variable in self.session["selected_variables"]:
                     if path is not None:
                         os.system(
                             f"paraview {os.path.join(path,variable,variable)}.pvd"
