@@ -9,7 +9,7 @@ dependencies:
   - matplotlib
   - mpi4py
   - mumps-mpi
-  - numpy
+  - numpy=1
   - scipy
   - spyder
   - superlu
