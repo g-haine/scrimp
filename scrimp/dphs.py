@@ -849,8 +849,8 @@ class DPHS:
         if not self.time_scheme.hasName("ts_adapt_dt_min"):
             self.time_scheme["ts_adapt_dt_min"] = 1.e-2*float(self.time_scheme["dt"])**2 / max_rank
             
-        if not self.time_scheme.hasName("adapt_dt_max"):
-            self.time_scheme["ts_adapt_dt_max"] = self.time_scheme["dt_save"]
+        if not self.time_scheme.hasName("ts_adapt_dt_max"):
+            self.time_scheme["ts_adapt_dt_max"] = float(self.time_scheme["dt_save"])
 
         if not self.time_scheme.hasName("ts_max_snes_failures"):
             self.time_scheme["ts_max_snes_failures"] = -1
@@ -1046,8 +1046,8 @@ class DPHS:
             logging.info(
                 f"Nonlinear iterations: {TS.getSNESIterations()}, Linear iterations: {TS.getKSPIterations()}"
             )
+        
         TS.reset()
-
         TS.destroy()
         gc.collect()
 
@@ -1130,6 +1130,7 @@ class DPHS:
 
         TS.reset()
         TS.destroy()
+        gc.collect()
 
         # Delete options for initial step
         self.time_scheme.delValue("ts_type")
