@@ -13,7 +13,7 @@
 - brief:            class for distributed port-Hamiltonian system
 """
 
-from scrimp.utils.linalg import extract_gmm_to_petsc, extract_gmm_to_scipy
+from scrimp.utils.linalg import convert_gmm_to_petsc, extract_gmm_to_scipy
 from scrimp.hamiltonian import Hamiltonian
 from scrimp.brick import Brick
 from scrimp.control import Control_Port
@@ -40,10 +40,8 @@ comm = PETSc.COMM_WORLD
 rank = comm.getRank()
 max_rank = comm.getSize()
 
-
 import scrimp.utils.config
 outputs_path = scrimp.utils.config.outputs_path
-
 
 class DPHS:
     """A generic class handling distributed pHs using the GetFEM tools
@@ -575,11 +573,8 @@ class DPHS:
                 brick.enable_id_bricks(self.gf_model)
 
         self.gf_model.assembly(option="build_matrix")
-        rows = self.nl_stiffness.getOwnershipRange()
-        cols = [0, self.gf_model.nbdof()]
-        extract_gmm_to_petsc(
-            [rows[0], rows[1]],
-            [cols[0], cols[1]],
+        
+        convert_gmm_to_petsc(
             self.gf_model.tangent_matrix(),
             self.mass,
         )
@@ -605,11 +600,8 @@ class DPHS:
                 brick.enable_id_bricks(self.gf_model)
 
         self.gf_model.assembly(option="build_matrix")
-        rows = self.nl_stiffness.getOwnershipRange()
-        cols = [0, self.gf_model.nbdof()]
-        extract_gmm_to_petsc(
-            [rows[0], rows[1]],
-            [cols[0], cols[1]],
+        
+        convert_gmm_to_petsc(
             self.gf_model.tangent_matrix(),
             self.stiffness,
         )
@@ -650,11 +642,8 @@ class DPHS:
                 brick.enable_id_bricks(self.gf_model)
 
         self.gf_model.assembly(option="build_matrix")
-        rows = self.nl_stiffness.getOwnershipRange()
-        cols = [0, self.gf_model.nbdof()]
-        extract_gmm_to_petsc(
-            [rows[0], rows[1]],
-            [cols[0], cols[1]],
+        
+        convert_gmm_to_petsc(
             self.gf_model.tangent_matrix(),
             self.nl_mass,
         )
@@ -677,11 +666,8 @@ class DPHS:
                 brick.enable_id_bricks(self.gf_model)
 
         self.gf_model.assembly(option="build_matrix")
-        rows = self.nl_stiffness.getOwnershipRange()
-        cols = [0, self.gf_model.nbdof()]
-        extract_gmm_to_petsc(
-            [rows[0], rows[1]],
-            [cols[0], cols[1]],
+        
+        convert_gmm_to_petsc(
             self.gf_model.tangent_matrix(),
             self.nl_stiffness,
         )
@@ -765,6 +751,7 @@ class DPHS:
     def allocate_memory(self):
         """Pre-allocate memory for matrices and vectors"""
 
+        self.mass.bindToCPU(True)
         self.mass.setSizes(self.gf_model.nbdof())
         self.mass.setOption(PETSc.Mat.Option.FORCE_DIAGONAL_ENTRIES, True)
         self.mass.setType("aij")
@@ -777,6 +764,7 @@ class DPHS:
         self.tangent_mass.setOption(PETSc.Mat.Option.FORCE_DIAGONAL_ENTRIES, True)
         self.tangent_mass.setType("aij")
         self.tangent_mass.setUp()
+        self.stiffness.bindToCPU(True)
         self.stiffness.setSizes(self.gf_model.nbdof())
         self.stiffness.setOption(PETSc.Mat.Option.FORCE_DIAGONAL_ENTRIES, True)
         self.stiffness.setType("aij")
@@ -799,7 +787,8 @@ class DPHS:
 
     def get_cleared_TS_options(self):
         """To ensure a safe database for the PETSc TS environment"""
-
+        
+        PETSc.Options().clear()
         self.time_scheme = PETSc.Options()
         for key in self.time_scheme.getAll():
             self.time_scheme.delValue(key)
@@ -1095,11 +1084,13 @@ class DPHS:
             saved_options["ts_adapt_dt_min"] = float(
                 self.time_scheme["ts_adapt_dt_min"]
             )
+            self.time_scheme.delValue("ts_adapt_dt_min")
+            
         self.time_scheme["ts_type"] = self.time_scheme["init_step_ts_type"]
         self.time_scheme["ts_adapt_dt_min"] = 1e-24
-
+        
         TS.setTimeStep(float(self.time_scheme["init_step_dt"]))
-
+        
         TS.setFromOptions()
         self.exclude_algebraic_var_from_lte(TS)
 

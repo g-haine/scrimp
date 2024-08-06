@@ -20,47 +20,35 @@ import petsc4py
 
 petsc4py.init(sys.argv)
 from petsc4py import PETSc
+PETSc.Options().setValue('info', None)
 
 comm = PETSc.COMM_WORLD
 import scipy.sparse as sp
 
 
-def extract_gmm_to_petsc(I, J, M, B, comm=comm):
-    """Extract a sub-matrix A from M, on interval I, J
+def convert_gmm_to_petsc(M, B, comm=comm):
+    """Convert a GetFEM matrix M to a PETSc one B
 
     Args:
-        I (Numpy array): line interval [begin, lenght]
-        J (Numpy array): column interval [begin, lenght]
-        M (SPMat GetFEM): matrix from which to extract the submatrix
+        M (SPMat GetFEM): matrix to transfer
+        B (PETSc.Mat): matrix to fill M with
         comm (MPI_Comm): MPI communicator
 
     Returns:
-        PETSc.Mat: matrix with value M(I,J) in CSR format
+        None
     """
 
-    R_I = range(I[0], I[1])  # Range of lines extraction
-    R_J = range(J[0], J[1])  # Range of columns extraction
-
+    A = gf.Spmat("copy", M)
     # Because CSR is CSC of the transpose
     # and CSR is not available in getfem
-    # I and J are switched
-    # See if it can be optimised
-    A = gf.Spmat("empty", I[1], J[1])  # Pre-allocation
-    A.assign(R_I, R_J, gf.Spmat("copy", M, R_I, R_J))
     A.transpose()
-    A.to_csc()
+    row_ptr, col_idx = A.csc_ind()
+    values = A.csc_val()
     
-    A_ind = A.csc_ind()
-    indrow = A_ind[0]
-    indcol = A_ind[1]
-    data = A.csc_val()
-    del A
+    B.setValuesLocalCSR(row_ptr, col_idx, values, addv=PETSc.InsertMode.INSERT_VALUES)
 
-    B.setValuesLocalCSR(indrow, indcol, data, addv=PETSc.InsertMode.INSERT_VALUES)
+    # Assemble the PETSc matrix in parallel
     B.assemble()
-
-    return B
-
 
 def extract_gmm_to_scipy(I, J, M):
     """Extract a sub-matrix A from M, on interval I, J
