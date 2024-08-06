@@ -185,6 +185,9 @@ def shallow_water_eq():
         t_f=0.5,
         dt=0.0001,
         dt_save=0.01,
+        ksp_type="gmres",
+        pc_type="lu",
+        pc_factor_mat_solver_type="superlu",
     )
 
     # Solve the system in time
