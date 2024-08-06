@@ -173,12 +173,13 @@ def heat_wave_eq(heat_region=1, wave_region=2):
     ## Solve in time
     # Define the time scheme ("bdf" is backward differentiation formula)
     hw.set_time_scheme(ts_type="bdf",
-                       t_f=9.,
+                       ts_bdf_order=6,
+                       t_f=1.,
                        dt=0.001,
                        dt_save=0.05,
                        ksp_type="preonly",
                        pc_type="lu",
-                       pc_factor_mat_solver_type="mumps",
+                       pc_factor_mat_solver_type="superlu",
                        )
 
     # Solve

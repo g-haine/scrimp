@@ -7,10 +7,10 @@
 # github: https://github.com/g-haine/scrimp
 
 """
-- file:             examples/wave.py
-- authors:          Giuseppe Ferraro, Ghislain Haine
-- date:             22 nov. 2022
-- brief:            2D wave equations
+- file:             examples/wave_dissipative.py
+- authors:          Ghislain Haine
+- date:             06 aug. 2024
+- brief:            2D dissipative wave equations
 """
 
 # Import scrimp
@@ -20,18 +20,18 @@ def wave_eq():
     """A structure-preserving discretization of the wave equation with mixed boundary control
 
     Formulation DAE (energy/co-energy), Grad-Grad, Mixed boundary condition on the Rectangle
-    Undamped case.
+    Damped case.
     """
-    
-    # Init the distributed port-Hamiltonian system
-    wave = S.DPHS("real")
+
+    # Define a new dphs
+    wave_diss = S.DPHS("real")
 
     # Set the domain (using the built-in geometry `Rectangle`)
     # Labels: Omega = 1, Gamma_Bottom = 10, Gamma_Right = 11, Gamma_Top = 12, Gamma_Left = 13
     rectangle = S.Domain("Rectangle", {"L": 2.0, "l": 1.0, "h": 0.1})
 
-    # And add it to the dphs
-    wave.set_domain(rectangle)
+    # On the rectangle domain
+    wave_diss.set_domain(rectangle)
 
     # Define the variables
     states = [
@@ -44,10 +44,9 @@ def wave_eq():
     ]
 
     # Add them to the dphs
-    for state in states:
-        wave.add_state(state)
-    for costate in costates:
-        wave.add_costate(costate)
+    for (state,costate) in zip(states,costates):
+        wave_diss.add_state(state)
+        wave_diss.add_costate(costate)
 
     # Define the control ports
     control_ports = [
@@ -92,7 +91,13 @@ def wave_eq():
 
     # Add them to the dphs
     for ctrl_port in control_ports:
-        wave.add_control_port(ctrl_port)
+        wave_diss.add_control_port(ctrl_port)
+
+    # Define a dissipative port
+    port_diss = S.Port("Damping", "f_r", "e_r", "scalar-field")
+
+    # Add it to the dphs
+    wave_diss.add_port(port_diss)
 
     # Define the Finite Elements Method of each port
     FEMs = [
@@ -102,21 +107,23 @@ def wave_eq():
         S.FEM(control_ports[1].get_name(), 1, "DG"),
         S.FEM(control_ports[2].get_name(), 1, "DG"),
         S.FEM(control_ports[3].get_name(), 1, "DG"),
+        S.FEM("Damping", 2, "CG"),
     ]
 
-    # Add them to the dphs
+    # Add all of them to the dphs
     for FEM in FEMs:
-        wave.add_FEM(FEM)
+        wave_diss.add_FEM(FEM)
 
     # Define physical parameters
     parameters = [
         S.Parameter("T", "Young's modulus", "tensor-field", "[[5+x,x*y],[x*y,2+y]]", "q"),
         S.Parameter("rho", "Mass density", "scalar-field", "3-x", "p"),
+        S.Parameter("nu", "viscosity", "scalar-field", "0.5*(2.0-x)", "Damping"),
     ]
 
     # Add them to the dphs
     for parameter in parameters:
-        wave.add_parameter(parameter)
+        wave_diss.add_parameter(parameter)
 
     # Define the pHs via `Brick` == non-zero block matrices == variational terms
     bricks = [
@@ -127,6 +134,8 @@ def wave_eq():
         S.Brick("M_Y_B", "Y_B*Test_Y_B", [10], position="flow"),
         S.Brick("M_Y_R", "Y_R*Test_Y_R", [11], position="flow"),
         S.Brick("M_Y_T", "Y_T*Test_Y_T", [12], position="flow"),
+        # Mass matrix
+        S.Brick("M_r", "f_r*Test_f_r", [1], position="flow"),
         # The Dirichlet term is applied via Lagrange multiplier == the colocated output
         S.Brick("M_Y_L", "U_L*Test_Y_L", [13], position="flow"),
         # Define the matrices from the right-hand side: the `effort` part of the Dirac structure
@@ -135,6 +144,10 @@ def wave_eq():
         S.Brick("B_B", "U_B*Test_p", [10], position="effort"),
         S.Brick("B_R", "U_R*Test_p", [11], position="effort"),
         S.Brick("B_T", "U_T*Test_p", [12], position="effort"),
+        # The "Identity" operator
+        S.Brick("I_r", "e_r*Test_p", [1], position="effort"),
+        # Minus its transpose
+        S.Brick("-I_r^T", "-e_p*Test_f_r", [1], position="effort"),
         # The Dirichlet term is applied via Lagrange multiplier == the colocated output
         S.Brick("B_L", "Y_L*Test_p", [13], position="effort"),
         S.Brick("C_B", "-e_p*Test_Y_B", [10], position="effort"),
@@ -148,11 +161,14 @@ def wave_eq():
         # Linear momentum definition under implicit form `- M_e_p e_p + CR_p p = 0`
         S.Brick("-M_e_p", "-e_p*Test_e_p", [1]),
         S.Brick("CR_p", "p/rho*Test_e_p", [1]),
+        # Constitutive relation: linear viscous fluid damping `- M_e_r e_r + CR_r f_r = 0`
+        S.Brick("-M_e_r", "-e_r*Test_e_r", [1]),
+        S.Brick("CR_r", "nu*f_r*Test_e_r", [1]),
     ]
 
     # Add all these `Bricks` to the dphs
     for brick in bricks:
-        wave.add_brick(brick)
+        wave_diss.add_brick(brick)
 
     ## Initialize the problem
     # The controls expression, ordered as the control_ports
@@ -162,41 +178,43 @@ def wave_eq():
     # Add each expression to its control_port
     for control_port, expression in zip(control_ports, expressions):
         # Set the control functions: it automatically constructs the related `Brick`s such that `- M_u u + f(t) = 0`
-        wave.set_control(control_port.get_name(), expression)
+        wave_diss.set_control(control_port.get_name(), expression)
 
     # Set the initial data
     q_0 = "[0., 0.]"
-    wave.set_initial_value("q", q_0)
+    wave_diss.set_initial_value("q", q_0)
     p_0 = "3**(-20*((x-0.5)*(x-0.5)+(y-0.5)*(y-0.5)))"
-    wave.set_initial_value("p", p_0)
+    wave_diss.set_initial_value("p", p_0)
 
     ## Solve in time
-    # Define the time scheme ("cn" is Crank-Nicolson)
-    wave.set_time_scheme(ts_type="cn",
-                         t_f=t_f,
-                         dt_save=0.01,
-                         )
+    # Define the time scheme
+    wave_diss.set_time_scheme(ts_type="cn",
+                              t_f=t_f,
+                              dt_save=0.01,
+                              )
 
     # Solve
-    wave.solve()
+    wave_diss.solve()
 
     ## Post-processing
     # Set Hamiltonian's name
-    wave.hamiltonian.set_name("Mechanical energy")
-    # Define each Hamiltonian Term
+    wave_diss.hamiltonian.set_name("Mechanical energy")
+
+    # Define each Hamiltonian Term (needed to overwrite the previously computed solution)
     terms = [
         S.Term("Potential energy", "0.5*q.T.q", [1]),
         S.Term("Kinetic energy", "0.5*p*p/rho", [1]),
     ]
+
     # Add them to the Hamiltonian
     for term in terms:
-        wave.hamiltonian.add_term(term)
+        wave_diss.hamiltonian.add_term(term)
 
     # Plot the Hamiltonian and save the output
-    wave.plot_Hamiltonian(save_figure=True, filename="Hamiltonian_Wave_2D_Conservative.png")
+    wave_diss.plot_Hamiltonian(save_figure=True, filename="Hamiltonian_Wave_2D_Dissipative.png")
     
-    return wave
+    return wave_diss
 
 if __name__ == "__main__":
-    wave = wave_eq()
+    wave_diss = wave_eq()
     
