@@ -1,0 +1,218 @@
+\indexentry{module@\spxentry{module}!examples.wave@\spxentry{examples.wave}|hyperpage}{12}
+\indexentry{examples.wave@\spxentry{examples.wave}!module@\spxentry{module}|hyperpage}{12}
+\indexentry{wave\_eq() (in module examples.wave)@\spxentry{wave\_eq()}\spxextra{in module examples.wave}|hyperpage}{12}
+\indexentry{module@\spxentry{module}!examples.wave\_dissipative@\spxentry{examples.wave\_dissipative}|hyperpage}{12}
+\indexentry{examples.wave\_dissipative@\spxentry{examples.wave\_dissipative}!module@\spxentry{module}|hyperpage}{12}
+\indexentry{wave\_eq() (in module examples.wave\_dissipative)@\spxentry{wave\_eq()}\spxextra{in module examples.wave\_dissipative}|hyperpage}{13}
+\indexentry{module@\spxentry{module}!examples.heat@\spxentry{examples.heat}|hyperpage}{25}
+\indexentry{examples.heat@\spxentry{examples.heat}!module@\spxentry{module}|hyperpage}{25}
+\indexentry{heat\_eq() (in module examples.heat)@\spxentry{heat\_eq()}\spxextra{in module examples.heat}|hyperpage}{25}
+\indexentry{module@\spxentry{module}!examples.wave\_coenergy@\spxentry{examples.wave\_coenergy}|hyperpage}{33}
+\indexentry{examples.wave\_coenergy@\spxentry{examples.wave\_coenergy}!module@\spxentry{module}|hyperpage}{33}
+\indexentry{wave\_coenergy\_eq() (in module examples.wave\_coenergy)@\spxentry{wave\_coenergy\_eq()}\spxextra{in module examples.wave\_coenergy}|hyperpage}{33}
+\indexentry{module@\spxentry{module}!examples.heat\_wave@\spxentry{examples.heat\_wave}|hyperpage}{37}
+\indexentry{examples.heat\_wave@\spxentry{examples.heat\_wave}!module@\spxentry{module}|hyperpage}{37}
+\indexentry{heat\_wave\_eq() (in module examples.heat\_wave)@\spxentry{heat\_wave\_eq()}\spxextra{in module examples.heat\_wave}|hyperpage}{37}
+\indexentry{module@\spxentry{module}!examples.shallow\_water@\spxentry{examples.shallow\_water}|hyperpage}{45}
+\indexentry{examples.shallow\_water@\spxentry{examples.shallow\_water}!module@\spxentry{module}|hyperpage}{45}
+\indexentry{shallow\_water\_eq() (in module examples.shallow\_water)@\spxentry{shallow\_water\_eq()}\spxextra{in module examples.shallow\_water}|hyperpage}{45}
+\indexentry{module@\spxentry{module}!scrimp.utils.config@\spxentry{scrimp.utils.config}|hyperpage}{58}
+\indexentry{scrimp.utils.config@\spxentry{scrimp.utils.config}!module@\spxentry{module}|hyperpage}{58}
+\indexentry{set\_paths() (in module scrimp.utils.config)@\spxentry{set\_paths()}\spxextra{in module scrimp.utils.config}|hyperpage}{58}
+\indexentry{set\_verbose() (in module scrimp.utils.config)@\spxentry{set\_verbose()}\spxextra{in module scrimp.utils.config}|hyperpage}{58}
+\indexentry{set\_verbose\_gf() (in module scrimp.utils.config)@\spxentry{set\_verbose\_gf()}\spxextra{in module scrimp.utils.config}|hyperpage}{58}
+\indexentry{module@\spxentry{module}!scrimp.utils.linalg@\spxentry{scrimp.utils.linalg}|hyperpage}{58}
+\indexentry{scrimp.utils.linalg@\spxentry{scrimp.utils.linalg}!module@\spxentry{module}|hyperpage}{58}
+\indexentry{convert\_PETSc\_to\_scipy() (in module scrimp.utils.linalg)@\spxentry{convert\_PETSc\_to\_scipy()}\spxextra{in module scrimp.utils.linalg}|hyperpage}{58}
+\indexentry{convert\_gmm\_to\_petsc() (in module scrimp.utils.linalg)@\spxentry{convert\_gmm\_to\_petsc()}\spxextra{in module scrimp.utils.linalg}|hyperpage}{58}
+\indexentry{extract\_gmm\_to\_scipy() (in module scrimp.utils.linalg)@\spxentry{extract\_gmm\_to\_scipy()}\spxextra{in module scrimp.utils.linalg}|hyperpage}{59}
+\indexentry{module@\spxentry{module}!scrimp.utils.mesh@\spxentry{scrimp.utils.mesh}|hyperpage}{59}
+\indexentry{scrimp.utils.mesh@\spxentry{scrimp.utils.mesh}!module@\spxentry{module}|hyperpage}{59}
+\indexentry{Ball() (in module scrimp.utils.mesh)@\spxentry{Ball()}\spxextra{in module scrimp.utils.mesh}|hyperpage}{59}
+\indexentry{Concentric() (in module scrimp.utils.mesh)@\spxentry{Concentric()}\spxextra{in module scrimp.utils.mesh}|hyperpage}{59}
+\indexentry{Disk() (in module scrimp.utils.mesh)@\spxentry{Disk()}\spxextra{in module scrimp.utils.mesh}|hyperpage}{60}
+\indexentry{Interval() (in module scrimp.utils.mesh)@\spxentry{Interval()}\spxextra{in module scrimp.utils.mesh}|hyperpage}{60}
+\indexentry{Rectangle() (in module scrimp.utils.mesh)@\spxentry{Rectangle()}\spxextra{in module scrimp.utils.mesh}|hyperpage}{60}
+\indexentry{built\_in\_geometries() (in module scrimp.utils.mesh)@\spxentry{built\_in\_geometries()}\spxextra{in module scrimp.utils.mesh}|hyperpage}{61}
+\indexentry{module@\spxentry{module}!scrimp.dphs@\spxentry{scrimp.dphs}|hyperpage}{61}
+\indexentry{scrimp.dphs@\spxentry{scrimp.dphs}!module@\spxentry{module}|hyperpage}{61}
+\indexentry{DPHS (class in scrimp.dphs)@\spxentry{DPHS}\spxextra{class in scrimp.dphs}|hyperpage}{61}
+\indexentry{F (scrimp.dphs.DPHS attribute)@\spxentry{F}\spxextra{scrimp.dphs.DPHS attribute}|hyperpage}{61}
+\indexentry{IFunction() (scrimp.dphs.DPHS method)@\spxentry{IFunction()}\spxextra{scrimp.dphs.DPHS method}|hyperpage}{61}
+\indexentry{IJacobian() (scrimp.dphs.DPHS method)@\spxentry{IJacobian()}\spxextra{scrimp.dphs.DPHS method}|hyperpage}{61}
+\indexentry{J (scrimp.dphs.DPHS attribute)@\spxentry{J}\spxextra{scrimp.dphs.DPHS attribute}|hyperpage}{61}
+\indexentry{add\_FEM() (scrimp.dphs.DPHS method)@\spxentry{add\_FEM()}\spxextra{scrimp.dphs.DPHS method}|hyperpage}{61}
+\indexentry{add\_brick() (scrimp.dphs.DPHS method)@\spxentry{add\_brick()}\spxextra{scrimp.dphs.DPHS method}|hyperpage}{62}
+\indexentry{add\_control\_port() (scrimp.dphs.DPHS method)@\spxentry{add\_control\_port()}\spxextra{scrimp.dphs.DPHS method}|hyperpage}{62}
+\indexentry{add\_costate() (scrimp.dphs.DPHS method)@\spxentry{add\_costate()}\spxextra{scrimp.dphs.DPHS method}|hyperpage}{62}
+\indexentry{add\_parameter() (scrimp.dphs.DPHS method)@\spxentry{add\_parameter()}\spxextra{scrimp.dphs.DPHS method}|hyperpage}{62}
+\indexentry{add\_port() (scrimp.dphs.DPHS method)@\spxentry{add\_port()}\spxextra{scrimp.dphs.DPHS method}|hyperpage}{62}
+\indexentry{add\_state() (scrimp.dphs.DPHS method)@\spxentry{add\_state()}\spxextra{scrimp.dphs.DPHS method}|hyperpage}{62}
+\indexentry{allocate\_memory() (scrimp.dphs.DPHS method)@\spxentry{allocate\_memory()}\spxextra{scrimp.dphs.DPHS method}|hyperpage}{62}
+\indexentry{assemble\_mass() (scrimp.dphs.DPHS method)@\spxentry{assemble\_mass()}\spxextra{scrimp.dphs.DPHS method}|hyperpage}{62}
+\indexentry{assemble\_nl\_mass() (scrimp.dphs.DPHS method)@\spxentry{assemble\_nl\_mass()}\spxextra{scrimp.dphs.DPHS method}|hyperpage}{62}
+\indexentry{assemble\_nl\_stiffness() (scrimp.dphs.DPHS method)@\spxentry{assemble\_nl\_stiffness()}\spxextra{scrimp.dphs.DPHS method}|hyperpage}{62}
+\indexentry{assemble\_rhs() (scrimp.dphs.DPHS method)@\spxentry{assemble\_rhs()}\spxextra{scrimp.dphs.DPHS method}|hyperpage}{62}
+\indexentry{assemble\_stiffness() (scrimp.dphs.DPHS method)@\spxentry{assemble\_stiffness()}\spxextra{scrimp.dphs.DPHS method}|hyperpage}{62}
+\indexentry{bricks (scrimp.dphs.DPHS attribute)@\spxentry{bricks}\spxextra{scrimp.dphs.DPHS attribute}|hyperpage}{63}
+\indexentry{buffer (scrimp.dphs.DPHS attribute)@\spxentry{buffer}\spxextra{scrimp.dphs.DPHS attribute}|hyperpage}{63}
+\indexentry{compute\_Hamiltonian() (scrimp.dphs.DPHS method)@\spxentry{compute\_Hamiltonian()}\spxextra{scrimp.dphs.DPHS method}|hyperpage}{63}
+\indexentry{compute\_powers() (scrimp.dphs.DPHS method)@\spxentry{compute\_powers()}\spxextra{scrimp.dphs.DPHS method}|hyperpage}{63}
+\indexentry{controls (scrimp.dphs.DPHS attribute)@\spxentry{controls}\spxextra{scrimp.dphs.DPHS attribute}|hyperpage}{63}
+\indexentry{costates (scrimp.dphs.DPHS attribute)@\spxentry{costates}\spxextra{scrimp.dphs.DPHS attribute}|hyperpage}{63}
+\indexentry{disable\_all\_bricks() (scrimp.dphs.DPHS method)@\spxentry{disable\_all\_bricks()}\spxextra{scrimp.dphs.DPHS method}|hyperpage}{63}
+\indexentry{display() (scrimp.dphs.DPHS method)@\spxentry{display()}\spxextra{scrimp.dphs.DPHS method}|hyperpage}{63}
+\indexentry{domain (scrimp.dphs.DPHS attribute)@\spxentry{domain}\spxextra{scrimp.dphs.DPHS attribute}|hyperpage}{63}
+\indexentry{enable\_all\_bricks() (scrimp.dphs.DPHS method)@\spxentry{enable\_all\_bricks()}\spxextra{scrimp.dphs.DPHS method}|hyperpage}{63}
+\indexentry{event() (scrimp.dphs.DPHS method)@\spxentry{event()}\spxextra{scrimp.dphs.DPHS method}|hyperpage}{63}
+\indexentry{exclude\_algebraic\_var\_from\_lte() (scrimp.dphs.DPHS method)@\spxentry{exclude\_algebraic\_var\_from\_lte()}\spxextra{scrimp.dphs.DPHS method}|hyperpage}{63}
+\indexentry{export\_matrices() (scrimp.dphs.DPHS method)@\spxentry{export\_matrices()}\spxextra{scrimp.dphs.DPHS method}|hyperpage}{63}
+\indexentry{export\_to\_pv() (scrimp.dphs.DPHS method)@\spxentry{export\_to\_pv()}\spxextra{scrimp.dphs.DPHS method}|hyperpage}{63}
+\indexentry{get\_Hamiltonian() (scrimp.dphs.DPHS method)@\spxentry{get\_Hamiltonian()}\spxextra{scrimp.dphs.DPHS method}|hyperpage}{64}
+\indexentry{get\_cleared\_TS\_options() (scrimp.dphs.DPHS method)@\spxentry{get\_cleared\_TS\_options()}\spxextra{scrimp.dphs.DPHS method}|hyperpage}{64}
+\indexentry{get\_quantity() (scrimp.dphs.DPHS method)@\spxentry{get\_quantity()}\spxextra{scrimp.dphs.DPHS method}|hyperpage}{64}
+\indexentry{get\_solution() (scrimp.dphs.DPHS method)@\spxentry{get\_solution()}\spxextra{scrimp.dphs.DPHS method}|hyperpage}{64}
+\indexentry{gf\_model (scrimp.dphs.DPHS attribute)@\spxentry{gf\_model}\spxextra{scrimp.dphs.DPHS attribute}|hyperpage}{64}
+\indexentry{hamiltonian (scrimp.dphs.DPHS attribute)@\spxentry{hamiltonian}\spxextra{scrimp.dphs.DPHS attribute}|hyperpage}{64}
+\indexentry{init\_parameter() (scrimp.dphs.DPHS method)@\spxentry{init\_parameter()}\spxextra{scrimp.dphs.DPHS method}|hyperpage}{64}
+\indexentry{init\_step() (scrimp.dphs.DPHS method)@\spxentry{init\_step()}\spxextra{scrimp.dphs.DPHS method}|hyperpage}{64}
+\indexentry{initial\_value\_set (scrimp.dphs.DPHS attribute)@\spxentry{initial\_value\_set}\spxextra{scrimp.dphs.DPHS attribute}|hyperpage}{64}
+\indexentry{linear\_mass (scrimp.dphs.DPHS attribute)@\spxentry{linear\_mass}\spxextra{scrimp.dphs.DPHS attribute}|hyperpage}{65}
+\indexentry{mass (scrimp.dphs.DPHS attribute)@\spxentry{mass}\spxextra{scrimp.dphs.DPHS attribute}|hyperpage}{65}
+\indexentry{monitor() (scrimp.dphs.DPHS method)@\spxentry{monitor()}\spxextra{scrimp.dphs.DPHS method}|hyperpage}{65}
+\indexentry{nl\_mass (scrimp.dphs.DPHS attribute)@\spxentry{nl\_mass}\spxextra{scrimp.dphs.DPHS attribute}|hyperpage}{65}
+\indexentry{nl\_stiffness (scrimp.dphs.DPHS attribute)@\spxentry{nl\_stiffness}\spxextra{scrimp.dphs.DPHS attribute}|hyperpage}{65}
+\indexentry{plot\_Hamiltonian() (scrimp.dphs.DPHS method)@\spxentry{plot\_Hamiltonian()}\spxextra{scrimp.dphs.DPHS method}|hyperpage}{65}
+\indexentry{plot\_powers() (scrimp.dphs.DPHS method)@\spxentry{plot\_powers()}\spxextra{scrimp.dphs.DPHS method}|hyperpage}{65}
+\indexentry{ports (scrimp.dphs.DPHS attribute)@\spxentry{ports}\spxextra{scrimp.dphs.DPHS attribute}|hyperpage}{65}
+\indexentry{postevent() (scrimp.dphs.DPHS method)@\spxentry{postevent()}\spxextra{scrimp.dphs.DPHS method}|hyperpage}{65}
+\indexentry{powers\_computed (scrimp.dphs.DPHS attribute)@\spxentry{powers\_computed}\spxextra{scrimp.dphs.DPHS attribute}|hyperpage}{65}
+\indexentry{rhs (scrimp.dphs.DPHS attribute)@\spxentry{rhs}\spxextra{scrimp.dphs.DPHS attribute}|hyperpage}{65}
+\indexentry{set\_control() (scrimp.dphs.DPHS method)@\spxentry{set\_control()}\spxextra{scrimp.dphs.DPHS method}|hyperpage}{65}
+\indexentry{set\_domain() (scrimp.dphs.DPHS method)@\spxentry{set\_domain()}\spxextra{scrimp.dphs.DPHS method}|hyperpage}{66}
+\indexentry{set\_from\_vector() (scrimp.dphs.DPHS method)@\spxentry{set\_from\_vector()}\spxextra{scrimp.dphs.DPHS method}|hyperpage}{66}
+\indexentry{set\_initial\_value() (scrimp.dphs.DPHS method)@\spxentry{set\_initial\_value()}\spxextra{scrimp.dphs.DPHS method}|hyperpage}{66}
+\indexentry{set\_linear\_flags() (scrimp.dphs.DPHS method)@\spxentry{set\_linear\_flags()}\spxextra{scrimp.dphs.DPHS method}|hyperpage}{66}
+\indexentry{set\_time\_scheme() (scrimp.dphs.DPHS method)@\spxentry{set\_time\_scheme()}\spxextra{scrimp.dphs.DPHS method}|hyperpage}{66}
+\indexentry{solution (scrimp.dphs.DPHS attribute)@\spxentry{solution}\spxextra{scrimp.dphs.DPHS attribute}|hyperpage}{66}
+\indexentry{solve() (scrimp.dphs.DPHS method)@\spxentry{solve()}\spxextra{scrimp.dphs.DPHS method}|hyperpage}{66}
+\indexentry{solve\_done (scrimp.dphs.DPHS attribute)@\spxentry{solve\_done}\spxextra{scrimp.dphs.DPHS attribute}|hyperpage}{66}
+\indexentry{spy\_Dirac() (scrimp.dphs.DPHS method)@\spxentry{spy\_Dirac()}\spxextra{scrimp.dphs.DPHS method}|hyperpage}{66}
+\indexentry{states (scrimp.dphs.DPHS attribute)@\spxentry{states}\spxextra{scrimp.dphs.DPHS attribute}|hyperpage}{66}
+\indexentry{stiffness (scrimp.dphs.DPHS attribute)@\spxentry{stiffness}\spxextra{scrimp.dphs.DPHS attribute}|hyperpage}{66}
+\indexentry{stop\_TS (scrimp.dphs.DPHS attribute)@\spxentry{stop\_TS}\spxextra{scrimp.dphs.DPHS attribute}|hyperpage}{66}
+\indexentry{tangent\_mass (scrimp.dphs.DPHS attribute)@\spxentry{tangent\_mass}\spxextra{scrimp.dphs.DPHS attribute}|hyperpage}{66}
+\indexentry{tangent\_stiffness (scrimp.dphs.DPHS attribute)@\spxentry{tangent\_stiffness}\spxextra{scrimp.dphs.DPHS attribute}|hyperpage}{67}
+\indexentry{ts\_start (scrimp.dphs.DPHS attribute)@\spxentry{ts\_start}\spxextra{scrimp.dphs.DPHS attribute}|hyperpage}{67}
+\indexentry{module@\spxentry{module}!scrimp.domain@\spxentry{scrimp.domain}|hyperpage}{67}
+\indexentry{scrimp.domain@\spxentry{scrimp.domain}!module@\spxentry{module}|hyperpage}{67}
+\indexentry{Domain (class in scrimp.domain)@\spxentry{Domain}\spxextra{class in scrimp.domain}|hyperpage}{67}
+\indexentry{display() (scrimp.domain.Domain method)@\spxentry{display()}\spxextra{scrimp.domain.Domain method}|hyperpage}{67}
+\indexentry{get\_boundaries() (scrimp.domain.Domain method)@\spxentry{get\_boundaries()}\spxextra{scrimp.domain.Domain method}|hyperpage}{67}
+\indexentry{get\_dim() (scrimp.domain.Domain method)@\spxentry{get\_dim()}\spxextra{scrimp.domain.Domain method}|hyperpage}{67}
+\indexentry{get\_isSet() (scrimp.domain.Domain method)@\spxentry{get\_isSet()}\spxextra{scrimp.domain.Domain method}|hyperpage}{67}
+\indexentry{get\_mesh() (scrimp.domain.Domain method)@\spxentry{get\_mesh()}\spxextra{scrimp.domain.Domain method}|hyperpage}{67}
+\indexentry{get\_name() (scrimp.domain.Domain method)@\spxentry{get\_name()}\spxextra{scrimp.domain.Domain method}|hyperpage}{67}
+\indexentry{get\_subdomains() (scrimp.domain.Domain method)@\spxentry{get\_subdomains()}\spxextra{scrimp.domain.Domain method}|hyperpage}{67}
+\indexentry{set\_mim\_auto() (scrimp.domain.Domain method)@\spxentry{set\_mim\_auto()}\spxextra{scrimp.domain.Domain method}|hyperpage}{68}
+\indexentry{module@\spxentry{module}!scrimp.hamiltonian@\spxentry{scrimp.hamiltonian}|hyperpage}{68}
+\indexentry{scrimp.hamiltonian@\spxentry{scrimp.hamiltonian}!module@\spxentry{module}|hyperpage}{68}
+\indexentry{Hamiltonian (class in scrimp.hamiltonian)@\spxentry{Hamiltonian}\spxextra{class in scrimp.hamiltonian}|hyperpage}{68}
+\indexentry{add\_term() (scrimp.hamiltonian.Hamiltonian method)@\spxentry{add\_term()}\spxextra{scrimp.hamiltonian.Hamiltonian method}|hyperpage}{68}
+\indexentry{compute() (scrimp.hamiltonian.Hamiltonian method)@\spxentry{compute()}\spxextra{scrimp.hamiltonian.Hamiltonian method}|hyperpage}{68}
+\indexentry{get\_is\_computed() (scrimp.hamiltonian.Hamiltonian method)@\spxentry{get\_is\_computed()}\spxextra{scrimp.hamiltonian.Hamiltonian method}|hyperpage}{68}
+\indexentry{get\_name() (scrimp.hamiltonian.Hamiltonian method)@\spxentry{get\_name()}\spxextra{scrimp.hamiltonian.Hamiltonian method}|hyperpage}{68}
+\indexentry{get\_terms() (scrimp.hamiltonian.Hamiltonian method)@\spxentry{get\_terms()}\spxextra{scrimp.hamiltonian.Hamiltonian method}|hyperpage}{68}
+\indexentry{set\_is\_computed() (scrimp.hamiltonian.Hamiltonian method)@\spxentry{set\_is\_computed()}\spxextra{scrimp.hamiltonian.Hamiltonian method}|hyperpage}{68}
+\indexentry{set\_name() (scrimp.hamiltonian.Hamiltonian method)@\spxentry{set\_name()}\spxextra{scrimp.hamiltonian.Hamiltonian method}|hyperpage}{68}
+\indexentry{Term (class in scrimp.hamiltonian)@\spxentry{Term}\spxextra{class in scrimp.hamiltonian}|hyperpage}{69}
+\indexentry{get\_description() (scrimp.hamiltonian.Term method)@\spxentry{get\_description()}\spxextra{scrimp.hamiltonian.Term method}|hyperpage}{69}
+\indexentry{get\_expression() (scrimp.hamiltonian.Term method)@\spxentry{get\_expression()}\spxextra{scrimp.hamiltonian.Term method}|hyperpage}{69}
+\indexentry{get\_mesh\_id() (scrimp.hamiltonian.Term method)@\spxentry{get\_mesh\_id()}\spxextra{scrimp.hamiltonian.Term method}|hyperpage}{69}
+\indexentry{get\_regions() (scrimp.hamiltonian.Term method)@\spxentry{get\_regions()}\spxextra{scrimp.hamiltonian.Term method}|hyperpage}{69}
+\indexentry{get\_values() (scrimp.hamiltonian.Term method)@\spxentry{get\_values()}\spxextra{scrimp.hamiltonian.Term method}|hyperpage}{69}
+\indexentry{set\_value() (scrimp.hamiltonian.Term method)@\spxentry{set\_value()}\spxextra{scrimp.hamiltonian.Term method}|hyperpage}{69}
+\indexentry{module@\spxentry{module}!scrimp.port@\spxentry{scrimp.port}|hyperpage}{69}
+\indexentry{scrimp.port@\spxentry{scrimp.port}!module@\spxentry{module}|hyperpage}{69}
+\indexentry{Parameter (class in scrimp.port)@\spxentry{Parameter}\spxextra{class in scrimp.port}|hyperpage}{69}
+\indexentry{get\_description() (scrimp.port.Parameter method)@\spxentry{get\_description()}\spxextra{scrimp.port.Parameter method}|hyperpage}{69}
+\indexentry{get\_expression() (scrimp.port.Parameter method)@\spxentry{get\_expression()}\spxextra{scrimp.port.Parameter method}|hyperpage}{70}
+\indexentry{get\_kind() (scrimp.port.Parameter method)@\spxentry{get\_kind()}\spxextra{scrimp.port.Parameter method}|hyperpage}{70}
+\indexentry{get\_name() (scrimp.port.Parameter method)@\spxentry{get\_name()}\spxextra{scrimp.port.Parameter method}|hyperpage}{70}
+\indexentry{get\_name\_port() (scrimp.port.Parameter method)@\spxentry{get\_name\_port()}\spxextra{scrimp.port.Parameter method}|hyperpage}{70}
+\indexentry{Port (class in scrimp.port)@\spxentry{Port}\spxextra{class in scrimp.port}|hyperpage}{70}
+\indexentry{add\_parameter() (scrimp.port.Port method)@\spxentry{add\_parameter()}\spxextra{scrimp.port.Port method}|hyperpage}{70}
+\indexentry{compute() (scrimp.port.Port method)@\spxentry{compute()}\spxextra{scrimp.port.Port method}|hyperpage}{70}
+\indexentry{get\_algebraic() (scrimp.port.Port method)@\spxentry{get\_algebraic()}\spxextra{scrimp.port.Port method}|hyperpage}{70}
+\indexentry{get\_dissipative() (scrimp.port.Port method)@\spxentry{get\_dissipative()}\spxextra{scrimp.port.Port method}|hyperpage}{71}
+\indexentry{get\_effort() (scrimp.port.Port method)@\spxentry{get\_effort()}\spxextra{scrimp.port.Port method}|hyperpage}{71}
+\indexentry{get\_fem() (scrimp.port.Port method)@\spxentry{get\_fem()}\spxextra{scrimp.port.Port method}|hyperpage}{71}
+\indexentry{get\_flow() (scrimp.port.Port method)@\spxentry{get\_flow()}\spxextra{scrimp.port.Port method}|hyperpage}{71}
+\indexentry{get\_isSet() (scrimp.port.Port method)@\spxentry{get\_isSet()}\spxextra{scrimp.port.Port method}|hyperpage}{71}
+\indexentry{get\_is\_computed() (scrimp.port.Port method)@\spxentry{get\_is\_computed()}\spxextra{scrimp.port.Port method}|hyperpage}{71}
+\indexentry{get\_kind() (scrimp.port.Port method)@\spxentry{get\_kind()}\spxextra{scrimp.port.Port method}|hyperpage}{71}
+\indexentry{get\_mesh\_id() (scrimp.port.Port method)@\spxentry{get\_mesh\_id()}\spxextra{scrimp.port.Port method}|hyperpage}{71}
+\indexentry{get\_name() (scrimp.port.Port method)@\spxentry{get\_name()}\spxextra{scrimp.port.Port method}|hyperpage}{71}
+\indexentry{get\_parameter() (scrimp.port.Port method)@\spxentry{get\_parameter()}\spxextra{scrimp.port.Port method}|hyperpage}{72}
+\indexentry{get\_parameters() (scrimp.port.Port method)@\spxentry{get\_parameters()}\spxextra{scrimp.port.Port method}|hyperpage}{72}
+\indexentry{get\_power() (scrimp.port.Port method)@\spxentry{get\_power()}\spxextra{scrimp.port.Port method}|hyperpage}{72}
+\indexentry{get\_region() (scrimp.port.Port method)@\spxentry{get\_region()}\spxextra{scrimp.port.Port method}|hyperpage}{72}
+\indexentry{get\_substituted() (scrimp.port.Port method)@\spxentry{get\_substituted()}\spxextra{scrimp.port.Port method}|hyperpage}{72}
+\indexentry{init\_parameter() (scrimp.port.Port method)@\spxentry{init\_parameter()}\spxextra{scrimp.port.Port method}|hyperpage}{72}
+\indexentry{set\_fem() (scrimp.port.Port method)@\spxentry{set\_fem()}\spxextra{scrimp.port.Port method}|hyperpage}{72}
+\indexentry{set\_isSet() (scrimp.port.Port method)@\spxentry{set\_isSet()}\spxextra{scrimp.port.Port method}|hyperpage}{72}
+\indexentry{set\_is\_computed() (scrimp.port.Port method)@\spxentry{set\_is\_computed()}\spxextra{scrimp.port.Port method}|hyperpage}{72}
+\indexentry{set\_power() (scrimp.port.Port method)@\spxentry{set\_power()}\spxextra{scrimp.port.Port method}|hyperpage}{72}
+\indexentry{module@\spxentry{module}!scrimp.state@\spxentry{scrimp.state}|hyperpage}{73}
+\indexentry{scrimp.state@\spxentry{scrimp.state}!module@\spxentry{module}|hyperpage}{73}
+\indexentry{State (class in scrimp.state)@\spxentry{State}\spxextra{class in scrimp.state}|hyperpage}{73}
+\indexentry{get\_costate() (scrimp.state.State method)@\spxentry{get\_costate()}\spxextra{scrimp.state.State method}|hyperpage}{73}
+\indexentry{get\_description() (scrimp.state.State method)@\spxentry{get\_description()}\spxextra{scrimp.state.State method}|hyperpage}{73}
+\indexentry{get\_kind() (scrimp.state.State method)@\spxentry{get\_kind()}\spxextra{scrimp.state.State method}|hyperpage}{73}
+\indexentry{get\_mesh\_id() (scrimp.state.State method)@\spxentry{get\_mesh\_id()}\spxextra{scrimp.state.State method}|hyperpage}{73}
+\indexentry{get\_name() (scrimp.state.State method)@\spxentry{get\_name()}\spxextra{scrimp.state.State method}|hyperpage}{73}
+\indexentry{get\_port() (scrimp.state.State method)@\spxentry{get\_port()}\spxextra{scrimp.state.State method}|hyperpage}{73}
+\indexentry{get\_region() (scrimp.state.State method)@\spxentry{get\_region()}\spxextra{scrimp.state.State method}|hyperpage}{73}
+\indexentry{set\_costate() (scrimp.state.State method)@\spxentry{set\_costate()}\spxextra{scrimp.state.State method}|hyperpage}{73}
+\indexentry{set\_port() (scrimp.state.State method)@\spxentry{set\_port()}\spxextra{scrimp.state.State method}|hyperpage}{73}
+\indexentry{module@\spxentry{module}!scrimp.costate@\spxentry{scrimp.costate}|hyperpage}{74}
+\indexentry{scrimp.costate@\spxentry{scrimp.costate}!module@\spxentry{module}|hyperpage}{74}
+\indexentry{CoState (class in scrimp.costate)@\spxentry{CoState}\spxextra{class in scrimp.costate}|hyperpage}{74}
+\indexentry{get\_state() (scrimp.costate.CoState method)@\spxentry{get\_state()}\spxextra{scrimp.costate.CoState method}|hyperpage}{74}
+\indexentry{get\_substituted() (scrimp.costate.CoState method)@\spxentry{get\_substituted()}\spxextra{scrimp.costate.CoState method}|hyperpage}{74}
+\indexentry{module@\spxentry{module}!scrimp.control@\spxentry{scrimp.control}|hyperpage}{74}
+\indexentry{scrimp.control@\spxentry{scrimp.control}!module@\spxentry{module}|hyperpage}{74}
+\indexentry{Control\_Port (class in scrimp.control)@\spxentry{Control\_Port}\spxextra{class in scrimp.control}|hyperpage}{74}
+\indexentry{get\_description\_control() (scrimp.control.Control\_Port method)@\spxentry{get\_description\_control()}\spxextra{scrimp.control.Control\_Port method}|hyperpage}{74}
+\indexentry{get\_description\_observation() (scrimp.control.Control\_Port method)@\spxentry{get\_description\_observation()}\spxextra{scrimp.control.Control\_Port method}|hyperpage}{74}
+\indexentry{get\_name\_control() (scrimp.control.Control\_Port method)@\spxentry{get\_name\_control()}\spxextra{scrimp.control.Control\_Port method}|hyperpage}{75}
+\indexentry{get\_name\_obervation() (scrimp.control.Control\_Port method)@\spxentry{get\_name\_obervation()}\spxextra{scrimp.control.Control\_Port method}|hyperpage}{75}
+\indexentry{get\_position() (scrimp.control.Control\_Port method)@\spxentry{get\_position()}\spxextra{scrimp.control.Control\_Port method}|hyperpage}{75}
+\indexentry{module@\spxentry{module}!scrimp.fem@\spxentry{scrimp.fem}|hyperpage}{75}
+\indexentry{scrimp.fem@\spxentry{scrimp.fem}!module@\spxentry{module}|hyperpage}{75}
+\indexentry{FEM (class in scrimp.fem)@\spxentry{FEM}\spxextra{class in scrimp.fem}|hyperpage}{75}
+\indexentry{get\_dim() (scrimp.fem.FEM method)@\spxentry{get\_dim()}\spxextra{scrimp.fem.FEM method}|hyperpage}{75}
+\indexentry{get\_fem() (scrimp.fem.FEM method)@\spxentry{get\_fem()}\spxextra{scrimp.fem.FEM method}|hyperpage}{75}
+\indexentry{get\_isSet() (scrimp.fem.FEM method)@\spxentry{get\_isSet()}\spxextra{scrimp.fem.FEM method}|hyperpage}{75}
+\indexentry{get\_mesh() (scrimp.fem.FEM method)@\spxentry{get\_mesh()}\spxextra{scrimp.fem.FEM method}|hyperpage}{75}
+\indexentry{get\_name() (scrimp.fem.FEM method)@\spxentry{get\_name()}\spxextra{scrimp.fem.FEM method}|hyperpage}{76}
+\indexentry{get\_order() (scrimp.fem.FEM method)@\spxentry{get\_order()}\spxextra{scrimp.fem.FEM method}|hyperpage}{76}
+\indexentry{get\_type() (scrimp.fem.FEM method)@\spxentry{get\_type()}\spxextra{scrimp.fem.FEM method}|hyperpage}{76}
+\indexentry{set\_dim() (scrimp.fem.FEM method)@\spxentry{set\_dim()}\spxextra{scrimp.fem.FEM method}|hyperpage}{76}
+\indexentry{set\_fem() (scrimp.fem.FEM method)@\spxentry{set\_fem()}\spxextra{scrimp.fem.FEM method}|hyperpage}{76}
+\indexentry{set\_mesh() (scrimp.fem.FEM method)@\spxentry{set\_mesh()}\spxextra{scrimp.fem.FEM method}|hyperpage}{76}
+\indexentry{module@\spxentry{module}!scrimp.brick@\spxentry{scrimp.brick}|hyperpage}{76}
+\indexentry{scrimp.brick@\spxentry{scrimp.brick}!module@\spxentry{module}|hyperpage}{76}
+\indexentry{Brick (class in scrimp.brick)@\spxentry{Brick}\spxextra{class in scrimp.brick}|hyperpage}{76}
+\indexentry{add\_id\_brick\_to\_list() (scrimp.brick.Brick method)@\spxentry{add\_id\_brick\_to\_list()}\spxextra{scrimp.brick.Brick method}|hyperpage}{76}
+\indexentry{disable\_id\_bricks() (scrimp.brick.Brick method)@\spxentry{disable\_id\_bricks()}\spxextra{scrimp.brick.Brick method}|hyperpage}{77}
+\indexentry{enable\_id\_bricks() (scrimp.brick.Brick method)@\spxentry{enable\_id\_bricks()}\spxextra{scrimp.brick.Brick method}|hyperpage}{77}
+\indexentry{get\_dt() (scrimp.brick.Brick method)@\spxentry{get\_dt()}\spxextra{scrimp.brick.Brick method}|hyperpage}{77}
+\indexentry{get\_explicit() (scrimp.brick.Brick method)@\spxentry{get\_explicit()}\spxextra{scrimp.brick.Brick method}|hyperpage}{77}
+\indexentry{get\_form() (scrimp.brick.Brick method)@\spxentry{get\_form()}\spxextra{scrimp.brick.Brick method}|hyperpage}{77}
+\indexentry{get\_id\_bricks() (scrimp.brick.Brick method)@\spxentry{get\_id\_bricks()}\spxextra{scrimp.brick.Brick method}|hyperpage}{77}
+\indexentry{get\_linear() (scrimp.brick.Brick method)@\spxentry{get\_linear()}\spxextra{scrimp.brick.Brick method}|hyperpage}{77}
+\indexentry{get\_mesh\_id() (scrimp.brick.Brick method)@\spxentry{get\_mesh\_id()}\spxextra{scrimp.brick.Brick method}|hyperpage}{77}
+\indexentry{get\_name() (scrimp.brick.Brick method)@\spxentry{get\_name()}\spxextra{scrimp.brick.Brick method}|hyperpage}{77}
+\indexentry{get\_position() (scrimp.brick.Brick method)@\spxentry{get\_position()}\spxextra{scrimp.brick.Brick method}|hyperpage}{77}
+\indexentry{get\_regions() (scrimp.brick.Brick method)@\spxentry{get\_regions()}\spxextra{scrimp.brick.Brick method}|hyperpage}{77}

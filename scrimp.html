@@ -1,0 +1,1991 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Code documentation &mdash; SCRIMP 1.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=19f00094" />
+
+  
+    <link rel="shortcut icon" href="_static/Logo-ico.png"/>
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="_static/jquery.js?v=5d32c60e"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="_static/documentation_options.js?v=56dcb7b8"></script>
+        <script src="_static/doctools.js?v=9a2dae69"></script>
+        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="scrimp.examples" href="scrimp.examples.html" />
+    <link rel="prev" title="Bibliography" href="biblio.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            SCRIMP
+              <img src="_static/Logo.png" class="logo" alt="Logo"/>
+          </a>
+              <div class="version">
+                1.1.1
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="install.html">How to install</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="install.html#anaconda">Anaconda</a></li>
+<li class="toctree-l2"><a class="reference internal" href="install.html#tests">Tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="install.html#code-structure">Code structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="install.html#documentation">Documentation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="started.html">Getting started</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="started.html#port-hamiltonian-framework">Port-Hamiltonian framework</a></li>
+<li class="toctree-l2"><a class="reference internal" href="started.html#structure-preserving-discretization">Structure-preserving discretization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="started.html#coding-within-scrimp">Coding within SCRIMP</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="examples.html">Examples</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="examples/wave.html">The wave equation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave.html#examples.wave.wave_eq"><code class="docutils literal notranslate"><span class="pre">wave_eq()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave.html#examples.wave_dissipative.wave_eq"><code class="docutils literal notranslate"><span class="pre">wave_eq()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave.html#setting">Setting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave.html#port-hamiltonian-framework">Port-Hamiltonian framework</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave.html#structure-preserving-discretization">Structure-preserving discretization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave.html#simulation">Simulation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave.html#adding-damping-to-the-dphs">Adding Damping to the dphs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave.html#another-simulation">Another simulation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="examples/heat.html">The heat equation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat.html#examples.heat.heat_eq"><code class="docutils literal notranslate"><span class="pre">heat_eq()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat.html#setting">Setting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat.html#port-hamiltonian-framework">Port-Hamiltonian framework</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat.html#structure-preserving-discretization">Structure-preserving discretization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat.html#simulation">Simulation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="examples/wave_coenergy.html">Another wave equation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave_coenergy.html#examples.wave_coenergy.wave_coenergy_eq"><code class="docutils literal notranslate"><span class="pre">wave_coenergy_eq()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave_coenergy.html#setting">Setting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave_coenergy.html#substitutions">Substitutions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave_coenergy.html#simulation">Simulation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="examples/heat_wave.html">Heat wave coupling</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat_wave.html#examples.heat_wave.heat_wave_eq"><code class="docutils literal notranslate"><span class="pre">heat_wave_eq()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat_wave.html#setting">Setting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat_wave.html#port-hamiltonian-framework">Port-Hamiltonian framework</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat_wave.html#structure-preserving-discretization">Structure-preserving discretization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat_wave.html#simulation">Simulation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="examples/shallow_water.html">The shallow water equation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="examples/shallow_water.html#examples.shallow_water.shallow_water_eq"><code class="docutils literal notranslate"><span class="pre">shallow_water_eq()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/shallow_water.html#setting">Setting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/shallow_water.html#port-hamiltonian-framework">Port-Hamiltonian framework</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/shallow_water.html#structure-preserving-discretization">Structure-preserving discretization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/shallow_water.html#simulation">Simulation</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks.html">Notebooks</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="notebooks.html#install-jupyter">Install jupyter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="notebooks.html#run-jupyter">Run jupyter</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="GUI.html">Graphical User Interface</a></li>
+<li class="toctree-l1"><a class="reference internal" href="biblio.html">References</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="biblio.html#articles">Articles</a></li>
+<li class="toctree-l2"><a class="reference internal" href="biblio.html#book-chapters">Book Chapters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="biblio.html#proceedings">Proceedings</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Code documentation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#folders">Folders</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="scrimp.examples.html">scrimp.examples</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.examples.html#wave">Wave</a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.examples.html#heat">Heat</a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.examples.html#heat-wave-coupling">Heat-Wave coupling</a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.examples.html#shallow-water">Shallow water</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="scrimp.utils.html">scrimp.utils</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.utils.html#module-scrimp.utils.config">Config</a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.utils.html#module-scrimp.utils.linalg">Linear algebra</a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.utils.html#module-scrimp.utils.mesh">Mesh</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="scrimp.sandbox.html">scrimp.sandbox</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#module-scrimp.dphs">Distributed port-Hamiltonian system</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#scrimp.dphs.DPHS"><code class="docutils literal notranslate"><span class="pre">DPHS</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.F"><code class="docutils literal notranslate"><span class="pre">DPHS.F</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.IFunction"><code class="docutils literal notranslate"><span class="pre">DPHS.IFunction()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.IJacobian"><code class="docutils literal notranslate"><span class="pre">DPHS.IJacobian()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.J"><code class="docutils literal notranslate"><span class="pre">DPHS.J</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.add_FEM"><code class="docutils literal notranslate"><span class="pre">DPHS.add_FEM()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.add_brick"><code class="docutils literal notranslate"><span class="pre">DPHS.add_brick()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.add_control_port"><code class="docutils literal notranslate"><span class="pre">DPHS.add_control_port()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.add_costate"><code class="docutils literal notranslate"><span class="pre">DPHS.add_costate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.add_parameter"><code class="docutils literal notranslate"><span class="pre">DPHS.add_parameter()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.add_port"><code class="docutils literal notranslate"><span class="pre">DPHS.add_port()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.add_state"><code class="docutils literal notranslate"><span class="pre">DPHS.add_state()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.allocate_memory"><code class="docutils literal notranslate"><span class="pre">DPHS.allocate_memory()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.assemble_mass"><code class="docutils literal notranslate"><span class="pre">DPHS.assemble_mass()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.assemble_nl_mass"><code class="docutils literal notranslate"><span class="pre">DPHS.assemble_nl_mass()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.assemble_nl_stiffness"><code class="docutils literal notranslate"><span class="pre">DPHS.assemble_nl_stiffness()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.assemble_rhs"><code class="docutils literal notranslate"><span class="pre">DPHS.assemble_rhs()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.assemble_stiffness"><code class="docutils literal notranslate"><span class="pre">DPHS.assemble_stiffness()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.bricks"><code class="docutils literal notranslate"><span class="pre">DPHS.bricks</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.buffer"><code class="docutils literal notranslate"><span class="pre">DPHS.buffer</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.compute_Hamiltonian"><code class="docutils literal notranslate"><span class="pre">DPHS.compute_Hamiltonian()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.compute_powers"><code class="docutils literal notranslate"><span class="pre">DPHS.compute_powers()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.controls"><code class="docutils literal notranslate"><span class="pre">DPHS.controls</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.costates"><code class="docutils literal notranslate"><span class="pre">DPHS.costates</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.disable_all_bricks"><code class="docutils literal notranslate"><span class="pre">DPHS.disable_all_bricks()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.display"><code class="docutils literal notranslate"><span class="pre">DPHS.display()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.domain"><code class="docutils literal notranslate"><span class="pre">DPHS.domain</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.enable_all_bricks"><code class="docutils literal notranslate"><span class="pre">DPHS.enable_all_bricks()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.event"><code class="docutils literal notranslate"><span class="pre">DPHS.event()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.exclude_algebraic_var_from_lte"><code class="docutils literal notranslate"><span class="pre">DPHS.exclude_algebraic_var_from_lte()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.export_matrices"><code class="docutils literal notranslate"><span class="pre">DPHS.export_matrices()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.export_to_pv"><code class="docutils literal notranslate"><span class="pre">DPHS.export_to_pv()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.get_Hamiltonian"><code class="docutils literal notranslate"><span class="pre">DPHS.get_Hamiltonian()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.get_cleared_TS_options"><code class="docutils literal notranslate"><span class="pre">DPHS.get_cleared_TS_options()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.get_quantity"><code class="docutils literal notranslate"><span class="pre">DPHS.get_quantity()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.get_solution"><code class="docutils literal notranslate"><span class="pre">DPHS.get_solution()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.gf_model"><code class="docutils literal notranslate"><span class="pre">DPHS.gf_model</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.hamiltonian"><code class="docutils literal notranslate"><span class="pre">DPHS.hamiltonian</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.init_parameter"><code class="docutils literal notranslate"><span class="pre">DPHS.init_parameter()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.init_step"><code class="docutils literal notranslate"><span class="pre">DPHS.init_step()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.initial_value_set"><code class="docutils literal notranslate"><span class="pre">DPHS.initial_value_set</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.linear_mass"><code class="docutils literal notranslate"><span class="pre">DPHS.linear_mass</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.mass"><code class="docutils literal notranslate"><span class="pre">DPHS.mass</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.monitor"><code class="docutils literal notranslate"><span class="pre">DPHS.monitor()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.nl_mass"><code class="docutils literal notranslate"><span class="pre">DPHS.nl_mass</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.nl_stiffness"><code class="docutils literal notranslate"><span class="pre">DPHS.nl_stiffness</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.plot_Hamiltonian"><code class="docutils literal notranslate"><span class="pre">DPHS.plot_Hamiltonian()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.plot_powers"><code class="docutils literal notranslate"><span class="pre">DPHS.plot_powers()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.ports"><code class="docutils literal notranslate"><span class="pre">DPHS.ports</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.postevent"><code class="docutils literal notranslate"><span class="pre">DPHS.postevent()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.powers_computed"><code class="docutils literal notranslate"><span class="pre">DPHS.powers_computed</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.rhs"><code class="docutils literal notranslate"><span class="pre">DPHS.rhs</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.set_control"><code class="docutils literal notranslate"><span class="pre">DPHS.set_control()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.set_domain"><code class="docutils literal notranslate"><span class="pre">DPHS.set_domain()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.set_from_vector"><code class="docutils literal notranslate"><span class="pre">DPHS.set_from_vector()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.set_initial_value"><code class="docutils literal notranslate"><span class="pre">DPHS.set_initial_value()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.set_linear_flags"><code class="docutils literal notranslate"><span class="pre">DPHS.set_linear_flags()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.set_time_scheme"><code class="docutils literal notranslate"><span class="pre">DPHS.set_time_scheme()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.solution"><code class="docutils literal notranslate"><span class="pre">DPHS.solution</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.solve"><code class="docutils literal notranslate"><span class="pre">DPHS.solve()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.solve_done"><code class="docutils literal notranslate"><span class="pre">DPHS.solve_done</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.spy_Dirac"><code class="docutils literal notranslate"><span class="pre">DPHS.spy_Dirac()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.states"><code class="docutils literal notranslate"><span class="pre">DPHS.states</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.stiffness"><code class="docutils literal notranslate"><span class="pre">DPHS.stiffness</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.stop_TS"><code class="docutils literal notranslate"><span class="pre">DPHS.stop_TS</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.tangent_mass"><code class="docutils literal notranslate"><span class="pre">DPHS.tangent_mass</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.tangent_stiffness"><code class="docutils literal notranslate"><span class="pre">DPHS.tangent_stiffness</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.dphs.DPHS.ts_start"><code class="docutils literal notranslate"><span class="pre">DPHS.ts_start</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#module-scrimp.domain">Domain</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#scrimp.domain.Domain"><code class="docutils literal notranslate"><span class="pre">Domain</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.domain.Domain.display"><code class="docutils literal notranslate"><span class="pre">Domain.display()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.domain.Domain.get_boundaries"><code class="docutils literal notranslate"><span class="pre">Domain.get_boundaries()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.domain.Domain.get_dim"><code class="docutils literal notranslate"><span class="pre">Domain.get_dim()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.domain.Domain.get_isSet"><code class="docutils literal notranslate"><span class="pre">Domain.get_isSet()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.domain.Domain.get_mesh"><code class="docutils literal notranslate"><span class="pre">Domain.get_mesh()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.domain.Domain.get_name"><code class="docutils literal notranslate"><span class="pre">Domain.get_name()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.domain.Domain.get_subdomains"><code class="docutils literal notranslate"><span class="pre">Domain.get_subdomains()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.domain.Domain.set_mim_auto"><code class="docutils literal notranslate"><span class="pre">Domain.set_mim_auto()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#module-scrimp.hamiltonian">Hamiltonian / Term</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#scrimp.hamiltonian.Hamiltonian"><code class="docutils literal notranslate"><span class="pre">Hamiltonian</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.hamiltonian.Hamiltonian.add_term"><code class="docutils literal notranslate"><span class="pre">Hamiltonian.add_term()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.hamiltonian.Hamiltonian.compute"><code class="docutils literal notranslate"><span class="pre">Hamiltonian.compute()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.hamiltonian.Hamiltonian.get_is_computed"><code class="docutils literal notranslate"><span class="pre">Hamiltonian.get_is_computed()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.hamiltonian.Hamiltonian.get_name"><code class="docutils literal notranslate"><span class="pre">Hamiltonian.get_name()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.hamiltonian.Hamiltonian.get_terms"><code class="docutils literal notranslate"><span class="pre">Hamiltonian.get_terms()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.hamiltonian.Hamiltonian.set_is_computed"><code class="docutils literal notranslate"><span class="pre">Hamiltonian.set_is_computed()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.hamiltonian.Hamiltonian.set_name"><code class="docutils literal notranslate"><span class="pre">Hamiltonian.set_name()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#scrimp.hamiltonian.Term"><code class="docutils literal notranslate"><span class="pre">Term</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.hamiltonian.Term.get_description"><code class="docutils literal notranslate"><span class="pre">Term.get_description()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.hamiltonian.Term.get_expression"><code class="docutils literal notranslate"><span class="pre">Term.get_expression()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.hamiltonian.Term.get_mesh_id"><code class="docutils literal notranslate"><span class="pre">Term.get_mesh_id()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.hamiltonian.Term.get_regions"><code class="docutils literal notranslate"><span class="pre">Term.get_regions()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.hamiltonian.Term.get_values"><code class="docutils literal notranslate"><span class="pre">Term.get_values()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.hamiltonian.Term.set_value"><code class="docutils literal notranslate"><span class="pre">Term.set_value()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#module-scrimp.port">Port / Parameter</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#scrimp.port.Parameter"><code class="docutils literal notranslate"><span class="pre">Parameter</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.port.Parameter.get_description"><code class="docutils literal notranslate"><span class="pre">Parameter.get_description()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.port.Parameter.get_expression"><code class="docutils literal notranslate"><span class="pre">Parameter.get_expression()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.port.Parameter.get_kind"><code class="docutils literal notranslate"><span class="pre">Parameter.get_kind()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.port.Parameter.get_name"><code class="docutils literal notranslate"><span class="pre">Parameter.get_name()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.port.Parameter.get_name_port"><code class="docutils literal notranslate"><span class="pre">Parameter.get_name_port()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#scrimp.port.Port"><code class="docutils literal notranslate"><span class="pre">Port</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.port.Port.add_parameter"><code class="docutils literal notranslate"><span class="pre">Port.add_parameter()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.port.Port.compute"><code class="docutils literal notranslate"><span class="pre">Port.compute()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.port.Port.get_algebraic"><code class="docutils literal notranslate"><span class="pre">Port.get_algebraic()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.port.Port.get_dissipative"><code class="docutils literal notranslate"><span class="pre">Port.get_dissipative()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.port.Port.get_effort"><code class="docutils literal notranslate"><span class="pre">Port.get_effort()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.port.Port.get_fem"><code class="docutils literal notranslate"><span class="pre">Port.get_fem()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.port.Port.get_flow"><code class="docutils literal notranslate"><span class="pre">Port.get_flow()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.port.Port.get_isSet"><code class="docutils literal notranslate"><span class="pre">Port.get_isSet()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.port.Port.get_is_computed"><code class="docutils literal notranslate"><span class="pre">Port.get_is_computed()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.port.Port.get_kind"><code class="docutils literal notranslate"><span class="pre">Port.get_kind()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.port.Port.get_mesh_id"><code class="docutils literal notranslate"><span class="pre">Port.get_mesh_id()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.port.Port.get_name"><code class="docutils literal notranslate"><span class="pre">Port.get_name()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.port.Port.get_parameter"><code class="docutils literal notranslate"><span class="pre">Port.get_parameter()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.port.Port.get_parameters"><code class="docutils literal notranslate"><span class="pre">Port.get_parameters()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.port.Port.get_power"><code class="docutils literal notranslate"><span class="pre">Port.get_power()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.port.Port.get_region"><code class="docutils literal notranslate"><span class="pre">Port.get_region()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.port.Port.get_substituted"><code class="docutils literal notranslate"><span class="pre">Port.get_substituted()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.port.Port.init_parameter"><code class="docutils literal notranslate"><span class="pre">Port.init_parameter()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.port.Port.set_fem"><code class="docutils literal notranslate"><span class="pre">Port.set_fem()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.port.Port.set_isSet"><code class="docutils literal notranslate"><span class="pre">Port.set_isSet()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.port.Port.set_is_computed"><code class="docutils literal notranslate"><span class="pre">Port.set_is_computed()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.port.Port.set_power"><code class="docutils literal notranslate"><span class="pre">Port.set_power()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#module-scrimp.state">State</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#scrimp.state.State"><code class="docutils literal notranslate"><span class="pre">State</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.state.State.get_costate"><code class="docutils literal notranslate"><span class="pre">State.get_costate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.state.State.get_description"><code class="docutils literal notranslate"><span class="pre">State.get_description()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.state.State.get_kind"><code class="docutils literal notranslate"><span class="pre">State.get_kind()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.state.State.get_mesh_id"><code class="docutils literal notranslate"><span class="pre">State.get_mesh_id()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.state.State.get_name"><code class="docutils literal notranslate"><span class="pre">State.get_name()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.state.State.get_port"><code class="docutils literal notranslate"><span class="pre">State.get_port()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.state.State.get_region"><code class="docutils literal notranslate"><span class="pre">State.get_region()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.state.State.set_costate"><code class="docutils literal notranslate"><span class="pre">State.set_costate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.state.State.set_port"><code class="docutils literal notranslate"><span class="pre">State.set_port()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#module-scrimp.costate">Co-state</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#scrimp.costate.CoState"><code class="docutils literal notranslate"><span class="pre">CoState</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.costate.CoState.get_state"><code class="docutils literal notranslate"><span class="pre">CoState.get_state()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.costate.CoState.get_substituted"><code class="docutils literal notranslate"><span class="pre">CoState.get_substituted()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#module-scrimp.control">Control</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#scrimp.control.Control_Port"><code class="docutils literal notranslate"><span class="pre">Control_Port</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.control.Control_Port.get_description_control"><code class="docutils literal notranslate"><span class="pre">Control_Port.get_description_control()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.control.Control_Port.get_description_observation"><code class="docutils literal notranslate"><span class="pre">Control_Port.get_description_observation()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.control.Control_Port.get_name_control"><code class="docutils literal notranslate"><span class="pre">Control_Port.get_name_control()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.control.Control_Port.get_name_obervation"><code class="docutils literal notranslate"><span class="pre">Control_Port.get_name_obervation()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.control.Control_Port.get_position"><code class="docutils literal notranslate"><span class="pre">Control_Port.get_position()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#module-scrimp.fem">FEM</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#scrimp.fem.FEM"><code class="docutils literal notranslate"><span class="pre">FEM</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.fem.FEM.get_dim"><code class="docutils literal notranslate"><span class="pre">FEM.get_dim()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.fem.FEM.get_fem"><code class="docutils literal notranslate"><span class="pre">FEM.get_fem()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.fem.FEM.get_isSet"><code class="docutils literal notranslate"><span class="pre">FEM.get_isSet()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.fem.FEM.get_mesh"><code class="docutils literal notranslate"><span class="pre">FEM.get_mesh()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.fem.FEM.get_name"><code class="docutils literal notranslate"><span class="pre">FEM.get_name()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.fem.FEM.get_order"><code class="docutils literal notranslate"><span class="pre">FEM.get_order()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.fem.FEM.get_type"><code class="docutils literal notranslate"><span class="pre">FEM.get_type()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.fem.FEM.set_dim"><code class="docutils literal notranslate"><span class="pre">FEM.set_dim()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.fem.FEM.set_fem"><code class="docutils literal notranslate"><span class="pre">FEM.set_fem()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.fem.FEM.set_mesh"><code class="docutils literal notranslate"><span class="pre">FEM.set_mesh()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#module-scrimp.brick">Brick</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#scrimp.brick.Brick"><code class="docutils literal notranslate"><span class="pre">Brick</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.brick.Brick.add_id_brick_to_list"><code class="docutils literal notranslate"><span class="pre">Brick.add_id_brick_to_list()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.brick.Brick.disable_id_bricks"><code class="docutils literal notranslate"><span class="pre">Brick.disable_id_bricks()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.brick.Brick.enable_id_bricks"><code class="docutils literal notranslate"><span class="pre">Brick.enable_id_bricks()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.brick.Brick.get_dt"><code class="docutils literal notranslate"><span class="pre">Brick.get_dt()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.brick.Brick.get_explicit"><code class="docutils literal notranslate"><span class="pre">Brick.get_explicit()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.brick.Brick.get_form"><code class="docutils literal notranslate"><span class="pre">Brick.get_form()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.brick.Brick.get_id_bricks"><code class="docutils literal notranslate"><span class="pre">Brick.get_id_bricks()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.brick.Brick.get_linear"><code class="docutils literal notranslate"><span class="pre">Brick.get_linear()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.brick.Brick.get_mesh_id"><code class="docutils literal notranslate"><span class="pre">Brick.get_mesh_id()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.brick.Brick.get_name"><code class="docutils literal notranslate"><span class="pre">Brick.get_name()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.brick.Brick.get_position"><code class="docutils literal notranslate"><span class="pre">Brick.get_position()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#scrimp.brick.Brick.get_regions"><code class="docutils literal notranslate"><span class="pre">Brick.get_regions()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference external" href="https://impacts.ens2m.fr/">ANR Impacts</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/g-haine/scrimp">GitHub repo</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://g-haine.github.io/scrimp/latex/scrimp.pdf">PDF documentation</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">SCRIMP</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Code documentation</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/scrimp.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="code-documentation">
+<h1>Code documentation<a class="headerlink" href="#code-documentation" title="Link to this heading"></a></h1>
+<p>This part of the documentation is generated automatically from the python source using <a class="reference external" href="https://www.sphinx-doc.org/en/master/">SPHINX</a>.</p>
+<section id="folders">
+<h2>Folders<a class="headerlink" href="#folders" title="Link to this heading"></a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="scrimp.examples.html">scrimp.examples</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.examples.html#wave">Wave</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.examples.html#heat">Heat</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.examples.html#heat-wave-coupling">Heat-Wave coupling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.examples.html#shallow-water">Shallow water</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="scrimp.utils.html">scrimp.utils</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.utils.html#module-scrimp.utils.config">Config</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.utils.html#module-scrimp.utils.linalg">Linear algebra</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.utils.html#module-scrimp.utils.mesh">Mesh</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="scrimp.sandbox.html">scrimp.sandbox</a></li>
+</ul>
+</div>
+</section>
+<section id="module-scrimp.dphs">
+<span id="distributed-port-hamiltonian-system"></span><h2>Distributed port-Hamiltonian system<a class="headerlink" href="#module-scrimp.dphs" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>file:             dphs.py</p></li>
+<li><p>authors:          Giuseppe Ferraro, Ghislain Haine, Florian Monteghetti</p></li>
+<li><p>date:             22 nov. 2022</p></li>
+<li><p>brief:            class for distributed port-Hamiltonian system</p></li>
+</ul>
+<dl class="py class">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">scrimp.dphs.</span></span><span class="sig-name descname"><span class="pre">DPHS</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">basis_field</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'real'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.dphs.DPHS" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>A generic class handling distributed pHs using the GetFEM tools</p>
+<p>This is a wrapper in order to simplify the coding process</p>
+<p>Access to fine tunings is preserved as much as possible</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.F">
+<span class="sig-name descname"><span class="pre">F</span></span><a class="headerlink" href="#scrimp.dphs.DPHS.F" title="Link to this definition"></a></dt>
+<dd><p>A PETSc Vec for residual computation</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.IFunction">
+<span class="sig-name descname"><span class="pre">IFunction</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">TS</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">zd</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">F</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.dphs.DPHS.IFunction" title="Link to this definition"></a></dt>
+<dd><p>IFunction for the time-resolution of the dphs with PETSc TS fully implicit integrator</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>TS (PETSc TS): the PETSc TS object handling time-resolution
+t (float): time parameter
+z (PETSc Vec): the state
+zd (PETSc Vec): the time-derivative of the state
+F (PETSc Vec): the rhs vector</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.IJacobian">
+<span class="sig-name descname"><span class="pre">IJacobian</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">TS</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">zd</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sig</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">A</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">P</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.dphs.DPHS.IJacobian" title="Link to this definition"></a></dt>
+<dd><p>IJacobian for the time-resolution of the dphs with PETSc TS fully implicit integrator</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>TS (PETSc TS): the PETSc TS object handling time-resolution
+t (float): time parameter
+z (PETSc Vec): the state
+zd (PETSc Vec): the time-derivative of the state
+sig (float): a shift-parameter, depends on dt
+A (PETSc Mat): the jacobian matrix
+P:(PETSc Mat) the jacobian matrix to use for pre-conditionning</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.J">
+<span class="sig-name descname"><span class="pre">J</span></span><a class="headerlink" href="#scrimp.dphs.DPHS.J" title="Link to this definition"></a></dt>
+<dd><p>A PETSc Mat for Jacobian computation</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.add_FEM">
+<span class="sig-name descname"><span class="pre">add_FEM</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fem</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#scrimp.fem.FEM" title="scrimp.fem.FEM"><span class="pre">FEM</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.dphs.DPHS.add_FEM" title="Link to this definition"></a></dt>
+<dd><p>This function adds a FEM (Finite Element Method) for the variables associated to a port of the dphs</p>
+<p>TODO: handle <cite>tensor-field</cite></p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>fem (FEM): the FEM to use</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.add_brick">
+<span class="sig-name descname"><span class="pre">add_brick</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">brick</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#scrimp.brick.Brick" title="scrimp.brick.Brick"><span class="pre">Brick</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.dphs.DPHS.add_brick" title="Link to this definition"></a></dt>
+<dd><p>This function adds a <cite>brick</cite> in the getfem <cite>Model</cite> thanks to a form in GWFL getfem language</p>
+<p>The form may be non-linear</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>brick (Brick): the brick</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.add_control_port">
+<span class="sig-name descname"><span class="pre">add_control_port</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">control_port</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#scrimp.control.Control_Port" title="scrimp.control.Control_Port"><span class="pre">Control_Port</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.dphs.DPHS.add_control_port" title="Link to this definition"></a></dt>
+<dd><p>This function adds a control <cite>port</cite> to the dphs</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>control_port (Control_Port): the Control Port.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.add_costate">
+<span class="sig-name descname"><span class="pre">add_costate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">costate</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#scrimp.costate.CoState" title="scrimp.costate.CoState"><span class="pre">CoState</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.dphs.DPHS.add_costate" title="Link to this definition"></a></dt>
+<dd><p>This function adds a costate to the costate dict of the dphs, then defines and adds the dynamical port gathering the couple (State, CoState).</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>costate (CoState): the costate</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.add_parameter">
+<span class="sig-name descname"><span class="pre">add_parameter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">parameter</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#scrimp.port.Parameter" title="scrimp.port.Parameter"><span class="pre">Parameter</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.dphs.DPHS.add_parameter" title="Link to this definition"></a></dt>
+<dd><p>This function adds a time-independent (possibly space-varying parameter: <cite>x</cite>, <cite>y</cite> and <cite>z</cite> are the space variables) associated to a port of the dphs</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>parameter (Parameter): the parameter</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.add_port">
+<span class="sig-name descname"><span class="pre">add_port</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">port</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#scrimp.port.Port" title="scrimp.port.Port"><span class="pre">Port</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.dphs.DPHS.add_port" title="Link to this definition"></a></dt>
+<dd><p>This function adds a port to the port dict of the dphs</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>port (Port): the port</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.add_state">
+<span class="sig-name descname"><span class="pre">add_state</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">state</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#scrimp.state.State" title="scrimp.state.State"><span class="pre">State</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.dphs.DPHS.add_state" title="Link to this definition"></a></dt>
+<dd><p>This functions adds a state to state dict of the dphs.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>state (State): the state</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.allocate_memory">
+<span class="sig-name descname"><span class="pre">allocate_memory</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.dphs.DPHS.allocate_memory" title="Link to this definition"></a></dt>
+<dd><p>Pre-allocate memory for matrices and vectors</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.assemble_mass">
+<span class="sig-name descname"><span class="pre">assemble_mass</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.dphs.DPHS.assemble_mass" title="Link to this definition"></a></dt>
+<dd><p>This function performs the assembly of the bricks dt=True and linear=True and set the PETSc.Mat attribute <cite>mass</cite></p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.assemble_nl_mass">
+<span class="sig-name descname"><span class="pre">assemble_nl_mass</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.dphs.DPHS.assemble_nl_mass" title="Link to this definition"></a></dt>
+<dd><p>This function performs the assembly of the bricks dt=True and linear=False and set the PETSc.Mat attribute <cite>nl_mass</cite></p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.assemble_nl_stiffness">
+<span class="sig-name descname"><span class="pre">assemble_nl_stiffness</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.dphs.DPHS.assemble_nl_stiffness" title="Link to this definition"></a></dt>
+<dd><p>This function performs the assembly of the bricks dt=False and linear=False and set the PETSc.Mat attribute <cite>nl_stiffness</cite></p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.assemble_rhs">
+<span class="sig-name descname"><span class="pre">assemble_rhs</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.dphs.DPHS.assemble_rhs" title="Link to this definition"></a></dt>
+<dd><p>This function performs the assembly of the rhs and set the PETSc.Vec attribute <cite>rhs</cite></p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.assemble_stiffness">
+<span class="sig-name descname"><span class="pre">assemble_stiffness</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.dphs.DPHS.assemble_stiffness" title="Link to this definition"></a></dt>
+<dd><p>This function performs the assembly of the bricks dt=False and linear=True and set the PETSc.Mat attribute <cite>stiffness</cite></p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.bricks">
+<span class="sig-name descname"><span class="pre">bricks</span></span><a class="headerlink" href="#scrimp.dphs.DPHS.bricks" title="Link to this definition"></a></dt>
+<dd><p>The dict of <cite>bricks</cite>, associating getfem <cite>bricks</cite> to petsc matrices obtained by the PFEM, store many infos for display()</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.buffer">
+<span class="sig-name descname"><span class="pre">buffer</span></span><a class="headerlink" href="#scrimp.dphs.DPHS.buffer" title="Link to this definition"></a></dt>
+<dd><p>A PETSc Vec buffering computation</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.compute_Hamiltonian">
+<span class="sig-name descname"><span class="pre">compute_Hamiltonian</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.dphs.DPHS.compute_Hamiltonian" title="Link to this definition"></a></dt>
+<dd><p>Compute each <cite>term</cite> constituting the Hamiltonian</p>
+<p>Wrapper to the function <cite>compute</cite> of Hamiltonian class</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.compute_powers">
+<span class="sig-name descname"><span class="pre">compute_powers</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.dphs.DPHS.compute_powers" title="Link to this definition"></a></dt>
+<dd><p>Compute each power associated to each algebraic port if it is not substituted (because of the parameter-dependency if it is)</p>
+<p>Wrapper to the function <cite>compute</cite> of Port class (loop on self.ports)</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.controls">
+<span class="sig-name descname"><span class="pre">controls</span></span><a class="headerlink" href="#scrimp.dphs.DPHS.controls" title="Link to this definition"></a></dt>
+<dd><p>The dict of <cite>controls</cite>, collecting information about control ports. Also appear in <cite>ports</cite> entries</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.costates">
+<span class="sig-name descname"><span class="pre">costates</span></span><a class="headerlink" href="#scrimp.dphs.DPHS.costates" title="Link to this definition"></a></dt>
+<dd><p>The dict of <cite>costates</cite>, store many infos for display()</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.disable_all_bricks">
+<span class="sig-name descname"><span class="pre">disable_all_bricks</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.dphs.DPHS.disable_all_bricks" title="Link to this definition"></a></dt>
+<dd><p>This function disables all bricks in the <cite>Model</cite></p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.display">
+<span class="sig-name descname"><span class="pre">display</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.dphs.DPHS.display" title="Link to this definition"></a></dt>
+<dd><p>A method giving infos about the dphs</p>
+<dl class="simple">
+<dt>Args:</dt><dd><ul class="simple">
+<li><p>verbose (int): the level of verbosity (defaults to 2)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.domain">
+<span class="sig-name descname"><span class="pre">domain</span></span><a class="headerlink" href="#scrimp.dphs.DPHS.domain" title="Link to this definition"></a></dt>
+<dd><p>The <cite>domain</cite> of a dphs is an object that handle mesh(es) and dict of regions with getfem indices (for each mesh), useful to define <cite>bricks</cite> (i.e. forms) in the getfem syntax</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.enable_all_bricks">
+<span class="sig-name descname"><span class="pre">enable_all_bricks</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.dphs.DPHS.enable_all_bricks" title="Link to this definition"></a></dt>
+<dd><p>This function enables all bricks in the <cite>Model</cite></p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.event">
+<span class="sig-name descname"><span class="pre">event</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">TS</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fvalue</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.dphs.DPHS.event" title="Link to this definition"></a></dt>
+<dd><p>Check if the time step is not too small</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.exclude_algebraic_var_from_lte">
+<span class="sig-name descname"><span class="pre">exclude_algebraic_var_from_lte</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">TS</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.dphs.DPHS.exclude_algebraic_var_from_lte" title="Link to this definition"></a></dt>
+<dd><p>Exclude the algebraic variable from the local error troncature in the time-resolution</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>TS (PETSc TS): the PETSc TS object handling time-resolution</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.export_matrices">
+<span class="sig-name descname"><span class="pre">export_matrices</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">t</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">state</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">to</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'matlab'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.dphs.DPHS.export_matrices" title="Link to this definition"></a></dt>
+<dd><p>TODO:</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.export_to_pv">
+<span class="sig-name descname"><span class="pre">export_to_pv</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name_variable</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'All'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.dphs.DPHS.export_to_pv" title="Link to this definition"></a></dt>
+<dd><p>Export the solution to .vtu file(s) (for ParaView), with associated .pvd if t=’All’</p>
+<p>name_variable (str): the variable to export
+path (str): the path for the output file (default: in the <cite>outputs/pv</cite> folder next to your .py file)
+t (Numpy array): the time values of extraction (default: <cite>All</cite> the stored times), <cite>All</cite>, <cite>Init</cite>, <cite>Final</cite></p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.get_Hamiltonian">
+<span class="sig-name descname"><span class="pre">get_Hamiltonian</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.dphs.DPHS.get_Hamiltonian" title="Link to this definition"></a></dt>
+<dd><p>This function returns the Hamiltonian in function of time</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>numpy array: time array of the values of the Hamiltonian.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.get_cleared_TS_options">
+<span class="sig-name descname"><span class="pre">get_cleared_TS_options</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.dphs.DPHS.get_cleared_TS_options" title="Link to this definition"></a></dt>
+<dd><p>To ensure a safe database for the PETSc TS environment</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.get_quantity">
+<span class="sig-name descname"><span class="pre">get_quantity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">expression</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">region</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">order</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mesh_id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span></span></span><a class="headerlink" href="#scrimp.dphs.DPHS.get_quantity" title="Link to this definition"></a></dt>
+<dd><p>This functions computes the integral over region of the expression
+at each time step</p>
+<dl class="simple">
+<dt>Args:</dt><dd><ul class="simple">
+<li><p>expression (str): the GFWL expression to compute</p></li>
+<li><p>region (int, optional): the id of the region (defaults to -1)</p></li>
+<li><p>order (int, optional): the order of the quantity to be computed (0: scalar, 1: vector, 2: tensor) (defaults to 0)</p></li>
+<li><p>mesh_id (int, optional): the id of the mesh (defaults to 0)</p></li>
+</ul>
+</dd>
+<dt>Returns:</dt><dd><p>list(float): a list of float at each time step (according to self.solution[“t”])</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.get_solution">
+<span class="sig-name descname"><span class="pre">get_solution</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name_variable</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span></span></span><a class="headerlink" href="#scrimp.dphs.DPHS.get_solution" title="Link to this definition"></a></dt>
+<dd><p>This functions is useful (especially in 1D) to handle post-processing
+by extracting the variable of interest from the PETSc Vec self.solution[“z”]</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>name_variable (str): the name of the variable to extract</p>
+</dd>
+<dt>Returns:</dt><dd><p>list(numpy array): a list of numpy array (dofs of name_variable) at each time step (according to self.solution[“t”])</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.gf_model">
+<span class="sig-name descname"><span class="pre">gf_model</span></span><a class="headerlink" href="#scrimp.dphs.DPHS.gf_model" title="Link to this definition"></a></dt>
+<dd><p>A getfem <cite>Model</cite> object that is use as core for the dphs</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.hamiltonian">
+<span class="sig-name descname"><span class="pre">hamiltonian</span></span><a class="headerlink" href="#scrimp.dphs.DPHS.hamiltonian" title="Link to this definition"></a></dt>
+<dd><p>The <cite>Hamiltonian</cite> of a dphs is a list of dict containing several useful information for each term</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.init_parameter">
+<span class="sig-name descname"><span class="pre">init_parameter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name_port</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.dphs.DPHS.init_parameter" title="Link to this definition"></a></dt>
+<dd><p>This function initializes the parameter name in the FEM of the port name_port of the dphs and adds it to the getfem <cite>Model</cite></p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>name (str): the name of the parameter as defined with add_parameter()
+name_port (str): the name of the <cite>port</cite> where the parameter belongs</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.init_step">
+<span class="sig-name descname"><span class="pre">init_step</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.dphs.DPHS.init_step" title="Link to this definition"></a></dt>
+<dd><p>Perform a first initial step with a pseudo bdf</p>
+<p>It needs set_time_scheme(init_step=True)</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.initial_value_set">
+<span class="sig-name descname"><span class="pre">initial_value_set</span></span><a class="headerlink" href="#scrimp.dphs.DPHS.initial_value_set" title="Link to this definition"></a></dt>
+<dd><p>To check if the initial values have been set before time-resolution</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.linear_mass">
+<span class="sig-name descname"><span class="pre">linear_mass</span></span><a class="headerlink" href="#scrimp.dphs.DPHS.linear_mass" title="Link to this definition"></a></dt>
+<dd><p>To speed-up IFunction calls for linear systems</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.mass">
+<span class="sig-name descname"><span class="pre">mass</span></span><a class="headerlink" href="#scrimp.dphs.DPHS.mass" title="Link to this definition"></a></dt>
+<dd><p>Linear mass matrix of the system in PETSc CSR format</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.monitor">
+<span class="sig-name descname"><span class="pre">monitor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">TS</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dt_save</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t_0</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">initial_step</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.dphs.DPHS.monitor" title="Link to this definition"></a></dt>
+<dd><p>Monitor to use during iterations of time-integration at each successful time step</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>TS (PETSc TS): the PETSc TS object handling time-resolution
+i (int): the iteration in the time-resolution
+t (float): time parameter
+z (PETSc Vec): the state
+dt_save (float): save the solution each dt_save s (different from the time-step <cite>dt</cite> used for resolution)
+t_0 (float): the initial time
+initial_step (bool): <cite>True</cite> if this is the initial consistency step (default=`False`)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.nl_mass">
+<span class="sig-name descname"><span class="pre">nl_mass</span></span><a class="headerlink" href="#scrimp.dphs.DPHS.nl_mass" title="Link to this definition"></a></dt>
+<dd><p>Non-linear mass matrix of the system in PETSc CSR format</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.nl_stiffness">
+<span class="sig-name descname"><span class="pre">nl_stiffness</span></span><a class="headerlink" href="#scrimp.dphs.DPHS.nl_stiffness" title="Link to this definition"></a></dt>
+<dd><p>Non-linear stiffness matrix of the system in PETSc CSR format</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.plot_Hamiltonian">
+<span class="sig-name descname"><span class="pre">plot_Hamiltonian</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">with_powers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_figure</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filename</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'Hamiltonian.png'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.dphs.DPHS.plot_Hamiltonian" title="Link to this definition"></a></dt>
+<dd><p>Plot each term constituting the Hamiltonian and the Hamiltonian</p>
+<p>May include the <cite>power terms</cite>, i.e. the sum over [t_0, t_f] of the flow/effort product of algebraic ports</p>
+<dl class="simple">
+<dt>Args:</dt><dd><ul class="simple">
+<li><p>with_powers (bool): if <cite>True</cite> (default), the plot will also contains the power of each algebraic ports</p></li>
+<li><p>save_figure (bool): if ‘True’ (defaults: False), save the plot</p></li>
+<li><p>filename (str): the name of the file where the plot is saved (defaults: <cite>Hamiltonian.png</cite>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.plot_powers">
+<span class="sig-name descname"><span class="pre">plot_powers</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">HamTot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.dphs.DPHS.plot_powers" title="Link to this definition"></a></dt>
+<dd><p>Plot each power associated to each algebraic port</p>
+<p>The time integration for visual comparison with the Hamiltonian is done using a midpoint method</p>
+<p>If HamTot is provided, a <cite>Balance</cite> showing structure-preserving property is shown: must be constant on the plot</p>
+<p>ax (Matplotlib axis): the gca of matplotlib when this function is called from plot_Hamiltonian()
+HamTot (Numpy array): the values of the Hamiltonian over time</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.ports">
+<span class="sig-name descname"><span class="pre">ports</span></span><a class="headerlink" href="#scrimp.dphs.DPHS.ports" title="Link to this definition"></a></dt>
+<dd><p>The dict of <cite>ports</cite>, store many infos for display()</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.postevent">
+<span class="sig-name descname"><span class="pre">postevent</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">TS</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">forward</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.dphs.DPHS.postevent" title="Link to this definition"></a></dt>
+<dd><p>If the time step is too small, ask for the end of the simulation</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.powers_computed">
+<span class="sig-name descname"><span class="pre">powers_computed</span></span><a class="headerlink" href="#scrimp.dphs.DPHS.powers_computed" title="Link to this definition"></a></dt>
+<dd><p>To check if the powers have been computed</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.rhs">
+<span class="sig-name descname"><span class="pre">rhs</span></span><a class="headerlink" href="#scrimp.dphs.DPHS.rhs" title="Link to this definition"></a></dt>
+<dd><p>rhs of the system in PETSc Vec</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.set_control">
+<span class="sig-name descname"><span class="pre">set_control</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">expression</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.dphs.DPHS.set_control" title="Link to this definition"></a></dt>
+<dd><p>This function applies a source term <cite>expression</cite> to the control port <cite>name</cite></p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>name (str): the name of the port
+expression (str): the expression of the source term</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.set_domain">
+<span class="sig-name descname"><span class="pre">set_domain</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">domain</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#scrimp.domain.Domain" title="scrimp.domain.Domain"><span class="pre">Domain</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.dphs.DPHS.set_domain" title="Link to this definition"></a></dt>
+<dd><p>This function sets a domain for the dphs.</p>
+<p>TODO: If not built_in, given from a script ‘name.py’ or a .geo file with args in the dict ‘parameters’ should be able to handle several meshes e.g. for interconnections, hence the list type</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>name (str): id of the domain, either for built in, or user-defined auxiliary script
+parameters (dict): parameters for the construction, either for built in, or user-defined auxiliary script</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.set_from_vector">
+<span class="sig-name descname"><span class="pre">set_from_vector</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name_variable</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.dphs.DPHS.set_from_vector" title="Link to this definition"></a></dt>
+<dd><p>This function sets the value of the variable <cite>name_variable</cite> in the getfem <cite>Model</cite> from a numpy vector</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>name_variable (str): the name of the variable to set
+x (numpy array): the vector of values</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.set_initial_value">
+<span class="sig-name descname"><span class="pre">set_initial_value</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name_variable</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">expression</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.dphs.DPHS.set_initial_value" title="Link to this definition"></a></dt>
+<dd><p>This function sets the initial value of the variable <cite>name_variable</cite> of the dphs from an expression</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>name_variable (str): the name of the variable to set
+expression (str): the expression of the function to use</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.set_linear_flags">
+<span class="sig-name descname"><span class="pre">set_linear_flags</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.dphs.DPHS.set_linear_flags" title="Link to this definition"></a></dt>
+<dd><p>This function set the “linear flags” to speed-up IFunction calls for linear systems.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.set_time_scheme">
+<span class="sig-name descname"><span class="pre">set_time_scheme</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.dphs.DPHS.set_time_scheme" title="Link to this definition"></a></dt>
+<dd><p>Allows an easy setting of the PETSc TS environment</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p><a href="#id1"><span class="problematic" id="id2">**</span></a>kwargs: PETSc TS options and more (see examples)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.solution">
+<span class="sig-name descname"><span class="pre">solution</span></span><a class="headerlink" href="#scrimp.dphs.DPHS.solution" title="Link to this definition"></a></dt>
+<dd><p>Will contain both time t and solution z</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.solve">
+<span class="sig-name descname"><span class="pre">solve</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.dphs.DPHS.solve" title="Link to this definition"></a></dt>
+<dd><p>Perform the time-resolution of the dphs thanks to PETSc TS</p>
+<p>The options database is set in the <cite>time_scheme</cite> attribute</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.solve_done">
+<span class="sig-name descname"><span class="pre">solve_done</span></span><a class="headerlink" href="#scrimp.dphs.DPHS.solve_done" title="Link to this definition"></a></dt>
+<dd><p>To check if the system has been solved</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.spy_Dirac">
+<span class="sig-name descname"><span class="pre">spy_Dirac</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">t</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">state</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.dphs.DPHS.spy_Dirac" title="Link to this definition"></a></dt>
+<dd><p>!TO DO: improve a lot with position of bricks and no constitutive relations!!!</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.states">
+<span class="sig-name descname"><span class="pre">states</span></span><a class="headerlink" href="#scrimp.dphs.DPHS.states" title="Link to this definition"></a></dt>
+<dd><p>The dict of <cite>states</cite>, store many infos for display()</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.stiffness">
+<span class="sig-name descname"><span class="pre">stiffness</span></span><a class="headerlink" href="#scrimp.dphs.DPHS.stiffness" title="Link to this definition"></a></dt>
+<dd><p>Linear stiffness matrix of the system in PETSc CSR format</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.stop_TS">
+<span class="sig-name descname"><span class="pre">stop_TS</span></span><a class="headerlink" href="#scrimp.dphs.DPHS.stop_TS" title="Link to this definition"></a></dt>
+<dd><p>To stop TS integration by keeping already computed timesteps if one step fails</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.tangent_mass">
+<span class="sig-name descname"><span class="pre">tangent_mass</span></span><a class="headerlink" href="#scrimp.dphs.DPHS.tangent_mass" title="Link to this definition"></a></dt>
+<dd><p>Tangent (non-linear + linear) mass matrix of the system in PETSc CSR format</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.tangent_stiffness">
+<span class="sig-name descname"><span class="pre">tangent_stiffness</span></span><a class="headerlink" href="#scrimp.dphs.DPHS.tangent_stiffness" title="Link to this definition"></a></dt>
+<dd><p>Tangent (non-linear + linear) stiffness matrix of the system in PETSc CSR format</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="scrimp.dphs.DPHS.ts_start">
+<span class="sig-name descname"><span class="pre">ts_start</span></span><a class="headerlink" href="#scrimp.dphs.DPHS.ts_start" title="Link to this definition"></a></dt>
+<dd><p>For monitoring time in TS resolution</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-scrimp.domain">
+<span id="domain"></span><h2>Domain<a class="headerlink" href="#module-scrimp.domain" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>file:             domain.py</p></li>
+<li><p>authors:          Giuseppe Ferraro, Ghislain Haine</p></li>
+<li><p>date:             31 may 2023</p></li>
+<li><p>brief:            class for domain object</p></li>
+</ul>
+<dl class="py class">
+<dt class="sig sig-object py" id="scrimp.domain.Domain">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">scrimp.domain.</span></span><span class="sig-name descname"><span class="pre">Domain</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parameters</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">refine</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">terminal</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.domain.Domain" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>A class handling meshes and indices for regions</p>
+<p>Lists are used to handle interconnection of pHs, allowing for several meshes in the dpHs.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.domain.Domain.display">
+<span class="sig-name descname"><span class="pre">display</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.domain.Domain.display" title="Link to this definition"></a></dt>
+<dd><p>A method giving infos about the domain</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.domain.Domain.get_boundaries">
+<span class="sig-name descname"><span class="pre">get_boundaries</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span></span></span><a class="headerlink" href="#scrimp.domain.Domain.get_boundaries" title="Link to this definition"></a></dt>
+<dd><p>This function gets the list of the bounderies for the domain.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>list: list of the boundaries for the domain</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.domain.Domain.get_dim">
+<span class="sig-name descname"><span class="pre">get_dim</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span></span></span><a class="headerlink" href="#scrimp.domain.Domain.get_dim" title="Link to this definition"></a></dt>
+<dd><p>This function gets the list of dimensions for the domain.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>list: list of dimensions for the domain</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.domain.Domain.get_isSet">
+<span class="sig-name descname"><span class="pre">get_isSet</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="headerlink" href="#scrimp.domain.Domain.get_isSet" title="Link to this definition"></a></dt>
+<dd><p>This function gets the boolean vale indicating wether if a Mesh has been set for the domain or not.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>bool: boolean indicating if a Mesh has been set</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.domain.Domain.get_mesh">
+<span class="sig-name descname"><span class="pre">get_mesh</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span></span></span><a class="headerlink" href="#scrimp.domain.Domain.get_mesh" title="Link to this definition"></a></dt>
+<dd><p>This function gets the list of mesh for the domain.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>list: list of mesh for the domain</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.domain.Domain.get_name">
+<span class="sig-name descname"><span class="pre">get_name</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#scrimp.domain.Domain.get_name" title="Link to this definition"></a></dt>
+<dd><p>This function get the name of the domain.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>str: name of the domain.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.domain.Domain.get_subdomains">
+<span class="sig-name descname"><span class="pre">get_subdomains</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span></span></span><a class="headerlink" href="#scrimp.domain.Domain.get_subdomains" title="Link to this definition"></a></dt>
+<dd><p>This function gets the list of subdomains for the domain.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>list: list of the subdomains for the domain</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.domain.Domain.set_mim_auto">
+<span class="sig-name descname"><span class="pre">set_mim_auto</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.domain.Domain.set_mim_auto" title="Link to this definition"></a></dt>
+<dd><p>Define the integration method to a default choice</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-scrimp.hamiltonian">
+<span id="hamiltonian-term"></span><h2>Hamiltonian / Term<a class="headerlink" href="#module-scrimp.hamiltonian" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>file:             hamiltonian.py</p></li>
+<li><p>authors:          Giuseppe Ferraro, Ghislain Haine</p></li>
+<li><p>date:             31 may 2023</p></li>
+<li><p>brief:            class for hamiltonian and term objects</p></li>
+</ul>
+<dl class="py class">
+<dt class="sig sig-object py" id="scrimp.hamiltonian.Hamiltonian">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">scrimp.hamiltonian.</span></span><span class="sig-name descname"><span class="pre">Hamiltonian</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.hamiltonian.Hamiltonian" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>This class defines the Hamiltoninan.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.hamiltonian.Hamiltonian.add_term">
+<span class="sig-name descname"><span class="pre">add_term</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">term</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#scrimp.hamiltonian.Term" title="scrimp.hamiltonian.Term"><span class="pre">Term</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.hamiltonian.Hamiltonian.add_term" title="Link to this definition"></a></dt>
+<dd><p>This function adds a term to the term list of the Hamiltonian</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>term (Term): term for the Hamiltonian</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.hamiltonian.Hamiltonian.compute">
+<span class="sig-name descname"><span class="pre">compute</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">solution</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gf_model</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">getfem.Model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">domain</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#scrimp.domain.Domain" title="scrimp.domain.Domain"><span class="pre">Domain</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.hamiltonian.Hamiltonian.compute" title="Link to this definition"></a></dt>
+<dd><p>Compute each <cite>term</cite> constituting the Hamiltonian</p>
+<dl class="simple">
+<dt>Args:</dt><dd><ul class="simple">
+<li><p>solutions (dict):         The solution of the dphs</p></li>
+<li><p>gf_model (GetFEM Model):  The model getfem of the dphs</p></li>
+<li><p>domain (Domain):          The domain of the dphs</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.hamiltonian.Hamiltonian.get_is_computed">
+<span class="sig-name descname"><span class="pre">get_is_computed</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="headerlink" href="#scrimp.hamiltonian.Hamiltonian.get_is_computed" title="Link to this definition"></a></dt>
+<dd><p>This function returns True if the Hamiltonian is computed, False otherwise.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>bool: flag that indicates if the hamiltonian terms have been computed</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.hamiltonian.Hamiltonian.get_name">
+<span class="sig-name descname"><span class="pre">get_name</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#scrimp.hamiltonian.Hamiltonian.get_name" title="Link to this definition"></a></dt>
+<dd><p>This function returns the name of the Hamiltonion.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>name (str): name of the Hamiltonian</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.hamiltonian.Hamiltonian.get_terms">
+<span class="sig-name descname"><span class="pre">get_terms</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span></span></span><a class="headerlink" href="#scrimp.hamiltonian.Hamiltonian.get_terms" title="Link to this definition"></a></dt>
+<dd><p>This function returns a copy of the list of terms of the Hamiltonian.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>list: list of terms of the Hamiltonian.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.hamiltonian.Hamiltonian.set_is_computed">
+<span class="sig-name descname"><span class="pre">set_is_computed</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.hamiltonian.Hamiltonian.set_is_computed" title="Link to this definition"></a></dt>
+<dd><p>This function sets the Hamiltonian as computed.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.hamiltonian.Hamiltonian.set_name">
+<span class="sig-name descname"><span class="pre">set_name</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.hamiltonian.Hamiltonian.set_name" title="Link to this definition"></a></dt>
+<dd><p>This function set the name for the Hamiltonion. For plotting purposes.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>name (str): name of the Hamiltonian</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="scrimp.hamiltonian.Term">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">scrimp.hamiltonian.</span></span><span class="sig-name descname"><span class="pre">Term</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">description</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">expression</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">regions</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mesh_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.hamiltonian.Term" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>This class defines a term for the Hamiltoninan.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.hamiltonian.Term.get_description">
+<span class="sig-name descname"><span class="pre">get_description</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#scrimp.hamiltonian.Term.get_description" title="Link to this definition"></a></dt>
+<dd><p>This function gets the description of the term.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>str: description of the term</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.hamiltonian.Term.get_expression">
+<span class="sig-name descname"><span class="pre">get_expression</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#scrimp.hamiltonian.Term.get_expression" title="Link to this definition"></a></dt>
+<dd><p>This function gets the matematical expression of the term.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>str: matematical expression of the term.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.hamiltonian.Term.get_mesh_id">
+<span class="sig-name descname"><span class="pre">get_mesh_id</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="headerlink" href="#scrimp.hamiltonian.Term.get_mesh_id" title="Link to this definition"></a></dt>
+<dd><p>This function gets the mesh id of the mesh where the regions belong to..</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>int: the mesh id of the mesh where the regions belong to.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.hamiltonian.Term.get_regions">
+<span class="sig-name descname"><span class="pre">get_regions</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#scrimp.hamiltonian.Term.get_regions" title="Link to this definition"></a></dt>
+<dd><p>This function gets the regions of the term.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>str: regions of the termthe region IDs of the mesh where the expression has to be evaluated</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.hamiltonian.Term.get_values">
+<span class="sig-name descname"><span class="pre">get_values</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span></span></span><a class="headerlink" href="#scrimp.hamiltonian.Term.get_values" title="Link to this definition"></a></dt>
+<dd><p>This function gets the valeus of the term.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>list: list of values of the term</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.hamiltonian.Term.set_value">
+<span class="sig-name descname"><span class="pre">set_value</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.hamiltonian.Term.set_value" title="Link to this definition"></a></dt>
+<dd><p>This function sets a value for the term.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>value : a value for the term</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-scrimp.port">
+<span id="port-parameter"></span><h2>Port / Parameter<a class="headerlink" href="#module-scrimp.port" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>file:             port.py</p></li>
+<li><p>authors:          Giuseppe Ferraro, Ghislain Haine</p></li>
+<li><p>date:             31 may 2023</p></li>
+<li><p>brief:            class for port and parameter objects</p></li>
+</ul>
+<dl class="py class">
+<dt class="sig sig-object py" id="scrimp.port.Parameter">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">scrimp.port.</span></span><span class="sig-name descname"><span class="pre">Parameter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">description</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kind</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">expression</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name_port</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.port.Parameter" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>This class describes the Parameter for a Port.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.port.Parameter.get_description">
+<span class="sig-name descname"><span class="pre">get_description</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#scrimp.port.Parameter.get_description" title="Link to this definition"></a></dt>
+<dd><p>This function gets the description of the parameter.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>str: description of the parameter</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.port.Parameter.get_expression">
+<span class="sig-name descname"><span class="pre">get_expression</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#scrimp.port.Parameter.get_expression" title="Link to this definition"></a></dt>
+<dd><p>This function gets the matematical expression of the parameter.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>str: matematical expression of the parameter.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.port.Parameter.get_kind">
+<span class="sig-name descname"><span class="pre">get_kind</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#scrimp.port.Parameter.get_kind" title="Link to this definition"></a></dt>
+<dd><p>This function gets the kind of the parameter.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>str: kind of the parameter</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.port.Parameter.get_name">
+<span class="sig-name descname"><span class="pre">get_name</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#scrimp.port.Parameter.get_name" title="Link to this definition"></a></dt>
+<dd><p>This function gets the name of the parameter.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>str: name of the parameter</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.port.Parameter.get_name_port">
+<span class="sig-name descname"><span class="pre">get_name_port</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#scrimp.port.Parameter.get_name_port" title="Link to this definition"></a></dt>
+<dd><p>This function gets the name of the port whose the parameter is bounded.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>str: name of the port whose the parameter is bounded.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="scrimp.port.Port">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">scrimp.port.</span></span><span class="sig-name descname"><span class="pre">Port</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">flow</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">effort</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kind</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mesh_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">algebraic</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">substituted</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dissipative</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">region</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.port.Port" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>A class to handle a port of a dpHs</p>
+<p>It is mainly constituted of a flow variable, an effort variable, and a fem.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.port.Port.add_parameter">
+<span class="sig-name descname"><span class="pre">add_parameter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">parameter</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#scrimp.port.Parameter" title="scrimp.port.Parameter"><span class="pre">Parameter</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="headerlink" href="#scrimp.port.Port.add_parameter" title="Link to this definition"></a></dt>
+<dd><p>This function adds a Parameter object that is acting on the variables of the port.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>parameter (Parameter): parameter for the port.:</p>
+</dd>
+<dt>Returns:</dt><dd><p>bool: True if the insertion has been complete correctly, False otherwise</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.port.Port.compute">
+<span class="sig-name descname"><span class="pre">compute</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">solution</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gf_model</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">getfem.Model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">domain</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#scrimp.domain.Domain" title="scrimp.domain.Domain"><span class="pre">Domain</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.port.Port.compute" title="Link to this definition"></a></dt>
+<dd><p>Compute the power flowing through the algebraic port if it is not substituted (because of the parameter-dependency if it is)</p>
+<dl class="simple">
+<dt>Args:</dt><dd><ul class="simple">
+<li><p>solutions (dict):         The solution of the dphs</p></li>
+<li><p>gf_model (GetFEM Model):  The model getfem of the dphs</p></li>
+<li><p>domain (Domain):          The domain of the dphs</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.port.Port.get_algebraic">
+<span class="sig-name descname"><span class="pre">get_algebraic</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="headerlink" href="#scrimp.port.Port.get_algebraic" title="Link to this definition"></a></dt>
+<dd><dl class="simple">
+<dt>This function gets boolean value of the algebraic parameter of the port.</dt><dd><p>If <cite>True</cite>, the equation associated to this port is algebraic, otherwise dynamic and the flow is derivated in time at resoltuion</p>
+</dd>
+<dt>Returns:</dt><dd><p>bool: value of the algebraic parameter</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.port.Port.get_dissipative">
+<span class="sig-name descname"><span class="pre">get_dissipative</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="headerlink" href="#scrimp.port.Port.get_dissipative" title="Link to this definition"></a></dt>
+<dd><p>This function gets boolean value for the dissipativeness flag of the port.
+If <cite>True</cite>, the power associated to the port gets a negative sign</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>bool: value of the dissipativeness flag</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.port.Port.get_effort">
+<span class="sig-name descname"><span class="pre">get_effort</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#scrimp.port.Port.get_effort" title="Link to this definition"></a></dt>
+<dd><p>This function gets the name of the effort variable.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>str: name of the effort variable</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.port.Port.get_fem">
+<span class="sig-name descname"><span class="pre">get_fem</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.port.Port.get_fem" title="Link to this definition"></a></dt>
+<dd><p>This function returns the fetfem Meshfem object to discretize the port.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>_type_: the getfem Meshfem object to discretize the port</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.port.Port.get_flow">
+<span class="sig-name descname"><span class="pre">get_flow</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#scrimp.port.Port.get_flow" title="Link to this definition"></a></dt>
+<dd><p>This function gets the name of the flow variable.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>str: name of the flow variable</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.port.Port.get_isSet">
+<span class="sig-name descname"><span class="pre">get_isSet</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="headerlink" href="#scrimp.port.Port.get_isSet" title="Link to this definition"></a></dt>
+<dd><p>This funcion gets the boolean value that indicates wether the port is set or not.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>bool: value that indicates if the port is set.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.port.Port.get_is_computed">
+<span class="sig-name descname"><span class="pre">get_is_computed</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="headerlink" href="#scrimp.port.Port.get_is_computed" title="Link to this definition"></a></dt>
+<dd><p>This function returns True if the power of the Port is computed, False otherwise.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>bool: flag that indicates if the power flowing through the Port has been computed</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.port.Port.get_kind">
+<span class="sig-name descname"><span class="pre">get_kind</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#scrimp.port.Port.get_kind" title="Link to this definition"></a></dt>
+<dd><p>This function gets the type of the variables (e.g. <cite>scalar-field</cite>)</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>str: type of the variables (e.g. <cite>scalar-field</cite>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.port.Port.get_mesh_id">
+<span class="sig-name descname"><span class="pre">get_mesh_id</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="headerlink" href="#scrimp.port.Port.get_mesh_id" title="Link to this definition"></a></dt>
+<dd><p>This function gets he id of the mesh where the variables belong</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>int: The id of the mesh where the variables belong</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.port.Port.get_name">
+<span class="sig-name descname"><span class="pre">get_name</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#scrimp.port.Port.get_name" title="Link to this definition"></a></dt>
+<dd><p>This function gets the name of the port.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>str: name of the port</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.port.Port.get_parameter">
+<span class="sig-name descname"><span class="pre">get_parameter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#scrimp.port.Parameter" title="scrimp.port.Parameter"><span class="pre">Parameter</span></a></span></span><a class="headerlink" href="#scrimp.port.Port.get_parameter" title="Link to this definition"></a></dt>
+<dd><p>This function return the parameter with a specific name.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>name (str): the name of the parameter of interest</p>
+</dd>
+<dt>Returns:</dt><dd><p>Parameter: the desired parameter, None otherwise</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.port.Port.get_parameters">
+<span class="sig-name descname"><span class="pre">get_parameters</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span></span></span><a class="headerlink" href="#scrimp.port.Port.get_parameters" title="Link to this definition"></a></dt>
+<dd><p>This function returns the list of all the parameters inserted for the port.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>list(Parameter): list of all the parameters inserted for the port</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.port.Port.get_power">
+<span class="sig-name descname"><span class="pre">get_power</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.port.Port.get_power" title="Link to this definition"></a></dt>
+<dd><p>Gives access to the computed power of the port.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.port.Port.get_region">
+<span class="sig-name descname"><span class="pre">get_region</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="headerlink" href="#scrimp.port.Port.get_region" title="Link to this definition"></a></dt>
+<dd><p>This function gets the region of the mesh.
+If any, the int of the region of mesh_id where the flow/effort variables belong</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>int: region of the mesh</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.port.Port.get_substituted">
+<span class="sig-name descname"><span class="pre">get_substituted</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="headerlink" href="#scrimp.port.Port.get_substituted" title="Link to this definition"></a></dt>
+<dd><p>This function gets boolean value of the subtituted parameter.
+If <cite>True, the getfem `Model</cite> will only have an unknown variable for the effort: the constitutive relation is substituted into the mass matrix on the flow side</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>bool: value of the subtituted parameter</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.port.Port.init_parameter">
+<span class="sig-name descname"><span class="pre">init_parameter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">expression</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.port.Port.init_parameter" title="Link to this definition"></a></dt>
+<dd><p>This function sets the chosen parameter object for the current port by initialization in the FE basis.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>name (str): the name of the parameter object
+expression (str):</p>
+</dd>
+<dt>Returns:</dt><dd><p>out (numpy array): the evaluation of the parameter in the fem of the port.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.port.Port.set_fem">
+<span class="sig-name descname"><span class="pre">set_fem</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fem</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#scrimp.fem.FEM" title="scrimp.fem.FEM"><span class="pre">FEM</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.port.Port.set_fem" title="Link to this definition"></a></dt>
+<dd><p>This function sets the Meshfem getfem object defining the finite element method to use to discretize the port.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>fem (FEM): the FEM object to use</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.port.Port.set_isSet">
+<span class="sig-name descname"><span class="pre">set_isSet</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="headerlink" href="#scrimp.port.Port.set_isSet" title="Link to this definition"></a></dt>
+<dd><p>This funcion sets the boolean value that indicates the port is set.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>bool: value that indicates if the port is set.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.port.Port.set_is_computed">
+<span class="sig-name descname"><span class="pre">set_is_computed</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.port.Port.set_is_computed" title="Link to this definition"></a></dt>
+<dd><p>This function sets the power of the Port as computed.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.port.Port.set_power">
+<span class="sig-name descname"><span class="pre">set_power</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">power</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.port.Port.set_power" title="Link to this definition"></a></dt>
+<dd><p>This function sets the power along time of the Port.</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-scrimp.state">
+<span id="state"></span><h2>State<a class="headerlink" href="#module-scrimp.state" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>file:             state.py</p></li>
+<li><p>authors:          Giuseppe Ferraro, Ghislain Haine</p></li>
+<li><p>date:             31 may 2023</p></li>
+<li><p>brief:            class for state object</p></li>
+</ul>
+<dl class="py class">
+<dt class="sig sig-object py" id="scrimp.state.State">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">scrimp.state.</span></span><span class="sig-name descname"><span class="pre">State</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">description</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kind</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">region</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mesh_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.state.State" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>This class defines a State.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.state.State.get_costate">
+<span class="sig-name descname"><span class="pre">get_costate</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">object</span></span></span><a class="headerlink" href="#scrimp.state.State.get_costate" title="Link to this definition"></a></dt>
+<dd><p>This function gets the Co-state of the state</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>object: Costate</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.state.State.get_description">
+<span class="sig-name descname"><span class="pre">get_description</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#scrimp.state.State.get_description" title="Link to this definition"></a></dt>
+<dd><p>This function gets the description of the State.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>str: description of the state</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.state.State.get_kind">
+<span class="sig-name descname"><span class="pre">get_kind</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#scrimp.state.State.get_kind" title="Link to this definition"></a></dt>
+<dd><p>This function gets the kind of the State.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>str: kind of the state</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.state.State.get_mesh_id">
+<span class="sig-name descname"><span class="pre">get_mesh_id</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="headerlink" href="#scrimp.state.State.get_mesh_id" title="Link to this definition"></a></dt>
+<dd><p>This funtion gets the integer number of the mesh of the state.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>int: id of the mesh</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.state.State.get_name">
+<span class="sig-name descname"><span class="pre">get_name</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#scrimp.state.State.get_name" title="Link to this definition"></a></dt>
+<dd><p>This function gets the name of the State.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>str: name of the state</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.state.State.get_port">
+<span class="sig-name descname"><span class="pre">get_port</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">object</span></span></span><a class="headerlink" href="#scrimp.state.State.get_port" title="Link to this definition"></a></dt>
+<dd><p>This function gets the port of the state</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>object: Port</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.state.State.get_region">
+<span class="sig-name descname"><span class="pre">get_region</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="headerlink" href="#scrimp.state.State.get_region" title="Link to this definition"></a></dt>
+<dd><p>This function gets the integer number of the region of the state.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>int: region of the State.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.state.State.set_costate">
+<span class="sig-name descname"><span class="pre">set_costate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">costate</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.state.State.set_costate" title="Link to this definition"></a></dt>
+<dd><p>This function sets a Co-state to the State.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>costate (Costate): Co-state</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.state.State.set_port">
+<span class="sig-name descname"><span class="pre">set_port</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">port</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.state.State.set_port" title="Link to this definition"></a></dt>
+<dd><p>This function sets a port to the state.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>port (Port): Port</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-scrimp.costate">
+<span id="co-state"></span><h2>Co-state<a class="headerlink" href="#module-scrimp.costate" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>file:             costate.py</p></li>
+<li><p>authors:          Giuseppe Ferraro, Ghislain Haine</p></li>
+<li><p>date:             31 may 2023</p></li>
+<li><p>brief:            class for co-state object</p></li>
+</ul>
+<dl class="py class">
+<dt class="sig sig-object py" id="scrimp.costate.CoState">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">scrimp.costate.</span></span><span class="sig-name descname"><span class="pre">CoState</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">description</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">state</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#scrimp.state.State" title="scrimp.state.State"><span class="pre">State</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">substituted</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.costate.CoState" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#scrimp.state.State" title="scrimp.state.State"><code class="xref py py-class docutils literal notranslate"><span class="pre">State</span></code></a></p>
+<p>This class defines a Co-State.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.costate.CoState.get_state">
+<span class="sig-name descname"><span class="pre">get_state</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">object</span></span></span><a class="headerlink" href="#scrimp.costate.CoState.get_state" title="Link to this definition"></a></dt>
+<dd><p>This function gets the State of the Costate.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>object: State</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.costate.CoState.get_substituted">
+<span class="sig-name descname"><span class="pre">get_substituted</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="headerlink" href="#scrimp.costate.CoState.get_substituted" title="Link to this definition"></a></dt>
+<dd><p>This function gets the boolean indicating wether to substitute the variable or not.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>bool: boolean indicating wether to substitute the variable</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-scrimp.control">
+<span id="control"></span><h2>Control<a class="headerlink" href="#module-scrimp.control" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>file:             control.py</p></li>
+<li><p>authors:          Giuseppe Ferraro, Ghislain Haine</p></li>
+<li><p>date:             31 may 2023</p></li>
+<li><p>brief:            class for control port object</p></li>
+</ul>
+<dl class="py class">
+<dt class="sig sig-object py" id="scrimp.control.Control_Port">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">scrimp.control.</span></span><span class="sig-name descname"><span class="pre">Control_Port</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name_control</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">description_control</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name_observation</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">description_observation</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kind</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">region</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">position</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'effort'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mesh_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.control.Control_Port" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#scrimp.port.Port" title="scrimp.port.Port"><code class="xref py py-class docutils literal notranslate"><span class="pre">Port</span></code></a></p>
+<p>This class defines a Control Port.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.control.Control_Port.get_description_control">
+<span class="sig-name descname"><span class="pre">get_description_control</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#scrimp.control.Control_Port.get_description_control" title="Link to this definition"></a></dt>
+<dd><p>This function gets the description of the control.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>str: the description of the control</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.control.Control_Port.get_description_observation">
+<span class="sig-name descname"><span class="pre">get_description_observation</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#scrimp.control.Control_Port.get_description_observation" title="Link to this definition"></a></dt>
+<dd><p>This function gets the description of the observation.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>str: the description of the observation</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.control.Control_Port.get_name_control">
+<span class="sig-name descname"><span class="pre">get_name_control</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#scrimp.control.Control_Port.get_name_control" title="Link to this definition"></a></dt>
+<dd><p>This function gets the name of the control.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>str: the name of the control</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.control.Control_Port.get_name_obervation">
+<span class="sig-name descname"><span class="pre">get_name_obervation</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#scrimp.control.Control_Port.get_name_obervation" title="Link to this definition"></a></dt>
+<dd><p>This function gets the name of the obervation.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>str: the name of the observation</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.control.Control_Port.get_position">
+<span class="sig-name descname"><span class="pre">get_position</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#scrimp.control.Control_Port.get_position" title="Link to this definition"></a></dt>
+<dd><p>This function gets the position of the control in the Dirac structure.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>str: the position of the control</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-scrimp.fem">
+<span id="fem"></span><h2>FEM<a class="headerlink" href="#module-scrimp.fem" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>file:             fem.py</p></li>
+<li><p>authors:          Giuseppe Ferraro, Ghislain Haine</p></li>
+<li><p>date:             31 may 2023</p></li>
+<li><p>brief:            class for fem object</p></li>
+</ul>
+<dl class="py class">
+<dt class="sig sig-object py" id="scrimp.fem.FEM">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">scrimp.fem.</span></span><span class="sig-name descname"><span class="pre">FEM</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">order</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">FEM</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'CG'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.fem.FEM" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>This class defines what is a FEM object in SCRIMP.</p>
+<p>An negative order allows to access to GetFEM syntax for the FEM, e.g., by setting FEM=”FEM_HERMITE(2)” for Hermite FE in dimension 2.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.fem.FEM.get_dim">
+<span class="sig-name descname"><span class="pre">get_dim</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="headerlink" href="#scrimp.fem.FEM.get_dim" title="Link to this definition"></a></dt>
+<dd><p>This function gets the dimension of the FEM.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>int: the dimension of FEM</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.fem.FEM.get_fem">
+<span class="sig-name descname"><span class="pre">get_fem</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.fem.FEM.get_fem" title="Link to this definition"></a></dt>
+<dd><p>This function returns the the FEM of getfem.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>gf.MeshFem: the FEM</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.fem.FEM.get_isSet">
+<span class="sig-name descname"><span class="pre">get_isSet</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="headerlink" href="#scrimp.fem.FEM.get_isSet" title="Link to this definition"></a></dt>
+<dd><p>This function gets the flag to know if the FEM are set in getfem.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>bool: the flag to assert setting in getfem</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.fem.FEM.get_mesh">
+<span class="sig-name descname"><span class="pre">get_mesh</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.fem.FEM.get_mesh" title="Link to this definition"></a></dt>
+<dd><p>This function gets the mesh of the FEM</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>mesh: the mesh of FEM</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.fem.FEM.get_name">
+<span class="sig-name descname"><span class="pre">get_name</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#scrimp.fem.FEM.get_name" title="Link to this definition"></a></dt>
+<dd><p>This function gets the name of the FEM.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>str: name of the FEM</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.fem.FEM.get_order">
+<span class="sig-name descname"><span class="pre">get_order</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="headerlink" href="#scrimp.fem.FEM.get_order" title="Link to this definition"></a></dt>
+<dd><p>This function gets the order for the FEM.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>int: dim of the flow FEM</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.fem.FEM.get_type">
+<span class="sig-name descname"><span class="pre">get_type</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#scrimp.fem.FEM.get_type" title="Link to this definition"></a></dt>
+<dd><p>This function gets the tyoe of the FEM.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>str: type of the FEM</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.fem.FEM.set_dim">
+<span class="sig-name descname"><span class="pre">set_dim</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dim</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.fem.FEM.set_dim" title="Link to this definition"></a></dt>
+<dd><p>This function sets the dimension for the FEM.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>dim (int): the dimension fro the FEM</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.fem.FEM.set_fem">
+<span class="sig-name descname"><span class="pre">set_fem</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.fem.FEM.set_fem" title="Link to this definition"></a></dt>
+<dd><p>This function sets the Meshfem getfem object defining the finite element method to use to discretize the port.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.fem.FEM.set_mesh">
+<span class="sig-name descname"><span class="pre">set_mesh</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mesh</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.fem.FEM.set_mesh" title="Link to this definition"></a></dt>
+<dd><p>This function sets the Meshfem getfem object FEM object of scrimp.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>mesh (Mesh): the mesh where the FE are define</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-scrimp.brick">
+<span id="brick"></span><h2>Brick<a class="headerlink" href="#module-scrimp.brick" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>file:             brick.py</p></li>
+<li><p>authors:          Giuseppe Ferraro, Ghislain Haine</p></li>
+<li><p>date:             31 may 2023</p></li>
+<li><p>brief:            class for brick object</p></li>
+</ul>
+<dl class="py class">
+<dt class="sig sig-object py" id="scrimp.brick.Brick">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">scrimp.brick.</span></span><span class="sig-name descname"><span class="pre">Brick</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">form</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">regions</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">linear</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dt</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">position</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'constitutive'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">explicit</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mesh_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.brick.Brick" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>This class defines a Brick.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.brick.Brick.add_id_brick_to_list">
+<span class="sig-name descname"><span class="pre">add_id_brick_to_list</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id_brick</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.brick.Brick.add_id_brick_to_list" title="Link to this definition"></a></dt>
+<dd><p>This function adds a brick ID to the brick ID list.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>id_brick (int): the id of the brick</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.brick.Brick.disable_id_bricks">
+<span class="sig-name descname"><span class="pre">disable_id_bricks</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">gf_model</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.brick.Brick.disable_id_bricks" title="Link to this definition"></a></dt>
+<dd><p>This function disable the brick in the getfem model.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.brick.Brick.enable_id_bricks">
+<span class="sig-name descname"><span class="pre">enable_id_bricks</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">gf_model</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#scrimp.brick.Brick.enable_id_bricks" title="Link to this definition"></a></dt>
+<dd><p>This function enable the brick in the getfem model.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.brick.Brick.get_dt">
+<span class="sig-name descname"><span class="pre">get_dt</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="headerlink" href="#scrimp.brick.Brick.get_dt" title="Link to this definition"></a></dt>
+<dd><p>This function returns the boolean that defines wether the matrices applied to time-derivative of a variable or not.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>bool: parameter to help easy identification of matrices applied to time-derivative of a variable (e.g. mass matrices).</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.brick.Brick.get_explicit">
+<span class="sig-name descname"><span class="pre">get_explicit</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="headerlink" href="#scrimp.brick.Brick.get_explicit" title="Link to this definition"></a></dt>
+<dd><p>This function returns the boolean that defines wether the brick is explicit or not.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>bool: parameter to help easy identification of explicit bricks.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.brick.Brick.get_form">
+<span class="sig-name descname"><span class="pre">get_form</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#scrimp.brick.Brick.get_form" title="Link to this definition"></a></dt>
+<dd><p>This function returns the form of the brick.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>str: the form in GWFL getfem language.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.brick.Brick.get_id_bricks">
+<span class="sig-name descname"><span class="pre">get_id_bricks</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span></span></span><a class="headerlink" href="#scrimp.brick.Brick.get_id_bricks" title="Link to this definition"></a></dt>
+<dd><p>This function returns the list of integers related to the ids of the bricks.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>list: the list of integers related to the ids of the bricks.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.brick.Brick.get_linear">
+<span class="sig-name descname"><span class="pre">get_linear</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="headerlink" href="#scrimp.brick.Brick.get_linear" title="Link to this definition"></a></dt>
+<dd><p>This function returns the boolean that defines wether the brick is linear or not.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>bool: parameter to help easy identification of linear bricks.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.brick.Brick.get_mesh_id">
+<span class="sig-name descname"><span class="pre">get_mesh_id</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="headerlink" href="#scrimp.brick.Brick.get_mesh_id" title="Link to this definition"></a></dt>
+<dd><p>This function returns the ID of the brick.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>int: the id of the mesh where the form applies.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.brick.Brick.get_name">
+<span class="sig-name descname"><span class="pre">get_name</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#scrimp.brick.Brick.get_name" title="Link to this definition"></a></dt>
+<dd><p>This function returns the name of the brick.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>str: the name of the brick, will be used mainly for plotting purpose</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.brick.Brick.get_position">
+<span class="sig-name descname"><span class="pre">get_position</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="headerlink" href="#scrimp.brick.Brick.get_position" title="Link to this definition"></a></dt>
+<dd><p>This function returns the id of the position where the form of the brick applies.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>int: the id of the mesh where the form applies. Defaults to 0.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="scrimp.brick.Brick.get_regions">
+<span class="sig-name descname"><span class="pre">get_regions</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span></span></span><a class="headerlink" href="#scrimp.brick.Brick.get_regions" title="Link to this definition"></a></dt>
+<dd><p>This function returns the regions of the brick.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>list: the regions of mesh where the form applies.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="biblio.html" class="btn btn-neutral float-left" title="Bibliography" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="scrimp.examples.html" class="btn btn-neutral float-right" title="scrimp.examples" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2015-2024 ISAE-SUPAERO.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
