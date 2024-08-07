@@ -1271,6 +1271,7 @@ class DPHS:
             logging.info(
                 "Start computing the powers (substituted ports are not automated)"
             )
+        
         start = time.perf_counter()
         for _, port in self.ports.items():
             port.compute(self.solution, self.gf_model, self.domain)
@@ -1522,13 +1523,14 @@ class DPHS:
 
         return variable
 
-    def get_quantity(self, expression, region=-1, mesh_id=0) -> list:
+    def get_quantity(self, expression, region=-1, order=0, mesh_id=0) -> list:
         """This functions computes the integral over region of the expression
         at each time step
 
         Args:
             - expression (str): the GFWL expression to compute
             - region (int, optional): the id of the region (defaults to -1)
+            - order (int, optional): the order of the quantity to be computed (0: scalar, 1: vector, 2: tensor) (defaults to 0)
             - mesh_id (int, optional): the id of the mesh (defaults to 0)
 
         Returns:
@@ -1540,6 +1542,12 @@ class DPHS:
         except AssertionError as err:
             logging.error("The system has not been solved yet")
             raise err
+        
+        try:
+            assert order in [0,1,2]
+        except AssertionError as err:
+            logging.error(f"Unknown order {order} (0,1 or 2)")
+            raise ValueError
 
         values = []
         for k, t in enumerate(self.solution["t"]):
@@ -1548,7 +1556,7 @@ class DPHS:
             values.append(
                 gf.asm_generic(
                     self.domain._int_method[mesh_id],
-                    0,
+                    order,
                     expression,
                     region,
                     self.gf_model,

@@ -27,7 +27,6 @@ petsc4py.init(sys.argv)
 comm = PETSc.COMM_WORLD
 rank = comm.getRank()
 
-
 class Parameter:
     """This class describes the Parameter for a Port."""
 
@@ -352,6 +351,11 @@ class Port:
                 return evaluation
         assert False, (f"Parameter '{name}' must be added before intialization")
 
+    def set_power(self, power):
+        """This function sets the power along time of the Port."""
+
+        self.__power = power
+
     def set_is_computed(self):
         """This function sets the power of the Port as computed."""
 
@@ -380,7 +384,9 @@ class Port:
                 logging.info(
                     f"Start computing the power flowing through {self.get_name()}"
                 )
+            
             start = time.perf_counter()
+                
             if self.get_region() == None:
                 region = -1
             else:
@@ -410,6 +416,7 @@ class Port:
                     region,
                     gf_model,
                 )
+                
                 self.__power.append(power_value_at_t)
 
             self.set_is_computed()
