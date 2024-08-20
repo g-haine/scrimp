@@ -8,11 +8,6 @@ The wave equation
    :undoc-members:
    :show-inheritance:
 
-.. automodule:: examples.wave_dissipative
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 Setting
 -------
 
@@ -625,6 +620,11 @@ Another simulation
 ------------------
 
 Let us start a new simulation with damping.
+
+.. automodule:: examples.wave_dissipative
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
 .. code:: python
 
