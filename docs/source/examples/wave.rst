@@ -561,6 +561,11 @@ Now we can set the Hamiltonian and plot it.
 Adding Damping to the dphs
 --------------------------
 
+.. automodule:: examples.wave_dissipative
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 The remining part of the notebook is focused on the way to deal with
 *dissipativity*, hence using an **algebraic port**.
 
@@ -620,11 +625,6 @@ Another simulation
 ------------------
 
 Let us start a new simulation with damping.
-
-.. automodule:: examples.wave_dissipative
-   :members:
-   :undoc-members:
-   :show-inheritance:
 
 .. code:: python
 
