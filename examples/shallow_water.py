@@ -181,7 +181,7 @@ def shallow_water_eq():
     # Define the time scheme
     swe.set_time_scheme(
         ts_type="bdf",
-        ts_bdf_order=4,
+        ts_bdf_order=2,
         t_f=0.5,
         dt=0.0001,
         dt_save=0.01,

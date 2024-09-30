@@ -748,35 +748,37 @@ class DPHS:
                 logging.info("Operator different from preconditioning")
             A.assemble()
 
+    def init_matrix(self,A):
+        """
+        Set all diagonal entries of A without modifying existing entries.
+
+        Parameters
+        ----------
+        A : PETSc.Mat
+
+        """
+
+        A.setSizes(self.gf_model.nbdof())
+        A.setOption(PETSc.Mat.Option.FORCE_DIAGONAL_ENTRIES, True)
+        A.setType("aij")
+        A.setUp()
+        x=A.createVecRight(); x.setArray(0)
+        A.setOption(PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR,False)
+        A.setDiagonal(x,addv=PETSc.InsertMode.ADD_VALUES)
+        A.setOption(PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR,True)
+        A.assemble()
+
     def allocate_memory(self):
         """Pre-allocate memory for matrices and vectors"""
 
         self.mass.bindToCPU(True)
-        self.mass.setSizes(self.gf_model.nbdof())
-        self.mass.setOption(PETSc.Mat.Option.FORCE_DIAGONAL_ENTRIES, True)
-        self.mass.setType("aij")
-        self.mass.setUp()
-        self.nl_mass.setSizes(self.gf_model.nbdof())
-        self.nl_mass.setOption(PETSc.Mat.Option.FORCE_DIAGONAL_ENTRIES, True)
-        self.nl_mass.setType("aij")
-        self.nl_mass.setUp()
-        self.tangent_mass.setSizes(self.gf_model.nbdof())
-        self.tangent_mass.setOption(PETSc.Mat.Option.FORCE_DIAGONAL_ENTRIES, True)
-        self.tangent_mass.setType("aij")
-        self.tangent_mass.setUp()
+        self.init_matrix(self.mass)
+        self.init_matrix(self.nl_mass)
+        self.init_matrix(self.tangent_mass)
         self.stiffness.bindToCPU(True)
-        self.stiffness.setSizes(self.gf_model.nbdof())
-        self.stiffness.setOption(PETSc.Mat.Option.FORCE_DIAGONAL_ENTRIES, True)
-        self.stiffness.setType("aij")
-        self.stiffness.setUp()
-        self.nl_stiffness.setSizes(self.gf_model.nbdof())
-        self.nl_stiffness.setOption(PETSc.Mat.Option.FORCE_DIAGONAL_ENTRIES, True)
-        self.nl_stiffness.setType("aij")
-        self.nl_stiffness.setUp()
-        self.tangent_stiffness.setSizes(self.gf_model.nbdof())
-        self.tangent_stiffness.setOption(PETSc.Mat.Option.FORCE_DIAGONAL_ENTRIES, True)
-        self.tangent_stiffness.setType("aij")
-        self.tangent_stiffness.setUp()
+        self.init_matrix(self.stiffness)
+        self.init_matrix(self.nl_stiffness)
+        self.init_matrix(self.tangent_stiffness)
 
         self.rhs = self.nl_stiffness.createVecRight()
         self.F = self.nl_stiffness.createVecRight()
@@ -1007,7 +1009,7 @@ class DPHS:
         TS.setTime(float(self.time_scheme["t_0"]))
         TS.setMaxTime(float(self.time_scheme["t_f"]))
         TS.setTimeStep(float(self.time_scheme["dt"]))
-        TS.setExactFinalTime(PETSc.TS.ExactFinalTime.INTERPOLATE)
+        TS.setExactFinalTime(PETSc.TS.ExactFinalTime.MATCHSTEP)
         TS.setFromOptions()
         self.exclude_algebraic_var_from_lte(TS)
 
@@ -1075,6 +1077,9 @@ class DPHS:
         if self.time_scheme.hasName("ts_type"):
             saved_options["ts_type"] = self.time_scheme["ts_type"]
             self.time_scheme.delValue("ts_type")
+        if self.time_scheme.hasName("ts_bdf_order"):
+            saved_options["ts_bdf_order"] = self.time_scheme["ts_bdf_order"]
+            self.time_scheme.delValue("ts_bdf_order")
         if self.time_scheme.hasName("ts_ssp"):
             saved_options["ts_ssp"] = self.time_scheme["ts_ssp"]
             self.time_scheme.delValue("ts_ssp")
@@ -1087,6 +1092,8 @@ class DPHS:
             self.time_scheme.delValue("ts_adapt_dt_min")
             
         self.time_scheme["ts_type"] = self.time_scheme["init_step_ts_type"]
+        if self.time_scheme.getString("init_step_ts_type") == "bdf":
+            self.time_scheme["ts_bdf_order"] = 1
         self.time_scheme["ts_adapt_dt_min"] = 1e-24
         
         TS.setTimeStep(float(self.time_scheme["init_step_dt"]))
@@ -1152,10 +1159,14 @@ class DPHS:
             else:
                 next_saved_at_t = t_0
                 
+            spent_time = time.perf_counter()-self.ts_start
+            current_dt = float(TS.getTimeStep())
+            remaining_time = ((float(self.time_scheme["t_f"])+current_dt)/(t+current_dt)-1) * spent_time
+            progress = int(100*t/float(self.time_scheme["t_f"]))
             if (i == 0) or (next_saved_at_t - t <= 0) or (i == -1) or self.stop_TS:
                 if rank == 0:
                     sys.stdout.write(
-                        f"\ri={i:8d} t={t:8g} * ({int(time.perf_counter()-self.ts_start)}s)   dt={float(TS.getTimeStep()):8g}        \n"
+                        f"\ri={i:8d} t={t:8g} * ({int(spent_time)}s)   dt={current_dt:8g}   ETE={int(remaining_time)}s   ({progress}%)        \n"
                     )
                     sys.stdout.flush()
                 self.solution["t"].append(t)
@@ -1163,7 +1174,7 @@ class DPHS:
             else:
                 if rank == 0:
                     sys.stdout.write(
-                        f"\ri={i:8d} t={t:8g}   ({int(time.perf_counter()-self.ts_start)}s)   dt={float(TS.getTimeStep()):8g}        "
+                        f"\ri={i:8d} t={t:8g}   ({int(spent_time)}s)   dt={current_dt:8g}   ETE={int(remaining_time)}s   ({progress}%)          "
                     )
                     sys.stdout.flush()
 
@@ -1523,7 +1534,7 @@ class DPHS:
 
         return variable
 
-    def get_quantity(self, expression, region=-1, order=0, mesh_id=0) -> list:
+    def get_quantity(self, expression, region=-1, order=0, CN=False, mesh_id=0) -> list:
         """This functions computes the integral over region of the expression
         at each time step
 
@@ -1531,6 +1542,7 @@ class DPHS:
             - expression (str): the GFWL expression to compute
             - region (int, optional): the id of the region (defaults to -1)
             - order (int, optional): the order of the quantity to be computed (0: scalar, 1: vector, 2: tensor) (defaults to 0)
+            - CN (bool, optional): take half the sum 0.5*(z^{n+1}+z^n) instead of z^n in the computation (defaults to False)
             - mesh_id (int, optional): the id of the mesh (defaults to 0)
 
         Returns:
@@ -1552,7 +1564,15 @@ class DPHS:
         values = []
         for k, t in enumerate(self.solution["t"]):
             self.gf_model.set_time(t)
-            self.gf_model.to_variables(self.solution["z"][k])
+            # Set the solution to z^n or 0.5*(z^{n+1}+z^n)
+            if CN:
+                if k==0:
+                    self.gf_model.to_variables(self.solution["z"][k])
+                else:
+                    smoothed = 0.5*(self.solution["z"][k]+self.solution["z"][k-1])
+                    self.gf_model.to_variables(smoothed)
+            else:
+                self.gf_model.to_variables(self.solution["z"][k])
             values.append(
                 gf.asm_generic(
                     self.domain._int_method[mesh_id],

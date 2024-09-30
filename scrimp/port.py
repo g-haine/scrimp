@@ -406,8 +406,12 @@ class Port:
 
             self.__power = []
             for t, _ in enumerate(solution["t"]):
-                gf_model.to_variables(solution["z"][t])
-
+                # Smoothed via Crank-Nicolson
+                if t==0:
+                    gf_model.to_variables(solution["z"][t])
+                else:
+                    smoothed = 0.5*(solution["z"][t]+solution["z"][t-1])
+                    gf_model.to_variables(smoothed)
                 power_value_at_t = gf.asm(
                     "generic",
                     domain._int_method[self.get_mesh_id()],

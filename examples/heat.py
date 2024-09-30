@@ -166,7 +166,7 @@ def heat_eq():
     # Define the time scheme ("bdf" is backward differentiation formula)
     heat.set_time_scheme(t_f=5.,
                          ts_type="bdf", 
-                         ts_bdf_order=4, 
+                         ts_bdf_order=2, 
                          dt=0.01,
                          )
 

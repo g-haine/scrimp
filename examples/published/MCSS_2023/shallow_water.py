@@ -71,21 +71,23 @@ def shallow_water(experiment=0, formulation="grad"):
     FEM_b = ["CG", order]       # FEM for the boundary velocity controls and its colocated observations (both tangent and normal components)
     # PETSc time-stepper options
     ts_type = "bdf"
-    ts_bdf_order = 6 # Not used if ts_type != `bdf`
+    ts_bdf_order = 2 # Not used if ts_type != `bdf`
+    ts_arkimex_type = "a2" # Not used if ts_type != `arkimex`
     ksp_type = "preonly"
     pc_type = "lu"
-    pc_factor_mat_solver_type = "mumps"
+    pc_factor_mat_solver_type = "superlu"
     t_0 = 0.
     t_f = 5.
-    scale = 1.
-    dt = 0.001/scale
-    dt_save = 0.01/scale
-    ts_adapt_dt_min = 0.00001/scale
+    dt = 0.0001
+    dt_save = 0.01
+    ts_adapt_dt_min = 0.001*dt
+    ts_adapt_dt_max = 50.*dt
     init_step = True
     init_step_nb_iter = 2 # Not used if init_step = False
     init_step_ts_type = "pseudo" # Not used if init_step = False
     init_step_dt = 0.1*ts_adapt_dt_min # Not used if init_step = False
-    integrateAfter = True # Used to integrate in time the sum of powers (False = sum of integrations)
+    int_scheme = "Explicit" # `Explicit`, `Implicit`, or `CN` for the time integration of powers
+    CN = True # Power computation using Crank-Nicolson
     if experiment==0:
         geometry = "Rectangle"  # Geometry of the domain
         L = 2.                  # Length of the rectangular tank
@@ -143,8 +145,8 @@ def shallow_water(experiment=0, formulation="grad"):
         # Controls
         U_n = "0."      # Normal value
         U_t = f"{c}"    # Tangent value
-        # Long time behavior, decuple final time
-        t_f *= 10.
+        # Long time behavior, 100 * final time
+        t_f *= 100.
     
     # Init the distributed port-Hamiltonian system
     swe = S.DPHS("real")
@@ -335,6 +337,7 @@ def shallow_water(experiment=0, formulation="grad"):
     swe.set_time_scheme(
         ts_type=ts_type,
         ts_bdf_order=ts_bdf_order,
+        ts_arkimex_type=ts_arkimex_type,
         ksp_type=ksp_type,
         pc_type=pc_type,
         pc_factor_mat_solver_type=pc_factor_mat_solver_type,
@@ -343,6 +346,7 @@ def shallow_water(experiment=0, formulation="grad"):
         dt=dt,
         dt_save=dt_save,
         ts_adapt_dt_min=ts_adapt_dt_min,
+        ts_adapt_dt_max=ts_adapt_dt_max,
         init_step=init_step,
         init_step_nb_iter=init_step_nb_iter,
         init_step_ts_type=init_step_ts_type,
@@ -389,27 +393,39 @@ def shallow_water(experiment=0, formulation="grad"):
     # Plot the Hamiltonian using the built-in function
     #swe.plot_Hamiltonian(with_powers=False)
     
+    # The computation of powers needs to be consistent with the time scheme.
+    # Hence, f.g will be computed as follows: (f_{n+1}+f_n)^T/2 M (g_{n+1}+g_n)/2 using the `CN` keyword
     t = np.array(swe.solution["t"])
     HamTot = np.zeros(t.size)
     TotalEnergy = np.zeros(t.size) # Will contain every energy parts (including integration over time of dissipated and boundary powers)
-    TotalEnergyPowers = np.zeros(t.size) # The same but powers are summed before integration over time
     Terms = swe.hamiltonian.get_terms()
     for term in Terms:
         HamTot += np.array(term.get_values())
         TotalEnergy += np.array(term.get_values())
-        TotalEnergyPowers += np.array(term.get_values())
     Powers = []
     if experiment in [1,2,3]:
         # The dissipation induced by D(e_p) in the model
-        D_diss = np.array(swe.get_quantity("2 * mu * h * D(e_p) : D(e_p)"))
+        D_diss = np.array(swe.get_quantity("2 * mu * h * D(e_p) : D(e_p)", CN=CN))
         Powers.append(D_diss)
-        int_dt_D_diss = 0.5*(D_diss[0:-1] + D_diss[1:])*(t[1:]-t[0:-1])
+        if int_scheme=="CN":
+            int_dt_D_diss = 0.5*(D_diss[0:-1] + D_diss[1:])*(t[1:]-t[0:-1])
+        elif int_scheme=="Explicit":
+            int_dt_D_diss = D_diss[1:]*(t[1:]-t[0:-1])
+        elif int_scheme=="Implicit":
+            int_dt_D_diss = D_diss[0:-1]*(t[1:]-t[0:-1])
+        else:
+            raise ValueError(f'Unknown int_scheme: {int_scheme}')
         int_D_diss = np.array([int_dt_D_diss[0:k].sum() for k in range(len(t))]) # integration over time
         
         # The dissipation induced by div(e_p) in the model
-        div_diss = np.array(swe.get_quantity("2 * mu * h * div(e_p) * div(e_p)"))
+        div_diss = np.array(swe.get_quantity("2 * mu * h * div(e_p) * div(e_p)", CN=CN))
         Powers.append(div_diss)
-        int_dt_div_diss = 0.5*(div_diss[0:-1] + div_diss[1:])*(t[1:]-t[0:-1])
+        if int_scheme=="CN":
+            int_dt_div_diss = 0.5*(div_diss[0:-1] + div_diss[1:])*(t[1:]-t[0:-1])
+        elif int_scheme=="Explicit":
+            int_dt_div_diss = div_diss[1:]*(t[1:]-t[0:-1])
+        elif int_scheme=="Implicit":
+            int_dt_div_diss = div_diss[0:-1]*(t[1:]-t[0:-1])
         int_div_diss = np.array([int_dt_div_diss[0:k].sum() for k in range(len(t))]) # integration over time
         
         TotalEnergy += int_D_diss + int_div_diss
@@ -417,40 +433,49 @@ def shallow_water(experiment=0, formulation="grad"):
     # The power flowing through the control ports
     Energies = []
     if formulation=="grad":
-        power = np.array(swe.get_quantity("-h * U_n * Y_n", region=10))
+        power = np.array(swe.get_quantity("-h * U_n * Y_n", CN=CN, region=10))
         Powers.append(power)
-        energy_dt = 0.5*(power[0:-1] + power[1:])*(t[1:]-t[0:-1])
+        if int_scheme=="CN":
+            energy_dt = 0.5*(power[0:-1] + power[1:])*(t[1:]-t[0:-1])
+        elif int_scheme=="Explicit":
+            energy_dt = power[1:]*(t[1:]-t[0:-1])
+        elif int_scheme=="Implicit":
+            energy_dt = power[0:-1]*(t[1:]-t[0:-1])
         Energies.append(np.array([energy_dt[0:k].sum() for k in range(len(t))])) # integration over time
         if experiment in [1,2,3]:
-            power = np.array(swe.get_quantity("-h * U . Y", region=10))
+            power = np.array(swe.get_quantity("-h * U . Y", CN=CN, region=10))
             Powers.append(power)
-            energy_dt = 0.5*(power[0:-1] + power[1:])*(t[1:]-t[0:-1])
+            if int_scheme=="CN":
+                energy_dt = 0.5*(power[0:-1] + power[1:])*(t[1:]-t[0:-1])
+            elif int_scheme=="Explicit":
+                energy_dt = power[1:]*(t[1:]-t[0:-1])
+            elif int_scheme=="Implicit":
+                energy_dt = power[0:-1]*(t[1:]-t[0:-1])
             Energies.append(np.array([energy_dt[0:k].sum() for k in range(len(t))])) # integration over time
     if formulation=="div":
         if experiment==0:
-            power = np.array(swe.get_quantity("-h * U_n * Y_n", region=10))
+            power = np.array(swe.get_quantity("-h * U_n * Y_n", CN=CN, region=10))
             Powers.append(power)
-            energy_dt = 0.5*(power[0:-1] + power[1:])*(t[1:]-t[0:-1])
+            if int_scheme=="CN":
+                energy_dt = 0.5*(power[0:-1] + power[1:])*(t[1:]-t[0:-1])
+            elif int_scheme=="Explicit":
+                energy_dt = power[1:]*(t[1:]-t[0:-1])
+            elif int_scheme=="Implicit":
+                energy_dt = power[0:-1]*(t[1:]-t[0:-1])
             Energies.append(np.array([energy_dt[0:k].sum() for k in range(len(t))])) # integration over time
         if experiment in [1,2,3]:
-            power = np.array(swe.get_quantity("-h * U . Y", region=10))
+            power = np.array(swe.get_quantity("-h * U . Y", CN=CN, region=10))
             Powers.append(power)
-            energy_dt = 0.5*(power[0:-1] + power[1:])*(t[1:]-t[0:-1])
+            if int_scheme=="CN":
+                energy_dt = 0.5*(power[0:-1] + power[1:])*(t[1:]-t[0:-1])
+            elif int_scheme=="Explicit":
+                energy_dt = power[1:]*(t[1:]-t[0:-1])
+            elif int_scheme=="Implicit":
+                energy_dt = power[0:-1]*(t[1:]-t[0:-1])
             Energies.append(np.array([energy_dt[0:k].sum() for k in range(len(t))])) # integration over time
     
     for energy in Energies:
         TotalEnergy += energy
-    
-    TotalPowers = np.zeros(t.size)
-    for power in Powers:
-        TotalPowers += power
-    TotalPowers_dt = 0.5*(TotalPowers[0:-1] + TotalPowers[1:])*(t[1:]-t[0:-1])
-    TotalEnergyPowers += np.array([TotalPowers_dt[0:k].sum() for k in range(len(t))])
-    
-    if integrateAfter:
-        TotalE = TotalEnergyPowers
-    else:
-        TotalE = TotalEnergy
     
     plt.rcParams['text.usetex'] = True
     plt.rcParams['font.size'] = 32
@@ -469,7 +494,7 @@ def shallow_water(experiment=0, formulation="grad"):
         
         fig = plt.figure(figsize=figsize, layout="constrained")
         ax = fig.add_subplot(111)
-        ax.plot(t, (TotalE-TotalE[0])/np.max(TotalE), "r--")
+        ax.plot(t, (TotalEnergy-TotalEnergy[0])/np.max(TotalEnergy), "r--")
         fig.legend(["Total energy"], loc='outside center right')
         plt.xlabel("Time (s)")
         plt.ylabel("Variation (relative)")
@@ -485,7 +510,7 @@ def shallow_water(experiment=0, formulation="grad"):
         else:
             plots = [411,412,413,414]
         ax1 = fig.add_subplot(plots[0])
-        ax1.plot(t, HamTot, "r-", t, TotalE, "r--")
+        ax1.plot(t, HamTot, "r-", t, TotalEnergy, "r--")
         ax1.grid(axis="both")
         plt.tick_params('x', labelbottom=False)
         ax2 = fig.add_subplot(plots[1], sharex=ax1)
@@ -523,7 +548,7 @@ def shallow_water(experiment=0, formulation="grad"):
         else:
             plots = [211,212]
         ax1 = fig.add_subplot(plots[0])
-        ax1.plot(t, HamTot, "r-", t, TotalE, "r--")
+        ax1.plot(t, HamTot, "r-", t, TotalEnergy, "r--")
         ax1.grid(axis="both")
         plt.tick_params('x', labelbottom=False)
         ax2 = fig.add_subplot(plots[1], sharex=ax1)

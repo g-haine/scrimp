@@ -45,7 +45,9 @@ def convert_gmm_to_petsc(M, B, comm=comm):
     row_ptr, col_idx = A.csc_ind()
     values = A.csc_val()
     
+    B.setOption(PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR,False)
     B.setValuesLocalCSR(row_ptr, col_idx, values, addv=PETSc.InsertMode.INSERT_VALUES)
+    B.setOption(PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR,True)
 
     # Assemble the PETSc matrix in parallel
     B.assemble()
