@@ -144,7 +144,7 @@ def shallow_water(experiment=0, formulation="grad"):
         p_init = f"[ -{c}*np.sin(0.5*np.pi*np.sqrt(x*x+y*y))*np.sin(np.arctan2(y,x)), {c}*np.sin(0.5*np.pi*np.sqrt(x*x+y*y))*np.cos(np.arctan2(y,x)) ]"
         # Controls
         U_n = "0."      # Normal value
-        U_t = f"{c}"    # Tangent value
+        U_t = f"{c} * min( 1, exp(- pow((max(90,t)-100) / (500-max(90,t)),2) ))"    # Tangent value
         # Long time behavior, 100 * final time
         t_f *= 100.
     
