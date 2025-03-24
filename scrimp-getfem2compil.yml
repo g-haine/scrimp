@@ -1,15 +1,15 @@
 name: scrimp
 channels:
   - conda-forge
+  - defaults
 dependencies:
   - python=3
-  - conda
   - cxx-compiler
   - gfortran
   - matplotlib
   - mpi4py
   - mumps-mpi
-  - numpy=1
+  - numpy
   - scipy
   - spyder
   - superlu

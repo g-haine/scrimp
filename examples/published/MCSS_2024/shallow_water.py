@@ -27,7 +27,7 @@ def shallow_water(experiment=0, formulation="grad"):
     @article{
         author = {Fl\'{a}vio Luiz Cardoso-Ribeiro and Ghislain Haine and Laurent Lef\`{e}vre and Denis Matignon},
         title = {Rotational shallow water equations with viscous damping and boundary control: structure-preserving spatial discretization},
-        journal = {},
+        journal = {Mathematics of Control, Signals, and Systems},
         volume = {},
         issue = {},
         pages = {},
