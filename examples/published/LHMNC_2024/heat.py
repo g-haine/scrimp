@@ -27,22 +27,23 @@ def heat():
     computed solution is given.
     
     This script can be used to reproduce the examples shown in the paper:
-    @article{
-        author = {Giuseppe Ferraro and Michel Fourni\'{e} and Ghislain Haine},
-        title = {Simulation and control of interactions in multi-physics, 
-                 a python package for port-Hamiltonian systems},
-        journal = {},
-        volume = {},
-        issue = {},
-        pages = {},
-        year = {2024}
+    @article{Ferraro_2024,
+        title={{Simulation and control of interactions in multi-physics, a Python package for port-Hamiltonian systems}},
+        volume={58},
+        ISSN={2405-8963},
+        DOI={10.1016/j.ifacol.2024.08.267},
+        number={6},
+        journal={IFAC-PapersOnLine},
+        publisher={Elsevier BV},
+        author={Ferraro, Giuseppe and Fournié, Michel and Haine, Ghislain},
+        year={2024},
+        pages={119--124}
     }
     
     Example of use: to run the heat problem on 2 cores:
         `mpirun -n 2 python heat.py`
     
-    See the file `scrimp.yml` in the folder of this script to know the exact version
-    of each library used for the results obtained in the paper.
+    See the file `scrimp.yml` in the folder of this script to know the exact version of each library used for the results obtained in the paper.
     
     Returns:
         the DPHS object

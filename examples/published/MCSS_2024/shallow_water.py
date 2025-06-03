@@ -24,14 +24,14 @@ def shallow_water(experiment=0, formulation="grad"):
     Discretisation use the grad-grad or the div-div formulation.
     
     This script can be used to reproduce the examples shown in the paper:
-    @article{
-        author = {Fl\'{a}vio Luiz Cardoso-Ribeiro and Ghislain Haine and Laurent Lef\`{e}vre and Denis Matignon},
-        title = {Rotational shallow water equations with viscous damping and boundary control: structure-preserving spatial discretization},
-        journal = {Mathematics of Control, Signals, and Systems},
-        volume = {},
-        issue = {},
-        pages = {},
-        year = {2024}
+    @article{Cardoso_Ribeiro_2024,
+        title={{Rotational shallow water equations with viscous damping and boundary control: structure-preserving spatial discretization}},
+        ISSN={1435-568X},
+        DOI={10.1007/s00498-024-00404-6},
+        journal={Mathematics of Control, Signals, and Systems},
+        publisher={Springer Science and Business Media LLC},
+        author={Cardoso-Ribeiro, Flávio Luiz and Haine, Ghislain and Lefèvre, Laurent and Matignon, Denis},
+        year={2024}
     }
     
     Example of use: to run experiment 1 with `grad-grad` formulation, write:
@@ -39,8 +39,7 @@ def shallow_water(experiment=0, formulation="grad"):
     
     Outputs may be traced in ParaView with the `PV_trace_experiment.py` file in this folder.
     
-    See the file `scrimp.yml` in the folder of this script to know the exact version
-    of each library used for the results obtained in the paper.
+    See the file `scrimp.yml` in the folder of this script to know the exact version of each library used for the results obtained in the paper.
     
     Args:
         - experiment (int): the experiment to reproduce:
