@@ -7,7 +7,7 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = 'SCRIMP'
-copyright = '2015-2024 ISAE-SUPAERO'
+copyright = '2015-2025 ISAE-SUPAERO'
 author = 'Giuseppe Ferraro, Michel Fournié, Ghislain Haine'
 release = '1.1'
 version = '1.1.1'

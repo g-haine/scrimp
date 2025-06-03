@@ -16,5 +16,4 @@ The easiest way to install SCRIMP is to use a conda environment.
 3. Enter the folder: ```cd scrimp```
 4. Create the conda environment:  ```conda env create --file /path/to/scrimp/scrimp.yml```
 5. Activate the environment:  ```conda activate scrimp```
-6. Add scrimp to the PATH: ```conda develop /path/to/scrimp/```
-7. Finish with pip: ```pip install -e .```
+6. Finish with pip: ```pip install -e .```
