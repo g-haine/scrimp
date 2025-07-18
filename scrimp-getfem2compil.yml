@@ -9,12 +9,13 @@ dependencies:
   - matplotlib
   - mpi4py
   - mumps-mpi
-  - numpy
+  - numpy<2
   - scipy
-  - spyder
+  - slepc4py=*=*complex*
+  - spyder=6
   - superlu
   - paraview
-  - petsc4py
+  - petsc4py=*=*complex*
   - pip
   - qhull
   - pip:

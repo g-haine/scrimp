@@ -6,11 +6,13 @@ dependencies:
   - python=3
   - getfem
   - matplotlib
-  - numpy
+  - numpy<2
   - scipy
-  - spyder
+  - slepc4py
+  - slepc4py=*=*complex*
+  - spyder=6
   - paraview
-  - petsc4py
+  - petsc4py=*=*complex*
   - pip
   - pip:
     - gmsh

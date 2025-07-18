@@ -92,7 +92,7 @@ def Interval(parameters={"L": 1.0, "h": 0.05}, refine=0, terminal=1):
     h = parameters["h"] / (refine + 1)
 
     mesh = gf.Mesh(
-        "regular simplices",
+        "cartesian",
         np.arange(
             0,
             L + h,

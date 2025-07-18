@@ -527,7 +527,7 @@ class DPHS:
         # form of the mass matrix for the control variable
         u = self.controls[name].get_name_control()
         mass_form = "-" + u + times + "Test_" + u
-
+        
         self.add_brick(
             Brick(
                 "M_" + u,
@@ -1009,7 +1009,7 @@ class DPHS:
         TS.setTime(float(self.time_scheme["t_0"]))
         TS.setMaxTime(float(self.time_scheme["t_f"]))
         TS.setTimeStep(float(self.time_scheme["dt"]))
-        TS.setExactFinalTime(PETSc.TS.ExactFinalTime.MATCHSTEP)
+        TS.setExactFinalTime(PETSc.TS.ExactFinalTime.STEPOVER)
         TS.setFromOptions()
         self.exclude_algebraic_var_from_lte(TS)
 
@@ -1042,6 +1042,13 @@ class DPHS:
         TS.destroy()
         gc.collect()
 
+        idx = np.argsort(self.solution["t"])
+        self.solution["t"] = np.array(self.solution["t"])[idx]
+        self.solution["z"] = np.array(self.solution["z"])[idx]
+        mask = self.solution["t"] <= float(self.time_scheme["t_f"])
+        self.solution["t"] = self.solution["t"][mask]
+        self.solution["z"] = self.solution["z"][mask]
+        
         self.enable_all_bricks()
         self.solve_done = True
 
@@ -1070,7 +1077,7 @@ class DPHS:
         TS.setIJacobian(self.IJacobian, self.J)
         TS.setTime(float(self.time_scheme["t_0"]))
         TS.setMaxSteps(int(self.time_scheme["init_step_nb_iter"]))
-        TS.setExactFinalTime(PETSc.TS.ExactFinalTime.INTERPOLATE)
+        TS.setExactFinalTime(PETSc.TS.ExactFinalTime.MATCHSTEP)
 
         # Save options for later use and avoid overidden them with the initial step
         saved_options = dict()
@@ -1170,7 +1177,7 @@ class DPHS:
                     )
                     sys.stdout.flush()
                 self.solution["t"].append(t)
-                self.solution["z"].append(self.GlobalVec.copy().getArray())
+                self.solution["z"].append(np.array(self.GlobalVec.copy().getArray(), dtype=np.float64))
             else:
                 if rank == 0:
                     sys.stdout.write(
@@ -1184,7 +1191,7 @@ class DPHS:
             not self.linear_mass or not self.linear_stiffness
         ):  # Needed for non-linear systems only
             # Update the state in the getfem `Model`
-            self.gf_model.to_variables(self.GlobalVec.copy().getArray())
+            self.gf_model.to_variables(np.array(self.GlobalVec.copy().getArray(), dtype=np.float64))
         # Says to getfem that we go to the next iteration, not sure if needed
         self.gf_model.next_iter()
 
@@ -1558,7 +1565,7 @@ class DPHS:
         try:
             assert order in [0,1,2]
         except AssertionError as err:
-            logging.error(f"Unknown order {order} (0,1 or 2)")
+            logging.error(f"{err}. Unknown order {order} (0,1 or 2)")
             raise ValueError
 
         values = []

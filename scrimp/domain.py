@@ -28,6 +28,7 @@ import getfem as gf
 import logging
 
 import scrimp.utils.config
+outputs_path = scrimp.utils.config.outputs_path
 
 
 class Domain:
