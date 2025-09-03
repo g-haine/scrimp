@@ -21,7 +21,7 @@ What is SCRIMP?
 
 **SCRIMP** (Simulation and ContRol of Interactions in Multi-Physics) is a python collection, *namely* a package, of *methods* and *classes* for the structure-preserving discretization and simulation of multi-physics models, using the formalism of port-Hamiltonian systems (`van der Schaft and Maschke (2002) <https://doi.org/10.1016/S0393-0440(01)00083-3>`_).
 
-**SCRIMP** aims at speeding the coding process of the **Partitioned Finite Element Method** on a wide range of (multi-)physical systems (`Brugnoli *et al.* (2021) <https://doi.org/10.4236/jamp.2021.96088>`_), and scrimp and save time!
+**SCRIMP** aims at speeding the coding process of the **Partitioned Finite Element Method** on a wide range of (multi-)physical systems (`Ferraro *et al.* (2024) <https://doi.org/10.1016/j.ifacol.2024.08.267>`_), and scrimp and save time!
 
 The documentation is `available in pdf <https://g-haine.github.io/scrimp/latex/scrimp.pdf>`_.
 
@@ -168,19 +168,23 @@ One of our choice for IDE is `Spyder <https://www.spyder-ide.org/>`_ -- A scient
 How to cite SCRIMP?
 ===================
 
-Brugnoli, Andrea and Haine, Ghislain and Serhani, Anass and Vasseur, Xavier.
-*Numerical Approximation of Port-Hamiltonian Systems for Hyperbolic or Parabolic PDEs with Boundary Control.*
-(2021) **Journal of Applied Mathematics and Physics**, 09 (06). 1278-1321.
+Ferraro G, Fournié M, Haine G. 
+*Simulation and control of interactions in multi-physics, a Python package for port-Hamiltonian systems.*
+**IFAC-PapersOnLine**, 2024;58(6):119–24.
+  
 
 .. code-block:: latex
 
-    @article{Brugnoli2021,
-    author = {Brugnoli, Andrea and Haine, Ghislain and Serhani, Anass and Vasseur, Xavier},
-    title = { {Numerical Approximation of Port-Hamiltonian Systems for Hyperbolic or Parabolic PDEs with Boundary Control} },
-    journal = {Journal of Applied Mathematics and Physics},
-    volume = {09},
-    issue = {06},
-    pages = {1278--1321},
-    year = {2021}
+    @article{Ferraro_2024,
+      title={{Simulation and control of interactions in multi-physics, a Python package for port-Hamiltonian systems}},
+      volume={58},
+      ISSN={2405-8963},
+      DOI={10.1016/j.ifacol.2024.08.267},
+      number={6},
+      journal={IFAC-PapersOnLine},
+      publisher={Elsevier BV},
+      author={Ferraro, Giuseppe and Fournié, Michel and Haine, Ghislain},
+      year={2024},
+      pages={119--124}
     }
 
