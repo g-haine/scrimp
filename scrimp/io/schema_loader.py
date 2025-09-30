@@ -141,7 +141,7 @@ class FEMFieldSchema(BaseModel):
     )
     description: Optional[str] = None
 
-    #@root_validator
+    @root_validator
     def check_expression(cls, values: Dict[str, Any]) -> Dict[str, Any]:
         family = values.get("family")
         expression = values.get("expression")
