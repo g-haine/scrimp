@@ -13,10 +13,14 @@
 - brief:            functions to initialize SCRIMP
 """
 
-import gmsh
 import os
 import petsc4py
 import sys
+
+try:  # pragma: no cover - gmsh is optional during testing environments
+    import gmsh  # type: ignore
+except ModuleNotFoundError:  # pragma: no cover
+    gmsh = None
 
 petsc4py.init(sys.argv)
 from petsc4py import PETSc
@@ -37,3 +41,4 @@ from scrimp.fem import FEM
 from scrimp.control import Control_Port
 from scrimp.brick import Brick
 from scrimp.hamiltonian import Term, Hamiltonian
+from scrimp.io import schema_loader
