@@ -568,6 +568,9 @@ class DPHS:
         # Check the size of the parameter according to its kind
         kind = self.ports[name_port].get_parameter(name).get_kind()
         if kind == "tensor-field":
+            evaluation = evaluation.reshape(
+                evaluation.shape[0] * evaluation.shape[1], evaluation.shape[2]
+            )
             sizes = evaluation.shape[0]
         elif kind == "scalar-field":
             sizes = 1
