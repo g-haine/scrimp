@@ -182,6 +182,12 @@ class DPHS:
             port_callback=self._on_port_registered,
         )
 
+        #: Solver configuration and associated assembly manager
+        self.solver_options = SolverOptions()
+        self.assembly_manager = MatrixAssemblyManager(
+            options=self.solver_options.assembly
+        )
+
         #: Clear and init `time_scheme` member, which embed PETSc TS options database
         self._time_integrator = TimeIntegrator()
         self.get_cleared_TS_options()
