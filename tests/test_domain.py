@@ -1,93 +1,36 @@
 import unittest
+
 from scrimp import Domain
-import scrimp.utils.mesh
+from scrimp.io.schema_loader import DomainSchema, IntegrationRuleSchema, MeshSchema
 
 
 class TestDomain(unittest.TestCase):
-    def test_name(self):
-        domain = Domain("Rectangle", {"L": 2.0, "l": 1.0, "h": 0.15})
-        self.assertEqual(domain.get_name(), "Rectangle")  # add assertion here
-
-    def test_builtins_methods(self):
-        built_in_methods = dir(scrimp.utils.mesh)
-
-        name = "Rectangle"
-        # print(built_in_methods)
-        self.assertTrue(name in built_in_methods)
-
-        name = "ciao"
-        self.assertFalse(name in built_in_methods)
-
-    def test_mesh(self):
-        name = "Rectangle"
-        parameters = {"L": 2.0, "l": 1.0, "h": 0.15}
-        domain = Domain(name, parameters)
-        built_in_methods = dir(scrimp.utils)
-        gf_mesh = None
-
-        if name in built_in_methods:
-            gf_mesh = utils.mesh.Rectangle(parameters, 0)
-            self.assertListEqual(domain.get_mesh(), gf_mesh[0])  # add assertion here
-
-        else:
-            self.assertIsNone(gf_mesh)
-
-    def test_dim(self):
-        name = "Rectangle"
-        parameters = {"L": 2.0, "l": 1.0, "h": 0.15}
-        domain = Domain(name, parameters)
-        built_in_methods = dir(scrimp.utils)
-        gf_mesh = None
-
-        if name in built_in_methods:
-            gf_mesh = utils.mesh.Rectangle(parameters, 0)
-            self.assertListEqual(domain.get_dim(), gf_mesh[1])  # add assertion here
-
-        else:
-            self.assertIsNone(gf_mesh)
-
-    def test_subdomains(self):
-        name = "Rectangle"
-        parameters = {"L": 2.0, "l": 1.0, "h": 0.15}
-        domain = Domain(name, parameters)
-        built_in_methods = dir(scrimp.utils)
-        gf_mesh = None
-
-        if name in built_in_methods:
-            gf_mesh = utils.mesh.Rectangle(parameters, 0)
-            self.assertListEqual(
-                domain.get_subdomains(), gf_mesh[2]
-            )  # add assertion here
-
-        else:
-            self.assertIsNone(gf_mesh)
-
-    def test_boundaries(self):
-        name = "Rectangle"
-        parameters = {"L": 2.0, "l": 1.0, "h": 0.15}
-        domain = Domain(name, parameters)
-        built_in_methods = dir(scrimp.utils)
-        gf_mesh = None
-
-        if name in built_in_methods:
-            gf_mesh = utils.mesh.Rectangle(parameters, 0)
-            self.assertListEqual(
-                domain.get_boundaries(), gf_mesh[3]
-            )  # add assertion here
-
-        else:
-            self.assertIsNone(gf_mesh)
-
-    def test_isSet(self):
-        name = "Rectangle"
-        parameters = {"L": 2.0, "l": 1.0, "h": 0.15}
-        domain = Domain(name, parameters)
+    def test_legacy_initialisation(self):
+        domain = Domain("Interval", {"L": 2.0, "h": 0.15})
+        self.assertEqual(domain.get_name(), "Interval")
         self.assertTrue(domain.get_isSet())
+        self.assertIn("Interval", domain.get_mesh_labels())
 
-        # name = "Ciao"
-        # parameters = {"L": 2.0, "l": 1.0, "h": 0.15}
-        # domain = Domain(name, parameters)
-        # self.assertFalse(domain.get_isSet())
+    def test_schema_initialisation(self):
+        schema = DomainSchema(
+            name="IntervalDomain",
+            meshes=[
+                MeshSchema(
+                    id="omega",
+                    source="builtin",
+                    generator="Interval",
+                    parameters={"L": 2.0, "h": 0.1},
+                    integration=IntegrationRuleSchema(family="gauss", order=3),
+                )
+            ],
+        )
+        domain = Domain(schema)
+        self.assertEqual(domain.get_name(), "IntervalDomain")
+        self.assertListEqual(domain.get_mesh_labels(), ["omega"])
+        self.assertEqual(domain.get_dim()[0], 1)
+        exported = domain.get_schema()
+        self.assertIsNotNone(exported)
+        self.assertEqual(exported.dict(), schema.dict())
 
 
 if __name__ == "__main__":

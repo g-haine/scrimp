@@ -18,7 +18,6 @@ import os
 import sys
 import types
 
-
 def _install_stub(module_name: str, factory):
     if module_name not in sys.modules:
         sys.modules[module_name] = factory()
@@ -80,6 +79,12 @@ if _petsc_spec is None:
     _install_stub("petsc4py", _make_petsc_stub)
 
 import petsc4py  # type: ignore[import-untyped]
+
+try:  # pragma: no cover - gmsh is optional during testing environments
+    import gmsh  # type: ignore
+except ModuleNotFoundError:  # pragma: no cover
+    gmsh = None
+
 petsc4py.init(sys.argv)
 from petsc4py import PETSc  # type: ignore[import-untyped]
 
@@ -112,6 +117,11 @@ if _runtime_ready:
 else:  # pragma: no cover - optional runtime features
     DPHS = Domain = State = CoState = FEM = Control_Port = None
 
+from scrimp.core import IORegistry, StateSpace, SystemTopology, TimeIntegrator, TopologyBuilder
+from scrimp.dphs import DPHS
+from scrimp.domain import Domain
+from scrimp.state import State
+from scrimp.costate import CoState
 from scrimp.port import Parameter, Port
 from scrimp.brick import Brick
 
@@ -121,3 +131,23 @@ from scrimp.structure import (
     ConstitutiveRelation,
     DiracStructure,
 )
+from scrimp.io import schema_loader
+
+__all__ = [
+    "DPHS",
+    "Domain",
+    "State",
+    "CoState",
+    "Parameter",
+    "Port",
+    "FEM",
+    "Control_Port",
+    "Brick",
+    "Term",
+    "Hamiltonian",
+    "IORegistry",
+    "StateSpace",
+    "SystemTopology",
+    "TimeIntegrator",
+    "TopologyBuilder",
+]
