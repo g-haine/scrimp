@@ -1,5 +1,12 @@
 from PyQt5 import QtCore, QtWidgets
-from PyQt5.QtWidgets import QPushButton, QGridLayout, QTableWidget, QComboBox, QLabel
+from PyQt5.QtWidgets import (
+    QPushButton,
+    QGridLayout,
+    QTableWidget,
+    QComboBox,
+    QLabel,
+    QTableWidgetItem,
+)
 from PyQt5.QtCore import Qt
 from utils.GUI import gui_pages, gui_width, gui_height, Help, check_black_listed_words
 
@@ -174,6 +181,40 @@ class Window(QtWidgets.QWidget):
         s = itemToString(s, table_ports, "Ports")
 
         self.label_session.setText(s)
+
+        if (
+            "read_from_file" in self.session.keys()
+            and not self.session["add_parameter_page"]["loaded_from_file"]
+        ):
+            self.load_session_from_file()
+
+    def load_session_from_file(self):
+        if (
+            "parameters"
+            in self.session["read_from_file"]["dict"]["add_parameter_page"].keys()
+        ):
+            type_to_index = {
+                "scalar-field": 0,
+                "vector-field": 1,
+                "tensor-field": 2,
+            }
+
+            self.table_parameters.setRowCount(0)
+            row = 0
+            for parameter in self.session["read_from_file"]["dict"][
+                "add_parameter_page"
+            ]["parameters"]:
+                self.new_parameter()
+                for col, param in enumerate(parameter):
+                    if col != 2:
+                        self.table_parameters.setItem(row, col, QTableWidgetItem(param))
+                    else:
+                        index = type_to_index[param]
+                        self.table_parameters.cellWidget(row, col).setCurrentIndex(
+                            index
+                        )
+                row += 1
+        self.session["add_parameter_page"]["loaded_from_file"] = True
 
     def next_page(self):
         """This function emits the signal to navigate to the next page."""

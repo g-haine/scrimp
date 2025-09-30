@@ -192,6 +192,46 @@ class Window(QtWidgets.QWidget):
         s = itemToString(s, table_parameters, "Parameters")
 
         self.label_session.setText(s)
+        if (
+            "read_from_file" in self.session.keys()
+            and not self.session["add_brick_page"]["loaded_from_file"]
+        ):
+            self.load_session_from_file()
+
+    def load_session_from_file(self):
+        if "bricks" in self.session["read_from_file"]["dict"]["add_brick_page"].keys():
+            poistion_to_index = {
+                "constitutive": 0,
+                "flow": 1,
+                "effort": 2,
+            }
+
+            bool_to_index_linear = {"False": 1, "True": 0}
+            bool_to_index_dt = {"False": 0, "True": 1}
+
+            self.table_bricks.setRowCount(0)
+
+            row = 0
+            for brick in self.session["read_from_file"]["dict"]["add_brick_page"][
+                "bricks"
+            ]:
+                self.new_brick()
+                for col, param in enumerate(brick):
+                    if col not in [2, 3, 4, 5]:
+                        self.table_bricks.setItem(row, col, QTableWidgetItem(param))
+                    elif col == 2:
+                        l = ",".join(param)
+                        self.table_bricks.setItem(row, col, QTableWidgetItem(l))
+                    else:
+                        if col == 3:
+                            index = bool_to_index_linear[param]
+                        elif col == 4:
+                            index = bool_to_index_dt[param]
+                        elif col == 5:
+                            index = poistion_to_index[param]
+                        self.table_bricks.cellWidget(row, col).setCurrentIndex(index)
+                row += 1
+        self.session["add_brick_page"]["loaded_from_file"] = True
 
     def next_page(self):
         """This function emits the signal to navigate to the next page."""

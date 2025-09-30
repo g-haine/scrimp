@@ -12,6 +12,8 @@ import keyword
 
 # list of GUI's pages
 gui_pages = [
+    "welcome_page",
+    "load_page",
     "create_dphs_page",
     "set_domain_page",
     "add_state_costate_page",
@@ -29,7 +31,7 @@ gui_pages = [
 ]
 
 # setting the size of the GUI windows
-gui_width = 1700
+gui_width = 1200
 gui_height = 600
 button_size = (200, 150, 100, 40)
 main_size_font = "+3"
@@ -49,7 +51,6 @@ heading = """# SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
 # github: https://github.com/g-haine/scrimp
 
 from scrimp import *
-from scrimp.utils.mesh import set_verbose_gf
 from itertools import zip_longest
 
 
@@ -390,7 +391,7 @@ def text_add_ports(self, file):
         file.write("    Port(")
         for col in range(cols):
             item = table_ports.item(row, col)
-            if col in [3, 5, 6]:
+            if col in [3, 5, 6, 7]:
                 text = table_ports.cellWidget(row, col).currentText()
             elif item is not None:
                 text = item.text()

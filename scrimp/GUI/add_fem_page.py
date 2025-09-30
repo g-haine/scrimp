@@ -129,7 +129,31 @@ class Window(QtWidgets.QWidget):
 
     def update_page(self):
         """This function manages the update of the current page."""
-        pass
+        if (
+            "read_from_file" in self.session.keys()
+            and not self.session["add_fem_page"]["loaded_from_file"]
+        ):
+            self.load_session_from_file()
+
+    def load_session_from_file(self):
+        if "fems" in self.session["read_from_file"]["dict"]["add_fem_page"].keys():
+            fem_to_index = {
+                "CG": 0,
+                "DG": 1,
+            }
+
+            self.table_FEMs.setRowCount(0)
+            row = 0
+            for fem in self.session["read_from_file"]["dict"]["add_fem_page"]["fems"]:
+                self.new_FEM()
+                for col, param in enumerate(fem):
+                    if col not in [2]:
+                        self.table_FEMs.setItem(row, col, QTableWidgetItem(param))
+                    else:
+                        index = fem_to_index[param]
+                        self.table_FEMs.cellWidget(row, col).setCurrentIndex(index)
+                row += 1
+        self.session["add_fem_page"]["loaded_from_file"] = True
 
     def next_page(self):
         """This function emits the signal to navigate to the next page."""

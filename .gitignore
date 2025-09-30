@@ -11,3 +11,4 @@ logs
 dist/
 *egg*
 *.json
+!*.session.json

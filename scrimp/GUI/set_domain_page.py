@@ -272,7 +272,34 @@ class Window(QtWidgets.QWidget):
 
     def update_page(self):
         """This function manages the update of the current page."""
-        pass
+        if (
+            "read_from_file" in self.session.keys()
+            and not self.session["set_domain_page"]["loaded_from_file"]
+        ):
+            self.load_session_from_file()
+
+    def load_session_from_file(self):
+        # set domain page
+        domain_to_row = {
+            "Segment": 1,
+            "Rectangle": 3,
+            "Disk": 4,
+            "Annulus": 5,
+            "Other": 6,
+        }
+
+        row = domain_to_row[
+            self.session["read_from_file"]["dict"]["set_domain_page"]["list_widget"]
+        ]
+        self.list_widget.setCurrentRow(row)
+
+        self.update_table()
+        for i, param in enumerate(
+            self.session["read_from_file"]["dict"]["set_domain_page"]["parameters"]
+        ):
+            self.table.setItem(i, 1, QTableWidgetItem(param))
+
+        self.session["set_domain_page"]["loaded_from_file"] = True
 
     def next_page(self):
         """This function emits the signal to navigate to the next page."""
