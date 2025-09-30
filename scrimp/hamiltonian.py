@@ -18,11 +18,16 @@ import logging
 import numpy as np
 import matplotlib.pyplot as plt
 import getfem as gf
-from scrimp.domain import Domain
+from typing import Any, Iterable, TYPE_CHECKING
+
+from scrimp.structure import ensure_term
 from petsc4py import PETSc
 import petsc4py
 import os
 import sys
+
+if TYPE_CHECKING:  # pragma: no cover - typing helper
+    from scrimp.domain import Domain
 
 petsc4py.init(sys.argv)
 
@@ -33,22 +38,34 @@ class Term:
     """This class defines a term for the Hamiltoninan."""
 
     def __init__(
-        self, description: str, expression: str, regions: str, mesh_id: int = 0
+        self,
+        description: str,
+        expression: str,
+        regions: Iterable[int] | int,
+        mesh_id: int = 0,
+        structure: Any | None = None,
     ):
         """This constructor defines the object Term for the Hamiltonian functional.
 
         Args:
             description (str): the name or description of the term (e.g. 'Kinetic energy')
             expression (str): the formula, using the `Model` variables, defining the term. Parameters are allowed (e.g. '0.5*q.T.q')
-            regions (str): the region IDs of the mesh where the expression has to be evaluated
-            mesh_id (sint): the mesh id of the mesh where the regions belong to.
+            regions (Iterable[int] | int): the region IDs of the mesh where the expression has to be evaluated
+            mesh_id (int): the mesh id of the mesh where the regions belong to.
+            structure: optional symbolic structure used to create the term.
         """
 
         self.__description = description
         self.__expression = expression
-        self.__regions = regions
+        if isinstance(regions, (list, tuple, set)):
+            self.__regions = list(regions)
+        elif regions is None:
+            self.__regions = []
+        else:
+            self.__regions = [regions]
         self.__mesh_id = mesh_id
         self.__values = []
+        self.__structure = structure
 
     def get_description(self) -> str:
         """This function gets the description of the term.
@@ -68,14 +85,10 @@ class Term:
 
         return self.__expression
 
-    def get_regions(self) -> str:
-        """This function gets the regions of the term.
+    def get_regions(self) -> list:
+        """Return the regions associated with the term."""
 
-        Returns:
-            str: regions of the termthe region IDs of the mesh where the expression has to be evaluated
-        """
-
-        return self.__regions
+        return list(self.__regions)
 
     def get_mesh_id(self) -> int:
         """This function gets the mesh id of the mesh where the regions belong to..
@@ -85,6 +98,11 @@ class Term:
         """
 
         return self.__mesh_id
+
+    def get_structure(self) -> Any | None:
+        """Return the symbolic structure that originated the term, if any."""
+
+        return self.__structure
 
     def get_values(self) -> list:
         """This function gets the valeus of the term.
@@ -125,22 +143,22 @@ class Hamiltonian:
         self.__is_computed = False
         self.__n = None
 
-    def add_term(self, term: Term):
-        """This function adds a term to the term list of the Hamiltonian
-
-        Args:
-            term (Term): term for the Hamiltonian
-        """
+    def add_term(self, term: Term | Any | Iterable[Any]):
+        """Add a term or a symbolic structure to the Hamiltonian."""
 
         try:
-            assert isinstance(term, Term)
-        except AssertionError as err:
+            ensured_terms = ensure_term(term)
+        except TypeError as err:
             logging.error(f"Term {term} does not exist.")
             raise err
 
-        self.__terms.append(term)
+        for ensured in ensured_terms:
+            if not isinstance(ensured, Term):
+                logging.error(f"Unsupported term object {ensured!r}")
+                raise TypeError("Unsupported term object")
+            self.__terms.append(ensured)
 
-    def compute(self, solution: dict, gf_model: gf.Model, domain: Domain):
+    def compute(self, solution: dict, gf_model: gf.Model, domain: "Domain"):
         """Compute each `term` constituting the Hamiltonian
 
         Args:

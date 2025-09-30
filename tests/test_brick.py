@@ -1,5 +1,6 @@
 import unittest
-from scrimp import Brick
+from scrimp.brick import Brick
+from scrimp.structure import ConstitutiveRelation, ensure_brick
 
 
 class TestBrick(unittest.TestCase):
@@ -30,6 +31,25 @@ class TestBrick(unittest.TestCase):
     def test_get_mesh_id(self):
         brick = Brick("name", "form", [1, 2], True, False, "constitutive", 0)
         self.assertEqual(brick.get_mesh_id(), 0)
+
+    def test_symbolic_structure(self):
+        relation = ConstitutiveRelation("Ohm", {"e": "R*f"})
+        brick = Brick(
+            "constitutive",
+            "form",
+            [1],
+            structure=relation,
+        )
+        self.assertIs(brick.get_structure(), relation)
+        subs = brick.substitutions()
+        self.assertIn("e", subs)
+
+    def test_ensure_brick(self):
+        relation = ConstitutiveRelation(
+            "Ohm", {"e": "R*f"}, metadata={"regions": [1], "mesh_id": 0}
+        )
+        brick = ensure_brick(relation)
+        self.assertIs(brick.get_structure(), relation)
 
 
 if __name__ == "__main__":
