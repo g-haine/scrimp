@@ -427,13 +427,22 @@ class DPHS:
 
         # Select the dimension, according to the `kind` of the `port`
         port = self.ports[name_port]
+        mesh_dim = self.domain.get_dim()[port.get_mesh_id()]
+
         if port.get_kind() == "scalar-field":
-            dim = 1
+            default_dim = 1
         elif port.get_kind() == "vector-field":
-            dim = self.domain.get_dim()[port.get_mesh_id()]
+            default_dim = mesh_dim
+        elif port.get_kind() == "tensor-field":
+            default_dim = mesh_dim * mesh_dim
         else:
             logging.error(f"Unknown kind of variables {port.get_kind()}")
             raise ValueError
+
+        try:
+            dim = fem.infer_dim(mesh_dim, port.get_kind())
+        except ValueError:
+            dim = default_dim
 
         # Set the dimension in the `fem`
         fem.set_dim(dim)

@@ -363,6 +363,31 @@ where this time the mass matrices on the left-hand side are both
        \qquad
        (\widetilde{M}_p)_{k\ell} := \int_0^1 \rho(x) \varphi_p^\ell(x) \varphi_p^k(x) {\rm d}x.
 
+Schema-first workflow
+---------------------
+
+SCRIMP now ships with a declarative configuration system based on YAML/JSON schemas. You can generate a starting template from the command line:
+
+.. code-block:: bash
+
+    python -m scrimp.io.schema_loader generate rectangle --output rectangle.yml
+
+The resulting file contains domain, integration, FEM and material definitions that are validated with Pydantic. Loading the schema in Python replaces the imperative setup phase:
+
+.. code-block:: python
+
+    import scrimp as S
+    from scrimp.io.schema_loader import load_schema
+
+    schema = load_schema("rectangle.yml")
+    wave = S.DPHS("real")
+    wave.set_domain(S.Domain(schema.domain))
+
+    displacement = S.FEM(schema.fem.fields[0])
+    wave.add_FEM(displacement)
+
+The remainder of this tutorial keeps the imperative snippets for clarity, but every call can be substituted by schema-driven objects when working on larger scenarios.
+
 Coding within SCRIMP
 --------------------
 
