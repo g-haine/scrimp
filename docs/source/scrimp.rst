@@ -22,6 +22,17 @@ Distributed port-Hamiltonian system
    :undoc-members:
    :show-inheritance:
 
+Core building blocks
+====================
+
+.. automodule:: scrimp.core.system
+   :members:
+   :undoc-members:
+
+.. automodule:: scrimp.core.builder
+   :members:
+   :undoc-members:
+
 Domain
 ======
 
