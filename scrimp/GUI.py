@@ -2,7 +2,7 @@ import re
 import sys
 from PyQt5 import QtWidgets
 import json
-from .GUI import (
+from GUI import (
     welcome_page,
     load_page,
     create_dphs_page,
