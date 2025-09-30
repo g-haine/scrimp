@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Literal, Optional, Tuple, Union
 
 import yaml
-from pydantic import BaseModel, Field, root_validator, validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class IntegrationRuleSchema(BaseModel):
@@ -94,7 +94,7 @@ class MeshSchema(BaseModel):
     boundaries: List[RegionSchema] = Field(default_factory=list)
     description: Optional[str] = None
 
-    @validator("generator")
+    @field_validator("generator")
     def strip_generator(cls, value: str) -> str:
         return value.strip()
 
@@ -105,7 +105,7 @@ class DomainSchema(BaseModel):
     name: str
     meshes: List[MeshSchema]
 
-    @validator("meshes")
+    @field_validator("meshes")
     def ensure_unique_ids(cls, meshes: List[MeshSchema]) -> List[MeshSchema]:
         ids = [m.id for m in meshes]
         if len(ids) != len(set(ids)):
@@ -141,15 +141,15 @@ class FEMFieldSchema(BaseModel):
     )
     description: Optional[str] = None
 
-    @root_validator
-    def check_expression(cls, values: Dict[str, Any]) -> Dict[str, Any]:
-        family = values.get("family")
-        expression = values.get("expression")
+    @model_validator(mode="after")
+    def check_expression(cls, values: "FEMFieldSchema") -> "FEMFieldSchema":
+        family = values.family
+        expression = values.expression
         if family == "custom" and not expression:
             raise ValueError("Custom FEM requires an explicit expression")
         return values
 
-    @validator("shape")
+    @field_validator("shape")
     def ensure_positive_shape(
         cls, shape: Optional[Tuple[int, int]]
     ) -> Optional[Tuple[int, int]]:
@@ -225,7 +225,7 @@ def load_schema(source: Union[str, Path, Dict[str, Any]]) -> SimulationSchema:
         data = _load_yaml_or_json(Path(source))
     else:
         data = source
-    return SimulationSchema.parse_obj(data)
+    return SimulationSchema.model_validate(data)
 
 
 def load_domain_schema(source: Union[str, Path, Dict[str, Any], DomainSchema]) -> DomainSchema:
@@ -236,8 +236,8 @@ def load_domain_schema(source: Union[str, Path, Dict[str, Any], DomainSchema]) -
     else:
         data = source
     if "domain" in data:
-        return DomainSchema.parse_obj(data["domain"])
-    return DomainSchema.parse_obj(data)
+        return DomainSchema.model_validate(data["domain"])
+    return DomainSchema.model_validate(data)
 
 
 def load_fem_schema(source: Union[str, Path, Dict[str, Any], FEMSchema]) -> FEMSchema:
@@ -248,8 +248,8 @@ def load_fem_schema(source: Union[str, Path, Dict[str, Any], FEMSchema]) -> FEMS
     else:
         data = source
     if "fem" in data:
-        return FEMSchema.parse_obj(data["fem"])
-    return FEMSchema.parse_obj(data)
+        return FEMSchema.model_validate(data["fem"])
+    return FEMSchema.model_validate(data)
 
 
 # ---------------------------------------------------------------------------
