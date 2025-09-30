@@ -214,6 +214,59 @@ class Window(QtWidgets.QWidget):
             else:
                 comboBox.addItems(["scalar-field", "vector-field", "tensor-field"])
 
+        if (
+            "read_from_file" in self.session.keys()
+            and not self.session["add_state_costate_page"]["loaded_from_file"]
+        ):
+            self.load_session_from_file()
+
+    def load_session_from_file(self):
+
+        type_to_index = {
+            "scalar-field": 0,
+            "vector-field": 1,
+            "tensor-field": 2,
+        }
+
+        bool_to_index = {"False": 0, "True": 1}
+
+        self.table_states.setRowCount(0)
+        self.table_costates.setRowCount(0)
+
+        row = 0
+        for state in self.session["read_from_file"]["dict"]["add_state_costate_page"][
+            "states"
+        ]:
+            self.new_state()
+            for col, param in enumerate(state):
+                if col != 2:
+                    self.table_states.setItem(row, col, QTableWidgetItem(param))
+                else:
+                    index = type_to_index[param]
+                    self.table_states.cellWidget(row, col).setCurrentIndex(index)
+
+            row += 1
+
+        row = 0
+        for costate in self.session["read_from_file"]["dict"]["add_state_costate_page"][
+            "costates"
+        ]:
+            for col, param in enumerate(costate):
+                if col == 2:
+                    self.table_costates.setItem(
+                        row, col, self.table_states.item(row, 0).clone()
+                    )
+
+                elif col != 3:
+                    self.table_costates.setItem(row, col, QTableWidgetItem(param))
+
+                else:
+                    index = bool_to_index[param]
+                    self.table_costates.cellWidget(row, col).setCurrentIndex(index)
+            row += 1
+
+        self.session["add_state_costate_page"]["loaded_from_file"] = True
+
     def next_page(self):
         """This function emits the signal to navigate to the next page."""
         if not (

@@ -49,6 +49,7 @@ class Window(QtWidgets.QWidget):
             "Mesh ID",
             "Algebraic",
             "Substituted",
+            "Dissipative",
             "Region",
         ]
         self.table_ports.setColumnCount(len(header_horizontal_ports))
@@ -120,7 +121,7 @@ class Window(QtWidgets.QWidget):
                 description = "Choose the name of the Effort variable."
 
             elif col == 3:
-                description = """Choose what is the kind of your state.\nIt could be one of the following list:
+                description = """Choose what is the kind of your port.\nIt could be one of the following list:
                 \n- scalar-field
                 \n- vector-field
                 \n- tensor-field"""
@@ -172,6 +173,46 @@ class Window(QtWidgets.QWidget):
                 comboBox.addItems(["scalar-field"])
             else:
                 comboBox.addItems(["scalar-field", "vector-field", "tensor-field"])
+        if (
+            "read_from_file" in self.session.keys()
+            and not self.session["add_port_page"]["loaded_from_file"]
+        ):
+            self.load_session_from_file()
+
+    def load_session_from_file(self):
+        if "ports" in self.session["read_from_file"]["dict"]["add_port_page"].keys():
+            type_to_index = {
+                "scalar-field": 0,
+                "vector-field": 1,
+                "tensor-field": 2,
+            }
+
+            bool_to_index_algebraic = {"False": 1, "True": 0}
+            bool_to_index_substituted = {"False": 0, "True": 1}
+            bool_to_index_dissipative = {"False": 1, "True": 0}
+
+            self.table_ports.setRowCount(0)
+
+            row = 0
+            for port in self.session["read_from_file"]["dict"]["add_port_page"][
+                "ports"
+            ]:
+                self.new_port()
+                for col, param in enumerate(port):
+                    if col not in [3, 5, 6, 7]:
+                        self.table_ports.setItem(row, col, QTableWidgetItem(param))
+                    else:
+                        if col == 3:
+                            index = type_to_index[param]
+                        elif col == 5:
+                            index = bool_to_index_algebraic[param]
+                        elif col == 6:
+                            index = bool_to_index_substituted[param]
+                        elif col == 7:
+                            index = bool_to_index_dissipative[param]
+                        self.table_ports.cellWidget(row, col).setCurrentIndex(index)
+                row += 1
+        self.session["add_port_page"]["loaded_from_file"] = True
 
     def next_page(self):
         """This function emits the signal to navigate to the next page."""
@@ -214,6 +255,10 @@ class Window(QtWidgets.QWidget):
                 description = "It is a boolean that defines whether to substitute the variable. Defaults to False"
                 example = "Default is False"
 
+            elif text == "Dissipative":
+                description = "for post-processing purpose, indicates wether the port is dissipative-like or not."
+                example = "Default is True"
+
             self.help.updateFields(text, description, example)
 
         return make_update
@@ -245,6 +290,13 @@ class Window(QtWidgets.QWidget):
             self.choice_clicked("Substituted")
         )
         self.table_ports.setCellWidget(count, 6, port_choice_substituted)
+
+        port_choice_dissipative = QComboBox()
+        port_choice_dissipative.addItems(["True", "False"])
+        port_choice_dissipative.textHighlighted.connect(
+            self.choice_clicked("Dissipative")
+        )
+        self.table_ports.setCellWidget(count, 7, port_choice_dissipative)
 
         # set defaults
         # mesh_id

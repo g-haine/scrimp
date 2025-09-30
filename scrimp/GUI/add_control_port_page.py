@@ -187,6 +187,47 @@ class Window(QtWidgets.QWidget):
                 comboBox.addItems(["scalar-field"])
             else:
                 comboBox.addItems(["scalar-field", "vector-field", "tensor-field"])
+        if (
+            "read_from_file" in self.session.keys()
+            and not self.session["add_control_port_page"]["loaded_from_file"]
+        ):
+            self.load_session_from_file()
+
+    def load_session_from_file(self):
+        if (
+            "control_ports"
+            in self.session["read_from_file"]["dict"]["add_control_port_page"].keys()
+        ):
+            type_to_index = {
+                "scalar-field": 0,
+                "vector-field": 1,
+                "tensor-field": 2,
+            }
+
+            position_to_index = {"effort": 0, "flow": 1}
+
+            self.table_control_ports.setRowCount(0)
+
+            row = 0
+            for control_port in self.session["read_from_file"]["dict"][
+                "add_control_port_page"
+            ]["control_ports"]:
+                self.new_control_port()
+                for col, param in enumerate(control_port):
+                    if col not in [5, 7]:
+                        self.table_control_ports.setItem(
+                            row, col, QTableWidgetItem(param)
+                        )
+                    else:
+                        if col == 5:
+                            index = type_to_index[param]
+                        if col == 7:
+                            index = position_to_index[param]
+                        self.table_control_ports.cellWidget(row, col).setCurrentIndex(
+                            index
+                        )
+                row += 1
+        self.session["add_control_port_page"]["loaded_from_file"] = True
 
     def next_page(self):
         """This function emits the signal to navigate to the next page."""
