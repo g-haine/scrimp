@@ -17,7 +17,13 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, Optional
 
 from scrimp.utils.linalg import extract_gmm_to_scipy
-from scrimp.hamiltonian import Hamiltonian
+from scrimp.core import (
+    IORegistry,
+    StateSpace,
+    SystemTopology,
+    TimeIntegrator,
+    TopologyBuilder,
+)
 from scrimp.brick import Brick
 from scrimp.control import Control_Port
 from scrimp.fem import FEM
@@ -165,31 +171,20 @@ class DPHS:
             basis_field (str): basis field for unknowns (must be `real` or `complex`)
         """
 
-        #: The `domain` of a dphs is an object that handle mesh(es) and dict of regions with getfem indices (for each mesh), useful to define `bricks` (i.e. forms) in the getfem syntax
-        self.domain = None
-        #: Clear and init `time_scheme` member, which embed PETSc TS options database
-        self.get_cleared_TS_options()
-        #: The dict of `states`, store many infos for display()
-        self.states = dict()
-        #: The dict of `costates`, store many infos for display()
-        self.costates = dict()
-        #: The dict of `ports`, store many infos for display()
-        self.ports = dict()
-        #: The dict of `bricks`, associating getfem `bricks` to petsc matrices obtained by the PFEM, store many infos for display()
-        self.bricks = dict()
-        #: The dict of `controls`, collecting information about control ports. Also appear in `ports` entries
-        self.controls = dict()
-        #: The `Hamiltonian` of a dphs is a list of dict containing several useful information for each term
-        self.hamiltonian = Hamiltonian("Hamiltonian")
-        #: To check if the powers have been computed
-        self.powers_computed = False
-        #: Solver options wrapper (KSP/PC/TS/Assembly)
-        self.solver_options = SolverOptions()
-        #: Assembly manager reusing sparsity patterns and configurable backends
-        self.assembly_manager = MatrixAssemblyManager(
-            comm=comm,
-            options=self.solver_options.assembly,
+        #: Core managers describing the topology, state space and IO of the model
+        self._topology = SystemTopology()
+        self._state_space = StateSpace()
+        self._io_registry = IORegistry()
+        self.builder = TopologyBuilder(
+            topology=self._topology,
+            state_space=self._state_space,
+            io_registry=self._io_registry,
+            port_callback=self._on_port_registered,
         )
+
+        #: Clear and init `time_scheme` member, which embed PETSc TS options database
+        self._time_integrator = TimeIntegrator()
+        self.get_cleared_TS_options()
         #: Tangent (non-linear + linear) mass matrix of the system in PETSc CSR format
         self.tangent_mass = PETSc.Mat().create(comm=comm)
         #: Non-linear mass matrix of the system in PETSc CSR format
@@ -204,18 +199,12 @@ class DPHS:
         self.stiffness = PETSc.Mat().create(comm=comm)
         #: rhs of the system in PETSc Vec
         self.rhs = PETSc.Vec().create(comm=comm)
-        #: To check if the initial values have been set before time-resolution
-        self.initial_value_set = dict()
         #: To check if the PETSc TS time-integration parameters have been set before time-integration
         self.time_scheme["isset"] = False
         #: For monitoring time in TS resolution
         self.ts_start = 0
         #: Will contain both time t and solution z
-        self.solution = dict()
-        #: Time t where the solution have been saved
-        self.solution["t"] = list()
-        #: Solution z at time t
-        self.solution["z"] = list()
+        self._time_integrator.reset_solution()
         #: To check if the system has been solved
         self.solve_done = False
         #: To stop TS integration by keeping already computed timesteps if one step fails
@@ -249,6 +238,91 @@ class DPHS:
         self.assembly_manager.register_matrix("nl_mass", self.nl_mass)
         self.assembly_manager.register_matrix("nl_stiffness", self.nl_stiffness)
 
+    @property
+    def domain(self):
+        return self._topology.domain
+
+    @domain.setter
+    def domain(self, value):
+        self._topology.domain = value
+
+    @property
+    def bricks(self):
+        return self._topology.bricks
+
+    @property
+    def states(self):
+        return self._state_space.states
+
+    @property
+    def costates(self):
+        return self._state_space.costates
+
+    @property
+    def ports(self):
+        return self._io_registry.ports
+
+    @property
+    def controls(self):
+        return self._io_registry.controls
+
+    @property
+    def hamiltonian(self):
+        return self._io_registry.hamiltonian
+
+    @property
+    def powers_computed(self):
+        return self._io_registry.powers_computed
+
+    @powers_computed.setter
+    def powers_computed(self, value):
+        self._io_registry.powers_computed = value
+
+    @property
+    def time_scheme(self):
+        return self._time_integrator.options
+
+    @time_scheme.setter
+    def time_scheme(self, value):
+        self._time_integrator.options = value
+
+    @property
+    def initial_value_set(self):
+        return self._time_integrator.initial_values
+
+    @property
+    def solution(self):
+        return self._time_integrator.solution
+
+    @property
+    def stop_TS(self):
+        return self._time_integrator.stop
+
+    @stop_TS.setter
+    def stop_TS(self, value):
+        self._time_integrator.stop = value
+
+    @property
+    def ts_start(self):
+        return self._time_integrator.ts_start
+
+    @ts_start.setter
+    def ts_start(self, value):
+        self._time_integrator.ts_start = value
+
+    def _on_port_registered(self, port: Port) -> None:
+        """Perform DPHS specific bookkeeping after a port has been registered."""
+
+        if not port.get_algebraic():
+            self.initial_value_set.setdefault(port.get_flow(), False)
+
+        where = ""
+        if port.get_region() is not None:
+            where = f"on region {port.get_region()}"
+
+        if rank == 0:
+            logging.info(f"port: {port.get_name()} has been added {where}")
+
     def set_domain(self, domain: Domain):
         """This function sets a domain for the dphs.
 
@@ -259,7 +333,7 @@ class DPHS:
             parameters (dict): parameters for the construction, either for built in, or user-defined auxiliary script
         """
 
-        self.domain = domain
+        self.builder.with_domain(domain)
         if rank == 0:
             logging.info(f"domain: {domain.get_name()} has been set")
 
@@ -270,7 +344,7 @@ class DPHS:
             state (State): the state
         """
 
-        self.states[state.get_name()] = state
+        self.builder.add_state(state)
 
         if rank == 0:
             logging.info(f"state: {state.get_name()} has been added")
@@ -282,31 +356,9 @@ class DPHS:
             costate (CoState): the costate
         """
 
-        # Set the `costate` in its `state`
+        # The builder takes care of wiring the dynamical port for us
+        self.builder.add_costate(costate)
         state = costate.get_state()
-        state.set_costate(costate)
-
-        # Add the `costate` to the list
-        self.costates[costate.get_name()] = costate
-
-        # Define the `port` gathering the `state` and the `costate`
-        port = Port(
-            state.get_name(),
-            state.get_name(),
-            costate.get_name(),
-            costate.get_kind(),
-            state.get_mesh_id(),
-            algebraic=False,
-            dissipative=False,
-            substituted=costate.get_substituted(),
-            region=state.get_region(),
-        )
-        # Add the `port` the the dphs
-        self.add_port(port)
-
-        # Set the `port` in the `state` and the `costate`
-        state.set_port(port)
-        costate.set_port(port)
 
         if rank == 0:
             logging.info(
@@ -323,13 +375,7 @@ class DPHS:
             port (Port): the port
         """
 
-        self.ports[port.get_name()] = port
-        where = ""
-        if port.get_region() is not None:
-            where = f"on region {port.get_region()}"
-
-        if rank == 0:
-            logging.info(f"port: {port.get_name()} has been added {where}")
+        self.builder.add_port(port)
 
     def _assemble_and_store(
         self,

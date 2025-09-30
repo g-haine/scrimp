@@ -28,6 +28,7 @@ import scrimp.utils.config
 scrimp.utils.config.set_paths()
 scrimp.utils.config.set_verbose(1)
 
+from scrimp.core import IORegistry, StateSpace, SystemTopology, TimeIntegrator, TopologyBuilder
 from scrimp.dphs import DPHS
 from scrimp.domain import Domain
 from scrimp.state import State
@@ -37,3 +38,22 @@ from scrimp.fem import FEM
 from scrimp.control import Control_Port
 from scrimp.brick import Brick
 from scrimp.hamiltonian import Term, Hamiltonian
+
+__all__ = [
+    "DPHS",
+    "Domain",
+    "State",
+    "CoState",
+    "Parameter",
+    "Port",
+    "FEM",
+    "Control_Port",
+    "Brick",
+    "Term",
+    "Hamiltonian",
+    "IORegistry",
+    "StateSpace",
+    "SystemTopology",
+    "TimeIntegrator",
+    "TopologyBuilder",
+]
