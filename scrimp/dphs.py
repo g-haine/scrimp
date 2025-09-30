@@ -13,7 +13,10 @@
 - brief:            class for distributed port-Hamiltonian system
 """
 
-from scrimp.utils.linalg import convert_gmm_to_petsc, extract_gmm_to_scipy
+from dataclasses import dataclass, field
+from typing import Any, Dict, Optional
+
+from scrimp.utils.linalg import extract_gmm_to_scipy
 from scrimp.core import (
     IORegistry,
     StateSpace,
@@ -28,6 +31,10 @@ from scrimp.port import Parameter, Port
 from scrimp.costate import CoState
 from scrimp.state import State
 from scrimp.domain import Domain
+from scrimp.core.assembly import (
+    MatrixAssemblyManager,
+    MatrixAssemblyOptions,
+)
 from petsc4py import PETSc
 import getfem as gf
 import logging
@@ -48,6 +55,106 @@ max_rank = comm.getSize()
 
 import scrimp.utils.config
 outputs_path = scrimp.utils.config.outputs_path
+
+@dataclass
+class KSPConfig:
+    """Typed configuration for PETSc KSP solver."""
+
+    type: str = "gmres"
+    rtol: Optional[float] = None
+    atol: Optional[float] = None
+    max_it: Optional[int] = None
+    options: Dict[str, Any] = field(default_factory=dict)
+
+    def to_options(self) -> Dict[str, Any]:
+        opts: Dict[str, Any] = {"ksp_type": self.type}
+        if self.rtol is not None:
+            opts["ksp_rtol"] = self.rtol
+        if self.atol is not None:
+            opts["ksp_atol"] = self.atol
+        if self.max_it is not None:
+            opts["ksp_max_it"] = int(self.max_it)
+        opts.update(self.options)
+        return opts
+
+
+@dataclass
+class PCConfig:
+    """Typed configuration for PETSc preconditioner."""
+
+    type: str = "lu"
+    factor_solver_type: str = "mumps"
+    options: Dict[str, Any] = field(default_factory=dict)
+
+    def to_options(self) -> Dict[str, Any]:
+        opts: Dict[str, Any] = {"pc_type": self.type}
+        if self.factor_solver_type:
+            opts["pc_factor_mat_solver_type"] = self.factor_solver_type
+        opts.update(self.options)
+        return opts
+
+
+@dataclass
+class TSConfig:
+    """Typed configuration for PETSc TS solver."""
+
+    type: str = "bdf"
+    order: int = 2
+    equation_type: PETSc.TS.EquationType = PETSc.TS.EquationType.DAE_IMPLICIT_INDEX2
+    t_0: float = 0.0
+    t_f: float = 1.0
+    dt: float = 0.01
+    dt_save: float = 0.01
+    adapt_dt_min: Optional[float] = None
+    adapt_dt_max: Optional[float] = None
+    max_snes_failures: int = -1
+    init_step: bool = True
+    init_step_iterations: int = 1
+    init_step_ts_type: str = "pseudo"
+    init_step_dt: Optional[float] = None
+    options: Dict[str, Any] = field(default_factory=dict)
+
+    def to_options(self, *, max_rank: int) -> Dict[str, Any]:
+        opts: Dict[str, Any] = {
+            "ts_type": self.type,
+            "ts_equation_type": self.equation_type,
+            "t_0": float(self.t_0),
+            "t_f": float(self.t_f),
+            "dt": float(self.dt),
+            "dt_save": float(self.dt_save),
+            "ts_max_snes_failures": int(self.max_snes_failures),
+            "init_step": bool(self.init_step),
+            "init_step_nb_iter": int(self.init_step_iterations),
+            "init_step_ts_type": self.init_step_ts_type,
+        }
+        if self.type == "bdf":
+            opts["ts_bdf_order"] = int(self.order)
+        if self.adapt_dt_min is not None:
+            opts["ts_adapt_dt_min"] = float(self.adapt_dt_min)
+        else:
+            opts["ts_adapt_dt_min"] = 1.0e-2 * float(self.dt) ** 2 / max_rank
+        if self.adapt_dt_max is not None:
+            opts["ts_adapt_dt_max"] = float(self.adapt_dt_max)
+        else:
+            opts["ts_adapt_dt_max"] = float(self.dt_save)
+        if self.init_step_dt is not None:
+            opts["init_step_dt"] = float(self.init_step_dt)
+        else:
+            opts["init_step_dt"] = float(self.dt) ** 2
+        opts.update(self.options)
+        return opts
+
+
+@dataclass
+class SolverOptions:
+    """Container gathering solver configuration."""
+
+    ts: TSConfig = field(default_factory=TSConfig)
+    ksp: KSPConfig = field(default_factory=KSPConfig)
+    pc: PCConfig = field(default_factory=PCConfig)
+    assembly: MatrixAssemblyOptions = field(default_factory=MatrixAssemblyOptions)
+    jacobian_free: bool = False
+
 
 class DPHS:
     """A generic class handling distributed pHs using the GetFEM tools
@@ -124,6 +231,12 @@ class DPHS:
 
         if rank == 0:
             logging.info(f"A model with {basis_field} unknowns has been initialized")
+
+        # Register matrices for reuse inside the assembly manager
+        self.assembly_manager.register_matrix("mass", self.mass)
+        self.assembly_manager.register_matrix("stiffness", self.stiffness)
+        self.assembly_manager.register_matrix("nl_mass", self.nl_mass)
+        self.assembly_manager.register_matrix("nl_stiffness", self.nl_stiffness)
 
     @property
     def domain(self):
@@ -263,6 +376,30 @@ class DPHS:
         """
 
         self.builder.add_port(port)
+
+    def _assemble_and_store(
+        self,
+        key: str,
+        attr: str,
+        *,
+        asynchronous: Optional[bool] = None,
+    ) -> PETSc.Mat:
+        """Assemble the current GetFEM matrix into a PETSc matrix and store it."""
+
+        if asynchronous is None:
+            asynchronous = self.solver_options.assembly.asynchronous
+
+        result = self.assembly_manager.assemble_from_getfem(
+            key,
+            self.gf_model.tangent_matrix(),
+            target=getattr(self, attr),
+            asynchronous=asynchronous,
+        )
+
+        matrix = result.result() if hasattr(result, "result") else result
+        setattr(self, attr, matrix)
+        self.assembly_manager.register_matrix(key, matrix)
+        return matrix
 
     def add_FEM(self, fem: FEM):
         """This function adds a FEM (Finite Element Method) for the variables associated to a port of the dphs
@@ -626,11 +763,7 @@ class DPHS:
                 brick.enable_id_bricks(self.gf_model)
 
         self.gf_model.assembly(option="build_matrix")
-        
-        convert_gmm_to_petsc(
-            self.gf_model.tangent_matrix(),
-            self.mass,
-        )
+        self._assemble_and_store("mass", "mass")
 
         self.disable_all_bricks()
 
@@ -653,11 +786,7 @@ class DPHS:
                 brick.enable_id_bricks(self.gf_model)
 
         self.gf_model.assembly(option="build_matrix")
-        
-        convert_gmm_to_petsc(
-            self.gf_model.tangent_matrix(),
-            self.stiffness,
-        )
+        self._assemble_and_store("stiffness", "stiffness")
 
         self.disable_all_bricks()
 
@@ -695,11 +824,7 @@ class DPHS:
                 brick.enable_id_bricks(self.gf_model)
 
         self.gf_model.assembly(option="build_matrix")
-        
-        convert_gmm_to_petsc(
-            self.gf_model.tangent_matrix(),
-            self.nl_mass,
-        )
+        self._assemble_and_store("nl_mass", "nl_mass")
         self.tangent_mass = self.mass.copy()
         self.tangent_mass.axpy(1, self.nl_mass)
 
@@ -719,11 +844,7 @@ class DPHS:
                 brick.enable_id_bricks(self.gf_model)
 
         self.gf_model.assembly(option="build_matrix")
-        
-        convert_gmm_to_petsc(
-            self.gf_model.tangent_matrix(),
-            self.nl_stiffness,
-        )
+        self._assemble_and_store("nl_stiffness", "nl_stiffness")
         self.tangent_stiffness = self.stiffness.copy()
         self.tangent_stiffness.axpy(1, self.nl_stiffness)
 
@@ -793,6 +914,15 @@ class DPHS:
         if not self.linear_stiffness:
             self.assemble_nl_stiffness()
 
+        if self.solver_options.jacobian_free:
+            P.zeroEntries()
+            P.axpy(1.0, self.tangent_stiffness)
+            P.axpy(sig, self.tangent_mass)
+            P.assemble()
+            if A != P:
+                A.assemble()
+            return PETSc.Mat.Structure.SAME_NONZERO_PATTERN
+
         self.tangent_stiffness.copy(P)
         P.axpy(sig, self.tangent_mass)
 
@@ -800,6 +930,7 @@ class DPHS:
             if rank == 0:
                 logging.info("Operator different from preconditioning")
             A.assemble()
+        return PETSc.Mat.Structure.SAME_NONZERO_PATTERN
 
     def init_matrix(self,A):
         """
@@ -811,24 +942,34 @@ class DPHS:
 
         """
 
-        A.setSizes(self.gf_model.nbdof())
+        size = self.gf_model.nbdof()
+        A.setSizes((size, size))
         A.setOption(PETSc.Mat.Option.FORCE_DIAGONAL_ENTRIES, True)
-        A.setType("aij")
+
+        for mat_type in self.assembly_manager.preferred_types():
+            try:
+                A.setType(mat_type)
+                break
+            except PETSc.Error as exc:  # pragma: no cover - depends on PETSc build
+                logging.warning(
+                    "Failed to initialise PETSc matrix as '%s': %s. Trying next backend.",
+                    mat_type,
+                    exc,
+                )
         A.setUp()
-        x=A.createVecRight(); x.setArray(0)
-        A.setOption(PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR,False)
-        A.setDiagonal(x,addv=PETSc.InsertMode.ADD_VALUES)
-        A.setOption(PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR,True)
+        diagonal = A.createVecRight()
+        diagonal.set(0.0)
+        A.setOption(PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR, False)
+        A.setDiagonal(diagonal, addv=PETSc.InsertMode.ADD_VALUES)
+        A.setOption(PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR, True)
         A.assemble()
 
     def allocate_memory(self):
         """Pre-allocate memory for matrices and vectors"""
 
-        self.mass.bindToCPU(True)
         self.init_matrix(self.mass)
         self.init_matrix(self.nl_mass)
         self.init_matrix(self.tangent_mass)
-        self.stiffness.bindToCPU(True)
         self.init_matrix(self.stiffness)
         self.init_matrix(self.nl_stiffness)
         self.init_matrix(self.tangent_stiffness)
@@ -848,68 +989,59 @@ class DPHS:
         for key in self.time_scheme.getAll():
             self.time_scheme.delValue(key)
 
-    def set_time_scheme(self, **kwargs):
-        """Allows an easy setting of the PETSc TS environment
+    def _update_assembly_options(self, assembly: MatrixAssemblyOptions) -> None:
+        current = self.solver_options.assembly
+        current.use_gpu = assembly.use_gpu
+        current.mat_type = assembly.mat_type
+        current.asynchronous = assembly.asynchronous
+        current.max_workers = assembly.max_workers
+        self.assembly_manager.update_options(
+            use_gpu=current.use_gpu,
+            mat_type=current.mat_type,
+            asynchronous=current.asynchronous,
+            max_workers=current.max_workers,
+        )
 
-        Args:
-            **kwargs: PETSc TS options and more (see examples)
-        """
+    def _apply_solver_options(self) -> None:
+        ts_options = self.solver_options.ts.to_options(max_rank=max_rank)
+        for key, value in ts_options.items():
+            self.time_scheme[key] = value
+
+        for key, value in self.solver_options.ksp.to_options().items():
+            self.time_scheme[key] = value
+
+        for key, value in self.solver_options.pc.to_options().items():
+            self.time_scheme[key] = value
+
+        self.time_scheme["isset"] = True
+
+    def set_time_scheme(
+        self,
+        *,
+        ts: Optional[TSConfig] = None,
+        ksp: Optional[KSPConfig] = None,
+        pc: Optional[PCConfig] = None,
+        assembly: Optional[MatrixAssemblyOptions] = None,
+        jacobian_free: Optional[bool] = None,
+        **kwargs,
+    ):
+        """Configure PETSc TS/KSP/PC options using typed configuration objects."""
+
+        if ts is not None:
+            self.solver_options.ts = ts
+        if ksp is not None:
+            self.solver_options.ksp = ksp
+        if pc is not None:
+            self.solver_options.pc = pc
+        if assembly is not None:
+            self._update_assembly_options(assembly)
+        if jacobian_free is not None:
+            self.solver_options.jacobian_free = bool(jacobian_free)
+
+        self._apply_solver_options()
 
         for key, value in kwargs.items():
             self.time_scheme[key] = value
-
-        if not self.time_scheme.hasName("ts_equation_type"):
-            self.time_scheme[
-                "ts_equation_type"
-            ] = PETSc.TS.EquationType.DAE_IMPLICIT_INDEX2
-
-        if not self.time_scheme.hasName("ts_type") and not self.time_scheme.hasName(
-            "ts_ssp"
-        ):
-            self.time_scheme["ts_type"] = "bdf"
-            self.time_scheme["ts_bdf_order"] = 2
-
-        if not self.time_scheme.hasName("ksp_type"):
-            self.time_scheme["ksp_type"] = "gmres"
-
-        if not self.time_scheme.hasName("pc_type"):
-            self.time_scheme["pc_type"] = "lu"
-
-        if not self.time_scheme.hasName("pc_factor_mat_solver_type"):
-            self.time_scheme["pc_factor_mat_solver_type"] = "mumps"
-
-        if not self.time_scheme.hasName("t_0"):
-            self.time_scheme["t_0"] = 0.0
-
-        if not self.time_scheme.hasName("t_f"):
-            self.time_scheme["t_f"] = 1.0
-
-        if not self.time_scheme.hasName("dt"):
-            self.time_scheme["dt"] = 0.01
-
-        if not self.time_scheme.hasName("dt_save"):
-            self.time_scheme["dt_save"] = 0.01
-
-        if not self.time_scheme.hasName("ts_adapt_dt_min"):
-            self.time_scheme["ts_adapt_dt_min"] = 1.e-2*float(self.time_scheme["dt"])**2 / max_rank
-            
-        if not self.time_scheme.hasName("ts_adapt_dt_max"):
-            self.time_scheme["ts_adapt_dt_max"] = float(self.time_scheme["dt_save"])
-
-        if not self.time_scheme.hasName("ts_max_snes_failures"):
-            self.time_scheme["ts_max_snes_failures"] = -1
-        
-        if not self.time_scheme.hasName("init_step"):
-            self.time_scheme["init_step"] = True
-
-        if not self.time_scheme.hasName("init_step_nb_iter"):
-            self.time_scheme["init_step_nb_iter"] = 1
-
-        if not self.time_scheme.hasName("init_step_ts_type"):
-            self.time_scheme["init_step_ts_type"] = "pseudo"
-
-        if not self.time_scheme.hasName("init_step_dt"):
-            self.time_scheme["init_step_dt"] = float(self.time_scheme["dt"])**2
 
         self.time_scheme["isset"] = True
 
@@ -1026,8 +1158,16 @@ class DPHS:
         self.assemble_rhs()
 
         # PETSc TS Jacobian and residual
-        self.J = self.tangent_stiffness.duplicate()
-        self.J.assemble()
+        if self.solver_options.jacobian_free:
+            try:
+                self.J = PETSc.Mat().createSNESMF()
+            except AttributeError:  # pragma: no cover - depends on PETSc build
+                self.J = PETSc.Mat().create(comm=comm)
+                self.J.setType(PETSc.Mat.Type.SHELL)
+                self.J.setUp()
+        else:
+            self.J = self.tangent_stiffness.duplicate()
+            self.J.assemble()
 
         self.F = self.rhs.duplicate()
         self.F.assemble()
@@ -1043,6 +1183,12 @@ class DPHS:
 
         # TS
         TS = PETSc.TS().create(comm=comm)
+
+        if self.solver_options.jacobian_free:
+            try:
+                TS.getSNES().setUseFD(True)
+            except AttributeError:  # pragma: no cover - depends on PETSc build
+                pass
 
         def monitor(TS, i, t, z):
             return self.monitor(
