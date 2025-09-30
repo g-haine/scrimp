@@ -2,7 +2,7 @@ import re
 import sys
 from PyQt5 import QtWidgets
 import json
-from GUI import (
+from .GUI import (
     welcome_page,
     load_page,
     create_dphs_page,
@@ -21,7 +21,7 @@ from GUI import (
     generate_code_page,
     export_variable_page,
 )
-from utils.GUI import (
+from .utils.GUI import (
     heading,
     black_listed_words,
     text_create_class,
