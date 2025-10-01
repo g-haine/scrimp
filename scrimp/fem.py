@@ -41,7 +41,7 @@ class FEM:
         order: Optional[int] = None,
         FEM="CG",
         schema: Optional[FEMFieldSchema] = None,
-        value_type: str = "scalar",
+        value_type: Optional[str] = None,
         components: Optional[int] = None,
         shape: Optional[tuple] = None,
     ) -> None:
@@ -173,6 +173,8 @@ class FEM:
             return self.__dim
 
         value_kind = self.__value_type if self.__schema is None else self.__schema.value_type
+        inferred = None
+
         if value_kind == "scalar":
             inferred = 1
         elif value_kind == "vector":
@@ -202,14 +204,34 @@ class FEM:
                 inferred = mesh_dim * mesh_dim
             else:
                 raise ValueError("Unable to infer tensor dimension without mesh dimension")
-        else:
+
+        # Handle unspecified value type or unrecognized kinds
+        if inferred is None:
+            if self.__schema is not None:
+                if self.__schema.shape is not None:
+                    inferred = self.__schema.shape[0] * self.__schema.shape[1]
+                elif self.__schema.components is not None:
+                    inferred = self.__schema.components
+            elif self.__shape is not None:
+                inferred = self.__shape[0] * self.__shape[1]
+            elif self.__components is not None:
+                inferred = self.__components
+
+        if inferred is None:
             # Fallback to provided port kind if available
             if kind == "vector-field" and mesh_dim is not None:
                 inferred = mesh_dim
             elif kind == "tensor-field" and mesh_dim is not None:
                 inferred = mesh_dim * mesh_dim
-            else:
-                inferred = 1
+            elif mesh_dim is not None and value_kind in (None, "vector", "tensor"):
+                # Allow ad-hoc FEMs without explicit value type to inherit mesh dimension
+                if value_kind == "tensor":
+                    inferred = mesh_dim * mesh_dim
+                else:
+                    inferred = mesh_dim
+
+        if inferred is None:
+            inferred = 1
 
         self.__dim = inferred
         return inferred
