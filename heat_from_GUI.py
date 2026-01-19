@@ -1,6 +1,6 @@
 # SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
 #
-# Copyright (C) 2015-2025 ISAE-SUPAERO -- GNU GPLv3
+# Copyright (C) 2015-2026 ISAE-SUPAERO -- GNU GPLv3
 #
 # See the LICENSE file in the root directory for license information.
 #

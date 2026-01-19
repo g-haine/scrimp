@@ -1,6 +1,6 @@
 # SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
 #
-# Copyright (C) 2015-2025 ISAE-SUPAERO -- GNU GPLv3
+# Copyright (C) 2015-2026 ISAE-SUPAERO -- GNU GPLv3
 #
 # See the LICENSE file for license information.
 #
@@ -1096,7 +1096,12 @@ class DPHS:
             saved_options["ts_adapt_dt_min"] = float(
                 self.time_scheme["ts_adapt_dt_min"]
             )
-            self.time_scheme.delValue("ts_adapt_dt_min")
+            self.time_scheme.delValue("ts_adapt_dt_max")
+        if self.time_scheme.hasName("ts_adapt_dt_max"):
+            saved_options["ts_adapt_dt_max"] = float(
+                self.time_scheme["ts_adapt_dt_max"]
+            )
+            self.time_scheme.delValue("ts_adapt_dt_max")
             
         self.time_scheme["ts_type"] = self.time_scheme["init_step_ts_type"]
         if self.time_scheme.getString("init_step_ts_type") == "bdf":
