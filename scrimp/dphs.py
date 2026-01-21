@@ -22,10 +22,6 @@ from scrimp.port import Parameter, Port
 from scrimp.costate import CoState
 from scrimp.state import State
 from scrimp.domain import Domain
-from scrimp.core.assembly import (
-    MatrixAssemblyManager,
-    MatrixAssemblyOptions,
-)
 from petsc4py import PETSc
 import getfem as gf
 import logging
