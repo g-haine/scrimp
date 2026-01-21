@@ -38,6 +38,10 @@ setuptools.setup(
     url="https://github.com/g-haine/scrimp",
 
     packages=setuptools.find_packages(),
+    install_requires=[
+        "pydantic>=1.10",
+        "PyYAML>=6.0",
+    ],
 
     classifiers=[
 

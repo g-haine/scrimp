@@ -14,9 +14,12 @@ dependencies:
   - slepc4py=*=*complex*
   - spyder=6
   - superlu
+  - sympy
   - paraview
   - petsc4py=*=*complex*
   - pip
+  - pydantic
+  - pytest
   - qhull
   - pip:
     - gmsh

@@ -1,5 +1,10 @@
 import unittest
-from scrimp import Port, Parameter
+from scrimp.port import Port, Parameter
+from scrimp.structure import (
+    LagrangeSubspace,
+    DiracStructure,
+    ConstitutiveRelation,
+)
 
 
 class TestPort(unittest.TestCase):
@@ -90,6 +95,23 @@ class TestPort(unittest.TestCase):
             out,
             f"{port.get_name()}, {port.get_flow()}, {port.get_effort()}, {port.get_kind()}, {str(port.get_mesh_id())}, {str(port.get_algebraic())}, {port.get_parameters()}",
         )
+
+    def test_structure_validation(self):
+        subspace = LagrangeSubspace("f", "e", metadata={"regions": [1]})
+        port = Port("name", "flow", "effort", "kind", structure=subspace)
+        cancelling = LagrangeSubspace(
+            "f", "e", metadata={"regions": [1], "sign": -1}
+        )
+        dirac = DiracStructure([subspace, cancelling])
+
+        port.validate_power_balance(dirac)
+
+    def test_constitutive_substitutions(self):
+        relation = ConstitutiveRelation("Ohm", {"e": "R*f"})
+        port = Port("name", "flow", "effort", "kind", structure=relation)
+
+        subs = port.substitutions()
+        self.assertIn("e", subs)
 
 
 if __name__ == "__main__":

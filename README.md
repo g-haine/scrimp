@@ -8,6 +8,32 @@ The main objective of a **structure-preserving discretization** in the port-Hami
 
 **See the website for more information and documentation: https://g-haine.github.io/scrimp/**
 
+# Schema-driven configuration
+
+Starting from this release, SCRIMP can be configured using declarative **YAML** or **JSON** schema files. The new `scrimp.io.schema_loader` module provides Pydantic models describing meshes, integration rules, FEM spaces and material parameters. The helper CLI exposes a minimal template library so that you can bootstrap a project without writing a single line of Python code:
+
+```bash
+python -m scrimp.io.schema_loader list domain
+python -m scrimp.io.schema_loader generate rectangle --output rectangle.yml
+```
+
+In your simulation script you can now load the schema and pass it directly to ``scrimp.Domain`` and ``scrimp.FEM``:
+
+```python
+import scrimp as S
+from scrimp.io.schema_loader import load_schema
+
+schema = load_schema("rectangle.yml")
+domain = S.Domain(schema.domain)
+dpHS = S.DPHS("real")
+dpHS.set_domain(domain)
+
+velocity = S.FEM(schema.fem.fields[0])
+dpHS.add_FEM(velocity)
+```
+
+The imperative API showcased in the tutorials is still available, but the schema-based workflow enables reproducible studies and simpler collaboration.
+
 # How to install
 The easiest way to install SCRIMP is to use a conda environment.
 

@@ -66,7 +66,25 @@ class Window(QtWidgets.QWidget):
 
     def update_page(self):
         """This function manages the update of the current page."""
-        pass
+        if (
+            "read_from_file" in self.session.keys()
+            and not self.session["set_hamiltonian_page"]["loaded_from_file"]
+        ):
+            self.load_session_from_file()
+
+    def load_session_from_file(self):
+        if (
+            "name_hamiltonian"
+            in self.session["read_from_file"]["dict"]["set_hamiltonian_page"].keys()
+        ):
+
+            self.line_edit_hamiltonian_name.setText(
+                self.session["read_from_file"]["dict"]["set_hamiltonian_page"][
+                    "name_hamiltonian"
+                ]
+            )
+
+        self.session["set_hamiltonian_page"]["loaded_from_file"] = True
 
     def next_page(self):
         """This function emits the signal to navigate to the next page."""

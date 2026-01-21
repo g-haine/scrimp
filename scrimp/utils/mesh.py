@@ -24,7 +24,10 @@ rank = comm.getRank()
 
 import os
 import math
-import gmsh
+try:  # pragma: no cover - gmsh might be missing in minimal environments
+    import gmsh
+except ModuleNotFoundError:  # pragma: no cover
+    gmsh = None
 import numpy as np
 import getfem as gf
 import logging
@@ -135,6 +138,8 @@ def Disk(parameters={"R": 1.0, "h": 0.1}, refine=0, terminal=1):
     R = parameters["R"]
 
     # Init GMSH
+    if gmsh is None:
+        raise ModuleNotFoundError("gmsh is required to build this geometry")
     gmsh.initialize()
     # Ask GMSH to display information in the terminal
     gmsh.option.setNumber("General.Terminal", terminal)
@@ -225,6 +230,8 @@ def Rectangle(parameters={"L": 2.0, "l": 1, "h": 0.1}, refine=0, terminal=1):
     L = parameters["L"]
     l = parameters["l"]
 
+    if gmsh is None:
+        raise ModuleNotFoundError("gmsh is required to build this geometry")
     gmsh.initialize()
     gmsh.option.setNumber("General.Terminal", terminal)
     gmsh.option.setNumber("General.NumThreads", 0)  # Use system default
@@ -292,6 +299,8 @@ def Concentric(parameters={"R": 1.0, "r": 0.6, "h": 0.1}, refine=0, terminal=1):
     R = parameters["R"]
     r = parameters["r"]
 
+    if gmsh is None:
+        raise ModuleNotFoundError("gmsh is required to build this geometry")
     gmsh.initialize()
     gmsh.option.setNumber("General.Terminal", terminal)
     gmsh.option.setNumber("General.NumThreads", 0)  # Use system default
@@ -397,6 +406,8 @@ def Ball(parameters={"R": 1.0, "h": 0.1}, refine=0, terminal=1):
     h = parameters["h"]
     R = parameters["R"]
 
+    if gmsh is None:
+        raise ModuleNotFoundError("gmsh is required to build this geometry")
     gmsh.initialize()
     gmsh.option.setNumber("General.Terminal", terminal)
     gmsh.option.setNumber("General.NumThreads", 0)  # Use system default

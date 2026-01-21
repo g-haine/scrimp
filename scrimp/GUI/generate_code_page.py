@@ -31,7 +31,7 @@ class Window(QtWidgets.QWidget):
         self.layout = QGridLayout()
 
         label_filename = QLabel(
-            '<font size="4"> Name for your script based on SCRIMP: </font>'
+            '<font size="4"> Name for your script based on SCRIMP (without .py): </font>'
         )
         self.line_edit_filname = QLineEdit()
         self.line_edit_filname.setPlaceholderText(
@@ -111,15 +111,27 @@ class Window(QtWidgets.QWidget):
         Args:
             page (str): the name of the page.
         """
+        self.update_session()
         self.comboBox.setCurrentText("generate_code_page")
         self.switch_window.emit(page)
         self.hide()
 
     def generate_code(self):
         print("generate code...")
+        self.update_session()
         self.switch_window.emit("generate_code")
 
     def previous_page(self):
         """This funcion emits the signal to navigate to the prvious page."""
+        self.update_session()
         self.switch_window.emit("set_time_scheme_page")
         self.hide()
+
+    def update_page(self):
+        """This function manages the update of the current page."""
+        self.line_edit_filname.setText(self.session["filename"])
+        self.line_edit_directory.setText(self.session["filepath"])
+
+    def update_session(self):
+        self.session["filename"] = self.line_edit_filname.text()
+        self.session["filepath"] = self.line_edit_directory.text()
