@@ -14,5 +14,4 @@ We provide some examples coming from our `publications <biblio>`_.
    examples/wave_coenergy
    examples/heat_wave
    examples/shallow_water
-   examples/builder_quickstart
    

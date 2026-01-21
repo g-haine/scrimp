@@ -117,7 +117,6 @@ if _runtime_ready:
 else:  # pragma: no cover - optional runtime features
     DPHS = Domain = State = CoState = FEM = Control_Port = None
 
-from scrimp.core import IORegistry, StateSpace, SystemTopology, TimeIntegrator, TopologyBuilder
 from scrimp.dphs import DPHS
 from scrimp.domain import Domain
 from scrimp.state import State
@@ -126,28 +125,4 @@ from scrimp.port import Parameter, Port
 from scrimp.brick import Brick
 
 from scrimp.hamiltonian import Term, Hamiltonian
-from scrimp.structure import (
-    LagrangeSubspace,
-    ConstitutiveRelation,
-    DiracStructure,
-)
-from scrimp.io import schema_loader
 
-__all__ = [
-    "DPHS",
-    "Domain",
-    "State",
-    "CoState",
-    "Parameter",
-    "Port",
-    "FEM",
-    "Control_Port",
-    "Brick",
-    "Term",
-    "Hamiltonian",
-    "IORegistry",
-    "StateSpace",
-    "SystemTopology",
-    "TimeIntegrator",
-    "TopologyBuilder",
-]
