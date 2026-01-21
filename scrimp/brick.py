@@ -13,8 +13,6 @@
 - brief:            class for brick object
 """
 
-from typing import Any, Dict
-
 
 class Brick:
     """This class defines a Brick."""
@@ -29,7 +27,6 @@ class Brick:
         position: str = "constitutive",
         explicit: bool = False,
         mesh_id: int = 0,
-        structure: Any | None = None,
     ):
         """_summary_
 
@@ -53,7 +50,6 @@ class Brick:
         self._dt = dt
         self._position = position
         self._explicit = explicit
-        self._structure = structure
 
     def add_id_brick_to_list(self, id_brick: int):
         """This function adds a brick ID to the brick ID list.
@@ -153,22 +149,3 @@ class Brick:
         """This function enable the brick in the getfem model."""
         gf_model.enable_bricks(self._id_bricks)
 
-    def get_structure(self) -> Any | None:
-        """Return the symbolic structure associated with the brick."""
-
-        return self._structure
-
-    def attach_structure(self, structure: Any) -> None:
-        """Attach a symbolic constitutive relation to the brick."""
-
-        self._structure = structure
-
-    def substitutions(self) -> Dict[str, Any]:
-        """Return constitutive substitutions derived from the structure."""
-
-        from scrimp.structure.core import ConstitutiveRelation
-
-        if isinstance(self._structure, ConstitutiveRelation):
-            mapping = self._structure.substitution_map()
-            return {str(symbol): expr for symbol, expr in mapping.items()}
-        return {}

@@ -15,16 +15,12 @@
 
 import time
 import logging
-from typing import Any, Dict, TYPE_CHECKING
-
 import getfem as gf
 from scrimp.fem import FEM
+from scrimp.domain import Domain
 from petsc4py import PETSc
 import petsc4py
 import sys
-
-if TYPE_CHECKING:  # pragma: no cover - typing helper
-    from scrimp.domain import Domain
 
 petsc4py.init(sys.argv)
 
@@ -122,7 +118,6 @@ class Port:
         substituted: bool = False,
         dissipative: bool = True,
         region: int = None,
-        structure: Any | None = None,
     ):
         """Constructor of a `port` of a discrete port Hmiltonian system (dpHs).
 
@@ -156,7 +151,6 @@ class Port:
         self.__power = list()  # : The power flowing through this port
         # : A boolean flag that indicates if the powers of the `port` has been computed
         self.__is_computed = False
-        self.__structure = structure
 
     def get_isSet(self) -> bool:
         """This funcion gets the boolean value that indicates wether the port is set or not.
@@ -204,40 +198,6 @@ class Port:
         """
 
         return self.__effort
-
-    def get_structure(self) -> Any | None:
-        """Return the symbolic structure associated with the port, if any."""
-
-        return self.__structure
-
-    def attach_structure(self, structure: Any) -> None:
-        """Attach a symbolic structure to the port for validation purposes."""
-
-        self.__structure = structure
-
-    def validate_power_balance(self, dirac_structure: Any) -> None:
-        """Validate power balance of the associated Dirac structure."""
-
-        from scrimp.structure.core import DiracStructure, LagrangeSubspace
-
-        if self.__structure is None:
-            raise ValueError("No structure attached to the port")
-        if not isinstance(dirac_structure, DiracStructure):
-            raise TypeError("dirac_structure must be a DiracStructure instance")
-        if isinstance(self.__structure, LagrangeSubspace):
-            if self.__structure not in dirac_structure.subspaces:
-                raise ValueError("Port structure not contained in the provided DiracStructure")
-        dirac_structure.validate_power_balance()
-
-    def substitutions(self) -> Dict[str, Any]:
-        """Return constitutive substitutions associated with the port."""
-
-        from scrimp.structure.core import ConstitutiveRelation
-
-        if isinstance(self.__structure, ConstitutiveRelation):
-            mapping = self.__structure.substitution_map()
-            return {str(symbol): expr for symbol, expr in mapping.items()}
-        return {}
 
     def get_kind(self) -> str:
         """This function gets the type of the variables (e.g. `scalar-field`)
@@ -410,7 +370,7 @@ class Port:
 
         return self.__is_computed
 
-    def compute(self, solution: dict, gf_model: gf.Model, domain: "Domain"):
+    def compute(self, solution: dict, gf_model: gf.Model, domain: Domain):
         """Compute the power flowing through the algebraic port if it is not substituted (because of the parameter-dependency if it is)
 
         Args:

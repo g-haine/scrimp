@@ -14,9 +14,6 @@
 """
 
 import sys
-import logging
-from typing import Callable, Iterable, Optional, Sequence, Tuple
-
 import getfem as gf
 import numpy as np
 import petsc4py
@@ -24,170 +21,36 @@ from slepc4py import SLEPc
 
 petsc4py.init(sys.argv)
 from petsc4py import PETSc
-
 PETSc.Options().setValue('info', None)
 
 comm = PETSc.COMM_WORLD
 import scipy.sparse as sp
 
-logger = logging.getLogger(__name__)
-
-
-def _ensure_int_array(array: Sequence[int]) -> np.ndarray:
-    """Return a contiguous numpy array compatible with PETSc indices."""
-
-    if isinstance(array, np.ndarray) and array.dtype == PETSc.IntType:
-        return array
-    return np.asarray(array, dtype=PETSc.IntType)
-
-
-def _ensure_scalar_array(array: Sequence[float]) -> np.ndarray:
-    """Return a contiguous numpy array compatible with PETSc scalar storage."""
-
-    if isinstance(array, np.ndarray) and array.dtype == PETSc.ScalarType:
-        return array
-    return np.asarray(array, dtype=PETSc.ScalarType)
-
-
-def _infer_shape_from_spmat(spmat: gf.Spmat, indptr: Sequence[int], indices: Sequence[int]) -> Tuple[int, int]:
-    """Infer the matrix shape using GetFEM meta-data when available."""
-
-    for attr in ("size", "sizes"):
-        getter = getattr(spmat, attr, None)
-        if getter is None:
-            continue
-        try:
-            shape = getter()
-        except TypeError:
-            shape = getter
-        if isinstance(shape, (tuple, list)) and len(shape) == 2:
-            return int(shape[0]), int(shape[1])
-
-    n_rows = len(indptr) - 1
-    if len(indices):
-        n_cols = int(np.max(indices)) + 1
-    else:
-        n_cols = n_rows
-    return int(n_rows), int(n_cols)
-
-
-def extract_getfem_csr(M: gf.Spmat) -> Tuple[Tuple[int, int], np.ndarray, np.ndarray, np.ndarray]:
-    """Extract the CSR representation from a GetFEM sparse matrix."""
-
-    A = gf.Spmat("copy", M)
-    A.transpose()
-    A.to_csc()
-
-    indptr, indices = A.csc_ind()
-    values = A.csc_val()
-
-    indptr_arr = _ensure_int_array(indptr)
-    indices_arr = _ensure_int_array(indices)
-    values_arr = _ensure_scalar_array(values)
-
-    shape = _infer_shape_from_spmat(A, indptr_arr, indices_arr)
-
-    return shape, indptr_arr, indices_arr, values_arr
-
-
-def create_petsc_aij_from_csr(
-    shape: Tuple[int, int],
-    indptr: Sequence[int],
-    indices: Sequence[int],
-    values: Sequence[float],
-    *,
-    comm: PETSc.Comm = comm,
-    mat: Optional[PETSc.Mat] = None,
-    preferred_types: Optional[Iterable[str]] = None,
-) -> PETSc.Mat:
-    """Create or update a PETSc AIJ matrix from CSR data."""
-
-    rowptr = _ensure_int_array(indptr)
-    colidx = _ensure_int_array(indices)
-    data = _ensure_scalar_array(values)
-
-    if preferred_types is None:
-        preferred_types = (PETSc.Mat.Type.AIJ,)
-
-    if mat is None:
-        mat = PETSc.Mat().create(comm=comm)
-        mat.setSizes(shape)
-
-        for mat_type in preferred_types:
-            try:
-                mat.setType(mat_type)
-                break
-            except PETSc.Error as exc:  # pragma: no cover - depends on PETSc build
-                logger.warning(
-                    "Failed to set PETSc matrix type '%s': %s. Falling back to next candidate.",
-                    mat_type,
-                    exc,
-                )
-        mat.setPreallocationCSR((rowptr, colidx))
-    else:
-        # Ensure sizes are up to date before setting new values
-        mat.setSizes(shape)
-
-    mat.setOption(PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR, False)
-    mat.setValuesCSR(rowptr, colidx, data)
-    mat.setOption(PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR, True)
-    mat.assemble()
-
-    return mat
-
-
-def _collect_preferred_types(mat_type: Optional[str], use_gpu: bool) -> Tuple[str, ...]:
-    if mat_type:
-        return (mat_type,)
-
-    if not use_gpu:
-        return (PETSc.Mat.Type.AIJ,)
-
-    gpu_candidates = []
-    for candidate in ("AIJCUSPARSE", "AIJHIPSPARSE", "AIJVIENNACL"):
-        value = getattr(PETSc.Mat.Type, candidate, None)
-        if value is not None:
-            gpu_candidates.append(value)
-
-    gpu_candidates.append(PETSc.Mat.Type.AIJ)
-    return tuple(gpu_candidates)
-
-
-def convert_gmm_to_petsc(
-    M: gf.Spmat,
-    B: Optional[PETSc.Mat] = None,
-    *,
-    comm: PETSc.Comm = comm,
-    use_gpu: bool = False,
-    mat_type: Optional[str] = None,
-) -> PETSc.Mat:
-    """Convert a GetFEM matrix ``M`` to a PETSc ``Mat``.
+def convert_gmm_to_petsc(M, B, comm=comm):
+    """Convert a GetFEM matrix M to a PETSc one B
 
     Args:
         M (SPMat GetFEM): matrix to transfer
-        B (PETSc.Mat, optional): matrix to fill with the data from ``M``. If ``None``
-            a new matrix is created.
+        B (PETSc.Mat): matrix to fill M with
         comm (MPI_Comm): MPI communicator
-        use_gpu (bool): request a GPU matrix implementation when available
-        mat_type (str, optional): force a specific PETSc matrix type
 
     Returns:
-        PETSc.Mat: populated PETSc matrix
+        None
     """
 
-    shape, indptr, indices, values = extract_getfem_csr(M)
+    A = gf.Spmat("copy", M)
+    # Because CSR is CSC of the transpose
+    # and CSR is not available in getfem
+    A.transpose()
+    row_ptr, col_idx = A.csc_ind()
+    values = A.csc_val()
+    
+    B.setOption(PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR,False)
+    B.setValuesLocalCSR(row_ptr, col_idx, values, addv=PETSc.InsertMode.INSERT_VALUES)
+    B.setOption(PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR,True)
 
-    preferred_types = _collect_preferred_types(mat_type, use_gpu)
-
-    return create_petsc_aij_from_csr(
-        shape,
-        indptr,
-        indices,
-        values,
-        comm=comm,
-        mat=B,
-        preferred_types=preferred_types,
-    )
+    # Assemble the PETSc matrix in parallel
+    B.assemble()
 
 def extract_gmm_to_scipy(I, J, M):
     """Extract a sub-matrix A from M, on interval I, J
@@ -240,38 +103,6 @@ def convert_PETSc_to_scipy(A):
     A_scipy = sp.csr_matrix((val, indices, indrow), shape=A.size)
 
     return A_scipy
-
-
-class _ShellContext:
-    """Helper context for PETSc matrix-free shell operators."""
-
-    def __init__(self, action: Callable[[PETSc.Vec, PETSc.Vec], None], diagonal: Optional[PETSc.Vec] = None):
-        self.action = action
-        self.diagonal = diagonal
-
-    def mult(self, mat: PETSc.Mat, x: PETSc.Vec, y: PETSc.Vec) -> None:
-        self.action(x, y)
-
-
-def create_shell_matrix(
-    shape: Tuple[int, int],
-    action: Callable[[PETSc.Vec, PETSc.Vec], None],
-    *,
-    comm: PETSc.Comm = comm,
-    diagonal: Optional[PETSc.Vec] = None,
-) -> PETSc.Mat:
-    """Create a PETSc matrix-free shell matrix with an optional diagonal."""
-
-    shell = PETSc.Mat().create(comm=comm)
-    shell.setSizes(shape)
-    shell.setType(PETSc.Mat.Type.PYTHON)
-    shell.setPythonContext(_ShellContext(action, diagonal))
-    shell.setUp()
-
-    if diagonal is not None:
-        shell.setDiagonal(diagonal, addv=PETSc.InsertMode.INSERT_VALUES)
-
-    return shell
 
 def monitor_EPS_short(EPS, it, nconv, eig, err,it_skip):
     """
