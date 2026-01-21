@@ -1,0 +1,611 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Heat wave coupling &mdash; SCRIMP 1.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+    <link rel="shortcut icon" href="../_static/Logo-ico.png"/>
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=56dcb7b8"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="The shallow water equation" href="shallow_water.html" />
+    <link rel="prev" title="Another wave equation" href="wave_coenergy.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            SCRIMP
+              <img src="../_static/Logo.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../install.html">How to install</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../install.html#anaconda">Anaconda</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../install.html#tests">Tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../install.html#code-structure">Code structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../install.html#documentation">Documentation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../started.html">Getting started</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../started.html#port-hamiltonian-framework">Port-Hamiltonian framework</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../started.html#structure-preserving-discretization">Structure-preserving discretization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../started.html#schema-first-workflow">Schema-first workflow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../started.html#coding-within-scrimp">Coding within SCRIMP</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="../examples.html">Examples</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="wave.html">The wave equation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="wave.html#setting">Setting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="wave.html#port-hamiltonian-framework">Port-Hamiltonian framework</a></li>
+<li class="toctree-l3"><a class="reference internal" href="wave.html#structure-preserving-discretization">Structure-preserving discretization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="wave.html#simulation">Simulation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="wave.html#adding-damping-to-the-dphs">Adding Damping to the dphs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="wave.html#another-simulation">Another simulation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="heat.html">The heat equation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="heat.html#setting">Setting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="heat.html#port-hamiltonian-framework">Port-Hamiltonian framework</a></li>
+<li class="toctree-l3"><a class="reference internal" href="heat.html#structure-preserving-discretization">Structure-preserving discretization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="heat.html#simulation">Simulation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="wave_coenergy.html">Another wave equation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="wave_coenergy.html#setting">Setting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="wave_coenergy.html#substitutions">Substitutions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="wave_coenergy.html#simulation">Simulation</a></li>
+</ul>
+</li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Heat wave coupling</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#setting">Setting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#port-hamiltonian-framework">Port-Hamiltonian framework</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#structure-preserving-discretization">Structure-preserving discretization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#simulation">Simulation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="shallow_water.html">The shallow water equation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="shallow_water.html#setting">Setting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="shallow_water.html#port-hamiltonian-framework">Port-Hamiltonian framework</a></li>
+<li class="toctree-l3"><a class="reference internal" href="shallow_water.html#structure-preserving-discretization">Structure-preserving discretization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="shallow_water.html#simulation">Simulation</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../notebooks.html">Notebooks</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../notebooks.html#install-jupyter">Install jupyter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../notebooks.html#run-jupyter">Run jupyter</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../GUI.html">Graphical User Interface</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../biblio.html">References</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../biblio.html#articles">Articles</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../biblio.html#book-chapters">Book Chapters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../biblio.html#proceedings">Proceedings</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../scrimp.html">Code documentation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../scrimp.html#folders">Folders</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../scrimp.examples.html">scrimp.examples</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.examples.html#wave">Wave</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.examples.html#heat">Heat</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.examples.html#heat-wave-coupling">Heat-Wave coupling</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.examples.html#shallow-water">Shallow water</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../scrimp.utils.html">scrimp.utils</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.utils.html#module-scrimp.utils.config">Config</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.utils.html#linear-algebra">Linear algebra</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.utils.html#mesh">Mesh</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../scrimp.sandbox.html">scrimp.sandbox</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../scrimp.html#distributed-port-hamiltonian-system">Distributed port-Hamiltonian system</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../scrimp.html#domain">Domain</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../scrimp.html#hamiltonian-term">Hamiltonian / Term</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../scrimp.html#port-parameter">Port / Parameter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../scrimp.html#state">State</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../scrimp.html#co-state">Co-state</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../scrimp.html#control">Control</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../scrimp.html#fem">FEM</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../scrimp.html#brick">Brick</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference external" href="https://impacts.ens2m.fr/">ANR Impacts</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/g-haine/scrimp">GitHub repo</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://g-haine.github.io/scrimp/latex/scrimp.pdf">PDF documentation</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">SCRIMP</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../examples.html">Examples</a></li>
+      <li class="breadcrumb-item active">Heat wave coupling</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/examples/heat_wave.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="heat-wave-coupling">
+<h1>Heat wave coupling<a class="headerlink" href="#heat-wave-coupling" title="Link to this heading"></a></h1>
+<section id="setting">
+<span id="heat-wave-2d"></span><h2>Setting<a class="headerlink" href="#setting" title="Link to this heading"></a></h2>
+<p>It is assumed that the <a class="reference external" href="https://g-haine.github.io/scrimp/examples/wave.html">2D wave
+equation</a>, the
+<a class="reference external" href="https://g-haine.github.io/scrimp/examples/wave_coenergy.html">2D wave equation in co-energy
+formulation</a>
+and the <a class="reference external" href="https://g-haine.github.io/scrimp/examples/heat.html">2D heat
+equation</a> have
+already been studied.</p>
+<p>The objective of this example is to deal with interconnection in the
+sense of port-Hamiltonian systems.</p>
+<p>We are interested in the coupled heat-wave system which can be
+formulated as follows: let <span class="math notranslate nohighlight">\(\Omega := \Omega_W \cup \Omega_H\)</span> be a
+bounded domain in <span class="math notranslate nohighlight">\(\mathbb{R}^2\)</span> such that
+<span class="math notranslate nohighlight">\(\Omega_W \cap \Omega_H = \emptyset\)</span>, we denote
+<span class="math notranslate nohighlight">\(\Gamma_I := \partial\Omega_W \cap \partial\Omega_H\)</span> the interface
+between the two domains, and
+<span class="math notranslate nohighlight">\(\Gamma_W := \partial\Omega_W \setminus \Gamma_I\)</span> and
+<span class="math notranslate nohighlight">\(\Gamma_H := \partial\Omega_H \setminus \Gamma_I\)</span>. The system of
+equations reads</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\left\lbrace
+\begin{array}{rcl}
+\partial_t T(t,x) &amp;=&amp; {\rm div}\left( {\rm grad}\left( T(t,x) \right)\right), \quad \forall t\ge0, x \in \Omega_H, \\
+\partial_{tt}^2 w(t,x) &amp;=&amp; {\rm div}\left( {\rm grad}\left( T(t,x) \right)\right), \quad \forall t\ge0, x \in \Omega_H, \\
+T(t,s) &amp;=&amp; 0, \quad \forall t\ge0, s \in \Gamma_H, \\
+w(t,s) &amp;=&amp; 0, \quad \forall t\ge0, s \in \Gamma_W, \\
+\end{array}
+\right.\end{split}\]</div>
+<p>together with the transmission conditions across the interface</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\left\lbrace
+\begin{array}{rcl}
+T(t,s) &amp;=&amp; \partial_t w(t,s), \quad \forall t\ge0, s \in \Gamma_I, \\
+\partial_{n_H} T(t,s) &amp;=&amp; - \partial_{n_W} w(t,s), \quad \forall t\ge0, s \in \Gamma_I, \\
+\end{array}
+\right.\end{split}\]</div>
+<p>where <span class="math notranslate nohighlight">\(n_H\)</span> is the outward normal to <span class="math notranslate nohighlight">\(\Omega_H\)</span> and
+<span class="math notranslate nohighlight">\(n_W\)</span> is the outward normal to <span class="math notranslate nohighlight">\(\Omega_W\)</span>. Hence,
+<span class="math notranslate nohighlight">\(n_H = -n_W\)</span> on <span class="math notranslate nohighlight">\(\Gamma_I\)</span>.</p>
+</section>
+<section id="port-hamiltonian-framework">
+<h2>Port-Hamiltonian framework<a class="headerlink" href="#port-hamiltonian-framework" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>The heat equation</p></li>
+</ul>
+<p>The heat equation reads</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{pmatrix} \partial_t T \\ e_q \end{pmatrix} =
+\begin{bmatrix} 0 &amp; - {\rm div} \\ - {\rm grad} &amp; 0 \end{bmatrix}
+\begin{pmatrix} T \\ e_Q \end{pmatrix},\end{split}\]</div>
+<p>together with the boundary ports</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\left\lbrace
+\begin{array}{rcl}
+u^I_H &amp;=&amp; T, \quad \Gamma_I, \\
+y^I_H &amp;=&amp; e_Q \cdot n_H, \quad \Gamma_I,
+\end{array}
+\right.\end{split}\]</div>
+<p>and</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\left\lbrace
+\begin{array}{rcl}
+u_H &amp;=&amp; T, \quad \Gamma_H, \\
+y_H &amp;=&amp; e_Q \cdot n_H, \quad \Gamma_H.
+\end{array}
+\right.\end{split}\]</div>
+<ul class="simple">
+<li><p>The wave equation</p></li>
+</ul>
+<p>The Dirichlet boundary condition has to be relaxed by
+<span class="math notranslate nohighlight">\(\partial_t w = 0\)</span> to fit the port-Hamiltonian framework.
+Providing this adaptation and the notation <span class="math notranslate nohighlight">\(p := \partial_t w\)</span> and
+<span class="math notranslate nohighlight">\(q := {\rm grad}\left(w\right)\)</span>, the wave equation reads</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{pmatrix} \partial_t q \\ \partial_t p \end{pmatrix} =
+\begin{bmatrix} 0 &amp; {\rm grad} \\ {\rm div} &amp; 0 \end{bmatrix}
+\begin{pmatrix} q \\ p \end{pmatrix},\end{split}\]</div>
+<p>together with the boundary ports</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\left\lbrace
+\begin{array}{rcl}
+u^I_W &amp;=&amp; q \cdot n_W, \quad \Gamma_I, \\
+y^I_W &amp;=&amp; p, \quad \Gamma_I,
+\end{array}
+\right.\end{split}\]</div>
+<p>and</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\left\lbrace
+\begin{array}{rcl}
+u_W &amp;=&amp; q \cdot n_W, \quad \Gamma_H, \\
+y_W &amp;=&amp; p, \quad \Gamma_H.
+\end{array}
+\right.\end{split}\]</div>
+<ul class="simple">
+<li><p>The interconnection</p></li>
+</ul>
+<p>The transmission condition at the interface may be recast as a
+power-preserving interconnection. It can be either a <strong>gyrator</strong> or a
+<strong>tranformer</strong> interconnection, depending on the chosen causality for
+each system. We the above choices, we have a <strong>gyrator
+interconnection</strong>, indeed, one has</p>
+<div class="math notranslate nohighlight">
+\[u^I_H = y^I_w, \qquad u^I_W = y^I_H.\]</div>
+</section>
+<section id="structure-preserving-discretization">
+<h2>Structure-preserving discretization<a class="headerlink" href="#structure-preserving-discretization" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>The heat equation</p></li>
+</ul>
+<p>We use the div-div formulation already presented in the <a class="reference external" href="https://g-haine.github.io/scrimp/examples/heat.html">2D heat
+equation</a>
+example, <em>i.e.</em> we obtain the following system</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\underbrace{\begin{bmatrix}
+M_T &amp; 0 &amp; 0 &amp; 0 \\
+0 &amp; M_Q &amp; 0 &amp; 0 \\
+0 &amp; 0 &amp; M^I_H &amp; 0 \\
+0 &amp; 0 &amp; 0 &amp; M_H
+\end{bmatrix}}_{= M}
+\begin{pmatrix}
+\frac{\rm d}{{\rm d}t} \underline{T}(t) \\
+\underline{e_Q}(t) \\
+-\underline{y^I_H}(t) \\
+-\underline{y_H}(t)
+\end{pmatrix}
+=
+\underbrace{\begin{bmatrix}
+0 &amp; D &amp; 0 &amp; 0 \\
+-D^\top &amp; 0 &amp; B^I_H &amp; B_H \\
+0 &amp; -(B^I_H)^\top &amp; 0 &amp; 0 \\
+0 &amp; -(B_H)^\top &amp; 0 &amp; 0
+\end{bmatrix}}_{= J}
+\begin{pmatrix}
+\underline{T}(t) \\
+\underline{e_Q}(t) \\
+\underline{u^I_H}(t) \\
+\underline{u_H}(t)
+\end{pmatrix},\end{split}\]</div>
+<ul class="simple">
+<li><p>The wave equation</p></li>
+</ul>
+<p>We use the grad-grad formulation already presented in the <a class="reference external" href="https://g-haine.github.io/scrimp/examples/wave.html">2D wave
+equation</a>
+example, <em>i.e.</em> we obtain the following system</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\underbrace{\begin{bmatrix}
+M_q &amp; 0 &amp; 0 &amp; 0 \\
+0 &amp; M_p &amp; 0 &amp; 0 \\
+0 &amp; 0 &amp; M^I_W &amp; 0 \\
+0 &amp; 0 &amp; 0 &amp; M_W
+\end{bmatrix}}_{= M}
+\begin{pmatrix}
+\frac{\rm d}{{\rm d}t} \underline{q}(t) \\
+\frac{\rm d}{{\rm d}t} \underline{p}(t) \\
+-\underline{y^I_W}(t) \\
+\underline{u_W}(t)
+\end{pmatrix}
+=
+\underbrace{\begin{bmatrix}
+0 &amp; D &amp; 0 &amp; 0 \\
+-D^\top &amp; 0 &amp; B^I_W &amp; -B_W^\top \\
+0 &amp; -(B^I_W)^\top &amp; 0 &amp; 0 \\
+0 &amp; B_W &amp; 0 &amp; 0
+\end{bmatrix}}_{= J}
+\begin{pmatrix}
+\underline{q}(t) \\
+\underline{p}(t) \\
+\underline{u^I_W}(t) \\
+-\underline{y_W}(t)
+\end{pmatrix},\end{split}\]</div>
+<ul class="simple">
+<li><p>The transformer interconnection</p></li>
+</ul>
+<p>This condition is easy to implement, and leads to</p>
+<div class="math notranslate nohighlight">
+\[M^I_H \underline{u^I_H}(t) = M^I_W \underline{y^I_W}(t), \qquad M^I_W \underline{u^I_W}(t) = M^I_H \underline{y^I_H}(t).\]</div>
+</section>
+<section id="simulation">
+<h2>Simulation<a class="headerlink" href="#simulation" title="Link to this heading"></a></h2>
+<p>Let us start as usual, but using now the <code class="docutils literal notranslate"><span class="pre">Concentric</span></code> built-in
+geometry.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Import scrimp</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">scrimp</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">S</span>
+
+<span class="c1"># Init the distributed port-Hamiltonian system</span>
+<span class="n">hw</span> <span class="o">=</span> <span class="n">S</span><span class="o">.</span><span class="n">DPHS</span><span class="p">(</span><span class="s2">&quot;real&quot;</span><span class="p">)</span>
+
+<span class="c1"># Set the domain (using the built-in geometry `Concentric`)</span>
+<span class="c1"># Labels: Disk = 1, Annulus = 2, Interface = 10, Boundary = 20</span>
+<span class="n">omega</span> <span class="o">=</span> <span class="n">S</span><span class="o">.</span><span class="n">Domain</span><span class="p">(</span><span class="s2">&quot;Concentric&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;R&quot;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">:</span> <span class="mf">0.6</span><span class="p">,</span> <span class="s2">&quot;h&quot;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">})</span>
+
+<span class="c1"># And add it to the dphs</span>
+<span class="n">hw</span><span class="o">.</span><span class="n">set_domain</span><span class="p">(</span><span class="n">omega</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>It is important to remember here one of the objective of this example:
+to understand the <code class="docutils literal notranslate"><span class="pre">region</span></code> keyword.</p>
+<p>For our study case, the heat equation will lie on a region
+<code class="docutils literal notranslate"><span class="pre">heat_region</span></code>, while the wave equation will lie on another region
+<code class="docutils literal notranslate"><span class="pre">wave_region</span></code>. And this has to be stated when defining the states and
+co-states, and everytime an integral (either the <em>weak forms</em> or the
+<em>Hamiltonian terms</em>) occurs.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Define the states and costates, needs the heat and wave region&#39;s labels</span>
+<span class="n">heat_region</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="n">wave_region</span> <span class="o">=</span> <span class="mi">2</span>
+<span class="n">states</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">State</span><span class="p">(</span><span class="s2">&quot;T&quot;</span><span class="p">,</span> <span class="s2">&quot;Temperature&quot;</span><span class="p">,</span> <span class="s2">&quot;scalar-field&quot;</span><span class="p">,</span> <span class="n">region</span><span class="o">=</span><span class="n">heat_region</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">State</span><span class="p">(</span><span class="s2">&quot;p&quot;</span><span class="p">,</span> <span class="s2">&quot;Velocity&quot;</span><span class="p">,</span> <span class="s2">&quot;scalar-field&quot;</span><span class="p">,</span> <span class="n">region</span><span class="o">=</span><span class="n">wave_region</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">State</span><span class="p">(</span><span class="s2">&quot;q&quot;</span><span class="p">,</span> <span class="s2">&quot;Stress&quot;</span><span class="p">,</span> <span class="s2">&quot;vector-field&quot;</span><span class="p">,</span> <span class="n">region</span><span class="o">=</span><span class="n">wave_region</span><span class="p">),</span>
+<span class="p">]</span>
+<span class="c1"># Use of the `substituted=True` keyword to get the co-energy formulation</span>
+<span class="n">costates</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">CoState</span><span class="p">(</span><span class="s2">&quot;T&quot;</span><span class="p">,</span> <span class="s2">&quot;Temperature&quot;</span><span class="p">,</span> <span class="n">states</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">substituted</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">CoState</span><span class="p">(</span><span class="s2">&quot;p&quot;</span><span class="p">,</span> <span class="s2">&quot;Velocity&quot;</span><span class="p">,</span> <span class="n">states</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">substituted</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">CoState</span><span class="p">(</span><span class="s2">&quot;q&quot;</span><span class="p">,</span> <span class="s2">&quot;Stress&quot;</span><span class="p">,</span> <span class="n">states</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">substituted</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+<span class="p">]</span>
+
+<span class="c1"># Add them to the dphs</span>
+<span class="k">for</span> <span class="n">state</span> <span class="ow">in</span> <span class="n">states</span><span class="p">:</span>
+    <span class="n">hw</span><span class="o">.</span><span class="n">add_state</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">costate</span> <span class="ow">in</span> <span class="n">costates</span><span class="p">:</span>
+    <span class="n">hw</span><span class="o">.</span><span class="n">add_costate</span><span class="p">(</span><span class="n">costate</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The same is true for the resistive port for the heat equation.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Define the algebraic port</span>
+<span class="n">ports</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Port</span><span class="p">(</span><span class="s2">&quot;Heat flux&quot;</span><span class="p">,</span> <span class="s2">&quot;e_Q&quot;</span><span class="p">,</span> <span class="s2">&quot;e_Q&quot;</span><span class="p">,</span> <span class="s2">&quot;vector-field&quot;</span><span class="p">,</span> <span class="n">substituted</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">region</span><span class="o">=</span><span class="n">heat_region</span><span class="p">),</span>
+<span class="p">]</span>
+
+<span class="c1"># Add it to the dphs</span>
+<span class="k">for</span> <span class="n">port</span> <span class="ow">in</span> <span class="n">ports</span><span class="p">:</span>
+    <span class="n">hw</span><span class="o">.</span><span class="n">add_port</span><span class="p">(</span><span class="n">port</span><span class="p">)</span>
+
+<span class="c1"># Define the control ports</span>
+<span class="n">control_ports</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Control_Port</span><span class="p">(</span>
+        <span class="s2">&quot;Interface Heat&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;U_T&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;Heat flux&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;Y_T&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;Temperature&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;scalar-field&quot;</span><span class="p">,</span>
+        <span class="n">region</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+        <span class="n">position</span><span class="o">=</span><span class="s2">&quot;effort&quot;</span>
+    <span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Control_Port</span><span class="p">(</span>
+        <span class="s2">&quot;Interface Wave&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;U_w&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;Velocity&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;Y_w&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;Velocity&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;scalar-field&quot;</span><span class="p">,</span>
+        <span class="n">region</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+        <span class="n">position</span><span class="o">=</span><span class="s2">&quot;effort&quot;</span>
+    <span class="p">),</span>
+    <span class="c1"># This port will be either for the wave or the heat equation</span>
+    <span class="c1"># It corresponds to the exterior circle of radius R</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Control_Port</span><span class="p">(</span>
+        <span class="s2">&quot;Boundary&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;U_bnd&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;0&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;Y_bnd&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;.&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;scalar-field&quot;</span><span class="p">,</span>
+        <span class="n">region</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span>
+        <span class="n">position</span><span class="o">=</span><span class="s2">&quot;flow&quot;</span>
+    <span class="p">),</span>
+<span class="p">]</span>
+
+<span class="c1"># Add it to the dphs</span>
+<span class="k">for</span> <span class="n">ctrl_port</span> <span class="ow">in</span> <span class="n">control_ports</span><span class="p">:</span>
+    <span class="n">hw</span><span class="o">.</span><span class="n">add_control_port</span><span class="p">(</span><span class="n">ctrl_port</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>For the FEM choices, see the previous examples.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Define the Finite Elements Method of each port</span>
+<span class="n">k</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="n">FEMs</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">FEM</span><span class="p">(</span><span class="s2">&quot;T&quot;</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="s2">&quot;DG&quot;</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">FEM</span><span class="p">(</span><span class="s2">&quot;Heat flux&quot;</span><span class="p">,</span> <span class="n">k</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;CG&quot;</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">FEM</span><span class="p">(</span><span class="s2">&quot;Interface Heat&quot;</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="s2">&quot;DG&quot;</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">FEM</span><span class="p">(</span><span class="s2">&quot;p&quot;</span><span class="p">,</span> <span class="n">k</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;CG&quot;</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">FEM</span><span class="p">(</span><span class="s2">&quot;q&quot;</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="s2">&quot;DG&quot;</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">FEM</span><span class="p">(</span><span class="s2">&quot;Interface Wave&quot;</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="s2">&quot;DG&quot;</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">FEM</span><span class="p">(</span><span class="s2">&quot;Boundary&quot;</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="s2">&quot;DG&quot;</span><span class="p">),</span>
+<span class="p">]</span>
+
+<span class="c1"># Add them to the dphs</span>
+<span class="k">for</span> <span class="n">FEM</span> <span class="ow">in</span> <span class="n">FEMs</span><span class="p">:</span>
+    <span class="n">hw</span><span class="o">.</span><span class="n">add_FEM</span><span class="p">(</span><span class="n">FEM</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">Brick</span></code> object does not have an <em>optional</em> <code class="docutils literal notranslate"><span class="pre">region</span></code> keyword, it
+is mandatory: more precisely, it requires a list of regions as third
+argument.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Define the pHs via `Brick` == non-zero block matrices == variational terms</span>
+<span class="c1"># Since we use co-energy formulation, constitutive relations are already taken into</span>
+<span class="c1"># account in the mass matrices M_q and M_p</span>
+<span class="n">bricks</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="c1"># === Heat: div-div</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">&quot;M_T&quot;</span><span class="p">,</span> <span class="s2">&quot;T*Test_T&quot;</span><span class="p">,</span> <span class="p">[</span><span class="n">heat_region</span><span class="p">],</span> <span class="n">dt</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">position</span><span class="o">=</span><span class="s2">&quot;flow&quot;</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">&quot;M_Q&quot;</span><span class="p">,</span> <span class="s2">&quot;e_Q.Test_e_Q&quot;</span><span class="p">,</span> <span class="p">[</span><span class="n">heat_region</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">&quot;flow&quot;</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">&quot;M_Y_T&quot;</span><span class="p">,</span> <span class="s2">&quot;Y_T*Test_Y_T&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">10</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">&quot;flow&quot;</span><span class="p">),</span>
+
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">&quot;D_T&quot;</span><span class="p">,</span> <span class="s2">&quot;-Div(e_Q)*Test_T&quot;</span><span class="p">,</span> <span class="p">[</span><span class="n">heat_region</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">&quot;effort&quot;</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">&quot;D_T^T&quot;</span><span class="p">,</span> <span class="s2">&quot;T*Div(Test_e_Q)&quot;</span><span class="p">,</span> <span class="p">[</span><span class="n">heat_region</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">&quot;effort&quot;</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">&quot;B_T&quot;</span><span class="p">,</span> <span class="s2">&quot;U_T*Test_e_Q.Normal&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">10</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">&quot;effort&quot;</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">&quot;B_T^T&quot;</span><span class="p">,</span> <span class="s2">&quot;e_Q.Normal*Test_Y_T&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">10</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">&quot;effort&quot;</span><span class="p">),</span>
+
+    <span class="c1"># === Wave: grad-grad</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">&quot;M_p&quot;</span><span class="p">,</span> <span class="s2">&quot;p*Test_p&quot;</span><span class="p">,</span> <span class="p">[</span><span class="n">wave_region</span><span class="p">],</span> <span class="n">dt</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">position</span><span class="o">=</span><span class="s2">&quot;flow&quot;</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">&quot;M_q&quot;</span><span class="p">,</span> <span class="s2">&quot;q.Test_q&quot;</span><span class="p">,</span> <span class="p">[</span><span class="n">wave_region</span><span class="p">],</span> <span class="n">dt</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">position</span><span class="o">=</span><span class="s2">&quot;flow&quot;</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">&quot;M_Y_w&quot;</span><span class="p">,</span> <span class="s2">&quot;Y_w*Test_Y_w&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">10</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">&quot;flow&quot;</span><span class="p">),</span>
+
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">&quot;D_w&quot;</span><span class="p">,</span> <span class="s2">&quot;-q.Grad(Test_p)&quot;</span><span class="p">,</span> <span class="p">[</span><span class="n">wave_region</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">&quot;effort&quot;</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">&quot;-D_w^T&quot;</span><span class="p">,</span> <span class="s2">&quot;Grad(p).Test_q&quot;</span><span class="p">,</span> <span class="p">[</span><span class="n">wave_region</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">&quot;effort&quot;</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">&quot;B_w&quot;</span><span class="p">,</span> <span class="s2">&quot;U_w*Test_p&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">10</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">&quot;effort&quot;</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">&quot;B_w^T&quot;</span><span class="p">,</span> <span class="s2">&quot;p*Test_Y_w&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">10</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">&quot;effort&quot;</span><span class="p">),</span>
+<span class="p">]</span>
+<span class="c1"># === Boundary depends on where is the heat equation / wave equation</span>
+<span class="k">if</span> <span class="n">wave_region</span><span class="o">==</span><span class="mi">1</span><span class="p">:</span>
+    <span class="n">bricks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">&quot;M_Y_bnd&quot;</span><span class="p">,</span> <span class="s2">&quot;Y_bnd*Test_Y_bnd&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">20</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">&quot;flow&quot;</span><span class="p">))</span>
+    <span class="n">bricks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">&quot;B_bnd&quot;</span><span class="p">,</span> <span class="s2">&quot;U_bnd*Test_e_Q.Normal&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">20</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">&quot;effort&quot;</span><span class="p">))</span>
+    <span class="n">bricks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">&quot;B_bnd^T&quot;</span><span class="p">,</span> <span class="s2">&quot;e_Q.Normal*Test_Y_bnd&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">20</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">&quot;effort&quot;</span><span class="p">))</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="n">bricks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">&quot;M_Y_bnd&quot;</span><span class="p">,</span> <span class="s2">&quot;U_bnd*Test_Y_bnd&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">20</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">&quot;flow&quot;</span><span class="p">))</span>
+    <span class="n">bricks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">&quot;B_bnd&quot;</span><span class="p">,</span> <span class="s2">&quot;Y_bnd*Test_p&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">20</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">&quot;effort&quot;</span><span class="p">))</span>
+    <span class="n">bricks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">&quot;B_bnd^T&quot;</span><span class="p">,</span> <span class="s2">&quot;p*Test_Y_bnd&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">20</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">&quot;effort&quot;</span><span class="p">))</span>
+<span class="k">for</span> <span class="n">brick</span> <span class="ow">in</span> <span class="n">bricks</span><span class="p">:</span>
+    <span class="n">hw</span><span class="o">.</span><span class="n">add_brick</span><span class="p">(</span><span class="n">brick</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Finally, the <strong>gyrator</strong> interconnection for a system is just an output
+feedback from the other. The subtility is that, while the normal along
+<span class="math notranslate nohighlight">\(\Gamma_I\)</span> depends from which side it is computed <em>on paper</em>, this
+is not the case <em>numerically</em>: a minus sign is necessary.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Set the controls</span>
+<span class="c1"># === Gyrator interconnection</span>
+<span class="n">hw</span><span class="o">.</span><span class="n">set_control</span><span class="p">(</span><span class="s2">&quot;Interface Heat&quot;</span><span class="p">,</span> <span class="s2">&quot;Y_w&quot;</span><span class="p">)</span>
+<span class="c1"># CAREFUL: the numerical normal is the same for both sub-domains! Hence the minus sign.</span>
+<span class="n">hw</span><span class="o">.</span><span class="n">set_control</span><span class="p">(</span><span class="s2">&quot;Interface Wave&quot;</span><span class="p">,</span> <span class="s2">&quot;-Y_T&quot;</span><span class="p">)</span>
+<span class="c1"># === Dirichlet boundary condition</span>
+<span class="n">hw</span><span class="o">.</span><span class="n">set_control</span><span class="p">(</span><span class="s2">&quot;Boundary&quot;</span><span class="p">,</span> <span class="s2">&quot;0.&quot;</span><span class="p">)</span>
+
+<span class="c1"># Set the initial data</span>
+<span class="n">hw</span><span class="o">.</span><span class="n">set_initial_value</span><span class="p">(</span><span class="s2">&quot;T&quot;</span><span class="p">,</span> <span class="s2">&quot;5.*np.exp(-25*((x-0.6)*(x-0.6)+y*y))&quot;</span><span class="p">)</span>
+<span class="n">hw</span><span class="o">.</span><span class="n">set_initial_value</span><span class="p">(</span><span class="s2">&quot;p&quot;</span><span class="p">,</span> <span class="s2">&quot;5.*np.exp(-25*((x-0.6)*(x-0.6)+y*y))&quot;</span><span class="p">)</span>
+<span class="n">hw</span><span class="o">.</span><span class="n">set_initial_value</span><span class="p">(</span><span class="s2">&quot;q&quot;</span><span class="p">,</span> <span class="s2">&quot;[0.,0.]&quot;</span><span class="p">)</span>
+
+<span class="c1">## Solve in time</span>
+<span class="c1"># Define the time scheme (&quot;bdf&quot; is backward differentiation formula)</span>
+<span class="n">hw</span><span class="o">.</span><span class="n">set_time_scheme</span><span class="p">(</span><span class="n">ts_type</span><span class="o">=</span><span class="s2">&quot;bdf&quot;</span><span class="p">,</span>
+                   <span class="n">t_f</span><span class="o">=</span><span class="mf">15.</span><span class="p">,</span>
+                   <span class="n">dt</span><span class="o">=</span><span class="mf">0.001</span><span class="p">,</span>
+                   <span class="n">dt_save</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span>
+                   <span class="n">ksp_type</span><span class="o">=</span><span class="s2">&quot;preonly&quot;</span><span class="p">,</span>
+                   <span class="n">pc_type</span><span class="o">=</span><span class="s2">&quot;lu&quot;</span><span class="p">,</span>
+                   <span class="n">pc_factor_mat_solver_type</span><span class="o">=</span><span class="s2">&quot;mumps&quot;</span><span class="p">,</span>
+                   <span class="p">)</span>
+
+<span class="c1"># Solve</span>
+<span class="n">hw</span><span class="o">.</span><span class="n">solve</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>We end as usual with the Hamiltonian plot. Since our study case is known
+to be strongly stable, but never exponential nor uniformly in the
+initial state, we may also invocate the <code class="docutils literal notranslate"><span class="pre">get_Hamiltonian</span></code> method to
+make a log-log view of its evolution.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1">## Post-processing</span>
+<span class="c1">## Set Hamiltonian&#39;s name</span>
+<span class="n">hw</span><span class="o">.</span><span class="n">hamiltonian</span><span class="o">.</span><span class="n">set_name</span><span class="p">(</span><span class="s2">&quot;Hamiltonian&quot;</span><span class="p">)</span>
+<span class="c1"># Define each Hamiltonian Term</span>
+<span class="n">terms</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Term</span><span class="p">(</span><span class="s2">&quot;Lyapunov heat&quot;</span><span class="p">,</span> <span class="s2">&quot;0.5*T*T&quot;</span><span class="p">,</span> <span class="p">[</span><span class="n">heat_region</span><span class="p">]),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Term</span><span class="p">(</span><span class="s2">&quot;Kinetic energy&quot;</span><span class="p">,</span> <span class="s2">&quot;0.5*p*p&quot;</span><span class="p">,</span> <span class="p">[</span><span class="n">wave_region</span><span class="p">]),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Term</span><span class="p">(</span><span class="s2">&quot;Potential energy&quot;</span><span class="p">,</span> <span class="s2">&quot;0.5*q.q&quot;</span><span class="p">,</span> <span class="p">[</span><span class="n">wave_region</span><span class="p">]),</span>
+<span class="p">]</span>
+<span class="c1"># Add them to the Hamiltonian</span>
+<span class="k">for</span> <span class="n">term</span> <span class="ow">in</span> <span class="n">terms</span><span class="p">:</span>
+    <span class="n">hw</span><span class="o">.</span><span class="n">hamiltonian</span><span class="o">.</span><span class="n">add_term</span><span class="p">(</span><span class="n">term</span><span class="p">)</span>
+
+<span class="c1"># Plot the Hamiltonian and save the output</span>
+<span class="n">hw</span><span class="o">.</span><span class="n">plot_Hamiltonian</span><span class="p">(</span><span class="n">save_figure</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="s2">&quot;Hamiltonian_Heat&quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">heat_region</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot;_Wave&quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">wave_region</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot;_2D.png&quot;</span><span class="p">)</span>
+
+<span class="c1"># Plot the Hamiltonian in log-log scale</span>
+<span class="n">t</span> <span class="o">=</span> <span class="n">hw</span><span class="o">.</span><span class="n">solution</span><span class="p">[</span><span class="s2">&quot;t&quot;</span><span class="p">]</span>
+<span class="n">Hamiltonian</span> <span class="o">=</span> <span class="n">hw</span><span class="o">.</span><span class="n">get_Hamiltonian</span><span class="p">()</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
+<span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">[</span><span class="mi">8</span><span class="p">,</span> <span class="mi">5</span><span class="p">])</span>
+<span class="n">ax</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">111</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">loglog</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">Hamiltonian</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="s2">&quot;both&quot;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;time t&quot;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;Hamiltonian&quot;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;Evolution of the Hamiltonian (log-log)&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+<img alt="../_images/Heat_Wave_Hamiltonian.png" src="../_images/Heat_Wave_Hamiltonian.png" />
+<img alt="../_images/Heat_Wave_Hamiltonian_log.png" src="../_images/Heat_Wave_Hamiltonian_log.png" />
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="wave_coenergy.html" class="btn btn-neutral float-left" title="Another wave equation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="shallow_water.html" class="btn btn-neutral float-right" title="The shallow water equation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2015-2025 ISAE-SUPAERO.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
