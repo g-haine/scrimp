@@ -1,0 +1,383 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SCRIMP &mdash; SCRIMP 1.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+    <link rel="shortcut icon" href="_static/Logo-ico.png"/>
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=56dcb7b8"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="How to install" href="install.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="#" class="icon icon-home">
+            SCRIMP
+              <img src="_static/Logo.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="install.html">How to install</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="install.html#anaconda">Anaconda</a></li>
+<li class="toctree-l2"><a class="reference internal" href="install.html#tests">Tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="install.html#code-structure">Code structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="install.html#documentation">Documentation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="started.html">Getting started</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="started.html#port-hamiltonian-framework">Port-Hamiltonian framework</a></li>
+<li class="toctree-l2"><a class="reference internal" href="started.html#structure-preserving-discretization">Structure-preserving discretization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="started.html#schema-first-workflow">Schema-first workflow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="started.html#coding-within-scrimp">Coding within SCRIMP</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="examples.html">Examples</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="examples/wave.html">The wave equation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave.html#setting">Setting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave.html#port-hamiltonian-framework">Port-Hamiltonian framework</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave.html#structure-preserving-discretization">Structure-preserving discretization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave.html#simulation">Simulation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave.html#adding-damping-to-the-dphs">Adding Damping to the dphs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave.html#another-simulation">Another simulation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="examples/heat.html">The heat equation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat.html#setting">Setting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat.html#port-hamiltonian-framework">Port-Hamiltonian framework</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat.html#structure-preserving-discretization">Structure-preserving discretization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat.html#simulation">Simulation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="examples/wave_coenergy.html">Another wave equation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave_coenergy.html#setting">Setting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave_coenergy.html#substitutions">Substitutions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave_coenergy.html#simulation">Simulation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="examples/heat_wave.html">Heat wave coupling</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat_wave.html#setting">Setting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat_wave.html#port-hamiltonian-framework">Port-Hamiltonian framework</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat_wave.html#structure-preserving-discretization">Structure-preserving discretization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat_wave.html#simulation">Simulation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="examples/shallow_water.html">The shallow water equation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="examples/shallow_water.html#setting">Setting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/shallow_water.html#port-hamiltonian-framework">Port-Hamiltonian framework</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/shallow_water.html#structure-preserving-discretization">Structure-preserving discretization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/shallow_water.html#simulation">Simulation</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks.html">Notebooks</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="notebooks.html#install-jupyter">Install jupyter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="notebooks.html#run-jupyter">Run jupyter</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="GUI.html">Graphical User Interface</a></li>
+<li class="toctree-l1"><a class="reference internal" href="biblio.html">References</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="biblio.html#articles">Articles</a></li>
+<li class="toctree-l2"><a class="reference internal" href="biblio.html#book-chapters">Book Chapters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="biblio.html#proceedings">Proceedings</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="scrimp.html">Code documentation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.html#folders">Folders</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="scrimp.examples.html">scrimp.examples</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.examples.html#wave">Wave</a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.examples.html#heat">Heat</a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.examples.html#heat-wave-coupling">Heat-Wave coupling</a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.examples.html#shallow-water">Shallow water</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="scrimp.utils.html">scrimp.utils</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.utils.html#module-scrimp.utils.config">Config</a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.utils.html#linear-algebra">Linear algebra</a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.utils.html#mesh">Mesh</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="scrimp.sandbox.html">scrimp.sandbox</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.html#distributed-port-hamiltonian-system">Distributed port-Hamiltonian system</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.html#domain">Domain</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.html#hamiltonian-term">Hamiltonian / Term</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.html#port-parameter">Port / Parameter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.html#state">State</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.html#co-state">Co-state</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.html#control">Control</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.html#fem">FEM</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.html#brick">Brick</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference external" href="https://impacts.ens2m.fr/">ANR Impacts</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/g-haine/scrimp">GitHub repo</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://g-haine.github.io/scrimp/latex/scrimp.pdf">PDF documentation</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="#">SCRIMP</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="#" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active"><strong>SCRIMP</strong></li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/index.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="scrimp">
+<h1><strong>SCRIMP</strong><a class="headerlink" href="#scrimp" title="Link to this heading"></a></h1>
+<p><strong>Simulation and ContRol of Interactions in Multi-Physics</strong></p>
+<a class="reference internal image-reference" href="_images/workflow.png"><img alt="WorkFlow" class="align-center" src="_images/workflow.png" style="width: 600px; height: 200px;" />
+</a>
+<section id="what-is-scrimp">
+<h2>What is SCRIMP?<a class="headerlink" href="#what-is-scrimp" title="Link to this heading"></a></h2>
+<p><strong>SCRIMP</strong> (Simulation and ContRol of Interactions in Multi-Physics) is a python collection, <em>namely</em> a package, of <em>methods</em> and <em>classes</em> for the structure-preserving discretization and simulation of multi-physics models, using the formalism of port-Hamiltonian systems (<a class="reference external" href="https://doi.org/10.1016/S0393-0440(01)00083-3">van der Schaft and Maschke (2002)</a>).</p>
+<p><strong>SCRIMP</strong> aims at speeding the coding process of the <strong>Partitioned Finite Element Method</strong> on a wide range of (multi-)physical systems (<a class="reference external" href="https://doi.org/10.1016/j.ifacol.2024.08.267">Ferraro *et al.* (2024)</a>), and scrimp and save time!</p>
+<p>The documentation is <a class="reference external" href="https://g-haine.github.io/scrimp/latex/scrimp.pdf">available in pdf</a>.</p>
+<section id="port-hamiltonian-systems">
+<h3>Port-Hamiltonian systems<a class="headerlink" href="#port-hamiltonian-systems" title="Link to this heading"></a></h3>
+<section id="what-are-they">
+<h4>What are they?<a class="headerlink" href="#what-are-they" title="Link to this heading"></a></h4>
+<p>Let us sketch a rough portrait of port-Hamiltonian systems as they are considered in <strong>SCRIMP</strong>.</p>
+<p>Port-Hamiltonian systems constitute a strongly structured class of control systems with collocated observation. It relies on a functional form <span class="math notranslate nohighlight">\(\mathcal{H}\)</span> (the <strong>Hamiltonian</strong>), whose variables <span class="math notranslate nohighlight">\(\alpha_i\)</span> are the <strong>states</strong> of the system. The <strong>co-states</strong> <span class="math notranslate nohighlight">\(M_i e_i := \delta_{\alpha_i} \mathcal{H}\)</span> are defined as the variational derivative of the Hamiltonian with respect to the states, on the metric induced by the <span class="math notranslate nohighlight">\(M_i\)</span> matrices.</p>
+<p>The dynamics is provided <em>via</em> trajectories belonging in a <strong>Dirac</strong> structure, which can be represented by two matrices (of operators) <span class="math notranslate nohighlight">\(M\)</span> symmetric and <span class="math notranslate nohighlight">\(J\)</span> skew-symmetric as</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}M
+\begin{pmatrix} \frac{\rm d}{{\rm d}t} \alpha_1(t) \\ \vdots \\ \frac{\rm d}{{\rm d}t} \alpha_k(t) \\ f_R(t) \\ - y_{exp}(t) \\ u_{imp}(t) \end{pmatrix}
+= J
+\begin{pmatrix} e_1(t) \\ \vdots \\ e_k(t) \\ e_R(t) \\ u_{exp}(t) \\ - y_{imp}(t) \end{pmatrix}\end{split}\]</div>
+<p>together with <strong>constitutive relations</strong></p>
+<div class="math notranslate nohighlight">
+\[M_i e_i(t) = \delta_{\alpha_i(t)} \mathcal{H}(\alpha_1(t), \cdots, \alpha_k(t))
+\qquad
+\mathcal{N}(t, f_R(t), e_R(t)) = 0\]</div>
+<p>This structure allows to describe the evolution of the Hamiltonian along the trajectories</p>
+<div class="math notranslate nohighlight">
+\[\frac{\rm d}{{\rm d}t} \mathcal{H}(\alpha_1(t), \cdots, \alpha_k(t)) = - e_R(t)^\top M_R f_R(t) + u_{exp}(t)^\top M_{exp} y_{exp}(t) + u_{imp}(t)^\top M_{imp} y_{imp}(t)\]</div>
+<p>The first term of the right-hand side stands for a loss of <em>energy</em>, hence the name of <em>resistive (or dissipative) port</em> for the couple <span class="math notranslate nohighlight">\((f_R,e_R)\)</span>. The other two terms stands for exchanges with the environment through the <em>control ports</em>. One is <em>explicit</em>, <span class="math notranslate nohighlight">\(u_{exp}\)</span>, as a usual forcing term in the equations (its collocated output <span class="math notranslate nohighlight">\(y_{exp}\)</span> plays no role in the dynamics). The other is <em>implicit</em>: <span class="math notranslate nohighlight">\(u_{imp}\)</span> does not appear directly in the dynamics, and its collocated output <span class="math notranslate nohighlight">\(y_{imp}\)</span> plays the role of the Lagrange multiplier imposing the value of <span class="math notranslate nohighlight">\(u_{imp}\)</span>.</p>
+<p>Each indexed matrix <span class="math notranslate nohighlight">\(M_\ell\)</span> is the appropriate sub-matrix of <span class="math notranslate nohighlight">\(M\)</span>.</p>
+<p>A very important and useful fact is that the matrices <span class="math notranslate nohighlight">\(M\)</span> and <span class="math notranslate nohighlight">\(J\)</span> can depend on time and states!</p>
+</section>
+<section id="the-partitioned-finite-element-method">
+<h4>The Partitioned Finite Element Method<a class="headerlink" href="#the-partitioned-finite-element-method" title="Link to this heading"></a></h4>
+<p>The main objective of a <strong>structure-preserving discretization</strong> in the port-Hamiltonian formalism is to obtain a discrete version of the power balance satisfied by the Hamiltonian functional.</p>
+<p>A recent scheme, known as the <strong>Partitioned Finite Element Method</strong> (PFEM) (<a class="reference external" href="https://doi.org/10.1093/imamci/dnaa038">Cardoso-Ribeiro *et al.* (2021)</a>), achieves this goal.</p>
+<p>The strategy follows three steps, inspired by the Mixed Finite Element Method for steady-state problem with homogeneous boundary condition</p>
+<ul class="simple">
+<li><p>write the weak form of the system;</p></li>
+<li><p>integrate by parts a <strong>partition</strong> of the state (such that <em>the control appears</em>); and</p></li>
+<li><p>project on finite element spaces.</p></li>
+</ul>
+</section>
+</section>
+<section id="coding-philosophy">
+<h3>Coding philosophy<a class="headerlink" href="#coding-philosophy" title="Link to this heading"></a></h3>
+<p><strong>SCRIMP</strong> assumes that the final user is not familiar with numerical simulations. The aim is to facilitate the first step from modelisation to simulation by sticking as much as possible to the port-Hamiltonian framework, getting rid of coding issues.</p>
+<p>As such, these simplifications naturally imply a lack of optimization of the code. Nevertheless, the syntax of <strong>SCRIMP</strong> try to let confirmed users to reach finer tuning in order to perform more sophisticated simulations.</p>
+<p>A basic usage of <strong>SCRIMP</strong> consists in a script with the following steps:</p>
+<ul class="simple">
+<li><p>Define a <em>domain</em></p></li>
+<li><p>Define at least one <em>state</em>. And of course, its <em>co-state</em>, in order to get a <em>dynamical port</em></p></li>
+<li><p>Define a Finite Element Method on this port: give at least an order, at first glance, default values are sufficient</p></li>
+<li><p>Define <em>algebraic ports</em> (not mandatory) and its FEM</p></li>
+<li><p>Define <em>control ports</em> (not mandatory) and its FEM</p></li>
+<li><p>Define <em>parameters</em></p></li>
+<li><p>Write down the forms on the <em>flow side</em> of the Dirac structure, <em>i.e.</em> the <strong>brick</strong> defining the matrix <span class="math notranslate nohighlight">\(M\)</span></p></li>
+<li><p>Write down the forms on the <em>effort side</em> of the Dirac structure, <em>i.e.</em> th <strong>brick</strong> defining the matrix <span class="math notranslate nohighlight">\(J\)</span></p></li>
+<li><p>Write down all the forms defining the <em>constitutive relations</em>, always with <strong>bricks</strong></p></li>
+<li><p>Set up time scheme options: again, at first glance, default values are sufficient</p></li>
+<li><p>Solve</p></li>
+<li><p>Plot</p></li>
+<li><p>Export</p></li>
+</ul>
+<p>We try to eliminate as much as possible the <em>computer-side</em> of the simulations, by following the port-Hamiltonian vocabulary, always by keeping the possibility of fine tuning available.</p>
+</section>
+</section>
+<section id="user-s-guide">
+<h2>User’s guide<a class="headerlink" href="#user-s-guide" title="Link to this heading"></a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="install.html">How to install</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="install.html#anaconda">Anaconda</a></li>
+<li class="toctree-l2"><a class="reference internal" href="install.html#tests">Tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="install.html#code-structure">Code structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="install.html#documentation">Documentation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="started.html">Getting started</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="started.html#port-hamiltonian-framework">Port-Hamiltonian framework</a></li>
+<li class="toctree-l2"><a class="reference internal" href="started.html#structure-preserving-discretization">Structure-preserving discretization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="started.html#schema-first-workflow">Schema-first workflow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="started.html#coding-within-scrimp">Coding within SCRIMP</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="examples.html">Examples</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="examples/wave.html">The wave equation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="examples/heat.html">The heat equation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="examples/wave_coenergy.html">Another wave equation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="examples/heat_wave.html">Heat wave coupling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="examples/shallow_water.html">The shallow water equation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks.html">Notebooks</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="notebooks.html#install-jupyter">Install jupyter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="notebooks.html#run-jupyter">Run jupyter</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="GUI.html">Graphical User Interface</a></li>
+<li class="toctree-l1"><a class="reference internal" href="biblio.html">References</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="biblio.html#articles">Articles</a></li>
+<li class="toctree-l2"><a class="reference internal" href="biblio.html#book-chapters">Book Chapters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="biblio.html#proceedings">Proceedings</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="scrimp.html">Code documentation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.html#folders">Folders</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.html#distributed-port-hamiltonian-system">Distributed port-Hamiltonian system</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.html#domain">Domain</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.html#hamiltonian-term">Hamiltonian / Term</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.html#port-parameter">Port / Parameter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.html#state">State</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.html#co-state">Co-state</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.html#control">Control</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.html#fem">FEM</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.html#brick">Brick</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference external" href="https://impacts.ens2m.fr/">ANR Impacts</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/g-haine/scrimp">GitHub repo</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://g-haine.github.io/scrimp/latex/scrimp.pdf">PDF documentation</a></li>
+</ul>
+</div>
+</section>
+<section id="credits">
+<h2>Credits<a class="headerlink" href="#credits" title="Link to this heading"></a></h2>
+<section id="development">
+<h3>Development<a class="headerlink" href="#development" title="Link to this heading"></a></h3>
+<p>Please report bug at: <a class="reference external" href="mailto:ghislain&#46;haine&#37;&#52;&#48;isae&#46;fr">ghislain<span>&#46;</span>haine<span>&#64;</span>isae<span>&#46;</span>fr</a>, <a class="reference external" href="mailto:Giuseppe&#46;Ferrarro&#37;&#52;&#48;isae-supaero&#46;fr">Giuseppe<span>&#46;</span>Ferrarro<span>&#64;</span>isae-supaero<span>&#46;</span>fr</a></p>
+<p>Current developers: Antoine Bendhimerad-Hohl, Giuseppe Ferraro, Michel Fournié, Ghislain Haine</p>
+<p>Past: Andrea Brugnoli, Melvin Chopin, Florian Monteghetti, Anass Serhani, Xavier Vasseur</p>
+<p><strong>Please read the</strong> <a class="reference external" href="https://github.com/g-haine/scrimp/blob/master/LICENSE">LICENSE</a></p>
+</section>
+<section id="funding">
+<h3>Funding<a class="headerlink" href="#funding" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>ANR Project <a class="reference external" href="https://impacts.ens2m.fr/">IMPACTS</a> – IMplicit Port-hAmiltonian ConTrol Systems</p></li>
+<li><p>AID School Project <a class="reference external" href="https://www.defense.gouv.fr/aid">FAMAS</a> – Fast &amp; Accurate MAxwell Solver</p></li>
+<li><p>ANR-DFG Project <a class="reference external" href="http://websites.isae.fr/infidhem">INFIDHEM</a> – INterconnected inFinite-Dimensional systems for HEterogeneous Media</p></li>
+</ul>
+</section>
+<section id="third-party">
+<h3>Third-party<a class="headerlink" href="#third-party" title="Link to this heading"></a></h3>
+<p>The two <strong>main</strong> libraries used as core for SCRIMP are:</p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://getfem.org/">GetFEM</a> – An open-source finite element library</p></li>
+<li><p><a class="reference external" href="https://petsc.org/release/">PETSc</a> – The Portable, Extensible Toolkit for Scientific Computation</p></li>
+</ul>
+<p>Meshing is facilitated using (although not mandatory) <a class="reference external" href="https://gmsh.info/">GMSH</a> – A three-dimensional finite element mesh generator</p>
+<p>Post-processing visualization is encouraged via <a class="reference external" href="https://www.paraview.org/">ParaView</a> – Post-processing visualization engine</p>
+<p>and finally, SCRIMP also needs for some routines</p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://matplotlib.org/">matplotlib</a> – Visualization with Python</p></li>
+<li><p><a class="reference external" href="https://numpy.org/">numpy</a> – A well-known package for scientific computing</p></li>
+</ul>
+<p>One of our choice for IDE is <a class="reference external" href="https://www.spyder-ide.org/">Spyder</a> – A scientific Python development environment</p>
+</section>
+<section id="how-to-cite-scrimp">
+<h3>How to cite SCRIMP?<a class="headerlink" href="#how-to-cite-scrimp" title="Link to this heading"></a></h3>
+<p>Ferraro G, Fournié M, Haine G.
+<em>Simulation and control of interactions in multi-physics, a Python package for port-Hamiltonian systems.</em>
+<strong>IFAC-PapersOnLine</strong>, 2024;58(6):119–24.</p>
+<div class="highlight-latex notranslate"><div class="highlight"><pre><span></span>@article<span class="nb">{</span>Ferraro<span class="nb">_</span>2024,
+  title=<span class="nb">{{</span>Simulation and control of interactions in multi-physics, a Python package for port-Hamiltonian systems<span class="nb">}}</span>,
+  volume=<span class="nb">{</span>58<span class="nb">}</span>,
+  ISSN=<span class="nb">{</span>2405-8963<span class="nb">}</span>,
+  DOI=<span class="nb">{</span>10.1016/j.ifacol.2024.08.267<span class="nb">}</span>,
+  number=<span class="nb">{</span>6<span class="nb">}</span>,
+  journal=<span class="nb">{</span>IFAC-PapersOnLine<span class="nb">}</span>,
+  publisher=<span class="nb">{</span>Elsevier BV<span class="nb">}</span>,
+  author=<span class="nb">{</span>Ferraro, Giuseppe and Fournié, Michel and Haine, Ghislain<span class="nb">}</span>,
+  year=<span class="nb">{</span>2024<span class="nb">}</span>,
+  pages=<span class="nb">{</span>119--124<span class="nb">}</span>
+<span class="nb">}</span>
+</pre></div>
+</div>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="install.html" class="btn btn-neutral float-right" title="How to install" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2015-2025 ISAE-SUPAERO.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,19 @@
+\begin{sphinxtheindex}
+\let\bigletter\sphinxstyleindexlettergroup
+\let\spxpagem \sphinxstyleindexpagemain
+\let\spxentry \sphinxstyleindexentry
+\let\spxextra \sphinxstyleindexextra
+
+  \bigletter M
+  \item \spxentry{module}
+    \subitem \spxentry{scrimp.utils.config}, \hyperpage{55}
+
+  \indexspace
+  \bigletter S
+  \item \spxentry{scrimp.utils.config}
+    \subitem \spxentry{module}, \hyperpage{55}
+  \item \spxentry{set\_paths()}\spxextra{in module scrimp.utils.config}, \hyperpage{55}
+  \item \spxentry{set\_verbose()}\spxextra{in module scrimp.utils.config}, \hyperpage{55}
+  \item \spxentry{set\_verbose\_gf()}\spxextra{in module scrimp.utils.config}, \hyperpage{56}
+
+\end{sphinxtheindex}

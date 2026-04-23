@@ -1,0 +1,587 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The shallow water equation &mdash; SCRIMP 1.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+    <link rel="shortcut icon" href="../_static/Logo-ico.png"/>
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=56dcb7b8"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Notebooks" href="../notebooks.html" />
+    <link rel="prev" title="Heat wave coupling" href="heat_wave.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            SCRIMP
+              <img src="../_static/Logo.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../install.html">How to install</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../install.html#anaconda">Anaconda</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../install.html#tests">Tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../install.html#code-structure">Code structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../install.html#documentation">Documentation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../started.html">Getting started</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../started.html#port-hamiltonian-framework">Port-Hamiltonian framework</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../started.html#structure-preserving-discretization">Structure-preserving discretization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../started.html#schema-first-workflow">Schema-first workflow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../started.html#coding-within-scrimp">Coding within SCRIMP</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="../examples.html">Examples</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="wave.html">The wave equation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="wave.html#setting">Setting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="wave.html#port-hamiltonian-framework">Port-Hamiltonian framework</a></li>
+<li class="toctree-l3"><a class="reference internal" href="wave.html#structure-preserving-discretization">Structure-preserving discretization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="wave.html#simulation">Simulation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="wave.html#adding-damping-to-the-dphs">Adding Damping to the dphs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="wave.html#another-simulation">Another simulation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="heat.html">The heat equation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="heat.html#setting">Setting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="heat.html#port-hamiltonian-framework">Port-Hamiltonian framework</a></li>
+<li class="toctree-l3"><a class="reference internal" href="heat.html#structure-preserving-discretization">Structure-preserving discretization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="heat.html#simulation">Simulation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="wave_coenergy.html">Another wave equation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="wave_coenergy.html#setting">Setting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="wave_coenergy.html#substitutions">Substitutions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="wave_coenergy.html#simulation">Simulation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="heat_wave.html">Heat wave coupling</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="heat_wave.html#setting">Setting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="heat_wave.html#port-hamiltonian-framework">Port-Hamiltonian framework</a></li>
+<li class="toctree-l3"><a class="reference internal" href="heat_wave.html#structure-preserving-discretization">Structure-preserving discretization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="heat_wave.html#simulation">Simulation</a></li>
+</ul>
+</li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">The shallow water equation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#setting">Setting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#port-hamiltonian-framework">Port-Hamiltonian framework</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#structure-preserving-discretization">Structure-preserving discretization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#simulation">Simulation</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../notebooks.html">Notebooks</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../notebooks.html#install-jupyter">Install jupyter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../notebooks.html#run-jupyter">Run jupyter</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../GUI.html">Graphical User Interface</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../biblio.html">References</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../biblio.html#articles">Articles</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../biblio.html#book-chapters">Book Chapters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../biblio.html#proceedings">Proceedings</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../scrimp.html">Code documentation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../scrimp.html#folders">Folders</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../scrimp.examples.html">scrimp.examples</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.examples.html#wave">Wave</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.examples.html#heat">Heat</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.examples.html#heat-wave-coupling">Heat-Wave coupling</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.examples.html#shallow-water">Shallow water</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../scrimp.utils.html">scrimp.utils</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.utils.html#module-scrimp.utils.config">Config</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.utils.html#linear-algebra">Linear algebra</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.utils.html#mesh">Mesh</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../scrimp.sandbox.html">scrimp.sandbox</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../scrimp.html#distributed-port-hamiltonian-system">Distributed port-Hamiltonian system</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../scrimp.html#domain">Domain</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../scrimp.html#hamiltonian-term">Hamiltonian / Term</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../scrimp.html#port-parameter">Port / Parameter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../scrimp.html#state">State</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../scrimp.html#co-state">Co-state</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../scrimp.html#control">Control</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../scrimp.html#fem">FEM</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../scrimp.html#brick">Brick</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference external" href="https://impacts.ens2m.fr/">ANR Impacts</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/g-haine/scrimp">GitHub repo</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://g-haine.github.io/scrimp/latex/scrimp.pdf">PDF documentation</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">SCRIMP</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../examples.html">Examples</a></li>
+      <li class="breadcrumb-item active">The shallow water equation</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/examples/shallow_water.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="the-shallow-water-equation">
+<h1>The shallow water equation<a class="headerlink" href="#the-shallow-water-equation" title="Link to this heading"></a></h1>
+<section id="setting">
+<span id="shallow-water-2d"></span><h2>Setting<a class="headerlink" href="#setting" title="Link to this heading"></a></h2>
+<p>The objective of this example is to show how to deal with
+<strong>non-linearity</strong>.</p>
+<p>Let us consider a bounded domain <span class="math notranslate nohighlight">\(\Omega \subset \mathbb{R}^2\)</span>.
+The shallow water equations are constituted of two conservation laws</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{pmatrix}
+\partial_t h \\ \partial_t p
+\end{pmatrix}
+= \begin{bmatrix}
+0 &amp; - {\rm div} \\
+-{\rm grad} &amp; \frac{1}{h} G(\omega)
+\end{bmatrix}
+\begin{pmatrix}
+{e}_h \\ {e_p}
+\end{pmatrix} ,\end{split}\]</div>
+<p>where <span class="math notranslate nohighlight">\(h\)</span> is the height of the fluid, <span class="math notranslate nohighlight">\(v\)</span> is the velocity,
+<span class="math notranslate nohighlight">\(\rho\)</span> is the fluid density (supposed constant),
+<span class="math notranslate nohighlight">\(p := \rho v\)</span> is the linear momentum,
+<span class="math notranslate nohighlight">\(\omega := {\rm curl}_{2D} \left( v \right) := \partial_x v_y - \partial_y v_x\)</span>
+is the vorticity,
+<span class="math notranslate nohighlight">\(G(\omega):=\rho \begin{bmatrix} 0 &amp; 1 \\ -1 &amp; 0 \end{bmatrix}\,{\omega}\)</span>,
+<span class="math notranslate nohighlight">\(e_h = \frac{1}{2} \rho\,\|v\|^2 + \rho g h\)</span> is the total pressure
+and <span class="math notranslate nohighlight">\(e_p = h v\)</span> is the volumetric flow of the fluid. Thus, the
+first line of the matrix equation represents the conservation of the
+mass (or volume, since the fluid is assumed to be incompressible) and
+the second represents the conservation of linear momentum.</p>
+</section>
+<section id="port-hamiltonian-framework">
+<h2>Port-Hamiltonian framework<a class="headerlink" href="#port-hamiltonian-framework" title="Link to this heading"></a></h2>
+<p>One can define the system Hamiltonian (or total energy) as a functional
+of <span class="math notranslate nohighlight">\(h\)</span> and <span class="math notranslate nohighlight">\(p\)</span>, which are thus called energy variables</p>
+<div class="math notranslate nohighlight">
+\[\mathcal{H} (h,p) := \frac{1}{2} \int_\Omega \frac{h(t,x) \| p(t,x) \|^2}{\rho} + \rho g h^2(t,x) {\rm d}x.\]</div>
+<p>The co-energy variables can be computed from the variational derivative
+of the Hamiltonian such that</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{split}
+    e_h &amp; = \delta_h \mathcal{H} = \frac{1}{2} \rho \| v \|^2 +  \rho g h , \\
+    e_p &amp; = \delta_{p} \mathcal{H} = h v .
+\end{split}\end{split}\]</div>
+<p>The time-derivative of the Hamiltonian can then be obtained computed and
+depends only on the boundary variables</p>
+<div class="math notranslate nohighlight">
+\[\frac{\rm d}{{\rm d}t} \mathcal{H} =  - \int_{\partial\Omega} e_h(t,s) e_p(t,s) \cdot n(s) {\rm d}s ,\]</div>
+<p>which enables to define collocated control and observation distributed
+ports along the boundary <span class="math notranslate nohighlight">\(\partial\Omega\)</span>. For example, one may
+define</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{split}
+     u_{\partial} &amp; = - e_p \cdot n,\\
+     y_{\partial} &amp; = e_h,
+ \end{split}\end{split}\]</div>
+<p>and the power-balance is given by a product between input and output
+boundary ports. The system is lossless, and conservative in the absence
+of control.</p>
+</section>
+<section id="structure-preserving-discretization">
+<h2>Structure-preserving discretization<a class="headerlink" href="#structure-preserving-discretization" title="Link to this heading"></a></h2>
+<p>First, let us multiply the linear momentum conservation equation by
+<span class="math notranslate nohighlight">\(h\)</span>.</p>
+<p>Let us consider sufficiently regular test functions <span class="math notranslate nohighlight">\(\varphi\)</span> and
+<span class="math notranslate nohighlight">\(\Phi\)</span> on <span class="math notranslate nohighlight">\(\Omega\)</span>, and <span class="math notranslate nohighlight">\(\psi\)</span> test functions at the
+boundary <span class="math notranslate nohighlight">\(\partial\Omega\)</span>. The weak form of the previous equations
+reads</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\left\lbrace
+\begin{array}{rcl}
+\left( \partial_t h, \varphi \right)_{L^2} &amp;=&amp; - \left( {\rm div}\left( h e_p \right), \varphi \right)_{L^2}, \\
+\left( h \partial_t p, \Phi \right)_{(L^2)^2} &amp;=&amp; - \left( h {\rm grad}\left( e_h \right), \Phi \right)_{(L^2)^2}
+                        + \left( {\rm curl}_{2D}\left( p \right) \begin{bmatrix} 0 &amp; 1 \\ -1 &amp; 0 \end{bmatrix} e_p, \Phi \right)_{(L^2)^2}, \\
+\left( y_\partial, \psi \right)_{\partial\Omega} &amp;=&amp; \left( e_h, \psi \right)_{\partial\Omega}.
+\end{array}
+\right.\end{split}\]</div>
+<p>Applying integration by parts on the first line leads to</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\left\lbrace
+\begin{array}{rcl}
+\left( \partial_t h, \varphi \right)_{L^2} &amp;=&amp; \left( h e_p, {\rm grad} \left( \varphi \right) \right)_{L^2} + \left( h u_\partial, \varphi \right)_{\partial\Omega}, \\
+\left( h \partial_t p, \Phi \right)_{(L^2)^2} &amp;=&amp; - \left( h {\rm grad} \left( e_h \right), \Phi \right)_{(L^2)^2}
+                        + \left( {\rm curl}_{2D}\left( p \right) \begin{bmatrix} 0 &amp; 1 \\ -1 &amp; 0 \end{bmatrix} e_p, \Phi \right)_{(L^2)^2}, \\
+\left( y_\partial, \psi \right)_{\partial\Omega} &amp;=&amp; \left( e_h, \psi \right)_{\partial\Omega}.
+\end{array}
+\right.\end{split}\]</div>
+<p>Furthermore, the weak form of the constitutive relations write</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\left\lbrace
+\begin{array}{rcl}
+\left( e_h, \varphi \right)_{L^2} &amp;=&amp; \left( \rho g h, \varphi \right)_{L^2} + \left( \frac{\| p \|^2}{2 \rho}, \varphi \right)_{L^2}, \\
+\left( e_p, \Phi \right)_{(L^2)^2} &amp;=&amp; \left( \frac{p}{\rho}, \Phi \right)_{(L^2)^2}.
+\end{array}
+\right.\end{split}\]</div>
+<p>Now, let us choose three finite families
+<span class="math notranslate nohighlight">\((\varphi^i)_{1 \le i \le N_h} \subset H^1(\Omega)\)</span>,
+<span class="math notranslate nohighlight">\((\Phi^k)_{1 \le k \le N_p} \subset (L^2(\Omega))^2\)</span> and
+<span class="math notranslate nohighlight">\((\psi^m)_{1 \le m \le N_\partial}\)</span> and project the weak
+formulations on them: for all <span class="math notranslate nohighlight">\(1 \le i \le N_h\)</span>, all
+<span class="math notranslate nohighlight">\(1 \le k \le N_p\)</span> and all <span class="math notranslate nohighlight">\(1 \le m \le N_\partial\)</span></p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\left\lbrace
+\begin{array}{rcl}
+\sum_{j=1}^{N_h} \frac{\rm d}{{\rm d}t} h^j \left( \varphi^j, \varphi^i \right)_{L^2} &amp;=&amp; \sum_{\ell=1}^{N_p} e_p^\ell \left( h^d \Phi^\ell, {\rm grad} \left( \varphi^i \right) \right)_{L^2} + \sum_{n=1}^{N_\partial} u_\partial^n \left( h^d \psi^n, \varphi^i \right)_{\partial\Omega}, \\
+\sum_{\ell=1}^{N_p} \frac{\rm d}{{\rm d}t} p^\ell \left( h^d \Phi^\ell, \Phi^k \right)_{(L^2)^2} &amp;=&amp; - \sum_{j=1}^{N_h} e_h^j \left( h^d {\rm grad} \left( \varphi^j \right), \Phi^k \right)_{(L^2)^2} \\
+                       &amp;&amp; \quad + \sum_{\ell=1}^{N_p} e_p^\ell \left( {\rm curl}_{2D}\left( p^d \right) \begin{bmatrix} 0 &amp; 1 \\ -1 &amp; 0 \end{bmatrix} \Phi^\ell, \Phi^k \right)_{(L^2)^2}, \\
+\sum_{n=1}^{N_\partial} y_\partial^n \left( \psi^n, \psi^m \right)_{\partial\Omega} &amp;=&amp; \sum_{j=1}^{N_h} e_h^j \left( \varphi^j, \psi^m \right)_{\partial\Omega},
+\end{array}
+\right.\end{split}\]</div>
+<p>where <span class="math notranslate nohighlight">\(h^d := \sum_{i=1}^{N_h} h^i \varphi^i\)</span> is the approximation
+of <span class="math notranslate nohighlight">\(h\)</span> and <span class="math notranslate nohighlight">\(p^d := \sum_{k=1}^{N_p} p^k \Phi^k\)</span> is the
+approximation of <span class="math notranslate nohighlight">\(p\)</span>. The constitutive relations read for all
+<span class="math notranslate nohighlight">\(1 \le i \le N_h\)</span> and all <span class="math notranslate nohighlight">\(1 \le k \le N_p\)</span></p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\left\lbrace
+\begin{array}{rcl}
+\sum_{j=1}^{N_h} e_h^j \left( \varphi^j, \varphi^i \right)_{L^2} &amp;=&amp; \sum_{j=1}^{N_h} h^j \left( \rho g \varphi^j, \varphi^i \right)_{L^2} + \sum_{\ell=1}^{N_p} p^\ell \left( \frac{\Phi^\ell \cdot p^d}{2 \rho}, \varphi^i \right)_{L^2}, \\
+\sum_{\ell=1}^{N_p} e_p^\ell \left( \Phi^\ell, \Phi^k \right)_{(L^2)^2} &amp;=&amp; \sum_{\ell=1}^{N_p} p^\ell \left( \frac{\Phi^\ell}{\rho}, \Phi^k \right)_{(L^2)^2}.
+\end{array}
+\right.\end{split}\]</div>
+<p>Defining <span class="math notranslate nohighlight">\(\underline{\star}\)</span> the vector gathering the coefficient
+of the approximation of the variable <span class="math notranslate nohighlight">\(\star\)</span> in its appropriate
+finite family, one may write the discrete weak formulations in matrix
+notation</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{bmatrix} M_h &amp; 0 &amp; 0 \\ 0 &amp; M_p[h^d] &amp; 0 \\ 0 &amp; 0 &amp; M_\partial \end{bmatrix} \begin{pmatrix} \underline{h} \\ \underline{p} \\ -\underline{y_\partial} \end{pmatrix}
+=
+\begin{bmatrix}
+0 &amp; D[h^d] &amp; B[h^d] \\
+-D[h^d]^\top &amp; G[p^d] &amp; 0 \\
+- B^\top &amp; 0 &amp; 0
+\end{bmatrix}
+\begin{pmatrix} \underline{e_h} \\ \underline{e_p} \\ \underline{u_\partial} \end{pmatrix}.\end{split}\]</div>
+<p>where the matrices are given by</p>
+<div class="math notranslate nohighlight">
+\[(M_h)_{ij} := \left( \varphi^j, \varphi^i \right)_{L^2} \qquad (M_p[h^d])_{k\ell} := \left( h^d \Phi^\ell, \Phi^k \right)_{(L^2)^2},\]</div>
+<div class="math notranslate nohighlight">
+\[(D[h^d])_{i\ell} := \left( h^d \Phi^\ell, {\rm grad} \left( \varphi^i \right) \right)_{L^2}, \qquad (B[h^d])_{in} := \left( h^d \psi^n, \varphi^i \right)_{\partial\Omega},\]</div>
+<p>and</p>
+<div class="math notranslate nohighlight">
+\[(M_\partial)_{mn} := \left( \psi^n, \psi^m \right)_{\partial\Omega}, \qquad (B)_{in} := \left( \psi^n, \varphi^i \right)_{\partial\Omega}.\]</div>
+<p>The constitutive relations read</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{bmatrix} M_h &amp; 0 \\ 0 &amp; M_p \end{bmatrix} \begin{pmatrix} \underline{e_h} \\ \underline{e_p} \end{pmatrix}
+=
+\begin{bmatrix}
+Q_h &amp; P_h[h^d] \\
+0 &amp; Q_p
+\end{bmatrix}
+\begin{pmatrix} \underline{h} \\ \underline{p} \end{pmatrix},\end{split}\]</div>
+<p>where the matrices are given by</p>
+<div class="math notranslate nohighlight">
+\[(M_p)_{k\ell} := \left( \Phi^\ell, \Phi^k \right)_{(L^2)^2}, \qquad (Q_h)_{ij} := \left( \rho g \varphi^j, \varphi^i \right)_{L^2},\]</div>
+<div class="math notranslate nohighlight">
+\[(P_h[h^d])_{i\ell} := \left( \frac{\Phi^\ell \cdot p^d}{2 \rho}, \varphi^i \right)_{L^2}, \qquad (Q_d)_{k\ell} := \left( \frac{\Phi^\ell}{\rho}, \Phi^k \right)_{(L^2)^2}.\]</div>
+<p>With these definition, one may prove the <strong>discrete power balance</strong></p>
+<div class="math notranslate nohighlight">
+\[\frac{\rm d}{{\rm d}t} \mathcal{H}^d(t) = \underline{u_\partial}^\top(t) M_\partial \underline{y_\partial}(t).\]</div>
+</section>
+<section id="simulation">
+<h2>Simulation<a class="headerlink" href="#simulation" title="Link to this heading"></a></h2>
+<p>The beggining is classical: first import, then create the dphs and set
+the domain.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Import scrimp</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">scrimp</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">S</span>
+
+<span class="c1"># Init the distributed port-Hamiltonian system</span>
+<span class="n">swe</span> <span class="o">=</span> <span class="n">S</span><span class="o">.</span><span class="n">DPHS</span><span class="p">(</span><span class="s2">&quot;real&quot;</span><span class="p">)</span>
+
+<span class="c1"># Set the domain (using the built-in geometry `Rectangle`)</span>
+<span class="c1"># Labels: Omega = 1, Gamma_Bottom = 10, Gamma_Right = 11, Gamma_Top = 12, Gamma_Left = 13</span>
+<span class="n">swe</span><span class="o">.</span><span class="n">set_domain</span><span class="p">(</span><span class="n">S</span><span class="o">.</span><span class="n">Domain</span><span class="p">(</span><span class="s2">&quot;Rectangle&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;L&quot;</span><span class="p">:</span> <span class="mf">2.0</span><span class="p">,</span> <span class="s2">&quot;l&quot;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">,</span> <span class="s2">&quot;h&quot;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">}))</span>
+</pre></div>
+</div>
+<p>Then the states and co-states.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Define the states and costates</span>
+<span class="n">states</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">State</span><span class="p">(</span><span class="s2">&quot;h&quot;</span><span class="p">,</span> <span class="s2">&quot;Fluid height&quot;</span><span class="p">,</span> <span class="s2">&quot;scalar-field&quot;</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">State</span><span class="p">(</span><span class="s2">&quot;p&quot;</span><span class="p">,</span> <span class="s2">&quot;Linear momentum&quot;</span><span class="p">,</span> <span class="s2">&quot;vector-field&quot;</span><span class="p">),</span>
+<span class="p">]</span>
+<span class="n">costates</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">CoState</span><span class="p">(</span><span class="s2">&quot;e_h&quot;</span><span class="p">,</span> <span class="s2">&quot;Pressure&quot;</span><span class="p">,</span> <span class="n">states</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">CoState</span><span class="p">(</span><span class="s2">&quot;e_p&quot;</span><span class="p">,</span> <span class="s2">&quot;Velocity&quot;</span><span class="p">,</span> <span class="n">states</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
+<span class="p">]</span>
+
+<span class="c1"># Add them to the dphs</span>
+<span class="k">for</span> <span class="n">state</span> <span class="ow">in</span> <span class="n">states</span><span class="p">:</span>
+    <span class="n">swe</span><span class="o">.</span><span class="n">add_state</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">costate</span> <span class="ow">in</span> <span class="n">costates</span><span class="p">:</span>
+    <span class="n">swe</span><span class="o">.</span><span class="n">add_costate</span><span class="p">(</span><span class="n">costate</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>And the control ports.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Define the control ports</span>
+<span class="n">control_ports</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Control_Port</span><span class="p">(</span>
+        <span class="s2">&quot;Boundary control 0&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;U_0&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;Normal velocity&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;Y_0&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;Fluid height&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;scalar-field&quot;</span><span class="p">,</span>
+        <span class="n">region</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+        <span class="n">position</span><span class="o">=</span><span class="s2">&quot;effort&quot;</span><span class="p">,</span>
+    <span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Control_Port</span><span class="p">(</span>
+        <span class="s2">&quot;Boundary control 1&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;U_1&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;Normal velocity&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;Y_1&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;Fluid height&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;scalar-field&quot;</span><span class="p">,</span>
+        <span class="n">region</span><span class="o">=</span><span class="mi">11</span><span class="p">,</span>
+        <span class="n">position</span><span class="o">=</span><span class="s2">&quot;effort&quot;</span><span class="p">,</span>
+    <span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Control_Port</span><span class="p">(</span>
+        <span class="s2">&quot;Boundary control 2&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;U_2&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;Normal velocity&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;Y_2&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;Fluid height&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;scalar-field&quot;</span><span class="p">,</span>
+        <span class="n">region</span><span class="o">=</span><span class="mi">12</span><span class="p">,</span>
+        <span class="n">position</span><span class="o">=</span><span class="s2">&quot;effort&quot;</span><span class="p">,</span>
+    <span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Control_Port</span><span class="p">(</span>
+        <span class="s2">&quot;Boundary control 3&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;U_3&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;Normal velocity&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;Y_3&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;Fluid height&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;scalar-field&quot;</span><span class="p">,</span>
+        <span class="n">region</span><span class="o">=</span><span class="mi">13</span><span class="p">,</span>
+        <span class="n">position</span><span class="o">=</span><span class="s2">&quot;effort&quot;</span><span class="p">,</span>
+    <span class="p">),</span>
+<span class="p">]</span>
+
+<span class="c1"># Add them to the dphs</span>
+<span class="k">for</span> <span class="n">ctrl_port</span> <span class="ow">in</span> <span class="n">control_ports</span><span class="p">:</span>
+    <span class="n">swe</span><span class="o">.</span><span class="n">add_control_port</span><span class="p">(</span><span class="n">ctrl_port</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Regarding the FEM, this is more challenging, as non-linearity are
+present. Nevertheless, let us stick to the way we choose until now:
+since the <span class="math notranslate nohighlight">\(h\)</span>-type variables will be derivated, thus we choose
+continuous Galerkin approximations of order <span class="math notranslate nohighlight">\(k+1\)</span>. The other energy variable is taken as continuous Galerkin approximation of order <span class="math notranslate nohighlight">\(k\)</span>, while boundary terms are given by discontinuous Galerkin approximations of order
+<span class="math notranslate nohighlight">\(k\)</span>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Define the Finite Elements Method of each port</span>
+<span class="n">k</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="n">FEMs</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">FEM</span><span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_name</span><span class="p">(),</span> <span class="n">k</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="n">FEM</span><span class="o">=</span><span class="s2">&quot;CG&quot;</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">FEM</span><span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">get_name</span><span class="p">(),</span> <span class="n">k</span><span class="p">,</span> <span class="n">FEM</span><span class="o">=</span><span class="s2">&quot;CG&quot;</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">FEM</span><span class="p">(</span><span class="n">control_ports</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_name</span><span class="p">(),</span> <span class="n">k</span><span class="p">,</span> <span class="s2">&quot;DG&quot;</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">FEM</span><span class="p">(</span><span class="n">control_ports</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">get_name</span><span class="p">(),</span> <span class="n">k</span><span class="p">,</span> <span class="s2">&quot;DG&quot;</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">FEM</span><span class="p">(</span><span class="n">control_ports</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">get_name</span><span class="p">(),</span> <span class="n">k</span><span class="p">,</span> <span class="s2">&quot;DG&quot;</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">FEM</span><span class="p">(</span><span class="n">control_ports</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span><span class="o">.</span><span class="n">get_name</span><span class="p">(),</span> <span class="n">k</span><span class="p">,</span> <span class="s2">&quot;DG&quot;</span><span class="p">),</span>
+<span class="p">]</span>
+
+<span class="c1"># Add them to the dphs</span>
+<span class="k">for</span> <span class="n">FEM</span> <span class="ow">in</span> <span class="n">FEMs</span><span class="p">:</span>
+    <span class="n">swe</span><span class="o">.</span><span class="n">add_FEM</span><span class="p">(</span><span class="n">FEM</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The parameters are <em>physically meaningful</em>!</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Define physical parameters</span>
+<span class="n">rho</span> <span class="o">=</span> <span class="mf">1000.</span>
+<span class="n">g</span> <span class="o">=</span> <span class="mf">10.</span>
+<span class="n">parameters</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="s2">&quot;rho&quot;</span><span class="p">,</span> <span class="s2">&quot;Mass density&quot;</span><span class="p">,</span> <span class="s2">&quot;scalar-field&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">rho</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;h&quot;</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="s2">&quot;g&quot;</span><span class="p">,</span> <span class="s2">&quot;Gravity&quot;</span><span class="p">,</span> <span class="s2">&quot;scalar-field&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">g</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;h&quot;</span><span class="p">),</span>
+<span class="p">]</span>
+
+<span class="c1"># Add them to the dphs</span>
+<span class="k">for</span> <span class="n">parameter</span> <span class="ow">in</span> <span class="n">parameters</span><span class="p">:</span>
+    <span class="n">swe</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">parameter</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Here are the difficult part. We need to define the weak form of each
+block matrices, and take non-linearities into account. To do so, the
+GFWL of GetFEM is transparent, but it is mandatory to say to <strong>SCRIMP</strong>
+that the <code class="docutils literal notranslate"><span class="pre">Brick</span></code> is non-linear, using the keyword <code class="docutils literal notranslate"><span class="pre">linear=False</span></code>. It
+is also possible to ask for this block to be considered <em>explicitly</em> in
+the time scheme (<em>i.e.</em> it will be computed with the previous time step
+values and be considered as a right-hand side), as done for the
+gyroscopic term below, using the keyword <code class="docutils literal notranslate"><span class="pre">explicit=True</span></code>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Define the pHs via `Brick` == non-zero block matrices == variational terms</span>
+<span class="c1"># Some macros for the sake of readability</span>
+<span class="n">swe</span><span class="o">.</span><span class="n">gf_model</span><span class="o">.</span><span class="n">add_macro</span><span class="p">(</span><span class="s1">&#39;div(v)&#39;</span><span class="p">,</span> <span class="s1">&#39;Trace(Grad(v))&#39;</span><span class="p">)</span>
+<span class="n">swe</span><span class="o">.</span><span class="n">gf_model</span><span class="o">.</span><span class="n">add_macro</span><span class="p">(</span><span class="s1">&#39;Rot&#39;</span><span class="p">,</span> <span class="s1">&#39;[[0,1],[-1,0]]&#39;</span><span class="p">)</span>
+<span class="n">swe</span><span class="o">.</span><span class="n">gf_model</span><span class="o">.</span><span class="n">add_macro</span><span class="p">(</span><span class="s1">&#39;Curl2D(v)&#39;</span><span class="p">,</span> <span class="s1">&#39;div(Rot*v)&#39;</span><span class="p">)</span>
+<span class="n">swe</span><span class="o">.</span><span class="n">gf_model</span><span class="o">.</span><span class="n">add_macro</span><span class="p">(</span><span class="s1">&#39;Gyro(v)&#39;</span><span class="p">,</span> <span class="s1">&#39;Curl2D(v)*Rot&#39;</span><span class="p">)</span>
+<span class="n">bricks</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="c1"># Define the mass matrices of the left-hand side of the &quot;Dirac structure&quot; (position=&quot;flow&quot;)</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">&quot;M_h&quot;</span><span class="p">,</span> <span class="s2">&quot;h * Test_h&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">dt</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">position</span><span class="o">=</span><span class="s2">&quot;flow&quot;</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">&quot;M_p&quot;</span><span class="p">,</span> <span class="s2">&quot;h * p . Test_p&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">dt</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">linear</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">position</span><span class="o">=</span><span class="s2">&quot;flow&quot;</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">&quot;M_Y_0&quot;</span><span class="p">,</span> <span class="s2">&quot;Y_0 * Test_Y_0&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">10</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">&quot;flow&quot;</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">&quot;M_Y_1&quot;</span><span class="p">,</span> <span class="s2">&quot;Y_1 * Test_Y_1&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">11</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">&quot;flow&quot;</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">&quot;M_Y_2&quot;</span><span class="p">,</span> <span class="s2">&quot;Y_2 * Test_Y_2&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">12</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">&quot;flow&quot;</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">&quot;M_Y_3&quot;</span><span class="p">,</span> <span class="s2">&quot;Y_3 * Test_Y_3&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">13</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">&quot;flow&quot;</span><span class="p">),</span>
+
+    <span class="c1"># Define the first line of the right-hand side of the &quot;Dirac structure&quot; (position=&quot;effort&quot;)</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">&quot;-D^T&quot;</span><span class="p">,</span> <span class="s2">&quot;h * e_p . Grad(Test_h)&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">linear</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">position</span><span class="o">=</span><span class="s2">&quot;effort&quot;</span><span class="p">),</span>
+    <span class="c1"># with the boundary control</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">&quot;B_0&quot;</span><span class="p">,</span> <span class="s2">&quot;- U_0 * Test_h&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">10</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">&quot;effort&quot;</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">&quot;B_1&quot;</span><span class="p">,</span> <span class="s2">&quot;- U_1 * Test_h&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">11</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">&quot;effort&quot;</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">&quot;B_2&quot;</span><span class="p">,</span> <span class="s2">&quot;- U_2 * Test_h&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">12</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">&quot;effort&quot;</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">&quot;B_3&quot;</span><span class="p">,</span> <span class="s2">&quot;- U_3 * Test_h&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">13</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">&quot;effort&quot;</span><span class="p">),</span>
+    <span class="c1"># Define the second line of the right-hand side of the &quot;Dirac structure&quot; (position=&quot;effort&quot;)</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">&quot;D&quot;</span><span class="p">,</span> <span class="s2">&quot;- Grad(e_h) . Test_p * h&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">linear</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">position</span><span class="o">=</span><span class="s2">&quot;effort&quot;</span><span class="p">),</span>
+    <span class="c1"># with the gyroscopic term (beware that &quot;Curl&quot; is not available in the GWFL of getfem)</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">&quot;G&quot;</span><span class="p">,</span> <span class="s2">&quot;(Gyro(p) * e_p) . Test_p&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">linear</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">explicit</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">position</span><span class="o">=</span><span class="s2">&quot;effort&quot;</span><span class="p">),</span>
+    <span class="c1"># Define the third line of the right-hand side of the &quot;Dirac structure&quot; (position=&quot;effort&quot;)</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">&quot;C_0&quot;</span><span class="p">,</span> <span class="s2">&quot;- e_h * Test_Y_0&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">10</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">&quot;effort&quot;</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">&quot;C_1&quot;</span><span class="p">,</span> <span class="s2">&quot;- e_h * Test_Y_1&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">11</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">&quot;effort&quot;</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">&quot;C_2&quot;</span><span class="p">,</span> <span class="s2">&quot;- e_h * Test_Y_2&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">12</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">&quot;effort&quot;</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">&quot;C_3&quot;</span><span class="p">,</span> <span class="s2">&quot;- e_h * Test_Y_3&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">13</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">&quot;effort&quot;</span><span class="p">),</span>
+
+    <span class="c1">## Define the constitutive relations (position=&quot;constitutive&quot;, the default value)</span>
+    <span class="c1"># For e_h: first the mass matrix WITH A MINUS because we want an implicit formulation 0 = - M e_h + F(h)</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">&quot;-M_e_h&quot;</span><span class="p">,</span> <span class="s2">&quot;- e_h * Test_e_h&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
+    <span class="c1"># second the linear part as a linear brick</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">&quot;Q_h&quot;</span><span class="p">,</span> <span class="s2">&quot;rho * g * h * Test_e_h&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
+    <span class="c1"># third the non-linear part as a non-linear brick (linear=False)</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">&quot;P_h&quot;</span><span class="p">,</span> <span class="s2">&quot;0.5 * (p . p) / rho * Test_e_h&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">linear</span><span class="o">=</span><span class="kc">False</span><span class="p">),</span>
+    <span class="c1"># For e_p: first the mass matrix WITH A MINUS because we want an implicit formulation 0 = - M e_p + F(p)</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">&quot;-M_e_p&quot;</span><span class="p">,</span> <span class="s2">&quot;- e_p . Test_e_p&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
+    <span class="c1"># second the LINEAR brick</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">&quot;Q_p&quot;</span><span class="p">,</span> <span class="s2">&quot;p / rho . Test_e_p&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
+<span class="p">]</span>
+<span class="k">for</span> <span class="n">brick</span> <span class="ow">in</span> <span class="n">bricks</span><span class="p">:</span>
+    <span class="n">swe</span><span class="o">.</span><span class="n">add_brick</span><span class="p">(</span><span class="n">brick</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>As we just look at how it works, let us consider a step in the height,
+no initial velocity, and homogeneous Neumann boundary condition. This
+should look like a dam break experiment in a rectangular tank.</p>
+<p><strong>Remark:</strong> note the use of <code class="docutils literal notranslate"><span class="pre">np</span></code>, <em>i.e.</em> numpy, in the definition of
+the initial height <span class="math notranslate nohighlight">\(h_0\)</span>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1">## Initialize the problem</span>
+<span class="n">swe</span><span class="o">.</span><span class="n">set_control</span><span class="p">(</span><span class="s2">&quot;Boundary control 0&quot;</span><span class="p">,</span> <span class="s2">&quot;0.&quot;</span><span class="p">)</span>
+<span class="n">swe</span><span class="o">.</span><span class="n">set_control</span><span class="p">(</span><span class="s2">&quot;Boundary control 1&quot;</span><span class="p">,</span> <span class="s2">&quot;0.&quot;</span><span class="p">)</span>
+<span class="n">swe</span><span class="o">.</span><span class="n">set_control</span><span class="p">(</span><span class="s2">&quot;Boundary control 2&quot;</span><span class="p">,</span> <span class="s2">&quot;0.&quot;</span><span class="p">)</span>
+<span class="n">swe</span><span class="o">.</span><span class="n">set_control</span><span class="p">(</span><span class="s2">&quot;Boundary control 3&quot;</span><span class="p">,</span> <span class="s2">&quot;0.&quot;</span><span class="p">)</span>
+
+<span class="c1"># Set the initial data</span>
+<span class="n">swe</span><span class="o">.</span><span class="n">set_initial_value</span><span class="p">(</span><span class="s2">&quot;h&quot;</span><span class="p">,</span> <span class="s2">&quot;3. - (np.sign(x-0.5)+1)/3.&quot;</span><span class="p">)</span>
+<span class="n">swe</span><span class="o">.</span><span class="n">set_initial_value</span><span class="p">(</span><span class="s2">&quot;p&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;[ 0., 0.]&quot;</span><span class="p">)</span>
+
+<span class="c1">## Solve in time</span>
+<span class="c1"># Define the time scheme</span>
+<span class="n">swe</span><span class="o">.</span><span class="n">set_time_scheme</span><span class="p">(</span>
+    <span class="n">ts_type</span><span class="o">=</span><span class="s2">&quot;bdf&quot;</span><span class="p">,</span>
+    <span class="n">ts_bdf_order</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
+    <span class="n">t_f</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+    <span class="n">dt</span><span class="o">=</span><span class="mf">0.0001</span><span class="p">,</span>
+    <span class="n">dt_save</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="c1"># Solve the system in time</span>
+<span class="n">swe</span><span class="o">.</span><span class="n">solve</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>The Hamiltonian are then defined, computed, and shown.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1">## Post-processing</span>
+<span class="c1"># Set Hamiltonian&#39;s name</span>
+<span class="n">swe</span><span class="o">.</span><span class="n">hamiltonian</span><span class="o">.</span><span class="n">set_name</span><span class="p">(</span><span class="s2">&quot;Mechanical energy&quot;</span><span class="p">)</span>
+<span class="c1"># Define Hamiltonian terms</span>
+<span class="n">terms</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Term</span><span class="p">(</span><span class="s2">&quot;Kinetic energy&quot;</span><span class="p">,</span> <span class="s2">&quot;0.5*h*p.p/rho&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Term</span><span class="p">(</span><span class="s2">&quot;Potential energy&quot;</span><span class="p">,</span> <span class="s2">&quot;0.5*rho*g*h*h&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
+<span class="p">]</span>
+<span class="c1"># Add them to the Hamiltonian</span>
+<span class="k">for</span> <span class="n">term</span> <span class="ow">in</span> <span class="n">terms</span><span class="p">:</span>
+    <span class="n">swe</span><span class="o">.</span><span class="n">hamiltonian</span><span class="o">.</span><span class="n">add_term</span><span class="p">(</span><span class="n">term</span><span class="p">)</span>
+<span class="c1"># Plot the Hamiltonian</span>
+<span class="n">swe</span><span class="o">.</span><span class="n">plot_Hamiltonian</span><span class="p">(</span><span class="n">save_figure</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="s2">&quot;Hamiltonian_Inviscid_Shallow_Water_2D.png&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<img alt="../_images/Shallow_water_Hamiltonian.png" src="../_images/Shallow_water_Hamiltonian.png" />
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="heat_wave.html" class="btn btn-neutral float-left" title="Heat wave coupling" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../notebooks.html" class="btn btn-neutral float-right" title="Notebooks" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2015-2025 ISAE-SUPAERO.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

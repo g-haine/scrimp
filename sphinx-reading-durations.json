@@ -1,0 +1,18 @@
+{
+    "GUI": 0.022,
+    "biblio": 0.019,
+    "examples": 0.003,
+    "examples/heat": 0.054,
+    "examples/heat_wave": 0.025,
+    "examples/shallow_water": 0.024,
+    "examples/wave": 0.059,
+    "examples/wave_coenergy": 0.014,
+    "index": 0.022,
+    "install": 0.005,
+    "notebooks": 0.005,
+    "scrimp": 0.037,
+    "scrimp.examples": 0.019,
+    "scrimp.sandbox": 0.001,
+    "scrimp.utils": 0.105,
+    "started": 0.035
+}

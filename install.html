@@ -1,0 +1,233 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>How to install &mdash; SCRIMP 1.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+    <link rel="shortcut icon" href="_static/Logo-ico.png"/>
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=56dcb7b8"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Getting started" href="started.html" />
+    <link rel="prev" title="SCRIMP" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            SCRIMP
+              <img src="_static/Logo.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">How to install</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#anaconda">Anaconda</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#tests">Tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#code-structure">Code structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#documentation">Documentation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="started.html">Getting started</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="started.html#port-hamiltonian-framework">Port-Hamiltonian framework</a></li>
+<li class="toctree-l2"><a class="reference internal" href="started.html#structure-preserving-discretization">Structure-preserving discretization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="started.html#schema-first-workflow">Schema-first workflow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="started.html#coding-within-scrimp">Coding within SCRIMP</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="examples.html">Examples</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="examples/wave.html">The wave equation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave.html#setting">Setting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave.html#port-hamiltonian-framework">Port-Hamiltonian framework</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave.html#structure-preserving-discretization">Structure-preserving discretization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave.html#simulation">Simulation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave.html#adding-damping-to-the-dphs">Adding Damping to the dphs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave.html#another-simulation">Another simulation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="examples/heat.html">The heat equation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat.html#setting">Setting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat.html#port-hamiltonian-framework">Port-Hamiltonian framework</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat.html#structure-preserving-discretization">Structure-preserving discretization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat.html#simulation">Simulation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="examples/wave_coenergy.html">Another wave equation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave_coenergy.html#setting">Setting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave_coenergy.html#substitutions">Substitutions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave_coenergy.html#simulation">Simulation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="examples/heat_wave.html">Heat wave coupling</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat_wave.html#setting">Setting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat_wave.html#port-hamiltonian-framework">Port-Hamiltonian framework</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat_wave.html#structure-preserving-discretization">Structure-preserving discretization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat_wave.html#simulation">Simulation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="examples/shallow_water.html">The shallow water equation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="examples/shallow_water.html#setting">Setting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/shallow_water.html#port-hamiltonian-framework">Port-Hamiltonian framework</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/shallow_water.html#structure-preserving-discretization">Structure-preserving discretization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/shallow_water.html#simulation">Simulation</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks.html">Notebooks</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="notebooks.html#install-jupyter">Install jupyter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="notebooks.html#run-jupyter">Run jupyter</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="GUI.html">Graphical User Interface</a></li>
+<li class="toctree-l1"><a class="reference internal" href="biblio.html">References</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="biblio.html#articles">Articles</a></li>
+<li class="toctree-l2"><a class="reference internal" href="biblio.html#book-chapters">Book Chapters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="biblio.html#proceedings">Proceedings</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="scrimp.html">Code documentation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.html#folders">Folders</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="scrimp.examples.html">scrimp.examples</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.examples.html#wave">Wave</a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.examples.html#heat">Heat</a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.examples.html#heat-wave-coupling">Heat-Wave coupling</a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.examples.html#shallow-water">Shallow water</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="scrimp.utils.html">scrimp.utils</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.utils.html#module-scrimp.utils.config">Config</a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.utils.html#linear-algebra">Linear algebra</a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.utils.html#mesh">Mesh</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="scrimp.sandbox.html">scrimp.sandbox</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.html#distributed-port-hamiltonian-system">Distributed port-Hamiltonian system</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.html#domain">Domain</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.html#hamiltonian-term">Hamiltonian / Term</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.html#port-parameter">Port / Parameter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.html#state">State</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.html#co-state">Co-state</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.html#control">Control</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.html#fem">FEM</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.html#brick">Brick</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference external" href="https://impacts.ens2m.fr/">ANR Impacts</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/g-haine/scrimp">GitHub repo</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://g-haine.github.io/scrimp/latex/scrimp.pdf">PDF documentation</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">SCRIMP</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">How to install</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/install.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="how-to-install">
+<h1>How to install<a class="headerlink" href="#how-to-install" title="Link to this heading"></a></h1>
+<section id="anaconda">
+<h2>Anaconda<a class="headerlink" href="#anaconda" title="Link to this heading"></a></h2>
+<p>The easiest way to install SCRIMP is to use a conda environment.</p>
+<ol class="arabic simple">
+<li><p>Install <a class="reference external" href="https://docs.anaconda.com/free/anaconda/install/index.html">Anaconda</a></p></li>
+<li><p>Clone the git repository: <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">clone</span> <span class="pre">https://github.com/g-haine/scrimp</span></code></p></li>
+<li><p>Enter the folder: <code class="docutils literal notranslate"><span class="pre">cd</span> <span class="pre">scrimp</span></code></p></li>
+<li><p>Create the conda environment:  <code class="docutils literal notranslate"><span class="pre">conda</span> <span class="pre">env</span> <span class="pre">create</span> <span class="pre">--file</span> <span class="pre">/path/to/scrimp/scrimp.yml</span></code></p></li>
+<li><p>Activate the environment:  <code class="docutils literal notranslate"><span class="pre">conda</span> <span class="pre">activate</span> <span class="pre">scrimp</span></code></p></li>
+<li><p>Add scrimp to the PATH: <code class="docutils literal notranslate"><span class="pre">conda</span> <span class="pre">develop</span> <span class="pre">/path/to/scrimp/</span></code></p></li>
+<li><p>Finish with pip: <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">-e</span> <span class="pre">.</span></code></p></li>
+</ol>
+</section>
+<section id="tests">
+<h2>Tests<a class="headerlink" href="#tests" title="Link to this heading"></a></h2>
+<p>You may test your installation by running avalaible examples in the <code class="docutils literal notranslate"><span class="pre">`examples`</span></code> folder.</p>
+</section>
+<section id="code-structure">
+<h2>Code structure<a class="headerlink" href="#code-structure" title="Link to this heading"></a></h2>
+<p><strong>SCRIMP</strong> is developped as a <em>package</em>: the <code class="code docutils literal notranslate"><span class="pre">__init__.py</span></code> file of the <em>/path/to/scrimp/</em> folder is the root file. Each subdirectory is a sub-package of <strong>SCRIMP</strong>. Files are called <em>module</em> in this framework and may be called <em>via</em> the command <strong>import</strong>. For instance the module <em>linalg</em> gathering linear algebra functions of the <em>subpackage</em> utils can be imported with <code class="code docutils literal notranslate"><span class="pre">import</span> <span class="pre">scrimp.utils.linalg</span></code>.</p>
+</section>
+<section id="documentation">
+<h2>Documentation<a class="headerlink" href="#documentation" title="Link to this heading"></a></h2>
+<p>You can find this documentation <a class="reference external" href="https://g-haine.github.io/scrimp/latex/scrimp.pdf">here</a>.</p>
+<p>It is automatically built upon the code comments using sphinx.</p>
+<p>See <a class="reference external" href="https://www.sphinx-doc.org/">Sphinx</a> for further informations.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="SCRIMP" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="started.html" class="btn btn-neutral float-right" title="Getting started" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2015-2025 ISAE-SUPAERO.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

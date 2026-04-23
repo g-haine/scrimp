@@ -1,0 +1,262 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bibliography &mdash; SCRIMP 1.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+    <link rel="shortcut icon" href="_static/Logo-ico.png"/>
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=56dcb7b8"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Code documentation" href="scrimp.html" />
+    <link rel="prev" title="Graphical User Interface" href="GUI.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            SCRIMP
+              <img src="_static/Logo.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="install.html">How to install</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="install.html#anaconda">Anaconda</a></li>
+<li class="toctree-l2"><a class="reference internal" href="install.html#tests">Tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="install.html#code-structure">Code structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="install.html#documentation">Documentation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="started.html">Getting started</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="started.html#port-hamiltonian-framework">Port-Hamiltonian framework</a></li>
+<li class="toctree-l2"><a class="reference internal" href="started.html#structure-preserving-discretization">Structure-preserving discretization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="started.html#schema-first-workflow">Schema-first workflow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="started.html#coding-within-scrimp">Coding within SCRIMP</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="examples.html">Examples</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="examples/wave.html">The wave equation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave.html#setting">Setting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave.html#port-hamiltonian-framework">Port-Hamiltonian framework</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave.html#structure-preserving-discretization">Structure-preserving discretization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave.html#simulation">Simulation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave.html#adding-damping-to-the-dphs">Adding Damping to the dphs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave.html#another-simulation">Another simulation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="examples/heat.html">The heat equation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat.html#setting">Setting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat.html#port-hamiltonian-framework">Port-Hamiltonian framework</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat.html#structure-preserving-discretization">Structure-preserving discretization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat.html#simulation">Simulation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="examples/wave_coenergy.html">Another wave equation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave_coenergy.html#setting">Setting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave_coenergy.html#substitutions">Substitutions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave_coenergy.html#simulation">Simulation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="examples/heat_wave.html">Heat wave coupling</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat_wave.html#setting">Setting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat_wave.html#port-hamiltonian-framework">Port-Hamiltonian framework</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat_wave.html#structure-preserving-discretization">Structure-preserving discretization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat_wave.html#simulation">Simulation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="examples/shallow_water.html">The shallow water equation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="examples/shallow_water.html#setting">Setting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/shallow_water.html#port-hamiltonian-framework">Port-Hamiltonian framework</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/shallow_water.html#structure-preserving-discretization">Structure-preserving discretization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/shallow_water.html#simulation">Simulation</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks.html">Notebooks</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="notebooks.html#install-jupyter">Install jupyter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="notebooks.html#run-jupyter">Run jupyter</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="GUI.html">Graphical User Interface</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">References</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#articles">Articles</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#book-chapters">Book Chapters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#proceedings">Proceedings</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="scrimp.html">Code documentation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.html#folders">Folders</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="scrimp.examples.html">scrimp.examples</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.examples.html#wave">Wave</a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.examples.html#heat">Heat</a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.examples.html#heat-wave-coupling">Heat-Wave coupling</a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.examples.html#shallow-water">Shallow water</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="scrimp.utils.html">scrimp.utils</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.utils.html#module-scrimp.utils.config">Config</a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.utils.html#linear-algebra">Linear algebra</a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.utils.html#mesh">Mesh</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="scrimp.sandbox.html">scrimp.sandbox</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.html#distributed-port-hamiltonian-system">Distributed port-Hamiltonian system</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.html#domain">Domain</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.html#hamiltonian-term">Hamiltonian / Term</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.html#port-parameter">Port / Parameter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.html#state">State</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.html#co-state">Co-state</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.html#control">Control</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.html#fem">FEM</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.html#brick">Brick</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference external" href="https://impacts.ens2m.fr/">ANR Impacts</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/g-haine/scrimp">GitHub repo</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://g-haine.github.io/scrimp/latex/scrimp.pdf">PDF documentation</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">SCRIMP</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Bibliography</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/biblio.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="bibliography">
+<h1>Bibliography<a class="headerlink" href="#bibliography" title="Link to this heading"></a></h1>
+<p id="biblio">Port-Hamiltonian systems is an ever-growing research area as it proposes a powerful framework for the control of multi-physics systems.</p>
+<p>The following list of publications presents the main results of ours behind <strong>SCRIMP</strong>.</p>
+<section id="articles">
+<h2>Articles<a class="headerlink" href="#articles" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>Haine, Ghislain and Matignon, Denis and Serhani, Anass. <strong>Numerical Analysis of a Structure-Preserving Space-Discretization for an Anisotropic and Heterogeneous Boundary Controlled N-Dimensional Wave Equation As a Port-Hamiltonian System.</strong> (2023) <em>International Journal of Numerical Analysis and Modeling</em>, 20 (1). 92-133. <a class="reference external" href="https://doi.org/10.4208/ijnam2023-1005">DOI:10.4208/ijnam2023-1005</a></p></li>
+<li><p>Haine, Ghislain and Matignon, Denis and Monteghetti, Florian. <strong>Long-time behavior of a coupled heat-wave system using a structure-preserving finite element method.</strong> (2022) <em>Mathematical Reports</em>, 22 (1-2). 187-215. <a class="reference external" href="http://imar.ro/journals/Mathematical_Reports/Pdfs/2022/1-2/11.pdf">PDF</a></p></li>
+<li><p>Mora, Luis A. and Le Gorrec, Yann and Matignon, Denis and Ramirez, Hector and Yuz, Juan I.. <strong>On port-Hamiltonian formulations of 3-dimensional compressible Newtonian fluids.</strong> (2021) <em>Physics of Fluids</em>, 33 (11). 117117. <a class="reference external" href="https://doi.org/10.1063/5.0067784">DOI:10.1063/5.0067784</a></p></li>
+<li><p>Cardoso-Ribeiro, Flávio Luiz and Matignon, Denis and Lefèvre, Laurent. <strong>A Partitioned Finite Element Method for power-preserving discretization of open systems of conservation laws.</strong> (2021) <em>IMA Journal of Mathematical Control and Information</em>, 38 (2). 493-533. <a class="reference external" href="https://doi.org/10.1093/imamci/dnaa038">DOI:10.1093/imamci/dnaa038</a></p></li>
+<li><p>Brugnoli, Andrea and Haine, Ghislain and Serhani, Anass and Vasseur, Xavier. <strong>Numerical Approximation of Port-Hamiltonian Systems for Hyperbolic or Parabolic PDEs with Boundary Control.</strong> (2021) <em>Journal of Applied Mathematics and Physics</em>, 09 (06). 1278-1321. <a class="reference external" href="https://doi.org/10.4236/jamp.2021.96088">DOI:10.4236/jamp.2021.96088</a></p></li>
+<li><p>Brugnoli, Andrea and Alazard, Daniel and Pommier-Budinger, Valérie and Matignon, Denis. <strong>Port-Hamiltonian flexible multibody dynamics.</strong> (2021) <em>Multibody System Dynamics</em>, 51 (3). 343-375. <a class="reference external" href="https://doi.org/10.1007/s11044-020-09758-6">DOI:10.1007/s11044-020-09758-6</a></p></li>
+<li><p>Brugnoli, Andrea and Alazard, Daniel and Pommier-Budinger, Valérie and Matignon, Denis. <strong>A port-Hamiltonian formulation of linear thermoelasticity and its mixed finite element discretization.</strong> (2021) <em>Journal of Thermal Stresses</em>, 44 (6). 643-661. <a class="reference external" href="https://doi.org/10.1080/01495739.2021.1917322">DOI:10.1080/01495739.2021.1917322</a></p></li>
+<li><p>Cardoso-Ribeiro, Flávio Luiz and Matignon, Denis and Pommier-Budinger, Valérie. <strong>Port-Hamiltonian model of two-dimensional shallow water equations in moving containers.</strong> (2020) <em>IMA Journal of Mathematical Control and Information</em>, 37 (4). 1348-1366. <a class="reference external" href="https://doi.org/10.1093/imamci/dnaa016">DOI:10.1093/imamci/dnaa016</a></p></li>
+<li><p>Brugnoli, Andrea and Alazard, Daniel and Pommier-Budinger, Valérie and Matignon, Denis. <strong>Port-Hamiltonian formulation and symplectic discretization of plate models Part I: Mindlin model for thick plates.</strong> (2019) <em>Applied Mathematical Modelling</em>, 75. 940-960. <a class="reference external" href="https://doi.org/10.1016/j.apm.2019.04.035">DOI:10.1016/j.apm.2019.04.035</a></p></li>
+<li><p>Brugnoli, Andrea and Alazard, Daniel and Pommier-Budinger, Valérie and Matignon, Denis. <strong>Port-Hamiltonian formulation and symplectic discretization of plate models. Part II : Kirchhoff model for thin plates.</strong> (2019) <em>Applied Mathematical Modelling</em>, 75. 961-981. <a class="reference external" href="https://doi.org/10.1016/j.apm.2019.04.036">DOI:10.1016/j.apm.2019.04.036</a></p></li>
+<li><p>Aoues, Saïd and Cardoso-Ribeiro, Flávio Luiz and Matignon, Denis and Alazard, Daniel. <strong>Modeling and Control of a Rotating Flexible Spacecraft: A Port-Hamiltonian Approach.</strong> (2019) <em>IEEE Transactions on Control Systems Technology</em>, 27 (1). 355-362. <a class="reference external" href="http://dx.doi.org/10.1109/TCST.2017.2771244">DOI:10.1109/TCST.2017.2771244</a></p></li>
+<li><p>Cardoso-Ribeiro, Flávio Luiz and Matignon, Denis and Pommier-Budinger, Valérie. <strong>A port-Hamiltonian model of liquid sloshing in moving containers and application to a fluid-structure system.</strong> (2017) <em>Journal of Fluids and Structures</em>, 69. 402-427. <a class="reference external" href="http://dx.doi.org/10.1016/j.jfluidstructs.2016.12.007">DOI:10.1016/j.jfluidstructs.2016.12.007</a></p></li>
+</ul>
+</section>
+<section id="book-chapters">
+<h2>Book Chapters<a class="headerlink" href="#book-chapters" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>Haine, Ghislain and Matignon, Denis. <strong>Structure-Preserving Discretization of a Coupled Heat-Wave System, as Interconnected Port-Hamiltonian Systems.</strong> (2021) In: <em>Geometric Science of Information.</em> Springer International Publishing AG, 191-199. <a class="reference external" href="https://doi.org/10.1007/978-3-030-80209-7_22">DOI:10.1007/978-3-030-80209-7_22</a></p></li>
+<li><p>Serhani, Anass and Matignon, Denis and Haine, Ghislain. <strong>A Partitioned Finite Element Method for the Structure-Preserving Discretization of Damped Infinite-Dimensional Port-Hamiltonian Systems with Boundary Control.</strong> (2019) In: <em>Geometric Science of Information.</em> Springer International Publishing AG, Cham, Suisse, 549-558. <a class="reference external" href="https://doi.org/10.1007/978-3-030-26980-7_57">DOI:10.1007/978-3-030-26980-7_57</a></p></li>
+</ul>
+</section>
+<section id="proceedings">
+<h2>Proceedings<a class="headerlink" href="#proceedings" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>Brugnoli, Andrea and Haine, Ghislain and Matignon, Denis. <strong>Explicit structure-preserving discretization of port-Hamiltonian systems with mixed boundary control.</strong> (2022) In: 25th International Symposium on Mathematical Theory of Networks and Systems (MTNS 2022), 12 September 2022 - 16 September 2022 (Bayreuth, Germany).</p></li>
+<li><p>Haine, Ghislain and Matignon, Denis and Monteghetti, Florian. <strong>Structure-preserving discretization of Maxwell’s equations as a port-Hamiltonian system.</strong> (2022) In: 25th International Symposium on Mathematical Theory of Networks and Systems (MTNS 2022), 12 September 2022 - 16 September 2022 (Bayreuth, Germany).</p></li>
+<li><p>Haine, Ghislain and Lefèvre, Laurent and Matignon, Denis. <strong>PFEM: a mixed structure-preserving discretization method for port-Hamiltonian systems.</strong> (2022) In: International Workshop on Operator Theory and its Applications, 6 September 2022 - 10 September 2022 (Cracovie, Poland).</p></li>
+<li><p>Brugnoli, Andrea and Matignon, Denis. <strong>A port-Hamiltonian formulation for the full von-Kármán plate model.</strong> (2022) In: 10th European Nonlinear Dynamics Conference (ENOC), 17 July 2022 - 22 July 2022 (Lyon, France).</p></li>
+<li><p>Cardoso-Ribeiro, Flávio Luiz and Matignon, Denis and Lefèvre, Laurent. <strong>A Partitioned Finite Element Method (PFEM) for power-preserving discretization of port-Hamiltonian systems (pHs) with polynomial nonlinearity.</strong> (2022) In: European Nonlinear Dynamics Conference (ENOC 2022), 17 July 2022 - 22 July 2022 (Lyon, France).</p></li>
+<li><p>Hélie, Thomas and Matignon, Denis. <strong>Nonlinear damping laws preserving the eigenstructure of the momentum space for conservative linear PDE problems: a port-Hamiltonian modelling.</strong> (2022) In: 10th European Nonlinear Dynamics Conference (ENOC), 17 July 2022 - 22 July 2022 (Lyon, France).</p></li>
+<li><p>Bendimerad-Hohl, Antoine and Haine, Ghislain and Matignon, Denis and Maschke, Bernhard. <strong>Structure-preserving discretization of a coupled Allen-Cahn and heat equation system.</strong> (2022) In: 4th IFAC Workshop on Thermodynamic Foundations of Mathematical Systems Theory - TFMST 2022, 25 July 2022 - 27 July 2022 (Montreal, Canada).</p></li>
+<li><p>Cardoso-Ribeiro, Flávio Luiz and Matignon, Denis and Lefèvre, Laurent. <strong>Dissipative Shallow Water Equations: a port-Hamiltonian formulation.</strong> (2021) In: Lagrangian and Hamiltonian Methodes for Nonlinear Control (7th LHMNC 2021), 11 October 2021 - 13 October 2021 (Berlin, Germany).</p></li>
+<li><p>Haine, Ghislain and Matignon, Denis. <strong>Incompressible Navier-Stokes Equation as port-Hamiltonian systems: velocity formulation versus vorticity formulation.</strong> (2021) In: Lagrangian and Hamiltonian Methodes for Nonlinear Control (7th LHMNC 2021), 11 October 2021 - 13 October 2021 (Berlin, Germany).</p></li>
+<li><p>Brugnoli, Andrea and Rashad, Ramy and Califano, Federico and Stramigioli, Stefano and Matignon, Denis. <strong>Mixed finite elements for port-Hamiltonian models of von Kármán beams.</strong> (2021) In: Lagrangian and Hamiltonian Methodes for Nonlinear Control (LHMNLC 2021), 11 October 2021 - 13 October 2021 (Berlin, Germany).</p></li>
+<li><p>Brugnoli, Andrea and Alazard, Daniel and Pommier-Budinger, Valérie and Matignon, Denis. <strong>Structure-preserving discretization of port-Hamiltonian plate models.</strong> (2021) In: Mathematical Theory of Networks and Systems, August 2021 - August 2021 (Cambridge, United Kingdom).</p></li>
+<li><p>Brugnoli, Andrea and Matignon, Denis and Haine, Ghislain and Serhani, Anass. <strong>Numerics for Physics-Based PDEs with Boundary Control: the Partitioned Finite Element Method for Port-Hamiltonian Systems.</strong> (2021) In: SIAM Conference on Computational Science and Engineering (CSE21), 1 March 2021 - 5 March 2021 (Virtual conference).</p></li>
+<li><p>Brugnoli, Andrea and Cardoso-Ribeiro, Flávio Luiz and Haine, Ghislain and Kotyczka, Paul. <strong>Partitioned finite element method for structured discretization with mixed boundary conditions.</strong> (2020) In: 21th IFAC World Congress, 11 July 2020 - 17 July 2020 (Berlin, Germany).</p></li>
+<li><p>Mora, Luis A. and Gorrec, Yann Le and Matignon, Denis and Ramirez, Hector and Yuz, Juan I.. <strong>About Dissipative and Pseudo Port-Hamiltonian Formulations of Irreversible Newtonian Compressible Flows.</strong> (2020) In: The 21st World Congress of The International Federation of Automatic Control (IFAC 2020), 11 July 2020 - 17 July 2020 (Vitual event, Germany).</p></li>
+<li><p>Payen, Gabriel and Matignon, Denis and Haine, Ghislain. <strong>Modelling and structure-preserving discretization of Maxwell’s equations as port-Hamiltonian system.</strong> (2020) In: The 21st World Congress of The International Federation of Automatic Control (IFAC 2020), 11 July 2020 - 17 July 2020 (Virtual event, Germany).</p></li>
+<li><p>Treton, Anne-Sophie and Haine, Ghislain and Matignon, Denis. <strong>Modelling the 1D piston problem as interconnected port-Hamiltonian systems.</strong> (2020) In: The 21st World Congress of The International Federation of Automatic Control (IFAC 2020), 11 July 2020 - 17 July 2020 (Virtual event, Germany).</p></li>
+<li><p>Brugnoli, Andrea and Alazard, Daniel and Pommier-Budinger, Valérie and Matignon, Denis. <strong>Interconnection of the Kirchhoff plate within the port-Hamiltonian framework.</strong> (2020) In: 2019 IEEE 58th Conference on Decision and Control (CDC), 11 December 2019 - 13 December 2019 (Nice, France).</p></li>
+<li><p>Cardoso-Ribeiro, Flávio Luiz and Brugnoli, Andrea and Matignon, Denis and Lefèvre, Laurent. <strong>Port-Hamiltonian modeling, discretization and feedback control of a circular water tank.</strong> (2020) In: 2019 IEEE 58th Conference on Decision and Control (CDC), 11 December 2019 - 13 December 2019 (Nice, France).</p></li>
+<li><p>Serhani, Anass and Haine, Ghislain and Matignon, Denis. <strong>Anisotropic heterogeneous n-D heat equation with boundary control and observation : I. Modeling as port-Hamiltonian system.</strong> (2019) In: 3rd IFAC Workshop on Thermodynamic Foundations for a Mathematical Systems Theory (TFMST 2019), 3 July 2019 - 5 July 2019 (Louvain-la-Neuve, Belgium).</p></li>
+<li><p>Serhani, Anass and Haine, Ghislain and Matignon, Denis. <strong>Anisotropic heterogeneous n-D heat equation with boundary control and observation : II. Structure-preserving discretization.</strong> (2019) In: 3rd IFAC Workshop on Thermodynamic Foundations for a Mathematical Systems Theory (TFMST 2019), 3 July 2019 - 5 July 2019 (Louvain-la-Neuve, Belgium).</p></li>
+<li><p>Brugnoli, Andrea and Alazard, Daniel and Pommier-Budinger, Valérie and Matignon, Denis. <strong>Partitioned finite element method for the Mindlin plate as a port-Hamiltonian system.</strong> (2019) In: 3nd IFAC Workshop on Control of Systems Governed by Partial Differential Equations CPDE 2019, 20 May 2019 - 24 May 2019 (Oaxaca, Mexico). (Unpublished)</p></li>
+<li><p>Serhani, Anass and Matignon, Denis and Haine, Ghislain. <strong>Partitioned Finite Element Method for port-Hamiltonian systems with Boundary Damping: Anisotropic Heterogeneous 2D wave equations.</strong> (2019) In: 3rd IFAC/IEEE CSS Workshop on Control of Systems Governed by Partial Differential Equations CPDE and XI Workshop Control of Distributed Parameter Systems (CDPS 2019), 20 May 2019 - 24 May 2019 (Oaxaca, Mexico).</p></li>
+<li><p>Cardoso-Ribeiro, Flávio Luiz and Matignon, Denis and Lefèvre, Laurent. <strong>A structure-preserving Partitioned Finite Element Method for the 2D wave equation.</strong> (2018) In: 6th IFAC Workshop on Lagrangian and Hamiltonian Methods for Nonlinear Control, 1 May 2018 - 4 May 2018 (Valparaíso, Chile).</p></li>
+<li><p>Alazard, Daniel and Aoues, Saïd and Cardoso-Ribeiro, Flávio Luiz and Matignon, Denis. <strong>Disturbance rejection for a rotating flexible spacecraft: a port-Hamiltonian approach.</strong> (2018) In: 6th IFAC Workshop on Lagrangian and Hamiltonian Methods for Nonlinear Control, 1 May 2018 - 4 May 2018 (Valparaíso, Chile).</p></li>
+<li><p>Serhani, Anass and Matignon, Denis and Haine, Ghislain. <strong>Structure-Preserving Finite Volume Method for 2D Linear and Non-Linear Port-Hamiltonian Systems.</strong> (2018) In: 6th IFAC Workshop on Lagrangian and Hamiltonian Methods for Nonlinear Control, 1 May 2018 - 4 May 2018 (Valparaíso, Chile).</p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="GUI.html" class="btn btn-neutral float-left" title="Graphical User Interface" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="scrimp.html" class="btn btn-neutral float-right" title="Code documentation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2015-2025 ISAE-SUPAERO.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
