@@ -34,6 +34,28 @@ from sandbox.sloshing_tank import sloshing_tank
 sim = sloshing_tank(mesh_size=0.1, final_time=0.05, plot=False)
 ```
 
+## Solver output and energy diagnostics
+
+The GetFEM build used here may print `Assembly time ...` on every
+assembly, even with `gf.util_trace_level(0)`. In GetFEM's C++ source
+this line is written to `std::cout` under `GETFEM_PARA_LEVEL > 0`
+without consulting the Python trace level. To filter **only this line**
+from a terminal session without modifying SCRIMP or GetFEM:
+
+```bash
+set -o pipefail
+python -u sandbox/sloshing_tank.py | grep --line-buffered -v '^Assembly time '
+```
+
+Use `2>&1` before the pipe if stderr should be filtered together with
+stdout. The QT Wayland plugin warning is unrelated.
+
+The script's `plot=True` mode now plots kinetic energy terms separately,
+and compares `H(t)-H(0)` against accumulated mechanical work minus viscous
+dissipation. The full absolute Hamiltonian can still be plotted via
+`sim.plot_Hamiltonian(with_powers=False)`, but its gravitational offset
+obscures the small variations in this example.
+
 ## New API
 
 Use a dynamic global scalar state and effort as follows:
