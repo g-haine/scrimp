@@ -100,20 +100,22 @@ or publishing.
   mocks `slepc4py` alongside PETSc/GetFEM, without changing runtime code.
   The unsupported `display_version` theme option and one malformed
   sandbox section underline have also been fixed.
-- **Retest required:** `sphinx-build -E -b html -W --keep-going
-  docs/source docs/build/html`. A clean build may reveal additional
-  warnings; do not tag or publish until it succeeds.
+- **Passed locally:** `sphinx-build -E -b html -W --keep-going
+  docs/source docs/build/html` (Sphinx 8.2.3): successful HTML build,
+  **zero warnings** (user-reported log). PDF/LaTeX build remains to test.
 
 ## Release gates
 
 - [x] Run `python -m unittest -v tests.test_python_headers` to audit all tracked Python headers.
 - [x] Run `python -m unittest -v tests.test_lumped_ports` in Conda SCRIMP.
-- [x] Run `python -m unittest -v tests.test_lumped_examples`.\n- [x] Run the complete unittest discovery suite (57 tests OK).
+- [x] Run `python -m unittest -v tests.test_lumped_examples`.
+- [x] Run the complete unittest discovery suite (57 tests OK).
 - [ ] Run `python examples/mass_spring_damper.py` and verify energy/work
       balance and exact final time.
 - [ ] Run `python examples/nonlinear_pendulum.py` and verify damped
       energy decreases for zero applied torque.
-- [ ] Build the complete Sphinx docs with `-E -W --keep-going`; confirm zero warnings.
+- [x] Build the HTML Sphinx docs with `-E -W --keep-going`; zero warnings.
+- [ ] Build the Sphinx LaTeX/PDF documentation.
 - [ ] Re-run at least one existing PDE example for regression
       (e.g. `examples/wave.py`).
 - [ ] Perform quantitative time-refinement tests on the two new ODEs.
@@ -123,8 +125,10 @@ or publishing.
 - [ ] Fix or document PETSc complex-to-real casting warnings and
       numerical limitations.
 - [x] Set the proposed release version to 1.2.0 in `setup.py` and Sphinx
-      `conf.py` on this branch only.\n- [x] Replace the deliberately failing `tests/test_dphs.py` placeholder
-      with minimal actual DPHS regression coverage.\n- [ ] Final review, create changelog and tag **only after** all checks.
+      `conf.py` on this branch only.
+- [x] Replace the deliberately failing `tests/test_dphs.py` placeholder
+      with minimal actual DPHS regression coverage.
+- [ ] Final review, create changelog and tag **only after** all checks.
 
 ## Observations already supplied by a SCRIMP user (tank prototype)
 
