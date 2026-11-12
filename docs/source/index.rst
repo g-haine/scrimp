@@ -88,7 +88,7 @@ A basic usage of **SCRIMP** consists in a script with the following steps:
 
 - Define a *domain*
 - Define at least one *state*. And of course, its *co-state*, in order to get a *dynamical port*
-- Define a Finite Element Method on this port: give at least an order, at first glance, default values are sufficient
+- Choose a spatial Finite Element Method for a distributed port, or use ``add_lumped_port`` for a global scalar port (one degree of freedom)
 - Define *algebraic ports* (not mandatory) and its FEM
 - Define *control ports* (not mandatory) and its FEM
 - Define *parameters*
@@ -112,6 +112,7 @@ User's guide
     install
     started
     examples
+    lumped
     notebooks
     GUI
     References <biblio>
