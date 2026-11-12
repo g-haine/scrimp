@@ -9,7 +9,7 @@ Run from the repository root, in the working SCRIMP Conda environment:
 ```bash
 conda install -c conda-forge ffmpeg  # only if not yet installed
 python sandbox/animate_sloshing_tank.py \
-    --mesh 0.05 --time-step 0.002 --final-time 0.6 \
+    --mesh 0.05 --time-step 0.002 --final-time 0.2 \
     --seconds 10 --fps 25 --output outputs/sloshing_tank.mp4
 ```
 
