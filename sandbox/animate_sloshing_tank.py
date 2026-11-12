@@ -296,7 +296,7 @@ def main(argv=None):
                         default=Path("outputs/sloshing_tank.mp4"))
     parser.add_argument("--mesh", type=float, default=0.05)
     parser.add_argument("--time-step", type=float, default=0.002)
-    parser.add_argument("--final-time", type=float, default=0.6)
+    parser.add_argument("--final-time", type=float, default=0.2)
     parser.add_argument("--seconds", type=float, default=10.0)
     parser.add_argument("--fps", type=int, default=25)
     parser.add_argument("--samples", type=int, default=250)
