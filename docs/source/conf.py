@@ -51,6 +51,7 @@ autodoc_mock_imports = [
     'numpy',
     'scipy',
     'petsc4py',
+    'slepc4py',  # Avoid loading the native SLEPc extension in Sphinx autodoc.
 ]
 
 # -- Options for HTML output -------------------------------------------------
@@ -61,7 +62,6 @@ html_favicon = 'Logo-ico.png'
 html_logo = 'Logo.png'
 html_theme_options = {
     'logo_only': False,
-    'display_version': True,
     'collapse_navigation': False,
     'navigation_depth': 4,
 }
