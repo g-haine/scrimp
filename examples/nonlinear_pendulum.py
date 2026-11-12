@@ -9,7 +9,9 @@
 """Nonlinear damped pendulum, modeled as a lumped port-Hamiltonian system.
 
 States are the angle theta (radians) and angular momentum p = I*theta_dot.
-For a point mass m at distance L from the pivot:
+For a point mass m at distance L from the pivot, the governing
+relationships are::
+
     I = m*L**2
     H = p**2/(2*I) + m*g*L*(1-cos(theta))
     e_theta = m*g*L*sin(theta),  e_p = p/I
