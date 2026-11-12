@@ -36,7 +36,8 @@ import numpy as np
 import scrimp as S
 import getfem as gf
 
-# Keep SCRIMP's progress and warnings without GetFEM assembly timing spam.
+# GetFEM trace verbosity is unrelated to its unconditional C++ MPI
+# "Assembly time" messages (compiled with GETFEM_PARA_LEVEL > 0).
 gf.util_trace_level(0)
 
 
@@ -220,7 +221,41 @@ def sloshing_tank(mesh_size=0.05, final_time=0.2, plot=False):
         print("At least two saved time steps are needed for work/energy checks.")
 
     if plot:
-        tank.plot_Hamiltonian()
+        # The gravitational baseline (~40 for these parameters) hides both
+        # kinetic energies on an absolute-H plot. Plot their changes instead.
+        import matplotlib.pyplot as plt
+
+        fluid_ke = np.asarray(
+            tank.get_quantity("mom*mom/(2*rho*a_h)"), dtype=float
+        ).ravel()
+        tank_ke = 0.5*tank_mass*v_vals*v_vals
+
+        fig, ax = plt.subplots()
+        ax.plot(times, fluid_ke, label="Fluid kinetic")
+        ax.plot(times, tank_ke, label="Tank kinetic")
+        ax.set(
+            title="Kinetic energies (separate from gravitational baseline)",
+            xlabel="Time t", ylabel="Energy",
+        )
+        ax.grid(True)
+        ax.legend()
+        fig.tight_layout()
+
+        fig, ax = plt.subplots()
+        ax.plot(times, energy-energy[0], label="H(t) - H(0)")
+        if len(times) > 1:
+            ax.plot(times, expected_increment, "--",
+                    label="Integrated work - viscous dissipation")
+            ax.plot(times, energy-energy[0]-expected_increment, ":",
+                    label="Balance defect")
+        ax.set(
+            title="Total mechanical energy increment and power balance",
+            xlabel="Time t", ylabel="Energy relative to initial state",
+        )
+        ax.grid(True)
+        ax.legend()
+        fig.tight_layout()
+        plt.show()
     return tank
 
 
