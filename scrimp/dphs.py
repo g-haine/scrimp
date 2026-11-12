@@ -767,11 +767,29 @@ class DPHS:
         if not self.linear_stiffness:
             self.assemble_nl_stiffness()
 
-        self.tangent_mass.mult(zd, self.buffer)
-        self.tangent_stiffness.multAdd(z, self.buffer, F)
-
         self.assemble_rhs()
-        F.axpy(1, self.rhs)
+
+        if self.lumped_variables and self.linear_mass:
+            # GetFEM's build_rhs returns MINUS the nonlinear weak-form
+            # residual (plus source contributions).  Its nonlinear tangent
+            # matrix is the Jacobian, not an operator to multiply by the
+            # current trial state when evaluating the residual.
+            #
+            # The legacy K_tangent*z + rhs reconstruction only happens to
+            # be correct for certain homogeneous expressions (notably
+            # quadratic ones).  It reverses the sign of constant forcing
+            # and degree-zero rational constitutive laws, as exposed by
+            # the fluid/tank PDE-ODE coupling.  Evaluate the nonlinear
+            # weak form using -rhs, while keeping K_tangent for IJacobian.
+            self.mass.mult(zd, self.buffer)
+            self.stiffness.multAdd(z, self.buffer, F)
+            F.axpy(-1, self.rhs)
+        else:
+            # Historical path (still needed by existing models with
+            # state-dependent mass matrices, pending a separate fix).
+            self.tangent_mass.mult(zd, self.buffer)
+            self.tangent_stiffness.multAdd(z, self.buffer, F)
+            F.axpy(1, self.rhs)
 
     def set_linear_flags(self):
         """
