@@ -7,7 +7,7 @@ It already contains the example of the 1D wave equation presented `here <started
 
 
 Experimental PDE--ODE coupling
------------------------------
+-------------------------------
 
 The sandbox also contains an experimental coupled shallow-water /
 moving-tank system at ``sandbox/sloshing_tank.py`` and a convergence
