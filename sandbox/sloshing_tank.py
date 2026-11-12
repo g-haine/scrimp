@@ -34,6 +34,10 @@ See README_lumped_tank.md for the remaining numerical caveats.
 
 import numpy as np
 import scrimp as S
+import getfem as gf
+
+# Keep SCRIMP's progress and warnings without GetFEM assembly timing spam.
+gf.util_trace_level(0)
 
 
 def sloshing_tank(mesh_size=0.05, final_time=0.2, plot=False):
