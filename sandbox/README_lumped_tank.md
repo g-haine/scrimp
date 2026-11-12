@@ -44,7 +44,7 @@ from a terminal session without modifying SCRIMP or GetFEM:
 
 ```bash
 set -o pipefail
-python -u sandbox/sloshing_tank.py | grep --line-buffered -v '^Assembly time '
+python -u sandbox/sloshing_tank.py | sed -u -E 's/Assembly time [0-9.eE+-]+//g; /^[[:space:]]*$/d'
 ```
 
 Use `2>&1` before the pipe if stderr should be filtered together with
