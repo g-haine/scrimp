@@ -67,6 +67,8 @@ def sloshing_tank(
 
     tank = S.DPHS("real")
     tank.set_domain(S.Domain("Interval", {"L": length, "h": mesh_size}))
+    # Physical geometry used by the optional MP4 renderer; not display scaling.
+    tank.sloshing_visualization = {"length": length, "width": width}
 
     a_h = S.State("a_h", "Fluid cross-sectional area", "scalar-field")
     mom = S.State("mom", "Fluid absolute linear momentum", "scalar-field")
