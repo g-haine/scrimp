@@ -103,6 +103,29 @@ or publishing.
 - **Passed locally:** `sphinx-build -E -b html -W --keep-going docs/source docs/build/html` (Sphinx 8.2.3): successful HTML build, **zero warnings**.
 - **Passed locally:** `sphinx-build -E -b latex -W --keep-going docs/source docs/build/latex` (exit 0), followed by `make -C docs/build/latex`; generated `scrimp.pdf`, **100 pages** (user-reported build).\n- **Full example runs:** both new 0D examples were reported working with their default complete runs. Quantitative time refinement and strict energy-balance measurements are separate remaining checks.
 
+## Final regression and distribution checks (2026-11-12)
+
+- **Existing distributed PDE:** `python examples/wave.py` completed
+  in approximately 10 seconds; 501 steps, 0 rejected steps, 0 Newton
+  failures. Hamiltonian and all four boundary-port powers computed.
+  Its reported endpoint is `t=5.01` for the requested `t_f=5.0`;
+  this apparent one-step overshoot deserves separate investigation
+  and is not claimed to be a resolved issue.
+- **Packaging:** `python -m pip wheel --no-deps --no-build-isolation .
+  -w /tmp/scrimp-1.2.0-dist` built
+  `scrimp-1.2.0-py3-none-any.whl` successfully (user-reported).
+  Pip emitted a legacy `setup.py bdist_wheel` deprecation warning.
+  A minimal `pyproject.toml` was subsequently added to select the
+  standard PEP 517 setuptools backend **without changing package
+  metadata or runtime requirements**; this new packaging configuration
+  still needs a fresh local wheel build.
+- **GUI:** A Qt Wayland-platform lookup warning was printed, but it did
+  not prevent the example's simulation or post-processing. No claim
+  about graphical display backends is made.
+- **Documentation:** Standalone example notes have been updated to
+  reflect the successful runs; run a final strict Sphinx build after
+  these text-only changes.
+
 ## Release gates
 
 - [x] Run `python -m unittest -v tests.test_python_headers` to audit all tracked Python headers.
@@ -115,19 +138,20 @@ or publishing.
       time span (user confirms example works).
 - [x] Build the HTML Sphinx docs with `-E -W --keep-going`; zero warnings.
 - [x] Build Sphinx LaTeX with `-E -W --keep-going` (exit code 0) and compile `scrimp.pdf` successfully (100 pages, user-verified).
-- [ ] Re-run at least one existing PDE example for regression
-      (e.g. `examples/wave.py`).
+- [x] Re-run an existing PDE example for regression (`examples/wave.py`:
+      501 steps, zero nonlinear failures, H and boundary powers computed).
 - [ ] Perform quantitative time-refinement tests on the two new ODEs.
-- [ ] Decide whether the sloshing-tank boundary conditions and
-      nonlocal coupling meet the criteria for inclusion as a
-      supported feature, or explicitly retain experimental status.
+- [x] Keep the coupled sloshing-tank model explicitly **experimental**
+      in the sandbox, pending boundary-condition and field-convergence validation.
 - [ ] Fix or document PETSc complex-to-real casting warnings and
       numerical limitations.
 - [x] Set the proposed release version to 1.2.0 in `setup.py` and Sphinx
       `conf.py` on this branch only.
 - [x] Replace the deliberately failing `tests/test_dphs.py` placeholder
       with minimal actual DPHS regression coverage.
-- [ ] Final review, create changelog and tag **only after** all checks.
+- [ ] Rebuild a wheel using the newly added `pyproject.toml` (PEP 517).
+- [ ] Inspect versioned wheel contents and complete final changelog review.
+- [ ] Final review, create tag and GitHub release **only after** all checks.
 
 ## Observations already supplied by a SCRIMP user (tank prototype)
 
