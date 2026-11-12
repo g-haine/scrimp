@@ -110,17 +110,23 @@ global scalar port example.
   Its reported endpoint is `t=5.01` for the requested `t_f=5.0`;
   this apparent one-step overshoot deserves separate investigation
   and is not claimed to be a resolved issue.
-- **Packaging:** a PEP 517 wheel build has now completed successfully
-  using `pyproject.toml`, without the prior legacy `bdist_wheel`
-  deprecation warning. A final, metadata-only correction now reads
-  the long description from the actual root `README.md`, not the small
-  GUI note in `scrimp/README.md`; a new wheel build is required.
+- **Packaging:** the final PEP 517 wheel build passed without legacy
+  `bdist_wheel` warnings; root README long description, version 1.2.0
+  and module `scrimp/dphs.py` verified in the wheel metadata/archive.
 - **GUI:** A Qt Wayland-platform lookup warning was printed, but it did
   not prevent the example's simulation or post-processing. No claim
   about graphical display backends is made.
 - **Documentation:** Standalone example notes have been updated to
   reflect the successful runs; run a final strict Sphinx build after
   these text-only changes.
+
+## Final wheel verification (2026-11-12)
+
+- Wheel: `scrimp-1.2.0-py3-none-any.whl`, built with PEP 517.
+- SHA-256: `6b5ca6e4902fe59f37b1304fd511e5af3779961a335f69c3c293d14fc6bc35fc`.
+- Verified `Version: 1.2.0`, root README long description,
+  and `scrimp/dphs.py` included in the archive.
+- No legacy setuptools deprecation warning in the final local build.
 
 ## Release gates
 
@@ -136,11 +142,12 @@ global scalar port example.
 - [x] Build Sphinx LaTeX with `-E -W --keep-going` (exit code 0) and compile `scrimp.pdf` successfully (100 pages, user-verified).
 - [x] Re-run an existing PDE example for regression (`examples/wave.py`:
       501 steps, zero nonlinear failures, H and boundary powers computed).
-- [ ] Perform quantitative time-refinement tests on the two new ODEs.
+- [ ] Additional, non-blocking follow-up: quantitative time-refinement
+      and energy/work-balance verification for the new ODEs.
 - [x] Keep the coupled sloshing-tank model explicitly **experimental**
       in the sandbox, pending boundary-condition and field-convergence validation.
-- [ ] Fix or document PETSc complex-to-real casting warnings and
-      numerical limitations.
+- [x] Document PETSc complex-to-real casts, the `-isset false` warning,
+      the wave example's slight final-time overshoot, and the solver limits in `CHANGELOG.md` and `RELEASE_NOTES_1.2.0.md`.
 - [x] Set the proposed release version to 1.2.0 in `setup.py` and Sphinx
       `conf.py` on this branch only.
 - [x] Replace the deliberately failing `tests/test_dphs.py` placeholder
@@ -148,9 +155,10 @@ global scalar port example.
 - [x] Build a PEP 517 wheel using `pyproject.toml` successfully, without the legacy 
       `setup.py bdist_wheel` deprecation warning.
 - [x] Add a user-facing `CHANGELOG.md` covering the 1.2.0 changes and known limits.
-- [ ] Rebuild the wheel after correcting the package long description to use the root `README.md`.
-- [ ] Inspect the final wheel metadata and contents.
-- [ ] Final review, create tag and GitHub release **only after** all checks.
+- [x] Rebuild the wheel after correcting its long description: successful PEP 517 wheel build (SHA-256 `6b5ca6e4902fe59f37b1304fd511e5af3779961a335f69c3c293d14fc6bc35fc`).
+- [x] Inspect the wheel metadata and contents: version 1.2.0, root project README text and `scrimp/dphs.py` all confirmed by the user.
+- [ ] Final publication: merge the reviewed PRs, tag the final `master` commit
+      as `v1.2.0`, publish the GitHub release and check the Pages deployment.
 
 ## Observations already supplied by a SCRIMP user (tank prototype)
 
