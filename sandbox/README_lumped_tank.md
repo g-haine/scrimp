@@ -56,6 +56,37 @@ dissipation. The full absolute Hamiltonian can still be plotted via
 `sim.plot_Hamiltonian(with_powers=False)`, but its gravitational offset
 obscures the small variations in this example.
 
+## Fixed-step convergence study
+
+The first successful simulation had an energy-balance defect around
+3.53e-5 at t about 0.19 (the plot stopped before the requested t_f=0.2
+because the solver used PETSc's stepover mode and the extra final sample
+was later discarded). The two energy curves nearly coincide, but this
+is **not yet** a mesh/time convergence demonstration.
+
+This branch now sets `ts_exact_final_time="matchstep"` for the sandbox
+and records the final state explicitly when the exact endpoint is
+reached. The example also accepts `time_step`, `save_step`, and
+`adaptive` arguments. For reproducible fixed-step BDF2 tests:
+
+```bash
+python sandbox/tank_convergence.py
+```
+
+That script evaluates two meshes (h=0.05, 0.025) and three fixed time
+steps (dt=0.008, 0.004, 0.002), prints mass, momentum and energy
+defects, estimates refinement ratios and writes
+`outputs/tank_convergence.csv`. Since the external force is known
+analytically, the momentum diagnostic now compares to its **exact**
+impulse as well as to the trapezoidal integration.
+
+```bash
+python sandbox/tank_convergence.py --mesh 0.05 0.025 --dt 0.008 0.004 0.002
+```
+
+These changes have **not yet been executed on a GetFEM/PETSc-equipped
+machine**. Please report any PETSc option / endpoint handling errors.
+
 ## New API
 
 Use a dynamic global scalar state and effort as follows:
