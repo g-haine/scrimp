@@ -47,3 +47,16 @@ Shallow water
    :undoc-members:
    :show-inheritance:
    
+
+Finite-dimensional models
+-------------------------
+
+.. automodule:: examples.mass_spring_damper
+   :noindex:
+   :members:
+   :undoc-members:
+
+.. automodule:: examples.nonlinear_pendulum
+   :noindex:
+   :members:
+   :undoc-members:
