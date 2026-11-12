@@ -124,6 +124,30 @@ dH/dt = force(t)*v - integral(rho*nu*a_h*(d_x e_m)^2) dx
 
 for closed, impermeable walls with zero power flux.
 
+## Why the first run stopped at t=0.0244 s
+
+The first recorded run reached only 0.0243965 s and returned a huge
+energy-balance defect, despite excellent mass conservation (9e-15) and
+global constraint satisfaction (2e-16). Its total-momentum defect
+(0.0003737) was almost exactly twice the **positive** applied impulse
+(0.0001866), strongly suggesting the forcing sign was inverted.
+
+GetFEM's `model.rhs()` from `build_rhs` is **minus the assembled
+nonlinear weak-form residual**. SCRIMP's legacy `IFunction` computes
+`K_tangent*z + rhs`, which is correct for certain homogeneous quadratic
+weak forms but **incorrect for constant forcing and rational constitutive
+terms**. In this branch, systems with global scalar ports and linear
+time-derivative mass matrices now use the actual nonlinear residual
+
+```text
+IFunction(t,z,zdot) = M_linear*zdot + K_linear*z - GetFEM_rhs_nonlinear
+IJacobian           = shift*M_linear + K_linear + K_nonlinear_tangent
+```
+
+The force-sign regression test in `tests/test_lumped_ports.py` checks the
+simple ODE `P_dot = 2`. **This correction remains to be verified in the
+target GetFEM/PETSc runtime**; it has not yet been rerun or validated.
+
 ## Important limitations and follow-up checks
 
 1. The current finite-element weak forms omit boundary power terms. This
