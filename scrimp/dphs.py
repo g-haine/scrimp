@@ -68,6 +68,8 @@ class DPHS:
         self.costates = dict()
         #: The dict of `ports`, store many infos for display()
         self.ports = dict()
+        #: Spatially global scalar variables (one GetFEM DOF each)
+        self.lumped_variables = set()
         #: The dict of `bricks`, associating getfem `bricks` to petsc matrices obtained by the PFEM, store many infos for display()
         self.bricks = dict()
         #: The dict of `controls`, collecting information about control ports. Also appear in `ports` entries
@@ -302,6 +304,41 @@ class DPHS:
         if not port.get_algebraic():
             self.initial_value_set[port.get_flow()] = False
 
+    def add_lumped_port(self, name_port: str):
+        """Register a global scalar port with no associated finite-element mesh.
+
+        Add the port first, using a State/CoState pair or a Port object with
+        kind="lumped". For algebraic ports with substituted=True only the
+        flow variable is registered. Dynamic substituted co-states are not
+        supported. Global Test_* functions can be used in volumetric GWFL
+        forms; divide by the domain measure for an ordinary ODE residual.
+        """
+        if self.domain is None or not self.domain.get_isSet():
+            raise ValueError("Set a domain before adding a lumped port")
+        if name_port not in self.ports:
+            raise KeyError(f"Unknown port {name_port}")
+        port = self.ports[name_port]
+        if port.get_kind() != "lumped":
+            raise ValueError("Use kind='lumped' for global scalar ports")
+        if port.get_region() is not None:
+            raise ValueError("A lumped port cannot have a mesh region")
+        if port.get_isSet():
+            raise ValueError(f"Port {name_port} has already been registered")
+        if port.get_substituted() and not port.get_algebraic():
+            raise NotImplementedError(
+                "Substituted dynamic lumped co-states are unsupported"
+            )
+        self.gf_model.add_variable(port.get_flow(), 1)
+        self.lumped_variables.add(port.get_flow())
+        if not port.get_substituted():
+            self.gf_model.add_variable(port.get_effort(), 1)
+            self.lumped_variables.add(port.get_effort())
+        port.set_isSet()
+        if not port.get_algebraic():
+            self.initial_value_set[port.get_flow()] = False
+        if rank == 0:
+            logging.info(f"Global scalar port {name_port} registered")
+
     def add_parameter(self, parameter: Parameter):
         """This function adds a time-independent (possibly space-varying parameter: `x`, `y` and `z` are the space variables) associated to a port of the dphs
 
@@ -395,6 +432,21 @@ class DPHS:
         else:
             logging.error(f"Variable {name_variable} does not need initialization")
             raise ValueError
+
+        if name_variable in self.lumped_variables:
+            if name_variable not in self.initial_value_set:
+                raise ValueError(f"{name_variable} is not a dynamic state")
+            try:
+                value = float(expression)
+            except (ValueError, TypeError) as exc:
+                raise ValueError(
+                    "Initial values for lumped states must be numeric scalars"
+                ) from exc
+            if not np.isfinite(value):
+                raise ValueError("Initial value must be finite")
+            self.gf_model.set_variable(name_variable, np.array([value]))
+            self.initial_value_set[name_variable] = True
+            return
 
         evaluation = self.gf_model.mesh_fem_of_variable(name_variable).eval(
             expression, globals(), locals()
@@ -687,6 +739,16 @@ class DPHS:
         for _, brick in self.bricks.items():
             brick.enable_id_bricks(self.gf_model)
 
+    def _sync_lumped_trial_state(self, t, z):
+        """Update GetFEM at the current PETSc Newton iterate for PDE/ODE models."""
+        if not self.lumped_variables:
+            return
+        self.Scatter[0].scatter(z, self.GlobalVec)
+        self.gf_model.set_time(float(t))
+        self.gf_model.to_variables(
+            np.asarray(self.GlobalVec.getArray(), dtype=np.float64)
+        )
+
     def IFunction(self, TS, t, z, zd, F):
         """
         IFunction for the time-resolution of the dphs with PETSc TS fully implicit integrator
@@ -699,6 +761,7 @@ class DPHS:
             F (PETSc Vec): the rhs vector
         """
 
+        self._sync_lumped_trial_state(t, z)
         if not self.linear_mass:
             self.assemble_nl_mass()
         if not self.linear_stiffness:
@@ -735,6 +798,7 @@ class DPHS:
             P:(PETSc Mat) the jacobian matrix to use for pre-conditionning
         """
 
+        self._sync_lumped_trial_state(t, z)
         if not self.linear_mass:
             self.assemble_nl_mass()
         if not self.linear_stiffness:
