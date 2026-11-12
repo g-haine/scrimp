@@ -100,9 +100,8 @@ or publishing.
   mocks `slepc4py` alongside PETSc/GetFEM, without changing runtime code.
   The unsupported `display_version` theme option and one malformed
   sandbox section underline have also been fixed.
-- **Passed locally:** `sphinx-build -E -b html -W --keep-going
-  docs/source docs/build/html` (Sphinx 8.2.3): successful HTML build,
-  **zero warnings** (user-reported log). PDF/LaTeX build remains to test.
+- **Passed locally:** `sphinx-build -E -b html -W --keep-going docs/source docs/build/html` (Sphinx 8.2.3): successful HTML build, **zero warnings**.
+- **Passed locally:** `sphinx-build -E -b latex -W --keep-going docs/source docs/build/latex` (exit 0), followed by `make -C docs/build/latex`; generated `scrimp.pdf`, **100 pages** (user-reported build).
 
 ## Release gates
 
@@ -115,7 +114,7 @@ or publishing.
 - [ ] Run `python examples/nonlinear_pendulum.py` and verify damped
       energy decreases for zero applied torque.
 - [x] Build the HTML Sphinx docs with `-E -W --keep-going`; zero warnings.
-- [ ] Build the Sphinx LaTeX/PDF documentation.
+- [x] Build Sphinx LaTeX with `-E -W --keep-going` (exit code 0) and compile `scrimp.pdf` successfully (100 pages, user-verified).
 - [ ] Re-run at least one existing PDE example for regression
       (e.g. `examples/wave.py`).
 - [ ] Perform quantitative time-refinement tests on the two new ODEs.
