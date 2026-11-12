@@ -1257,7 +1257,18 @@ class DPHS:
             current_dt = float(TS.getTimeStep())
             remaining_time = ((float(self.time_scheme["t_f"])+current_dt)/(t+current_dt)-1) * spent_time
             progress = int(100*t/float(self.time_scheme["t_f"]))
-            if (i == 0) or (next_saved_at_t - t <= 0) or (i == -1) or self.stop_TS:
+            # Store the exact final state of coupled PDE/ODE runs even if
+            # the next dt_save threshold would otherwise skip it.
+            final_lumped_step = (
+                bool(self.lumped_variables)
+                and t >= float(self.time_scheme["t_f"]) - 1.e-12 * max(
+                    1.0, abs(float(self.time_scheme["t_f"]))
+                )
+            )
+            if (
+                (i == 0) or (next_saved_at_t - t <= 0)
+                or (i == -1) or self.stop_TS or final_lumped_step
+            ):
                 if rank == 0:
                     sys.stdout.write(
                         f"\ri={i:8d} t={t:8g} * ({int(spent_time)}s)   dt={current_dt:8g}   ETE={int(remaining_time)}s   ({progress}%)        \n"
