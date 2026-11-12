@@ -880,8 +880,9 @@ class DPHS:
     def set_time_scheme(self, **kwargs):
         """Allows an easy setting of the PETSc TS environment
 
-        Args:
-            **kwargs: PETSc TS options and more (see examples)
+        Keyword Args:
+            kwargs: PETSc TS options and SCRIMP time-stepping settings
+                passed as keyword arguments (see examples).
         """
 
         for key, value in kwargs.items():
