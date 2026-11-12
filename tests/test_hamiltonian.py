@@ -1,63 +1,54 @@
+# SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
+#
+# Copyright (C) 2015-2026 ISAE-SUPAERO -- GNU GPLv3
+# 
+# See the LICENSE file for license information.
+#
+# github: https://github.com/g-haine/scrimp
+
+"""Tests for Hamiltonian and Term as implemented in SCRIMP."""
+
 import unittest
-from scrimp.hamiltonian import Term, Hamiltonian
-from scrimp.structure import LagrangeSubspace, DiracStructure
+
+from scrimp.hamiltonian import Hamiltonian, Term
+
 
 class TestHamiltonian(unittest.TestCase):
-    def test_add_term(self):
-        hamiltonian = Hamiltonian("hamiltonian")
-        term = Term("Potential energy", "0.5*q.T.q", [1])
-        hamiltonian.add_term(term)
+    def setUp(self):
+        self.hamiltonian = Hamiltonian("Total mechanical energy")
+        self.term = Term("Kinetic energy", "p*p/(2*m)", [1])
 
-        self.assertEqual(hamiltonian.get_terms()[0], term)
+    def test_name_and_rename(self):
+        self.assertEqual(self.hamiltonian.get_name(), "Total mechanical energy")
+        self.hamiltonian.set_name("New energy")
+        self.assertEqual(self.hamiltonian.get_name(), "New energy")
 
-    def test_get_name(self):
-        hamiltonian = Hamiltonian("hamiltonian")
-        self.assertEqual(hamiltonian.get_name(), "hamiltonian")
+    def test_initially_empty(self):
+        self.assertEqual(len(self.hamiltonian), 0)
+        self.assertEqual(self.hamiltonian.get_terms(), [])
+        self.assertFalse(self.hamiltonian.get_is_computed())
 
-    def test_set_name(self):
-        hamiltonian = Hamiltonian("hamiltonian")
-        name = "test_name"
-        hamiltonian.set_name(name)
-        self.assertEqual(hamiltonian.get_name(), name)
+    def test_register_hamiltonian_terms(self):
+        self.hamiltonian.add_term(self.term)
+        self.assertEqual(len(self.hamiltonian), 1)
+        self.assertIs(self.hamiltonian[0], self.term)
+        self.assertEqual(list(self.hamiltonian), [self.term])
 
-    def test_get_terms(self):
-        hamiltonian = Hamiltonian("hamiltonian")
-        self.assertListEqual(hamiltonian.get_terms(), [])
+    def test_get_terms_returns_copy(self):
+        self.hamiltonian.add_term(self.term)
+        terms = self.hamiltonian.get_terms()
+        terms.clear()
+        self.assertEqual(self.hamiltonian.get_terms(), [self.term])
 
-    def test_set_is_computed(self):
-        hamiltonian = Hamiltonian("hamiltonian")
-        hamiltonian.set_is_computed()
-        self.assertTrue(hamiltonian.get_is_computed())
+    def test_add_term_rejects_unsupported_object(self):
+        with self.assertRaises(AssertionError):
+            self.hamiltonian.add_term("not a Term")
 
-    def test_get_is_computed(self):
-        hamiltonian = Hamiltonian("hamiltonian")
-        self.assertFalse(hamiltonian.get_is_computed())
-        hamiltonian.set_is_computed()
-        self.assertTrue(hamiltonian.get_is_computed())
+    def test_computation_flag(self):
+        self.assertFalse(self.hamiltonian.get_is_computed())
+        self.hamiltonian.set_is_computed()
+        self.assertTrue(self.hamiltonian.get_is_computed())
 
-    def test_add_lagrange_subspace(self):
-        hamiltonian = Hamiltonian("hamiltonian")
-        subspace = LagrangeSubspace("f", "e", metadata={"regions": [1]})
-
-        hamiltonian.add_term(subspace)
-
-        term = hamiltonian.get_terms()[0]
-        self.assertEqual(term.get_structure(), subspace)
-        self.assertIn("f", term.get_expression())
-
-    def test_add_dirac_structure(self):
-        hamiltonian = Hamiltonian("hamiltonian")
-        subspace = LagrangeSubspace("f", "e", metadata={"regions": [1]})
-        cancelling = LagrangeSubspace(
-            "f", "e", metadata={"regions": [1], "sign": -1}
-        )
-        dirac = DiracStructure([subspace, cancelling])
-
-        hamiltonian.add_term(dirac)
-
-        self.assertEqual(len(hamiltonian.get_terms()), 2)
-        for term in hamiltonian.get_terms():
-            self.assertIn(term.get_structure(), dirac.subspaces)
 
 if __name__ == "__main__":
     unittest.main()

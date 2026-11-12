@@ -1,3 +1,11 @@
+# SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
+#
+# Copyright (C) 2015-2026 ISAE-SUPAERO -- GNU GPLv3
+# 
+# See the LICENSE file for license information.
+#
+# github: https://github.com/g-haine/scrimp
+
 # Configuration file for the Sphinx documentation builder.
 #
 # For the full list of built-in configuration values, see the documentation:
@@ -7,10 +15,10 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = 'SCRIMP'
-copyright = '2015-2025 ISAE-SUPAERO'
+copyright = '2015-2026 ISAE-SUPAERO'
 author = 'Giuseppe Ferraro, Michel Fournié, Ghislain Haine'
-release = '1.1'
-version = '1.1.1'
+release = '1.2.0'
+version = '1.2.0'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -43,6 +51,7 @@ autodoc_mock_imports = [
     'numpy',
     'scipy',
     'petsc4py',
+    'slepc4py',  # Avoid loading the native SLEPc extension in Sphinx autodoc.
 ]
 
 # -- Options for HTML output -------------------------------------------------
@@ -53,7 +62,6 @@ html_favicon = 'Logo-ico.png'
 html_logo = 'Logo.png'
 html_theme_options = {
     'logo_only': False,
-    'display_version': True,
     'collapse_navigation': False,
     'navigation_depth': 4,
 }

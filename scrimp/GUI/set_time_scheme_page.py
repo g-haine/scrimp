@@ -1,3 +1,11 @@
+# SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
+#
+# Copyright (C) 2015-2026 ISAE-SUPAERO -- GNU GPLv3
+# 
+# See the LICENSE file for license information.
+#
+# github: https://github.com/g-haine/scrimp
+
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtCore import Qt
 from utils.GUI import gui_pages, gui_width, gui_height, Help, check_black_listed_words

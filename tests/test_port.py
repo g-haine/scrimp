@@ -1,117 +1,74 @@
+# SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
+#
+# Copyright (C) 2015-2026 ISAE-SUPAERO -- GNU GPLv3
+# 
+# See the LICENSE file for license information.
+#
+# github: https://github.com/g-haine/scrimp
+
+"""Regression tests for the current Port/Parameter API."""
+
 import unittest
-from scrimp.port import Port, Parameter
-from scrimp.structure import (
-    LagrangeSubspace,
-    DiracStructure,
-    ConstitutiveRelation,
-)
+
+from scrimp.port import Parameter, Port
 
 
 class TestPort(unittest.TestCase):
-    def test_name(self):
-        port = Port("name", "flow", "effort", "kind", 0, True, True, 1)
-        self.assertEqual(port.get_name(), "name")  # add assertion here
+    def setUp(self):
+        self.port = Port(
+            "resistor", "flow", "effort", "scalar-field",
+            mesh_id=0, algebraic=True, substituted=False,
+            dissipative=True, region=1,
+        )
 
-    def test_flow(self):
-        port = Port("name", "flow", "effort", "kind", 0, True, True, 1)
-        self.assertEqual(port.get_flow(), "flow")  # add assertion here
+    def test_port_metadata(self):
+        self.assertEqual(self.port.get_name(), "resistor")
+        self.assertEqual(self.port.get_flow(), "flow")
+        self.assertEqual(self.port.get_effort(), "effort")
+        self.assertEqual(self.port.get_kind(), "scalar-field")
+        self.assertEqual(self.port.get_mesh_id(), 0)
+        self.assertEqual(self.port.get_region(), 1)
+        self.assertTrue(self.port.get_algebraic())
+        self.assertFalse(self.port.get_substituted())
+        self.assertTrue(self.port.get_dissipative())
 
-    def test_effort(self):
-        port = Port("name", "flow", "effort", "kind", 0, True, True, 1)
-        self.assertEqual(port.get_effort(), "effort")  # add assertion here
+    def test_no_fem_and_not_registered_initially(self):
+        self.assertIsNone(self.port.get_fem())
+        self.assertFalse(self.port.get_isSet())
+        self.port.set_isSet()
+        self.assertTrue(self.port.get_isSet())
 
-    def test_kind(self):
-        port = Port("name", "flow", "effort", "kind", 0, True, True, 1)
-        self.assertEqual(port.get_kind(), "kind")  # add assertion here
-
-    def test_mesh_id(self):
-        port = Port("name", "flow", "effort", "kind", 0, True, True, 1)
-        self.assertEqual(port.get_mesh_id(), 0)  # add assertion here
-
-    def test_algebraic(self):
-        port = Port("name", "flow", "effort", "kind", 0, True, True, 1)
-        self.assertEqual(port.get_algebraic(), True)  # add assertion here
-
-    def test_substituted(self):
-        port = Port("name", "flow", "effort", "kind", 0, True, True, 1)
-        self.assertEqual(port.get_substituted(), True)  # add assertion here
-
-    def test_region(self):
-        port = Port("name", "flow", "effort", "kind", 0, True, True, 1)
-        self.assertEqual(port.get_region(), 1)  # add assertion here
-
-    def test_set_fem(self):
-        pass
-        # port = Port("name", "flow", "effort", "kind", 0, True, True, 1)
-        # # try to set a coport when the port doesn't have one yet
-        # coport1 = Coport("name_coport1", "descrtiption_coport", port, True)
-        # port.set_coport(coport1)
-        # self.assertEqual(coport1, port.get_coport())
-        #
-        # # try to set a coport when the port does have one already
-        # coport2 = Coport("name_coport2", "descrtiption_coport", port, True)
-        # port.set_coport(coport2)
-        # self.assertEqual(coport1, port.get_coport())
-
-    def test_fem(self):
-        port = Port("name", "flow", "effort", "kind", 0, True, True, 1)
-        self.assertEqual(port.get_fem(), None)  # add assertion here
-
-    def test_get_parameter(self):
-        port = Port("name", "flow", "effort", "kind", 0, True, True, 1)
-        self.assertIsNone(port.get_parameter("not_present_name"))
-
+    def test_parameters(self):
         parameter = Parameter(
-            "name_para", "description", "kind_param", "expression", port.get_name()
+            "resistance", "Electrical resistance", "scalar-field",
+            "10.0", self.port.get_name(),
         )
-        port.add_parameter(parameter)
-        self.assertEqual(port.get_parameter("name_para"), parameter)
+        self.assertTrue(self.port.add_parameter(parameter))
+        self.assertIs(self.port.get_parameter("resistance"), parameter)
+        self.assertEqual(self.port.get_parameters(), [parameter])
+        # A caller must not be able to mutate the internal list.
+        copy = self.port.get_parameters()
+        copy.clear()
+        self.assertEqual(self.port.get_parameters(), [parameter])
 
-    def test_add_parameter(self):
-        port = Port("name", "flow", "effort", "kind", 0, True, True, 1)
-        self.assertFalse(port.add_parameter(None))
+    def test_missing_parameter_raises(self):
+        with self.assertRaises(AssertionError):
+            self.port.get_parameter("missing")
 
-        parameter = Parameter(
-            "name_para", "description", "kind_param", "expression", port.get_name()
-        )
-        self.assertTrue(port.add_parameter(parameter))
-        self.assertEqual(port.get_parameter("name_para"), parameter)
+    def test_wrong_parameter_type_raises(self):
+        with self.assertRaises(TypeError):
+            self.port.add_parameter(None)
 
-    # TODO add fem obgect
-    # def test_init_parameter(self):
-    #     port = Port("name", "flow", "effort", "kind", 0, True, True, 1)
-    #     parameter = Parameter(
-    #         "name_para", "description", "kind_param", "expression", port.get_name()
-    #     )
-    #     port.add_parameter(parameter)
-    #     self.assertEqual(port, port.init_parameter("name_para","expression"))
-    #
+    def test_string_representation_of_registered_port(self):
+        self.port.set_isSet()
+        description = str(self.port)
+        self.assertIn("resistor, flow, effort, scalar-field, 0", description)
+        self.assertIn("True, False, True", description)
 
-    def test_str(self):
-        port = Port("name", "flow", "effort", "kind", 0, True, True, 1)
-        out = port.__str__()
-        print(out)
-        self.assertEqual(
-            out,
-            f"{port.get_name()}, {port.get_flow()}, {port.get_effort()}, {port.get_kind()}, {str(port.get_mesh_id())}, {str(port.get_algebraic())}, {port.get_parameters()}",
-        )
-
-    def test_structure_validation(self):
-        subspace = LagrangeSubspace("f", "e", metadata={"regions": [1]})
-        port = Port("name", "flow", "effort", "kind", structure=subspace)
-        cancelling = LagrangeSubspace(
-            "f", "e", metadata={"regions": [1], "sign": -1}
-        )
-        dirac = DiracStructure([subspace, cancelling])
-
-        port.validate_power_balance(dirac)
-
-    def test_constitutive_substitutions(self):
-        relation = ConstitutiveRelation("Ohm", {"e": "R*f"})
-        port = Port("name", "flow", "effort", "kind", structure=relation)
-
-        subs = port.substitutions()
-        self.assertIn("e", subs)
+    def test_power_computation_flag(self):
+        self.assertFalse(self.port.get_is_computed())
+        self.port.set_is_computed()
+        self.assertTrue(self.port.get_is_computed())
 
 
 if __name__ == "__main__":

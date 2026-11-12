@@ -1,7 +1,7 @@
 # SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
 #
 # Copyright (C) 2015-2026 ISAE-SUPAERO -- GNU GPLv3
-#
+# 
 # See the LICENSE file for license information.
 #
 # github: https://github.com/g-haine/scrimp
@@ -458,12 +458,13 @@ class Port:
 
         try:
             assert self.__isSet
-            self.__fem.display()
+            if self.__fem is not None:
+                self.__fem.display()
         except AssertionError as err:
             logging.error(
                 "Port",
                 self.__name,
-                "has not been set yet (a fem is probably missing)",
+                "has not been set yet (a fem or lumped registration is missing)",
             )
             raise err
 
