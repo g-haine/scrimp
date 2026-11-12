@@ -3,8 +3,8 @@
 > **Not released.** Do not tag, publish, or merge until the gates below pass.
 > This preparation branch is based on the **experimental**
 > `feature/lumped-pde-ode-sloshing-tank` branch, not the default
-> `master`. Package and Sphinx versions are intentionally unchanged
-> (currently 1.1.1).
+> `master`. Package and Sphinx metadata have been set to **1.2.0 on this branch only**;
+> no tag, merge to master, or release has been published.
 
 ## Proposed user-visible changes
 
@@ -62,8 +62,9 @@ physical discretization of the oscillator or pendulum.
       supported feature, or explicitly retain experimental status.
 - [ ] Fix or document PETSc complex-to-real casting warnings and
       numerical limitations.
-- [ ] Choose release version, update `setup.py` and Sphinx
-      `conf.py` together; create change log and tag **only after** review.
+- [x] Set the proposed release version to 1.2.0 in `setup.py` and Sphinx
+      `conf.py` on this branch only.\n- [x] Replace the deliberately failing `tests/test_dphs.py` placeholder
+      with minimal actual DPHS regression coverage.\n- [ ] Final review, create changelog and tag **only after** all checks.
 
 ## Observations already supplied by a SCRIMP user (tank prototype)
 
