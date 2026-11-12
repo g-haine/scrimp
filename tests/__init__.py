@@ -2,8 +2,18 @@
 
 import sys
 import types
+from importlib.util import find_spec
 
-if "petsc4py" not in sys.modules:  # pragma: no cover - testing helper
+
+def _unavailable(name):
+    """Only stub a dependency if Python cannot find a real installation.
+
+    In particular, checking only sys.modules would shadow a real petsc4py
+    package during unittest's import of tests/__init__.py and break SLEPc.
+    """
+    return name not in sys.modules and find_spec(name) is None
+
+if _unavailable("petsc4py"):  # pragma: no cover - testing helper
     fake_petsc4py = types.ModuleType("petsc4py")
 
     def _init(*args, **kwargs):
@@ -20,7 +30,7 @@ if "petsc4py" not in sys.modules:  # pragma: no cover - testing helper
     fake_petsc4py.PETSc = _FakePETSc()
     sys.modules["petsc4py"] = fake_petsc4py
 
-if "getfem" not in sys.modules:  # pragma: no cover - testing helper
+if _unavailable("getfem"):  # pragma: no cover - testing helper
     fake_getfem = types.ModuleType("getfem")
 
     class _FakeModel:
@@ -37,7 +47,7 @@ if "getfem" not in sys.modules:  # pragma: no cover - testing helper
     fake_getfem.util_warning_level = lambda level: None
     sys.modules["getfem"] = fake_getfem
 
-if "numpy" not in sys.modules:  # pragma: no cover - testing helper
+if _unavailable("numpy"):  # pragma: no cover - testing helper
     fake_numpy = types.ModuleType("numpy")
     fake_numpy.array = lambda data, *args, **kwargs: data
     fake_numpy.zeros = lambda shape, *args, **kwargs: [0] * (shape if isinstance(shape, int) else 1)
@@ -45,7 +55,7 @@ if "numpy" not in sys.modules:  # pragma: no cover - testing helper
     fake_numpy.pi = 3.141592653589793
     sys.modules["numpy"] = fake_numpy
 
-if "matplotlib" not in sys.modules:  # pragma: no cover - testing helper
+if _unavailable("matplotlib"):  # pragma: no cover - testing helper
     fake_matplotlib = types.ModuleType("matplotlib")
     fake_pyplot = types.SimpleNamespace(
         plot=lambda *args, **kwargs: None,
