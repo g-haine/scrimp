@@ -363,30 +363,33 @@ where this time the mass matrices on the left-hand side are both
        \qquad
        (\widetilde{M}_p)_{k\ell} := \int_0^1 \rho(x) \varphi_p^\ell(x) \varphi_p^k(x) {\rm d}x.
 
-Schema-first workflow
----------------------
+Choosing distributed or global scalar ports
+-------------------------------------------
 
-SCRIMP now ships with a declarative configuration system based on YAML/JSON schemas. You can generate a starting template from the command line:
+For a field depending on space and time, SCRIMP uses an appropriate
+finite-element space on the computational mesh, through
+``DPHS.add_FEM(S.FEM(...))``.
 
-.. code-block:: bash
-
-    python -m scrimp.io.schema_loader generate rectangle --output rectangle.yml
-
-The resulting file contains domain, integration, FEM and material definitions that are validated with Pydantic. Loading the schema in Python replaces the imperative setup phase:
+For a **single scalar** degree of freedom, such as the displacement
+or momentum of a mechanical oscillator, use a global port instead:
 
 .. code-block:: python
 
     import scrimp as S
-    from scrimp.io.schema_loader import load_schema
 
-    schema = load_schema("rectangle.yml")
-    wave = S.DPHS("real")
-    wave.set_domain(S.Domain(schema.domain))
+    oscillator = S.DPHS("real")
+    oscillator.set_domain(S.Domain("Interval", {"L": 1.0, "h": 1.0}))
+    q = S.State("q", "Displacement", "lumped")
+    oscillator.add_state(q)
+    oscillator.add_costate(S.CoState("e_q", "Spring force", q))
+    oscillator.add_lumped_port("q")
 
-    displacement = S.FEM(schema.fem.fields[0])
-    wave.add_FEM(displacement)
-
-The remainder of this tutorial keeps the imperative snippets for clarity, but every call can be substituted by schema-driven objects when working on larger scenarios.
+The reference domain is only used for weak-form assembly in this
+finite-dimensional example. It is not a spatial approximation of
+the oscillator. See :doc:`lumped` for the corresponding algebraic
+variables and mixed PDE--ODE problems; see also
+:doc:`examples/mass_spring_damper` and
+:doc:`examples/nonlinear_pendulum`.
 
 Coding within SCRIMP
 --------------------
