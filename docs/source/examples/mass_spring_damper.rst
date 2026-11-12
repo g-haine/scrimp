@@ -99,6 +99,6 @@ additional regression case.
 
 .. note::
 
-   This example is part of the next-release preparation branch.
-   The Python source has not been runtime-tested in the authoring
-   environment; full GetFEM/PETSc testing is required before release.
+   This example has passed the automated numerical smoke tests and a
+   full default standalone run in the SCRIMP GetFEM/PETSc environment.
+   Quantitative power-balance refinement remains a separate check.
