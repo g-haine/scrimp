@@ -21,15 +21,15 @@ with open("scrimp/README.md", "r") as fh:
 
 setuptools.setup(
 
-    name="scrimp", # Replace with your username
+    name="scrimp",
 
-    version="1.1.1",
+    version="1.2.0",
 
     author="Giuseppe Ferraro",
 
     author_email="giuseppe.ferraro@isae-supaero.fr",
 
-    description="<Template Setup.py package>",
+    description="Port-Hamiltonian modeling and structure-preserving simulations",
 
     long_description=long_description,
 
