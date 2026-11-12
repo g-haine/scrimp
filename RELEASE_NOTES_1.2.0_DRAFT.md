@@ -89,16 +89,31 @@ global scalar port example.
 **These corrections require a new full local test run** before merging
 or publishing.
 
+## Validation progress (2026-11-12)
+
+- **Passed locally:** `python -m unittest discover -s tests -p 'test_*.py' -v`,
+  **57 tests, OK** (user-reported log). PETSc still prints one
+  unused-option warning: `-isset false`; it did not cause test failures.
+- **Sphinx HTML initially failed:** 26 warnings when using `-W`.
+  The first autodoc import error was due to native `slepc4py` loading;
+  subsequent partial imports of `scrimp` failed. The Sphinx config now
+  mocks `slepc4py` alongside PETSc/GetFEM, without changing runtime code.
+  The unsupported `display_version` theme option and one malformed
+  sandbox section underline have also been fixed.
+- **Retest required:** `sphinx-build -E -b html -W --keep-going
+  docs/source docs/build/html`. A clean build may reveal additional
+  warnings; do not tag or publish until it succeeds.
+
 ## Release gates
 
-- [ ] Run `python -m unittest -v tests.test_python_headers` to audit all tracked Python headers.
-- [ ] Run `python -m unittest -v tests.test_lumped_ports` in Conda SCRIMP.
-- [ ] Run `python -m unittest -v tests.test_lumped_examples`.
+- [x] Run `python -m unittest -v tests.test_python_headers` to audit all tracked Python headers.
+- [x] Run `python -m unittest -v tests.test_lumped_ports` in Conda SCRIMP.
+- [x] Run `python -m unittest -v tests.test_lumped_examples`.\n- [x] Run the complete unittest discovery suite (57 tests OK).
 - [ ] Run `python examples/mass_spring_damper.py` and verify energy/work
       balance and exact final time.
 - [ ] Run `python examples/nonlinear_pendulum.py` and verify damped
       energy decreases for zero applied torque.
-- [ ] Build the complete Sphinx docs, resolve warnings and missing imports.
+- [ ] Build the complete Sphinx docs with `-E -W --keep-going`; confirm zero warnings.
 - [ ] Re-run at least one existing PDE example for regression
       (e.g. `examples/wave.py`).
 - [ ] Perform quantitative time-refinement tests on the two new ODEs.
