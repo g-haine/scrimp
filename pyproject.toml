@@ -1,0 +1,6 @@
+# Standard PEP 517 build interface for the existing setuptools project.
+# Project metadata and runtime dependencies remain in setup.py.
+
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
