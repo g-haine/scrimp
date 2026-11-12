@@ -458,12 +458,13 @@ class Port:
 
         try:
             assert self.__isSet
-            self.__fem.display()
+            if self.__fem is not None:
+                self.__fem.display()
         except AssertionError as err:
             logging.error(
                 "Port",
                 self.__name,
-                "has not been set yet (a fem is probably missing)",
+                "has not been set yet (a fem or lumped registration is missing)",
             )
             raise err
 
