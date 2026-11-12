@@ -106,5 +106,6 @@ numerical in addition to the physical damping.
 
 .. note::
 
-   This example is a release candidate, not yet numerically verified
-   by a successful standalone run in a GetFEM/PETSc environment.
+   This example has passed the automated numerical smoke tests and a
+   full default standalone run in the SCRIMP GetFEM/PETSc environment.
+   Quantitative temporal-refinement studies remain a separate check.
