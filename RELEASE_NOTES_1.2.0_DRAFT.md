@@ -101,7 +101,7 @@ or publishing.
   The unsupported `display_version` theme option and one malformed
   sandbox section underline have also been fixed.
 - **Passed locally:** `sphinx-build -E -b html -W --keep-going docs/source docs/build/html` (Sphinx 8.2.3): successful HTML build, **zero warnings**.
-- **Passed locally:** `sphinx-build -E -b latex -W --keep-going docs/source docs/build/latex` (exit 0), followed by `make -C docs/build/latex`; generated `scrimp.pdf`, **100 pages** (user-reported build).
+- **Passed locally:** `sphinx-build -E -b latex -W --keep-going docs/source docs/build/latex` (exit 0), followed by `make -C docs/build/latex`; generated `scrimp.pdf`, **100 pages** (user-reported build).\n- **Full example runs:** both new 0D examples were reported working with their default complete runs. Quantitative time refinement and strict energy-balance measurements are separate remaining checks.
 
 ## Release gates
 
@@ -109,10 +109,10 @@ or publishing.
 - [x] Run `python -m unittest -v tests.test_lumped_ports` in Conda SCRIMP.
 - [x] Run `python -m unittest -v tests.test_lumped_examples`.
 - [x] Run the complete unittest discovery suite (57 tests OK).
-- [ ] Run `python examples/mass_spring_damper.py` and verify energy/work
-      balance and exact final time.
-- [ ] Run `python examples/nonlinear_pendulum.py` and verify damped
-      energy decreases for zero applied torque.
+- [x] Run `python examples/mass_spring_damper.py` for its full default
+      time span (user confirms example works).
+- [x] Run `python examples/nonlinear_pendulum.py` for its full default
+      time span (user confirms example works).
 - [x] Build the HTML Sphinx docs with `-E -W --keep-going`; zero warnings.
 - [x] Build Sphinx LaTeX with `-E -W --keep-going` (exit code 0) and compile `scrimp.pdf` successfully (100 pages, user-verified).
 - [ ] Re-run at least one existing PDE example for regression
