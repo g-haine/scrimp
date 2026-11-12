@@ -66,6 +66,29 @@ This intentionally retains source warnings from files outside `outputs`,
 which should be reviewed separately. Header tests use `git ls-files`
 and therefore already exclude ignored/untracked outputs.
 
+## Regression suite cleanup (2026-11-12)
+
+A full `unittest discover` initially reported **five import errors**
+because old tests referenced non-existent `scrimp.structure` and
+`scrimp.io.schema_loader` modules. The following test files have
+been rewritten against the **actual 1.2.0 public API**:
+
+- `tests/test_brick.py`: weak forms, regions, flags and brick ID lists.
+- `tests/test_domain.py`: built-in Interval mesh and labeled regions.
+- `tests/test_fem_schema.py`: imperative CG/DG FEM registration (legacy
+  filename retained, although it no longer exercises YAML schemas).
+- `tests/test_hamiltonian.py`: terms, iteration, computation state,
+  invalid input and defensive list copies.
+- `tests/test_port.py`: current port metadata, parameters, registration,
+  power state and display.
+
+No test is silently skipped. The obsolete YAML/schema tutorial in
+`docs/source/started.rst` has also been replaced with a supported
+global scalar port example.
+
+**These corrections require a new full local test run** before merging
+or publishing.
+
 ## Release gates
 
 - [ ] Run `python -m unittest -v tests.test_python_headers` to audit all tracked Python headers.
