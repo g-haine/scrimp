@@ -68,7 +68,8 @@ and therefore already exclude ignored/untracked outputs.
 
 ## Release gates
 
-- [ ] Run `python -m unittest -v tests.test_python_headers` to audit all tracked Python headers.\n- [ ] Run `python -m unittest -v tests.test_lumped_ports` in Conda SCRIMP.
+- [ ] Run `python -m unittest -v tests.test_python_headers` to audit all tracked Python headers.
+- [ ] Run `python -m unittest -v tests.test_lumped_ports` in Conda SCRIMP.
 - [ ] Run `python -m unittest -v tests.test_lumped_examples`.
 - [ ] Run `python examples/mass_spring_damper.py` and verify energy/work
       balance and exact final time.
