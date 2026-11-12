@@ -51,6 +51,31 @@ class LumpedPortsTest(unittest.TestCase):
             self.dphs.add_lumped_port("P")
         self.assertIn("P", str(self.dphs.ports["P"]))
 
+    def test_constant_external_force_has_correct_sign(self):
+        """ODE P_dot=2: checks the nonlinear weak-form residual sign."""
+        self.dphs.add_lumped_port("P")
+        self.dphs.gf_model.add_macro("ell", "2.0")
+        for brick in [
+            S.Brick("M_P", "P*Test_P/ell", [1], dt=True, position="flow"),
+            S.Brick("external_force", "2.0*Test_P/ell", [1],
+                    position="effort", linear=False),
+            S.Brick("zero_effort", "-e_P*Test_e_P/ell", [1]),
+        ]:
+            self.dphs.add_brick(brick)
+        self.dphs.set_initial_value("P", 0.)
+        self.dphs.set_time_scheme(
+            init_step=False,
+            ts_type="bdf", ts_bdf_order=1,
+            t_0=0., t_f=0.02, dt=0.01, dt_save=0.01,
+            ksp_type="gmres", pc_type="lu",
+            pc_factor_mat_solver_type="superlu",
+        )
+        self.dphs.solve()
+        P_final = float(np.real(
+            np.asarray(self.dphs.get_solution("P")[-1]).ravel()[0]
+        ))
+        self.assertAlmostEqual(P_final, 0.04, delta=1.e-4)
+
     def test_non_numeric_initial_data_is_rejected(self):
         self.dphs.add_lumped_port("P")
         with self.assertRaises(ValueError):
