@@ -41,8 +41,21 @@ import getfem as gf
 gf.util_trace_level(0)
 
 
-def sloshing_tank(mesh_size=0.05, final_time=0.2, plot=False):
-    """Build and integrate the translating-tank model; return a SCRIMP DPHS."""
+def sloshing_tank(
+    mesh_size=0.05, final_time=0.2, plot=False,
+    time_step=0.002, save_step=None, adaptive=True,
+):
+    """Build and integrate the translating-tank model; return a SCRIMP DPHS.
+
+    Set adaptive=False for temporal convergence studies with fixed time steps.
+    The final time is matched exactly; all runs save the final state.
+    """
+    if mesh_size <= 0 or final_time <= 0 or time_step <= 0:
+        raise ValueError("mesh_size, final_time and time_step must be positive")
+    if save_step is None:
+        save_step = 0.01 if adaptive else time_step
+    if save_step <= 0:
+        raise ValueError("save_step must be positive")
     length = 2.0
     width = 1.0
     density = 1.0
@@ -160,18 +173,24 @@ def sloshing_tank(mesh_size=0.05, final_time=0.2, plot=False):
     tank.set_initial_value("pos", 0.0)
     tank.gf_model.set_variable("v", np.array([0.0]))
 
-    tank.set_time_scheme(
+    time_options = dict(
         ts_type="bdf",
         ts_bdf_order=2,
+        # Avoid time overshoot: previously t_f=0.2 stopped at 0.206996
+        # and SCRIMP subsequently discarded the last step.
+        ts_exact_final_time="matchstep",
         ksp_type="gmres",
         pc_type="lu",
         pc_factor_mat_solver_type="superlu",
         t_0=0.0,
         t_f=float(final_time),
-        dt=0.002,
-        dt_save=0.01,
+        dt=float(time_step),
+        dt_save=float(save_step),
         init_step=True,
     )
+    if not adaptive:
+        time_options["ts_adapt_type"] = "none"
+    tank.set_time_scheme(**time_options)
 
     tank.solve()
 
@@ -192,11 +211,13 @@ def sloshing_tank(mesh_size=0.05, final_time=0.2, plot=False):
     v_vals = np.asarray(tank.get_solution("v"), dtype=float).ravel()
     fluid_momentum = np.asarray(tank.get_quantity("mom"), dtype=float).ravel()
     defect = tank_mass*v_vals + fluid_momentum - p_vals
-    print("Max |Mt*v + integral(mom) - P| =", np.max(np.abs(defect)))
+    constraint_error = float(np.max(np.abs(defect)))
+    print("Max |Mt*v + integral(mom) - P| =", constraint_error)
+    print("Last stored time =", times[-1], "(target =", final_time, ")")
     force_values = 0.1*np.sin(2*np.pi*times)
     fluid_mass = np.asarray(tank.get_quantity("a_h"), dtype=float).ravel()
-    print("Max |fluid mass - initial mass| =",
-          np.max(np.abs(fluid_mass-fluid_mass[0])))
+    mass_error = float(np.max(np.abs(fluid_mass-fluid_mass[0])))
+    print("Max |fluid mass - initial mass| =", mass_error)
 
     # BDF2 may add numerical dissipation; inspect the resulting defect.
     viscous_diss = np.asarray(
@@ -209,16 +230,41 @@ def sloshing_tank(mesh_size=0.05, final_time=0.2, plot=False):
         impulse = np.r_[0.0, np.cumsum(
             0.5*(force_values[1:]+force_values[:-1])*np.diff(times)
         )]
-        print("Max |P-P(0)-integral(force)| =",
-              np.max(np.abs(p_vals-p_vals[0]-impulse)))
+        impulse_error = float(
+            np.max(np.abs(p_vals-p_vals[0]-impulse))
+        )
+        # Exact impulse for the specific force(t)=0.1*sin(2*pi*t).
+        exact_impulse = 0.1/(2*np.pi)*(1-np.cos(2*np.pi*times))
+        exact_impulse_error = float(
+            np.max(np.abs(p_vals-p_vals[0]-exact_impulse))
+        )
+        print("Max |P-P(0)-trapezoidal impulse| =", impulse_error)
+        print("Max |P-P(0)-exact impulse| =", exact_impulse_error)
         power = force_values*v_vals - viscous_diss
         expected_increment = np.r_[0.0, np.cumsum(
             0.5*(power[1:]+power[:-1])*np.diff(times)
         )]
-        print("Max |H-H(0)-integral(force*v-dissipation)| =",
-              np.max(np.abs(energy-energy[0]-expected_increment)))
+        energy_error = float(
+            np.max(np.abs(energy-energy[0]-expected_increment))
+        )
+        print("Max |H-H(0)-integral(force*v-dissipation)| =", energy_error)
     else:
+        impulse_error = exact_impulse_error = energy_error = float("nan")
         print("At least two saved time steps are needed for work/energy checks.")
+
+    tank.sloshing_metrics = {
+        "requested_final_time": float(final_time),
+        "last_saved_time": float(times[-1]),
+        "mesh_size": float(mesh_size),
+        "time_step": float(time_step),
+        "adaptive": bool(adaptive),
+        "constraint_error": constraint_error,
+        "mass_error": mass_error,
+        "impulse_trapezoid_error": impulse_error,
+        "impulse_exact_error": exact_impulse_error,
+        "energy_balance_error": energy_error,
+        "energy_final_change": float(energy[-1]-energy[0]),
+    }
 
     if plot:
         # The gravitational baseline (~40 for these parameters) hides both
