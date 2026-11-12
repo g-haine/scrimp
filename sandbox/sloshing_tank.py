@@ -189,12 +189,31 @@ def sloshing_tank(mesh_size=0.05, final_time=0.2, plot=False):
     defect = tank_mass*v_vals + fluid_momentum - p_vals
     print("Max |Mt*v + integral(mom) - P| =", np.max(np.abs(defect)))
     force_values = 0.1*np.sin(2*np.pi*times)
+    fluid_mass = np.asarray(tank.get_quantity("a_h"), dtype=float).ravel()
+    print("Max |fluid mass - initial mass| =",
+          np.max(np.abs(fluid_mass-fluid_mass[0])))
+
+    # BDF2 may add numerical dissipation; inspect the resulting defect.
+    viscous_diss = np.asarray(
+        tank.get_quantity("rho*nu*a_h*(Grad_e_m.Grad_e_m)"),
+        dtype=float,
+    ).ravel()
+    energy = np.asarray(tank.get_Hamiltonian(), dtype=float).ravel()
+
     if len(times) > 1:
         impulse = np.r_[0.0, np.cumsum(
             0.5*(force_values[1:]+force_values[:-1])*np.diff(times)
         )]
         print("Max |P-P(0)-integral(force)| =",
               np.max(np.abs(p_vals-p_vals[0]-impulse)))
+        power = force_values*v_vals - viscous_diss
+        expected_increment = np.r_[0.0, np.cumsum(
+            0.5*(power[1:]+power[:-1])*np.diff(times)
+        )]
+        print("Max |H-H(0)-integral(force*v-dissipation)| =",
+              np.max(np.abs(energy-energy[0]-expected_increment)))
+    else:
+        print("At least two saved time steps are needed for work/energy checks.")
 
     if plot:
         tank.plot_Hamiltonian()
