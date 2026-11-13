@@ -1977,3 +1977,90 @@ semantics and physical consistency of the initial conditions.
 
 This change remains only on feature branch PR #22. No master merge,
 issue #6 closure, or release tag pending physical and MPI validation.
+
+
+## 2026-11-13 — Negative-time BDF2 fails too; inspect FIRST runaway Newton block
+
+The user's `swe_bdf2init_1rank.log` and
+`swe_bdf2init_2rank.log` show the requested fixed
+`dt=1e-9` BDF2 startup from `t=-1e-9` to `t=0`
+does **not** reach t=0.
+
+- **MPI 1:** `exit=1`; PETSc
+  `TSBDF_Restart -> TSBDF_SNESSolve -> MatSolve_MUMPS`
+  gives `INFOG(1)=-3` (PETSc error code 76).
+  **MUMPS -3 denotes an invalid JOB/analysis-factor-solve
+  sequence**, not the singular-matrix numerical error code.
+  MUMPS manual: https://mumps-solver.org/doc/userguide_5.8.1.pdf .
+  This happens only *after* an extremely large Newton step
+  and multiple BDF startup retries.
+- **MPI 2:** `exit=139`; native SIGSEGV after the second
+  assembled 3300x3300 Jacobian in the BDF startup.
+- On BOTH 1/2 ranks, after one Newton correction the trace
+  reports **`||z||=1.31957e6`** and
+  **`||zd||=2.63914e15`** (with BDF `shift=2e9`).
+  The nonlinear stiffness magnitude jumps from
+  `2058.69703` to **`533394.687`** at the
+  same point. The two-rank result agrees exactly with
+  serial up through this divergence; this phenomenon
+  starts BEFORE an MPI-specific error.
+- Even though TSAdapt was set to `none`, the failed
+  initial nonlinear substep is internally retried with
+  smaller intervals: the serial log shows BDF
+  times `-5e-10`, then `-8.75e-10`, then
+  `-9.6875e-10`; Jacobian shifts `2e9`, `8e9`,
+  `3.2e10`. Therefore the startup is NOT successfully
+  maintaining a constant step; an internal solver failure
+  is triggering retries. Reducing the already-tiny
+  startup timestep is not a demonstrated remedy.
+- The initial matrices have 132 zero diagonal entries
+  (but **no zero numerical rows**) on rank 0: these
+  are not sufficient to diagnose singularity; an
+  LU/MUMPS *solve* failure `-3` does not mean
+  matrix singularity.
+
+**Next observation, not another speculative numerical fix:**
+`DPHS._trace_newton_blocks()` is enabled only by
+`--newton-block-trace` (or
+`SCRIMP_NEWTON_BLOCK_TRACE=1`). It logs full replicated
+trial state norm, each GetFEM variable's norm/max absolute
+value and, for fluid height `h`, min/max. It adds
+NO MPI collectives or extra assembly. Use `--init-dt`
+to vary negative-time BDF startup step only if needed.
+
+Run first on **one rank only**:
+
+```bash
+git pull --ff-only
+conda activate scrimp
+
+SCRIMP_GETFEM_RHS_MODE=divide_by_mpi_size \
+PYTHONFAULTHANDLER=1 \
+timeout -k 5s 45s mpiexec -n 1 \
+  python -u sandbox/viscous_swe_2d_mpi.py \
+    --case open --mesh 0.2 \
+    --final-time 0.006 --save-dt 0.002 --max-step 0.002 \
+    --ts-type arkimex --adapt-type none \
+    --newton-block-trace \
+    --output-dir sandbox/outputs/swe_bdf2_blocks_1rank \
+  > swe_bdf2_blocks_1rank.log 2>&1
+
+echo "exit=$?"
+grep -E 'Newton blocks|IJacobian: enter|MUMPS error|Initial consistency' \
+  swe_bdf2_blocks_1rank.log | head -n 35
+tail -n 22 swe_bdf2_blocks_1rank.log
+```
+
+The decisive datum is **which GetFEM block** jumps from
+initial values (~`h=5`, tangential `p=0.2`) to
+~1e6, and whether `h` becomes negative. This
+distinguishes problems in the initial algebraic
+constitutive/boundary constraints from dynamics and
+incorrectly defined state-dependent mass. If Newton's
+first step drives `h` negative or port variables explode,
+solve consistent algebraic initial data explicitly
+rather than forcing an ever smaller time step.
+
+**Do not merge PR #22** or claim physically correct
+energy balance. The native MPI MUMPS crash remains open;
+GetFEM MPI RHS root cause remains deferred to #23.
