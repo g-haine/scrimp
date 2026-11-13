@@ -888,11 +888,26 @@ class DPHS:
             d = np.asarray(diagonal.getArray(readonly=True))
             diag_zeros = int(np.count_nonzero(d == 0))
             diag_bad = int(np.count_nonzero(~np.isfinite(d)))
+            # Zero diagonals may be expected in mixed saddle-point DAEs.
+            # Entirely zero numerical rows, however, indicate an absent
+            # equation. Detect the latter separately (trace mode only).
+            first_row = P.getOwnershipRange()[0]
+            numerical_zero_rows = np.asarray([
+                not np.any(vals[rp[i]:rp[i + 1]])
+                for i in range(len(rp) - 1)
+            ], dtype=bool)
+            zero_rows_global = (
+                np.flatnonzero(numerical_zero_rows) + first_row
+            )
+            zero_diagonal_global = np.flatnonzero(d == 0) + first_row
             _mpi_trace(
                 f"IJacobian: operator shape={P.getSize()}, "
                 f"ownership={P.getOwnershipRange()}, "
                 f"nnz_owned={len(vals)}, nonfinite={bad}, "
-                f"diagonal_zeros={diag_zeros}, diagonal_nonfinite={diag_bad}"
+                f"diagonal_zeros={diag_zeros}, diagonal_nonfinite={diag_bad}, "
+                f"zero_numerical_rows={len(zero_rows_global)}; "
+                f"zero_row_ids={zero_rows_global[:16].tolist()}, "
+                f"zero_diag_ids={zero_diagonal_global[:16].tolist()}"
             )
             diagonal.destroy()
             if bad or diag_bad:
