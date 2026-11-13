@@ -181,8 +181,16 @@ def build_system(gamma, mesh, final_time, save_dt, max_step,
         t_0=0.0, t_f=final_time, dt=max_step,
         dt_save=save_dt, ts_adapt_dt_max=max_step,
         ts_adapt_dt_min=1e-8,
-        init_step=init_step, init_step_nb_iter=2,
-        init_step_ts_type="pseudo", init_step_dt=1e-9,
+        # State-dependent mass: use one tiny, fixed BDF2 step
+        # from -1e-9 to t=0 to initialize the algebraic variables.
+        # PETSc BDF2 bootstraps with an internal half-step.
+        # This replaces the historical pseudo-TS *for this model*.
+        init_step=init_step, init_step_nb_iter=1,
+        init_step_ts_type="bdf", init_step_bdf_order=2,
+        init_step_dt=1e-9, init_step_from_negative_time=True,
+        # Stop rather than silently accept the ~1e24 initial-state
+        # blow-up previously observed in pseudo-TS.
+        init_step_max_norm_amplification=100.0,
     )
     if ts_type == "arkimex":
         time_scheme["ts_arkimex_type"] = "a2"
