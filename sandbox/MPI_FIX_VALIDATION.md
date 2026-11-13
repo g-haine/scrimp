@@ -513,3 +513,95 @@ Do not close #6, merge #22 or tag v1.2.1 until physical balances and
 which is **not generically equal** to the nonlinear residual. This
 requires a separate mathematical correction and finite-difference
 Jacobian audit.
+
+## 2026-11-13 — Nine tests pass; SIGSEGV persists after persistent matrices
+
+After pulling the persistent-matrix/monitor-GC changes, the user ran
+`tests.test_mpi_algebra`: **9/9 passing on every process** for 1,
+2 and 4 MPI ranks. In particular,
+`test_nonlinear_tangents_reuse_mpi_matrices_without_accumulation`
+passes (changing coefficients and sparse patterns).
+
+However the two-rank Saint-Venant smoke still exits with
+**139 / SIGSEGV**, after both ranks print `IJacobian: completed`.
+The matrix is 3300x3300; no NaNs/Infs and no completely zero rows;
+rank 0 has 132 zero diagonal entries (expected possibility for mixed
+algebraic equations). The new trace confirms `nl_mass:
+tangent reassembled in place` and `nl_stiffness: tangent reassembled
+in place` on both ranks, while `mode=replicated` stays stable.
+
+**Therefore, removal of the monitor's forced `PETSc.garbage_cleanup()`
+and retention of the tangent matrix handles have NOT eliminated the
+crash.** The previous GDB trace identified an invalid `MatDestroy_MPIAIJ`
+*at the forced cleanup*, but not necessarily the original corruption.
+It is unsafe to infer a PETSc or MUMPS library defect without a
+**new native trace of the CURRENT code**.
+
+### Dynamic-pattern copy contract: candidate hardening
+
+In the actual SWE log the nonlinear stiffness GetFEM CSR gains many
+entries as Newton evolves (e.g. initial 86k to ~126k stored values).
+Yet `self.J` is duplicated from an **initial** tangent matrix,
+and `IJacobian()` copied a potentially different sparse structure
+into that existing matrix. PETSc 3.21 documentation explicitly says
+that `MatCopy` with `SAME_NONZERO_PATTERN` on different patterns
+**may crash**:
+https://web.cels.anl.gov/projects/petsc/vault/petsc-3.21/docs/manualpages/Mat/MatCopy.html
+
+To make the contract unambiguous, `IJacobian` now specifies
+`PETSc.Mat.Structure.DIFFERENT_NONZERO_PATTERN` when copying the
+tangent into P, adding the state-dependent mass with `MatAXPY`, and
+copying P into a distinct A. This is a **defensive fix**; the previous
+petsc4py default's exact behavior and whether it caused the crash
+have not been established.
+
+A new **tenth** MPI test
+`test_jacobian_copy_with_changing_sparse_pattern` checks that A/P
+initially have diagonal-only structure, then repeatedly accept
+off-diagonal entries, including off-process columns.
+
+### Validation commands
+
+```bash
+git pull --ff-only
+
+for n in 1 2 4; do
+  echo "MPI ranks: $n"
+  timeout -k 5s 45s mpiexec -n "$n" \
+    python -u -m unittest -v tests.test_mpi_algebra || break
+done
+```
+
+Require **10/10 passing on all 1, 2 and 4 ranks**. If they pass,
+rerun the two-rank SWE smoke:
+
+```bash
+PYTHONFAULTHANDLER=1 SCRIMP_MPI_TRACE=1 \
+timeout -k 5s 120s mpiexec -n 2 \
+  python -u sandbox/viscous_swe_2d_mpi.py \
+    --case open --mesh 0.2 --final-time 0.5 \
+    --save-dt 0.1 --max-step 0.01 \
+  > mpi_open_2ranks.log 2>&1
+echo "exit=$?"
+tail -n 100 mpi_open_2ranks.log
+```
+
+If exit 139/134 persists, obtain a **new** native stack on the
+corrected branch (show current HEAD with `git rev-parse --short HEAD`):
+
+```bash
+SCRIMP_MPI_TRACE=1 \
+timeout -k 5s 120s mpiexec -n 2 \
+  gdb -q -batch -ex 'set pagination off' -ex run -ex 'bt 40' \
+    --args python -u sandbox/viscous_swe_2d_mpi.py \
+    --case open --mesh 0.2 --final-time 0.5 \
+    --save-dt 0.1 --max-step 0.01 \
+  > mpi_gdb_after_pattern_fix.log 2>&1
+echo "exit=$?"
+```
+
+For an independent **diagnostic-only** isolation of the initial
+pseudo-TS (no claim of valid initial DAE consistency), also try
+`--no-init-step` at 2 MPI ranks; if it does not crash but terminates
+early with the new `RuntimeError`, that still distinguishes the
+native failure stage from the invalid physical result.
