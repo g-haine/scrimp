@@ -23,6 +23,13 @@ Examples:
     mpiexec -n 2 python -u sandbox/check_swe_implicit_jacobian.py \
         --state-perturb 0.05 --epsilon 1e-5
 
+In addition to the directional error, the report checks:
+- PETSc-to-GetFEM Newton-state synchronization on all MPI ranks;
+- whether the GetFEM RHS directional derivative is identical on ranks;
+- whether that derivative agrees with minus the nonlinear GetFEM
+  tangent action (a separate check of GetFEM's RHS convention);
+- which residual equation blocks account for the discrepancy.
+
 The script reports the error and exits 0 by default, even if the
 Jacobian is inconsistent: it is a diagnostic, not a green test.
 Use --fail-above 1e-4 only when checking a candidate correction.
