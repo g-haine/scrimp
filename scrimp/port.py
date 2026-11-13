@@ -405,12 +405,15 @@ class Port:
             form = self.get_flow() + times + self.get_effort()
 
             self.__power = []
-            for t, _ in enumerate(solution["t"]):
+            for k, t in enumerate(solution["t"]):
+                # Both the state and the model time must match this sample;
+                # controls and constitutive parameters may depend on time.
+                gf_model.set_time(float(t))
                 # Smoothed via Crank-Nicolson
-                if t==0:
-                    gf_model.to_variables(solution["z"][t])
+                if k == 0:
+                    gf_model.to_variables(solution["z"][k])
                 else:
-                    smoothed = 0.5*(solution["z"][t]+solution["z"][t-1])
+                    smoothed = 0.5 * (solution["z"][k] + solution["z"][k - 1])
                     gf_model.to_variables(smoothed)
                 power_value_at_t = gf.asm(
                     "generic",
