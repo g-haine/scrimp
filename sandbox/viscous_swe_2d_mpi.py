@@ -58,10 +58,12 @@ def ramp_expression(start=75.0, end=200.0):
 
 def build_system(gamma, mesh, final_time, save_dt, max_step,
                  ramp_start=75.0, ramp_end=200.0, init_step=True,
-                 ts_type="arkimex", adapt_type="basic"):
+                 ts_type="arkimex", adapt_type="basic",
+                 init_dt=1e-9):
     if gamma not in (0.0, 0.25):
         raise ValueError("gamma must be 0.0 (open) or 0.25 (closed)")
-    if mesh <= 0 or final_time <= 0 or save_dt <= 0 or max_step <= 0:
+    if (mesh <= 0 or final_time <= 0 or save_dt <= 0
+            or max_step <= 0 or not np.isfinite(init_dt) or init_dt <= 0):
         raise ValueError("mesh and time parameters must be positive")
 
     swe = S.DPHS("real")
@@ -187,7 +189,7 @@ def build_system(gamma, mesh, final_time, save_dt, max_step,
         # This replaces the historical pseudo-TS *for this model*.
         init_step=init_step, init_step_nb_iter=1,
         init_step_ts_type="bdf", init_step_bdf_order=2,
-        init_step_dt=1e-9, init_step_from_negative_time=True,
+        init_step_dt=init_dt, init_step_from_negative_time=True,
         # Stop rather than silently accept the ~1e24 initial-state
         # blow-up previously observed in pseudo-TS.
         init_step_max_norm_amplification=100.0,
@@ -321,7 +323,17 @@ def main():
     parser.add_argument("--max-step", type=float, default=0.01)
     parser.add_argument("--output-dir", type=Path, default=None)
     parser.add_argument("--no-init-step", action="store_true",
-                        help="Diagnostic only: bypass pseudo-TS initial consistency solve")
+                        help="Diagnostic only: bypass BDF2 consistency initialization")
+    parser.add_argument(
+        "--init-dt", type=float, default=1e-9,
+        help="Tiny BDF2 initialization step, from -init-dt to t=0; "
+             "default 1e-9",
+    )
+    parser.add_argument(
+        "--newton-block-trace", action="store_true",
+        help="Log per-GetFEM-variable Newton state norms and fluid "
+             "height range to identify unstable initialization",
+    )
     parser.add_argument(
         "--ts-type", choices=("arkimex", "cn", "bdf"),
         default="arkimex",
@@ -348,12 +360,15 @@ def main():
         out.mkdir(parents=True, exist_ok=True)
     comm.barrier()
 
+    if args.newton_block_trace:
+        os.environ["SCRIMP_NEWTON_BLOCK_TRACE"] = "1"
     if rank == 0:
         print(
             "Saint-Venant diagnostic configuration: "
             f"TS={args.ts_type}, TSAdapt={args.adapt_type}, "
             f"pseudo_init={not args.no_init_step}, "
-            f"dt={args.max_step}, t_f={args.final_time}",
+            f"dt={args.max_step}, t_f={args.final_time}, "
+            f"init_dt={args.init_dt}",
             flush=True,
         )
     swe = build_system(gamma, args.mesh, args.final_time,
@@ -361,7 +376,8 @@ def main():
                        args.ramp_start, args.ramp_end,
                        init_step=not args.no_init_step,
                        ts_type=args.ts_type,
-                       adapt_type=args.adapt_type)
+                       adapt_type=args.adapt_type,
+                       init_dt=args.init_dt)
     if args.petsc_monitor:
         # PETSc's -ts_monitor/-ts_adapt_monitor are VIEWER-valued
         # command-line flags, not Boolean-valued TS settings.
