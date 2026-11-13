@@ -12,7 +12,7 @@ jobs:
           python-version: "3.11"
       - name: Compile modified Python sources
         run: |
-          python -m py_compile scrimp/dphs.py scrimp/utils/linalg.py tests/test_parallel_powers.py tests/test_mpi_algebra.py sandbox/viscous_swe_2d_mpi.py
+          python -m py_compile scrimp/dphs.py scrimp/utils/linalg.py tests/test_parallel_powers.py tests/test_mpi_algebra.py sandbox/viscous_swe_2d_mpi.py sandbox/test_petsc_mumps_reset.py
       - name: Validate SCRIMP source headers
         run: |
           python -m unittest -v tests.test_python_headers
