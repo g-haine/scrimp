@@ -166,6 +166,44 @@ class TestMPIAlgebra(unittest.TestCase):
         finally:
             mat.destroy()
 
+    def test_real_getfem_nonlinear_tangent_across_newton_iterates(self):
+        """A changing GetFEM nonlinear Jacobian must not change MPI mode.
+
+        For R(u)=integral(u**2 * Test_u), the tangent at a constant u=c
+        satisfies 1^T J 1 = 2*c on [0,1]. Verify this for two separate
+        GetFEM assemblies into the SAME PETSc matrix.
+        """
+        gf = linalg.gf
+        mesh = gf.Mesh("cartesian", np.linspace(0.0, 1.0, 17))
+        mf = gf.MeshFem(mesh, 1)
+        mf.set_fem(gf.Fem("FEM_PK(1,1)"))
+        mim = gf.MeshIm(mesh, gf.Integ("IM_GAUSS1D(5)"))
+        model = gf.Model("real")
+        model.add_fem_variable("u", mf)
+        model.add_nonlinear_term(mim, "u*u*Test_u")
+        n = model.nbdof()
+        mat = PETSc.Mat().createAIJ(size=(n, n), comm=COMM)
+        mat.setUp()
+        mat.setOption(PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR, False)
+        try:
+            with patch.dict(os.environ, {"SCRIMP_GETFEM_MATRIX_MODE": "replicated"}):
+                for c in (1.0, 2.0):
+                    model.set_variable("u", np.full(n, c, dtype=float))
+                    model.assembly(option="build_matrix")
+                    linalg.convert_gmm_to_petsc(model.tangent_matrix(), mat)
+                    x, y = mat.createVecRight(), mat.createVecLeft()
+                    try:
+                        x.set(1.0)
+                        mat.mult(x, y)
+                        self.assertAlmostEqual(
+                            float(np.real(x.dot(y))), 2.0*c, places=9
+                        )
+                    finally:
+                        x.destroy()
+                        y.destroy()
+        finally:
+            mat.destroy()
+
     def test_distinct_operator_and_preconditioner_get_same_jacobian(self):
         """TS's distinct A/P matrices must both receive J=K+shift*M."""
         def diagonal_matrix(value):
