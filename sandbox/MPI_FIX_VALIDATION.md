@@ -125,20 +125,18 @@ The converter now explicitly distinguishes two cases:
 - **Distributed**: ranks have different contributions; PETSc sums
   global-index entries with ADD_VALUES.
 
-The default `SCRIMP_GETFEM_MATRIX_MODE=auto` selects between them
-using a collective comparison of exact CSR signatures, without
-gathering full matrices. Override it to `replicated` or `distributed`
-if the representation is known. **Important caveat:** identical
-rank-local partial matrices would be indistinguishable from replicas
-by this heuristic; the automatic mode requires wider validation
-before production use. We have deliberately not divided entries by
+Historical (now superseded): the old `SCRIMP_GETFEM_MATRIX_MODE=auto`
+selected between them by comparing exact CSR signatures. This approach
+was subsequently found to **flap between modes during Newton iterations**
+and has been removed. The default is now **replicated**. For a known
+partial CSR matrix use `SCRIMP_GETFEM_MATRIX_MODE=distributed` explicitly. We have deliberately not divided entries by
 the MPI size.
 
-The synthetic matrix tests have also been adjusted to separately
-exercise genuinely distinct partial matrices (including a shared
-row) and fully replicated matrices. The test suite now has **five**
-tests; the two new branches and the revised real mass test have **not
-yet been executed** on the user's machine.
+The synthetic matrix tests were also adjusted to exercise genuinely
+distinct partial matrices (including a shared row) and replicated
+matrices. Five tests were later validated at 1/2/4 ranks; a **sixth**
+was added afterward for distinct PETSc operator/preconditioner matrices
+and still requires a real MPI run.
 
 **Run this first; do not rerun Saint-Venant if this test fails:**
 
@@ -284,7 +282,7 @@ the native factorization.
 
 **Required checks after pulling:**
 
-1. Re-run the **five** algebra tests on 1/2/4 ranks.
+1. Re-run the **six** algebra tests on 1/2/4 ranks.
 2. Re-run the original 2-rank open-loop smoke with
    `PYTHONFAULTHANDLER=1 SCRIMP_MPI_TRACE=1`; confirm that every
    matrix transfer logs `mode=replicated` and inspect the last
