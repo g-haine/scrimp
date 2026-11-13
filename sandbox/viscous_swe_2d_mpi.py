@@ -355,10 +355,20 @@ def main():
                        ts_type=args.ts_type,
                        adapt_type=args.adapt_type)
     if args.petsc_monitor:
-        swe.set_time_scheme(
-            ts_monitor=True, ts_adapt_monitor=True,
-            snes_converged_reason=True, ksp_converged_reason=True,
-        )
+        # PETSc's -ts_monitor/-ts_adapt_monitor are VIEWER-valued
+        # command-line flags, not Boolean-valued TS settings.
+        # set_time_scheme(ts_monitor=True) stores the string "true":
+        # TSSetFromOptions() interprets that as a viewer name and fails
+        # with PETSC_ERR_SUP (56): "Unsupported viewer true".
+        #
+        # Store the flags with *no* argument as PETSc expects.
+        # They apply to both the optional pseudo-TS and the main TS.
+        options = PETSc.Options()
+        for key in (
+            "ts_monitor", "ts_adapt_monitor",
+            "snes_converged_reason", "ksp_converged_reason",
+        ):
+            options.setValue(key, None)
     swe.solve()
     # SCRIMP currently allows its TS event handler to stop on minimum
     # timestep without raising.  Exit code 0 must not be interpreted as a
