@@ -1887,3 +1887,93 @@ of fixed-step ARKIMEX, nor of `--no-init-step` on two ranks.
 Retry the two commands documented directly above using the
 new branch head, and do not infer anything about the native
 SIGSEGV until a real nonlinear TS.solve() has occurred.
+
+
+## 2026-11-13 — Replace Saint-Venant pseudo-TS initial solve with tiny BDF2 from negative time
+
+**User request:** the nonlinear Saint-Venant mass matrix depends on
+the state; test whether the disastrous pseudo-TS initial consistency
+step is purely a numerical initialization artifact. Explicitly use
+BDF2 with a *very small* step, starting at `-dt` instead of `0`.
+
+**Reason for the test:** On a single MPI rank, a fixed-step
+ARKIMEX run reached `t_f=0.006` in three steps without PETSc
+step rejections or reported SNES failures, but the initial
+pseudo-TS yielded `||z|| ~= 3.90477e24`; the power-balance defect
+was `561036.152228463`, so that *successful exit code 0 was not
+a valid physical solution*. On 2 ranks, bypassing pseudo-TS
+reached the first main TS Jacobian, but then MUMPS reported
+`Instance Error 1 in ZMUMPS_F77` / MPI_Abort(-99), exit 157.
+That is a **different native failure** from the previous SIGSEGV,
+and BDF2 is not proven to fix it.
+
+**PETSc 3.21 technical detail:** BDF order 2 has an internal
+history bootstrap, performing a first solve at half of the first
+time step before the full step. Source:
+https://web.cels.anl.gov/projects/petsc/vault/petsc-3.21/docs/src/ts/impls/bdf/bdf.c.html
+(`TSBDF_Restart`). This permits *one accepted macro step*
+from `t0-dt` to `t0` with `ts_bdf_order=2`, without falsely
+calling a single ordinary backward-Euler step BDF2.
+
+**Implementation in this draft branch:**
+- `DPHS.init_step()` now accepts opt-in
+  `init_step_ts_type="bdf"`,
+  `init_step_bdf_order=2`,
+  `init_step_from_negative_time=True`.
+  It starts PETSc at `t0-init_step_dt`, sets target time `t0`,
+  performs precisely **one fixed macro BDF2 step**, with
+  `ts_adapt_type=none` (only for the initial TS).
+- Restores `ts_bdf_order`, `ts_adapt_type`,
+  `ts_adapt_dt_min` and `ts_adapt_dt_max` for the main TS
+  after initial TS cleanup. No stale BDF settings leak into
+  main ARKIMEX. Historical pseudo startup remains the generic
+  SCRIMP default for unrelated models.
+- `sandbox/viscous_swe_2d_mpi.py` now uses the above BDF2
+  initialization by default, `dt=1e-9`, start `-1e-9`,
+  target `0`, one step. Keep existing main ARKIMEX-A2
+  and `--adapt-type` choice unchanged.
+- Added explicit checks: positive TS convergence reason,
+  final initial time numerically t0, and finite norm with
+  `||z_final|| <= 100*max(1,||z_initial||)`. The norm guard
+  is **diagnostic and model-specific**; it catches previous
+  `1e24` blow-ups but is not proof of DAE consistency or
+  physical height positivity.
+- `SCRIMP_INIT_PC_TYPE` alternative remains available
+  for isolating native MPI LU errors. The default uses MUMPS.
+
+**Next two short tests (original `scrimp` environment only):**
+
+```bash
+git pull --ff-only
+conda activate scrimp
+
+for n in 1 2; do
+  SCRIMP_GETFEM_RHS_MODE=divide_by_mpi_size \
+  SCRIMP_MPI_TRACE=1 PYTHONFAULTHANDLER=1 \
+  timeout -k 5s 120s mpiexec -n "$n" \
+    python -u sandbox/viscous_swe_2d_mpi.py \
+      --case open --mesh 0.2 \
+      --final-time 0.006 --save-dt 0.002 --max-step 0.002 \
+      --ts-type arkimex --adapt-type none \
+      --output-dir "sandbox/outputs/swe_bdf2init_${n}rank" \
+    > "swe_bdf2init_${n}rank.log" 2>&1
+  echo "MPI=$n exit=$?"
+  grep -E 'Initial consistency:|init_step: consistency TS completed|main TS completed|MUMPS|Instance Error|Initial BDF2|RuntimeError|maximum_relative_balance_error' \
+    "swe_bdf2init_${n}rank.log" | tail -n 25
+  tail -n 25 "swe_bdf2init_${n}rank.log"
+done
+```
+
+**Interpretation gates:** If the initialization converges and produces
+a bounded state on one rank, re-evaluate energy, dissipation and
+boundary supply: **the relative power-balance defect should become
+small on a truly valid solution**, and all quantities should remain
+finite. Verify whether the 2-rank MUMPS Instance Error persists:
+this failure occurred **even without any pseudo-TS**, so the new
+initializer cannot be presumed to resolve it. If BDF2 fails to
+initialize, do NOT simply increase the norm guard or force a
+success. Analyse algebraic constraints, `h*p` temporal brick
+semantics and physical consistency of the initial conditions.
+
+This change remains only on feature branch PR #22. No master merge,
+issue #6 closure, or release tag pending physical and MPI validation.
