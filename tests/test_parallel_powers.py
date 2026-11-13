@@ -9,13 +9,15 @@
 """Regression tests for rank-safe Hamiltonian/power plotting (issue #6)."""
 
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 import numpy as np
 
 import scrimp.dphs as dphs_module
 from scrimp.dphs import DPHS
 from scrimp.hamiltonian import Hamiltonian
+from scrimp.port import Port
+import scrimp.port as port_module
 
 
 class TestParallelPowerPlot(unittest.TestCase):
@@ -53,6 +55,35 @@ class TestParallelPowerPlot(unittest.TestCase):
                      patch.object(DPHS, "plot_powers", autospec=True) as plot_powers:
                     self.system.plot_Hamiltonian(with_powers=False)
                     plot_powers.assert_not_called()
+
+
+class TestPortPowerAssembly(unittest.TestCase):
+    def test_getfem_time_is_synchronized_for_each_power_sample(self):
+        port = Port("test", "f", "e", "scalar-field",
+                    algebraic=True, substituted=False)
+        model = MagicMock()
+        domain = MagicMock()
+        domain._int_method = {0: "integration"}
+        solution = {
+            "t": [0.0, 0.1, 0.2],
+            "z": [
+                np.array([0.0, 2.0]),
+                np.array([2.0, 4.0]),
+                np.array([4.0, 6.0]),
+            ],
+        }
+        with patch.object(port_module.gf, "asm", side_effect=[1.0, 2.0, 3.0]):
+            port.compute(solution, model, domain)
+
+        self.assertEqual(model.set_time.call_args_list,
+                         [call(0.0), call(0.1), call(0.2)])
+        np.testing.assert_array_equal(
+            model.to_variables.call_args_list[1].args[0], [1.0, 3.0]
+        )
+        np.testing.assert_array_equal(
+            model.to_variables.call_args_list[2].args[0], [3.0, 5.0]
+        )
+        self.assertEqual(port.get_power(), [1.0, 2.0, 3.0])
 
 
 if __name__ == "__main__":
