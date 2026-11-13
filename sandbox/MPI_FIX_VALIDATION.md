@@ -1329,3 +1329,94 @@ and/or another consistent DAE treatment.
 
 **No further MUMPS upgrades or merges on this evidence alone.**
 Keep issue #6 open, PR #22 draft and SCRIMP master unchanged.
+
+
+## 2026-11-13 — Direct GetFEM residual removes serial FD mismatch; mass Hessian isolated
+
+**User-verified**, with the sandbox-only direct residual
+`--residual-form direct_getfem` on the full nonlinear SWE model,
+3300 DOFs, `epsilon=1e-5`:
+
+| State derivative | MPI=1 | MPI=2 (sandbox RHS scale=0.5) |
+| --- | ---: | ---: |
+| `zd=0, shift=0` relative FD error | **6.48666598e-12** | **6.48666598e-12** |
+| `zd=0, shift=1` relative FD error | **6.47095289e-12** | **6.47095289e-12** |
+| `zd!=0, shift=0` relative FD error | **0.00199208730** | **0.00199208730** |
+| `zd!=0, shift=1` relative FD error | **0.00198726742** | **0.00198726742** |
+
+The existing production `IFunction` with state-dependent mass
+uses `M(z)zd + K_tangent(z)z + rhs_GetFEM(z)`. The diagnostic
+replaces it **only inside the probe** with
+`M(z)zd + K_linear z - rhs_GetFEM(z)` (using the observed
+GetFEM weak-form sign convention). The latter derivative matches
+the existing `IJacobian` to ~`6.5e-12` for `zd=0` at 1 and
+2 MPI ranks. The known factor-of-two raw GetFEM RHS at two ranks
+is compensated by `--rhs-scale=0.5` inside the probe only.
+
+For `zd!=0`, the discrepancy **0.0006227200101** is confined
+to the `p` equation block, in the nonlinear mass brick
+`h*p.Test_p` marked `dt=True`. These observations precisely
+support a missing `(D_z M(z)[v])zd` contribution in `IJacobian`
+and do NOT suggest a remaining error in the `U` boundary equation
+after fixing residual evaluation.
+
+### Experimental numerical test of the missing mass Hessian
+
+For a smooth GetFEM flow primitive `Q(z)`, with
+`M(z)=D Q(z)`, the time part of the SCRIMP residual is
+`M(z)zd`. Its state derivative is
+`D M(z)[v] zd = D M(z)[zd] v` by symmetry of the
+second Fréchet derivative `D²Q`. Thus the missing **assembled
+matrix** can be diagnosed with just two nonlinear mass tangent
+assemblies at `z±eta*zd`:
+
+```text
+C(z,zd) = [M(z+eta*zd) - M(z-eta*zd)] / (2*eta)
+J_corrected = J_legacy + C(z,zd).
+```
+
+This formula is exact up to floating-point error for the
+bilinear `h*p.Test_p` brick, and is a second-order approximation
+for smooth higher-order GetFEM flow primitives.
+
+The FD audit now accepts **`--mass-jacobian finite_difference`**
+and **`--mass-epsilon 1e-4`**. This is entirely sandbox-local:
+it does NOT modify the production SCRIMP Jacobian. It also accepts
+`--zd-direction independent` (default), using an independent
+deterministic time derivative rather than `zd || v`, so the test
+checks genuinely off-axis Hessian terms. `--zd-direction aligned`
+reproduces the old `zd=11.0088*v` experiment.
+
+Run with the original GetFEM-enabled `scrimp` env:
+
+```bash
+git pull --ff-only
+conda activate scrimp
+for n in 1 2; do
+  scale=1.0
+  if [ "$n" = 2 ]; then scale=0.5; fi
+  timeout -k 5s 120s mpiexec -n "$n" \
+    python -u sandbox/check_swe_implicit_jacobian.py \
+      --mesh 0.2 --epsilon 1e-5 \
+      --residual-form direct_getfem \
+      --mass-jacobian finite_difference \
+      --zd-direction independent \
+      --rhs-scale "$scale" \
+    > "fd_direct_mass_${n}ranks.log" 2>&1
+  echo "MPI=$n; exit=$?"
+  tail -n 140 "fd_direct_mass_${n}ranks.log"
+done
+```
+
+Repeat with `--state-perturb 0.02` or `--epsilon 1e-4`
+to avoid overfitting to a single state/direction. The key criterion
+is a **small relative error in all four cases**, especially when
+`zd!=0`. This test is not a replacement for a rigorously assembled
+production Hessian: it is a diagnostic step to confirm the exact
+missing term before changing any generic DPHS behavior.
+
+**Warnings:** This check still does not validate the *intended*
+Saint-Venant PDE semantics (whether its `dt=True` brick should
+represent `d(hp)/dt` or `h dp/dt`), time integration success,
+energy/power conservation, or native MPI memory safety. Those are
+separate acceptance gates. No merge, release tag or issue closure.
