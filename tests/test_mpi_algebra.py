@@ -435,7 +435,7 @@ class TestMPIAlgebra(unittest.TestCase):
                 mat.destroy()
 
     def test_real_getfem_rhs_normalization_is_rank_independent(self):
-        """Opt-in RHS correction restores an exact nonlinear unit integral.
+        """Default MPI RHS correction restores an exact nonlinear integral.
 
         For N(u)=integral(u^2 Test_u), GetFEM's build_rhs at u=1 is
         -int_0^1(1 dx) = -1. On the tested GetFEM MPI-2 installation,
@@ -462,7 +462,7 @@ class TestMPIAlgebra(unittest.TestCase):
         system.rhs = rhs
         try:
             with patch.dict(os.environ, {
-                "SCRIMP_GETFEM_RHS_MODE": "divide_by_mpi_size",
+                "SCRIMP_GETFEM_RHS_MODE": "auto",
             }):
                 system.assemble_rhs()
                 self.assertAlmostEqual(
@@ -495,7 +495,13 @@ class TestMPIAlgebra(unittest.TestCase):
         system.gf_model = model
         system.rhs = rhs
         try:
-            system.assemble_rhs()
+            # Synthetic fake-model RHS is already an exact full copy.
+            # Normalization applies only to validated real GetFEM
+            # MPI-level-2 assemblies; raw retains this test's contract.
+            with patch.dict(os.environ, {
+                "SCRIMP_GETFEM_RHS_MODE": "raw",
+            }):
+                system.assemble_rhs()
             lo, hi = rhs.getOwnershipRange()
             np.testing.assert_allclose(
                 rhs.getArray(readonly=True),
