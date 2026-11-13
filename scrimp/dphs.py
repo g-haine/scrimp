@@ -920,9 +920,8 @@ class DPHS:
         A.setOption(PETSc.Mat.Option.FORCE_DIAGONAL_ENTRIES, True)
         A.setType("aij")
         A.setUp()
-        # Vec.setArray() replaces the vector's storage: passing scalar 0
-        # is not a valid way to initialize an MPI vector and may corrupt
-        # memory in native PETSc calls. Fill the existing distributed vector.
+        # Vec.setArray() expects an array of local values, not scalar 0.
+        # Vec.set(0.0) initializes the existing distributed vector safely.
         x = A.createVecLeft()
         x.set(0.0)
         A.setOption(PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR, False)
