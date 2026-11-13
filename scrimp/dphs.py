@@ -40,6 +40,14 @@ comm = PETSc.COMM_WORLD
 rank = comm.getRank()
 max_rank = comm.getSize()
 
+
+def _mpi_trace(stage):
+    """Emit per-rank milestones without adding MPI collectives/barriers."""
+    if os.environ.get("SCRIMP_MPI_TRACE") == "1":
+        print(f"[SCRIMP MPI {rank}/{max_rank}] {stage}",
+              file=sys.stderr, flush=True)
+
+
 import scrimp.utils.config
 outputs_path = scrimp.utils.config.outputs_path
 
@@ -624,12 +632,14 @@ class DPHS:
             if brick.get_dt() and brick.get_linear():
                 brick.enable_id_bricks(self.gf_model)
 
+        _mpi_trace("mass: before GetFEM build_matrix")
         self.gf_model.assembly(option="build_matrix")
-        
+        _mpi_trace("mass: before GetFEM -> PETSc conversion")
         convert_gmm_to_petsc(
             self.gf_model.tangent_matrix(),
             self.mass,
         )
+        _mpi_trace("mass: PETSc matrix assembled")
 
         self.disable_all_bricks()
 
@@ -651,12 +661,14 @@ class DPHS:
             if not brick.get_dt() and brick.get_linear():
                 brick.enable_id_bricks(self.gf_model)
 
+        _mpi_trace("stiffness: before GetFEM build_matrix")
         self.gf_model.assembly(option="build_matrix")
-        
+        _mpi_trace("stiffness: before GetFEM -> PETSc conversion")
         convert_gmm_to_petsc(
             self.gf_model.tangent_matrix(),
             self.stiffness,
         )
+        _mpi_trace("stiffness: PETSc matrix assembled")
 
         self.disable_all_bricks()
 
@@ -676,7 +688,9 @@ class DPHS:
             if not brick.get_dt() and not brick.get_linear():
                 brick.enable_id_bricks(self.gf_model)
 
+        _mpi_trace("rhs: before GetFEM build_rhs")
         self.gf_model.assembly(option="build_rhs")
+        _mpi_trace("rhs: before PETSc owned-row insertion")
         # GetFEM MPI-2 already sums and replicates the entire RHS on
         # every rank. Insert only PETSc-owned rows; never ADD these
         # replicated values, which would multiply them by the rank count.
@@ -692,6 +706,7 @@ class DPHS:
                 addv=PETSc.InsertMode.INSERT_VALUES,
             )
         self.rhs.assemble()
+        _mpi_trace("rhs: PETSc vector assembled")
 
         self.disable_all_bricks()
 
@@ -703,12 +718,14 @@ class DPHS:
             if brick.get_dt() and not brick.get_linear():
                 brick.enable_id_bricks(self.gf_model)
 
+        _mpi_trace("nl_mass: before GetFEM build_matrix")
         self.gf_model.assembly(option="build_matrix")
-        
+        _mpi_trace("nl_mass: before GetFEM -> PETSc conversion")
         convert_gmm_to_petsc(
             self.gf_model.tangent_matrix(),
             self.nl_mass,
         )
+        _mpi_trace("nl_mass: PETSc matrix assembled")
         self.tangent_mass = self.mass.copy()
         self.tangent_mass.axpy(1, self.nl_mass)
 
@@ -727,12 +744,14 @@ class DPHS:
             ):
                 brick.enable_id_bricks(self.gf_model)
 
+        _mpi_trace("nl_stiffness: before GetFEM build_matrix")
         self.gf_model.assembly(option="build_matrix")
-        
+        _mpi_trace("nl_stiffness: before GetFEM -> PETSc conversion")
         convert_gmm_to_petsc(
             self.gf_model.tangent_matrix(),
             self.nl_stiffness,
         )
+        _mpi_trace("nl_stiffness: PETSc matrix assembled")
         self.tangent_stiffness = self.stiffness.copy()
         self.tangent_stiffness.axpy(1, self.nl_stiffness)
 
