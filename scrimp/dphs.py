@@ -905,10 +905,18 @@ class DPHS:
         if not self.linear_stiffness:
             self.assemble_nl_stiffness()
 
+        # In a nonlinear PDE the sparsity pattern can change between
+        # Newton evaluations. P is created from the *initial* tangent
+        # and may therefore have a smaller pattern. MatCopy with
+        # SAME_NONZERO_PATTERN on matrices with different sparsity is
+        # explicitly unsafe in PETSc (and can crash). Likewise MatAXPY
+        # must not assume that M(z) has the same nonzeros as K(z).
+        structure = PETSc.Mat.Structure.DIFFERENT_NONZERO_PATTERN
         _mpi_trace("IJacobian: before tangent -> preconditioner copy")
-        self.tangent_stiffness.copy(P)
+        self.tangent_stiffness.copy(P, structure=structure)
+        _mpi_trace("IJacobian: after tangent -> preconditioner copy")
         _mpi_trace("IJacobian: before shift*mass AXPY")
-        P.axpy(sig, self.tangent_mass)
+        P.axpy(sig, self.tangent_mass, structure=structure)
         _mpi_trace("IJacobian: preconditioner assembled")
 
         if os.environ.get("SCRIMP_MPI_TRACE") == "1":
@@ -951,7 +959,7 @@ class DPHS:
             # matrices. Both must contain the actual Jacobian; assembling
             # an untouched A would leave the linear solver with stale data.
             _mpi_trace("IJacobian: copy preconditioner into distinct operator")
-            P.copy(A)
+            P.copy(A, structure=structure)
         _mpi_trace("IJacobian: completed")
 
     def init_matrix(self,A):
