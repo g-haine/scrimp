@@ -264,6 +264,12 @@ def main():
     parser.add_argument("--state-perturb", type=float, default=0.0,
                         help="Relative deterministic random state perturbation")
     parser.add_argument(
+        "--zd-direction", choices=("independent", "aligned"),
+        default="independent",
+        help="Independent velocity direction is a stronger mass-Hessian "
+             "test than the old velocity parallel to the FD direction",
+    )
+    parser.add_argument(
         "--residual-form", choices=("legacy", "direct_getfem"),
         default="legacy",
         help="DIAGNOSTIC ONLY: evaluate residual from GetFEM weak-form "
@@ -345,9 +351,17 @@ def main():
     vec_template = swe.J.createVecRight()
     z = from_global_array(vec_template, global_z)
     direction = from_global_array(vec_template, direction_values)
+    if args.zd_direction == "aligned":
+        zd_direction = direction_values
+    else:
+        # Preserve the original FD test direction for comparison, but
+        # use an INDEPENDENT time-derivative vector to check the full
+        # bilinear state-dependent mass Hessian, not just its diagonal.
+        zd_direction = rng.standard_normal(n)
+        zd_direction /= np.linalg.norm(zd_direction)
     nonzero_zd = from_global_array(
         vec_template, 0.1 * max(np.linalg.norm(global_z), 1.0)
-        * direction_values,
+        * zd_direction,
     )
     zero_zd = vec_template.duplicate()
     zero_zd.set(0.0)
@@ -378,6 +392,7 @@ def main():
                 "diagnostic_residual_form": args.residual_form,
                 "diagnostic_mass_jacobian": args.mass_jacobian,
                 "diagnostic_mass_epsilon": args.mass_epsilon,
+                "zd_direction": args.zd_direction,
                 "results": results,
             }, indent=2), flush=True)
 
