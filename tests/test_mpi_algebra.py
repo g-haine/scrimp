@@ -204,6 +204,38 @@ class TestMPIAlgebra(unittest.TestCase):
         finally:
             mat.destroy()
 
+    def test_init_matrix_preserves_distributed_vector_storage(self):
+        """Preallocating the diagonal must never replace a Vec's buffer.
+
+        Regression for DPHS.init_matrix using Vec.setArray(0), which is
+        an invalid way to fill the distributed PETSc vector with zero.
+        Repeatedly initialize, assemble, then use a PETSc-owned vector.
+        """
+        system = object.__new__(DPHS)
+        system.gf_model = SimpleNamespace(nbdof=lambda: N)
+        for _ in range(4):
+            matrix = PETSc.Mat().create(comm=COMM)
+            try:
+                system.init_matrix(matrix)
+                self.assertEqual(matrix.getSize(), (N, N))
+                diag = matrix.getDiagonal()
+                try:
+                    lo, hi = diag.getOwnershipRange()
+                    self.assertEqual(len(diag.getArray(readonly=True)), hi-lo)
+                    np.testing.assert_allclose(diag.getArray(readonly=True), 0.0)
+                finally:
+                    diag.destroy()
+                x, y = matrix.createVecRight(), matrix.createVecLeft()
+                try:
+                    x.set(1.0)
+                    matrix.mult(x, y)
+                    np.testing.assert_allclose(y.getArray(readonly=True), 0.0)
+                finally:
+                    x.destroy()
+                    y.destroy()
+            finally:
+                matrix.destroy()
+
     def test_distinct_operator_and_preconditioner_get_same_jacobian(self):
         """TS's distinct A/P matrices must both receive J=K+shift*M."""
         def diagonal_matrix(value):
