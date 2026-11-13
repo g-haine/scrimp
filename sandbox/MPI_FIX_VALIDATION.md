@@ -321,3 +321,80 @@ stiffness mode flapping observed in the latest Saint-Venant log.
 Both the new nonlinear test and the separate A/P Jacobian test remain
 **unvalidated in the user's environment**. Syntax CI alone is not
 sufficient to mark this gate complete.
+
+## 2026-11-13 — Seven algebra tests pass; pseudo-TS aborts with allocator corruption
+
+User supplied complete results for the revised suite:
+- 1 rank: **7/7 OK**.
+- 2 ranks: **7/7 OK** on *both* processes.
+- 4 ranks: **7/7 OK** on *all four* processes.
+- The real GetFEM MPI-2 mass test, the nonlinear tangent reassembly test,
+  and the distinct PETSc A/P test all pass.
+
+The subsequent open-loop Saint-Venant smoke exited **134 / SIGABRT**:
+```text
+IJacobian: completed                  # on BOTH ranks
+malloc(): largebin double linked list corrupted (nextsize)
+Fatal Python error: Aborted
+  ... dphs.py, in init_step
+```
+At the last Jacobian callback, `P` was 3300×3300, with **zero
+nonfinite matrix entries** on either rank; zero *diagonal* entries:
+**132 on rank 0**, **0 on rank 1**. These diagonal zeros do **not**
+prove singularity for a mixed saddle-point system. We must determine
+whether any **entire numerical rows** are zero and identify their
+variables. The fault is detected by the native memory allocator
+**after** `IJacobian` returned, inside PETSc's pseudo-TS stage. The
+native origin of corruption remains unknown.
+
+### Additional targeted fix and diagnostic
+
+The code review found `DPHS.init_matrix` initializing a PETSc vector
+through `x.setArray(0)` — `Vec.setArray` expects a local-value
+array, not a scalar. It now uses `x.set(0.0)`, creates the left
+distributed vector (matching matrix rows), and explicitly destroys it
+after setting/assembling the zero diagonal. This is a **plausible**
+memory-corruption cause, **not yet demonstrated** as the culprit.
+
+A new regression `test_init_matrix_preserves_distributed_vector_storage`
+initializes matrices repeatedly and checks that they remain valid on
+the relevant MPI layout. The MPI suite now has **8 tests**; the new
+one has not yet been run.
+
+With `SCRIMP_MPI_TRACE=1`, `IJacobian` additionally prints counts
+and global index samples of **whole zero rows**, alongside zero
+diagonal counts, to distinguish missing equations from expected
+saddle-point structure.
+
+**Next run (do not skip the tests):**
+
+```bash
+git pull --ff-only
+
+for n in 1 2 4; do
+  timeout -k 5s 45s mpiexec -n "$n" \
+    python -u -m unittest -v tests.test_mpi_algebra || break
+done
+```
+
+If all **8** tests pass:
+
+```bash
+PYTHONFAULTHANDLER=1 SCRIMP_MPI_TRACE=1 \
+timeout -k 5s 120s mpiexec -n 2 \
+  python -u sandbox/viscous_swe_2d_mpi.py \
+    --case open --mesh 0.2 --final-time 0.5 \
+    --save-dt 0.1 --max-step 0.01 \
+  > mpi_open_2ranks.log 2>&1
+
+echo "exit=$?"
+tail -n 100 mpi_open_2ranks.log
+```
+
+If still exit 134/139, obtain a **native** GDB backtrace on the
+crashing rank (see earlier instructions in this file). A Python
+faulthandler frame at `TS.solve` does not identify the native
+offending routine. Then run the **one-rank** smoke, followed by a
+two-rank `--no-init-step` diagnostic run if needed; do not interpret
+that latter run as physically valid.
+
