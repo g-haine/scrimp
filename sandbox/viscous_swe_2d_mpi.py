@@ -57,7 +57,8 @@ def ramp_expression(start=75.0, end=200.0):
 
 
 def build_system(gamma, mesh, final_time, save_dt, max_step,
-                 ramp_start=75.0, ramp_end=200.0, init_step=True):
+                 ramp_start=75.0, ramp_end=200.0, init_step=True,
+                 ts_type="arkimex", adapt_type="basic"):
     if gamma not in (0.0, 0.25):
         raise ValueError("gamma must be 0.0 (open) or 0.25 (closed)")
     if mesh <= 0 or final_time <= 0 or save_dt <= 0 or max_step <= 0:
@@ -170,10 +171,12 @@ def build_system(gamma, mesh, final_time, save_dt, max_step,
         f" {RHO*ROTATION}*x/({radius}+{eps})]",
     )
 
-    # PETSc ARKIMEX A2 is the TR-BDF2-type second-order DIRK scheme
-    # used in the published computation; MUMPS supports MPI factorization.
-    swe.set_time_scheme(
-        ts_type="arkimex", ts_arkimex_type="a2",
+    # Keep the paper-inspired ARKIMEX-A2 setting as the baseline.
+    # Distinguish truncation-error rejections from a truly failed
+    # nonlinear solve with TSAdapt 'none', i.e. diagnostic fixed steps.
+    # A fixed-step run is NOT a physical/accuracy validation.
+    time_scheme = dict(
+        ts_type=ts_type, ts_adapt_type=adapt_type,
         ksp_type="preonly", pc_type="lu", pc_factor_mat_solver_type="mumps",
         t_0=0.0, t_f=final_time, dt=max_step,
         dt_save=save_dt, ts_adapt_dt_max=max_step,
@@ -181,6 +184,11 @@ def build_system(gamma, mesh, final_time, save_dt, max_step,
         init_step=init_step, init_step_nb_iter=2,
         init_step_ts_type="pseudo", init_step_dt=1e-9,
     )
+    if ts_type == "arkimex":
+        time_scheme["ts_arkimex_type"] = "a2"
+    elif ts_type == "bdf":
+        time_scheme["ts_bdf_order"] = 2
+    swe.set_time_scheme(**time_scheme)
     return swe
 
 
@@ -306,6 +314,20 @@ def main():
     parser.add_argument("--output-dir", type=Path, default=None)
     parser.add_argument("--no-init-step", action="store_true",
                         help="Diagnostic only: bypass pseudo-TS initial consistency solve")
+    parser.add_argument(
+        "--ts-type", choices=("arkimex", "cn", "bdf"),
+        default="arkimex",
+        help="PETSc time integrator; default ARKIMEX-A2",
+    )
+    parser.add_argument(
+        "--adapt-type", choices=("basic", "none"),
+        default="basic",
+        help="PETSc TSAdapt algorithm; 'none' tests fixed-step behavior",
+    )
+    parser.add_argument(
+        "--petsc-monitor", action="store_true",
+        help="Enable PETSc TSAdapt/SNES/KSP convergence logging",
+    )
     parser.add_argument("--ramp-start", type=float, default=75.0)
     parser.add_argument("--ramp-end", type=float, default=200.0)
     args = parser.parse_args()
@@ -318,10 +340,25 @@ def main():
         out.mkdir(parents=True, exist_ok=True)
     comm.barrier()
 
+    if rank == 0:
+        print(
+            "Saint-Venant diagnostic configuration: "
+            f"TS={args.ts_type}, TSAdapt={args.adapt_type}, "
+            f"pseudo_init={not args.no_init_step}, "
+            f"dt={args.max_step}, t_f={args.final_time}",
+            flush=True,
+        )
     swe = build_system(gamma, args.mesh, args.final_time,
                        args.save_dt, args.max_step,
                        args.ramp_start, args.ramp_end,
-                       init_step=not args.no_init_step)
+                       init_step=not args.no_init_step,
+                       ts_type=args.ts_type,
+                       adapt_type=args.adapt_type)
+    if args.petsc_monitor:
+        swe.set_time_scheme(
+            ts_monitor=True, ts_adapt_monitor=True,
+            snes_converged_reason=True, ksp_converged_reason=True,
+        )
     swe.solve()
     # SCRIMP currently allows its TS event handler to stop on minimum
     # timestep without raising.  Exit code 0 must not be interpreted as a
