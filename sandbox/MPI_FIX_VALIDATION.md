@@ -1165,3 +1165,73 @@ and the ~6.8% serial SWE residual/Jacobian mismatch are separate
 blockers. A MUMPS upgrade by itself cannot fix either. No merge,
 release or issue closure until physical balance, successful t_f,
 MPI parity and native robustness are all demonstrated.
+
+
+## 2026-11-13 — Both actual SWE Jacobians replay successfully on both MUMPS versions
+
+The user replayed `jac_002.petscbin` at 2 ranks on:
+- **Old:** MPICH 4.3.1, PETSc 3.21.6, MUMPS 5.7.3.
+- **New:** MPICH 5.0.1, PETSc 3.25.5, MUMPS 5.8.2.
+
+As for `jac_001`, **both** environments loaded `jac_002`
+identically (`3300x3300`, Frobenius norm **1304526700.41**,
+`||b=A*ones||=2.08510766e9`) and completed all **three**
+fresh KSP_PREONLY + PCLU/MUMPS factor/solve/reset/destroy cycles
+on **both ranks**, exit code **0**, converged reason=4.
+
+**Strong outcome:** Neither the first nor second captured SWE
+Jacobian independently causes a fault in old MUMPS 5.7.3, even when
+factored and destroyed repeatedly. Upgrading MUMPS is **not**
+experimentally demonstrated as a crash fix. The original full
+2-rank SWE (with the GetFEM assembly, evolving Newton state,
+TS/SNES/KSP object ownership) still SIGSEGVs after the second
+`IJacobian`.
+
+### Stronger lifecycle isolation: persistent KSP, mutable Mat, changing sparsity
+
+The existing PETSc-only replay has a new `--next-matrix` mode.
+It loads BOTH snapshots, creates **one persistent KSP/PCLU/MUMPS**
+and **one mutable MPIAIJ Mat**, then alternately copies each
+captured matrix *into the same Mat handle* using
+`MatCopy(..., DIFFERENT_NONZERO_PATTERN)`. The KSP is **not reset
+between Newton-like steps**. Each RHS is constructed consistently
+as `b=A*ones`; the script checks convergence and a true linear
+residual. Only after the sequence does it call `KSP.reset()`
+and `KSP.destroy()`, the same native factor teardown implicated
+in the original GDB stack. It still does NOT instantiate TS/SNES
+or perform any GetFEM assembly.
+
+Run from the repository directory, using the already captured files:
+
+```bash
+git pull --ff-only
+
+FIRST=sandbox/outputs/mumps_ab/jac_001.petscbin
+SECOND=sandbox/outputs/mumps_ab/jac_002.petscbin
+for env in scrimp scrimp-mumps-test; do
+  conda activate "$env"
+  timeout -k 5s 90s mpiexec -n 2 \
+    python -u sandbox/replay_petsc_mumps_snapshot.py \
+      --matrix "$FIRST" --next-matrix "$SECOND" --cycles 6 \
+    > "mumps_persistent_${env}.log" 2>&1
+  echo "${env} persistent KSP exit=$?"
+  tail -n 65 "mumps_persistent_${env}.log"
+done
+```
+
+Interpret `--cycles 6` as SIX successive factorizations/solves
+(`001,002,001,002,001,002`) **inside the same KSP/PC**.
+The logs show whether failure occurs in `MatCopy`,
+`KSP.solve` or final `KSP.reset`. If both pass, the
+next suspect is the TS/SNES lifecycle or earlier corruption
+during GetFEM/sCRIMP callbacks, NOT the intrinsic ability of
+MUMPS 5.7.3 to factor the captured matrices. A new PETSc-only
+TS/SNES lifecycle reproducer and a consistent nonlinear residual
+check would then be a better next step than further MUMPS version
+changes.
+
+**Caution:** The driver uses a manufactured consistent RHS for
+linear algebra testing; it cannot validate the physical SWE
+residual, implicit Jacobian derivative or power balance.
+The source-version smoke still exits 139; do not merge PR #22,
+close #6 or tag v1.2.1 on the basis of these native tests.
