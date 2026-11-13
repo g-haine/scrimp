@@ -748,16 +748,32 @@ class DPHS:
                 f"Linear stiffness matrix assembly done in {time.perf_counter() - start:1.4g}s"
             )
 
-    def assemble_rhs(self):
-        """This function performs the assembly of the rhs and set the PETSc.Vec attribute `rhs`"""
+    def assemble_rhs(self, source_only=False):
+        """Assemble the GetFEM RHS into the owned PETSc entries.
+
+        GetFEM's model.rhs() mixes two DIFFERENT signs:
+        * generic nonlinear weak terms N(z): rhs = -N(z);
+        * add_source_term_brick prescribed forcing S(t): rhs = +S(t).
+
+        The direct IFunction must therefore use -rhs_total + 2*rhs_source
+        to recover N(z)+S(t), including controls such as -U+U_given=0.
+        The historical +rhs convention happened to handle prescribed
+        controls, but is not a general nonlinear weak-form residual.
+        The isolated source-sign reproducer is
+        sandbox/check_mcss_source_sign.py (MCSS2024).
+        """
 
         for _, brick in self.bricks.items():
-            # Enable the bricks that are in 'source' position
-            if brick.get_position() == "source" or brick.get_explicit():
-                brick.enable_id_bricks(self.gf_model)
-            # And the non-linear ones (and not dt of course)
-            if not brick.get_dt() and not brick.get_linear():
-                brick.enable_id_bricks(self.gf_model)
+            if source_only:
+                if brick.get_position() == "source":
+                    brick.enable_id_bricks(self.gf_model)
+            else:
+                # Source terms contribute positively to GetFEM rhs,
+                # nonlinear weak forms contribute negatively.
+                if brick.get_position() == "source" or brick.get_explicit():
+                    brick.enable_id_bricks(self.gf_model)
+                if not brick.get_dt() and not brick.get_linear():
+                    brick.enable_id_bricks(self.gf_model)
 
         _mpi_trace("rhs: before GetFEM build_rhs")
         self.gf_model.assembly(option="build_rhs")
@@ -1033,6 +1049,17 @@ class DPHS:
             mass_matrix.mult(zd, self.buffer)
             self.stiffness.multAdd(z, self.buffer, F)
             F.axpy(-1, self.rhs)
+            if any(
+                brick.get_position() == "source"
+                for brick in self.bricks.values()
+            ):
+                # The full RHS is (-N + S). Subtracting it would make
+                # the source -S. Restore the *positive* prescribed
+                # source contribution: -(-N+S) + 2*S = N+S.
+                # The source-only assembly uses the same explicit
+                # per-installation MPI RHS normalization as the full one.
+                self.assemble_rhs(source_only=True)
+                F.axpy(2, self.rhs)
         elif self.lumped_variables and self.linear_mass:
             # GetFEM's build_rhs returns MINUS the nonlinear weak-form
             # residual (plus source contributions).  Its nonlinear tangent
@@ -1048,6 +1075,12 @@ class DPHS:
             self.mass.mult(zd, self.buffer)
             self.stiffness.multAdd(z, self.buffer, F)
             F.axpy(-1, self.rhs)
+            if any(
+                brick.get_position() == "source"
+                for brick in self.bricks.values()
+            ):
+                self.assemble_rhs(source_only=True)
+                F.axpy(2, self.rhs)
         else:
             # Legacy reproduction for historical scripts; use only
             # to investigate older results, not for correct Newton.
