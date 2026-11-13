@@ -78,6 +78,16 @@ def report(swe, z, zd, direction, shift, epsilon):
     J = swe.J
     swe.IJacobian(None, 0.0, z, zd, shift, J, J)
 
+    # Check the distributed PETSc Vec -> replicated GetFEM trial-state
+    # scatter: errors here corrupt both nonlinear RHS and tangent assembly.
+    mpi = MPI.COMM_WORLD
+    global_trial = np.concatenate(
+        mpi.allgather(z.getArray(readonly=True).real.copy())
+    )
+    getfem_trial = np.asarray(swe.gf_model.from_variables()).real.ravel()
+    state_scatter_error = float(np.linalg.norm(getfem_trial - global_trial))
+    state_scatter_errors = mpi.allgather(state_scatter_error)
+
     jv = direction.duplicate()
     J.mult(direction, jv)
     # Snapshot the *true* nonlinear GetFEM tangent action at the base
@@ -173,6 +183,7 @@ def report(swe, z, zd, direction, shift, epsilon):
             "getfem_rhs_derivative_vs_minus_nonlinear_tangent_relative":
                 gf_rhs_derivative_vs_tangent,
             "getfem_rhs_rank_signatures": rhs_signatures,
+            "petsc_to_getfem_state_scatter_error_by_rank": state_scatter_errors,
         }
     finally:
         for obj in (jv, nl_action, zplus, zminus, zdplus, zdminus, fplus, fminus):
