@@ -1599,6 +1599,16 @@ class DPHS:
         
         _mpi_trace("solve: before main TS.solve")
         TS.solve(InitVec)
+        # The stored solution samples depend on dt_save and the monitor.
+        # Their last timestamp need NOT equal the actual PETSc TS end
+        # time (e.g. steps at 0.0001, 0.0003 with dt_save=0.0001).
+        # Keep the solver's authoritative convergence metadata BEFORE
+        # TS.reset()/destroy(), for caller-side numerical acceptance.
+        self.last_ts_time = float(TS.getTime())
+        self.last_ts_converged_reason = int(TS.getConvergedReason())
+        self.last_ts_steps = int(TS.getStepNumber())
+        self.last_ts_rejections = int(TS.getStepRejections())
+        self.last_ts_snes_failures = int(TS.getSNESFailures())
         _mpi_trace(
             "solve: main TS completed: type={}, reason={}, "
             "t={:.9g}, dt={:.9g}, steps={}, rejected={}, "
