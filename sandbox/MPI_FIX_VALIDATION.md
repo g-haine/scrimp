@@ -1688,3 +1688,54 @@ is a compatibility correction, not proof of an upstream bug
 nor a fully generic fix for explicit RHS and constraints.
 Do not remove it or replace it with a single unconditional
 division without resolving these model-specific semantics.
+
+## 2026-11-13 — Scope decision: defer GetFEM MPI root cause to #23
+
+The user requested to **prioritize completion of 2D Saint-Venant now**.
+A separate tracking issue **#23** contains the exact 1D MPI
+reproducer (1/2/4 ranks), fully identical per-rank raw CSR tangents,
+`build_rhs` versus `build_all` comparison, official GetFEM
+MPI partitioning documentation and community research. The GetFEM
+upstream partition/build root cause is **not a release gate for the
+present Saint-Venant study** provided the calibrated normalization is
+validated for its actual bricks and the full physical/temporal
+acceptance checks pass.
+
+**For this exact tested local GetFEM 5.4.2 build**, use the explicit
+`SCRIMP_GETFEM_RHS_MODE=divide_by_mpi_size` override during the
+Saint-Venant smoke and subsequent runs. This is an intentional
+workaround for issue #23, *not a global assertion that all replicated
+GetFEM RHS vectors must be divided*. The generic default remains
+`auto` (calibrates against an exact integral).
+
+### Next: run actual corrected Saint-Venant time integrator
+
+```bash
+git pull --ff-only
+conda activate scrimp
+
+for n in 1 2; do
+    echo "====== SWE MPI ${n} ======"
+    SCRIMP_GETFEM_RHS_MODE=divide_by_mpi_size \
+    PYTHONFAULTHANDLER=1 \
+    timeout -k 5s 120s mpiexec -n "$n" \
+      python -u sandbox/viscous_swe_2d_mpi.py \
+        --case open --mesh 0.2 \
+        --final-time 0.05 --save-dt 0.01 --max-step 0.002 \
+        --output-dir "sandbox/outputs/swe_corrected_${n}rank" \
+      > "swe_corrected_${n}rank.log" 2>&1
+    echo "MPI=${n} exit=$?"
+    tail -n 60 "swe_corrected_${n}rank.log"
+done
+```
+
+**Acceptance criteria**: no SIGSEGV or native heap failure; actually
+reach `t_f=0.05` (the script explicitly raises otherwise);
+consistent state/Hamiltonian and dissipation/port-work balance;
+1-versus-2 MPI parity. Zero exit code **alone** is not sufficient,
+and an early TS stop is a failure. Do not merge into master, tag a
+release, or close #6 until these criteria and more demanding full
+runs are met. If the first run still fails, use its log to
+identify whether the failure is a Newton divergence, PETSc TS
+failure, or native corruption. **Do not reopen #23** unless the
+normalization is demonstrably wrong for these real SWE bricks.
