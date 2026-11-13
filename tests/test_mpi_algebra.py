@@ -477,8 +477,16 @@ class TestMPIAlgebra(unittest.TestCase):
                 "SCRIMP_GETFEM_RHS_MODE": "raw",
             }):
                 system.assemble_rhs()
-                self.assertAlmostEqual(
-                    float(np.real(rhs.sum())), -float(SIZE), places=9
+                # Depending on the GetFEM build, raw MPI-2 generic
+                # assembly is either correctly reduced (factor 1)
+                # or over-summed (factor P). Auto must correct both.
+                observed = -float(np.real(rhs.sum()))
+                self.assertTrue(
+                    np.isclose(observed, 1.0, rtol=1e-8, atol=1e-8)
+                    or np.isclose(
+                        observed, SIZE, rtol=1e-8, atol=1e-8
+                    ),
+                    f"Unexpected raw GetFEM RHS integral: {observed}",
                 )
         finally:
             rhs.destroy()
