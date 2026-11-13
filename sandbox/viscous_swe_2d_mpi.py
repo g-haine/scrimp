@@ -327,8 +327,11 @@ def main():
     # timestep without raising.  Exit code 0 must not be interpreted as a
     # successful PDE simulation if t_f was never reached (observed: only
     # 1e-8 of the requested 0.5 seconds, with huge power-balance defect).
-    reached = float(swe.solution["t"][-1]) if swe.solution["t"] else float("-inf")
-    if reached < args.final_time - 1e-10 * max(1.0, abs(args.final_time)):
+    recorded_times = np.asarray(swe.solution["t"], dtype=float)
+    reached = float(recorded_times[-1]) if recorded_times.size else float("-inf")
+    if not np.isfinite(reached) or (
+        reached < args.final_time - 1e-10 * max(1.0, abs(args.final_time))
+    ):
         raise RuntimeError(
             f"Saint-Venant integration stopped at t={reached:.9g}, "
             f"before requested t_f={args.final_time:.9g}. "
