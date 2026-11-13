@@ -101,6 +101,58 @@ power balance. For a credible release, the same discretization must
 produce consistent results within numerical tolerances independently
 of MPI size.
 
+## 2026-11-13 — Real GetFEM test exposed MPI double-counting
+
+The first user run of `test_real_getfem_mpi2_mass_matrix_is_rank_independent`
+reported the **exact** real physical result on one rank
+(`1^T M 1 = 1`) but **twice** the expected value with two ranks
+(`1^T M 1 = 2`). The test never reached four ranks because the
+loop stops on the first failed rank count.
+
+This invalidates the prior assumption that every matrix exposed by
+`gf.Model.tangent_matrix()` through Python necessarily carries
+different rank-local partial contributions. The real mass test and the
+equal coefficient counts on rank 0/1 are compatible with a **replicated
+matrix** for the tested brick. GetFEM's general MPI-2 documentation
+still describes partial *internal* matrix contributions; the Python
+interface / specific brick may expose different semantics. We must
+not conflate those contracts.
+
+The converter now explicitly distinguishes two cases:
+
+- **Replicated**: every rank holds an exactly identical matrix. PETSc
+  inserts only rows locally owned by that rank with INSERT_VALUES.
+- **Distributed**: ranks have different contributions; PETSc sums
+  global-index entries with ADD_VALUES.
+
+The default `SCRIMP_GETFEM_MATRIX_MODE=auto` selects between them
+using a collective comparison of exact CSR signatures, without
+gathering full matrices. Override it to `replicated` or `distributed`
+if the representation is known. **Important caveat:** identical
+rank-local partial matrices would be indistinguishable from replicas
+by this heuristic; the automatic mode requires wider validation
+before production use. We have deliberately not divided entries by
+the MPI size.
+
+The synthetic matrix tests have also been adjusted to separately
+exercise genuinely distinct partial matrices (including a shared
+row) and fully replicated matrices. The test suite now has **five**
+tests; the two new branches and the revised real mass test have **not
+yet been executed** on the user's machine.
+
+**Run this first; do not rerun Saint-Venant if this test fails:**
+
+```bash
+git fetch origin
+git switch fix/issue-6-parallel-powers-saint-venant-2d
+git pull --ff-only
+for n in 1 2 4; do
+  echo "MPI ranks = $n"
+  timeout -k 5s 45s mpiexec -n "$n" \
+    python -u -m unittest -v tests.test_mpi_algebra || break
+done
+```
+
 ## Observed SIGSEGV after synthetic tests passed (2026-11-13)
 
 The user confirmed the **three original synthetic tests pass** with 1, 2
