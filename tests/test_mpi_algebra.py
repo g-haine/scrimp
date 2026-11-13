@@ -18,6 +18,7 @@ and fully replicated GetFEM matrices with GLOBAL row/column numbering.
 The real-GetFEM test checks a physical mass integral with MPI level 2.
 """
 
+import os
 import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -69,7 +70,8 @@ class TestMPIAlgebra(unittest.TestCase):
         mat.setUp()
         fake = FakeGetFEMDistributedMatrix()
         try:
-            with patch.object(linalg.gf, "Spmat", return_value=fake):
+            with patch.dict(os.environ, {"SCRIMP_GETFEM_MATRIX_MODE": "distributed"}), \
+                    patch.object(linalg.gf, "Spmat", return_value=fake):
                 for _ in range(2):
                     # Reassembly must REPLACE old entries, not double the
                     # operator across Newton iterations.
@@ -102,7 +104,8 @@ class TestMPIAlgebra(unittest.TestCase):
         for k in range(N):
             fake.values[2*k:2*k+2] = (2.0, -1.0)
         try:
-            with patch.object(linalg.gf, "Spmat", return_value=fake):
+            with patch.dict(os.environ, {"SCRIMP_GETFEM_MATRIX_MODE": "replicated"}), \
+                    patch.object(linalg.gf, "Spmat", return_value=fake):
                 for _ in range(2):
                     linalg.convert_gmm_to_petsc(object(), mat)
                     x, y = mat.createVecRight(), mat.createVecLeft()
@@ -147,7 +150,8 @@ class TestMPIAlgebra(unittest.TestCase):
         mat.setUp()
         mat.setOption(PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR, False)
         try:
-            linalg.convert_gmm_to_petsc(model.tangent_matrix(), mat)
+            with patch.dict(os.environ, {"SCRIMP_GETFEM_MATRIX_MODE": "replicated"}):
+                linalg.convert_gmm_to_petsc(model.tangent_matrix(), mat)
             x, y = mat.createVecRight(), mat.createVecLeft()
             try:
                 x.set(1.0)
