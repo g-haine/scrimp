@@ -2064,3 +2064,72 @@ rather than forcing an ever smaller time step.
 **Do not merge PR #22** or claim physically correct
 energy balance. The native MPI MUMPS crash remains open;
 GetFEM MPI RHS root cause remains deferred to #23.
+
+
+## 2026-11-13 — Newton block trace regression in native GetFEM 5.4.2 (fixed)
+
+The user ran `--newton-block-trace` on one MPI rank and attached
+`swe_bdf2_blocks_1rank.log` (128 lines). The run **did not
+reach the first numerical Newton correction**: a new **bug in the
+diagnostic itself** caused Python to abort in the first
+`DPHS.IFunction` at BDF startup t=-5e-10:
+
+```text
+for name in self.gf_model.variable_list():
+TypeError: 'NoneType' object is not iterable
+```
+
+GetFEM 5.4.2's `Model.variable_list()` is a **print-only**
+command (it emitted the names/DOF sizes of 8 model variables
+followed by initialized data), and returns `None`. It must
+not be used as an iterable. No conclusion about BDF2
+initialization stability can be drawn from this run.
+
+**Fix in `scrimp/dphs.py`:**
+`_trace_newton_blocks` now enumerates registered SCRIMP
+`self.ports`, collecting each `port.get_flow()` and
+`port.get_effort()` once, and calls
+`gf_model.interval_of_variable(name)` to extract each
+registered **solver variable** slice. Substituted or
+otherwise absent variables are skipped. The existing global
+PETSc-to-GetFEM scatter provides the complete trial
+vector; the diagnostics remain **read-only, rank-0 only**
+and do not introduce extra MPI collectives or matrix
+assemblies.
+
+Added `test_newton_block_trace_uses_port_registry_not_getfem_variable_list`
+to `tests/test_mpi_algebra.py`, explicitly making the
+fake GetFEM `variable_list()` raise if called, and
+checking h min/max, individual flow/effort norms and
+de-duplication. Source CI completed; real GetFEM
+execution of this newly fixed diagnostic still awaits
+the user.
+
+Re-run **only the serial diagnostic** and inspect the
+first numerical correction before testing MPI or
+changing the initial timestep:
+
+```bash
+git pull --ff-only
+conda activate scrimp
+SCRIMP_GETFEM_RHS_MODE=divide_by_mpi_size \
+PYTHONFAULTHANDLER=1 \
+timeout -k 5s 45s mpiexec -n 1 \
+    python -u sandbox/viscous_swe_2d_mpi.py \
+    --case open --mesh 0.2 \
+    --final-time 0.006 --save-dt 0.002 --max-step 0.002 \
+    --ts-type arkimex --adapt-type none \
+    --newton-block-trace \
+    > swe_bdf2_blocks_1rank.log 2>&1
+echo "exit=$?"
+grep -E '\[SCRIMP Newton blocks\]|Initial consistency|MUMPS error' \
+    swe_bdf2_blocks_1rank.log | head -n 18
+tail -n 15 swe_bdf2_blocks_1rank.log
+```
+
+At the first `IFunction`, `h` should start at
+about 5 and `p` at 0.2. Focus on WHICH block
+jumps at the second `IFunction` and whether
+`h` turns negative. Do not interpret this
+diagnostic failure as an improvement or regression
+in the actual nonlinear solve.
