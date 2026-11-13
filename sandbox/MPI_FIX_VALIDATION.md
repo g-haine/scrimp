@@ -1044,3 +1044,124 @@ If the temporary `0.5` scaling returns the FD error to
 doubling; however the serial nonlinear residual/Jacobian mismatch
 is still *not fixed*. No claims of physical validity or native
 memory safety follow from this diagnostic.
+
+
+## 2026-11-13 — New MUMPS 5.8.2 / PETSc 3.25.5 / MPICH 5.0.1 environment
+
+The user created a coherent independent `scrimp-mumps-test` environment:
+
+| Library | Original `scrimp` | `scrimp-mumps-test` |
+| --- | --- | --- |
+| MPICH | 4.3.1 | 5.0.1 |
+| mpi4py | 4.1.0 | 4.1.2 |
+| MUMPS-MPI | 5.7.3 | 5.8.2 |
+| PETSc complex | 3.21.6 | 3.25.5 |
+| petsc4py | 3.21.6 | 3.25.5 |
+
+`sandbox/test_petsc_mumps_reset.py --solver mumps --cycles 10`
+was run in the NEW environment at **1, 2 and 4 MPI ranks**.
+Every process completed **all ten** solve/reset/destroy cycles
+without error. Thus the new native numeric stack is functional on
+the small tridiagonal benchmark. However, the ORIGINAL stack had
+already passed the same sort of benchmark at 1/2 ranks (3 cycles).
+So these results do **not** demonstrate that upgrading MUMPS fixes
+the real Saint-Venant native crash.
+
+A single-component `mumps-mpi=5.8.2` upgrade in the original env
+was UNSATISFIABLE: PETSc 3.21.6 was built with the explicit conda
+constraint `mumps-mpi >=5.7.3,<5.7.4`. The fresh environment
+necessarily changes PETSc and MPICH too; it is not an isolated
+MUMPS-only A/B experiment.
+
+### Next: capture the *real* Newton matrix in the original environment
+
+PETSc's `MatView` and `MatLoad` support collective binary
+storage/reload of MPIAIJ matrices, independent of GetFEM:
+https://petsc.org/main/manualpages/Mat/MatLoad/
+
+We added an **opt-in** hook in `DPHS.IJacobian()` to export
+assembled LU-preconditioner matrices **immediately before PETSc
+factorization** when the env var
+`SCRIMP_JACOBIAN_SNAPSHOT_PREFIX` is set. The hook automatically
+writes a bounded set of power-of-two callback snapshots (numbers
+1,2,4,8,16,32), stored as separate PETSc binary files. With the
+env var **unset**, production execution is unchanged.
+
+The snapshot captures the numerical operator, NOT the original
+TS/SNES/KSP object history, the Newton state, or prior native heap
+damage. A standalone replay cannot prove the full TS solver safe.
+
+**Capture using ORIGINAL `scrimp` (locally built MPI GetFEM):**
+
+```bash
+git pull --ff-only
+conda activate scrimp
+mkdir -p sandbox/outputs/mumps_ab
+
+SCRIMP_JACOBIAN_SNAPSHOT_PREFIX=sandbox/outputs/mumps_ab/jac \
+SCRIMP_MPI_TRACE=1 PYTHONFAULTHANDLER=1 \
+timeout -k 5s 120s mpiexec -n 2 \
+  python -u sandbox/viscous_swe_2d_mpi.py \
+    --case open --mesh 0.2 --final-time 0.5 \
+    --save-dt 0.1 --max-step 0.01 \
+  > mpi_original_mumps_snapshot.log 2>&1
+
+echo "original SWE exit=$?"
+ls -lh sandbox/outputs/mumps_ab/jac_*.petscbin
+tail -n 35 mpi_original_mumps_snapshot.log
+```
+
+A 139/134 failure here is **expected** from the unresolved bug.
+The important output is at least one complete binary matrix file
+and corresponding `snapshot ... written` lines on both ranks.
+
+**Replay one binary snapshot in BOTH environments using the
+same MPI size (2).** This script imports *only* PETSc; it does
+NOT need GetFEM, SCRIMP or Gmsh in the new environment.
+
+```bash
+MATRIX=sandbox/outputs/mumps_ab/jac_004.petscbin
+# If 004 doesn't exist, choose one file printed by ls (001/002/008).
+ls -lh "$MATRIX"
+
+for env in scrimp scrimp-mumps-test; do
+  conda activate "$env"
+  timeout -k 5s 90s mpiexec -n 2 \
+    python -u sandbox/replay_petsc_mumps_snapshot.py \
+      --matrix "$MATRIX" --cycles 3 \
+    > "mumps_replay_${env}.log" 2>&1
+  echo "${env} replay exit=$?"
+  tail -n 70 "mumps_replay_${env}.log"
+done
+```
+
+The replay prints `size`, `Frobenius`, and the norm of
+`b=A*ones`; these should agree across old/new environments.
+It then performs a fresh LU/MUMPS KSP setup, solve, reset and
+destroy in each cycle; compare native exit, PETSc errors and
+convergence reasons.
+
+If a snapshot fails to load because of an incompatible binary
+format, index-size setting or scalar-type mismatch, STOP and report
+the loader error; do not silently convert the file or infer a
+MUMPS defect. The current envs both use complex PETSc, but still
+verify the loaded norm before comparing solves.
+
+**Interpretation**:
+- Old replay crashes while new replay succeeds on the **same
+  matrix**: strong evidence the problem is in the native
+  PETSc/MUMPS/MPICH software stack, though not solely in MUMPS
+  since the three versions changed together.
+- Both replays succeed: the original crash likely depends on
+  stateful TS/SNES lifecycle, past nonlinear assemblies,
+  hidden heap damage, or a different Newton matrix snapshot.
+  Repeat on later snapshots (008/016/032) before concluding.
+- Both fail similarly: suspect a singular/unphysical Jacobian,
+  native numerical edge case, or a common PETSc/MUMPS failure
+  mode; compare PETSc diagnostics before drawing conclusions.
+
+The independent GetFEM MPI RHS multiplication-by-rank-count
+and the ~6.8% serial SWE residual/Jacobian mismatch are separate
+blockers. A MUMPS upgrade by itself cannot fix either. No merge,
+release or issue closure until physical balance, successful t_f,
+MPI parity and native robustness are all demonstrated.
