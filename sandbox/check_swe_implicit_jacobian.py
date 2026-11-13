@@ -203,15 +203,34 @@ def main():
     parser.add_argument("--epsilon", type=float, default=1e-5)
     parser.add_argument("--state-perturb", type=float, default=0.0,
                         help="Relative deterministic random state perturbation")
+    parser.add_argument(
+        "--rhs-scale", type=float, default=1.0,
+        help="DIAGNOSTIC ONLY: multiply PETSc RHS after GetFEM assembly; "
+             "use 0.5 at 2 ranks to test whether the observed factor-two "
+             "RHS bias fully explains the MPI finite-difference mismatch",
+    )
     parser.add_argument("--fail-above", type=float, default=None,
                         help="Optional maximum relative directional FD error")
     args = parser.parse_args()
-    if args.mesh <= 0 or args.epsilon <= 0 or args.state_perturb < 0:
-        parser.error("mesh and epsilon must be positive; perturb >= 0")
+    if (args.mesh <= 0 or args.epsilon <= 0
+            or args.state_perturb < 0 or args.rhs_scale <= 0):
+        parser.error("mesh, epsilon, RHS scale positive; perturb >= 0")
 
     comm = PETSc.COMM_WORLD
     rank = comm.getRank()
     swe = setup_model(args.mesh)
+    if args.rhs_scale != 1.0:
+        # This wrapper changes ONLY the isolated FD experiment, never
+        # the SCRIMP package or the user's simulation. The raw GetFEM
+        # RHS diagnostics in report() remain unscaled.
+        real_assemble_rhs = swe.assemble_rhs
+
+        def diagnostic_rhs():
+            real_assemble_rhs()
+            swe.rhs.scale(args.rhs_scale)
+
+        swe.assemble_rhs = diagnostic_rhs
+
     global_z = np.asarray(swe.gf_model.from_variables()).real.ravel()
     n = len(global_z)
 
@@ -254,6 +273,7 @@ def main():
                 "dofs": n,
                 "ranks": comm.getSize(),
                 "state_norm": state_norm,
+                "diagnostic_rhs_scale": args.rhs_scale,
                 "results": results,
             }, indent=2), flush=True)
 
