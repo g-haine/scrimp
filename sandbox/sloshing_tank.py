@@ -45,12 +45,13 @@ gf.util_trace_level(0)
 
 def sloshing_tank(
     mesh_size=0.05, final_time=0.2, plot=False,
-    time_step=0.002, save_step=None, adaptive=True,
+    time_step=0.002, save_step=None, adaptive=True, time_scheme="cn",
 ):
     """Build and integrate the translating-tank model; return a SCRIMP DPHS.
 
-    Set adaptive=False for temporal convergence studies with fixed time steps.
-    The final time is matched exactly; all runs save the final state.
+    Use Crank--Nicolson ("cn") by default or "bdf" for the earlier BDF2
+    comparison. Set adaptive=False for fixed time steps. The final
+    time is matched exactly; all runs save the final state.
     """
     if mesh_size <= 0 or final_time <= 0 or time_step <= 0:
         raise ValueError("mesh_size, final_time and time_step must be positive")
@@ -58,6 +59,8 @@ def sloshing_tank(
         save_step = 0.01 if adaptive else time_step
     if save_step <= 0:
         raise ValueError("save_step must be positive")
+    if time_scheme not in {"cn", "bdf"}:
+        raise ValueError("time_scheme must be 'cn' or 'bdf'")
     length = 2.0
     width = 1.0
     density = 1.0
@@ -67,6 +70,8 @@ def sloshing_tank(
 
     tank = S.DPHS("real")
     tank.set_domain(S.Domain("Interval", {"L": length, "h": mesh_size}))
+    # Physical geometry used by the optional MP4 renderer; not display scaling.
+    tank.sloshing_visualization = {"length": length, "width": width}
 
     a_h = S.State("a_h", "Fluid cross-sectional area", "scalar-field")
     mom = S.State("mom", "Fluid absolute linear momentum", "scalar-field")
@@ -176,8 +181,7 @@ def sloshing_tank(
     tank.gf_model.set_variable("v", np.array([0.0]))
 
     time_options = dict(
-        ts_type="bdf",
-        ts_bdf_order=2,
+        ts_type=time_scheme,
         # Avoid time overshoot: previously t_f=0.2 stopped at 0.206996
         # and SCRIMP subsequently discarded the last step.
         ts_exact_final_time="matchstep",
@@ -190,6 +194,8 @@ def sloshing_tank(
         dt_save=float(save_step),
         init_step=True,
     )
+    if time_scheme == "bdf":
+        time_options["ts_bdf_order"] = 2
     if not adaptive:
         time_options["ts_adapt_type"] = "none"
     tank.set_time_scheme(**time_options)
@@ -221,7 +227,8 @@ def sloshing_tank(
     mass_error = float(np.max(np.abs(fluid_mass-fluid_mass[0])))
     print("Max |fluid mass - initial mass| =", mass_error)
 
-    # BDF2 may add numerical dissipation; inspect the resulting defect.
+    # Time integration (including CN) may create a nonzero discrete energy
+    # defect for this nonlinear system: evaluate it, do not assume it vanishes.
     viscous_diss = np.asarray(
         tank.get_quantity("rho*nu*a_h*(Grad_e_m.Grad_e_m)"),
         dtype=float,
@@ -242,17 +249,39 @@ def sloshing_tank(
         )
         print("Max |P-P(0)-trapezoidal impulse| =", impulse_error)
         print("Max |P-P(0)-exact impulse| =", exact_impulse_error)
-        power = force_values*v_vals - viscous_diss
-        expected_increment = np.r_[0.0, np.cumsum(
-            0.5*(power[1:]+power[:-1])*np.diff(times)
+        input_power = force_values*v_vals
+        input_work = np.r_[0.0, np.cumsum(
+            0.5*(input_power[1:]+input_power[:-1])*np.diff(times)
         )]
-        energy_error = float(
-            np.max(np.abs(energy-energy[0]-expected_increment))
-        )
+        dissipated_energy = np.r_[0.0, np.cumsum(
+            0.5*(viscous_diss[1:]+viscous_diss[:-1])*np.diff(times)
+        )]
+        expected_increment = input_work - dissipated_energy
+        balance_defect = energy-energy[0]-expected_increment
+        energy_error = float(np.max(np.abs(balance_defect)))
         print("Max |H-H(0)-integral(force*v-dissipation)| =", energy_error)
+        print("Time integrator =", time_scheme, "(trapezoidal power quadrature)")
     else:
         impulse_error = exact_impulse_error = energy_error = float("nan")
+        input_power = force_values*v_vals
+        input_work = dissipated_energy = expected_increment = balance_defect = np.zeros_like(times)
         print("At least two saved time steps are needed for work/energy checks.")
+
+    # Physical power-balance components for movie rendering and verification.
+    # W and dissipated energy are time integrals (trapezoidal quadrature
+    # applied to the actual stored numerical values, not exact CN identities).
+    tank.sloshing_power_balance = {
+        "times": times.copy(),
+        "hamiltonian": energy.copy(),
+        "input_power": input_power.copy(),
+        "viscous_dissipation_power": viscous_diss.copy(),
+        "input_work": input_work.copy(),
+        "viscous_loss": dissipated_energy.copy(),
+        "expected_delta_h": expected_increment.copy(),
+        "defect": balance_defect.copy(),
+        "quadrature": "trapezoidal",
+        "time_scheme": time_scheme,
+    }
 
     tank.sloshing_metrics = {
         "requested_final_time": float(final_time),
@@ -260,6 +289,7 @@ def sloshing_tank(
         "mesh_size": float(mesh_size),
         "time_step": float(time_step),
         "adaptive": bool(adaptive),
+        "time_scheme": time_scheme,
         "constraint_error": constraint_error,
         "mass_error": mass_error,
         "impulse_trapezoid_error": impulse_error,

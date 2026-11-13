@@ -31,6 +31,8 @@ def main():
     parser.add_argument("--dt", nargs="+", type=float,
                         default=[0.008, 0.004, 0.002])
     parser.add_argument("--final-time", type=float, default=0.2)
+    parser.add_argument("--scheme", choices=("cn", "bdf"), default="cn",
+                        help="Crank-Nicolson (default) or legacy BDF2")
     parser.add_argument("--csv", type=Path,
                         default=Path("outputs/tank_convergence.csv"))
     args = parser.parse_args()
@@ -48,6 +50,7 @@ def main():
                 save_step=dt,
                 adaptive=False,
                 plot=False,
+                time_scheme=args.scheme,
             )
             metrics = dict(tank.sloshing_metrics)
             if not math.isclose(
@@ -66,7 +69,7 @@ def main():
         writer.writeheader()
         writer.writerows(rows)
 
-    print("\nFixed-step time/space refinement (max absolute defects):")
+    print(f"\nFixed-step {args.scheme.upper()} time/space refinement (max absolute defects):")
     print(
         f"{'mesh':>8} {'dt':>9} {'mass':>12} "
         f"{'momentum':>13} {'energy':>13} {'constraint':>13}"
