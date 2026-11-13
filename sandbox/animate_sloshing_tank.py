@@ -21,6 +21,7 @@ import argparse
 import csv
 import shutil
 import uuid
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -392,9 +393,17 @@ def save_classic_hamiltonian(tank, destination, source_dir=None):
     temporary = source_dir / filename
     previous_figures = set(plt.get_fignums())
     try:
-        tank.plot_Hamiltonian(
-            with_powers=False, save_figure=True, filename=filename
-        )
+        # Native SCRIMP calls plt.show() unconditionally; Agg's noninteractive
+        # warning is expected in a headless exporter, not a model warning.
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message=r"FigureCanvasAgg is non-interactive.*",
+                category=UserWarning,
+            )
+            tank.plot_Hamiltonian(
+                with_powers=False, save_figure=True, filename=filename
+            )
         if not temporary.is_file():
             raise FileNotFoundError(
                 f"SCRIMP did not produce the Hamiltonian image: {temporary}"
