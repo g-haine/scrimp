@@ -2513,3 +2513,139 @@ faithful reference initial convergence, 1/2-rank
 native stability, adaptive integration and
 physical Hamiltonian/power balance. Keep issue
 #6 open and PR #22 draft, master untouched.
+
+
+## 2026-11-13 — REAL reference MCSS2024 converges; source sign defect confirmed and fixed
+
+**Native one-rank tests from the user's original `scrimp` environment:**
+
+**A. `sandbox/check_mcss_source_sign.py`: exit 0**, independently
+using GetFEM and no SCRIMP TS. At u=1 on [0,1],
+`u²*Test_u` gives `model.rhs().sum()=-1.0`. At u=0
+the separately assembled `-u*Test_u` + GetFEM
+`add_source_term_brick` with `desired=1` gives
+**`rhs().sum()=+1.0`** and tangent `-1.0`.
+Thus `GF_rhs_total=-N(z)+S(t)`: the current production
+`F=... -GF_rhs_total` would reverse controls via
+`set_control`, even though the nonlinear Jacobian
+was directionally FD-correct. This is no longer a
+hypothesis, but a **measured sign error**.
+
+**Production fix in `scrimp/dphs.py`:** `assemble_rhs()`
+now accepts `source_only=True` to enable only GetFEM
+`add_source_term_brick` bricks. For a direct/nonlinear
+weak-form residual, assemble full RHS first, and
+**only when source bricks exist**, add `2*rhs_source`
+after subtracting full RHS:
+
+```
+F(z,zd)=M(z)*zd + K_linear*z -GF_rhs_all +2*GF_rhs_sources
+       =M(z)*zd + K_linear*z +N(z)+S(t).
+```
+
+The source-only and full RHS each use the same explicit
+`SCRIMP_GETFEM_RHS_MODE=divide_by_mpi_size` on this
+local GetFEM build. For other GetFEM builds the generic
+`auto` normalization remains available. As GetFEM
+source/MPI semantics are not proven universally identical
+to generic bricks, the ultimate partition root cause is
+**still #23**. This fix restores source signs, not the
+upstream GetFEM MPI behavior. Explicit `get_explicit`
+bricks may have additional sign conventions and remain
+outside this targeted MCSS2024 regression test.
+
+Added a new MPI-owned PETSc unit regression:
+`tests.test_mpi_algebra.TestMPIAlgebra.test_direct_ifunction_keeps_source_sign_separate_from_nonlinear_rhs`.
+It verifies `F=-u+3u²+2` with an independent
+state source `S=2` and without source `S=0`,
+at `u=0` and `u=1`, including source-only
+assembly count. The test is **not executed by
+Python-source CI**; user must run real PETSc/Python
+to validate.
+
+**B. `sandbox/probe_mcss2024_reference.py`: shell exit 1
+is an ERROR IN OUR BENCHMARK'S ACCEPTANCE TEST, NOT A TS FAILURE.**
+It loaded the **unchanged** published MCSS model experiment 3,
+grad, `h0=50`, `g=0.01`, disk mesh `dx=0.1`,
+`S.DPHS.set_control()` normal+vector velocity,
+BDF2 main `dt=1e-4`, pseudo init `dt=1e-8`,
+current PETSc 3.21.6 complex but **SuperLU** factorization.
+The native log shows:
+
+```
+i=1 t=0.0001
+i=2 t=0.0003 (100%)
+Elapsed time: 52.43s
+Steps: 2 (0 rejected, 0 Nonlinear solver failures)
+Nonlinear iterations: 6, Linear iterations: 6
+```
+
+The last saved monitor snapshot was **only** `0.0001`
+due to its `dt_save` sampling. Our probe used
+`swe.solution["t"][-1]` instead of authoritative
+`TS.getTime()` and falsely raised
+`RuntimeError: ... t=0.0001`. The model **actually
+advanced to t=0.0003**, but only the samples at
+0 and 0.0001 were returned. The endpoint state was
+NOT in the computed saved fields! For the last SAVED
+state, h min/max `49.9858443,50.0126483`,
+`||Y||=0.427656`, `||U||=2.24088495` and
+all measured fields are finite.
+During pseudo init and predictor, `Y` can reach
+`4.096e6` or `2.738e5`, yet the implicit
+Newton solver subsequently brings `||Y||` down
+to `O(1)` or less. Therefore large transient
+Y alone DOES NOT PROVE the DAE cannot converge.
+
+**Monitor/acceptance fixes in SCRIMP:**
+- `DPHS.solve()` now records `last_ts_time`,
+  `last_ts_converged_reason`, `last_ts_steps`,
+  `last_ts_rejections`, `last_ts_snes_failures`
+  BEFORE TS.reset/destroy; use them to test success,
+  never the monitor sampling alone.
+- When TS actually ends **at** t_f, the last
+  monitor-saved time is behind, and TS reason > 0,
+  call its monitor with i=-1 once to save the
+  final accepted physical state. This does NOT
+  change the PDE or TS integration and avoids
+  losing an essential endpoint in physical energy
+  balance plots. When TS `STEPOVER` goes beyond
+  t_f, do NOT save a spurious endpoint beyond the
+  horizon; interpolation would need explicit handling.
+- The publication probe now prints BOTH `actual_final_time`
+  and `last_saved_time`, checks positive TS reason
+  and reaches the requested t_f, not just the
+  last monitor sample.
+
+**Next two short user commands (on this commit):**
+
+```bash
+git pull --ff-only
+conda activate scrimp
+
+# 1. Focused corrected production residual regression:
+SCRIMP_GETFEM_RHS_MODE=divide_by_mpi_size \
+mpiexec -n 1 python -m unittest -v \
+  tests.test_mpi_algebra.TestMPIAlgebra.test_direct_ifunction_keeps_source_sign_separate_from_nonlinear_rhs
+
+# 2. Faithful MCSS source and control, current SCRIMP, BDF2/SuperLU:
+SCRIMP_GETFEM_RHS_MODE=divide_by_mpi_size \
+PYTHONFAULTHANDLER=1 \
+timeout -k 5s 120s mpiexec -n 1 \
+  python -u sandbox/probe_mcss2024_reference.py \
+    --final-time 0.0003 --save-dt 0.0001 \
+    --solver superlu \
+  > mcss2024_reference_corrected.log 2>&1
+echo "reference exit=$?"
+grep -E 'Initial consistency:|main TS completed|Steps:|Nonlinear iterations:|actual_final_time|last_saved_time|ts_converged_reason|final_norm|RuntimeError|Traceback' \
+  mcss2024_reference_corrected.log | tail -n 30
+```
+
+Source CI passed; new runtime fixes have **NOT yet been
+executed on the user's PETSc/GetFEM/SuperLU build**.
+Any improved endpoint & convergence after sign fix
+is subject to numerical validation. Preserve
+unmodified MCSS2024 source, maintain draft PR #22
+and issue #6 open. Eventually compare Hamiltonian
+against integrated viscous dissipation/port supply,
+then reintroduce genuine 2D MPI/MUMPS testing.
