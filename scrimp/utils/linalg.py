@@ -27,30 +27,56 @@ comm = PETSc.COMM_WORLD
 import scipy.sparse as sp
 
 def convert_gmm_to_petsc(M, B, comm=comm):
-    """Convert a GetFEM matrix M to a PETSc one B
+    """Accumulate a distributed GetFEM model matrix into a PETSc matrix.
 
-    Args:
-        M (SPMat GetFEM): matrix to transfer
-        B (PETSc.Mat): matrix to fill M with
-        comm (MPI_Comm): MPI communicator
+    With GetFEM MPI level 2, model tangent matrices contain partial
+    contributions on each rank, but use GLOBAL degree-of-freedom indices.
+    Contributions to shared entries from different ranks must be added.
 
-    Returns:
-        None
+    Do not use PETSc's setValuesLocalCSR here: no GetFEM-to-PETSc
+    local-to-global mapping has been installed and the GetFEM row indices
+    are not the rows locally owned by PETSc.
+
+    All ranks must call this routine. The target matrix retains its PETSc
+    ownership distribution; PETSc routes off-process values at assembly.
     """
-
     A = gf.Spmat("copy", M)
-    # Because CSR is CSC of the transpose
-    # and CSR is not available in getfem
+    # GetFEM provides CSC for the transpose: turn it into the CSR of M.
     A.transpose()
     row_ptr, col_idx = A.csc_ind()
     values = A.csc_val()
-    
-    B.setOption(PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR,False)
-    B.setValuesLocalCSR(row_ptr, col_idx, values, addv=PETSc.InsertMode.INSERT_VALUES)
-    B.setOption(PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR,True)
 
-    # Assemble the PETSc matrix in parallel
-    B.assemble()
+    nrows, ncols = B.getSize()
+    if len(row_ptr) != nrows + 1:
+        raise ValueError(
+            f"GetFEM/PETSc row count mismatch on rank {comm.getRank()}: "
+            f"{len(row_ptr) - 1} vs PETSc {nrows}"
+        )
+    if len(col_idx) != len(values) or int(row_ptr[-1]) != len(values):
+        raise ValueError("Invalid GetFEM CSR data (column/value count)")
+    if len(col_idx) and (min(col_idx) < 0 or max(col_idx) >= ncols):
+        raise ValueError("GetFEM CSR has columns outside the PETSc matrix")
+
+    # This routine also reassembles nonlinear matrices many times during
+    # Newton iterations. ADD_VALUES without clearing would accumulate stale
+    # Jacobians from prior iterates.
+    B.zeroEntries()
+    B.setOption(PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR, False)
+    try:
+        if len(values):
+            # IJV accepts global row/column numbering. Unlike setValuesCSR,
+            # a global row map handles rows owned by other PETSc processes.
+            B.setValuesIJV(
+                row_ptr,
+                col_idx,
+                values,
+                addv=PETSc.InsertMode.ADD_VALUES,
+                rowmap=np.arange(nrows, dtype=PETSc.IntType),
+            )
+        B.assemble()
+    finally:
+        B.setOption(PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR, True)
+
 
 def extract_gmm_to_scipy(I, J, M):
     """Extract a sub-matrix A from M, on interval I, J
