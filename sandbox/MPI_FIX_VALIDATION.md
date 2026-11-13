@@ -956,3 +956,91 @@ investigate actual GetFEM assembly; if they agree but FD differs,
 check `K_tangent*z+rhs` and the PETSc state scatter with equation
 blocks. **Do not change production sign conventions** based only on
 these preliminary numbers.
+
+## 2026-11-13 — Detailed 1/2-rank FD audit isolates **factor-two RHS**, not state scatter
+
+The user completed the enhanced full Saint-Venant 2D FD audit at
+`epsilon=1e-5`, on **one and two ranks**, exit code **0** in both cases.
+The additional diagnostics show:
+
+| Quantity | MPI 1 | MPI 2 |
+| --- | ---: | ---: |
+| `||Jv||` | 0.31258272908 | 0.31258272908 |
+| `||FD(F)v||` | 0.31226213370 | 0.02438322670 |
+| `||Jv - FD(F)v|| / max(norms)` | **0.06843868** | **1.00499539** |
+| `||raw GetFEM RHS(z+)||` | 0.23407250883 | **0.46814501765** |
+| `||D raw GetFEM RHS(z)v||` | 0.31236350142 | **0.62472700283** |
+| `||D RHS(z)v + K_nl(z)v||/||K_nl(z)v||` | **6.14e-12** | **1.00000000** |
+| PETSc→GetFEM trial-state scatter discrepancy | `[0]` | `[0, 0]` |
+| RHS directional derivative discrepancy across ranks | 0 | 0 |
+
+The *full* raw GetFEM RHS arrays have identical fingerprints across
+the two ranks, but the norm is **twice the serial value**.
+Moreover, the directional derivative equals `-K_nl v` to
+`6e-12` in serial and is consistent with **`-2 K_nl v`** at
+two ranks. Thus this is an **assembly-level factor-of-two
+RHS/tangent inconsistency in this full GetFEM SWE model**, not a
+PETSc state scatter failure or a double-insertion of the RHS
+into PETSc (which uses owned-row INSERT_VALUES).
+
+**Equation blocks:**
+- Serial discrepancy `||Jv-FD(F)v||=0.021393` is almost entirely
+  `U: 0.0200141` and `p: 0.0075554`.
+- Two-rank discrepancy `0.314144` is dominated by
+  `h: 0.19375`, `p: 0.19725`, `Y: 0.121025`,
+  `Y_n: 0.0750314`, `U: 0.0400283`.
+- Extra derivative in the PETSc Jacobian from state-dependent mass
+  is still structurally missing; this check does not validate the
+  physical equations.
+
+### Diagnostic-only test of the factor, plus isolated GetFEM brick reproduction
+
+The full probe now offers `--rhs-scale`; it applies a numeric
+factor to SCRIMP's **PETSc copy** of the GetFEM RHS *after each
+assembly* in this diagnostic instance ONLY, and leaves the raw GetFEM
+RHS reporting unchanged. It does not alter the package or solver
+behavior. In particular **`--rhs-scale=0.5` at MPI=2** tests
+whether the FD error returns to the ~6.8% serial discrepancy.
+
+A new `sandbox/check_getfem_mpi_rhs.py` independently builds
+one-dimensional GetFEM `Model` objects with one `add_nonlinear_term`
+brick each:
+`u Test_u`, `u^2 Test_u`, `u^3 Test_u`.
+It verifies that the integral of the derivative of negative
+`gf.Model.rhs()` equals the integral of the GetFEM tangent
+matrix after conversion to PETSc. The exact values at `u=1`
+on [0,1] are 1, 2 and 3 respectively. It reports RHS/tangent
+ratios without failing by default. Run with 1/2/4 MPI ranks to
+distinguish a generic GetFEM MPI nonlinear RHS doubling
+from an interaction specific to the multi-brick SWE.
+
+```bash
+git pull --ff-only
+
+for n in 1 2 4; do
+    timeout -k 5s 60s mpiexec -n "$n" \
+        python -u sandbox/check_getfem_mpi_rhs.py \
+        > "getfem_rhs_${n}rank.log" 2>&1
+    echo "GetFEM RHS MPI ${n}: exit=$?"
+    tail -n 65 "getfem_rhs_${n}rank.log"
+done
+
+timeout -k 5s 120s mpiexec -n 2 \
+    python -u sandbox/check_swe_implicit_jacobian.py \
+    --mesh 0.2 --epsilon 1e-5 --rhs-scale 0.5 \
+    > fd_swe_2rank_half_rhs.log 2>&1
+echo "2-rank half-RHS diagnostic: exit=$?"
+tail -n 145 fd_swe_2rank_half_rhs.log
+```
+
+**Interpretation:** If the 1D models reproduce a factor `P`,
+the issue is broadly in GetFEM RHS-vs-tangent assembly under this
+installation; do not silently normalize every RHS without verifying
+source, boundary, and externally imposed terms. If the 1D models
+do NOT reproduce it, isolate the individual SWE GetFEM bricks and
+assembly calls before modifying `scrimp/dphs.py`.
+If the temporary `0.5` scaling returns the FD error to
+~6.8%, the additional MPI discrepancy is explained by RHS
+doubling; however the serial nonlinear residual/Jacobian mismatch
+is still *not fixed*. No claims of physical validity or native
+memory safety follow from this diagnostic.
