@@ -1739,3 +1739,115 @@ runs are met. If the first run still fails, use its log to
 identify whether the failure is a Newton divergence, PETSc TS
 failure, or native corruption. **Do not reopen #23** unless the
 normalization is demonstrably wrong for these real SWE bricks.
+
+
+## 2026-11-13 — First corrected SWE temporal run: still two independent failures
+
+The user ran original `scrimp` + GetFEM with the explicitly verified
+`SCRIMP_GETFEM_RHS_MODE=divide_by_mpi_size`, `--case open
+--mesh 0.2 --final-time 0.05 --save-dt 0.01 --max-step 0.002`:
+
+**MPI 1:** `exit=1`, but the immediate Python traceback was a
+**test-driver mistake**, not the reason for integrator failure:
+`if swe.solution["t"]` after `DPHS.solve()` was ambiguous because
+`self.solution["t"]` has been converted from a list to an ndarray.
+The benchmark now reads `np.asarray(...).size` and reports
+early convergence as a clear `RuntimeError`. The physical TS
+already reported an automatic stop at **t=1e-8**, dt minimum
+**1e-8**, **six rejected steps**, **zero SNES failures**,
+1 accepted step, seven Newton iterations; it never approached
+the requested t_f=0.05. That is consistent with adaptive local
+error control rejecting steps, rather than a proven nonlinear
+Newton failure. No energy/balance diagnostics are valid.
+
+**MPI 2:** `exit=139`, SIGSEGV after approximately 14 further
+GetFEM assembly calls during the two-step `pseudo` TS initial
+consistency procedure. Full native crash persists with the
+mathematically consistent residual/Jacobian and P-normalized RHS;
+it is not disproved by successful isolated MUMPS replays.
+
+**Additional code inspection revealed two potentially relevant
+problems in this branch:**
+1. The experimental nonlinear mass Hessian FD method used
+   `z±epsilon*zd` with a fixed epsilon=1e-4. During
+   pseudo-initialization, dt=1e-9 and `zd` can become enormous,
+   causing off-trajectory, possibly unphysical perturbations of
+   the fluid height. The method now bounds the norm of the
+   Hessian test displacement to
+   `epsilon*max(1,||z||)`, while leaving the already validated
+   moderate-`zd` FD cases unchanged; with
+   `SCRIMP_MPI_TRACE=1` it reports `z_norm`,
+   `zd_norm`, effective `eta` and `perturb_norm`.
+   This is numerical safeguard, NOT an established crash fix.
+2. In `DPHS.init_step()`, the temporary removal of the
+   `ts_adapt_dt_min` option mistakenly deleted
+   `ts_adapt_dt_max`; corrected the typo. The baseline
+   pseudo time integration still uses a tiny dt and must be
+   tested, not assumed to construct DAE-consistent data.
+
+The benchmark now accepts **`--ts-type {arkimex,cn,bdf}`**,
+**`--adapt-type {basic,none}`** and **`--petsc-monitor`**.
+The original ARKIMEX-A2 / basic adaptive scheme is still the
+default. TSAdapt **none** disables embedded-estimator-based
+adaptivity, giving a diagnostic fixed-step comparison:
+https://petsc.org/release/manualpages/TS/TSAdaptType/
+`--no-init-step` was already supported as a diagnostic to
+skip the crashing pseudo-TS. It does **not** guarantee a
+consistent index-2 DAE initial state and is not an accepted
+production simulation on its own.
+
+### Minimal next experiment: separate adaptive error control and pseudo initialization
+
+First, run **one rank**, with the usual initial pseudo-TS but
+no main adaptive step rejection; keep the default ARKIMEX-A2:
+
+```bash
+git pull --ff-only
+conda activate scrimp
+
+SCRIMP_GETFEM_RHS_MODE=divide_by_mpi_size \
+SCRIMP_MPI_TRACE=1 PYTHONFAULTHANDLER=1 \
+timeout -k 5s 120s mpiexec -n 1 \
+  python -u sandbox/viscous_swe_2d_mpi.py \
+  --case open --mesh 0.2 --final-time 0.006 \
+  --save-dt 0.002 --max-step 0.002 \
+  --ts-type arkimex --adapt-type none --petsc-monitor \
+  --output-dir sandbox/outputs/swe_fixed_1rank \
+  > swe_fixed_1rank.log 2>&1
+echo "serial fixed-dt exit=$?"
+tail -n 80 swe_fixed_1rank.log
+```
+
+Second, try **two ranks** with the same integrator and fixed dt,
+but skip the pseudo-TS initialization to isolate whether the
+native fault is confined to that preliminary path:
+
+```bash
+SCRIMP_GETFEM_RHS_MODE=divide_by_mpi_size \
+SCRIMP_MPI_TRACE=1 PYTHONFAULTHANDLER=1 \
+timeout -k 5s 120s mpiexec -n 2 \
+  python -u sandbox/viscous_swe_2d_mpi.py \
+  --case open --mesh 0.2 --final-time 0.006 \
+  --save-dt 0.002 --max-step 0.002 \
+  --ts-type arkimex --adapt-type none --no-init-step \
+  --petsc-monitor --output-dir sandbox/outputs/swe_fixed_2ranks \
+  > swe_fixed_2ranks.log 2>&1
+echo "two-rank bypass pseudo exit=$?"
+tail -n 95 swe_fixed_2ranks.log
+```
+
+**Interpretation:** if one-rank fixed dt reaches 0.006
+but the adaptive run rejected steps down to 1e-8, we have
+isolated a problem involving adaptation/error estimator
+or initial transient; it does NOT prove physical accuracy.
+If two ranks avoid the SIGSEGV only with
+`--no-init-step`, the native crash is strongly linked to
+the pseudo-TS lifecycle; that still leaves the main TS
+physics and MPI stability to be tested.
+`SCRIMP_MPI_TRACE=1` reports the exact last callback
+and TS convergence/termination reason.
+
+Only when **correct DAE initial conditions, adaptive convergence,
+MPI parity, native reliability and complete physical
+Hamiltonian/power balance** have passed may the model be
+considered validated. No merge or release yet.
