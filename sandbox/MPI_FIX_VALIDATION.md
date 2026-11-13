@@ -798,3 +798,78 @@ https://petsc.org/main/manualpages/TS/TSSetIJacobian/
 Do not merge PR #22 or tag release until the native memory issue,
 time-integration convergence and port-Hamiltonian energy balance are
 independently validated.
+
+## 2026-11-13 — Correct GMRES/BJACOBI trial still diverges (PETSc 91)
+
+The user reran the two-rank Saint-Venant initializer after the
+diagnostic fix. **Both MPI ranks confirm
+`KSP=gmres, PC=bjacobi`**; both then fail in `TS.solve()` with
+PETSc **error 91 / `DIVERGED_STEP_REJECTED`**. No native SIGSEGV
+or MUMPS factor teardown error is observed in the supplied output,
+but the initial pseudo-TS did not complete, so this is not a
+meaningful memory-safety acceptance test. It demonstrates only that
+this GMRES+block-Jacobi configuration does not solve the nonlinear
+DAE in this workload.
+
+The independent PETSc/MUMPS tridiagonal test had already passed
+three full factor/solve/reset cycles for 1 and 2 MPI ranks, so
+there is no evidence of a generic MPI/MUMPS ABI incompatibility.
+
+### Next gate: finite differences of the **full 2D SWE implicit residual**
+
+A new diagnostic **`sandbox/check_swe_implicit_jacobian.py`**
+reconstructs the full nonlinear 3300-DOF Saint-Venant model and
+calls SCRIMP's actual `IFunction` and `IJacobian` without
+creating a PETSc TS/SNES/KSP, using exactly the same GetFEM/MPI
+transfer and nonlinear bricks as the simulation.
+
+It checks, for a deterministic distributed direction `v`,
+`J(z,zd,sigma) v` against the central difference
+
+```text
+[F(z+eps*v, zd+eps*sigma*v) - F(z-eps*v, zd-eps*sigma*v)] / (2*eps).
+```
+
+The tested points include `zd=0`, `zd!=0` and `sigma=0,1`,
+which separately expose incorrect state derivatives of the
+nonlinear force and missing `dM(z)/dz * zd` terms. The script
+reports relative directional errors without failing by default:
+**exit 0 does not mean the Jacobian is correct**.
+Only `--fail-above=...` turns it into a pass/fail gate after a
+mathematical correction.
+
+```bash
+git pull --ff-only
+
+timeout -k 5s 120s mpiexec -n 1 \
+  python -u sandbox/check_swe_implicit_jacobian.py \
+  --mesh 0.2 --epsilon 1e-5 \
+  > fd_swe_1rank.log 2>&1
+echo "FD 1 rank exit=$?"
+tail -n 75 fd_swe_1rank.log
+
+timeout -k 5s 120s mpiexec -n 2 \
+  python -u sandbox/check_swe_implicit_jacobian.py \
+  --mesh 0.2 --epsilon 1e-5 \
+  > fd_swe_2ranks.log 2>&1
+echo "FD 2 ranks exit=$?"
+tail -n 75 fd_swe_2ranks.log
+```
+
+If FD errors are large at 1 and 2 ranks, the residual/Jacobian
+error predates MPI factorization and must be corrected before
+interpreting a nonlinear convergence failure. Repeat the check
+with `--epsilon 1e-4` and/or `--state-perturb 0.05` to check
+robustness rather than over-interpreting floating-point roundoff.
+
+**This tool is diagnostic only and has not been run in a native
+GetFEM/PETSc environment**. If it fails to initialize or crashes
+in PETSc/Mat operations, capture the log and treat that as its own
+finding, not a numeric test result.
+
+**Production formulas remain unchanged.** Avoid a blind rewrite of
+nonlinear mass or RHS semantics until independent GetFEM residual
+sign conventions and this directional finite-difference result
+are checked. Even a consistent Jacobian is not sufficient to prove
+that the model itself implements the intended pH equations; energy
+and boundary-power balances must be separately validated.
