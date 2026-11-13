@@ -204,6 +204,85 @@ class TestMPIAlgebra(unittest.TestCase):
         finally:
             mat.destroy()
 
+    def test_nonlinear_tangents_reuse_mpi_matrices_without_accumulation(self):
+        """Newton reassembly must not replace PETSc MPIAIJ matrix handles.
+
+        This regression also checks that variable sparsity may be inserted
+        into the same preallocated matrix and old values do not accumulate.
+        The original SWE crash was observed when temporary matrices were
+        reclaimed by PETSc.garbage_cleanup in TSMonitor.
+        """
+        def linear_diagonal(value):
+            mat = PETSc.Mat().createAIJ(size=(N, N), nnz=1, comm=COMM)
+            mat.setUp()
+            diag = mat.createVecLeft()
+            try:
+                diag.set(value)
+                mat.setDiagonal(diag)
+                mat.assemble()
+            finally:
+                diag.destroy()
+            return mat
+
+        model = SimpleNamespace(
+            nbdof=lambda: N,
+            assembly=lambda **kwargs: None,
+            tangent_matrix=lambda: None,
+        )
+        system = object.__new__(DPHS)
+        system.gf_model = model
+        system.bricks = {}
+        system.mass = linear_diagonal(3.0)
+        system.stiffness = linear_diagonal(7.0)
+        system.nl_mass = PETSc.Mat().create(comm=COMM)
+        system.nl_stiffness = PETSc.Mat().create(comm=COMM)
+        system.tangent_mass = PETSc.Mat().create(comm=COMM)
+        system.tangent_stiffness = PETSc.Mat().create(comm=COMM)
+        matrices = (
+            system.mass, system.stiffness, system.nl_mass,
+            system.nl_stiffness, system.tangent_mass,
+            system.tangent_stiffness,
+        )
+        try:
+            for mat in (system.nl_mass, system.nl_stiffness,
+                        system.tangent_mass, system.tangent_stiffness):
+                system.init_matrix(mat)
+            original_mass = system.tangent_mass
+            original_stiffness = system.tangent_stiffness
+            fake = FakeGetFEMDistributedMatrix()
+            with patch.dict(os.environ,
+                            {"SCRIMP_GETFEM_MATRIX_MODE": "replicated"}), \
+                    patch.object(linalg.gf, "Spmat", return_value=fake):
+                for coefficient in (1.0, 2.0, 0.5, 3.0, 1.0):
+                    for k in range(N):
+                        fake.values[2*k:2*k+2] = (
+                            2.0 * coefficient, -coefficient
+                        )
+                    system.assemble_nl_mass()
+                    system.assemble_nl_stiffness()
+                    self.assertIs(system.tangent_mass, original_mass)
+                    self.assertIs(system.tangent_stiffness, original_stiffness)
+                    for mat, linear_value in (
+                        (system.tangent_mass, 3.0),
+                        (system.tangent_stiffness, 7.0),
+                    ):
+                        x, y = mat.createVecRight(), mat.createVecLeft()
+                        try:
+                            x.set(1.0)
+                            mat.mult(x, y)
+                            lo, hi = y.getOwnershipRange()
+                            np.testing.assert_allclose(
+                                y.getArray(readonly=True),
+                                np.full(hi-lo, linear_value + coefficient),
+                                rtol=1e-12, atol=1e-12,
+                            )
+                        finally:
+                            x.destroy()
+                            y.destroy()
+        finally:
+            for mat in matrices:
+                mat.destroy()
+
     def test_init_matrix_preserves_distributed_vector_storage(self):
         """Preallocating the diagonal must never replace a Vec's buffer.
 
