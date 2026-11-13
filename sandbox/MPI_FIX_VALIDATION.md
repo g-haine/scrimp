@@ -1420,3 +1420,109 @@ Saint-Venant PDE semantics (whether its `dt=True` brick should
 represent `d(hp)/dt` or `h dp/dt`), time integration success,
 energy/power conservation, or native MPI memory safety. Those are
 separate acceptance gates. No merge, release tag or issue closure.
+
+
+## 2026-11-13 — Why a replicated GetFEM RHS must NOT automatically be divided by P
+
+GetFEM's parallelization contract:
+https://getfem.org/userdoc/parallel.html
+
+GetFEM with MPI level 2 *normally* partitions mesh integration using
+METIS. The local weak-form vectors `b_r` are summed in GetFEM, and
+the global `b = sum_r b_r` is replicated **in full** on every
+process. This is intentional and correct. The globally numbered
+tangent matrix, in contrast, is documented as containing only
+local contributions. PETSc must insert the globally reduced GetFEM
+RHS in *owned rows* (INSERT_VALUES) and not perform a second SUM.
+
+**The mathematical factor P arises only if contributions are already
+complete on every rank before GetFEM's MPI reduction**, or if
+some other stage performs an equivalent redundant reduction:
+
+```text
+Correct:   each rank computes b_r, SUM_MPI(b_r) = b
+Observed:  SUM_MPI(b) = P*b
+```
+
+In the user's GetFEM 5.4.2 level-2 build, 1D
+`u, u², u³` weak forms all had RHS integrated derivatives
+multiplied by P=1,2,4 while SCRIMP's converted tangent had its
+expected unscaled action. The 2D Saint-Venant FD mismatch on 2 ranks
+vanished after the *sandbox* applied a 0.5 RHS multiplier. These
+results establish the factor, but **do not yet establish the precise
+GetFEM C++ path** that duplicates the contributions: it could be
+an ineffective generic assembly partition, double reduction or a
+feature of this local build. Do not claim the RHS *being replicated*
+is a bug: it is expected and explicitly documented.
+
+**Added raw GetFEM matrix diagnostic** to
+`sandbox/check_getfem_mpi_rhs.py`:
+`raw_getfem_tangent_by_rank` (pre-PETSc rankwise integral,
+`nnz`, row-action digest), `sum_raw_getfem_tangent_integrals`
+and `raw_rhs_minus_tangent_ratio_at_each_rank`. Compare at 1/2/4
+ranks to see whether the *raw* GetFEM tangents are themselves
+already complete replicas on every process instead of distributed
+contributions.
+
+**SCRIMP compatibility correction** (draft PR #22, not yet locally
+tested): the default `SCRIMP_GETFEM_RHS_MODE=auto` now calibrates
+the library behavior **once per process** by assembling an exactly
+known scalar generic reference form on [0,1]:
+`rhs_probe*Test_rhs_probe` with `rhs_probe=1`. The exact integral
+is 1, so the GetFEM RHS entry sum must be -1. The observed ratio
+may be **1** (properly reduced, scale=1) or **P** (over-reduced,
+scale=1/P). An unexpected value or disagreement between MPI ranks
+raises an error instead of silently applying a wrong correction.
+The calibration is skipped in sequential mode and when MPI
+level is not 2. Modes `raw` and `divide_by_mpi_size` remain
+explicit overrides.
+
+**Limitation**: this calibration applies to **GetFEM generic
+nonlinear weak-form terms**. It does not prove that *all* models,
+particularly explicit RHS, master-only constraints and atypical
+source bricks, share exactly the same over-reduction. Check those
+separately before generalizing the correction to arbitrary mixed
+bricks. The proper long-term fix, if GetFEM generic assembly is
+confirmed to skip MPI mesh partitioning, is upstream in GetFEM
+and not a universal 1/P factor in SCRIMP.
+
+### Reproduce and verify the mechanism with new diagnostics
+
+```bash
+git pull --ff-only
+conda activate scrimp
+
+for n in 1 2 4; do
+  timeout -k 5s 120s mpiexec -n "$n" \
+    python -u sandbox/check_getfem_mpi_rhs.py \
+    > "getfem_rhs_partition_${n}rank.log" 2>&1
+  echo "raw GetFEM MPI $n exit=$?"
+  tail -n 90 "getfem_rhs_partition_${n}rank.log"
+done
+
+for n in 1 2 4; do
+  timeout -k 5s 120s mpiexec -n "$n" \
+    python -m unittest -v tests.test_mpi_algebra \
+    > "algebra_default_${n}rank.log" 2>&1
+  echo "SCRIMP tests MPI $n exit=$?"
+  tail -n 25 "algebra_default_${n}rank.log"
+done
+
+# Test the real default production residual/Jacobian + auto RHS calibration
+for n in 1 2; do
+  timeout -k 5s 120s mpiexec -n "$n" \
+    python -u sandbox/check_swe_implicit_jacobian.py \
+    --mesh 0.2 --epsilon 1e-5 \
+    --residual-form production --mass-jacobian production \
+    --rhs-scale 1.0 --fail-above 1e-7 \
+    > "fd_production_${n}rank.log" 2>&1
+  echo "Production FD MPI $n exit=$?"
+  tail -n 115 "fd_production_${n}rank.log"
+done
+```
+
+For the last command, inspect `relative_error` for **all four**
+`(zd, shift)` combinations, not simply the exit code. Then test
+perturbed states (`--state-perturb 0.02`) and time integration
+separately. The native MPI SIGSEGV and full power balance remain
+unsolved; no merge, release or issue closure.
