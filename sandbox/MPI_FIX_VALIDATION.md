@@ -873,3 +873,86 @@ sign conventions and this directional finite-difference result
 are checked. Even a consistent Jacobian is not sufficient to prove
 that the model itself implements the intended pH equations; energy
 and boundary-power balances must be separately validated.
+
+
+## 2026-11-13 — Full nonlinear SWE FD results: 6.8% serial, 100% on 2 ranks
+
+The user executed the full directional finite-difference audit
+`sandbox/check_swe_implicit_jacobian.py` with `--mesh 0.2`,
+`--epsilon 1e-5` at 1 and 2 ranks. Both runs produced structured
+results without a native crash. For `zd=0`, `shift=0`:
+
+| Quantity | 1 rank | 2 ranks |
+| --- | ---: | ---: |
+| N | 3300 | 3300 |
+| `norm(J @ v)` | 0.3125827291 | 0.3125827291 |
+| `norm(FD(F) @ v)` | 0.3122621337 | 0.0243832267 |
+| `norm(J @ v - FD(F) @ v)` | 0.0213927492 | 0.3141442007 |
+| Relative mismatch | **0.06843868** | **1.00499539** |
+
+Other combinations `(zd=0 or nonzero, shift=0 or 1)` yield
+approximately 6.8% mismatch at 1 rank and 100% at 2 ranks.
+The PETSc Jacobian action is nearly rank-independent, but the
+finite-difference response of the **actual implemented residual**
+changes drastically with the MPI rank count.
+
+This is strong evidence of BOTH a nonlinear residual-vs-Jacobian
+inconsistency present already in serial **and** an additional MPI
+assembly/state-transfer issue, though before concluding we must
+validate the FD test and vary `epsilon`. The current source path
+`K_tangent(z)z + gf_rhs(z)` is mathematically suspect, and its
+`rhs(z)` may not be represented consistently across MPI ranks.
+
+**An important source-contract check:** GetFEM's parallelization
+documentation says its MPI level-2 RHS vectors are summed and
+replicated on all ranks, but tangent matrices remain distributed:
+https://getfem.org/userdoc/parallel.html .
+Thus **do not assume** the RHS is partial merely because the
+FD mismatch increases at 2 ranks. The difference might also be in
+trial-state synchronization or how SCRIMP combines the nonlinear
+GetFEM tangent, RHS and linear terms. The present
+`SCRIMP_GETFEM_MATRIX_MODE=replicated` behavior passed targeted
+mass/tangent tests but does not establish the full GetFEM operator
+contract for every brick.
+
+### Enhanced diagnostic, without production formula changes
+
+`sandbox/check_swe_implicit_jacobian.py` now additionally records:
+
+1. `petsc_to_getfem_state_scatter_error_by_rank`:
+   reconstructs the full PETSc trial state from owned row arrays
+   and compares it with GetFEM's current variables after sync.
+2. `getfem_rhs_derivative_rank_difference` and
+   `getfem_rhs_rank_signatures`: compare the **raw GetFEM full RHS**
+   directional derivative between processes, before transfer to PETSc.
+3. `getfem_rhs_derivative_vs_minus_nonlinear_tangent_relative`:
+   separately check the expected GetFEM relation
+   `d RHS(z) / dz = - K_nl(z)` by applying the actual nonlinear
+   matrix to the same distributed direction.
+4. `error_norm_by_equation`: identify the residual-equation blocks
+   (`h,p,e_h,e_p,U_n,Y_n,U,Y`) responsible for the total FD mismatch.
+
+The enhanced probe creates **no TS/SNES/KSP/MUMPS**, does not change
+production code, and by default returns exit 0 even for large
+numerical discrepancies.
+
+Run on 1 and 2 ranks after `git pull --ff-only`:
+
+```bash
+for n in 1 2; do
+    timeout -k 5s 120s mpiexec -n "$n" \
+        python -u sandbox/check_swe_implicit_jacobian.py \
+        --mesh 0.2 --epsilon 1e-5 \
+        > "fd_swe_detailed_${n}ranks.log" 2>&1
+    echo "FD detailed MPI $n: exit $?"
+    tail -n 135 "fd_swe_detailed_${n}ranks.log"
+done
+```
+
+Then vary `epsilon` on one rank with `--epsilon 1e-4`
+and `--epsilon 1e-6` to distinguish truncation/round-off from
+a genuine inconsistency. If MPI RHS signatures differ between ranks,
+investigate actual GetFEM assembly; if they agree but FD differs,
+check `K_tangent*z+rhs` and the PETSc state scatter with equation
+blocks. **Do not change production sign conventions** based only on
+these preliminary numbers.
