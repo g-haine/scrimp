@@ -1122,7 +1122,9 @@ class DPHS:
         if (
             self.time_scheme["init_step"] == "true"
         ):  # Because PETSc DB store everything as str
+            _mpi_trace("solve: before initial consistency step")
             self.init_step()
+            _mpi_trace("solve: after initial consistency step")
 
         # TS
         TS = PETSc.TS().create(comm=comm)
@@ -1164,7 +1166,9 @@ class DPHS:
         
         comm.barrier()
         
+        _mpi_trace("solve: before main TS.solve")
         TS.solve(InitVec)
+        _mpi_trace("solve: after main TS.solve")
         del InitVec
 
         if rank == 0:
@@ -1248,8 +1252,11 @@ class DPHS:
         
         TS.setTimeStep(float(self.time_scheme["init_step_dt"]))
         
+        _mpi_trace("init_step: before TS.setFromOptions")
         TS.setFromOptions()
+        _mpi_trace("init_step: before algebraic tolerance setup")
         self.exclude_algebraic_var_from_lte(TS)
+        _mpi_trace("init_step: TS setup completed")
 
         if rank == 0:
             logging.info(
@@ -1270,7 +1277,9 @@ class DPHS:
         InitVec.assemble()
         comm.barrier()
         
+        _mpi_trace("init_step: before pseudo TS.solve")
         TS.solve(InitVec)
+        _mpi_trace("init_step: after pseudo TS.solve")
         del InitVec
 
         if rank == 0:
