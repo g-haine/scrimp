@@ -1851,3 +1851,39 @@ Only when **correct DAE initial conditions, adaptive convergence,
 MPI parity, native reliability and complete physical
 Hamiltonian/power balance** have passed may the model be
 considered validated. No merge or release yet.
+
+
+## 2026-11-13 — PETSc error 56 in the first fixed-TS diagnostic is a test-driver bug
+
+The user ran both planned `--adapt-type none --petsc-monitor`
+experiments. **Both immediately failed with PETSc error 56** at
+`TS.setFromOptions()`, **before either TS.solve()**:
+
+```text
+TSSetFromOptions -> TSMonitorSetFromOptions
+ -> PetscOptionsGetViewer -> Unsupported viewer true
+```
+
+This is caused by **our diagnostic flag wiring**, not a Saint-Venant
+Newton failure, MPI memory corruption, or a MUMPS factorization.
+`--petsc-monitor` previously called
+`swe.set_time_scheme(ts_monitor=True, ts_adapt_monitor=True,
+snes_converged_reason=True, ksp_converged_reason=True)`.
+SCRIMP's PETSc Options database stringifies `True` to
+`"true"`, and PETSc interprets it as a VIEWER name rather than
+as an argument-less monitor flag.
+
+**Fixed** the script to call
+`PETSc.Options().setValue("ts_monitor", None)`, and likewise for
+the other three flags; PETSc receives options with no viewer
+arguments. This correction needs a new native user run to verify
+the user's PETSc 3.21.6 build, but matches the documented
+options API. `--petsc-monitor` stays optional; omit it entirely
+if any environment-specific monitor issue persists, since
+`SCRIMP_MPI_TRACE=1` already traces critical solver milestones.
+
+The previous runs with code 1 do **NOT** constitute valid tests
+of fixed-step ARKIMEX, nor of `--no-init-step` on two ranks.
+Retry the two commands documented directly above using the
+new branch head, and do not infer anything about the native
+SIGSEGV until a real nonlinear TS.solve() has occurred.
