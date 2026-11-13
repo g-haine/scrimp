@@ -19,6 +19,8 @@ are linearly interpolated in time. Display exaggerations are labeled.
 
 import argparse
 import csv
+import shutil
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -361,6 +363,50 @@ def render_movie(data, output, fps=25, seconds=10.0, surface_scale=8.0,
     return output
 
 
+
+def save_classic_hamiltonian(tank, destination, source_dir=None):
+    """Save SCRIMP's *native* plot_Hamiltonian output beside the MP4.
+
+    The SCRIMP 1.2.0 method always saves to its configured outputs/png
+    directory, so move the saved image to the requested destination.
+    with_powers=False avoids SCRIMP's generic algebraic-port power plot:
+    in this model the substituted tank-velocity port does not supply
+    the external-force and viscous-dissipation budget. The latter is
+    instead reported separately in the movie and its CSV sidecar.
+    """
+    import matplotlib.pyplot as plt
+
+    destination = Path(destination)
+    if destination.suffix.lower() not in {".png", ".jpg", ".jpeg"}:
+        raise ValueError("Hamiltonian image must use .png, .jpg or .jpeg")
+    destination.parent.mkdir(parents=True, exist_ok=True)
+
+    if source_dir is None:
+        from scrimp.utils import config
+        source_dir = Path(config.outputs_path) / "png"
+    source_dir = Path(source_dir)
+    source_dir.mkdir(parents=True, exist_ok=True)
+
+    # Avoid clobbering other SCRIMP figures in its fixed outputs/png folder.
+    filename = "_slosh_hamiltonian_" + uuid.uuid4().hex + destination.suffix
+    temporary = source_dir / filename
+    previous_figures = set(plt.get_fignums())
+    try:
+        tank.plot_Hamiltonian(
+            with_powers=False, save_figure=True, filename=filename
+        )
+        if not temporary.is_file():
+            raise FileNotFoundError(
+                f"SCRIMP did not produce the Hamiltonian image: {temporary}"
+            )
+        shutil.move(str(temporary), str(destination))
+    finally:
+        temporary.unlink(missing_ok=True)
+        for figure_number in set(plt.get_fignums()) - previous_figures:
+            plt.close(figure_number)
+    return destination
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path,
@@ -375,6 +421,9 @@ def main(argv=None):
                         help="Visual gain applied to the surface deviation")
     parser.add_argument("--balance-csv", type=Path, default=None,
                         help="CSV sidecar path (default: output stem + .balance.csv)")
+    parser.add_argument("--hamiltonian-image", type=Path, default=None,
+                        help="Classic SCRIMP plot_Hamiltonian as PNG/JPG "
+                             "(default: output stem + _hamiltonian.png)")
     parser.add_argument("--scheme", choices=["cn", "bdf"], default="cn",
                         help="Time integration: Crank-Nicolson by default, or BDF2")
     parser.add_argument("--motion-scale", default="auto",
@@ -395,7 +444,11 @@ def main(argv=None):
                           motion_scale=args.motion_scale)
     csv_path = args.balance_csv if args.balance_csv else output.with_suffix(".balance.csv")
     csv_output = save_balance_csv(data, csv_path)
+    hamiltonian_image = (args.hamiltonian_image if args.hamiltonian_image
+                         else output.with_name(output.stem + "_hamiltonian.png"))
+    hamiltonian_output = save_classic_hamiltonian(tank, hamiltonian_image)
     print(f"MP4 created: {output.resolve()}")
+    print(f"SCRIMP Hamiltonian image: {hamiltonian_output.resolve()}")
     print(f"Balance time histories: {csv_output.resolve()}")
     print(f"Max absolute energy-balance defect: {np.max(np.abs(data.balance_defect)):.6e}")
 
