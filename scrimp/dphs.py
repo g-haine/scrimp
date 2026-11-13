@@ -1576,7 +1576,10 @@ class DPHS:
             saved_options["ts_adapt_dt_min"] = float(
                 self.time_scheme["ts_adapt_dt_min"]
             )
-            self.time_scheme.delValue("ts_adapt_dt_max")
+            # Only override the pseudo-TS minimum step temporarily.
+            # Deleting dt_max here was a typo: it could accidentally
+            # alter the initial TS adaptation configuration.
+            self.time_scheme.delValue("ts_adapt_dt_min")
         if self.time_scheme.hasName("ts_adapt_dt_max"):
             saved_options["ts_adapt_dt_max"] = float(
                 self.time_scheme["ts_adapt_dt_max"]
