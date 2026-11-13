@@ -698,11 +698,29 @@ class DPHS:
         size = self.gf_model.nbdof()
         if gf_rhs.size != size or self.rhs.getSize() != size:
             raise ValueError("GetFEM/PETSc RHS size mismatch")
+        # GetFEM MPI-2 documents the RHS as already globally summed
+        # and replicated on all ranks. However, the locally compiled
+        # GetFEM 5.4.2 of issue #6 returns a RHS multiplied by the MPI
+        # process count, verified on independent u, u^2 and u^3 bricks
+        # at 1, 2 and 4 ranks. An opt-in normalization lets us isolate
+        # this bug without changing behavior on other GetFEM builds.
+        #
+        # DO NOT unconditionally divide: other installations may
+        # provide an already correctly reduced global RHS, or contain
+        # special explicit source/constraint bricks.
+        rhs_mode = os.environ.get("SCRIMP_GETFEM_RHS_MODE", "raw").lower()
+        if rhs_mode not in ("raw", "divide_by_mpi_size"):
+            raise ValueError(
+                "SCRIMP_GETFEM_RHS_MODE must be raw or divide_by_mpi_size"
+            )
+        scale = 1.0 / max_rank if rhs_mode == "divide_by_mpi_size" else 1.0
+        if os.environ.get("SCRIMP_MPI_TRACE") == "1":
+            _mpi_trace(f"rhs: mode={rhs_mode}, scale={scale:.9g}")
         lo, hi = self.rhs.getOwnershipRange()
         if hi > lo:
             self.rhs.setValues(
                 range(lo, hi),
-                gf_rhs[lo:hi],
+                gf_rhs[lo:hi] * scale,
                 addv=PETSc.InsertMode.INSERT_VALUES,
             )
         self.rhs.assemble()
