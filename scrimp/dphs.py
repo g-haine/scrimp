@@ -726,11 +726,16 @@ class DPHS:
             self.nl_mass,
         )
         _mpi_trace("nl_mass: PETSc matrix assembled")
+        _mpi_trace("nl_mass: before PETSc copy/AXPY")
         self.tangent_mass = self.mass.copy()
+        _mpi_trace("nl_mass: after PETSc copy; before AXPY")
         self.tangent_mass.axpy(1, self.nl_mass)
+        _mpi_trace("nl_mass: after PETSc AXPY; before disable_bricks")
 
         self.disable_all_bricks()
+        _mpi_trace("nl_mass: before barrier")
         comm.barrier()
+        _mpi_trace("nl_mass: after barrier")
 
     def assemble_nl_stiffness(self):
         """This function performs the assembly of the bricks dt=False and linear=False and set the PETSc.Mat attribute `nl_stiffness`"""
@@ -752,11 +757,16 @@ class DPHS:
             self.nl_stiffness,
         )
         _mpi_trace("nl_stiffness: PETSc matrix assembled")
+        _mpi_trace("nl_stiffness: before PETSc copy/AXPY")
         self.tangent_stiffness = self.stiffness.copy()
+        _mpi_trace("nl_stiffness: after PETSc copy; before AXPY")
         self.tangent_stiffness.axpy(1, self.nl_stiffness)
+        _mpi_trace("nl_stiffness: after PETSc AXPY; before disable_bricks")
 
         self.disable_all_bricks()
+        _mpi_trace("nl_stiffness: before barrier")
         comm.barrier()
+        _mpi_trace("nl_stiffness: after barrier")
 
     def disable_all_bricks(self):
         """This function disables all bricks in the `Model`"""
@@ -795,13 +805,16 @@ class DPHS:
             F (PETSc Vec): the rhs vector
         """
 
+        _mpi_trace(f"IFunction: enter t={t:.8g}")
         self._sync_lumped_trial_state(t, z)
+        _mpi_trace("IFunction: Newton state synchronized")
         if not self.linear_mass:
             self.assemble_nl_mass()
         if not self.linear_stiffness:
             self.assemble_nl_stiffness()
 
         self.assemble_rhs()
+        _mpi_trace("IFunction: RHS assembled; before PETSc algebra")
 
         if self.lumped_variables and self.linear_mass:
             # GetFEM's build_rhs returns MINUS the nonlinear weak-form
@@ -824,6 +837,7 @@ class DPHS:
             self.tangent_mass.mult(zd, self.buffer)
             self.tangent_stiffness.multAdd(z, self.buffer, F)
             F.axpy(1, self.rhs)
+        _mpi_trace("IFunction: residual completed")
 
     def set_linear_flags(self):
         """
@@ -850,19 +864,25 @@ class DPHS:
             P:(PETSc Mat) the jacobian matrix to use for pre-conditionning
         """
 
+        _mpi_trace(f"IJacobian: enter t={t:.8g}, shift={sig:.8g}")
         self._sync_lumped_trial_state(t, z)
+        _mpi_trace("IJacobian: Newton state synchronized")
         if not self.linear_mass:
             self.assemble_nl_mass()
         if not self.linear_stiffness:
             self.assemble_nl_stiffness()
 
+        _mpi_trace("IJacobian: before tangent -> preconditioner copy")
         self.tangent_stiffness.copy(P)
+        _mpi_trace("IJacobian: before shift*mass AXPY")
         P.axpy(sig, self.tangent_mass)
+        _mpi_trace("IJacobian: preconditioner assembled")
 
         if A != P:
             if rank == 0:
                 logging.info("Operator different from preconditioning")
             A.assemble()
+        _mpi_trace("IJacobian: completed")
 
     def init_matrix(self,A):
         """
