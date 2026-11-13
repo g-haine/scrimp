@@ -39,6 +39,33 @@ automatic magnification of the tank displacement. The factors appear
 To remove all visual exaggeration, use
 `--surface-scale 1 --motion-scale 1`.
 
+## Native SCRIMP Hamiltonian plot (PNG/JPEG)
+
+Each video generation also invokes the **actual** SCRIMP
+`tank.plot_Hamiltonian(save_figure=True, with_powers=False)`, saving the
+standard Hamiltonian time history (fluid kinetic, fluid gravitational,
+tank kinetic, and their sum) as a **300 dpi PNG** beside the MP4.
+The file name defaults to `<video-stem>_hamiltonian.png`.
+
+This image is intentionally separate from the full power-budget
+diagnostics. `with_powers=False` is used because the experimental tank's
+external-force and viscous-dissipation bricks are not automatically
+represented as algebraic-port powers by SCRIMP's general plotter.
+The MP4 and `.balance.csv` still display the external work, viscous
+losses and measured residual.
+
+For a JPEG rather than PNG, use:
+
+```bash
+python sandbox/animate_sloshing_tank.py --scheme cn \
+  --output sandbox/outputs/sloshing_tank.mp4 \
+  --hamiltonian-image sandbox/outputs/sloshing_tank_hamiltonian.jpg
+```
+
+The exporter uses the existing SCRIMP plotter and moves its saved image
+out of SCRIMP's default `outputs/png/` directory into the movie's folder,
+without altering SCRIMP's core code.
+
 ## Options and testing
 
 ```bash
@@ -52,8 +79,12 @@ python -m unittest -v tests.test_sloshing_movie
 - `--surface-scale`: display gain applied only to the perturbation of the depth.
 - `--motion-scale`: `auto` or positive numeric value; `1` means physical scale.
 - `--output`: MP4 destination.
+- `--hamiltonian-image`: optional PNG/JPG path for the native SCRIMP
+  Hamiltonian plot (default: alongside the MP4).
 
-The seven renderer/CSV/FFmpeg tests passed without a GetFEM installation.
+The eight renderer/CSV/PNG/JPEG/FFmpeg tests include a native-plotter
+interface check without a GetFEM installation. A real SCRIMP runtime
+check of this output remains necessary.
 **A complete integration test with a real SCRIMP/GetFEM simulation remains
 necessary on the numerical workstation.**
 
