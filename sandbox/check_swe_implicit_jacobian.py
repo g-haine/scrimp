@@ -1,0 +1,190 @@
+# SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
+#
+# Copyright (C) 2015-2026 ISAE-SUPAERO -- GNU GPLv3
+# 
+# See the LICENSE file for license information.
+#
+# github: https://github.com/g-haine/scrimp
+
+"""Finite-difference audit of SCRIMP's full implicit SWE residual/Jacobian.
+
+This is NOT a time simulation. No TS, SNES, KSP or MUMPS solver is created.
+
+We check the PETSc contract
+    J(z,zd,shift) @ v =
+       d/d epsilon F(z+epsilon*v, zd+epsilon*shift*v)|epsilon=0
+for the exact SCRIMP 2D nonlinear shallow-water model, at its initial
+state and an optionally perturbed state. Thus F and J are tested in
+the same GetFEM/MPI setting that exhibited divergence.
+
+Examples:
+    mpiexec -n 1 python -u sandbox/check_swe_implicit_jacobian.py
+    mpiexec -n 2 python -u sandbox/check_swe_implicit_jacobian.py
+    mpiexec -n 2 python -u sandbox/check_swe_implicit_jacobian.py \
+        --state-perturb 0.05 --epsilon 1e-5
+
+The script reports the error and exits 0 by default, even if the
+Jacobian is inconsistent: it is a diagnostic, not a green test.
+Use --fail-above 1e-4 only when checking a candidate correction.
+"""
+
+import argparse
+import json
+
+import numpy as np
+from petsc4py import PETSc
+
+from sandbox.viscous_swe_2d_mpi import build_system
+
+
+def setup_model(mesh):
+    # Reproduce DPHS.solve()'s initialization without creating a TS.
+    swe = build_system(
+        gamma=0.0, mesh=mesh, final_time=0.5, save_dt=0.1,
+        max_step=0.01, init_step=False,
+    )
+    swe.set_linear_flags()
+    swe.set_time_scheme()
+    swe.time_scheme = PETSc.Options()
+    swe.allocate_memory()
+    swe.disable_all_bricks()
+    swe.gf_model.set_time(0.0)
+    swe.gf_model.first_iter()
+    swe.assemble_mass()
+    swe.assemble_nl_mass()
+    swe.assemble_stiffness()
+    swe.assemble_nl_stiffness()
+    swe.assemble_rhs()
+    swe.J = swe.tangent_stiffness.duplicate()
+    swe.J.assemble()
+    swe.F = swe.rhs.duplicate()
+    swe.F.assemble()
+    swe.buffer = swe.rhs.duplicate()
+    swe.buffer.assemble()
+    return swe
+
+
+def from_global_array(template, values):
+    result = template.duplicate()
+    lo, hi = result.getOwnershipRange()
+    result.getArray()[:] = values[lo:hi]
+    return result
+
+
+def report(swe, z, zd, direction, shift, epsilon):
+    J = swe.J
+    swe.IJacobian(None, 0.0, z, zd, shift, J, J)
+
+    jv = direction.duplicate()
+    J.mult(direction, jv)
+
+    zplus, zminus = z.copy(), z.copy()
+    zdplus, zdminus = zd.copy(), zd.copy()
+    fplus, fminus = swe.F.duplicate(), swe.F.duplicate()
+    try:
+        zplus.axpy(epsilon, direction)
+        zminus.axpy(-epsilon, direction)
+        zdplus.axpy(epsilon * shift, direction)
+        zdminus.axpy(-epsilon * shift, direction)
+
+        swe.IFunction(None, 0.0, zplus, zdplus, fplus)
+        swe.IFunction(None, 0.0, zminus, zdminus, fminus)
+
+        fplus.axpy(-1.0, fminus)
+        fplus.scale(0.5 / epsilon)
+        difference = fplus.copy()
+        difference.axpy(-1.0, jv)
+        try:
+            norm_fd = float(fplus.norm())
+            norm_jv = float(jv.norm())
+            norm_error = float(difference.norm())
+        finally:
+            difference.destroy()
+        return {
+            "zd_norm": float(zd.norm()),
+            "shift": float(shift),
+            "epsilon": float(epsilon),
+            "finite_difference_norm": norm_fd,
+            "jacobian_action_norm": norm_jv,
+            "error_norm": norm_error,
+            "relative_error": norm_error / max(norm_fd, norm_jv, 1e-14),
+        }
+    finally:
+        for obj in (jv, zplus, zminus, zdplus, zdminus, fplus, fminus):
+            obj.destroy()
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--mesh", type=float, default=0.2)
+    parser.add_argument("--epsilon", type=float, default=1e-5)
+    parser.add_argument("--state-perturb", type=float, default=0.0,
+                        help="Relative deterministic random state perturbation")
+    parser.add_argument("--fail-above", type=float, default=None,
+                        help="Optional maximum relative directional FD error")
+    args = parser.parse_args()
+    if args.mesh <= 0 or args.epsilon <= 0 or args.state_perturb < 0:
+        parser.error("mesh and epsilon must be positive; perturb >= 0")
+
+    comm = PETSc.COMM_WORLD
+    rank = comm.getRank()
+    swe = setup_model(args.mesh)
+    global_z = np.asarray(swe.gf_model.from_variables()).real.ravel()
+    n = len(global_z)
+
+    rng = np.random.default_rng(513)
+    direction_values = rng.standard_normal(n)
+    direction_values /= np.linalg.norm(direction_values)
+
+    if args.state_perturb:
+        global_z = (
+            global_z +
+            args.state_perturb * max(np.linalg.norm(global_z), 1.0)
+            * direction_values
+        )
+
+    vec_template = swe.J.createVecRight()
+    z = from_global_array(vec_template, global_z)
+    direction = from_global_array(vec_template, direction_values)
+    nonzero_zd = from_global_array(
+        vec_template, 0.1 * max(np.linalg.norm(global_z), 1.0)
+        * direction_values,
+    )
+    zero_zd = vec_template.duplicate()
+    zero_zd.set(0.0)
+
+    try:
+        results = []
+        for zd, shift in (
+            (zero_zd, 0.0),
+            (zero_zd, 1.0),
+            (nonzero_zd, 0.0),
+            (nonzero_zd, 1.0),
+        ):
+            results.append(report(swe, z, zd, direction, shift, args.epsilon))
+
+        if rank == 0:
+            print(json.dumps({
+                "dofs": n,
+                "ranks": comm.getSize(),
+                "state_norm": float(z.norm()),
+                "results": results,
+            }, indent=2), flush=True)
+
+        # No threshold by default: record failures as data, not as a
+        # false-positive success or a deliberately red regression test.
+        if args.fail_above is not None and any(
+            result["relative_error"] > args.fail_above
+            for result in results
+        ):
+            raise RuntimeError(
+                "Implicit Jacobian does not match finite differences: "
+                f"error exceeded {args.fail_above}"
+            )
+    finally:
+        for obj in (z, direction, nonzero_zd, zero_zd, vec_template):
+            obj.destroy()
+
+
+if __name__ == "__main__":
+    main()
