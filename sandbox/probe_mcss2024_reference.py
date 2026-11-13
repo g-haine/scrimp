@@ -156,20 +156,34 @@ def main():
 
     swe.solve()
     times = np.asarray(swe.solution["t"], dtype=float)
-    reached = float(times[-1]) if times.size else float("-inf")
+    # The monitor is NOT an authoritative record of the actual TS
+    # endpoint: it samples on dt_save, potentially skipping the last
+    # PETSc step. A documented run advanced at t=0.0001 and 0.0003,
+    # while the last saved monitor sample was only t=0.0001.
+    saved_time = float(times[-1]) if times.size else float("-inf")
+    reached = float(getattr(swe, "last_ts_time", float("-inf")))
+    converged_reason = int(
+        getattr(swe, "last_ts_converged_reason", 0)
+    )
     if rank == 0:
         print(json.dumps({
             "actual_final_time": reached,
+            "last_saved_time": saved_time,
+            "ts_converged_reason": converged_reason,
+            "ts_accepted_steps": getattr(swe, "last_ts_steps", None),
+            "ts_rejected_steps": getattr(swe, "last_ts_rejections", None),
+            "ts_snes_failures": getattr(swe, "last_ts_snes_failures", None),
             "requested_final_time": args.final_time,
             "saved_steps": int(times.size),
             "state_fields": describe_fields(swe),
         }, indent=2), flush=True)
-    if not np.isfinite(reached) or (
+    if (converged_reason <= 0 or not np.isfinite(reached) or (
         reached < args.final_time - 1e-10 * max(1.0, args.final_time)
-    ):
+    )):
         raise RuntimeError(
             "Published MCSS2024 model (on current SCRIMP) did not "
-            f"reach requested t_f={args.final_time}: t={reached}"
+            f"reach requested t_f={args.final_time}: PETSc t={reached}, "
+            f"reason={converged_reason}, last saved t={saved_time}"
         )
 
 
