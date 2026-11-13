@@ -18,6 +18,7 @@ are linearly interpolated in time. Display exaggerations are labeled.
 """
 
 import argparse
+import csv
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -34,6 +35,12 @@ class MovieData:
     positions: np.ndarray           # (nt,), physical tank displacement
     velocities: np.ndarray          # (nt,), physical tank velocity
     energies: np.ndarray            # (nt,), total Hamiltonian
+    input_work: np.ndarray          # (nt,), integrated applied power
+    viscous_loss: np.ndarray        # (nt,), integrated viscous dissipation
+    balance_defect: np.ndarray      # (nt,), dH - (work - dissipation)
+    input_power: np.ndarray         # (nt,), applied force * tank velocity
+    viscous_power: np.ndarray       # (nt,), nonnegative dissipation rate
+    time_scheme: str = "cn"
 
 
 def _real_array(data, name):
@@ -60,14 +67,21 @@ def validate_data(data):
         raise ValueError("x must contain increasing tank-relative coordinates")
     if data.depths.shape != (len(t), len(x)):
         raise ValueError("depths must have shape (len(times), len(x))")
-    for name in ("positions", "velocities", "energies"):
+    for name in ("positions", "velocities", "energies",
+                 "input_work", "viscous_loss", "balance_defect",
+                 "input_power", "viscous_power"):
         if np.asarray(getattr(data, name)).shape != (len(t),):
             raise ValueError(f"{name} must have shape (len(times),)")
-    for name in ("times", "x", "depths", "positions", "velocities", "energies"):
+    for name in ("times", "x", "depths", "positions", "velocities",
+                 "energies", "input_work", "viscous_loss", "balance_defect",
+                 "input_power", "viscous_power"):
         if not np.all(np.isfinite(getattr(data, name))):
             raise ValueError(f"{name} contains non-finite values")
     if np.min(data.depths) <= 0:
         raise ValueError("The computed water depth is non-positive")
+    residual = (data.energies - data.energies[0]) - (data.input_work - data.viscous_loss)
+    if not np.allclose(residual, data.balance_defect, atol=1e-9, rtol=1e-6):
+        raise ValueError("Energy/power-balance time series are inconsistent")
 
 
 def extract_movie_data(tank, samples=250):
@@ -107,16 +121,49 @@ def extract_movie_data(tank, samples=250):
             raise ValueError(f"GetFEM returned {len(area)} points; expected {len(x)}")
         depths.append(area / width)
 
+    diagnostic = getattr(tank, "sloshing_power_balance", None)
+    if diagnostic is None:
+        raise ValueError("Missing power balance: use the updated sandbox/sloshing_tank.py")
+    if not np.allclose(_real_array(diagnostic["times"], "balance times"), times):
+        raise ValueError("Power balance does not correspond to saved times")
+
     data = MovieData(
         times=times,
         x=x,
         depths=np.asarray(depths),
         positions=_real_array(tank.get_solution("pos"), "pos").ravel(),
         velocities=_real_array(tank.get_solution("v"), "v").ravel(),
-        energies=_real_array(tank.get_Hamiltonian(), "Hamiltonian").ravel(),
+        energies=_real_array(diagnostic["hamiltonian"], "Hamiltonian").ravel(),
+        input_work=_real_array(diagnostic["input_work"], "input work").ravel(),
+        viscous_loss=_real_array(diagnostic["viscous_loss"], "viscous loss").ravel(),
+        balance_defect=_real_array(diagnostic["defect"], "balance defect").ravel(),
+        input_power=_real_array(diagnostic["input_power"], "input power").ravel(),
+        viscous_power=_real_array(diagnostic["viscous_dissipation_power"], "viscous power").ravel(),
+        time_scheme=str(diagnostic["time_scheme"]),
     )
     validate_data(data)
     return data
+
+
+
+def save_balance_csv(data, output):
+    """Export computed time histories (physical units, no movie exaggeration)."""
+    validate_data(data)
+    out = Path(output)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with out.open("w", newline="", encoding="utf-8") as stream:
+        writer = csv.writer(stream)
+        writer.writerow(("time_s", "hamiltonian", "delta_h", "input_power",
+                         "viscous_power", "input_work", "viscous_loss",
+                         "expected_delta_h", "balance_defect", "time_scheme"))
+        for i, t in enumerate(data.times):
+            writer.writerow((t, data.energies[i],
+                             data.energies[i]-data.energies[0],
+                             data.input_power[i], data.viscous_power[i],
+                             data.input_work[i], data.viscous_loss[i],
+                             data.input_work[i]-data.viscous_loss[i],
+                             data.balance_defect[i], data.time_scheme))
+    return out
 
 
 def interpolate_frame(data, t):
@@ -144,6 +191,9 @@ def render_movie(data, output, fps=25, seconds=10.0, surface_scale=8.0,
     The surface perturbation (h - mean(h)) is display-scaled, not h itself.
     Tank motion may also be display-scaled. Numeric readouts and the two
     time-series plots always show *unscaled physical* values.
+
+    The power balance is a *measured numerical defect*, not a
+    guarantee of exact energy preservation for nonlinear CN integration.
     """
     import matplotlib
     matplotlib.use("Agg")  # Save directly to MP4, without Qt/Wayland.
@@ -183,13 +233,18 @@ def render_movie(data, output, fps=25, seconds=10.0, surface_scale=8.0,
     xmax = float(data.x[-1] + np.max(offset) + 0.12 * length)
     top = max(float(np.max(displayed_depths) * 1.20), float(np.max(data.depths) * 1.1))
     info_energy = data.energies - data.energies[0]
+    expected_energy = data.input_work - data.viscous_loss
+    error = data.balance_defect
+    max_defect = float(np.max(np.abs(error)))
 
     colors = dict(bg="#071827", panel="#102b3d", grid="#365064", aqua="#16c8e8",
                   fill="#0b87b0", light="#e9f5fb", subtle="#93bed0", gold="#ffd179")
     fig = plt.figure(figsize=(12.8, 7.2), facecolor=colors["bg"])
     fig.text(.055, .946, "S L O S H I N G   T A N K", color=colors["light"],
              fontsize=22, fontweight="bold", family="DejaVu Sans")
-    fig.text(.057, .904, "SCRIMP 1.2.0  |  1D viscous shallow water + moving tank",
+    scheme_label = "Crank–Nicolson" if data.time_scheme == "cn" else "BDF2"
+    fig.text(.057, .904,
+             f"SCRIMP 1.2.0  |  1D viscous shallow water  |  {scheme_label}",
              color=colors["subtle"], fontsize=11)
 
     ax = fig.add_axes([.055, .39, .89, .47], facecolor=colors["panel"])
@@ -213,37 +268,51 @@ def render_movie(data, output, fps=25, seconds=10.0, surface_scale=8.0,
     position_badge = fig.text(.055, .350, "", color=colors["subtle"], fontsize=10)
     scale_badge = fig.text(.945, .350, "", color=colors["gold"], fontsize=10, ha="right")
 
-    def setup_chart(box, title, ylabel, values, line_color):
+    def setup_chart(box, title, ylabel, datasets):
         chart = fig.add_axes(box, facecolor=colors["panel"])
-        chart.plot(data.times, values, color=line_color, lw=2)
+        stacked = []
+        for values, label, line_color, linestyle in datasets:
+            chart.plot(data.times, values, color=line_color, lw=2,
+                       ls=linestyle, label=label)
+            stacked.append(np.asarray(values))
         chart.set_xlim(data.times[0], data.times[-1])
-        d = float(np.ptp(values))
+        combined = np.concatenate(stacked)
+        d = float(np.ptp(combined))
         if d < 1e-11:
-            d = max(1e-4, float(np.max(np.abs(values))) * .15)
-        chart.set_ylim(np.min(values) - .16*d, np.max(values) + .16*d)
+            d = max(1e-8, float(np.max(np.abs(combined))) * .15)
+        chart.set_ylim(np.min(combined) - .16*d, np.max(combined) + .16*d)
         chart.grid(alpha=.22, color=colors["subtle"])
-        chart.tick_params(colors=colors["subtle"], labelsize=9)
+        chart.tick_params(colors=colors["subtle"], labelsize=8)
+        chart.ticklabel_format(axis="y", style="sci", scilimits=(-3, 3))
         for spine in chart.spines.values():
             spine.set_color(colors["grid"])
-        chart.set_title(title, color=colors["light"], fontsize=12,
-                        loc="left", pad=12)
+        chart.set_title(title, color=colors["light"], fontsize=11,
+                        loc="left", pad=10)
         chart.set_xlabel("time [s]", color=colors["subtle"], fontsize=9)
         chart.set_ylabel(ylabel, color=colors["subtle"], fontsize=9)
+        if len(datasets) > 1:
+            chart.legend(loc="best", fontsize=8, frameon=False,
+                         labelcolor=colors["light"])
         cursor = chart.axvline(data.times[0], color=colors["gold"],
-                               ls="--", lw=1.6)
-        marker, = chart.plot([data.times[0]], [values[0]], "o",
-                              color=colors["gold"], ms=6)
+                               ls="--", lw=1.5)
+        marker, = chart.plot([data.times[0]], [datasets[0][0][0]], "o",
+                              color=colors["gold"], ms=5)
         return cursor, marker
 
-    v_cursor, v_marker = setup_chart([.08, .115, .38, .175],
-                                      "Tank velocity", "v [m/s]",
-                                      data.velocities, colors["aqua"])
-    e_cursor, e_marker = setup_chart([.56, .115, .38, .175],
-                                      "Total energy change", "H − H₀ [J]",
-                                      info_energy, colors["gold"])
-    fig.text(.5, .028,
-             "Solid curves: computed data  ·  Movie frames: linear interpolation between saved states",
-             color=colors["subtle"], fontsize=9, ha="center")
+    v_cursor, v_marker = setup_chart(
+        [.055, .117, .254, .174], "Tank velocity", "v [m/s]",
+        [(data.velocities, "v", colors["aqua"], "-")])
+    e_cursor, e_marker = setup_chart(
+        [.377, .117, .29, .174], "Power balance (integrated)", "energy [J]",
+        [(info_energy, "H - H0", colors["gold"], "-"),
+         (expected_energy, "Work - losses", colors["aqua"], "--")])
+    r_cursor, r_marker = setup_chart(
+        [.738, .117, .205, .174], "Balance defect", "residual [J]",
+        [(error, "defect", "#fa9289", "-")])
+    fig.text(
+        .5, .025,
+        f"POWER BALANCE: ΔH = W_ext − D_visc + ε_num    |    max |ε_num| = {max_defect:.2e} J",
+        color=colors["subtle"], fontsize=10, ha="center")
 
     n_frames = max(2, int(round(seconds * fps)))
     frame_times = np.linspace(float(data.times[0]), float(data.times[-1]), n_frames)
@@ -268,13 +337,15 @@ def render_movie(data, output, fps=25, seconds=10.0, surface_scale=8.0,
             f"surface ×{surface_scale:g}  ·  tank motion ×{move_factor:.1f}")
         for cursor, marker, value in (
             (v_cursor, v_marker, velocity),
-            (e_cursor, e_marker, energy-data.energies[0])
+            (e_cursor, e_marker, energy-data.energies[0]),
+            (r_cursor, r_marker, float(np.interp(t, data.times, error))),
         ):
             cursor.set_xdata([t, t])
             marker.set_data([t], [value])
         return (water_patch, water_line, rest_line, tank_outline,
                 time_badge, position_badge, scale_badge,
-                v_cursor, v_marker, e_cursor, e_marker)
+                v_cursor, v_marker, e_cursor, e_marker,
+                r_cursor, r_marker)
 
     writer = animation.FFMpegWriter(
         fps=fps, codec="libx264", bitrate=2400,
@@ -302,6 +373,10 @@ def main(argv=None):
     parser.add_argument("--samples", type=int, default=250)
     parser.add_argument("--surface-scale", type=float, default=8.0,
                         help="Visual gain applied to the surface deviation")
+    parser.add_argument("--balance-csv", type=Path, default=None,
+                        help="CSV sidecar path (default: output stem + .balance.csv)")
+    parser.add_argument("--scheme", choices=["cn", "bdf"], default="cn",
+                        help="Time integration: Crank-Nicolson by default, or BDF2")
     parser.add_argument("--motion-scale", default="auto",
                         help="'auto' or a positive scale (1 = physical movement)")
     args = parser.parse_args(argv)
@@ -313,12 +388,16 @@ def main(argv=None):
 
     tank = sloshing_tank(mesh_size=args.mesh, final_time=args.final_time,
                         time_step=args.time_step, save_step=args.time_step,
-                        adaptive=False, plot=False)
+                        adaptive=False, plot=False, time_scheme=args.scheme)
     data = extract_movie_data(tank, samples=args.samples)
     output = render_movie(data, args.output, fps=args.fps,
                           seconds=args.seconds, surface_scale=args.surface_scale,
                           motion_scale=args.motion_scale)
+    csv_path = args.balance_csv if args.balance_csv else output.with_suffix(".balance.csv")
+    csv_output = save_balance_csv(data, csv_path)
     print(f"MP4 created: {output.resolve()}")
+    print(f"Balance time histories: {csv_output.resolve()}")
+    print(f"Max absolute energy-balance defect: {np.max(np.abs(data.balance_defect)):.6e}")
 
 
 if __name__ == "__main__":
