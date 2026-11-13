@@ -14,6 +14,7 @@
 """
 
 import sys
+import os
 import getfem as gf
 import numpy as np
 import petsc4py
@@ -60,6 +61,13 @@ def convert_gmm_to_petsc(M, B, comm=comm):
     # This routine also reassembles nonlinear matrices many times during
     # Newton iterations. ADD_VALUES without clearing would accumulate stale
     # Jacobians from prior iterates.
+    trace = os.environ.get("SCRIMP_MPI_TRACE") == "1"
+    if trace:
+        print(
+            f"[MPI {comm.getRank()}/{comm.getSize()}] "
+            f"GetFEM matrix -> PETSc: N={nrows}, nnz_local={len(values)}",
+            file=sys.stderr, flush=True,
+        )
     B.zeroEntries()
     B.setOption(PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR, False)
     try:
@@ -73,7 +81,13 @@ def convert_gmm_to_petsc(M, B, comm=comm):
                 addv=PETSc.InsertMode.ADD_VALUES,
                 rowmap=np.arange(nrows, dtype=PETSc.IntType),
             )
+        if trace:
+            print(f"[MPI {comm.getRank()}] before PETSc Mat.assemble", 
+                  file=sys.stderr, flush=True)
         B.assemble()
+        if trace:
+            print(f"[MPI {comm.getRank()}] after PETSc Mat.assemble",
+                  file=sys.stderr, flush=True)
     finally:
         B.setOption(PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR, True)
 
