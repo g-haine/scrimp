@@ -48,6 +48,32 @@ def _mpi_trace(stage):
               file=sys.stderr, flush=True)
 
 
+def _select_saved_solution_through_final_time(times, states, t_final):
+    """Keep accepted solution snapshots up to t_f with ULP tolerance.
+
+    Floating-point step accumulation may give t_final+1 ULP when the
+    mathematical endpoint is exactly t_final. A strict <= t_final
+    mask drops that correct final snapshot (MCSS2024 reproduced:
+    PETSc reached 0.00030000000000000003, t_f stored as 0.0003).
+    Tolerance is 32 representable spacings *at t_final*, rather
+    than an absolute 1e-12 that could be too coarse for tiny horizons.
+    Truly STEPOVER steps beyond the requested horizon remain excluded.
+    """
+    t = np.asarray(times, dtype=float)
+    z = np.asarray(states)
+    if not np.isfinite(t_final):
+        raise ValueError("Final time must be finite")
+    ulps = 32.0 * abs(np.spacing(t_final if t_final else 1.0))
+    order = np.argsort(t)
+    t, z = t[order], z[order]
+    keep = t <= t_final + ulps
+    t, z = t[keep], z[keep]
+    # Replace round-off-only endpoint differences, not true STEPOVER.
+    at_end = np.abs(t - t_final) <= ulps
+    t[at_end] = t_final
+    return t, z
+
+
 # GetFEM promises a globally summed RHS, replicated on all ranks, NOT
 # a separate piece to be summed again in PETSc:
 # https://getfem.org/userdoc/parallel.html
@@ -1658,12 +1684,15 @@ class DPHS:
         TS.destroy()
         gc.collect()
 
-        idx = np.argsort(self.solution["t"])
-        self.solution["t"] = np.array(self.solution["t"])[idx]
-        self.solution["z"] = np.array(self.solution["z"])[idx]
-        mask = self.solution["t"] <= float(self.time_scheme["t_f"])
-        self.solution["t"] = self.solution["t"][mask]
-        self.solution["z"] = self.solution["z"][mask]
+        # Keep the true endpoint even when PETSc accumulates an
+        # extra floating-point ULP beyond the Python literal t_f.
+        # This is required for endpoint Hamiltonian/power accounting.
+        self.solution["t"], self.solution["z"] = (
+            _select_saved_solution_through_final_time(
+                self.solution["t"], self.solution["z"],
+                float(self.time_scheme["t_f"]),
+            )
+        )
         
         self.enable_all_bricks()
         self.solve_done = True
