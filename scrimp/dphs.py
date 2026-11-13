@@ -978,6 +978,36 @@ class DPHS:
             # an untouched A would leave the linear solver with stale data.
             _mpi_trace("IJacobian: copy preconditioner into distinct operator")
             P.copy(A, structure=structure)
+
+        # Opt-in native diagnostic: dump selected actual SWE Jacobians
+        # before PETSc/MUMPS factorization. Binary MatView is collective,
+        # so EVERY MPI rank takes part in the same call. Persist the
+        # *assembled* preconditioner/operator used by LU. This allows
+        # replay in a different PETSc/MUMPS environment without GetFEM.
+        #
+        # Power-of-two snapshots bound disk I/O during divergent Newton:
+        # 1, 2, 4, 8, 16, 32 (up to six files). Normally disabled.
+        snapshot_prefix = os.environ.get(
+            "SCRIMP_JACOBIAN_SNAPSHOT_PREFIX", ""
+        ).strip()
+        if snapshot_prefix:
+            count = getattr(self, "_jacobian_snapshot_count", 0) + 1
+            self._jacobian_snapshot_count = count
+            if count in (1, 2, 4, 8, 16, 32):
+                directory = os.path.dirname(snapshot_prefix)
+                if rank == 0 and directory:
+                    os.makedirs(directory, exist_ok=True)
+                comm.barrier()
+                name = f"{snapshot_prefix}_{count:03d}.petscbin"
+                _mpi_trace(f"IJacobian: dumping PETSc binary snapshot {name}")
+                viewer = PETSc.Viewer().createBinary(
+                    name, mode="w", comm=comm
+                )
+                try:
+                    P.view(viewer)
+                finally:
+                    viewer.destroy()
+                _mpi_trace(f"IJacobian: snapshot {count} written")
         _mpi_trace("IJacobian: completed")
 
     def init_matrix(self,A):
