@@ -253,3 +253,59 @@ blindly changing PETSc solver options or by inserting extra barriers.
 - Run both published viscous Saint-Venant 2D cases, validate energy
   balances, Lyapunov evolution and serial/MPI agreement.
 - Merge, tag or publish **only after** those gates are met.
+
+## 2026-11-13 — Crash occurs AFTER IJacobian; matrix-mode flapping detected
+
+The latest 2-rank smoke run still exited with `SIGSEGV` (139).
+Both ranks printed `IJacobian: completed` immediately before termination.
+The native crash is therefore **after** the Python Jacobian callback
+returned; no Python exception was reported. This points to the native
+PETSc TS/SNES/KSP/PC path, but a GDB backtrace is required to name the
+faulting native call.
+
+**Important additional observation:** repeated 3300-DOF nonlinear
+stiffness assemblies toggled the previous SHA-based automatic mode
+between `replicated` and `distributed`, even though both ranks
+reported equal CSR counts and equal absolute-value sums. This can
+spuriously double the matrix in some Newton iterations and destroy
+numerical consistency. It is **not** proof of a native PETSc bug.
+
+The converter no longer uses floating-point CSR hashes to decide
+the insertion semantics. **Default: `replicated`**, which is supported
+by the 1/2/4-rank real GetFEM mass integral tests. For an explicitly
+known partial assembly, select `SCRIMP_GETFEM_MATRIX_MODE=distributed`.
+The two synthetic matrix tests explicitly force the appropriate mode.
+
+The `IJacobian` callback also now fills a distinct operator matrix
+`A` from `P` rather than merely assembling an unchanged `A`.
+With `SCRIMP_MPI_TRACE=1`, it reports PETSc-owned row dimensions,
+nonzero counts and non-finite/zero diagonal diagnostics just before
+the native factorization.
+
+**Required checks after pulling:**
+
+1. Re-run the **five** algebra tests on 1/2/4 ranks.
+2. Re-run the original 2-rank open-loop smoke with
+   `PYTHONFAULTHANDLER=1 SCRIMP_MPI_TRACE=1`; confirm that every
+   matrix transfer logs `mode=replicated` and inspect the last
+   `IJacobian: operator ...` diagnostic.
+3. If it still exits 139, compare the same case on **one rank**,
+   and use the driver's `--no-init-step` switch on two ranks
+   to isolate the pseudo-TS consistency initializer. This switch
+   is *diagnostic only*: do not claim correct DAE initialization.
+
+A native stack trace, if needed, can be obtained from the same
+command launched through GDB on each rank (GDB must be installed):
+
+```bash
+SCRIMP_MPI_TRACE=1 mpiexec -n 2 gdb -q -batch \
+    -ex run -ex 'thread apply all bt 20' --args \
+    python -u sandbox/viscous_swe_2d_mpi.py \
+    --case open --mesh 0.2 --final-time 0.5 \
+    --save-dt 0.1 --max-step 0.01 \
+    > mpi_gdb.log 2>&1
+```
+
+Use this only if the simplified tests still fail: GDB adds overhead
+and running multiple debuggers in MPI can require local ptrace access.
+
