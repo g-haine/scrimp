@@ -204,6 +204,13 @@ def main():
     parser.add_argument("--state-perturb", type=float, default=0.0,
                         help="Relative deterministic random state perturbation")
     parser.add_argument(
+        "--residual-form", choices=("legacy", "direct_getfem"),
+        default="legacy",
+        help="DIAGNOSTIC ONLY: evaluate residual from GetFEM weak-form "
+             "RHS and linear stiffness instead of K_tangent(z)*z+rhs. "
+             "The production DPHS.IFunction is NOT modified.",
+    )
+    parser.add_argument(
         "--rhs-scale", type=float, default=1.0,
         help="DIAGNOSTIC ONLY: multiply PETSc RHS after GetFEM assembly; "
              "use 0.5 at 2 ranks to test whether the observed factor-two "
@@ -219,6 +226,25 @@ def main():
     comm = PETSc.COMM_WORLD
     rank = comm.getRank()
     swe = setup_model(args.mesh)
+    if args.residual_form == "direct_getfem":
+        # Avoid touching the package while testing a suspected
+        # mathematical error in the state-dependent-mass IFunction
+        # branch. For a GetFEM nonlinear residual N(z), build_rhs
+        # returns -N(z); its tangent matrix is N'(z), not N(z).
+        # Thus the consistent implicit function is
+        # M(z)*zd + K_linear*z - rhs_nonlinear(z).
+        # The current IJacobian may still omit dM(z)/dz * zd.
+        def direct_weak_form_residual(TS, t, z, zd, F):
+            swe._sync_lumped_trial_state(t, z)
+            if not swe.linear_mass:
+                swe.assemble_nl_mass()
+            swe.assemble_rhs()
+            swe.tangent_mass.mult(zd, swe.buffer)
+            swe.stiffness.multAdd(z, swe.buffer, F)
+            F.axpy(-1, swe.rhs)
+
+        swe.IFunction = direct_weak_form_residual
+
     if args.rhs_scale != 1.0:
         # This wrapper changes ONLY the isolated FD experiment, never
         # the SCRIMP package or the user's simulation. The raw GetFEM
@@ -274,6 +300,7 @@ def main():
                 "ranks": comm.getSize(),
                 "state_norm": state_norm,
                 "diagnostic_rhs_scale": args.rhs_scale,
+                "diagnostic_residual_form": args.residual_form,
                 "results": results,
             }, indent=2), flush=True)
 
