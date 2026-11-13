@@ -938,12 +938,27 @@ class DPHS:
         state = np.asarray(
             self.GlobalVec.getArray(readonly=True)
         ).real
+        # GetFEM Model.variable_list() is a print-only command in
+        # GetFEM 5.4.2; it returns None, so it cannot be iterated.
+        # SCRIMP's ports are our authoritative registry of all solver
+        # unknowns (flow and, when present, effort). Query GetFEM only
+        # for the global index interval of each registered variable.
+        # dict.fromkeys preserves registration order and removes any
+        # duplicate names (e.g. a substituted flow/effort pair).
+        names = dict.fromkeys(
+            name
+            for port in self.ports.values()
+            for name in (port.get_flow(), port.get_effort())
+            if name
+        )
         rows = []
-        for name in self.gf_model.variable_list():
+        for name in names:
             try:
                 start, width = self.gf_model.interval_of_variable(name)
-            except Exception:
-                continue  # Initialized data are not solved unknowns.
+            except (KeyError, ValueError, RuntimeError):
+                # A substituted effort or non-unknown is not present
+                # in the GetFEM solver vector. Do not try to print it.
+                continue
             block = state[int(start):int(start + width)]
             if not block.size:
                 continue
