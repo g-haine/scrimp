@@ -677,10 +677,20 @@ class DPHS:
                 brick.enable_id_bricks(self.gf_model)
 
         self.gf_model.assembly(option="build_rhs")
+        # GetFEM MPI-2 already sums and replicates the entire RHS on
+        # every rank. Insert only PETSc-owned rows; never ADD these
+        # replicated values, which would multiply them by the rank count.
+        gf_rhs = np.asarray(self.gf_model.rhs())
         size = self.gf_model.nbdof()
-        self.rhs.setValues(
-            range(size), self.gf_model.rhs(), addv=PETSc.InsertMode.INSERT_VALUES
-        )
+        if gf_rhs.size != size or self.rhs.getSize() != size:
+            raise ValueError("GetFEM/PETSc RHS size mismatch")
+        lo, hi = self.rhs.getOwnershipRange()
+        if hi > lo:
+            self.rhs.setValues(
+                range(lo, hi),
+                gf_rhs[lo:hi],
+                addv=PETSc.InsertMode.INSERT_VALUES,
+            )
         self.rhs.assemble()
 
         self.disable_all_bricks()
@@ -740,11 +750,16 @@ class DPHS:
             brick.enable_id_bricks(self.gf_model)
 
     def _sync_lumped_trial_state(self, t, z):
-        """Update GetFEM at the current PETSc Newton iterate for PDE/ODE models."""
-        if not self.lumped_variables:
+        """Synchronize GetFEM's time and nonlinear Newton trial state.
+
+        Despite the historical name, nonlinear *distributed* PDEs also
+        require the current PETSc iterate (not the previous TS monitor state).
+        All processes enter the collective scatter in the nonlinear case.
+        """
+        self.gf_model.set_time(float(t))
+        if self.linear_mass and self.linear_stiffness and not self.lumped_variables:
             return
         self.Scatter[0].scatter(z, self.GlobalVec)
-        self.gf_model.set_time(float(t))
         self.gf_model.to_variables(
             np.asarray(self.GlobalVec.getArray(), dtype=np.float64)
         )
@@ -976,13 +991,12 @@ class DPHS:
                     )
         id_alg.sort()
         atol_v[id_alg] = np.inf
-        atol_v_petsc = PETSc.Vec().createWithArray(
-            np.zeros(
-                self.gf_model.nbdof(),
-            ),
-            comm=comm,
-        )
-        atol_v_petsc.setArray(atol_v)
+        # Preserve the distributed layout of the TS residual vector.
+        # createWithArray(global_array, comm=WORLD) would allocate N
+        # local entries on EACH rank, yielding a global length P*N.
+        atol_v_petsc = self.F.duplicate()
+        lo, hi = atol_v_petsc.getOwnershipRange()
+        atol_v_petsc.getArray()[:] = atol_v[lo:hi]
         TS.setTolerances(atol=atol_v_petsc)
 
     def event(self, TS, t, z, fvalue):
@@ -1098,13 +1112,15 @@ class DPHS:
 
         InitVec = self.tangent_stiffness.createVecRight()
         InitVec.zeroEntries()
-        rows = InitVec.getOwnershipRange()
-        range_rows = range(rows[0], rows[1])
-        InitVec.setValuesLocal(
-            range_rows,
-            self.gf_model.from_variables()[range_rows],
-            addv=PETSc.InsertMode.INSERT_VALUES,
-        )
+        # PETSc ownership ranges use GLOBAL indices. setValuesLocal
+        # would require a local-to-global map, which is not installed.
+        lo, hi = InitVec.getOwnershipRange()
+        if hi > lo:
+            InitVec.setValues(
+                range(lo, hi),
+                self.gf_model.from_variables()[lo:hi],
+                addv=PETSc.InsertMode.INSERT_VALUES,
+            )
         InitVec.assemble()
         
         comm.barrier()
@@ -1203,13 +1219,15 @@ class DPHS:
 
         InitVec = self.tangent_stiffness.createVecRight()
         InitVec.zeroEntries()
-        rows = InitVec.getOwnershipRange()
-        range_rows = range(rows[0], rows[1])
-        InitVec.setValuesLocal(
-            range_rows,
-            self.gf_model.from_variables()[range_rows],
-            addv=PETSc.InsertMode.INSERT_VALUES,
-        )
+        # PETSc ownership ranges use GLOBAL indices. setValuesLocal
+        # would require a local-to-global map, which is not installed.
+        lo, hi = InitVec.getOwnershipRange()
+        if hi > lo:
+            InitVec.setValues(
+                range(lo, hi),
+                self.gf_model.from_variables()[lo:hi],
+                addv=PETSc.InsertMode.INSERT_VALUES,
+            )
         InitVec.assemble()
         comm.barrier()
         
