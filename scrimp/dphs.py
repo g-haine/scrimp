@@ -1609,6 +1609,30 @@ class DPHS:
         self.last_ts_steps = int(TS.getStepNumber())
         self.last_ts_rejections = int(TS.getStepRejections())
         self.last_ts_snes_failures = int(TS.getSNESFailures())
+
+        # The monitor normally saves at dt_save intervals. A TS ending
+        # exactly at t_f may skip the last accepted step if its advance
+        # crosses a save threshold (observed for published MCSS2024:
+        # accepted at 0.0001, then 0.0003, yet saved only to 0.0001).
+        # Record the actual final state, without re-integrating and
+        # without inventing interpolation when TS STEPOVER goes past t_f.
+        t_final = float(self.time_scheme["t_f"])
+        final_tol = 1e-12 * max(1.0, abs(t_final))
+        if (
+            self.last_ts_converged_reason > 0
+            and abs(self.last_ts_time - t_final) <= final_tol
+            and (
+                not self.solution["t"]
+                or float(self.solution["t"][-1])
+                < self.last_ts_time - final_tol
+            )
+        ):
+            self.monitor(
+                TS, -1, self.last_ts_time, InitVec,
+                dt_save=float(self.time_scheme["dt_save"]),
+                t_0=float(self.time_scheme["t_0"]),
+            )
+
         _mpi_trace(
             "solve: main TS completed: type={}, reason={}, "
             "t={:.9g}, dt={:.9g}, steps={}, rejected={}, "
