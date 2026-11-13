@@ -1235,3 +1235,97 @@ linear algebra testing; it cannot validate the physical SWE
 residual, implicit Jacobian derivative or power balance.
 The source-version smoke still exits 139; do not merge PR #22,
 close #6 or tag v1.2.1 on the basis of these native tests.
+
+
+## 2026-11-13 — Persistent KSP/PC/MUMPS with alternating SWE Jacobians also passes
+
+The user ran the new `--next-matrix` PETSc-only replay on
+`jac_001.petscbin` and `jac_002.petscbin` using TWO MPI ranks
+in BOTH Conda environments:
+- **Old** `scrimp`: PETSc 3.21.6, MUMPS 5.7.3, MPICH 4.3.1.
+- **New** `scrimp-mumps-test`: PETSc 3.25.5, MUMPS 5.8.2,
+  MPICH 5.0.1.
+
+In **both** environments, 6/6 transitions
+`001 → 002 → 001 → 002 → 001 → 002` succeeded with the **same**
+persistent PETSc KSP/PC, and the **same mutable** MPIAIJ Mat handle.
+Each update used `MatCopy(DIFFERENT_NONZERO_PATTERN)`, so KSP's
+MUMPS factorization was reused/rebuilt appropriately.
+Every KSP solve converged; maximum true relative linear residual:
+- Old: **3.3047122e-16**.
+- New: **3.10989255e-16**.
+
+After all 6 transitions, both ranks completed the final
+`KSP.reset()` and `KSP.destroy()` without native errors
+(exit 0 in both environments). This greatly weakens the hypothesis
+that **MUMPS 5.7.3 alone**, or a normal repeated LU factor
+with changing sparsity, causes the original SWE SIGSEGV.
+It does **not** eliminate TS/SNES callback lifetime errors or
+GetFEM-native heap corruption in the full nonlinear calculation.
+
+### Next priority: verify the mathematically correct nonlinear residual
+
+Serial SWE directional finite-difference comparison previously
+measured **~6.84%** mismatch between `IFunction` and
+`IJacobian`, even before introducing MPI. The two-rank excess
+mismatch was **fully explained** by the established GetFEM RHS
+multiplication-by-MPI-size factor. The diagnostic already contains a
+`--residual-form direct_getfem` alternative; **it overrides only
+the isolated FD experiment's `IFunction`**, leaving SCRIMP
+production equations and time solver untouched.
+
+For fixed `zd=0`, one expects the GetFEM weak-form residual
+`F(z,zd) = M(z) zd + K_linear z - rhs_nonlinear(z)`, hence
+`F_z = K_linear + K_nonlinear` and
+`F_zd = M(z)`. In contrast, SCRIMP's legacy nonlinear path
+evaluates `K_tangent(z) z + rhs_nonlinear(z)`.
+For `zd ≠ 0`, the direct-residual diagnostic still uses the
+historical `IJacobian`, which is missing the
+`(d M(z)/dz)[v] zd` term. Therefore the four test cases
+`zd∈{0,nonzero}`, `shift∈{0,1}` *separately* test the
+nonlinear force and state-dependent mass derivatives.
+
+**Run in ORIGINAL `scrimp` (has locally compiled MPI GetFEM):**
+
+```bash
+git pull --ff-only
+conda activate scrimp
+
+timeout -k 5s 120s mpiexec -n 1 \
+  python -u sandbox/check_swe_implicit_jacobian.py \
+    --mesh 0.2 --epsilon 1e-5 \
+    --residual-form direct_getfem \
+  > fd_direct_1rank.log 2>&1
+echo "direct FD 1 rank exit=$?"
+tail -n 145 fd_direct_1rank.log
+
+timeout -k 5s 120s mpiexec -n 2 \
+  python -u sandbox/check_swe_implicit_jacobian.py \
+    --mesh 0.2 --epsilon 1e-5 \
+    --residual-form direct_getfem --rhs-scale 0.5 \
+  > fd_direct_2ranks.log 2>&1
+echo "direct FD 2 ranks exit=$?"
+tail -n 145 fd_direct_2ranks.log
+```
+
+The `--rhs-scale 0.5` switch is an opt-in normalization applied to
+PETSc's RHS **inside the test**, to compensate for the independently
+measured GetFEM factor 2. In both reports, the
+`getfem_rhs_derivative_vs_minus_nonlinear_tangent_relative`
+diagnostic still compares the **unscaled raw GetFEM RHS** to
+the tangent; it will therefore still report `1.0` at 2 ranks
+even if the *PETSc residual's* derivative has been corrected.
+Do **not** interpret that one raw diagnostic number as a failure of
+the scaled FD experiment.
+
+The key observations are `relative_error` and
+`error_norm_by_equation`, especially for the `zd=0` rows.
+If the direct weak-form residual's `zd=0` derivative agrees
+with IJacobian in both MPI sizes, then a targeted change to
+SCRIMP's production nonlinear `IFunction` is justified
+(after verifying boundary/control source sign conventions).
+`zd ≠ 0` will still require a mass-derivative Jacobian fix
+and/or another consistent DAE treatment.
+
+**No further MUMPS upgrades or merges on this evidence alone.**
+Keep issue #6 open, PR #22 draft and SCRIMP master unchanged.
