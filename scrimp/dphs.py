@@ -1338,6 +1338,25 @@ class DPHS:
         
         _mpi_trace("init_step: before TS.setFromOptions")
         TS.setFromOptions()
+
+        # Diagnostic-only alternative to the global LU/MUMPS factorization.
+        # The default solver remains unchanged. The native MPI crash observed
+        # in issue #6 occurs in MatDestroy_MUMPS -> PCReset_LU -> TSReset.
+        # Using BJACOBI in the initial pseudo-TS alone helps distinguish a
+        # MUMPS-specific factor lifecycle defect from an earlier heap write.
+        init_pc_type = os.environ.get("SCRIMP_INIT_PC_TYPE", "").strip()
+        if init_pc_type:
+            if init_pc_type not in ("bjacobi", "none", "lu"):
+                raise ValueError(
+                    "SCRIMP_INIT_PC_TYPE must be bjacobi, none or lu"
+                )
+            init_pc = TS.getSNES().getKSP().getPC()
+            init_pc.setType(init_pc_type)
+            _mpi_trace(
+                "init_step: diagnostic PC override="
+                f"{init_pc.getType()} (pseudo-TS only)"
+            )
+
         _mpi_trace("init_step: before algebraic tolerance setup")
         self.exclude_algebraic_var_from_lte(TS)
         _mpi_trace("init_step: TS setup completed")
@@ -1371,8 +1390,11 @@ class DPHS:
                 f"Initialisation done in {time.perf_counter() - self.ts_start:1.4g}s"
             )
 
+        _mpi_trace("init_step: before TS.reset (PC factor cleanup)")
         TS.reset()
+        _mpi_trace("init_step: after TS.reset")
         TS.destroy()
+        _mpi_trace("init_step: after TS.destroy")
         gc.collect()
 
         # Delete options for initial step
