@@ -158,6 +158,31 @@ printf "exit code: %s\\n" "$?"
 tail -n 160 mpi_open_2ranks.log
 ```
 
+Interpret the new `solve:/init_step:` rank traces first: the
+driver uses an **initial pseudo-TS consistency step**, before the main
+ARKIMEX time integrator. If the crash is in the pseudo-TS initialization,
+isolate this by running the same small problem on **one rank**, and
+then compare with the diagnostic-only option `--no-init-step`:
+
+```bash
+# Same configuration, but only one MPI rank:
+PYTHONFAULTHANDLER=1 SCRIMP_MPI_TRACE=1 \
+timeout -k 5s 120s mpiexec -n 1 python -u \
+    sandbox/viscous_swe_2d_mpi.py \
+    --case open --mesh 0.2 --final-time 0.5 \
+    --save-dt 0.1 --max-step 0.01 \
+    > mpi_open_1rank.log 2>&1
+
+# Diagnostic only: omission of consistency solve changes the DAE
+# initialization. Results are NOT physical validation.
+PYTHONFAULTHANDLER=1 SCRIMP_MPI_TRACE=1 \
+timeout -k 5s 120s mpiexec -n 2 python -u \
+    sandbox/viscous_swe_2d_mpi.py \
+    --case open --mesh 0.2 --final-time 0.5 \
+    --save-dt 0.1 --max-step 0.01 --no-init-step \
+    > mpi_open_no_init_2ranks.log 2>&1
+```
+
 If faulthandler does not identify the native failing call, a GDB backtrace
 from the process that crashed may be needed; do not try to fix a SIGSEGV by
 blindly changing PETSc solver options or by inserting extra barriers.
