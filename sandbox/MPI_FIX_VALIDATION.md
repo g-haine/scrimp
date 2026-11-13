@@ -1616,3 +1616,75 @@ to PETSc owned-row insertion.
    exact FD agreement or passing unit tests.
 
 **No master merge, issue #6 closure or v1.2.1 release yet.**
+
+
+## 2026-11-13 — Could SCRIMP simply be calling the wrong GetFEM assembly mode?
+
+**Question from user:** SCRIMP calls
+`gf_model.assembly(option="build_rhs")` and reads the complete
+non-distributed `gf_model.rhs()`. Could that be the mistake?
+
+**API/source check:** No wrong API call is established.
+GetFEM explicitly documents `Model.assembly("build_rhs")`
+as the RHS-only mode and `Model.assembly("build_all")` as
+simultaneous RHS + tangent assembly:
+https://getfem.org/python/cmdref_Model.html .
+A global RHS vector replicated on every rank is ALSO the
+documented intended GetFEM MPI-level-2 behavior, and is not
+a cause for dividing by rank count in itself:
+https://getfem.org/userdoc/parallel.html .
+
+Nevertheless, **RHS-only and simultaneous RHS+matrix have
+distinct internal code paths**. In the published GetFEM C++ source
+(e.g. GetFEM 5.5 `src/getfem_models.cc`), `BUILD_RHS`
+has its own assembly branch, while `BUILD_ALL` goes through
+a combined branch. This is a legitimate possible source of
+different MPI behavior in a specific GetFEM build. This
+source inspection is NOT proof about the user's local 5.4.2
+binary: we must run the comparison on that very installation.
+
+**New controlled experiment:** `sandbox/check_getfem_mpi_rhs.py`
+now runs both `build_rhs` (SCRIMP's actual option) and
+`build_all` on independent identical 1D GetFEM models
+for `u*Test_u`, `u^2*Test_u`, `u^3*Test_u` at
+`u=1` on [0,1], without any TS/SNES/KSP/MUMPS. It reports
+`assembly_option`, raw GetFEM RHS directional derivative
+and pre-PETSc tangent, and their ratio. It also hashes
+the entire raw GetFEM CSR sparse matrix on each rank,
+not merely its action on the constant vector.
+
+Run in the original `scrimp` environment:
+```bash
+git pull --ff-only
+conda activate scrimp
+for n in 1 2 4; do
+  timeout -k 5s 120s mpiexec -n "$n" \
+    python -u sandbox/check_getfem_mpi_rhs.py \
+    > "getfem_build_modes_${n}rank.log" 2>&1
+  echo "MPI $n: exit=$?"
+  grep -E '"expression"|"assembly_option"|"rhs_to_tangent_integral_ratio"|"raw_tangent_full_csr_digest"' \
+    "getfem_build_modes_${n}rank.log"
+done
+```
+
+**Outcome interpretation:**
+- `build_rhs` gives ratio P but `build_all` gives ratio 1:
+  an actual RHS-only build-path defect. Investigate switching
+  SCRIMP to `build_all` only after verifying source/constraint
+  bricks, linear terms, and performance (unneeded tangents).
+- BOTH modes yield ratio P and full raw CSR matrices are identical
+  per rank: stronger evidence that complete generic contributions
+  are being assembled per process (or previously globally
+  accumulated) before RHS summation; no wrong user-level
+  assembly option fixes it.
+- BOTH modes yield ratio 1: initial diagnosis depends on
+  context or another code path; re-check the previous test.
+- Full CSR rank digests DIFFER: GetFEM returns distributed
+  matrix contributions despite identical constant-vector actions;
+  examine partitioned regions and reduction separately.
+
+**Important:** The current SCRIMP `auto` RHS calibration
+is a compatibility correction, not proof of an upstream bug
+nor a fully generic fix for explicit RHS and constraints.
+Do not remove it or replace it with a single unconditional
+division without resolving these model-specific semantics.
