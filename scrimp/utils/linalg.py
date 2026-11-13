@@ -15,7 +15,6 @@
 
 import sys
 import os
-import hashlib
 import getfem as gf
 import numpy as np
 import petsc4py
@@ -31,20 +30,17 @@ import scipy.sparse as sp
 def convert_gmm_to_petsc(M, B, comm=comm):
     """Transfer GetFEM's globally numbered matrix into distributed PETSc.
 
-    GetFEM MPI level 2 *normally* exposes distributed matrix
-    contributions, which must be summed across ranks. However, some
-    GetFEM Model/brick combinations return a completely replicated
-    matrix in the Python interface. Summing such replicas would multiply
-    the operator by the number of MPI ranks (issue #6).
+    For gf.Model.tangent_matrix() in the tested GetFEM Python MPI-2
+    builds, the returned sparse matrix is already globally assembled
+    and available on every rank. It must be inserted only once, using
+    the rows owned by each PETSc rank (the default 'replicated' mode).
 
-    In auto mode, compare cryptographic hashes of the exact CSR data on
-    all ranks. If they agree, assign only rows owned by each PETSc rank.
-    Otherwise add all rank-local contributions by global row/column index.
-
-    Auto detection is a provisional compatibility measure, not proof of
-    the distribution contract: if independently assembled contributions
-    happen to be byte-for-byte identical, choose 'distributed' explicitly.
-    Setting SCRIMP_GETFEM_MATRIX_MODE=replicated/distributed overrides auto.
+    Other callers can explicitly select 'distributed' for partial
+    GetFEM contributions by setting SCRIMP_GETFEM_MATRIX_MODE.
+    Never automatically switch the assembly semantic from Newton step
+    to Newton step based on exact hashes of floating-point entries:
+    the prior heuristic caused unstable replicated/distributed mode
+    changes in a 2D nonlinear shallow-water solve.
 
     Every rank must enter this method; do not add external barriers.
     """
@@ -68,23 +64,11 @@ def convert_gmm_to_petsc(M, B, comm=comm):
     if len(col_idx) and (min(col_idx) < 0 or max(col_idx) >= ncols):
         raise ValueError("GetFEM CSR has columns outside the PETSc matrix")
 
-    mode = os.environ.get("SCRIMP_GETFEM_MATRIX_MODE", "auto").lower()
-    if mode not in ("auto", "replicated", "distributed"):
+    mode = os.environ.get("SCRIMP_GETFEM_MATRIX_MODE", "replicated").lower()
+    if mode not in ("replicated", "distributed"):
         raise ValueError(
-            "SCRIMP_GETFEM_MATRIX_MODE must be auto, replicated, or distributed"
+            "SCRIMP_GETFEM_MATRIX_MODE must be replicated or distributed"
         )
-    if mode == "auto":
-        if comm.getSize() == 1:
-            mode = "replicated"  # both strategies agree for one rank
-        else:
-            digest = hashlib.blake2b(digest_size=20)
-            for arr in (row_ptr, col_idx, values):
-                digest.update(str(arr.dtype).encode("ascii"))
-                digest.update(np.ascontiguousarray(arr).view(np.uint8))
-            # The digest is small; never communicate the entire sparse matrix
-            # just to decide whether it is replicated.
-            signatures = comm.tompi4py().allgather(digest.digest())
-            mode = "replicated" if len(set(signatures)) == 1 else "distributed"
 
     trace = os.environ.get("SCRIMP_MPI_TRACE") == "1"
     if trace:
