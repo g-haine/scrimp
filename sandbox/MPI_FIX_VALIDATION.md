@@ -2242,3 +2242,109 @@ before claiming success. A steady-water control
 `--rotation 0` is a further useful zero-input test
 if needed. Do not merge/release before physical
 and MPI tests pass.
+
+
+## 2026-11-13 — Corrected tangential vs smooth rigid swirl both still fail: wall multiplier Y = 1e8
+
+The user ran two controlled native **one-rank** BDF2 start experiments
+with the corrected **clockwise** initial momentum and the same
+time step `1e-9`, `--initial-profile tangent` and `rigid`.
+Both runs exit **1** during BDF bootstrap, ending at
+`MatSolve_MUMPS: INFOG(1)=-3`, before any accepted initial
+macro-step.
+
+| Quantity after first Newton correction | Tangent | Rigid |
+| --- | ---: | ---: |
+| `||h||`, min/max | 110, 5/5 | 110, 5/5 |
+| `||p||` | 4.21459 | 3.04921 |
+| `||e_h||` | 9.33449 | 9.17738 |
+| `||e_p||` | 3.66236 | 2.75072 |
+| `||Y_n||` | 2.98029 | 2.99743 |
+| `||U||` | 1.34811 | 1.34843 |
+| **`||Y||`** | **1e8** | **1e8** |
+| `maxabs(Y)` | 1.48715e7 | 1.48968e7 |
+
+In both, h stays exactly 5 at the first Newton trial and
+p is of order 0.2; only wall traction multiplier Y
+diverges by many orders of magnitude. Subsequent line
+search trials drive Y_n to 1e8 while Y remains 1e8.
+The initial sign error was genuine, but its correction
+is **not sufficient** to explain/resolve the problem.
+Do NOT report either run as stable or physical.
+
+### New hypothesis: compatibility of FE boundary constraint, not just continuous swirl orientation
+
+The benchmark's `Tangent=Rot*Normal` uses GetFEM
+piecewise polygon boundary normals. Initial
+`p=rotation*(y,-x)` for rigid swirl, or normalized
+coordinates for the tangent profile, references the
+**continuous circular normal**. Even if clockwise and
+physically aligned on an exact circle, the two profiles
+need not coincide with `Rot*Normal` **under the actual
+finite-element boundary trace constraint**
+`\int_{\Gamma} h(e_p-U)\cdot\mathrm{Test}_Y=0`.
+
+A discrepancy of order `delta` projected onto a
+Lagrange multiplier constraint and enforced in a BDF
+step `dt=1e-9` can create reaction stresses of order
+`delta/dt`. This could account for a very large Y
+despite sensible fluid variables. It remains a
+**hypothesis**, not established root cause.
+Another possibility is a rank deficiency or bad
+conditioning of the saddle-point boundary multiplier
+block. The 132 structurally zero diagonal entries
+corresponding to Y rows are EXPECTED in a saddle
+point matrix and do not alone prove singularity.
+
+**Crucial next one-rank test:** use the already
+implemented `--rotation 0` which simultaneously
+sets initial p=0 and wall U=0 at t≈0, removing
+the rotation-dependent Dirichlet mismatch. This
+isolates whether the numerical weakness remains when
+the boundary velocity constraint is exactly
+compatible *in the discrete FE space*.
+
+```bash
+git pull --ff-only
+conda activate scrimp
+
+SCRIMP_GETFEM_RHS_MODE=divide_by_mpi_size \
+PYTHONFAULTHANDLER=1 \
+timeout -k 5s 45s mpiexec -n 1 \
+  python -u sandbox/viscous_swe_2d_mpi.py \
+    --case open --rotation 0 --initial-profile rigid \
+    --mesh 0.2 --final-time 0.006 \
+    --save-dt 0.002 --max-step 0.002 \
+    --ts-type arkimex --adapt-type none \
+    --newton-block-trace \
+  > swe_rest_1rank.log 2>&1
+echo "exit=$?"
+grep -E 'Initial consistency:|Newton blocks|init_step: consistency TS completed|main TS completed|MUMPS error|maximum_relative_balance_error' \
+  swe_rest_1rank.log | head -n 12
+tail -n 18 swe_rest_1rank.log
+```
+
+**Interpretation:**
+- If `||Y||` collapses and BDF2 startup succeeds,
+  initial discrete wall velocity incompatibility
+  (or another rotation-dependent model term) is
+  strongly implicated. Then initialize the algebraic
+  fields from compatible discrete projection / solve
+  constraints at t0, not by forcing an infinitesimal
+  BDF step.
+- If `||Y||` still reaches ~1e8 with p=U=0,
+  the issue cannot be attributed solely to initial
+  swirl/wall velocity mismatch. Investigate the
+  saddle-point block rank/conditioning, GetFEM
+  boundary integration and solver factor lifecycle
+  before changing time-step again.
+- A zero-rotation run might still fail because
+  `e_h`, `Y_n` and other algebraic variables are
+  initially zero despite h=5. This is a separate
+  initialization consistency problem and MUST
+  be addressed before declaring the multiplier
+  formulation wrong.
+
+The native MPI segfault/MUMPS lifecycle is
+still independent; GetFEM MPI factor root cause
+remains deferred to #23. Keep PR #22 draft.
