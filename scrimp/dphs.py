@@ -867,7 +867,24 @@ class DPHS:
         self.assemble_rhs()
         _mpi_trace("IFunction: RHS assembled; before PETSc algebra")
 
-        if self.lumped_variables and self.linear_mass:
+        nonlinear_form = os.environ.get(
+            "SCRIMP_NONLINEAR_RESIDUAL_FORM", "legacy"
+        ).strip().lower()
+        if nonlinear_form not in ("legacy", "direct_getfem"):
+            raise ValueError(
+                "SCRIMP_NONLINEAR_RESIDUAL_FORM must be "
+                "legacy or direct_getfem"
+            )
+
+        if nonlinear_form == "direct_getfem" and not self.linear_mass:
+            # Experimental, opt-in: GetFEM's build_rhs is the NEGATIVE
+            # of the active weak-form residual. K_nl(z) is its
+            # derivative, not the nonlinear residual operator itself.
+            # FD-verified for 2D viscous SWE at 1 and 2 MPI ranks.
+            self.tangent_mass.mult(zd, self.buffer)
+            self.stiffness.multAdd(z, self.buffer, F)
+            F.axpy(-1, self.rhs)
+        elif self.lumped_variables and self.linear_mass:
             # GetFEM's build_rhs returns MINUS the nonlinear weak-form
             # residual (plus source contributions).  Its nonlinear tangent
             # matrix is the Jacobian, not an operator to multiply by the
