@@ -698,22 +698,30 @@ class DPHS:
         size = self.gf_model.nbdof()
         if gf_rhs.size != size or self.rhs.getSize() != size:
             raise ValueError("GetFEM/PETSc RHS size mismatch")
-        # GetFEM MPI-2 documents the RHS as already globally summed
-        # and replicated on all ranks. However, the locally compiled
-        # GetFEM 5.4.2 of issue #6 returns a RHS multiplied by the MPI
-        # process count, verified on independent u, u^2 and u^3 bricks
-        # at 1, 2 and 4 ranks. An opt-in normalization lets us isolate
-        # this bug without changing behavior on other GetFEM builds.
+        # On the validated GetFEM 5.4.2 MPI-level-2 build the
+        # *replicated* RHS is over-summed by exactly the MPI size.
+        # This has been measured for 1D linear/quadratic/cubic bricks
+        # at 1/2/4 ranks and for the full nonlinear 2D SWE. Correct
+        # the PETSc owned-row copy ONCE; never sum the replicated RHS.
         #
-        # DO NOT unconditionally divide: other installations may
-        # provide an already correctly reduced global RHS, or contain
-        # special explicit source/constraint bricks.
-        rhs_mode = os.environ.get("SCRIMP_GETFEM_RHS_MODE", "raw").lower()
-        if rhs_mode not in ("raw", "divide_by_mpi_size"):
+        # Other GetFEM builds could have fixed their reduction. Keep
+        # 'raw' as an explicit compatibility escape hatch and make
+        # 'auto' normalize only known MPI-level-2 assemblies. An
+        # integration test detects an unexpected over/under-scaling.
+        rhs_mode = os.environ.get(
+            "SCRIMP_GETFEM_RHS_MODE", "auto"
+        ).strip().lower()
+        if rhs_mode not in ("auto", "raw", "divide_by_mpi_size"):
             raise ValueError(
-                "SCRIMP_GETFEM_RHS_MODE must be raw or divide_by_mpi_size"
+                "SCRIMP_GETFEM_RHS_MODE must be "
+                "auto, raw or divide_by_mpi_size"
             )
-        scale = 1.0 / max_rank if rhs_mode == "divide_by_mpi_size" else 1.0
+        if rhs_mode == "auto":
+            is_mpi2 = int(gf.util_mpi_parallelism_level()) == 2
+            normalize = max_rank > 1 and is_mpi2
+        else:
+            normalize = rhs_mode == "divide_by_mpi_size"
+        scale = 1.0 / max_rank if normalize else 1.0
         if os.environ.get("SCRIMP_MPI_TRACE") == "1":
             _mpi_trace(f"rhs: mode={rhs_mode}, scale={scale:.9g}")
         lo, hi = self.rhs.getOwnershipRange()
