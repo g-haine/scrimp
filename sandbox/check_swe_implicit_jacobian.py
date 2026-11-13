@@ -163,11 +163,14 @@ def main():
         ):
             results.append(report(swe, z, zd, direction, shift, args.epsilon))
 
+        # PETSc Vec.norm() is collective: ALL ranks must call it,
+        # never only rank 0 in a branch used for reporting.
+        state_norm = float(z.norm())
         if rank == 0:
             print(json.dumps({
                 "dofs": n,
                 "ranks": comm.getSize(),
-                "state_norm": float(z.norm()),
+                "state_norm": state_norm,
                 "results": results,
             }, indent=2), flush=True)
 
