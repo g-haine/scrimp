@@ -1506,7 +1506,16 @@ class DPHS:
         
         _mpi_trace("solve: before main TS.solve")
         TS.solve(InitVec)
-        _mpi_trace("solve: after main TS.solve")
+        _mpi_trace(
+            "solve: main TS completed: type={}, reason={}, "
+            "t={:.9g}, dt={:.9g}, steps={}, rejected={}, "
+            "SNES_failures={}".format(
+                TS.getType(), int(TS.getConvergedReason()),
+                float(TS.getTime()), float(TS.getTimeStep()),
+                TS.getStepNumber(), TS.getStepRejections(),
+                TS.getSNESFailures(),
+            )
+        )
         del InitVec
 
         if rank == 0:
@@ -1652,7 +1661,14 @@ class DPHS:
         
         _mpi_trace("init_step: before pseudo TS.solve")
         TS.solve(InitVec)
-        _mpi_trace("init_step: after pseudo TS.solve")
+        _mpi_trace(
+            "init_step: pseudo TS completed: reason={}, "
+            "t={:.9g}, steps={}, rejected={}, SNES_failures={}".format(
+                int(TS.getConvergedReason()), float(TS.getTime()),
+                TS.getStepNumber(), TS.getStepRejections(),
+                TS.getSNESFailures(),
+            )
+        )
         del InitVec
 
         if rank == 0:
