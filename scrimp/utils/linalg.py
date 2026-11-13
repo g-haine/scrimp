@@ -15,6 +15,7 @@
 
 import sys
 import os
+import hashlib
 import getfem as gf
 import numpy as np
 import petsc4py
@@ -28,67 +29,100 @@ comm = PETSc.COMM_WORLD
 import scipy.sparse as sp
 
 def convert_gmm_to_petsc(M, B, comm=comm):
-    """Accumulate a distributed GetFEM model matrix into a PETSc matrix.
+    """Transfer GetFEM's globally numbered matrix into distributed PETSc.
 
-    With GetFEM MPI level 2, model tangent matrices contain partial
-    contributions on each rank, but use GLOBAL degree-of-freedom indices.
-    Contributions to shared entries from different ranks must be added.
+    GetFEM MPI level 2 *normally* exposes distributed matrix
+    contributions, which must be summed across ranks. However, some
+    GetFEM Model/brick combinations return a completely replicated
+    matrix in the Python interface. Summing such replicas would multiply
+    the operator by the number of MPI ranks (issue #6).
 
-    Do not use PETSc's setValuesLocalCSR here: no GetFEM-to-PETSc
-    local-to-global mapping has been installed and the GetFEM row indices
-    are not the rows locally owned by PETSc.
+    In auto mode, compare cryptographic hashes of the exact CSR data on
+    all ranks. If they agree, assign only rows owned by each PETSc rank.
+    Otherwise add all rank-local contributions by global row/column index.
 
-    All ranks must call this routine. The target matrix retains its PETSc
-    ownership distribution; PETSc routes off-process values at assembly.
+    Auto detection is a provisional compatibility measure, not proof of
+    the distribution contract: if independently assembled contributions
+    happen to be byte-for-byte identical, choose 'distributed' explicitly.
+    Setting SCRIMP_GETFEM_MATRIX_MODE=replicated/distributed overrides auto.
+
+    Every rank must enter this method; do not add external barriers.
     """
     A = gf.Spmat("copy", M)
-    # GetFEM provides CSC for the transpose: turn it into the CSR of M.
+    # GetFEM exposes CSC of the transpose; this yields CSR of M.
     A.transpose()
     row_ptr, col_idx = A.csc_ind()
     values = A.csc_val()
 
+    row_ptr = np.asarray(row_ptr)
+    col_idx = np.asarray(col_idx)
+    values = np.asarray(values)
     nrows, ncols = B.getSize()
     if len(row_ptr) != nrows + 1:
         raise ValueError(
             f"GetFEM/PETSc row count mismatch on rank {comm.getRank()}: "
-            f"{len(row_ptr) - 1} vs PETSc {nrows}"
+            f"{len(row_ptr)-1} vs PETSc {nrows}"
         )
     if len(col_idx) != len(values) or int(row_ptr[-1]) != len(values):
         raise ValueError("Invalid GetFEM CSR data (column/value count)")
     if len(col_idx) and (min(col_idx) < 0 or max(col_idx) >= ncols):
         raise ValueError("GetFEM CSR has columns outside the PETSc matrix")
 
-    # This routine also reassembles nonlinear matrices many times during
-    # Newton iterations. ADD_VALUES without clearing would accumulate stale
-    # Jacobians from prior iterates.
+    mode = os.environ.get("SCRIMP_GETFEM_MATRIX_MODE", "auto").lower()
+    if mode not in ("auto", "replicated", "distributed"):
+        raise ValueError(
+            "SCRIMP_GETFEM_MATRIX_MODE must be auto, replicated, or distributed"
+        )
+    if mode == "auto":
+        if comm.getSize() == 1:
+            mode = "replicated"  # both strategies agree for one rank
+        else:
+            digest = hashlib.blake2b(digest_size=20)
+            for arr in (row_ptr, col_idx, values):
+                digest.update(str(arr.dtype).encode("ascii"))
+                digest.update(np.ascontiguousarray(arr).view(np.uint8))
+            # The digest is small; never communicate the entire sparse matrix
+            # just to decide whether it is replicated.
+            signatures = comm.tompi4py().allgather(digest.digest())
+            mode = "replicated" if len(set(signatures)) == 1 else "distributed"
+
     trace = os.environ.get("SCRIMP_MPI_TRACE") == "1"
     if trace:
-        # Stored CSR slots can include zero-valued entries. Equal CSR
-        # lengths on ranks do not imply equal matrix contributions.
-        nz = int(np.count_nonzero(values))
-        magnitude = float(np.sum(np.abs(values)))
-        first = np.asarray(values[:4])
         print(
             f"[MPI {comm.getRank()}/{comm.getSize()}] "
-            f"GetFEM matrix -> PETSc: N={nrows}, nnz_stored={len(values)}, "
-            f"nnz_nonzero={nz}, abs_sum={magnitude:.9g}, first4={first}",
+            f"GetFEM -> PETSc: rows={nrows}, nnz_stored={len(values)}, "
+            f"nnz_nonzero={np.count_nonzero(values)}, "
+            f"abs_sum={np.sum(np.abs(values)):.9g}, mode={mode}",
             file=sys.stderr, flush=True,
         )
+
+    # Both INSERT and ADD are used only after clearing the old Jacobian.
     B.zeroEntries()
     B.setOption(PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR, False)
     try:
-        if len(values):
-            # IJV accepts global row/column numbering. Unlike setValuesCSR,
-            # a global row map handles rows owned by other PETSc processes.
+        if mode == "replicated":
+            # Every rank holds the *whole* matrix; retain only PETSc-owned
+            # rows on that rank to avoid inserting the same entry P times.
+            lo, hi = B.getOwnershipRange()
+            if hi > lo:
+                begin, end = int(row_ptr[lo]), int(row_ptr[hi])
+                B.setValuesIJV(
+                    row_ptr[lo:hi + 1] - begin,
+                    col_idx[begin:end],
+                    values[begin:end],
+                    addv=PETSc.InsertMode.INSERT_VALUES,
+                    rowmap=np.arange(lo, hi, dtype=PETSc.IntType),
+                )
+        elif len(values):
+            # True distributed GetFEM contributions can include overlaps
+            # and off-process rows: sum by GLOBAL index in PETSc.
             B.setValuesIJV(
-                row_ptr,
-                col_idx,
-                values,
+                row_ptr, col_idx, values,
                 addv=PETSc.InsertMode.ADD_VALUES,
                 rowmap=np.arange(nrows, dtype=PETSc.IntType),
             )
         if trace:
-            print(f"[MPI {comm.getRank()}] before PETSc Mat.assemble", 
+            print(f"[MPI {comm.getRank()}] before PETSc Mat.assemble",
                   file=sys.stderr, flush=True)
         B.assemble()
         if trace:
