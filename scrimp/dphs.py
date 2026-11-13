@@ -1542,10 +1542,29 @@ class DPHS:
         self.solve_done = True
 
     def init_step(self):
-        """Perform a first initial step with a pseudo bdf
+        """Construct DAE-consistent initial data with a tiny TS solve.
 
-        It needs set_time_scheme(init_step=True)
+        By default this retains SCRIMP's historical pseudo initial solve.
+        For `init_step_ts_type=bdf`, `init_step_bdf_order=2` and
+        `init_step_from_negative_time=True`, take one fixed BDF2 step
+        from t0-dt to t0. PETSc BDF internally bootstraps its BDF2
+        history with a half-step on its first accepted step (v3.21).
+        The physical TS is still initialized at t0 with fresh history.
         """
+
+        init_type = self.time_scheme.getString(
+            "init_step_ts_type", "pseudo"
+        )
+        init_dt = float(self.time_scheme["init_step_dt"])
+        if not np.isfinite(init_dt) or init_dt <= 0:
+            raise ValueError("init_step_dt must be finite and positive")
+        negative_bdf_start = (
+            init_type == "bdf"
+            and self.time_scheme.getString(
+                "init_step_from_negative_time", "false"
+            ).lower() == "true"
+        )
+        t0 = float(self.time_scheme["t_0"])
 
         # TS
         TS = PETSc.TS().create(comm=comm)
@@ -1564,8 +1583,15 @@ class DPHS:
         TS.setMonitor(monitor)
         TS.setIFunction(self.IFunction, self.F)
         TS.setIJacobian(self.IJacobian, self.J)
-        TS.setTime(float(self.time_scheme["t_0"]))
-        TS.setMaxSteps(int(self.time_scheme["init_step_nb_iter"]))
+        TS.setTime(t0 - init_dt if negative_bdf_start else t0)
+        TS.setMaxSteps(
+            1 if negative_bdf_start
+            else int(self.time_scheme["init_step_nb_iter"])
+        )
+        if negative_bdf_start:
+            # A single full step ends exactly at the physical t0. PETSc
+            # initializes the order-2 BDF history at t0-dt/2.
+            TS.setMaxTime(t0)
         TS.setExactFinalTime(PETSc.TS.ExactFinalTime.MATCHSTEP)
 
         # Save options for later use and avoid overidden them with the initial step
@@ -1576,6 +1602,10 @@ class DPHS:
         if self.time_scheme.hasName("ts_bdf_order"):
             saved_options["ts_bdf_order"] = self.time_scheme["ts_bdf_order"]
             self.time_scheme.delValue("ts_bdf_order")
+        if self.time_scheme.hasName("ts_adapt_type"):
+            saved_options["ts_adapt_type"] = self.time_scheme["ts_adapt_type"]
+            if negative_bdf_start:
+                self.time_scheme.delValue("ts_adapt_type")
         if self.time_scheme.hasName("ts_ssp"):
             saved_options["ts_ssp"] = self.time_scheme["ts_ssp"]
             self.time_scheme.delValue("ts_ssp")
@@ -1595,12 +1625,18 @@ class DPHS:
             )
             self.time_scheme.delValue("ts_adapt_dt_max")
             
-        self.time_scheme["ts_type"] = self.time_scheme["init_step_ts_type"]
-        if self.time_scheme.getString("init_step_ts_type") == "bdf":
-            self.time_scheme["ts_bdf_order"] = 1
+        self.time_scheme["ts_type"] = init_type
+        if init_type == "bdf":
+            self.time_scheme["ts_bdf_order"] = int(
+                self.time_scheme.getString("init_step_bdf_order", "1")
+            )
+        if negative_bdf_start:
+            # A fixed step is essential: otherwise TSAdapt may move
+            # the endpoint away from the intended physical t0.
+            self.time_scheme["ts_adapt_type"] = "none"
         self.time_scheme["ts_adapt_dt_min"] = 1e-24
-        
-        TS.setTimeStep(float(self.time_scheme["init_step_dt"]))
+
+        TS.setTimeStep(init_dt)
         
         _mpi_trace("init_step: before TS.setFromOptions")
         TS.setFromOptions()
@@ -1642,7 +1678,19 @@ class DPHS:
 
         if rank == 0:
             logging.info(
-                f"Perform initialisation using {self.time_scheme['init_step_nb_iter']} step(s) of a {self.time_scheme['init_step_ts_type']} scheme, with timestep {self.time_scheme['init_step_dt']}, for initial value consistency"
+                "Initial consistency: TS={} (BDF order={}), steps={}, "
+                "start={:.12g}, target={:.12g}, dt={:.12g}, "
+                "adapt={}".format(
+                    init_type,
+                    self.time_scheme.getString("ts_bdf_order", "n/a"),
+                    1 if negative_bdf_start else int(
+                        self.time_scheme["init_step_nb_iter"]
+                    ),
+                    t0 - init_dt if negative_bdf_start else t0,
+                    t0 if negative_bdf_start else float("nan"),
+                    init_dt,
+                    self.time_scheme.getString("ts_adapt_type", "default"),
+                )
             )
 
         InitVec = self.tangent_stiffness.createVecRight()
@@ -1657,18 +1705,49 @@ class DPHS:
                 addv=PETSc.InsertMode.INSERT_VALUES,
             )
         InitVec.assemble()
+        initial_state_norm = float(InitVec.norm())
         comm.barrier()
-        
-        _mpi_trace("init_step: before pseudo TS.solve")
+
+        _mpi_trace("init_step: before consistency TS.solve")
         TS.solve(InitVec)
+        final_state_norm = float(InitVec.norm())
         _mpi_trace(
-            "init_step: pseudo TS completed: reason={}, "
-            "t={:.9g}, steps={}, rejected={}, SNES_failures={}".format(
+            "init_step: consistency TS completed: reason={}, "
+            "t={:.12g}, steps={}, rejected={}, SNES_failures={}, "
+            "initial_norm={:.9g}, final_norm={:.9g}".format(
                 int(TS.getConvergedReason()), float(TS.getTime()),
                 TS.getStepNumber(), TS.getStepRejections(),
                 TS.getSNESFailures(),
+                initial_state_norm, final_state_norm,
             )
         )
+        if negative_bdf_start:
+            if int(TS.getConvergedReason()) <= 0 or (
+                abs(float(TS.getTime()) - t0)
+                > 1e-12 * max(1.0, abs(t0))
+            ):
+                raise RuntimeError(
+                    "Initial BDF2 consistency solve failed to reach "
+                    f"t0={t0:.12g}: reached {TS.getTime()}, "
+                    f"reason={TS.getConvergedReason()}"
+                )
+            # This is a *diagnostic safeguard*, not a mathematical
+            # guarantee of DAE-consistent initial data. It prevents
+            # silently accepting the massive blow-up (~1e24 norm)
+            # previously observed with pseudo-TS for Saint-Venant.
+            norm_limit = float(self.time_scheme.getString(
+                "init_step_max_norm_amplification", "inf"
+            ))
+            if not np.isfinite(final_state_norm) or (
+                final_state_norm
+                > norm_limit * max(initial_state_norm, 1.0)
+            ):
+                raise RuntimeError(
+                    "Initial BDF2 state diverged: "
+                    f"||z_initial||={initial_state_norm:.9g}, "
+                    f"||z_final||={final_state_norm:.9g}, "
+                    f"maximum factor={norm_limit:.9g}"
+                )
         del InitVec
 
         if rank == 0:
@@ -1683,10 +1762,16 @@ class DPHS:
         _mpi_trace("init_step: after TS.destroy")
         gc.collect()
 
-        # Delete options for initial step
-        self.time_scheme.delValue("ts_type")
+        # Delete temporary options, including BDF2/adapt overrides
+        # which must not leak into the main time integrator.
+        for key in (
+            "ts_type", "ts_bdf_order", "ts_adapt_type",
+            "ts_adapt_dt_min",
+        ):
+            if self.time_scheme.hasName(key):
+                self.time_scheme.delValue(key)
 
-        # Re-load previously saved options
+        # Restore the main TS options exactly as they were.
         for key in saved_options.keys():
             self.time_scheme[key] = saved_options[key]
 
