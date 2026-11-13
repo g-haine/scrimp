@@ -89,6 +89,47 @@ class TestMPIAlgebra(unittest.TestCase):
         finally:
             mat.destroy()
 
+    def test_real_getfem_mpi2_mass_matrix_is_rank_independent(self):
+        """A real GetFEM model must integrate the constant 1 on [0,1].
+
+        This is much stronger than the synthetic partial-matrix test:
+        it detects double-counted GetFEM contributions, including those
+        represented with zero-valued sparse slots on some MPI ranks.
+        The identity integral is independent of the number of processes.
+        """
+        gf = linalg.gf
+        if int(gf.util_mpi_parallelism_level()) != 2:
+            self.skipTest("requires GetFEM MPI level 2")
+        mesh = gf.Mesh("cartesian", np.linspace(0.0, 1.0, 17))
+        mf = gf.MeshFem(mesh, 1)
+        mf.set_fem(gf.Fem("FEM_PK(1,1)"))
+        mim = gf.MeshIm(mesh, gf.Integ("IM_GAUSS1D(5)"))
+        model = gf.Model("real")
+        model.add_fem_variable("u", mf)
+        model.add_linear_term(mim, "u*Test_u")
+        model.assembly(option="build_matrix")
+
+        n = model.nbdof()
+        self.assertEqual(n, mf.nbdof())
+        mat = PETSc.Mat().createAIJ(size=(n, n), comm=COMM)
+        mat.setUp()
+        mat.setOption(PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR, False)
+        try:
+            linalg.convert_gmm_to_petsc(model.tangent_matrix(), mat)
+            x, y = mat.createVecRight(), mat.createVecLeft()
+            try:
+                x.set(1.0)
+                mat.mult(x, y)
+                # Exact integral of 1*1 over the unit interval = 1.
+                measured = float(np.real(x.dot(y)))
+                self.assertAlmostEqual(measured, 1.0, places=9)
+                self.assertEqual(mat.getSize(), (n, n))
+            finally:
+                x.destroy()
+                y.destroy()
+        finally:
+            mat.destroy()
+
     def test_rhs_inserted_on_owned_rows_only(self):
         rhs = PETSc.Vec().createMPI(N, comm=COMM)
         model = SimpleNamespace(
