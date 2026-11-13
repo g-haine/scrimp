@@ -726,3 +726,75 @@ by default in a Conda release build.
 Do **not** remove `TS.reset()` merely to conceal the error: freeing
 a corrupted MUMPS factor later would still be unsafe. Do not merge or
 tag while the memory and numerical consistency problems persist.
+
+## 2026-11-13 — Standalone MUMPS reset succeeds, preliminary BJACOBI test inconclusive
+
+User ran `sandbox/test_petsc_mumps_reset.py --solver mumps --cycles 3`
+on both **1 rank** and **2 ranks**. Every KSP solve converged
+(`reason=4`), and all KSP reset/destroy cycles completed. Both exit
+codes were **0**. Thus an ordinary MPIAIJ tridiagonal factorization and
+MUMPS destruction **works** in the user's PETSc/MPI environment.
+The native failure requires additional circumstances (the nonlinear
+SWE Jacobian, TS/PC lifecycle, earlier heap corruption, etc.).
+
+The first 2-rank SWE `SCRIMP_INIT_PC_TYPE=bjacobi` experiment ended
+with PETSc **error 91 / DIVERGED_STEP_REJECTED**, not SIGSEGV. But
+this experiment was **not a fair iterative BJACOBI control**:
+the driver specifies `ksp_type=preonly` for LU/MUMPS, and the initial
+diagnostic hook changed only `PC=bjacobi`. Thus there was no
+GMRES iteration—only a one-shot block-Jacobi operation.
+
+The branch diagnostic hook now changes **both** settings, and only
+inside the initial pseudo-TS:
+`SCRIMP_INIT_PC_TYPE=bjacobi` -> `KSP=gmres`,
+`PC=bjacobi`, with `rtol=1e-8, atol=1e-12, max_it=500`.
+Normal `LU/MUMPS + KSPPREONLY` operation is unchanged.
+
+**Rerun, after pulling the dedicated branch:**
+
+```bash
+git pull --ff-only
+SCRIMP_INIT_PC_TYPE=bjacobi PYTHONFAULTHANDLER=1 SCRIMP_MPI_TRACE=1 \
+timeout -k 5s 120s mpiexec -n 2 \
+  python -u sandbox/viscous_swe_2d_mpi.py \
+  --case open --mesh 0.2 --final-time 0.5 \
+  --save-dt 0.1 --max-step 0.01 \
+  > mpi_open_init_gmres_bjacobi_2ranks.log 2>&1
+echo "code=$?"
+grep 'diagnostic linear solver override\|init_step: after pseudo TS.solve\|init_step: after TS.reset\|DIVERGED_' \
+  mpi_open_init_gmres_bjacobi_2ranks.log | tail -n 25
+tail -n 70 mpi_open_init_gmres_bjacobi_2ranks.log
+```
+
+If GMRES-BJACOBI still diverges it says little about the MUMPS
+corruption: the coupled indefinite DAE may require a global direct
+factorization or a physics-aware block preconditioner.
+
+### Separate mathematical error in the nonlinear residual/Jacobian
+
+The current historical `IFunction()` branch for state-dependent mass
+builds `F = M_tangent(z) zd + K_tangent(z) z + rhs_nl(z)`.
+For a GetFEM nonlinear term with residual `N(z)` and
+`rhs_nl(z)=-N(z)`, `K_tangent(z)=N'(z)`, this gives
+`N'(z)z-N(z)` instead of `N(z)`.
+For a homogeneous cubic term `N(z)`, Euler's identity yields
+`N'(z)z=3N(z)`, hence the implemented residual evaluates to
+`2N(z)` rather than `N(z)`. The 2D SWE contains
+`h*(Gyro(p)*e_p).Test_p`, which is cubic in model unknowns.
+
+PETSc also requires `IJacobian=F_z+shift*F_zdot`.
+For state-dependent `M(z)`, `F_z` contains
+`(dM/dz)[delta_z] zd`, which is absent from the present
+`shift*M_tangent + K_tangent` code. The high nonlinear coefficients
+seen in the single-rank and GDB two-rank logs are consistent with an
+inconsistent residual/Newton tangent, but do NOT prove all issues stem
+from this alone. Before changing production semantics, create a
+finite-difference directional Jacobian check for the full SWE system
+at the actual initial state and nonlinear Newton iterates.
+
+For PETSc's contract see:
+https://petsc.org/main/manualpages/TS/TSSetIJacobian/
+
+Do not merge PR #22 or tag release until the native memory issue,
+time-integration convergence and port-Hamiltonian energy balance are
+independently validated.
