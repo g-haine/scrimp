@@ -434,6 +434,55 @@ class TestMPIAlgebra(unittest.TestCase):
             for mat in (stiffness, mass, A, P):
                 mat.destroy()
 
+    def test_real_getfem_rhs_normalization_is_rank_independent(self):
+        """Opt-in RHS correction restores an exact nonlinear unit integral.
+
+        For N(u)=integral(u^2 Test_u), GetFEM's build_rhs at u=1 is
+        -int_0^1(1 dx) = -1. On the tested GetFEM MPI-2 installation,
+        the raw vector is spuriously multiplied by MPI size.
+        Normalizing the rank-replicated RHS *once* when passing to PETSc
+        must restore the same value for 1, 2 and 4 ranks.
+        """
+        gf = linalg.gf
+        if int(gf.util_mpi_parallelism_level()) != 2:
+            self.skipTest("requires GetFEM MPI level 2")
+        mesh = gf.Mesh("cartesian", np.linspace(0.0, 1.0, 17))
+        mf = gf.MeshFem(mesh, 1)
+        mf.set_fem(gf.Fem("FEM_PK(1,1)"))
+        mim = gf.MeshIm(mesh, gf.Integ("IM_GAUSS1D(5)"))
+        model = gf.Model("real")
+        model.add_fem_variable("u", mf)
+        model.add_nonlinear_term(mim, "u*u*Test_u")
+        n = model.nbdof()
+        model.set_variable("u", np.ones(n))
+        rhs = PETSc.Vec().createMPI(n, comm=COMM)
+        system = object.__new__(DPHS)
+        system.gf_model = model
+        system.bricks = {}
+        system.rhs = rhs
+        try:
+            with patch.dict(os.environ, {
+                "SCRIMP_GETFEM_RHS_MODE": "divide_by_mpi_size",
+            }):
+                system.assemble_rhs()
+                self.assertAlmostEqual(
+                    float(np.real(rhs.sum())), -1.0, places=9
+                )
+                # Reassembly must not accumulate the old RHS.
+                system.assemble_rhs()
+                self.assertAlmostEqual(
+                    float(np.real(rhs.sum())), -1.0, places=9
+                )
+            with patch.dict(os.environ, {
+                "SCRIMP_GETFEM_RHS_MODE": "raw",
+            }):
+                system.assemble_rhs()
+                self.assertAlmostEqual(
+                    float(np.real(rhs.sum())), -float(SIZE), places=9
+                )
+        finally:
+            rhs.destroy()
+
     def test_rhs_inserted_on_owned_rows_only(self):
         rhs = PETSc.Vec().createMPI(N, comm=COMM)
         model = SimpleNamespace(
