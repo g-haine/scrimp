@@ -433,15 +433,20 @@ def main():
     # timestep without raising.  Exit code 0 must not be interpreted as a
     # successful PDE simulation if t_f was never reached (observed: only
     # 1e-8 of the requested 0.5 seconds, with huge power-balance defect).
-    recorded_times = np.asarray(swe.solution["t"], dtype=float)
-    reached = float(recorded_times[-1]) if recorded_times.size else float("-inf")
-    if not np.isfinite(reached) or (
+    # A monitor snapshot is NOT the authoritative TS completion time.
+    # The published MCSS model reached 0.0003 while its last saved
+    # monitor point was 0.0001. Check the actual PETSc convergence
+    # reason and end time before trusting any power-balance output.
+    reached = float(getattr(swe, "last_ts_time", float("-inf")))
+    reason = int(getattr(swe, "last_ts_converged_reason", 0))
+    if reason <= 0 or not np.isfinite(reached) or (
         reached < args.final_time - 1e-10 * max(1.0, abs(args.final_time))
     ):
         raise RuntimeError(
-            f"Saint-Venant integration stopped at t={reached:.9g}, "
-            f"before requested t_f={args.final_time:.9g}. "
-            "Do not interpret any resulting energy figures as validated."
+            "Saint-Venant integration did not converge to requested "
+            f"t_f={args.final_time:.9g}: PETSc t={reached:.9g}, "
+            f"reason={reason}. "
+            "Do not interpret energy figures as validated."
         )
     result = diagnostics(swe, gamma)
     save_outputs(swe, result, out)
