@@ -143,8 +143,8 @@ for n in 1 2 4; do
 done
 ```
 
-If all four tests pass, capture **a native segfault stack** alongside
-per-rank assembly traces:
+If all four tests pass, capture **a Python-level fault traceback** alongside
+per-rank assembly traces (this does not replace a GDB native backtrace):
 
 ```bash
 PYTHONFAULTHANDLER=1 SCRIMP_MPI_TRACE=1 \
@@ -158,8 +158,8 @@ printf "exit code: %s\\n" "$?"
 tail -n 160 mpi_open_2ranks.log
 ```
 
-If faulthandler shows only native frames, a GDB backtrace from the
-process that crashed may be needed; do not try to fix a SIGSEGV by
+If faulthandler does not identify the native failing call, a GDB backtrace
+from the process that crashed may be needed; do not try to fix a SIGSEGV by
 blindly changing PETSc solver options or by inserting extra barriers.
 
 ## Pending work
