@@ -16,7 +16,8 @@ import unittest
 import numpy as np
 
 from sandbox.animate_sloshing_tank import (
-    MovieData, interpolate_frame, render_movie, save_balance_csv, validate_data,
+    MovieData, interpolate_frame, render_movie, save_balance_csv,
+    save_classic_hamiltonian, validate_data,
 )
 
 
@@ -75,6 +76,46 @@ class TestSloshingMovie(unittest.TestCase):
             self.assertEqual(len(rows), 3)
             self.assertEqual(rows[0]["time_scheme"], "cn")
             self.assertAlmostEqual(float(rows[-1]["balance_defect"]), 0.)
+
+    def test_native_scrimp_hamiltonian_image(self):
+        """The native SCRIMP call is preserved, not redrawn from sampled data."""
+        from matplotlib import pyplot as plt
+
+        class FakeDPHS:
+            def __init__(self, scratch):
+                self.scratch = scratch
+                self.calls = []
+
+            def plot_Hamiltonian(self, with_powers=True, save_figure=False,
+                                 filename="Hamiltonian.png"):
+                self.calls.append((with_powers, save_figure, filename))
+                fig, ax = plt.subplots()
+                ax.plot([0, 1], [1, .9], label="Total Hamiltonian")
+                ax.legend()
+                fig.savefig(self.scratch / filename, dpi=70)
+                # Real SCRIMP also calls plt.show(): Agg makes that harmless.
+                plt.show()
+
+        with tempfile.TemporaryDirectory() as temp:
+            folder = Path(temp)
+            scratch = folder / "scratch" / "png"
+            scratch.mkdir(parents=True)
+            fake = FakeDPHS(scratch)
+            for suffix, signature in ((".png", b"\\x89PNG"),
+                                      (".jpg", b"\\xff\\xd8")):
+                destination = folder / "video" / ("tank_hamiltonian" + suffix)
+                returned = save_classic_hamiltonian(
+                    fake, destination, source_dir=scratch
+                )
+                self.assertEqual(returned, destination)
+                self.assertTrue(destination.is_file())
+                self.assertTrue(destination.read_bytes().startswith(signature))
+            self.assertEqual(len(fake.calls), 2)
+            for with_powers, save_figure, filename in fake.calls:
+                self.assertFalse(with_powers)
+                self.assertTrue(save_figure)
+                self.assertTrue(filename.startswith("_slosh_hamiltonian_"))
+            self.assertFalse(list(scratch.iterdir()))
 
     def test_mp4_rendering(self):
         from matplotlib import animation
