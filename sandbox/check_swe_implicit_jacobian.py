@@ -274,16 +274,15 @@ def main():
     )
     parser.add_argument(
         "--residual-form", choices=("legacy", "direct_getfem", "production"),
-        default="legacy",
-        help="DIAGNOSTIC ONLY: evaluate residual from GetFEM weak-form "
-             "RHS and linear stiffness instead of K_tangent(z)*z+rhs. "
-             "The production DPHS.IFunction is NOT modified.",
+        default="production",
+        help="Use production DPHS.IFunction (default), or isolated "
+             "direct GetFEM/legacy diagnostic comparison.",
     )
     parser.add_argument(
         "--mass-jacobian", choices=("legacy", "finite_difference", "production"),
-        default="legacy",
-        help="DIAGNOSTIC ONLY: add contracted derivative of nonlinear "
-             "mass matrix M(z)*zd via two GetFEM tangent assemblies",
+        default="production",
+        help="Use production DPHS.IJacobian (default), or independently "
+             "add a diagnostic contracted mass Hessian",
     )
     parser.add_argument(
         "--mass-epsilon", type=float, default=1e-4,
@@ -310,7 +309,7 @@ def main():
         # DO NOT patch swe.IFunction: use the *real* DPHS method, with
         # SCRIMP_NONLINEAR_RESIDUAL_FORM=direct_getfem activated by env.
         if os.environ.get(
-            "SCRIMP_NONLINEAR_RESIDUAL_FORM", "legacy"
+            "SCRIMP_NONLINEAR_RESIDUAL_FORM", "direct_getfem"
         ).strip().lower() != "direct_getfem":
             raise ValueError(
                 "production residual test requires "
@@ -318,7 +317,7 @@ def main():
             )
     if args.mass_jacobian == "production":
         if os.environ.get(
-            "SCRIMP_NONLINEAR_MASS_JACOBIAN", "legacy"
+            "SCRIMP_NONLINEAR_MASS_JACOBIAN", "finite_difference"
         ).strip().lower() != "finite_difference":
             raise ValueError(
                 "production Jacobian test requires "
