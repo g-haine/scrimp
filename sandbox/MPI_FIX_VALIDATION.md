@@ -1526,3 +1526,93 @@ For the last command, inspect `relative_error` for **all four**
 perturbed states (`--state-perturb 0.02`) and time integration
 separately. The native MPI SIGSEGV and full power balance remain
 unsolved; no merge, release or issue closure.
+
+
+## 2026-11-13 — User-validated corrected DEFAULT production IFunction/IJacobian and MPI RHS calibration
+
+The user supplied eight native log files from the current draft PR #22:
+`fd_production_1rank.log`, `fd_production_2rank.log`,
+`algebra_default_{1,2,4}rank.log`,
+`getfem_rhs_partition_{1,2,4}rank.log`.
+
+### Verified: production residual/Jacobian contract
+
+**Original 3300-DOF nonlinear Saint-Venant model**, `epsilon=1e-5`,
+**actual default** `DPHS.IFunction` and `DPHS.IJacobian` (no
+sandbox residual override, no additional RHS factor), with
+`--zd-direction independent`. All commands exited 0 and
+`--fail-above 1e-7` was satisfied.
+
+| (zd,shift) | 1 MPI rank | 2 MPI ranks |
+| --- | ---: | ---: |
+| (0,0) | 6.48666598165e-12 | 6.48666598053e-12 |
+| (0,1) | 6.47095289044e-12 | 6.47095288755e-12 |
+| (nonzero,0) | 8.91839504863e-12 | 8.91840080590e-12 |
+| (nonzero,1) | 8.55862075486e-12 | 8.55862303144e-12 |
+
+The GETFEM→PETSc Newton trial-state scatter discrepancy is 0
+on both MPI ranks. The *raw*, unnormalized GetFEM RHS diagnostic
+still has derivative/tangent discrepancy of ~1 for 2 ranks
+(as expected: it reports GetFEM raw before SCRIMP's correction).
+
+### Verified: native GetFEM/PETSc algebra tests
+
+**All 11 tests per process PASS on MPI 1, 2 and 4**, including
+real GetFEM MPI-2 mass/tangent assembly, the auto-calibrated
+GetFEM nonlinear RHS, owned-row insertion, changing sparse patterns,
+and persistent tangent matrix handles. PETSc prints harmless
+warnings about unused `-info`; not test failures.
+
+### Raw per-rank GetFEM tangent vs internally summed RHS
+
+For the simple 1D GetFEM generic forms on [0,1],
+the raw *pre-PETSc* tangent has integral and nnz:
+
+| Test | MPI 1: tangent / raw RHS deriv. | MPI 2 | MPI 4 |
+| --- | --- | --- | --- |
+| `u*Test_u` | 1 / 1 | 1 / 2 | 1 / 4 |
+| `u*u*Test_u` | 2 / 2 | 2 / 4 | 2 / 8 |
+| `u*u*u*Test_u` | 3 / 3 | 3 / 6 | 3 / 12 |
+
+In all multi-rank runs each process returned 49 sparse
+tangent entries, the full serial tangent integral (1,2,3),
+and exactly the SAME digest of the **tangent row-sum vector**
+for a given form; RHS derivatives were **identical on all ranks**
+and multiplied by P. This strongly suggests redundant
+full-domain generic assembly before GetFEM's RHS reduction,
+but a row-sum digest alone does **NOT** establish that every
+matrix entry is identical. The diagnostic was strengthened to
+also emit `raw_tangent_full_csr_digest` over row pointers,
+column indices and all matrix coefficients; compare full
+digests at 2 and 4 ranks before asserting literal full-matrix
+replication.
+
+GetFEM documentation (https://getfem.org/userdoc/parallel.html)
+explicitly states that `GETFEM_PARA_LEVEL=2` partitions
+integration using METIS, with distributed local tangent
+contributions and a **globally summed / replicated RHS**.
+A full RHS on all ranks is NORMAL. An extra factor P
+indicates duplicated assembly contributions or another
+equivalent extra reduction. We have not yet identified
+the precise GetFEM C++ implementation path responsible
+on this installation. Do not attribute the bug to
+MUMPS (the simple test invokes no linear solver) or
+to PETSc owned-row insertion.
+
+### Next gates
+
+1. Rerun the strengthened 1D probe at 2 and 4 ranks and
+   compare `raw_tangent_full_csr_digest` across processes.
+   Identical full hashes would establish that GetFEM returns
+   equal sparse matrices before PETSc transfer, but still
+   would not establish whether GetFEM already MPI-gathered
+   them before exposing `tangent_matrix()`.
+2. Test the actual production FD derivative at off-base
+   states (e.g. `--state-perturb 0.02`) on 1 and 2 ranks.
+3. Run the **full** nonlinear SWE temporal solver again
+   (1/2 ranks); record time reached, native crash/safety,
+   nonlinear convergence, actual Hamiltonian and integrated
+   external/dissipation power. These are not proved by
+   exact FD agreement or passing unit tests.
+
+**No master merge, issue #6 closure or v1.2.1 release yet.**
