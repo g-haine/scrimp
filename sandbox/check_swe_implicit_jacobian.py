@@ -30,6 +30,13 @@ In addition to the directional error, the report checks:
   tangent action (a separate check of GetFEM's RHS convention);
 - which residual equation blocks account for the discrepancy.
 
+The optional --mass-jacobian finite_difference tests the missing
+D_z(M(z)*zd) term by differentiating GetFEM's mass tangent in the
+zd direction. Because GetFEM's mass tangent is the derivative of
+an underlying weak form, the contracted second derivative obeys
+D M(z)[v] * zd = D M(z)[zd] * v (Schwarz symmetry). This is a
+*diagnostic numerical Hessian*, not a production integrator fix.
+
 The script reports the error and exits 0 by default, even if the
 Jacobian is inconsistent: it is a diagnostic, not a green test.
 Use --fail-above 1e-4 only when checking a candidate correction.
@@ -81,9 +88,62 @@ def from_global_array(template, values):
     return result
 
 
-def report(swe, z, zd, direction, shift, epsilon):
+def correct_mass_jacobian_by_fd(swe, z, zd, J, mass_epsilon):
+    """Add the contracted Hessian of the nonlinear dt bricks to J.
+
+    GetFEM's nonlinear dt brick represents an implicit flow primitive
+    Q(z), with mass matrix M(z) = DQ(z). SCRIMP evaluates M(z)*zd.
+    The missing derivative is (D_z M(z)[v])*zd. By symmetry of D²Q,
+    this equals (D_z M(z)[zd])*v, a full matrix obtainable from
+    two GetFEM nonlinear mass tangent assemblies, regardless of
+    the dimension of the state space.
+
+    This test-only method intentionally preserves the existing
+    full PETSc matrix and restores the GetFEM state/mass afterward.
+    """
+    if not zd.norm() or swe.linear_mass:
+        return
+    zplus, zminus = z.copy(), z.copy()
+    plus_mass, minus_mass = None, None
+    diff_mass = None
+    try:
+        zplus.axpy(mass_epsilon, zd)
+        zminus.axpy(-mass_epsilon, zd)
+
+        swe._sync_lumped_trial_state(0.0, zplus)
+        swe.assemble_nl_mass()
+        plus_mass = swe.tangent_mass.copy()
+
+        swe._sync_lumped_trial_state(0.0, zminus)
+        swe.assemble_nl_mass()
+        minus_mass = swe.tangent_mass.copy()
+
+        structure = PETSc.Mat.Structure.DIFFERENT_NONZERO_PATTERN
+        diff_mass = plus_mass.copy()
+        diff_mass.axpy(-1.0, minus_mass, structure=structure)
+        diff_mass.scale(0.5 / mass_epsilon)
+        J.axpy(1.0, diff_mass, structure=structure)
+        J.assemble()
+    finally:
+        # Both the next Jacobian check and the residual assembly must
+        # restart from the actual base state, not from z +/- eps*zd.
+        swe._sync_lumped_trial_state(0.0, z)
+        swe.assemble_nl_mass()
+        for obj in (diff_mass, plus_mass, minus_mass, zplus, zminus):
+            if obj is not None:
+                obj.destroy()
+
+
+def report(
+    swe, z, zd, direction, shift, epsilon,
+    mass_jacobian="legacy", mass_epsilon=1e-4,
+):
     J = swe.J
     swe.IJacobian(None, 0.0, z, zd, shift, J, J)
+    if mass_jacobian == "finite_difference":
+        correct_mass_jacobian_by_fd(
+            swe, z, zd, J, mass_epsilon
+        )
 
     # Check the distributed PETSc Vec -> replicated GetFEM trial-state
     # scatter: errors here corrupt both nonlinear RHS and tangent assembly.
@@ -211,6 +271,16 @@ def main():
              "The production DPHS.IFunction is NOT modified.",
     )
     parser.add_argument(
+        "--mass-jacobian", choices=("legacy", "finite_difference"),
+        default="legacy",
+        help="DIAGNOSTIC ONLY: add contracted derivative of nonlinear "
+             "mass matrix M(z)*zd via two GetFEM tangent assemblies",
+    )
+    parser.add_argument(
+        "--mass-epsilon", type=float, default=1e-4,
+        help="Perturbation in direction zd for experimental mass Hessian",
+    )
+    parser.add_argument(
         "--rhs-scale", type=float, default=1.0,
         help="DIAGNOSTIC ONLY: multiply PETSc RHS after GetFEM assembly; "
              "use 0.5 at 2 ranks to test whether the observed factor-two "
@@ -220,7 +290,8 @@ def main():
                         help="Optional maximum relative directional FD error")
     args = parser.parse_args()
     if (args.mesh <= 0 or args.epsilon <= 0
-            or args.state_perturb < 0 or args.rhs_scale <= 0):
+            or args.state_perturb < 0 or args.rhs_scale <= 0
+            or args.mass_epsilon <= 0):
         parser.error("mesh, epsilon, RHS scale positive; perturb >= 0")
 
     comm = PETSc.COMM_WORLD
@@ -289,7 +360,11 @@ def main():
             (nonzero_zd, 0.0),
             (nonzero_zd, 1.0),
         ):
-            results.append(report(swe, z, zd, direction, shift, args.epsilon))
+            results.append(report(
+                swe, z, zd, direction, shift, args.epsilon,
+                mass_jacobian=args.mass_jacobian,
+                mass_epsilon=args.mass_epsilon,
+            ))
 
         # PETSc Vec.norm() is collective: ALL ranks must call it,
         # never only rank 0 in a branch used for reporting.
@@ -301,6 +376,8 @@ def main():
                 "state_norm": state_norm,
                 "diagnostic_rhs_scale": args.rhs_scale,
                 "diagnostic_residual_form": args.residual_form,
+                "diagnostic_mass_jacobian": args.mass_jacobian,
+                "diagnostic_mass_epsilon": args.mass_epsilon,
                 "results": results,
             }, indent=2), flush=True)
 
