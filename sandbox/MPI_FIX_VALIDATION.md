@@ -2133,3 +2133,112 @@ jumps at the second `IFunction` and whether
 `h` turns negative. Do not interpret this
 diagnostic failure as an improvement or regression
 in the actual nonlinear solve.
+
+
+## 2026-11-13 — Runaway boundary multiplier Y: opposite initial swirl versus wall control
+
+**User's native one-rank Newton block trace** (after fixing GetFEM's
+print-only `variable_list()` bug) now localizes the very first
+unstable Newton state in the full nonlinear 2D Saint-Venant model:
+
+| block | initial norm | after first Newton correction | maxabs |
+| --- | ---: | ---: | ---: |
+| h | 110 | 110 (min=max=5) | 5 |
+| p | 4.39999 | 4.39586 | 0.200895 |
+| e_h | 0 | 11.4386 | 0.52288 |
+| e_p | 0 | 4.39586 | 0.200895 |
+| Y_n | 0 | 4.22305 | 0.520173 |
+| U_n | 0 | 7.65e-15 | ~6.8e-15 |
+| U | 0 | 1.61759 | 0.200895 |
+| **Y** | 0 | **1.31957e6** | **224747** |
+
+Further backtracking/line-search trial states send `Y_n`
+up to `1e8`, but `Y` remains around `1.31957e6`
+until the BDF2 starter fails with MUMPS `INFOG(1)=-3`.
+This makes the earlier statement that "the fluid state explodes"
+too imprecise: the **dynamic fluid fields h and p remain bounded;
+the boundary multiplier Y explodes**. This is prior to MPI-specific
+native crashes.
+
+### A concrete sign inconsistency in the Saint-Venant driver
+
+The script defined
+
+```text
+Rot = [[0, 1], [-1, 0]]
+Tangent = Rot*Normal
+U = U_n*Normal + 0.2*f(t)*Tangent
+p_initial = 0.2*(-y, x) / (sqrt(x²+y²)+1e-6)
+```
+
+For a circular wall with outward `Normal=(x,y)`,
+`Tangent=(y,-x)` is **clockwise**, whereas the old
+`p_initial=(-y,x)` is **counterclockwise**. At
+`t≈0, f(t)=1`, `U_n=0`, `rho=1`, the wall condition
+enforces `U≈e_p≈p/rho` in the projected weak form
+(`-h*U.Test_Y+h*e_p.Test_Y=0`). But initial p and
+imposed U were approximately **opposite at the wall**,
+with an O(0.4) tangential velocity discrepancy.
+
+Because `Y` acts as a traction/Lagrange multiplier
+in the momentum equation through `h*Y.Test_p`,
+instantaneously correcting a velocity Dirichlet
+mismatch over a tiny BDF step **can generate O(1/dt)
+multipliers**. This explains *qualitatively* why
+`Y` might reach ~1e6, but has NOT yet been
+verified as the sole cause of Newton/MUMPS failures.
+Also, GetFEM's mesh approximates a circular boundary
+and the p profile is regularized near the disk center:
+even the corrected analytic tangential direction is
+not automatically an exactly consistent *discrete*
+boundary condition.
+
+**Driver fix on draft PR #22 only:**
+- Correct the default `p_initial` orientation to
+  `+rotation*(y,-x)/(r+1e-6)`, matching the existing
+  clockwise `Tangent=Rot*Normal` convention and
+  the imposed `U`. Do not flip the `Rot` macro
+  globally; doing so would also change the gyroscopic
+  and curl terms.
+- Add `--rotation 0.0` to test resting water
+  (`p=U=0`), with the same h, gravity, viscosity,
+  FE mesh and algebraic ports.
+- Add `--initial-profile rigid` (smooth
+  `p=rotation*(y,-x)`) to diagnose near-wall
+  compatibility and center regularization.
+- Keep `--initial-profile legacy_opposite` for
+  controlled A/B comparison with the original
+  error; default is `tangent`, not legacy.
+- This change is **not yet tested on the user's
+  native MPI/PETSc environment**. It only
+  fixes a definite sign mismatch in the benchmark.
+
+**Minimal single-rank discriminating tests:**
+
+```bash
+git pull --ff-only
+conda activate scrimp
+for profile in tangent rigid; do
+  SCRIMP_GETFEM_RHS_MODE=divide_by_mpi_size \
+  PYTHONFAULTHANDLER=1 \
+  timeout -k 5s 60s mpiexec -n 1 \
+    python -u sandbox/viscous_swe_2d_mpi.py \
+    --case open --mesh 0.2 \
+    --final-time 0.006 --save-dt 0.002 --max-step 0.002 \
+    --ts-type arkimex --adapt-type none \
+    --initial-profile "$profile" --newton-block-trace \
+    > "swe_aligned_${profile}_1rank.log" 2>&1
+  echo "profile=$profile exit=$?"
+  grep -E '\[SCRIMP Newton blocks\]|Initial consistency|MUMPS error|maximum_relative_balance_error' \
+    "swe_aligned_${profile}_1rank.log" | head -n 6
+done
+```
+
+If the coherent profiles reduce the initial Y norm by
+orders of magnitude, that supports the boundary
+compatibility hypothesis. Verify accepted BDF startup,
+main TS reaching t_f and real integrated power balance
+before claiming success. A steady-water control
+`--rotation 0` is a further useful zero-input test
+if needed. Do not merge/release before physical
+and MPI tests pass.
