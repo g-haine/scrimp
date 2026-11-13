@@ -13,9 +13,9 @@ Run with real GetFEM/PETSc (not the lightweight tests/__init__.py stubs):
     mpiexec -n 2 python -m unittest -v tests.test_mpi_algebra
     mpiexec -n 4 python -m unittest -v tests.test_mpi_algebra
 
-The synthetic GetFEM sparse matrix carries PARTIAL contributions on each
-rank with GLOBAL row/column numbering, matching GetFEM MPI level 2.
-This tests the bridge contract, not the physical finite-element discretization.
+The synthetic matrices exercise BOTH genuinely distributed contributions
+and fully replicated GetFEM matrices with GLOBAL row/column numbering.
+The real-GetFEM test checks a physical mass integral with MPI level 2.
 """
 
 import unittest
@@ -39,14 +39,17 @@ class FakeGetFEMDistributedMatrix:
     """GetFEM CSC-of-transpose view of a partial GLOBAL-NxN matrix."""
 
     def __init__(self, count=N, ranks=SIZE):
-        # Every process contributes 1/P of the same stencil, including
-        # off-rank rows. Summing partial data must recover a single operator.
+        # Each process contributes some different rows, except row 0
+        # where all processes contribute 1/P. The global matrix is
+        # therefore the original stencil and includes overlapping entries.
         self.row_ptr = np.arange(0, 2 * count + 1, 2, dtype=PETSc.IntType)
         self.col_idx = np.empty(2 * count, dtype=PETSc.IntType)
         self.values = np.empty(2 * count, dtype=PETSc.ScalarType)
         for k in range(count):
             self.col_idx[2*k:2*k+2] = (k, (k + 1) % count)
-            self.values[2*k:2*k+2] = (2.0 / ranks, -1.0 / ranks)
+            factor = (1.0 / ranks if k == 0 else
+                      (1.0 if k % ranks == RANK else 0.0))
+            self.values[2*k:2*k+2] = (2.0 * factor, -1.0 * factor)
 
     def transpose(self):
         # linalg.convert_gmm_to_petsc always transposes a GetFEM copy
@@ -86,6 +89,35 @@ class TestMPIAlgebra(unittest.TestCase):
                     self.assertEqual(mat.getSize(), (N, N))
                     x.destroy()
                     y.destroy()
+        finally:
+            mat.destroy()
+
+    def test_replicated_matrix_does_not_scale_with_rank_count(self):
+        """Replicated GetFEM Python matrices must be inserted just once."""
+        mat = PETSc.Mat().createAIJ(size=(N, N), comm=COMM)
+        mat.setUp()
+        fake = FakeGetFEMDistributedMatrix()
+        # Replace the distributed contributions with an exact full copy
+        # of the same matrix on every rank.
+        for k in range(N):
+            fake.values[2*k:2*k+2] = (2.0, -1.0)
+        try:
+            with patch.object(linalg.gf, "Spmat", return_value=fake):
+                for _ in range(2):
+                    linalg.convert_gmm_to_petsc(object(), mat)
+                    x, y = mat.createVecRight(), mat.createVecLeft()
+                    try:
+                        x.set(1.0)
+                        mat.mult(x, y)
+                        lo, hi = y.getOwnershipRange()
+                        np.testing.assert_allclose(
+                            y.getArray(readonly=True),
+                            np.ones(hi-lo),
+                            atol=1e-11, rtol=1e-11,
+                        )
+                    finally:
+                        x.destroy()
+                        y.destroy()
         finally:
             mat.destroy()
 
