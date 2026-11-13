@@ -727,10 +727,27 @@ class DPHS:
         )
         _mpi_trace("nl_mass: PETSc matrix assembled")
         _mpi_trace("nl_mass: before PETSc copy/AXPY")
-        self.tangent_mass = self.mass.copy()
-        _mpi_trace("nl_mass: after PETSc copy; before AXPY")
-        self.tangent_mass.axpy(1, self.nl_mass)
-        _mpi_trace("nl_mass: after PETSc AXPY; before disable_bricks")
+        # Keep the allocated PETSc Mat alive throughout TS/Newton iterations.
+        # Reassigning self.tangent_mass = self.mass.copy() at every residual
+        # evaluation creates many temporary MPIAIJ matrices. In a 2-rank
+        # shallow-water run these were freed by the TS monitor's forced
+        # PetscGarbageCleanup, triggering an invalid-free in MatDestroy_MPIAIJ.
+        # Reassemble in place; the nonlinear sparsity may change with z.
+        structure = PETSc.Mat.Structure.DIFFERENT_NONZERO_PATTERN
+        self.tangent_mass.setOption(
+            PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR, False
+        )
+        try:
+            self.tangent_mass.zeroEntries()
+            self.tangent_mass.axpy(1, self.mass, structure=structure)
+            _mpi_trace("nl_mass: tangent reused; before nonlinear AXPY")
+            self.tangent_mass.axpy(1, self.nl_mass, structure=structure)
+            self.tangent_mass.assemble()
+        finally:
+            self.tangent_mass.setOption(
+                PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR, True
+            )
+        _mpi_trace("nl_mass: tangent reassembled in place")
 
         self.disable_all_bricks()
         _mpi_trace("nl_mass: before barrier")
@@ -758,10 +775,26 @@ class DPHS:
         )
         _mpi_trace("nl_stiffness: PETSc matrix assembled")
         _mpi_trace("nl_stiffness: before PETSc copy/AXPY")
-        self.tangent_stiffness = self.stiffness.copy()
-        _mpi_trace("nl_stiffness: after PETSc copy; before AXPY")
-        self.tangent_stiffness.axpy(1, self.nl_stiffness)
-        _mpi_trace("nl_stiffness: after PETSc AXPY; before disable_bricks")
+        # As for the nonlinear mass, retain the existing PETSc Mat handle.
+        # Newton iteration must not enqueue an obsolete MPIAIJ matrix for
+        # garbage collection at every assembly.
+        structure = PETSc.Mat.Structure.DIFFERENT_NONZERO_PATTERN
+        self.tangent_stiffness.setOption(
+            PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR, False
+        )
+        try:
+            self.tangent_stiffness.zeroEntries()
+            self.tangent_stiffness.axpy(1, self.stiffness, structure=structure)
+            _mpi_trace("nl_stiffness: tangent reused; before nonlinear AXPY")
+            self.tangent_stiffness.axpy(
+                1, self.nl_stiffness, structure=structure
+            )
+            self.tangent_stiffness.assemble()
+        finally:
+            self.tangent_stiffness.setOption(
+                PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR, True
+            )
+        _mpi_trace("nl_stiffness: tangent reassembled in place")
 
         self.disable_all_bricks()
         _mpi_trace("nl_stiffness: before barrier")
@@ -1385,7 +1418,12 @@ class DPHS:
                     )
                     sys.stdout.flush()
                 self.solution["t"].append(t)
-                self.solution["z"].append(np.array(self.GlobalVec.copy().getArray(), dtype=np.float64))
+                self.solution["z"].append(
+                    np.array(
+                        self.GlobalVec.getArray(readonly=True).real,
+                        dtype=np.float64, copy=True,
+                    )
+                )
             else:
                 if rank == 0:
                     sys.stdout.write(
@@ -1399,11 +1437,20 @@ class DPHS:
             not self.linear_mass or not self.linear_stiffness
         ):  # Needed for non-linear systems only
             # Update the state in the getfem `Model`
-            self.gf_model.to_variables(np.array(self.GlobalVec.copy().getArray(), dtype=np.float64))
+            self.gf_model.to_variables(
+                np.array(
+                    self.GlobalVec.getArray(readonly=True).real,
+                    dtype=np.float64, copy=True,
+                )
+            )
         # Says to getfem that we go to the next iteration, not sure if needed
         self.gf_model.next_iter()
 
-        PETSc.garbage_cleanup()  # solution saved, cleaning is safe
+        # Do NOT force PETSc.garbage_cleanup() inside a TS callback.
+        # The former call triggered PetscGarbageCleanup -> MatDestroy_MPIAIJ
+        # -> free(): invalid pointer in a 2-rank pseudo-TS run. PETSc/TS
+        # owns live matrix references here; leave object cleanup outside
+        # the solver and avoid transient Mat allocations in Newton calls.
 
     def compute_Hamiltonian(self):
         """Compute each `term` constituting the Hamiltonian
