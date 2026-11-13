@@ -135,8 +135,9 @@ the MPI size.
 The synthetic matrix tests were also adjusted to exercise genuinely
 distinct partial matrices (including a shared row) and replicated
 matrices. Five tests were later validated at 1/2/4 ranks; a **sixth**
-was added afterward for distinct PETSc operator/preconditioner matrices
-and still requires a real MPI run.
+was added afterward for distinct PETSc operator/preconditioner matrices;
+a **seventh** now exercises real nonlinear GetFEM tangents at two Newton
+states. Both new tests require a real MPI run.
 
 **Run this first; do not rerun Saint-Venant if this test fails:**
 
@@ -282,7 +283,7 @@ the native factorization.
 
 **Required checks after pulling:**
 
-1. Re-run the **six** algebra tests on 1/2/4 ranks.
+1. Re-run the **seven** algebra tests on 1/2/4 ranks.
 2. Re-run the original 2-rank open-loop smoke with
    `PYTHONFAULTHANDLER=1 SCRIMP_MPI_TRACE=1`; confirm that every
    matrix transfer logs `mode=replicated` and inspect the last
@@ -307,3 +308,16 @@ SCRIMP_MPI_TRACE=1 mpiexec -n 2 gdb -q -batch \
 Use this only if the simplified tests still fail: GDB adds overhead
 and running multiple debuggers in MPI can require local ptrace access.
 
+
+## Seven-test gate (after fixed-mode transfer)
+
+A seventh test now exercises an **actual nonlinear GetFEM model**:
+`R(u)=integral(u^2 * Test_u)` on [0,1], with constant test states
+u=1 and u=2. After every GetFEM assembly and conversion into the
+**same** PETSc matrix, its tangent must satisfy
+`1^T J(u) 1 = 2u` at 1, 2 and 4 ranks. This targets the nonlinear
+stiffness mode flapping observed in the latest Saint-Venant log.
+
+Both the new nonlinear test and the separate A/P Jacobian test remain
+**unvalidated in the user's environment**. Syntax CI alone is not
+sufficient to mark this gate complete.
