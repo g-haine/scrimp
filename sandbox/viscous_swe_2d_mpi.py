@@ -57,7 +57,7 @@ def ramp_expression(start=75.0, end=200.0):
 
 
 def build_system(gamma, mesh, final_time, save_dt, max_step,
-                 ramp_start=75.0, ramp_end=200.0):
+                 ramp_start=75.0, ramp_end=200.0, init_step=True):
     if gamma not in (0.0, 0.25):
         raise ValueError("gamma must be 0.0 (open) or 0.25 (closed)")
     if mesh <= 0 or final_time <= 0 or save_dt <= 0 or max_step <= 0:
@@ -178,7 +178,7 @@ def build_system(gamma, mesh, final_time, save_dt, max_step,
         t_0=0.0, t_f=final_time, dt=max_step,
         dt_save=save_dt, ts_adapt_dt_max=max_step,
         ts_adapt_dt_min=1e-8,
-        init_step=True, init_step_nb_iter=2,
+        init_step=init_step, init_step_nb_iter=2,
         init_step_ts_type="pseudo", init_step_dt=1e-9,
     )
     return swe
@@ -304,6 +304,8 @@ def main():
     parser.add_argument("--save-dt", type=float, default=1.0)
     parser.add_argument("--max-step", type=float, default=0.01)
     parser.add_argument("--output-dir", type=Path, default=None)
+    parser.add_argument("--no-init-step", action="store_true",
+                        help="Diagnostic only: bypass pseudo-TS initial consistency solve")
     parser.add_argument("--ramp-start", type=float, default=75.0)
     parser.add_argument("--ramp-end", type=float, default=200.0)
     args = parser.parse_args()
@@ -318,7 +320,8 @@ def main():
 
     swe = build_system(gamma, args.mesh, args.final_time,
                        args.save_dt, args.max_step,
-                       args.ramp_start, args.ramp_end)
+                       args.ramp_start, args.ramp_end,
+                       init_step=not args.no_init_step)
     swe.solve()
     result = diagnostics(swe, gamma)
     save_outputs(swe, result, out)
