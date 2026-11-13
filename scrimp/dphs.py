@@ -878,10 +878,32 @@ class DPHS:
         P.axpy(sig, self.tangent_mass)
         _mpi_trace("IJacobian: preconditioner assembled")
 
+        if os.environ.get("SCRIMP_MPI_TRACE") == "1":
+            # Local-only diagnostics, with no extra MPI collectives.
+            # This catches singular/non-finite operators before PETSc's
+            # native KSP/PC factorization path is entered.
+            rp, ci, vals = P.getValuesCSR()
+            bad = int(np.count_nonzero(~np.isfinite(vals)))
+            diagonal = P.getDiagonal()
+            d = np.asarray(diagonal.getArray(readonly=True))
+            diag_zeros = int(np.count_nonzero(d == 0))
+            diag_bad = int(np.count_nonzero(~np.isfinite(d)))
+            _mpi_trace(
+                f"IJacobian: operator shape={P.getSize()}, "
+                f"ownership={P.getOwnershipRange()}, "
+                f"nnz_owned={len(vals)}, nonfinite={bad}, "
+                f"diagonal_zeros={diag_zeros}, diagonal_nonfinite={diag_bad}"
+            )
+            diagonal.destroy()
+            if bad or diag_bad:
+                raise FloatingPointError("Non-finite PETSc Jacobian entries")
+
         if A != P:
-            if rank == 0:
-                logging.info("Operator different from preconditioning")
-            A.assemble()
+            # PETSc TS/SNES may use separate operator and preconditioner
+            # matrices. Both must contain the actual Jacobian; assembling
+            # an untouched A would leave the linear solver with stale data.
+            _mpi_trace("IJacobian: copy preconditioner into distinct operator")
+            P.copy(A)
         _mpi_trace("IJacobian: completed")
 
     def init_matrix(self,A):
