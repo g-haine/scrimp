@@ -23,6 +23,7 @@ If GetFEM's full RHS has an unintended P-fold factor after MPI
 assembly, only the latter will scale with P.
 """
 
+import hashlib
 import json
 
 import numpy as np
@@ -49,6 +50,32 @@ def evaluate_case(mf, mim, expression, c=1.0, epsilon=1e-5):
 
     model.set_variable("u", np.full(n, c))
     model.assembly(option="build_matrix")
+
+    # Look at the GetFEM tangent BEFORE SCRIMP's 'replicated' transfer.
+    # If GetFEM truly assembles a partitioned matrix, each rank's
+    # raw contribution should generally differ, and the sum over MPI
+    # ranks should give the theoretical integral (1,2,3).
+    # If each rank already has the entire matrix, every raw action is
+    # 1/2/3, and summing matrices would produce P times too much.
+    raw = gf.Spmat("copy", model.tangent_matrix())
+    raw.transpose()  # GetFEM CSC of transpose -> row-wise CSR
+    row_ptr, col_idx = (np.asarray(x) for x in raw.csc_ind())
+    raw_values = np.asarray(raw.csc_val())
+    row_action = np.asarray([
+        np.sum(raw_values[row_ptr[i]:row_ptr[i + 1]])
+        for i in range(n)
+    ])
+    rank_matrix_summaries = MPI.COMM_WORLD.allgather({
+        "rank": MPI.COMM_WORLD.rank,
+        "raw_tangent_integral": float(np.real(row_action.sum())),
+        "raw_tangent_abs_sum": float(np.sum(np.abs(raw_values))),
+        "raw_tangent_nnz": int(len(raw_values)),
+        "raw_tangent_digest": hashlib.blake2b(
+            np.ascontiguousarray(row_action).view(np.uint8),
+            digest_size=8,
+        ).hexdigest(),
+    })
+
     matrix = PETSc.Mat().createAIJ(size=(n, n), comm=PETSc.COMM_WORLD)
     matrix.setUp()
     matrix.setOption(PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR, False)
@@ -87,6 +114,16 @@ def evaluate_case(mf, mim, expression, c=1.0, epsilon=1e-5):
             float(np.sum(derivative)) / max(abs(jacobian_integral), 1e-14),
         "rhs_vs_tangent_vector_difference_norm": difference_norm,
         "rhs_rank_copy_difference": rank_delta,
+        "raw_getfem_tangent_by_rank": rank_matrix_summaries,
+        "sum_raw_getfem_tangent_integrals": sum(
+            item["raw_tangent_integral"]
+            for item in rank_matrix_summaries
+        ),
+        "raw_rhs_minus_tangent_ratio_at_each_rank": [
+            float(np.sum(derivative)) /
+            max(abs(item["raw_tangent_integral"]), 1e-14)
+            for item in rank_matrix_summaries
+        ],
     }
 
 
