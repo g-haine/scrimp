@@ -920,11 +920,18 @@ class DPHS:
         A.setOption(PETSc.Mat.Option.FORCE_DIAGONAL_ENTRIES, True)
         A.setType("aij")
         A.setUp()
-        x=A.createVecRight(); x.setArray(0)
-        A.setOption(PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR,False)
-        A.setDiagonal(x,addv=PETSc.InsertMode.ADD_VALUES)
-        A.setOption(PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR,True)
-        A.assemble()
+        # Vec.setArray() replaces the vector's storage: passing scalar 0
+        # is not a valid way to initialize an MPI vector and may corrupt
+        # memory in native PETSc calls. Fill the existing distributed vector.
+        x = A.createVecLeft()
+        x.set(0.0)
+        A.setOption(PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR, False)
+        try:
+            A.setDiagonal(x, addv=PETSc.InsertMode.ADD_VALUES)
+            A.assemble()
+        finally:
+            A.setOption(PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR, True)
+            x.destroy()
 
     def allocate_memory(self):
         """Pre-allocate memory for matrices and vectors"""
