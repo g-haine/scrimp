@@ -59,9 +59,14 @@ def ramp_expression(start=75.0, end=200.0):
 def build_system(gamma, mesh, final_time, save_dt, max_step,
                  ramp_start=75.0, ramp_end=200.0, init_step=True,
                  ts_type="arkimex", adapt_type="basic",
-                 init_dt=1e-9):
+                 init_dt=1e-9, rotation=ROTATION,
+                 initial_profile="tangent"):
     if gamma not in (0.0, 0.25):
         raise ValueError("gamma must be 0.0 (open) or 0.25 (closed)")
+    if not np.isfinite(rotation):
+        raise ValueError("rotation must be finite")
+    if initial_profile not in ("tangent", "rigid", "legacy_opposite"):
+        raise ValueError("unknown initial momentum profile")
     if (mesh <= 0 or final_time <= 0 or save_dt <= 0
             or max_step <= 0 or not np.isfinite(init_dt) or init_dt <= 0):
         raise ValueError("mesh and time parameters must be positive")
@@ -156,22 +161,36 @@ def build_system(gamma, mesh, final_time, save_dt, max_step,
         swe.add_brick(S.Brick("Normal output feedback", normal_law,
                               [REGION_WALL], linear=False))
 
-    # Full boundary velocity: u = u_n n + (ROTATION*f(t)) t.
-    # Keep U_n as an unknown so the feedback equation is solved implicitly.
-    vector_law = f"(-U + U_n*Normal + ({ROTATION})*({f})*Tangent).Test_U"
+    # Full boundary velocity: U = U_n*n + rotation*f(t)*Rot*n.
+    # Rot=[[0,1],[-1,0]] is CLOCKWISE. The initial p must
+    # use this SAME orientation. The old p had the opposite sign,
+    # enforcing an abrupt change and a huge traction multiplier Y.
+    vector_law = f"(-U + U_n*Normal + ({rotation})*({f})*Tangent).Test_U"
     swe.add_brick(S.Brick("Tangential wall actuation", vector_law,
                           [REGION_WALL], linear=False))
 
     swe.set_initial_value("h", str(H_INITIAL))
-    # Approximate the radial-constant tangential speed 0.2 from the paper:
-    # regularize the singular direction at the disk center.
+    # Tangent=Rot*Normal, Rot=[[0,1],[-1,0]]. On the unit circle
+    # Tangent=(y,-x). With e_p=p/rho the boundary condition needs
+    # p/rho to point in this SAME direction; the old (-y,+x)
+    # initialization was opposite to the imposed wall velocity.
     radius = "np.sqrt(x*x+y*y)"
     eps = 1e-6
-    swe.set_initial_value(
-        "p",
-        f"[-{RHO*ROTATION}*y/({radius}+{eps}),"
-        f" {RHO*ROTATION}*x/({radius}+{eps})]",
-    )
+    amplitude = RHO * rotation
+    if initial_profile == "tangent":
+        # Approximately constant tangential speed; regularized
+        # center, and approximate normals on the polygonal boundary.
+        p_x = f"({amplitude})*y/({radius}+{eps})"
+        p_y = f"-({amplitude})*x/({radius}+{eps})"
+    elif initial_profile == "rigid":
+        # Smooth rigid-body rotation, speed |rotation| at r=1,
+        # zero at the center; useful boundary-compatibility probe.
+        p_x = f"({amplitude})*y"
+        p_y = f"-({amplitude})*x"
+    else:  # legacy_opposite for diagnosing the prior sign error
+        p_x = f"-({amplitude})*y/({radius}+{eps})"
+        p_y = f"({amplitude})*x/({radius}+{eps})"
+    swe.set_initial_value("p", f"[{p_x}, {p_y}]")
 
     # Keep the paper-inspired ARKIMEX-A2 setting as the baseline.
     # Distinguish truncation-error rejections from a truly failed
@@ -325,6 +344,19 @@ def main():
     parser.add_argument("--no-init-step", action="store_true",
                         help="Diagnostic only: bypass BDF2 consistency initialization")
     parser.add_argument(
+        "--rotation", type=float, default=ROTATION,
+        help="Initial swirl and imposed tangential wall speed; "
+             "zero gives a stationary-water diagnostic",
+    )
+    parser.add_argument(
+        "--initial-profile",
+        choices=("tangent", "rigid", "legacy_opposite"),
+        default="tangent",
+        help="Initial momentum profile: tangent matches wall Rot*Normal "
+             "(default); rigid is smooth; legacy_opposite reproduces "
+             "the historical sign mistake",
+    )
+    parser.add_argument(
         "--init-dt", type=float, default=1e-9,
         help="Tiny BDF2 initialization step, from -init-dt to t=0; "
              "default 1e-9",
@@ -368,7 +400,8 @@ def main():
             f"TS={args.ts_type}, TSAdapt={args.adapt_type}, "
             f"pseudo_init={not args.no_init_step}, "
             f"dt={args.max_step}, t_f={args.final_time}, "
-            f"init_dt={args.init_dt}",
+            f"init_dt={args.init_dt}, rotation={args.rotation}, "
+            f"initial_profile={args.initial_profile}",
             flush=True,
         )
     swe = build_system(gamma, args.mesh, args.final_time,
@@ -377,7 +410,9 @@ def main():
                        init_step=not args.no_init_step,
                        ts_type=args.ts_type,
                        adapt_type=args.adapt_type,
-                       init_dt=args.init_dt)
+                       init_dt=args.init_dt,
+                       rotation=args.rotation,
+                       initial_profile=args.initial_profile)
     if args.petsc_monitor:
         # PETSc's -ts_monitor/-ts_adapt_monitor are VIEWER-valued
         # command-line flags, not Boolean-valued TS settings.
