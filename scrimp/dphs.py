@@ -1021,6 +1021,30 @@ class DPHS:
                 "SCRIMP_NONLINEAR_MASS_FD_EPSILON must be finite > 0"
             )
 
+        # The TS pseudo-initialization may use dt ~ 1e-9, so its
+        # derivative zd=(z_new-z_old)/dt can be orders of magnitude
+        # larger than the physical state. The raw z +/- 1e-4*zd
+        # probe must NOT jump to enormous, nonphysical heights.
+        # Keep ||eta*zd|| <= epsilon * max(1,||z||); for ordinary
+        # moderate zd this retains the already FD-validated eta.
+        zd_norm = float(zd.norm())
+        z_norm = float(z.norm())
+        if not np.isfinite(zd_norm) or not np.isfinite(z_norm):
+            raise FloatingPointError(
+                "Non-finite state or time-derivative norm in "
+                "nonlinear mass Hessian assembly"
+            )
+        eta *= min(
+            1.0,
+            max(1.0, z_norm) / max(1.0, zd_norm),
+        )
+        _mpi_trace(
+            "mass_hessian: z_norm={:.6g}, zd_norm={:.6g}, "
+            "eta={:.6g}, perturb_norm={:.6g}".format(
+                z_norm, zd_norm, eta, eta * zd_norm,
+            )
+        )
+
         z_plus, z_minus = z.copy(), z.copy()
         mass_plus = mass_minus = correction = None
         try:
