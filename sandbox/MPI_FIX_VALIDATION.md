@@ -2649,3 +2649,110 @@ unmodified MCSS2024 source, maintain draft PR #22
 and issue #6 open. Eventually compare Hamiltonian
 against integrated viscous dissipation/port supply,
 then reintroduce genuine 2D MPI/MUMPS testing.
+
+
+## 2026-11-13 — User validates corrected MCSS2024 source signs; 2 steps with SuperLU/BDF2
+
+The user executed the new PETSc-owned-row source regression and the
+**actual unchanged published MCSS2024 grad experiment 3** on current
+SCRIMP using GetFEM 5.4.2, PETSc 3.21.6 complex, BDF2 and SuperLU.
+
+1. `tests.test_mpi_algebra.TestMPIAlgebra.test_direct_ifunction_keeps_source_sign_separate_from_nonlinear_rhs`: **PASS**, 1 rank, 0.024s.
+   This verifies state-independent prescribed source `+S` survives
+   while GetFEM nonlinear weak-form `-N` is negated correctly.
+2. Published model at t_f=0.0003: shell **exit 0**,
+   PETSc `actual_final_time=0.00030000000000000003`,
+   `ts_converged_reason=1`, **2 accepted steps**,
+   **0 rejected**, **0 SNES failures**, **5 Newton/KSP
+   iterations** (previous pre-fix published run: 6).
+3. Comparison at **last saved t=0.0001**:
+   - Before source sign repair: `h_min=49.9858443`,
+     `h_max=50.0126483`, `||Y||=0.427656`,
+     `max|Y|=0.0523028`.
+   - After source sign repair: `h_min=49.9999209`,
+     `h_max=50.0000787`, `||Y||=0.00619787`,
+     `max|Y|=0.00075441`.
+   Both states are numerically finite; the new source sign
+   gives much smaller spurious initial transients on this
+   short interval. This is consistent with the corrected
+   wall velocity forcing, but does NOT independently prove
+   an exact energy/power balance.
+4. Original published source file **was never edited**.
+   The probe imported it unchanged and only shortened
+   the simulation; thus it establishes a trustworthy
+   sequential baseline on the CURRENT runtime.
+
+### Important new find: last saved sample was still 0.0001 due to 1-ULP clipping
+
+Although `DPHS.solve` recorded the correct PETSc endpoint
+and deliberately called `self.monitor(TS,-1,...)`,
+it afterwards used a STRICT filter
+`solution["t"] <= t_f`. PETSc represented the accepted end
+time as `0.00030000000000000003` while the literal
+`t_f` was `0.0003`: **one floating-point ULP
+difference removed the real endpoint again**.
+
+Replaced the strict array filter with a pure helper
+`_select_saved_solution_through_final_time`, using
+**32 ULPs at t_f** for comparison and snapping
+round-off-near samples to precisely t_f. Genuine
+TS `STEPOVER` times are still discarded, not
+invented or interpolated. Added
+`test_final_solution_endpoint_keeps_one_ulp_roundoff_but_not_true_stepover`;
+source CI passed, native test still to be run.
+
+`sandbox/viscous_swe_2d_mpi.py` also checks
+**actual PETSc last_ts_time and convergence reason**,
+never a potentially incomplete monitor sampling,
+before computing the physical energy balance.
+
+### Next objective: measure the physical MCSS2024 power balance on the working reference
+
+`sandbox/probe_mcss2024_reference.py --energy-balance`
+now computes exactly the **published** MCSS2024 grad
+experiment-3 forms after its short successful solve:
+`H=∫[0.5*h*p.p/rho + 0.5*rho*g*h*h]`;
+dissipation `2*mu*h*D(e_p):D(e_p)` and
+`2*mu*h*div(e_p)^2`; boundary powers
+`-h*U_n*Y_n` and `-h*U.Y`.
+It uses **the publication's exact time diagnostic
+convention** `CN=True, int_scheme='Explicit'`:
+`∫P≈sum(dt_k * P_k)`, with midpoint-state
+evaluation `P_k=get_quantity(CN=True)[k]`.
+Reports `H, integrated dissipation, integrated boundary
+powers, total balance defect, max relative balance defect`
+as JSON; no plots nor modification to source physics.
+This new energy diagnostic is opt-in and has NOT
+yet been run by the user.
+
+```bash
+git pull --ff-only
+conda activate scrimp
+
+# Fast regression for the previously lost final state:
+mpiexec -n 1 python -m unittest -v \
+  tests.test_mpi_algebra.TestMPIAlgebra.test_final_solution_endpoint_keeps_one_ulp_roundoff_but_not_true_stepover
+
+# One successful full reference solution, now with power balance:
+SCRIMP_GETFEM_RHS_MODE=divide_by_mpi_size \
+PYTHONFAULTHANDLER=1 \
+timeout -k 5s 120s mpiexec -n 1 \
+    python -u sandbox/probe_mcss2024_reference.py \
+      --final-time 0.0003 --save-dt 0.0001 \
+      --solver superlu --energy-balance \
+    > mcss2024_reference_balance.log 2>&1
+
+echo "ref+bilan exit=$?"
+grep -E '"actual_final_time"|"last_saved_time"|"saved_steps"|"maximum_relative_balance_error"|"ts_converged_reason"|Steps:|Traceback' \
+    mcss2024_reference_balance.log
+```
+
+**If and only if** this source/energy baseline passes,
+test **published model + MUMPS on ONE rank**, then same
+model on TWO ranks, using the same `--solver mumps`
+option. This isolates MUMPS/native MPI effects from
+all the hand-written benchmark differences.
+For a physically meaningful long run, tighten
+power-balance tolerance and test time/mesh convergence;
+a three-snapshot tiny-time test is only a smoke test.
+Keep issue #6 open, PR #22 draft and #23 separate.
