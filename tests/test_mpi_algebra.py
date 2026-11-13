@@ -1,0 +1,723 @@
+# SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
+#
+# Copyright (C) 2015-2026 ISAE-SUPAERO -- GNU GPLv3
+# 
+# See the LICENSE file for license information.
+#
+# github: https://github.com/g-haine/scrimp
+
+"""MPI integration tests for the GetFEM/PETSc algebra bridge.
+
+Run with real GetFEM/PETSc (not the lightweight tests/__init__.py stubs):
+    mpiexec -n 1 python -m unittest -v tests.test_mpi_algebra
+    mpiexec -n 2 python -m unittest -v tests.test_mpi_algebra
+    mpiexec -n 4 python -m unittest -v tests.test_mpi_algebra
+
+The synthetic matrices exercise BOTH genuinely distributed contributions
+and fully replicated GetFEM matrices with GLOBAL row/column numbering.
+The real-GetFEM test checks a physical mass integral with MPI level 2.
+"""
+
+import io
+import os
+import unittest
+from types import SimpleNamespace
+from unittest.mock import patch
+
+import numpy as np
+from petsc4py import PETSc
+
+from scrimp.dphs import DPHS
+from scrimp.utils import linalg
+
+
+COMM = PETSc.COMM_WORLD
+RANK = COMM.getRank()
+SIZE = COMM.getSize()
+N = max(8, SIZE * 2)
+
+
+class FakeGetFEMDistributedMatrix:
+    """GetFEM CSC-of-transpose view of a partial GLOBAL-NxN matrix."""
+
+    def __init__(self, count=N, ranks=SIZE):
+        # Each process contributes some different rows, except row 0
+        # where all processes contribute 1/P. The global matrix is
+        # therefore the original stencil and includes overlapping entries.
+        self.row_ptr = np.arange(0, 2 * count + 1, 2, dtype=PETSc.IntType)
+        self.col_idx = np.empty(2 * count, dtype=PETSc.IntType)
+        self.values = np.empty(2 * count, dtype=PETSc.ScalarType)
+        for k in range(count):
+            self.col_idx[2*k:2*k+2] = (k, (k + 1) % count)
+            factor = (1.0 / ranks if k == 0 else
+                      (1.0 if k % ranks == RANK else 0.0))
+            self.values[2*k:2*k+2] = (2.0 * factor, -1.0 * factor)
+
+    def transpose(self):
+        # linalg.convert_gmm_to_petsc always transposes a GetFEM copy
+        # to obtain this CSR view.
+        return None
+
+    def csc_ind(self):
+        return self.row_ptr, self.col_idx
+
+    def csc_val(self):
+        return self.values
+
+
+class TestMPIAlgebra(unittest.TestCase):
+    def test_final_solution_endpoint_keeps_one_ulp_roundoff_but_not_true_stepover(self):
+        """MCSS2024 reached PETSc t=0.00030000000000000003.
+
+        A strict <= 0.0003 comparison discarded the last accepted
+        snapshot. The same filter must still discard a genuinely
+        larger STEPOVER time (e.g. t=0.00031).
+        """
+        from scrimp.dphs import _select_saved_solution_through_final_time
+
+        t = [0.00031, 0.00030000000000000003, 0.0001, 0.0]
+        states = np.array([[31.0], [30.0], [10.0], [0.0]])
+        saved_t, saved_z = _select_saved_solution_through_final_time(
+            t, states, 0.0003
+        )
+        np.testing.assert_array_equal(saved_t, [0.0, 0.0001, 0.0003])
+        np.testing.assert_array_equal(
+            saved_z[:, 0], [0.0, 10.0, 30.0]
+        )
+        self.assertEqual(saved_t[-1], 0.0003)
+
+    def test_direct_ifunction_keeps_source_sign_separate_from_nonlinear_rhs(self):
+        """MCSS2024 controls: GetFEM rhs=-N(z)+S, but F includes +N+S.
+
+        Direct nonlinear finite differences cannot detect the sign of
+        state-independent sources, since dS/dz=0. Check the residual
+        VALUE, and verify that source-only assembly happens iff a source
+        brick is present. PETSc ownership is real, so runs with MPI 1/2/4.
+        """
+        class DummyBrick:
+            def __init__(self, kind):
+                self.kind = kind
+
+            def get_position(self):
+                return self.kind
+
+        def mat_with_diagonal(value):
+            mat = PETSc.Mat().createAIJ(size=(N, N), nnz=1, comm=COMM)
+            mat.setUp()
+            diagonal = mat.createVecRight()
+            try:
+                diagonal.set(value)
+                mat.setDiagonal(diagonal)
+                mat.assemble()
+            finally:
+                diagonal.destroy()
+            return mat
+
+        sys = DPHS.__new__(DPHS)
+        sys.mass = mat_with_diagonal(0.0)
+        sys.stiffness = mat_with_diagonal(-1.0)
+        sys.linear_mass = True
+        sys.linear_stiffness = False
+        sys.lumped_variables = []
+        sys._sync_lumped_trial_state = lambda t, z: None
+        sys._trace_newton_blocks = lambda phase, t, z, zd: None
+
+        z = sys.stiffness.createVecRight()
+        zd = z.duplicate()
+        F = z.duplicate()
+        sys.buffer = z.duplicate()
+        sys.rhs = z.duplicate()
+        try:
+            for include_source in (False, True):
+                sys.bricks = {
+                    "N": DummyBrick("effort"),
+                }
+                if include_source:
+                    sys.bricks["S"] = DummyBrick("source")
+                for u in (0.0, 1.0):
+                    z.set(u)
+                    zd.set(0.0)
+                    calls = []
+
+                    def assemble_rhs(source_only=False):
+                        calls.append(source_only)
+                        # At a constant u, N(u)=3*u^2 and S=2.
+                        # GetFEM returns -N+S before SCRIMP signs.
+                        raw = (-3.0 * u**2) + (
+                            2.0 if include_source else 0.0
+                        )
+                        sys.rhs.set(
+                            2.0 if source_only else raw
+                        )
+                        sys.rhs.assemble()
+
+                    sys.assemble_rhs = assemble_rhs
+                    with patch.dict(
+                        os.environ,
+                        {"SCRIMP_NONLINEAR_RESIDUAL_FORM": "direct_getfem"},
+                    ):
+                        sys.IFunction(None, 0.0, z, zd, F)
+                    expected = -u + 3.0*u**2 + (
+                        2.0 if include_source else 0.0
+                    )
+                    np.testing.assert_allclose(
+                        F.getArray(readonly=True),
+                        np.full(F.getLocalSize(), expected),
+                        rtol=0, atol=1e-12,
+                    )
+                    self.assertEqual(
+                        calls, [False, True] if include_source else [False]
+                    )
+        finally:
+            for obj in (
+                sys.rhs, sys.buffer, F, zd, z,
+                sys.stiffness, sys.mass,
+            ):
+                obj.destroy()
+
+    def test_newton_block_trace_uses_port_registry_not_getfem_variable_list(self):
+        """GetFEM Model.variable_list() prints and RETURNS NONE in 5.4.2.
+
+        The optional trace must work without calling it; this test uses
+        a fake GetFEM model so it catches that accidental API misuse
+        without requiring a full TS initialization.
+        """
+        from scrimp import dphs as dphs_module
+
+        class DummyPort:
+            def __init__(self, flow, effort):
+                self.flow, self.effort = flow, effort
+
+            def get_flow(self):
+                return self.flow
+
+            def get_effort(self):
+                return self.effort
+
+        class DummyModel:
+            def variable_list(self):
+                raise AssertionError("print-only GetFEM API called")
+
+            def interval_of_variable(self, name):
+                if name == "Y":
+                    raise ValueError("substituted effort absent")
+                return {"h": (0, 2), "p": (2, 2),
+                        "e_h": (4, 1)}[name]
+
+        d = DPHS.__new__(DPHS)
+        d.ports = {
+            "height": DummyPort("h", "e_h"),
+            "momentum": DummyPort("p", "e_h"),
+            "wall": DummyPort("Y", "Y"),
+        }
+        d.gf_model = DummyModel()
+        d.GlobalVec = SimpleNamespace(
+            getArray=lambda readonly=False:
+            np.array([5.0, 5.0, 0.1, 0.2, 0.5]),
+        )
+        output = io.StringIO()
+        with patch.dict(os.environ, {"SCRIMP_NEWTON_BLOCK_TRACE": "1"}), \
+                patch.object(dphs_module, "rank", 0), \
+                patch.object(dphs_module.sys, "stderr", output):
+            d._trace_newton_blocks("IFunction", 0.0, None, None)
+        msg = output.getvalue()
+        self.assertIn("h:norm=", msg)
+        self.assertIn("min=5", msg)
+        self.assertIn("max=5", msg)
+        self.assertIn("p:norm=", msg)
+        self.assertIn("e_h:norm=", msg)
+        self.assertNotIn("Y:norm=", msg)
+        self.assertEqual(msg.count("e_h:norm="), 1)
+
+    def test_distributed_matrix_contributions_are_added_and_not_accumulated(self):
+        mat = PETSc.Mat().createAIJ(size=(N, N), comm=COMM)
+        mat.setUp()
+        fake = FakeGetFEMDistributedMatrix()
+        try:
+            with patch.dict(os.environ, {"SCRIMP_GETFEM_MATRIX_MODE": "distributed"}), \
+                    patch.object(linalg.gf, "Spmat", return_value=fake):
+                for _ in range(2):
+                    # Reassembly must REPLACE old entries, not double the
+                    # operator across Newton iterations.
+                    linalg.convert_gmm_to_petsc(object(), mat)
+
+                    x = mat.createVecRight()
+                    y = mat.createVecLeft()
+                    x.set(1.0)
+                    mat.mult(x, y)
+                    lo, hi = y.getOwnershipRange()
+                    np.testing.assert_allclose(
+                        y.getArray(readonly=True),
+                        np.ones(hi - lo),
+                        atol=1e-11,
+                        rtol=1e-11,
+                    )
+                    self.assertEqual(mat.getSize(), (N, N))
+                    x.destroy()
+                    y.destroy()
+        finally:
+            mat.destroy()
+
+    def test_replicated_matrix_does_not_scale_with_rank_count(self):
+        """Replicated GetFEM Python matrices must be inserted just once."""
+        mat = PETSc.Mat().createAIJ(size=(N, N), comm=COMM)
+        mat.setUp()
+        fake = FakeGetFEMDistributedMatrix()
+        # Replace the distributed contributions with an exact full copy
+        # of the same matrix on every rank.
+        for k in range(N):
+            fake.values[2*k:2*k+2] = (2.0, -1.0)
+        try:
+            with patch.dict(os.environ, {"SCRIMP_GETFEM_MATRIX_MODE": "replicated"}), \
+                    patch.object(linalg.gf, "Spmat", return_value=fake):
+                for _ in range(2):
+                    linalg.convert_gmm_to_petsc(object(), mat)
+                    x, y = mat.createVecRight(), mat.createVecLeft()
+                    try:
+                        x.set(1.0)
+                        mat.mult(x, y)
+                        lo, hi = y.getOwnershipRange()
+                        np.testing.assert_allclose(
+                            y.getArray(readonly=True),
+                            np.ones(hi-lo),
+                            atol=1e-11, rtol=1e-11,
+                        )
+                    finally:
+                        x.destroy()
+                        y.destroy()
+        finally:
+            mat.destroy()
+
+    def test_real_getfem_mpi2_mass_matrix_is_rank_independent(self):
+        """A real GetFEM model must integrate the constant 1 on [0,1].
+
+        This is much stronger than the synthetic partial-matrix test:
+        it detects double-counted GetFEM contributions, including those
+        represented with zero-valued sparse slots on some MPI ranks.
+        The identity integral is independent of the number of processes.
+        """
+        gf = linalg.gf
+        if int(gf.util_mpi_parallelism_level()) != 2:
+            self.skipTest("requires GetFEM MPI level 2")
+        mesh = gf.Mesh("cartesian", np.linspace(0.0, 1.0, 17))
+        mf = gf.MeshFem(mesh, 1)
+        mf.set_fem(gf.Fem("FEM_PK(1,1)"))
+        mim = gf.MeshIm(mesh, gf.Integ("IM_GAUSS1D(5)"))
+        model = gf.Model("real")
+        model.add_fem_variable("u", mf)
+        model.add_linear_term(mim, "u*Test_u")
+        model.assembly(option="build_matrix")
+
+        n = model.nbdof()
+        self.assertEqual(n, mf.nbdof())
+        mat = PETSc.Mat().createAIJ(size=(n, n), comm=COMM)
+        mat.setUp()
+        mat.setOption(PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR, False)
+        try:
+            with patch.dict(os.environ, {"SCRIMP_GETFEM_MATRIX_MODE": "replicated"}):
+                linalg.convert_gmm_to_petsc(model.tangent_matrix(), mat)
+            x, y = mat.createVecRight(), mat.createVecLeft()
+            try:
+                x.set(1.0)
+                mat.mult(x, y)
+                # Exact integral of 1*1 over the unit interval = 1.
+                measured = float(np.real(x.dot(y)))
+                self.assertAlmostEqual(measured, 1.0, places=9)
+                self.assertEqual(mat.getSize(), (n, n))
+            finally:
+                x.destroy()
+                y.destroy()
+        finally:
+            mat.destroy()
+
+    def test_real_getfem_nonlinear_tangent_across_newton_iterates(self):
+        """A changing GetFEM nonlinear Jacobian must not change MPI mode.
+
+        For R(u)=integral(u**2 * Test_u), the tangent at a constant u=c
+        satisfies 1^T J 1 = 2*c on [0,1]. Verify this for two separate
+        GetFEM assemblies into the SAME PETSc matrix.
+        """
+        gf = linalg.gf
+        mesh = gf.Mesh("cartesian", np.linspace(0.0, 1.0, 17))
+        mf = gf.MeshFem(mesh, 1)
+        mf.set_fem(gf.Fem("FEM_PK(1,1)"))
+        mim = gf.MeshIm(mesh, gf.Integ("IM_GAUSS1D(5)"))
+        model = gf.Model("real")
+        model.add_fem_variable("u", mf)
+        model.add_nonlinear_term(mim, "u*u*Test_u")
+        n = model.nbdof()
+        mat = PETSc.Mat().createAIJ(size=(n, n), comm=COMM)
+        mat.setUp()
+        mat.setOption(PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR, False)
+        try:
+            with patch.dict(os.environ, {"SCRIMP_GETFEM_MATRIX_MODE": "replicated"}):
+                for c in (1.0, 2.0):
+                    model.set_variable("u", np.full(n, c, dtype=float))
+                    model.assembly(option="build_matrix")
+                    linalg.convert_gmm_to_petsc(model.tangent_matrix(), mat)
+                    x, y = mat.createVecRight(), mat.createVecLeft()
+                    try:
+                        x.set(1.0)
+                        mat.mult(x, y)
+                        self.assertAlmostEqual(
+                            float(np.real(x.dot(y))), 2.0*c, places=9
+                        )
+                    finally:
+                        x.destroy()
+                        y.destroy()
+        finally:
+            mat.destroy()
+
+    def test_nonlinear_tangents_reuse_mpi_matrices_without_accumulation(self):
+        """Newton reassembly must not replace PETSc MPIAIJ matrix handles.
+
+        This regression also checks that variable sparsity may be inserted
+        into the same preallocated matrix and old values do not accumulate.
+        The original SWE crash was observed when temporary matrices were
+        reclaimed by PETSc.garbage_cleanup in TSMonitor.
+        """
+        def linear_diagonal(value):
+            mat = PETSc.Mat().createAIJ(size=(N, N), nnz=1, comm=COMM)
+            mat.setUp()
+            diag = mat.createVecLeft()
+            try:
+                diag.set(value)
+                mat.setDiagonal(diag)
+                mat.assemble()
+            finally:
+                diag.destroy()
+            return mat
+
+        model = SimpleNamespace(
+            nbdof=lambda: N,
+            assembly=lambda **kwargs: None,
+            tangent_matrix=lambda: None,
+        )
+        system = object.__new__(DPHS)
+        system.gf_model = model
+        system.bricks = {}
+        system.mass = linear_diagonal(3.0)
+        system.stiffness = linear_diagonal(7.0)
+        system.nl_mass = PETSc.Mat().create(comm=COMM)
+        system.nl_stiffness = PETSc.Mat().create(comm=COMM)
+        system.tangent_mass = PETSc.Mat().create(comm=COMM)
+        system.tangent_stiffness = PETSc.Mat().create(comm=COMM)
+        matrices = (
+            system.mass, system.stiffness, system.nl_mass,
+            system.nl_stiffness, system.tangent_mass,
+            system.tangent_stiffness,
+        )
+        try:
+            for mat in (system.nl_mass, system.nl_stiffness,
+                        system.tangent_mass, system.tangent_stiffness):
+                system.init_matrix(mat)
+            original_mass = system.tangent_mass
+            original_stiffness = system.tangent_stiffness
+            fake = FakeGetFEMDistributedMatrix()
+            with patch.dict(os.environ,
+                            {"SCRIMP_GETFEM_MATRIX_MODE": "replicated"}), \
+                    patch.object(linalg.gf, "Spmat", return_value=fake):
+                for coefficient in (1.0, 2.0, 0.5, 3.0, 1.0):
+                    for k in range(N):
+                        # Shift the offdiagonal column across assemblies:
+                        # the nonlinear matrix changes sparsity pattern as
+                        # well as coefficient values, but its row sum stays c.
+                        fake.col_idx[2*k+1] = (
+                            k + (1 if coefficient <= 1.0 else 2)
+                        ) % N
+                        fake.values[2*k:2*k+2] = (
+                            2.0 * coefficient, -coefficient
+                        )
+                    system.assemble_nl_mass()
+                    system.assemble_nl_stiffness()
+                    self.assertIs(system.tangent_mass, original_mass)
+                    self.assertIs(system.tangent_stiffness, original_stiffness)
+                    for mat, linear_value in (
+                        (system.tangent_mass, 3.0),
+                        (system.tangent_stiffness, 7.0),
+                    ):
+                        x, y = mat.createVecRight(), mat.createVecLeft()
+                        try:
+                            x.set(1.0)
+                            mat.mult(x, y)
+                            lo, hi = y.getOwnershipRange()
+                            np.testing.assert_allclose(
+                                y.getArray(readonly=True),
+                                np.full(hi-lo, linear_value + coefficient),
+                                rtol=1e-12, atol=1e-12,
+                            )
+                        finally:
+                            x.destroy()
+                            y.destroy()
+        finally:
+            for mat in matrices:
+                mat.destroy()
+
+    def test_init_matrix_preserves_distributed_vector_storage(self):
+        """Preallocating the diagonal must never replace a Vec's buffer.
+
+        Regression for DPHS.init_matrix using Vec.setArray(0), which is
+        an invalid way to fill the distributed PETSc vector with zero.
+        Repeatedly initialize, assemble, then use a PETSc-owned vector.
+        """
+        system = object.__new__(DPHS)
+        system.gf_model = SimpleNamespace(nbdof=lambda: N)
+        for _ in range(4):
+            matrix = PETSc.Mat().create(comm=COMM)
+            try:
+                system.init_matrix(matrix)
+                self.assertEqual(matrix.getSize(), (N, N))
+                diag = matrix.getDiagonal()
+                try:
+                    lo, hi = diag.getOwnershipRange()
+                    self.assertEqual(len(diag.getArray(readonly=True)), hi-lo)
+                    np.testing.assert_allclose(diag.getArray(readonly=True), 0.0)
+                finally:
+                    diag.destroy()
+                x, y = matrix.createVecRight(), matrix.createVecLeft()
+                try:
+                    x.set(1.0)
+                    matrix.mult(x, y)
+                    np.testing.assert_allclose(y.getArray(readonly=True), 0.0)
+                finally:
+                    x.destroy()
+                    y.destroy()
+            finally:
+                matrix.destroy()
+
+    def test_jacobian_copy_with_changing_sparse_pattern(self):
+        """PETSc TS Jacobian assembly must support new nonzero locations.
+
+        P and A are initially allocated with a diagonal-only pattern.
+        The state-dependent stiffness later gains off-diagonal entries
+        on every MPI rank, including across the process boundary.
+        MatCopy with SAME_NONZERO_PATTERN would be unsafe here.
+        """
+        def diag_matrix(value):
+            matrix = PETSc.Mat().createAIJ(size=(N, N), nnz=1, comm=COMM)
+            matrix.setUp()
+            diag = matrix.createVecLeft()
+            try:
+                diag.set(value)
+                matrix.setDiagonal(diag)
+                matrix.assemble()
+            finally:
+                diag.destroy()
+            return matrix
+
+        stiffness = diag_matrix(3.0)
+        stiffness.setOption(
+            PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR, False
+        )
+        mass = diag_matrix(2.0)
+        A = diag_matrix(0.0)
+        P = diag_matrix(0.0)
+        system = object.__new__(DPHS)
+        system.gf_model = SimpleNamespace(set_time=lambda t: None)
+        system.lumped_variables = set()
+        system.linear_mass = True
+        system.linear_stiffness = True
+        system.tangent_stiffness = stiffness
+        system.tangent_mass = mass
+
+        try:
+            for offset, coefficient in ((0, 0.0), (1, 4.0), (2, -2.0)):
+                stiffness.zeroEntries()
+                diagonal = stiffness.createVecLeft()
+                try:
+                    diagonal.set(3.0)
+                    stiffness.setDiagonal(diagonal)
+                finally:
+                    diagonal.destroy()
+                if offset:
+                    lo, hi = stiffness.getOwnershipRange()
+                    for row in range(lo, hi):
+                        stiffness.setValue(
+                            row, (row + offset) % N, coefficient,
+                            addv=PETSc.InsertMode.INSERT_VALUES,
+                        )
+                stiffness.assemble()
+                system.IJacobian(None, 0.0, None, None, 5.0, A, P)
+                for matrix in (A, P):
+                    x, y = matrix.createVecRight(), matrix.createVecLeft()
+                    try:
+                        x.set(1.0)
+                        matrix.mult(x, y)
+                        expected = 13.0 + coefficient
+                        np.testing.assert_allclose(
+                            y.getArray(readonly=True),
+                            expected, atol=1e-12, rtol=1e-12,
+                        )
+                    finally:
+                        x.destroy()
+                        y.destroy()
+        finally:
+            for matrix in (stiffness, mass, A, P):
+                matrix.destroy()
+
+    def test_distinct_operator_and_preconditioner_get_same_jacobian(self):
+        """TS's distinct A/P matrices must both receive J=K+shift*M."""
+        def diagonal_matrix(value):
+            mat = PETSc.Mat().createAIJ(size=(N, N), nnz=1, comm=COMM)
+            mat.setUp()
+            diag = mat.createVecLeft()
+            diag.set(value)
+            mat.setDiagonal(diag)
+            mat.assemble()
+            diag.destroy()
+            return mat
+
+        stiffness = diagonal_matrix(2.0)
+        mass = diagonal_matrix(3.0)
+        A = diagonal_matrix(0.0)
+        P = diagonal_matrix(0.0)
+        system = object.__new__(DPHS)
+        system.gf_model = SimpleNamespace(set_time=lambda t: None)
+        system.lumped_variables = set()
+        system.linear_mass = True
+        system.linear_stiffness = True
+        system.tangent_stiffness = stiffness
+        system.tangent_mass = mass
+        try:
+            system.IJacobian(None, 0.0, None, None, 5.0, A, P)
+            for mat in (A, P):
+                x, y = mat.createVecRight(), mat.createVecLeft()
+                try:
+                    x.set(1.0)
+                    mat.mult(x, y)
+                    lo, hi = y.getOwnershipRange()
+                    np.testing.assert_allclose(
+                        y.getArray(readonly=True),
+                        np.full(hi - lo, 17.0),
+                        atol=1e-12,
+                    )
+                finally:
+                    x.destroy()
+                    y.destroy()
+        finally:
+            for mat in (stiffness, mass, A, P):
+                mat.destroy()
+
+    def test_real_getfem_rhs_normalization_is_rank_independent(self):
+        """Default MPI RHS correction restores an exact nonlinear integral.
+
+        For N(u)=integral(u^2 Test_u), GetFEM's build_rhs at u=1 is
+        -int_0^1(1 dx) = -1. On the tested GetFEM MPI-2 installation,
+        the raw vector is spuriously multiplied by MPI size.
+        Normalizing the rank-replicated RHS *once* when passing to PETSc
+        must restore the same value for 1, 2 and 4 ranks.
+        """
+        gf = linalg.gf
+        if int(gf.util_mpi_parallelism_level()) != 2:
+            self.skipTest("requires GetFEM MPI level 2")
+        mesh = gf.Mesh("cartesian", np.linspace(0.0, 1.0, 17))
+        mf = gf.MeshFem(mesh, 1)
+        mf.set_fem(gf.Fem("FEM_PK(1,1)"))
+        mim = gf.MeshIm(mesh, gf.Integ("IM_GAUSS1D(5)"))
+        model = gf.Model("real")
+        model.add_fem_variable("u", mf)
+        model.add_nonlinear_term(mim, "u*u*Test_u")
+        n = model.nbdof()
+        model.set_variable("u", np.ones(n))
+        rhs = PETSc.Vec().createMPI(n, comm=COMM)
+        system = object.__new__(DPHS)
+        system.gf_model = model
+        system.bricks = {}
+        system.rhs = rhs
+        try:
+            with patch.dict(os.environ, {
+                "SCRIMP_GETFEM_RHS_MODE": "auto",
+            }):
+                system.assemble_rhs()
+                self.assertAlmostEqual(
+                    float(np.real(rhs.sum())), -1.0, places=9
+                )
+                # Reassembly must not accumulate the old RHS.
+                system.assemble_rhs()
+                self.assertAlmostEqual(
+                    float(np.real(rhs.sum())), -1.0, places=9
+                )
+            with patch.dict(os.environ, {
+                "SCRIMP_GETFEM_RHS_MODE": "raw",
+            }):
+                system.assemble_rhs()
+                # Depending on the GetFEM build, raw MPI-2 generic
+                # assembly is either correctly reduced (factor 1)
+                # or over-summed (factor P). Auto must correct both.
+                observed = -float(np.real(rhs.sum()))
+                self.assertTrue(
+                    np.isclose(observed, 1.0, rtol=1e-8, atol=1e-8)
+                    or np.isclose(
+                        observed, SIZE, rtol=1e-8, atol=1e-8
+                    ),
+                    f"Unexpected raw GetFEM RHS integral: {observed}",
+                )
+        finally:
+            rhs.destroy()
+
+    def test_rhs_inserted_on_owned_rows_only(self):
+        rhs = PETSc.Vec().createMPI(N, comm=COMM)
+        model = SimpleNamespace(
+            nbdof=lambda: N,
+            assembly=lambda **kwargs: None,
+            rhs=lambda: np.arange(N, dtype=float) + 1.0,
+        )
+        system = object.__new__(DPHS)
+        system.bricks = {}
+        system.gf_model = model
+        system.rhs = rhs
+        try:
+            # Synthetic fake-model RHS is already an exact full copy.
+            # Normalization applies only to validated real GetFEM
+            # MPI-level-2 assemblies; raw retains this test's contract.
+            with patch.dict(os.environ, {
+                "SCRIMP_GETFEM_RHS_MODE": "raw",
+            }):
+                system.assemble_rhs()
+            lo, hi = rhs.getOwnershipRange()
+            np.testing.assert_allclose(
+                rhs.getArray(readonly=True),
+                np.arange(lo, hi, dtype=float) + 1.0,
+            )
+            self.assertEqual(rhs.getSize(), N)
+        finally:
+            rhs.destroy()
+
+    def test_algebraic_tolerances_preserve_distributed_layout(self):
+        residual = PETSc.Vec().createMPI(N, comm=COMM)
+        system = object.__new__(DPHS)
+        system.F = residual
+        system.gf_model = SimpleNamespace(
+            nbdof=lambda: N,
+            interval_of_variable=lambda name: (2, 1),
+        )
+        system.ports = {
+            "a": SimpleNamespace(
+                get_algebraic=lambda: True,
+                get_substituted=lambda: True,
+                get_flow=lambda: "a",
+            ),
+        }
+        captured = {}
+        ts = SimpleNamespace(
+            getTolerances=lambda: (1e-5, 1e-7),
+            setTolerances=lambda **kwargs: captured.update(kwargs),
+        )
+        try:
+            system.exclude_algebraic_var_from_lte(ts)
+            atol = captured["atol"]
+            lo, hi = atol.getOwnershipRange()
+            expected = np.full(hi - lo, 1e-7, dtype=float)
+            if lo <= 2 < hi:
+                expected[2 - lo] = np.inf
+            np.testing.assert_allclose(
+                atol.getArray(readonly=True), expected
+            )
+            self.assertEqual(atol.getSize(), residual.getSize())
+            atol.destroy()
+        finally:
+            residual.destroy()
+
+
+if __name__ == "__main__":
+    unittest.main()

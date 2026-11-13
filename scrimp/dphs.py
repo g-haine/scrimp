@@ -40,6 +40,111 @@ comm = PETSc.COMM_WORLD
 rank = comm.getRank()
 max_rank = comm.getSize()
 
+
+def _mpi_trace(stage):
+    """Emit per-rank milestones without adding MPI collectives/barriers."""
+    if os.environ.get("SCRIMP_MPI_TRACE") == "1":
+        print(f"[SCRIMP MPI {rank}/{max_rank}] {stage}",
+              file=sys.stderr, flush=True)
+
+
+def _select_saved_solution_through_final_time(times, states, t_final):
+    """Keep accepted solution snapshots up to t_f with ULP tolerance.
+
+    Floating-point step accumulation may give t_final+1 ULP when the
+    mathematical endpoint is exactly t_final. A strict <= t_final
+    mask drops that correct final snapshot (MCSS2024 reproduced:
+    PETSc reached 0.00030000000000000003, t_f stored as 0.0003).
+    Tolerance is 32 representable spacings *at t_final*, rather
+    than an absolute 1e-12 that could be too coarse for tiny horizons.
+    Truly STEPOVER steps beyond the requested horizon remain excluded.
+    """
+    t = np.asarray(times, dtype=float)
+    z = np.asarray(states)
+    if not np.isfinite(t_final):
+        raise ValueError("Final time must be finite")
+    ulps = 32.0 * abs(np.spacing(t_final if t_final else 1.0))
+    order = np.argsort(t)
+    t, z = t[order], z[order]
+    keep = t <= t_final + ulps
+    t, z = t[keep], z[keep]
+    # Replace round-off-only endpoint differences, not true STEPOVER.
+    at_end = np.abs(t - t_final) <= ulps
+    t[at_end] = t_final
+    return t, z
+
+
+# GetFEM promises a globally summed RHS, replicated on all ranks, NOT
+# a separate piece to be summed again in PETSc:
+# https://getfem.org/userdoc/parallel.html
+#
+# A full replicated RHS is normal and does NOT justify division by P.
+# On the original local GetFEM 5.4.2 MPI-2 build, however, actual
+# integrals were P times the sequential reference at P=1,2,4, while
+# the full raw tangent matrices were replicated, rank for rank.
+# build_rhs and build_all produce the same discrepancy. The underlying
+# partition/reduction or build issue is DEFERRED in GitHub issue #23;
+# the exact GetFEM implementation fault has not been established.
+# Avoid assuming ALL GetFEM MPI-2 binaries have that behavior. Calibrate
+# the installed generic-assembly RHS once against an exactly known
+# integral and normalize only if it really is duplicated.
+_getfem_rhs_calibration = None
+
+
+def _getfem_mpi_rhs_scale():
+    """Calibrate MPI reduction against the exact integral of u on [0,1].
+
+    A GetFEM reference model with u=1 and weak form u*Test_u must
+    return a negative RHS whose entry sum is -1, regardless of P.
+    Detect either correct global summation (1) or P-fold duplicated
+    summation (P). Do not silently normalize unexpected values.
+    This probes *generic nonlinear bricks* only: custom/explicit
+    RHS bricks can have different MPI conventions.
+    """
+    global _getfem_rhs_calibration
+    if max_rank == 1 or int(gf.util_mpi_parallelism_level()) != 2:
+        return 1.0
+    if _getfem_rhs_calibration is not None:
+        return _getfem_rhs_calibration
+
+    # All ranks must execute GetFEM's MPI-parallel model assembly.
+    mesh = gf.Mesh("cartesian", np.linspace(0.0, 1.0, 17))
+    mf = gf.MeshFem(mesh, 1)
+    mf.set_fem(gf.Fem("FEM_PK(1,1)"))
+    mim = gf.MeshIm(mesh, gf.Integ("IM_GAUSS1D(5)"))
+    probe = gf.Model("real")
+    probe.add_fem_variable("rhs_probe", mf)
+    probe.add_nonlinear_term(mim, "rhs_probe*Test_rhs_probe")
+    probe.set_variable("rhs_probe", np.ones(probe.nbdof()))
+    probe.assembly(option="build_rhs")
+    factor = -float(np.real(np.asarray(probe.rhs()).sum()))
+    # Respect the PETSc communicator; verify all processes independently
+    # see the same GetFEM reduction factor before accepting it.
+    factors = comm.tompi4py().allgather(factor)
+    if not np.allclose(factors, factor, rtol=1e-10, atol=1e-10):
+        raise RuntimeError(
+            "Inconsistent GetFEM RHS normalization across MPI ranks: "
+            f"{factors}"
+        )
+    if np.isclose(factor, 1.0, rtol=1e-8, atol=1e-8):
+        scale = 1.0
+    elif np.isclose(factor, max_rank, rtol=1e-8, atol=1e-8):
+        scale = 1.0 / max_rank
+    else:
+        raise RuntimeError(
+            "Unexpected GetFEM MPI RHS integral for u=1 on [0,1]: "
+            f"{factor:.12g} (expected 1 or {max_rank}). "
+            "Set SCRIMP_GETFEM_RHS_MODE=raw only after verifying "
+            "the installed GetFEM assembly."
+        )
+    _getfem_rhs_calibration = scale
+    _mpi_trace(
+        f"GetFEM RHS calibration: measured={factor:.12g}, "
+        f"mpi_ranks={max_rank}, scale={scale:.12g}"
+    )
+    return scale
+
+
 import scrimp.utils.config
 outputs_path = scrimp.utils.config.outputs_path
 
@@ -624,12 +729,14 @@ class DPHS:
             if brick.get_dt() and brick.get_linear():
                 brick.enable_id_bricks(self.gf_model)
 
+        _mpi_trace("mass: before GetFEM build_matrix")
         self.gf_model.assembly(option="build_matrix")
-        
+        _mpi_trace("mass: before GetFEM -> PETSc conversion")
         convert_gmm_to_petsc(
             self.gf_model.tangent_matrix(),
             self.mass,
         )
+        _mpi_trace("mass: PETSc matrix assembled")
 
         self.disable_all_bricks()
 
@@ -651,12 +758,14 @@ class DPHS:
             if not brick.get_dt() and brick.get_linear():
                 brick.enable_id_bricks(self.gf_model)
 
+        _mpi_trace("stiffness: before GetFEM build_matrix")
         self.gf_model.assembly(option="build_matrix")
-        
+        _mpi_trace("stiffness: before GetFEM -> PETSc conversion")
         convert_gmm_to_petsc(
             self.gf_model.tangent_matrix(),
             self.stiffness,
         )
+        _mpi_trace("stiffness: PETSc matrix assembled")
 
         self.disable_all_bricks()
 
@@ -665,23 +774,81 @@ class DPHS:
                 f"Linear stiffness matrix assembly done in {time.perf_counter() - start:1.4g}s"
             )
 
-    def assemble_rhs(self):
-        """This function performs the assembly of the rhs and set the PETSc.Vec attribute `rhs`"""
+    def assemble_rhs(self, source_only=False):
+        """Assemble the GetFEM RHS into the owned PETSc entries.
+
+        GetFEM's model.rhs() mixes two DIFFERENT signs:
+        * generic nonlinear weak terms N(z): rhs = -N(z);
+        * add_source_term_brick prescribed forcing S(t): rhs = +S(t).
+
+        The direct IFunction must therefore use -rhs_total + 2*rhs_source
+        to recover N(z)+S(t), including controls such as -U+U_given=0.
+        The historical +rhs convention happened to handle prescribed
+        controls, but is not a general nonlinear weak-form residual.
+        The isolated source-sign reproducer is
+        sandbox/check_mcss_source_sign.py (MCSS2024).
+        """
 
         for _, brick in self.bricks.items():
-            # Enable the bricks that are in 'source' position
-            if brick.get_position() == "source" or brick.get_explicit():
-                brick.enable_id_bricks(self.gf_model)
-            # And the non-linear ones (and not dt of course)
-            if not brick.get_dt() and not brick.get_linear():
-                brick.enable_id_bricks(self.gf_model)
+            if source_only:
+                if brick.get_position() == "source":
+                    brick.enable_id_bricks(self.gf_model)
+            else:
+                # Source terms contribute positively to GetFEM rhs,
+                # nonlinear weak forms contribute negatively.
+                if brick.get_position() == "source" or brick.get_explicit():
+                    brick.enable_id_bricks(self.gf_model)
+                if not brick.get_dt() and not brick.get_linear():
+                    brick.enable_id_bricks(self.gf_model)
 
+        _mpi_trace("rhs: before GetFEM build_rhs")
         self.gf_model.assembly(option="build_rhs")
+        _mpi_trace("rhs: before PETSc owned-row insertion")
+        # GetFEM MPI-2 already sums and replicates the entire RHS on
+        # every rank. Insert only PETSc-owned rows; never ADD these
+        # replicated values, which would multiply them by the rank count.
+        gf_rhs = np.asarray(self.gf_model.rhs())
         size = self.gf_model.nbdof()
-        self.rhs.setValues(
-            range(size), self.gf_model.rhs(), addv=PETSc.InsertMode.INSERT_VALUES
-        )
+        if gf_rhs.size != size or self.rhs.getSize() != size:
+            raise ValueError("GetFEM/PETSc RHS size mismatch")
+        # For the local GetFEM 5.4.2 MPI-2 installation, generic
+        # terms' *global* RHS is P-fold too large at P=1,2,4;
+        # the native matrices are not. This indicates duplicate
+        # contributions before/in GetFEM's MPI reduction, not duplicate
+        # PETSc insertion (only owned rows are copied here).
+        #
+        # WARNING: full RHS replication is normal and is NOT itself
+        # a reason to divide by P. 'auto' runs a small exact-integral
+        # calibration once per MPI process and scales *only if* a
+        # duplicate factor is observed. 'raw' is for already-correct
+        # GetFEM RHS or model-specific exceptions. Explicit RHS/
+        # constraint bricks have special master-only GetFEM semantics:
+        # a generic probe does not certify every such mixed model.
+        rhs_mode = os.environ.get(
+            "SCRIMP_GETFEM_RHS_MODE", "auto"
+        ).strip().lower()
+        if rhs_mode not in ("auto", "raw", "divide_by_mpi_size"):
+            raise ValueError(
+                "SCRIMP_GETFEM_RHS_MODE must be "
+                "auto, raw or divide_by_mpi_size"
+            )
+        if rhs_mode == "auto":
+            scale = _getfem_mpi_rhs_scale()
+        elif rhs_mode == "divide_by_mpi_size":
+            scale = 1.0 / max_rank
+        else:
+            scale = 1.0
+        if os.environ.get("SCRIMP_MPI_TRACE") == "1":
+            _mpi_trace(f"rhs: mode={rhs_mode}, scale={scale:.9g}")
+        lo, hi = self.rhs.getOwnershipRange()
+        if hi > lo:
+            self.rhs.setValues(
+                range(lo, hi),
+                gf_rhs[lo:hi] * scale,
+                addv=PETSc.InsertMode.INSERT_VALUES,
+            )
         self.rhs.assemble()
+        _mpi_trace("rhs: PETSc vector assembled")
 
         self.disable_all_bricks()
 
@@ -693,17 +860,41 @@ class DPHS:
             if brick.get_dt() and not brick.get_linear():
                 brick.enable_id_bricks(self.gf_model)
 
+        _mpi_trace("nl_mass: before GetFEM build_matrix")
         self.gf_model.assembly(option="build_matrix")
-        
+        _mpi_trace("nl_mass: before GetFEM -> PETSc conversion")
         convert_gmm_to_petsc(
             self.gf_model.tangent_matrix(),
             self.nl_mass,
         )
-        self.tangent_mass = self.mass.copy()
-        self.tangent_mass.axpy(1, self.nl_mass)
+        _mpi_trace("nl_mass: PETSc matrix assembled")
+        _mpi_trace("nl_mass: before PETSc copy/AXPY")
+        # Keep the allocated PETSc Mat alive throughout TS/Newton iterations.
+        # Reassigning self.tangent_mass = self.mass.copy() at every residual
+        # evaluation creates many temporary MPIAIJ matrices. In a 2-rank
+        # shallow-water run these were freed by the TS monitor's forced
+        # PetscGarbageCleanup, triggering an invalid-free in MatDestroy_MPIAIJ.
+        # Reassemble in place; the nonlinear sparsity may change with z.
+        structure = PETSc.Mat.Structure.DIFFERENT_NONZERO_PATTERN
+        self.tangent_mass.setOption(
+            PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR, False
+        )
+        try:
+            self.tangent_mass.zeroEntries()
+            self.tangent_mass.axpy(1, self.mass, structure=structure)
+            _mpi_trace("nl_mass: tangent reused; before nonlinear AXPY")
+            self.tangent_mass.axpy(1, self.nl_mass, structure=structure)
+            self.tangent_mass.assemble()
+        finally:
+            self.tangent_mass.setOption(
+                PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR, True
+            )
+        _mpi_trace("nl_mass: tangent reassembled in place")
 
         self.disable_all_bricks()
+        _mpi_trace("nl_mass: before barrier")
         comm.barrier()
+        _mpi_trace("nl_mass: after barrier")
 
     def assemble_nl_stiffness(self):
         """This function performs the assembly of the bricks dt=False and linear=False and set the PETSc.Mat attribute `nl_stiffness`"""
@@ -717,17 +908,40 @@ class DPHS:
             ):
                 brick.enable_id_bricks(self.gf_model)
 
+        _mpi_trace("nl_stiffness: before GetFEM build_matrix")
         self.gf_model.assembly(option="build_matrix")
-        
+        _mpi_trace("nl_stiffness: before GetFEM -> PETSc conversion")
         convert_gmm_to_petsc(
             self.gf_model.tangent_matrix(),
             self.nl_stiffness,
         )
-        self.tangent_stiffness = self.stiffness.copy()
-        self.tangent_stiffness.axpy(1, self.nl_stiffness)
+        _mpi_trace("nl_stiffness: PETSc matrix assembled")
+        _mpi_trace("nl_stiffness: before PETSc copy/AXPY")
+        # As for the nonlinear mass, retain the existing PETSc Mat handle.
+        # Newton iteration must not enqueue an obsolete MPIAIJ matrix for
+        # garbage collection at every assembly.
+        structure = PETSc.Mat.Structure.DIFFERENT_NONZERO_PATTERN
+        self.tangent_stiffness.setOption(
+            PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR, False
+        )
+        try:
+            self.tangent_stiffness.zeroEntries()
+            self.tangent_stiffness.axpy(1, self.stiffness, structure=structure)
+            _mpi_trace("nl_stiffness: tangent reused; before nonlinear AXPY")
+            self.tangent_stiffness.axpy(
+                1, self.nl_stiffness, structure=structure
+            )
+            self.tangent_stiffness.assemble()
+        finally:
+            self.tangent_stiffness.setOption(
+                PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR, True
+            )
+        _mpi_trace("nl_stiffness: tangent reassembled in place")
 
         self.disable_all_bricks()
+        _mpi_trace("nl_stiffness: before barrier")
         comm.barrier()
+        _mpi_trace("nl_stiffness: after barrier")
 
     def disable_all_bricks(self):
         """This function disables all bricks in the `Model`"""
@@ -740,13 +954,76 @@ class DPHS:
             brick.enable_id_bricks(self.gf_model)
 
     def _sync_lumped_trial_state(self, t, z):
-        """Update GetFEM at the current PETSc Newton iterate for PDE/ODE models."""
-        if not self.lumped_variables:
+        """Synchronize GetFEM's time and nonlinear Newton trial state.
+
+        Despite the historical name, nonlinear *distributed* PDEs also
+        require the current PETSc iterate (not the previous TS monitor state).
+        All processes enter the collective scatter in the nonlinear case.
+        """
+        self.gf_model.set_time(float(t))
+        if self.linear_mass and self.linear_stiffness and not self.lumped_variables:
             return
         self.Scatter[0].scatter(z, self.GlobalVec)
-        self.gf_model.set_time(float(t))
         self.gf_model.to_variables(
             np.asarray(self.GlobalVec.getArray(), dtype=np.float64)
+        )
+
+    def _trace_newton_blocks(self, phase, t, z, zd):
+        """Optional Newton diagnostics by physical/GetFEM variable.
+
+        GetFEM exposes a complete global trial vector after our existing
+        VecScatter. This is read-only and rank-0-only: no new collectives,
+        new matrix assembly or changes to the Newton iteration.
+        """
+        if os.environ.get("SCRIMP_NEWTON_BLOCK_TRACE") != "1" or rank != 0:
+            return
+        state = np.asarray(
+            self.GlobalVec.getArray(readonly=True)
+        ).real
+        # GetFEM Model.variable_list() is a print-only command in
+        # GetFEM 5.4.2; it returns None, so it cannot be iterated.
+        # SCRIMP's ports are our authoritative registry of all solver
+        # unknowns (flow and, when present, effort). Query GetFEM only
+        # for the global index interval of each registered variable.
+        # dict.fromkeys preserves registration order and removes any
+        # duplicate names (e.g. a substituted flow/effort pair).
+        names = dict.fromkeys(
+            name
+            for port in self.ports.values()
+            for name in (port.get_flow(), port.get_effort())
+            if name
+        )
+        rows = []
+        for name in names:
+            try:
+                start, width = self.gf_model.interval_of_variable(name)
+            except (KeyError, ValueError, RuntimeError):
+                # A substituted effort or non-unknown is not present
+                # in the GetFEM solver vector. Do not try to print it.
+                continue
+            block = state[int(start):int(start + width)]
+            if not block.size:
+                continue
+            norm = float(np.linalg.norm(block))
+            max_abs = float(np.max(np.abs(block)))
+            annotation = ""
+            if name == "h":
+                annotation = (
+                    f", min={np.min(block):.6g}, "
+                    f"max={np.max(block):.6g}"
+                )
+            rows.append(
+                f"{name}:norm={norm:.6g},maxabs={max_abs:.6g}"
+                f"{annotation}"
+            )
+        # These norms are PETSc collectives; run them on *all* ranks
+        # elsewhere if needed. Here the globally replicated GetFEM
+        # state supplies all physically meaningful per-variable norms.
+        print(
+            f"[SCRIMP Newton blocks] {phase} t={t:.9g} "
+            f"global_norm={np.linalg.norm(state):.6g} "
+            + " | ".join(rows),
+            file=sys.stderr, flush=True,
         )
 
     def IFunction(self, TS, t, z, zd, F):
@@ -761,15 +1038,55 @@ class DPHS:
             F (PETSc Vec): the rhs vector
         """
 
+        _mpi_trace(f"IFunction: enter t={t:.8g}")
         self._sync_lumped_trial_state(t, z)
+        _mpi_trace("IFunction: Newton state synchronized")
+        self._trace_newton_blocks("IFunction", t, z, zd)
         if not self.linear_mass:
             self.assemble_nl_mass()
-        if not self.linear_stiffness:
+        nonlinear_form = os.environ.get(
+            "SCRIMP_NONLINEAR_RESIDUAL_FORM", "direct_getfem"
+        ).strip().lower()
+        # The direct weak-form residual does NOT need the nonlinear
+        # tangent matrix. Avoid expensive GetFEM/PETSc sparse matrix
+        # conversions at every function evaluation (including line
+        # search trials); IJacobian assembles the tangent when needed.
+        if not self.linear_stiffness and nonlinear_form == "legacy":
             self.assemble_nl_stiffness()
 
         self.assemble_rhs()
+        _mpi_trace("IFunction: RHS assembled; before PETSc algebra")
 
-        if self.lumped_variables and self.linear_mass:
+        if nonlinear_form not in ("legacy", "direct_getfem"):
+            raise ValueError(
+                "SCRIMP_NONLINEAR_RESIDUAL_FORM must be "
+                "legacy or direct_getfem"
+            )
+
+        if nonlinear_form == "direct_getfem":
+            # Correct general residual: GetFEM build_rhs is the NEGATIVE
+            # of the nonlinear weak-form residual. K_nl(z) is its
+            # derivative, NOT a nonlinear matrix to multiply by z.
+            # Validated on full viscous Saint-Venant 2D, 1/2 MPI ranks,
+            # for independent z and zd perturbations.
+            mass_matrix = (
+                self.mass if self.linear_mass else self.tangent_mass
+            )
+            mass_matrix.mult(zd, self.buffer)
+            self.stiffness.multAdd(z, self.buffer, F)
+            F.axpy(-1, self.rhs)
+            if any(
+                brick.get_position() == "source"
+                for brick in self.bricks.values()
+            ):
+                # The full RHS is (-N + S). Subtracting it would make
+                # the source -S. Restore the *positive* prescribed
+                # source contribution: -(-N+S) + 2*S = N+S.
+                # The source-only assembly uses the same explicit
+                # per-installation MPI RHS normalization as the full one.
+                self.assemble_rhs(source_only=True)
+                F.axpy(2, self.rhs)
+        elif self.lumped_variables and self.linear_mass:
             # GetFEM's build_rhs returns MINUS the nonlinear weak-form
             # residual (plus source contributions).  Its nonlinear tangent
             # matrix is the Jacobian, not an operator to multiply by the
@@ -784,12 +1101,97 @@ class DPHS:
             self.mass.mult(zd, self.buffer)
             self.stiffness.multAdd(z, self.buffer, F)
             F.axpy(-1, self.rhs)
+            if any(
+                brick.get_position() == "source"
+                for brick in self.bricks.values()
+            ):
+                self.assemble_rhs(source_only=True)
+                F.axpy(2, self.rhs)
         else:
-            # Historical path (still needed by existing models with
-            # state-dependent mass matrices, pending a separate fix).
+            # Legacy reproduction for historical scripts; use only
+            # to investigate older results, not for correct Newton.
             self.tangent_mass.mult(zd, self.buffer)
             self.tangent_stiffness.multAdd(z, self.buffer, F)
             F.axpy(1, self.rhs)
+        _mpi_trace("IFunction: residual completed")
+
+    def _add_nonlinear_mass_hessian_fd(self, t, z, zd, P):
+        """Add (D_z M(z)[.] ) zd to PETSc's implicit Jacobian.
+
+        Nonlinear GetFEM dt bricks represent a weak flow primitive
+        Q(z), with M(z) = D Q(z). By Schwarz symmetry,
+        (D_z M(z)[v]) zd = (D_z M(z)[zd]) v, which can be assembled
+        by a directional central difference of the tangent mass.
+
+        Default correction for nonlinear time bricks; its symmetric
+        finite-difference approximation was verified on the full
+        2D viscous Saint-Venant Jacobian to ~1e-11. The legacy option
+        remains available for compatibility comparisons.
+        """
+        if self.linear_mass or zd.norm() == 0:
+            return
+
+        eta = float(os.environ.get(
+            "SCRIMP_NONLINEAR_MASS_FD_EPSILON", "1e-4"
+        ))
+        if not np.isfinite(eta) or eta <= 0:
+            raise ValueError(
+                "SCRIMP_NONLINEAR_MASS_FD_EPSILON must be finite > 0"
+            )
+
+        # The TS pseudo-initialization may use dt ~ 1e-9, so its
+        # derivative zd=(z_new-z_old)/dt can be orders of magnitude
+        # larger than the physical state. The raw z +/- 1e-4*zd
+        # probe must NOT jump to enormous, nonphysical heights.
+        # Keep ||eta*zd|| <= epsilon * max(1,||z||); for ordinary
+        # moderate zd this retains the already FD-validated eta.
+        zd_norm = float(zd.norm())
+        z_norm = float(z.norm())
+        if not np.isfinite(zd_norm) or not np.isfinite(z_norm):
+            raise FloatingPointError(
+                "Non-finite state or time-derivative norm in "
+                "nonlinear mass Hessian assembly"
+            )
+        eta *= min(
+            1.0,
+            max(1.0, z_norm) / max(1.0, zd_norm),
+        )
+        _mpi_trace(
+            "mass_hessian: z_norm={:.6g}, zd_norm={:.6g}, "
+            "eta={:.6g}, perturb_norm={:.6g}".format(
+                z_norm, zd_norm, eta, eta * zd_norm,
+            )
+        )
+
+        z_plus, z_minus = z.copy(), z.copy()
+        mass_plus = mass_minus = correction = None
+        try:
+            z_plus.axpy(eta, zd)
+            z_minus.axpy(-eta, zd)
+
+            self._sync_lumped_trial_state(t, z_plus)
+            self.assemble_nl_mass()
+            mass_plus = self.tangent_mass.copy()
+
+            self._sync_lumped_trial_state(t, z_minus)
+            self.assemble_nl_mass()
+            mass_minus = self.tangent_mass.copy()
+
+            structure = PETSc.Mat.Structure.DIFFERENT_NONZERO_PATTERN
+            correction = mass_plus.copy()
+            correction.axpy(-1.0, mass_minus, structure=structure)
+            correction.scale(0.5 / eta)
+            P.axpy(1.0, correction, structure=structure)
+            P.assemble()
+        finally:
+            # Crucial: callbacks after IJacobian must see the original
+            # Newton trial state, not the displaced Hessian state.
+            self._sync_lumped_trial_state(t, z)
+            self.assemble_nl_mass()
+            for obj in (correction, mass_plus, mass_minus,
+                        z_plus, z_minus):
+                if obj is not None:
+                    obj.destroy()
 
     def set_linear_flags(self):
         """
@@ -816,19 +1218,122 @@ class DPHS:
             P:(PETSc Mat) the jacobian matrix to use for pre-conditionning
         """
 
+        _mpi_trace(f"IJacobian: enter t={t:.8g}, shift={sig:.8g}")
         self._sync_lumped_trial_state(t, z)
+        _mpi_trace("IJacobian: Newton state synchronized")
+        self._trace_newton_blocks("IJacobian", t, z, zd)
         if not self.linear_mass:
             self.assemble_nl_mass()
         if not self.linear_stiffness:
             self.assemble_nl_stiffness()
 
-        self.tangent_stiffness.copy(P)
-        P.axpy(sig, self.tangent_mass)
+        # In a nonlinear PDE the sparsity pattern can change between
+        # Newton evaluations. P is created from the *initial* tangent
+        # and may therefore have a smaller pattern. MatCopy with
+        # SAME_NONZERO_PATTERN on matrices with different sparsity is
+        # explicitly unsafe in PETSc (and can crash). Likewise MatAXPY
+        # must not assume that M(z) has the same nonzeros as K(z).
+        structure = PETSc.Mat.Structure.DIFFERENT_NONZERO_PATTERN
+        _mpi_trace("IJacobian: before tangent -> preconditioner copy")
+        self.tangent_stiffness.copy(P, structure=structure)
+        _mpi_trace("IJacobian: after tangent -> preconditioner copy")
+        _mpi_trace("IJacobian: before shift*mass AXPY")
+        P.axpy(sig, self.tangent_mass, structure=structure)
+
+        mass_mode = os.environ.get(
+            "SCRIMP_NONLINEAR_MASS_JACOBIAN", "finite_difference"
+        ).strip().lower()
+        if mass_mode not in ("legacy", "finite_difference"):
+            raise ValueError(
+                "SCRIMP_NONLINEAR_MASS_JACOBIAN must be "
+                "legacy or finite_difference"
+            )
+        if mass_mode == "finite_difference" and not self.linear_mass:
+            if os.environ.get(
+                "SCRIMP_NONLINEAR_RESIDUAL_FORM", "direct_getfem"
+            ).strip().lower() != "direct_getfem":
+                raise ValueError(
+                    "The mass Hessian diagnostic requires "
+                    "SCRIMP_NONLINEAR_RESIDUAL_FORM=direct_getfem"
+                )
+            _mpi_trace("IJacobian: before nonlinear mass Hessian FD")
+            self._add_nonlinear_mass_hessian_fd(t, z, zd, P)
+            _mpi_trace("IJacobian: after nonlinear mass Hessian FD")
+
+        _mpi_trace("IJacobian: preconditioner assembled")
+
+        if os.environ.get("SCRIMP_MPI_TRACE") == "1":
+            # Local-only diagnostics, with no extra MPI collectives.
+            # This catches singular/non-finite operators before PETSc's
+            # native KSP/PC factorization path is entered.
+            rp, ci, vals = P.getValuesCSR()
+            bad = int(np.count_nonzero(~np.isfinite(vals)))
+            diagonal = P.getDiagonal()
+            d = np.asarray(diagonal.getArray(readonly=True))
+            diag_zeros = int(np.count_nonzero(d == 0))
+            diag_bad = int(np.count_nonzero(~np.isfinite(d)))
+            # Zero diagonals may be expected in mixed saddle-point DAEs.
+            # Entirely zero numerical rows, however, indicate an absent
+            # equation. Detect the latter separately (trace mode only).
+            first_row = P.getOwnershipRange()[0]
+            numerical_zero_rows = np.asarray([
+                not np.any(vals[rp[i]:rp[i + 1]])
+                for i in range(len(rp) - 1)
+            ], dtype=bool)
+            zero_rows_global = (
+                np.flatnonzero(numerical_zero_rows) + first_row
+            )
+            zero_diagonal_global = np.flatnonzero(d == 0) + first_row
+            _mpi_trace(
+                f"IJacobian: operator shape={P.getSize()}, "
+                f"ownership={P.getOwnershipRange()}, "
+                f"nnz_owned={len(vals)}, nonfinite={bad}, "
+                f"diagonal_zeros={diag_zeros}, diagonal_nonfinite={diag_bad}, "
+                f"zero_numerical_rows={len(zero_rows_global)}; "
+                f"zero_row_ids={zero_rows_global[:16].tolist()}, "
+                f"zero_diag_ids={zero_diagonal_global[:16].tolist()}"
+            )
+            diagonal.destroy()
+            if bad or diag_bad:
+                raise FloatingPointError("Non-finite PETSc Jacobian entries")
 
         if A != P:
-            if rank == 0:
-                logging.info("Operator different from preconditioning")
-            A.assemble()
+            # PETSc TS/SNES may use separate operator and preconditioner
+            # matrices. Both must contain the actual Jacobian; assembling
+            # an untouched A would leave the linear solver with stale data.
+            _mpi_trace("IJacobian: copy preconditioner into distinct operator")
+            P.copy(A, structure=structure)
+
+        # Opt-in native diagnostic: dump selected actual SWE Jacobians
+        # before PETSc/MUMPS factorization. Binary MatView is collective,
+        # so EVERY MPI rank takes part in the same call. Persist the
+        # *assembled* preconditioner/operator used by LU. This allows
+        # replay in a different PETSc/MUMPS environment without GetFEM.
+        #
+        # Power-of-two snapshots bound disk I/O during divergent Newton:
+        # 1, 2, 4, 8, 16, 32 (up to six files). Normally disabled.
+        snapshot_prefix = os.environ.get(
+            "SCRIMP_JACOBIAN_SNAPSHOT_PREFIX", ""
+        ).strip()
+        if snapshot_prefix:
+            count = getattr(self, "_jacobian_snapshot_count", 0) + 1
+            self._jacobian_snapshot_count = count
+            if count in (1, 2, 4, 8, 16, 32):
+                directory = os.path.dirname(snapshot_prefix)
+                if rank == 0 and directory:
+                    os.makedirs(directory, exist_ok=True)
+                comm.barrier()
+                name = f"{snapshot_prefix}_{count:03d}.petscbin"
+                _mpi_trace(f"IJacobian: dumping PETSc binary snapshot {name}")
+                viewer = PETSc.Viewer().createBinary(
+                    name, mode="w", comm=comm
+                )
+                try:
+                    P.view(viewer)
+                finally:
+                    viewer.destroy()
+                _mpi_trace(f"IJacobian: snapshot {count} written")
+        _mpi_trace("IJacobian: completed")
 
     def init_matrix(self,A):
         """
@@ -844,11 +1349,17 @@ class DPHS:
         A.setOption(PETSc.Mat.Option.FORCE_DIAGONAL_ENTRIES, True)
         A.setType("aij")
         A.setUp()
-        x=A.createVecRight(); x.setArray(0)
-        A.setOption(PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR,False)
-        A.setDiagonal(x,addv=PETSc.InsertMode.ADD_VALUES)
-        A.setOption(PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR,True)
-        A.assemble()
+        # Vec.setArray() expects an array of local values, not scalar 0.
+        # Vec.set(0.0) initializes the existing distributed vector safely.
+        x = A.createVecLeft()
+        x.set(0.0)
+        A.setOption(PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR, False)
+        try:
+            A.setDiagonal(x, addv=PETSc.InsertMode.ADD_VALUES)
+            A.assemble()
+        finally:
+            A.setOption(PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR, True)
+            x.destroy()
 
     def allocate_memory(self):
         """Pre-allocate memory for matrices and vectors"""
@@ -976,13 +1487,12 @@ class DPHS:
                     )
         id_alg.sort()
         atol_v[id_alg] = np.inf
-        atol_v_petsc = PETSc.Vec().createWithArray(
-            np.zeros(
-                self.gf_model.nbdof(),
-            ),
-            comm=comm,
-        )
-        atol_v_petsc.setArray(atol_v)
+        # Preserve the distributed layout of the TS residual vector.
+        # createWithArray(global_array, comm=WORLD) would allocate N
+        # local entries on EACH rank, yielding a global length P*N.
+        atol_v_petsc = self.F.duplicate()
+        lo, hi = atol_v_petsc.getOwnershipRange()
+        atol_v_petsc.getArray()[:] = atol_v[lo:hi]
         TS.setTolerances(atol=atol_v_petsc)
 
     def event(self, TS, t, z, fvalue):
@@ -1069,7 +1579,9 @@ class DPHS:
         if (
             self.time_scheme["init_step"] == "true"
         ):  # Because PETSc DB store everything as str
+            _mpi_trace("solve: before initial consistency step")
             self.init_step()
+            _mpi_trace("solve: after initial consistency step")
 
         # TS
         TS = PETSc.TS().create(comm=comm)
@@ -1098,18 +1610,65 @@ class DPHS:
 
         InitVec = self.tangent_stiffness.createVecRight()
         InitVec.zeroEntries()
-        rows = InitVec.getOwnershipRange()
-        range_rows = range(rows[0], rows[1])
-        InitVec.setValuesLocal(
-            range_rows,
-            self.gf_model.from_variables()[range_rows],
-            addv=PETSc.InsertMode.INSERT_VALUES,
-        )
+        # PETSc ownership ranges use GLOBAL indices. setValuesLocal
+        # would require a local-to-global map, which is not installed.
+        lo, hi = InitVec.getOwnershipRange()
+        if hi > lo:
+            InitVec.setValues(
+                range(lo, hi),
+                self.gf_model.from_variables()[lo:hi],
+                addv=PETSc.InsertMode.INSERT_VALUES,
+            )
         InitVec.assemble()
         
         comm.barrier()
         
+        _mpi_trace("solve: before main TS.solve")
         TS.solve(InitVec)
+        # The stored solution samples depend on dt_save and the monitor.
+        # Their last timestamp need NOT equal the actual PETSc TS end
+        # time (e.g. steps at 0.0001, 0.0003 with dt_save=0.0001).
+        # Keep the solver's authoritative convergence metadata BEFORE
+        # TS.reset()/destroy(), for caller-side numerical acceptance.
+        self.last_ts_time = float(TS.getTime())
+        self.last_ts_converged_reason = int(TS.getConvergedReason())
+        self.last_ts_steps = int(TS.getStepNumber())
+        self.last_ts_rejections = int(TS.getStepRejections())
+        self.last_ts_snes_failures = int(TS.getSNESFailures())
+
+        # The monitor normally saves at dt_save intervals. A TS ending
+        # exactly at t_f may skip the last accepted step if its advance
+        # crosses a save threshold (observed for published MCSS2024:
+        # accepted at 0.0001, then 0.0003, yet saved only to 0.0001).
+        # Record the actual final state, without re-integrating and
+        # without inventing interpolation when TS STEPOVER goes past t_f.
+        t_final = float(self.time_scheme["t_f"])
+        final_tol = 1e-12 * max(1.0, abs(t_final))
+        if (
+            self.last_ts_converged_reason > 0
+            and abs(self.last_ts_time - t_final) <= final_tol
+            and (
+                not self.solution["t"]
+                or float(self.solution["t"][-1])
+                < self.last_ts_time - final_tol
+            )
+        ):
+            self.monitor(
+                TS, -1, self.last_ts_time, InitVec,
+                dt_save=float(self.time_scheme["dt_save"]),
+                t_0=float(self.time_scheme["t_0"]),
+            )
+
+        _mpi_trace(
+            "solve: main TS completed: type={}, reason={}, "
+            "t={:.9g}, dt={:.9g}, steps={}, rejected={}, "
+            "SNES_failures={}".format(
+                TS.getType(), int(TS.getConvergedReason()),
+                float(TS.getTime()), float(TS.getTimeStep()),
+                TS.getStepNumber(), TS.getStepRejections(),
+                TS.getSNESFailures(),
+            )
+        )
         del InitVec
 
         if rank == 0:
@@ -1125,21 +1684,43 @@ class DPHS:
         TS.destroy()
         gc.collect()
 
-        idx = np.argsort(self.solution["t"])
-        self.solution["t"] = np.array(self.solution["t"])[idx]
-        self.solution["z"] = np.array(self.solution["z"])[idx]
-        mask = self.solution["t"] <= float(self.time_scheme["t_f"])
-        self.solution["t"] = self.solution["t"][mask]
-        self.solution["z"] = self.solution["z"][mask]
+        # Keep the true endpoint even when PETSc accumulates an
+        # extra floating-point ULP beyond the Python literal t_f.
+        # This is required for endpoint Hamiltonian/power accounting.
+        self.solution["t"], self.solution["z"] = (
+            _select_saved_solution_through_final_time(
+                self.solution["t"], self.solution["z"],
+                float(self.time_scheme["t_f"]),
+            )
+        )
         
         self.enable_all_bricks()
         self.solve_done = True
 
     def init_step(self):
-        """Perform a first initial step with a pseudo bdf
+        """Construct DAE-consistent initial data with a tiny TS solve.
 
-        It needs set_time_scheme(init_step=True)
+        By default this retains SCRIMP's historical pseudo initial solve.
+        For `init_step_ts_type=bdf`, `init_step_bdf_order=2` and
+        `init_step_from_negative_time=True`, take one fixed BDF2 step
+        from t0-dt to t0. PETSc BDF internally bootstraps its BDF2
+        history with a half-step on its first accepted step (v3.21).
+        The physical TS is still initialized at t0 with fresh history.
         """
+
+        init_type = self.time_scheme.getString(
+            "init_step_ts_type", "pseudo"
+        )
+        init_dt = float(self.time_scheme["init_step_dt"])
+        if not np.isfinite(init_dt) or init_dt <= 0:
+            raise ValueError("init_step_dt must be finite and positive")
+        negative_bdf_start = (
+            init_type == "bdf"
+            and self.time_scheme.getString(
+                "init_step_from_negative_time", "false"
+            ).lower() == "true"
+        )
+        t0 = float(self.time_scheme["t_0"])
 
         # TS
         TS = PETSc.TS().create(comm=comm)
@@ -1158,8 +1739,15 @@ class DPHS:
         TS.setMonitor(monitor)
         TS.setIFunction(self.IFunction, self.F)
         TS.setIJacobian(self.IJacobian, self.J)
-        TS.setTime(float(self.time_scheme["t_0"]))
-        TS.setMaxSteps(int(self.time_scheme["init_step_nb_iter"]))
+        TS.setTime(t0 - init_dt if negative_bdf_start else t0)
+        TS.setMaxSteps(
+            1 if negative_bdf_start
+            else int(self.time_scheme["init_step_nb_iter"])
+        )
+        if negative_bdf_start:
+            # A single full step ends exactly at the physical t0. PETSc
+            # initializes the order-2 BDF history at t0-dt/2.
+            TS.setMaxTime(t0)
         TS.setExactFinalTime(PETSc.TS.ExactFinalTime.MATCHSTEP)
 
         # Save options for later use and avoid overidden them with the initial step
@@ -1170,6 +1758,10 @@ class DPHS:
         if self.time_scheme.hasName("ts_bdf_order"):
             saved_options["ts_bdf_order"] = self.time_scheme["ts_bdf_order"]
             self.time_scheme.delValue("ts_bdf_order")
+        if self.time_scheme.hasName("ts_adapt_type"):
+            saved_options["ts_adapt_type"] = self.time_scheme["ts_adapt_type"]
+            if negative_bdf_start:
+                self.time_scheme.delValue("ts_adapt_type")
         if self.time_scheme.hasName("ts_ssp"):
             saved_options["ts_ssp"] = self.time_scheme["ts_ssp"]
             self.time_scheme.delValue("ts_ssp")
@@ -1179,41 +1771,139 @@ class DPHS:
             saved_options["ts_adapt_dt_min"] = float(
                 self.time_scheme["ts_adapt_dt_min"]
             )
-            self.time_scheme.delValue("ts_adapt_dt_max")
+            # Only override the pseudo-TS minimum step temporarily.
+            # Deleting dt_max here was a typo: it could accidentally
+            # alter the initial TS adaptation configuration.
+            self.time_scheme.delValue("ts_adapt_dt_min")
         if self.time_scheme.hasName("ts_adapt_dt_max"):
             saved_options["ts_adapt_dt_max"] = float(
                 self.time_scheme["ts_adapt_dt_max"]
             )
             self.time_scheme.delValue("ts_adapt_dt_max")
             
-        self.time_scheme["ts_type"] = self.time_scheme["init_step_ts_type"]
-        if self.time_scheme.getString("init_step_ts_type") == "bdf":
-            self.time_scheme["ts_bdf_order"] = 1
+        self.time_scheme["ts_type"] = init_type
+        if init_type == "bdf":
+            self.time_scheme["ts_bdf_order"] = int(
+                self.time_scheme.getString("init_step_bdf_order", "1")
+            )
+        if negative_bdf_start:
+            # A fixed step is essential: otherwise TSAdapt may move
+            # the endpoint away from the intended physical t0.
+            self.time_scheme["ts_adapt_type"] = "none"
         self.time_scheme["ts_adapt_dt_min"] = 1e-24
+
+        TS.setTimeStep(init_dt)
         
-        TS.setTimeStep(float(self.time_scheme["init_step_dt"]))
-        
+        _mpi_trace("init_step: before TS.setFromOptions")
         TS.setFromOptions()
+
+        # Diagnostic-only alternative to the global LU/MUMPS factorization.
+        # The default solver remains unchanged. The native MPI crash observed
+        # in issue #6 occurs in MatDestroy_MUMPS -> PCReset_LU -> TSReset.
+        # Using BJACOBI in the initial pseudo-TS alone helps distinguish a
+        # MUMPS-specific factor lifecycle defect from an earlier heap write.
+        init_pc_type = os.environ.get("SCRIMP_INIT_PC_TYPE", "").strip()
+        if init_pc_type:
+            if init_pc_type not in ("bjacobi", "none", "lu"):
+                raise ValueError(
+                    "SCRIMP_INIT_PC_TYPE must be bjacobi, none or lu"
+                )
+            init_ksp = TS.getSNES().getKSP()
+            init_pc = init_ksp.getPC()
+            init_pc.setType(init_pc_type)
+            if init_pc_type in ("bjacobi", "none"):
+                # The SWE driver chooses KSPPREONLY for global LU/MUMPS.
+                # Replacing only the PC with BJACOBI while keeping
+                # PREONLY would apply *one* block-Jacobi step, not solve
+                # the linear system. The previous diagnostic therefore
+                # could only report TS DIVERGED_STEP_REJECTED.
+                # Use an actual iterative solve for PC alternatives.
+                init_ksp.setType("gmres")
+                init_ksp.setTolerances(
+                    rtol=1e-8, atol=1e-12, max_it=500
+                )
+            _mpi_trace(
+                "init_step: diagnostic linear solver override="
+                f"KSP={init_ksp.getType()}, PC={init_pc.getType()} "
+                "(pseudo-TS only)"
+            )
+
+        _mpi_trace("init_step: before algebraic tolerance setup")
         self.exclude_algebraic_var_from_lte(TS)
+        _mpi_trace("init_step: TS setup completed")
 
         if rank == 0:
             logging.info(
-                f"Perform initialisation using {self.time_scheme['init_step_nb_iter']} step(s) of a {self.time_scheme['init_step_ts_type']} scheme, with timestep {self.time_scheme['init_step_dt']}, for initial value consistency"
+                "Initial consistency: TS={} (BDF order={}), steps={}, "
+                "start={:.12g}, target={:.12g}, dt={:.12g}, "
+                "adapt={}".format(
+                    init_type,
+                    self.time_scheme.getString("ts_bdf_order", "n/a"),
+                    1 if negative_bdf_start else int(
+                        self.time_scheme["init_step_nb_iter"]
+                    ),
+                    t0 - init_dt if negative_bdf_start else t0,
+                    t0 if negative_bdf_start else float("nan"),
+                    init_dt,
+                    self.time_scheme.getString("ts_adapt_type", "default"),
+                )
             )
 
         InitVec = self.tangent_stiffness.createVecRight()
         InitVec.zeroEntries()
-        rows = InitVec.getOwnershipRange()
-        range_rows = range(rows[0], rows[1])
-        InitVec.setValuesLocal(
-            range_rows,
-            self.gf_model.from_variables()[range_rows],
-            addv=PETSc.InsertMode.INSERT_VALUES,
-        )
+        # PETSc ownership ranges use GLOBAL indices. setValuesLocal
+        # would require a local-to-global map, which is not installed.
+        lo, hi = InitVec.getOwnershipRange()
+        if hi > lo:
+            InitVec.setValues(
+                range(lo, hi),
+                self.gf_model.from_variables()[lo:hi],
+                addv=PETSc.InsertMode.INSERT_VALUES,
+            )
         InitVec.assemble()
+        initial_state_norm = float(InitVec.norm())
         comm.barrier()
-        
+
+        _mpi_trace("init_step: before consistency TS.solve")
         TS.solve(InitVec)
+        final_state_norm = float(InitVec.norm())
+        _mpi_trace(
+            "init_step: consistency TS completed: reason={}, "
+            "t={:.12g}, steps={}, rejected={}, SNES_failures={}, "
+            "initial_norm={:.9g}, final_norm={:.9g}".format(
+                int(TS.getConvergedReason()), float(TS.getTime()),
+                TS.getStepNumber(), TS.getStepRejections(),
+                TS.getSNESFailures(),
+                initial_state_norm, final_state_norm,
+            )
+        )
+        if negative_bdf_start:
+            if int(TS.getConvergedReason()) <= 0 or (
+                abs(float(TS.getTime()) - t0)
+                > 1e-12 * max(1.0, abs(t0))
+            ):
+                raise RuntimeError(
+                    "Initial BDF2 consistency solve failed to reach "
+                    f"t0={t0:.12g}: reached {TS.getTime()}, "
+                    f"reason={TS.getConvergedReason()}"
+                )
+            # This is a *diagnostic safeguard*, not a mathematical
+            # guarantee of DAE-consistent initial data. It prevents
+            # silently accepting the massive blow-up (~1e24 norm)
+            # previously observed with pseudo-TS for Saint-Venant.
+            norm_limit = float(self.time_scheme.getString(
+                "init_step_max_norm_amplification", "inf"
+            ))
+            if not np.isfinite(final_state_norm) or (
+                final_state_norm
+                > norm_limit * max(initial_state_norm, 1.0)
+            ):
+                raise RuntimeError(
+                    "Initial BDF2 state diverged: "
+                    f"||z_initial||={initial_state_norm:.9g}, "
+                    f"||z_final||={final_state_norm:.9g}, "
+                    f"maximum factor={norm_limit:.9g}"
+                )
         del InitVec
 
         if rank == 0:
@@ -1221,14 +1911,23 @@ class DPHS:
                 f"Initialisation done in {time.perf_counter() - self.ts_start:1.4g}s"
             )
 
+        _mpi_trace("init_step: before TS.reset (PC factor cleanup)")
         TS.reset()
+        _mpi_trace("init_step: after TS.reset")
         TS.destroy()
+        _mpi_trace("init_step: after TS.destroy")
         gc.collect()
 
-        # Delete options for initial step
-        self.time_scheme.delValue("ts_type")
+        # Delete temporary options, including BDF2/adapt overrides
+        # which must not leak into the main time integrator.
+        for key in (
+            "ts_type", "ts_bdf_order", "ts_adapt_type",
+            "ts_adapt_dt_min",
+        ):
+            if self.time_scheme.hasName(key):
+                self.time_scheme.delValue(key)
 
-        # Re-load previously saved options
+        # Restore the main TS options exactly as they were.
         for key in saved_options.keys():
             self.time_scheme[key] = saved_options[key]
 
@@ -1276,7 +1975,12 @@ class DPHS:
                     )
                     sys.stdout.flush()
                 self.solution["t"].append(t)
-                self.solution["z"].append(np.array(self.GlobalVec.copy().getArray(), dtype=np.float64))
+                self.solution["z"].append(
+                    np.array(
+                        self.GlobalVec.getArray(readonly=True).real,
+                        dtype=np.float64, copy=True,
+                    )
+                )
             else:
                 if rank == 0:
                     sys.stdout.write(
@@ -1290,11 +1994,20 @@ class DPHS:
             not self.linear_mass or not self.linear_stiffness
         ):  # Needed for non-linear systems only
             # Update the state in the getfem `Model`
-            self.gf_model.to_variables(np.array(self.GlobalVec.copy().getArray(), dtype=np.float64))
+            self.gf_model.to_variables(
+                np.array(
+                    self.GlobalVec.getArray(readonly=True).real,
+                    dtype=np.float64, copy=True,
+                )
+            )
         # Says to getfem that we go to the next iteration, not sure if needed
         self.gf_model.next_iter()
 
-        PETSc.garbage_cleanup()  # solution saved, cleaning is safe
+        # Do NOT force PETSc.garbage_cleanup() inside a TS callback.
+        # The former call triggered PetscGarbageCleanup -> MatDestroy_MPIAIJ
+        # -> free(): invalid pointer in a 2-rank pseudo-TS run. PETSc/TS
+        # owns live matrix references here; leave object cleanup outside
+        # the solver and avoid transient Mat allocations in Newton calls.
 
     def compute_Hamiltonian(self):
         """Compute each `term` constituting the Hamiltonian
@@ -1333,7 +2046,11 @@ class DPHS:
     def plot_Hamiltonian(self, with_powers=True, save_figure=False, filename="Hamiltonian.png"):
         """Plot each term constituting the Hamiltonian and the Hamiltonian
 
-        May include the `power terms`, i.e. the sum over [t_0, t_f] of the flow/effort product of algebraic ports
+        May include the `power terms`, i.e. the sum over [t_0, t_f] of the flow/effort product of algebraic ports.
+
+        In MPI runs this method must be called on every rank, since computing
+        Hamiltonian terms and port powers requires collective GetFEM assembly.
+        Only rank 0 creates and displays the plot.
 
         Args:
             - with_powers (bool): if `True` (default), the plot will also contains the power of each algebraic ports
@@ -1346,6 +2063,7 @@ class DPHS:
 
         t = np.array(self.solution["t"])
         HamTot = np.zeros(t.size)
+        ax = None
         if rank == 0:
             fig = plt.figure(figsize=[8, 5])
             ax = fig.add_subplot(111)
@@ -1359,7 +2077,9 @@ class DPHS:
         if len(self.hamiltonian) > 1 and rank == 0:
             ax.plot(t, HamTot, label=self.hamiltonian.get_name())
 
-        if with_powers and rank == 0:
+        # GetFEM power assembly can involve MPI collectives: every rank must
+        # enter plot_powers(), even though only rank 0 draws the result.
+        if with_powers:
             self.plot_powers(ax, HamTot=HamTot)
 
         if rank == 0:
