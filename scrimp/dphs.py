@@ -55,8 +55,10 @@ def _mpi_trace(stage):
 # A full replicated RHS is normal and does NOT justify division by P.
 # On the original local GetFEM 5.4.2 MPI-2 build, however, actual
 # integrals were P times the sequential reference at P=1,2,4, while
-# their tangent was independent of P. Suspected cause: a contribution
-# is assembled redundantly across processes *before* GetFEM's reduction.
+# the full raw tangent matrices were replicated, rank for rank.
+# build_rhs and build_all produce the same discrepancy. The underlying
+# partition/reduction or build issue is DEFERRED in GitHub issue #23;
+# the exact GetFEM implementation fault has not been established.
 # Avoid assuming ALL GetFEM MPI-2 binaries have that behavior. Calibrate
 # the installed generic-assembly RHS once against an exactly known
 # integral and normalize only if it really is duplicated.
