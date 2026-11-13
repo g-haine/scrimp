@@ -2348,3 +2348,168 @@ tail -n 18 swe_rest_1rank.log
 The native MPI segfault/MUMPS lifecycle is
 still independent; GetFEM MPI factor root cause
 remains deferred to #23. Keep PR #22 draft.
+
+
+## 2026-11-13 — Re-examine validated MCSS 2024 source before further SWE tuning
+
+**User asked to return to the actual published reference:**
+`examples/published/MCSS_2024/shallow_water.py`,
+`launch_all_simulations.py` and
+`examples/published/MCSS_2024/scrimp.yml`.
+Do NOT modify the validated publication scripts; use them
+as immutable ground truth for **model construction**.
+
+### The reference is NOT our present benchmark
+
+Comparison specifically for **experiment 3, formulation grad**
+(rotating viscous disk):
+
+| Feature | Published MCSS2024 | Current sandbox SWE |
+| --- | --- | --- |
+| Geometry / mesh size | Disk radius 1, dx=0.1 | Disk radius 1, mesh=0.2 in crash tests |
+| h0, gravity g | 50, 0.01 | 5, 0.1 |
+| rho, mu | 1, 0.001 | 1, 0.001 |
+| Main TS | BDF2, dt=1e-4, adaptive | ARKIMEX-A2, dt=0.002, TSAdapt none in failure tests |
+| Main direct solver | SuperLU, sequential | MUMPS (also for n=1) |
+| Published env | PETSc/PETSc4py 3.21.5 **real**, MPICH 4.2.2 | Current original env PETSc/PETSc4py 3.21.6 **complex**, MPICH 4.3.1 |
+| Initial consistency | pseudo TS, 2 steps, dt=1e-8 | temporary BDF2 from -1e-9 to 0 |
+| Tangential wall ramp | exp[-((max(90,t)-100)/(500-max(90,t)))²], capped | cubic Hermite ramp 1 through 75s -> 0 at 200s |
+| p initial | c*sin(pi*r/2)*(-sin(theta), cos(theta)) | rigid/tangent clockwise after recent change |
+| Normal U_n and vector U controls | **BOTH `set_control()`** | U_n `set_control`; U is a HAND-WRITTEN nonlinear `(-U+U_n*N+...)*Test_U` brick |
+| Primary formulation | grad or div selectable | grad only |
+| Energy balance | H + D - S, time-integrated CN sampled powers | same formal goal, current physical validity unproven |
+
+Note: `g*h0=0.5` in both, but changing h and
+g separately is **not equivalent** to preserving the
+complete nonlinear equations/mass, especially
+`h*p`, viscous h weights and kinetic energy.
+Published clockwise `Tangent=Rot*Normal` with
+`Rot=[[0,1],[-1,0]]` is itself OPPOSITE
+to published `p_initial`'s anticlockwise swirl,
+so the sign correction in our new sandbox
+**was not a distinguishing cause of publication success**.
+The original initial swirl is smoother, radial
+`sin(pi*r/2)`, not our constant-speed/`1/r` profile.
+
+### Important 2024 SCRIMP code discovery: historic residual happens to work for quadratic generic forms
+
+We also inspected the actual historical `scrimp/dphs.py`
+at Git commit `8f1b3b6eaa09` (Aug 7, 2024).
+Its `IFunction` computed
+
+```
+F_2024 = M(z)*zd + K_tangent(z)*z + rhs_GetFEM(z)
+```
+
+where GetFEM generic nonlinear bricks contribute
+`rhs_GetFEM=-N(z)`, tangent `N'(z)`.
+For homogeneous degree m, Euler gives
+`N'(z)z=m*N(z)`; thus 2024 code contributes
+`(m-1)*N(z)`. This is **exact at m=2**, which
+accounts for many Saint-Venant bricks (e.g.
+`h*U*Test_Y`, `h*Y*Test_p`,
+`h*p*Test_e_p`, `p.p*Test_e_h`);
+for m=3 it contributes **2*N**, for instance
+the bulk `h*(Gyro(p)*e_p)*Test_p`.
+This reconciles the plausible historic numerical
+success with the current serial 6.84% old
+residual/true Jacobian FD mismatch. It does NOT
+retroactively disprove article observations.
+State-dependent mass's missing Jacobian
+`(D_zM)[v]*zd` was also absent in old code.
+
+### Most urgent new question: did blanket -GetFEM RHS reverse SOURCE bricks?
+
+GetFEM documents `add_source_term_brick` as contributing
+a **POSITIVE** source to the system RHS, whereas
+the RHS of a generic nonlinear weak-form brick
+represents a **NEGATIVE residual**:
+https://getfem.org/userdoc/model_source_term.html
+https://getfem.org/userdoc/model_generic_assembly.html
+
+The published `set_control('Control u', supplied_velocity)`
+in `DPHS` creates a **linear** `-U*Test_U` brick
+and a separate **source** brick
+`add_source_term_brick(..., 'U', supplied_velocity)`.
+At `U=0`, the old SCRIMP residual is
+`F_old = -M_U U + S_U`, giving U=prescribed.
+The current blanket `F_new=... - rhs_GetFEM` has
+the **opposite sign for the source**, suggesting
+`F_new=-M_U U - S_U`, i.e. **U=-prescribed**
+when using the published control API. This
+potential regression was NOT detected by the
+previous directional FD tests at ~1e-11:
+the present sandbox manually embedded vector
+actuation in a nonlinear `Test_U` equation and
+normal input U_n was zero, while the derivative
+of a pure state-independent source is zero.
+
+**Do not patch all sources blindly yet**.
+`sandbox/check_mcss_source_sign.py` now uses
+isolated *real* GetFEM bricks in 1D to measure
+(1) generic nonlinear RHS at u=1, and
+(2) linear `-u*Test_u` plus
+`add_source_term_brick(...,'u','desired')`
+at u=0 with desired=1.
+The expected raw signs are negative nonlinear
+RHS and positive source RHS; confirm on the
+actual GetFEM/PETSc configuration before designing
+the correct **separate nonlinear/source treatment**
+in DPHS.IFunction and preserving explicit
+control/constraint semantics.
+
+### Faithful publication-construction smoke without changing MCSS source
+
+New `sandbox/probe_mcss2024_reference.py`
+imports the original `shallow_water.py` module,
+intercepts precisely its `S.DPHS.solve()` call
+before time integration/postprocessing, captures
+the REAL constructed object (all 2024 bricks,
+control ports, parameters and p profile), then
+restores solve and overrides ONLY the requested
+short `t_f` / `dt_save` and optional solver.
+The default uses publication **SuperLU**, original
+BDF2 dt=1e-4 and pseudo initial dt=1e-8.
+This runs the published **model on the CURRENT
+SCRIMP**, NOT the historical 2024 binary. If
+SuperLU is unavailable with the current PETSc
+complex build, retry the identical model
+with `--solver mumps`; a missing PETSc backend
+does not invalidate the historic 2024 run.
+
+```bash
+git pull --ff-only
+conda activate scrimp
+
+mpiexec -n 1 python -u sandbox/check_mcss_source_sign.py \
+  > mcss_source_sign.log 2>&1
+echo "source sign exit=$?"
+cat mcss_source_sign.log
+
+SCRIMP_GETFEM_RHS_MODE=divide_by_mpi_size \
+PYTHONFAULTHANDLER=1 \
+timeout -k 5s 120s mpiexec -n 1 \
+  python -u sandbox/probe_mcss2024_reference.py \
+  --final-time 0.0003 --save-dt 0.0001 \
+  --solver superlu --newton-block-trace \
+  > mcss2024_reference_superlu.log 2>&1
+echo "published construction/current SCRIMP exit=$?"
+grep -E 'Newton blocks|MUMPS error|Initialisation|Initial consistency|main TS completed|Traceback|Error' \
+  mcss2024_reference_superlu.log | head -n 18
+tail -n 22 mcss2024_reference_superlu.log
+```
+
+Do NOT claim the old validated code is reproduced
+merely because the new branch simulates it for a
+short time. The legacy 2024 SCRIMP implementation
+and exact real PETSc+SuperLU binary differ.
+The two tests distinguish a **source-sign regression**
+from altered published model construction,
+and physical benchmark problems from
+PETSc/MUMPS lifetime or initial DAE handling.
+
+**Next acceptance gates**: source-sign correctness,
+faithful reference initial convergence, 1/2-rank
+native stability, adaptive integration and
+physical Hamiltonian/power balance. Keep issue
+#6 open and PR #22 draft, master untouched.
