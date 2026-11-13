@@ -321,6 +321,76 @@ class TestMPIAlgebra(unittest.TestCase):
             finally:
                 matrix.destroy()
 
+    def test_jacobian_copy_with_changing_sparse_pattern(self):
+        """PETSc TS Jacobian assembly must support new nonzero locations.
+
+        P and A are initially allocated with a diagonal-only pattern.
+        The state-dependent stiffness later gains off-diagonal entries
+        on every MPI rank, including across the process boundary.
+        MatCopy with SAME_NONZERO_PATTERN would be unsafe here.
+        """
+        def diag_matrix(value):
+            matrix = PETSc.Mat().createAIJ(size=(N, N), nnz=1, comm=COMM)
+            matrix.setUp()
+            diag = matrix.createVecLeft()
+            try:
+                diag.set(value)
+                matrix.setDiagonal(diag)
+                matrix.assemble()
+            finally:
+                diag.destroy()
+            return matrix
+
+        stiffness = diag_matrix(3.0)
+        stiffness.setOption(
+            PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR, False
+        )
+        mass = diag_matrix(2.0)
+        A = diag_matrix(0.0)
+        P = diag_matrix(0.0)
+        system = object.__new__(DPHS)
+        system.gf_model = SimpleNamespace(set_time=lambda t: None)
+        system.lumped_variables = set()
+        system.linear_mass = True
+        system.linear_stiffness = True
+        system.tangent_stiffness = stiffness
+        system.tangent_mass = mass
+
+        try:
+            for offset, coefficient in ((0, 0.0), (1, 4.0), (2, -2.0)):
+                stiffness.zeroEntries()
+                diagonal = stiffness.createVecLeft()
+                try:
+                    diagonal.set(3.0)
+                    stiffness.setDiagonal(diagonal)
+                finally:
+                    diagonal.destroy()
+                if offset:
+                    lo, hi = stiffness.getOwnershipRange()
+                    for row in range(lo, hi):
+                        stiffness.setValue(
+                            row, (row + offset) % N, coefficient,
+                            addv=PETSc.InsertMode.INSERT_VALUES,
+                        )
+                stiffness.assemble()
+                system.IJacobian(None, 0.0, None, None, 5.0, A, P)
+                for matrix in (A, P):
+                    x, y = matrix.createVecRight(), matrix.createVecLeft()
+                    try:
+                        x.set(1.0)
+                        matrix.mult(x, y)
+                        expected = 13.0 + coefficient
+                        np.testing.assert_allclose(
+                            y.getArray(readonly=True),
+                            expected, atol=1e-12, rtol=1e-12,
+                        )
+                    finally:
+                        x.destroy()
+                        y.destroy()
+        finally:
+            for matrix in (stiffness, mass, A, P):
+                matrix.destroy()
+
     def test_distinct_operator_and_preconditioner_get_same_jacobian(self):
         """TS's distinct A/P matrices must both receive J=K+shift*M."""
         def diagonal_matrix(value):
