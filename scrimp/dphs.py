@@ -926,6 +926,49 @@ class DPHS:
             np.asarray(self.GlobalVec.getArray(), dtype=np.float64)
         )
 
+    def _trace_newton_blocks(self, phase, t, z, zd):
+        """Optional Newton diagnostics by physical/GetFEM variable.
+
+        GetFEM exposes a complete global trial vector after our existing
+        VecScatter. This is read-only and rank-0-only: no new collectives,
+        new matrix assembly or changes to the Newton iteration.
+        """
+        if os.environ.get("SCRIMP_NEWTON_BLOCK_TRACE") != "1" or rank != 0:
+            return
+        state = np.asarray(
+            self.GlobalVec.getArray(readonly=True)
+        ).real
+        rows = []
+        for name in self.gf_model.variable_list():
+            try:
+                start, width = self.gf_model.interval_of_variable(name)
+            except Exception:
+                continue  # Initialized data are not solved unknowns.
+            block = state[int(start):int(start + width)]
+            if not block.size:
+                continue
+            norm = float(np.linalg.norm(block))
+            max_abs = float(np.max(np.abs(block)))
+            annotation = ""
+            if name == "h":
+                annotation = (
+                    f", min={np.min(block):.6g}, "
+                    f"max={np.max(block):.6g}"
+                )
+            rows.append(
+                f"{name}:norm={norm:.6g},maxabs={max_abs:.6g}"
+                f"{annotation}"
+            )
+        # These norms are PETSc collectives; run them on *all* ranks
+        # elsewhere if needed. Here the globally replicated GetFEM
+        # state supplies all physically meaningful per-variable norms.
+        print(
+            f"[SCRIMP Newton blocks] {phase} t={t:.9g} "
+            f"global_norm={np.linalg.norm(state):.6g} "
+            + " | ".join(rows),
+            file=sys.stderr, flush=True,
+        )
+
     def IFunction(self, TS, t, z, zd, F):
         """
         IFunction for the time-resolution of the dphs with PETSc TS fully implicit integrator
@@ -941,6 +984,7 @@ class DPHS:
         _mpi_trace(f"IFunction: enter t={t:.8g}")
         self._sync_lumped_trial_state(t, z)
         _mpi_trace("IFunction: Newton state synchronized")
+        self._trace_newton_blocks("IFunction", t, z, zd)
         if not self.linear_mass:
             self.assemble_nl_mass()
         nonlinear_form = os.environ.get(
@@ -1103,6 +1147,7 @@ class DPHS:
         _mpi_trace(f"IJacobian: enter t={t:.8g}, shift={sig:.8g}")
         self._sync_lumped_trial_state(t, z)
         _mpi_trace("IJacobian: Newton state synchronized")
+        self._trace_newton_blocks("IJacobian", t, z, zd)
         if not self.linear_mass:
             self.assemble_nl_mass()
         if not self.linear_stiffness:
