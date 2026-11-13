@@ -29,7 +29,10 @@ Use --fail-above 1e-4 only when checking a candidate correction.
 """
 
 import argparse
+import hashlib
 import json
+
+from mpi4py import MPI
 
 import numpy as np
 from petsc4py import PETSc
@@ -77,6 +80,10 @@ def report(swe, z, zd, direction, shift, epsilon):
 
     jv = direction.duplicate()
     J.mult(direction, jv)
+    # Snapshot the *true* nonlinear GetFEM tangent action at the base
+    # state before subsequent IFunction calls mutate the matrix.
+    nl_action = direction.duplicate()
+    swe.nl_stiffness.mult(direction, nl_action)
 
     zplus, zminus = z.copy(), z.copy()
     zdplus, zdminus = zd.copy(), zd.copy()
@@ -88,7 +95,43 @@ def report(swe, z, zd, direction, shift, epsilon):
         zdminus.axpy(-epsilon * shift, direction)
 
         swe.IFunction(None, 0.0, zplus, zdplus, fplus)
+        gf_rhs_plus = np.asarray(swe.gf_model.rhs()).copy()
         swe.IFunction(None, 0.0, zminus, zdminus, fminus)
+        gf_rhs_minus = np.asarray(swe.gf_model.rhs()).copy()
+
+        # GetFEM MPI-2 documents global, summed RHS vectors (unlike
+        # distributed tangent matrices). Verify that claim at two points
+        # in this *real* coupled problem, independently from PETSc's F.
+        gf_rhs_fd = (gf_rhs_plus - gf_rhs_minus) / (2.0 * epsilon)
+        mpi = MPI.COMM_WORLD
+        rhs_by_rank = mpi.allgather(gf_rhs_fd)
+        rhs_copy_disagreement = max(
+            float(np.linalg.norm(rhs_k - rhs_by_rank[0]))
+            for rhs_k in rhs_by_rank
+        )
+        if gf_rhs_fd.size != z.getSize():
+            raise ValueError("GetFEM RHS dimension differs from PETSc")
+        lo, hi = nl_action.getOwnershipRange()
+        nl_local = np.asarray(nl_action.getArray(readonly=True))
+        rhs_local = gf_rhs_fd[lo:hi]
+        rhs_vs_tangent_sq = float(
+            np.vdot(rhs_local + nl_local, rhs_local + nl_local).real
+        )
+        nl_sq = float(np.vdot(nl_local, nl_local).real)
+        gf_rhs_derivative_vs_tangent = (
+            mpi.allreduce(rhs_vs_tangent_sq, op=MPI.SUM) ** 0.5
+            / max(mpi.allreduce(nl_sq, op=MPI.SUM) ** 0.5, 1e-14)
+        )
+        rhs_signatures = mpi.allgather({
+            "rank": mpi.Get_rank(),
+            "rhs_plus_norm": float(np.linalg.norm(gf_rhs_plus)),
+            "rhs_minus_norm": float(np.linalg.norm(gf_rhs_minus)),
+            "rhs_fd_norm": float(np.linalg.norm(gf_rhs_fd)),
+            "rhs_fd_digest": hashlib.blake2b(
+                np.ascontiguousarray(gf_rhs_fd).view(np.uint8),
+                digest_size=8,
+            ).hexdigest(),
+        })
 
         fplus.axpy(-1.0, fminus)
         fplus.scale(0.5 / epsilon)
@@ -98,6 +141,23 @@ def report(swe, z, zd, direction, shift, epsilon):
             norm_fd = float(fplus.norm())
             norm_jv = float(jv.norm())
             norm_error = float(difference.norm())
+            # Diagnose which variable equation blocks contribute to the
+            # mismatch, using the *global* GetFEM variable numbering.
+            groups = {}
+            dlocal = difference.getArray(readonly=True)
+            for name in ("h", "p", "e_h", "e_p",
+                         "U_n", "Y_n", "U", "Y"):
+                start, length = swe.gf_model.interval_of_variable(name)
+                start, end = int(start), int(start + length)
+                a, b = max(start, lo), min(end, hi)
+                if b > a:
+                    own = dlocal[a-lo:b-lo]
+                    local_squared = float(np.vdot(own, own).real)
+                else:
+                    local_squared = 0.0
+                groups[name] = (
+                    mpi.allreduce(local_squared, op=MPI.SUM) ** 0.5
+                )
         finally:
             difference.destroy()
         return {
@@ -108,9 +168,14 @@ def report(swe, z, zd, direction, shift, epsilon):
             "jacobian_action_norm": norm_jv,
             "error_norm": norm_error,
             "relative_error": norm_error / max(norm_fd, norm_jv, 1e-14),
+            "error_norm_by_equation": groups,
+            "getfem_rhs_derivative_rank_difference": rhs_copy_disagreement,
+            "getfem_rhs_derivative_vs_minus_nonlinear_tangent_relative":
+                gf_rhs_derivative_vs_tangent,
+            "getfem_rhs_rank_signatures": rhs_signatures,
         }
     finally:
-        for obj in (jv, zplus, zminus, zdplus, zdminus, fplus, fminus):
+        for obj in (jv, nl_action, zplus, zminus, zdplus, zdminus, fplus, fminus):
             obj.destroy()
 
 
