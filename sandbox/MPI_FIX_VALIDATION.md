@@ -101,6 +101,67 @@ power balance. For a credible release, the same discretization must
 produce consistent results within numerical tolerances independently
 of MPI size.
 
+## Observed SIGSEGV after synthetic tests passed (2026-11-13)
+
+The user confirmed the **three original synthetic tests pass** with 1, 2
+and 4 MPI ranks. A subsequent 2-rank Saint-Venant smoke still exits
+**139 / SIGSEGV**, but it now completes multiple nonlinear GetFEM/PETSc
+assemblies. The final printed trace was:
+
+```text
+[SCRIMP MPI 0/2] nl_stiffness: PETSc matrix assembled
+[SCRIMP MPI 1/2] nl_stiffness: PETSc matrix assembled
+```
+
+This does **not** prove the assembly is mathematically correct or locate
+the offending C/C++/Fortran call. A segfault is **not** a timeout.
+
+The next patch adds traces around `tangent_stiffness.copy()`,
+`Mat.axpy()`, `disable_bricks()`, MPI barrier, and the TS residual and
+Jacobian callbacks. `linalg.convert_gmm_to_petsc` also prints the
+number of genuinely nonzero sparse values and absolute-value sum,
+not just the number of CSR slots. Equal CSR slot counts on both ranks
+**do not** establish that the same matrix was assembled twice.
+
+A **fourth test** `test_real_getfem_mpi2_mass_matrix_is_rank_independent`
+uses an actual GetFEM mass brick and checks that the PETSc global
+quadratic form for a constant function on the unit interval is exactly 1.
+This is the first test of the real GetFEM model assembly; it has **not
+yet run** in the target environment.
+
+Test it **before** rerunning Saint-Venant:
+
+```bash
+git fetch origin
+git switch fix/issue-6-parallel-powers-saint-venant-2d
+git pull --ff-only
+
+for n in 1 2 4; do
+    echo "====== MPI ranks: $n ======"
+    timeout -k 5s 45s mpiexec -n "$n" \
+        python -u -m unittest -v tests.test_mpi_algebra || break
+done
+```
+
+If all four tests pass, capture **a native segfault stack** alongside
+per-rank assembly traces:
+
+```bash
+PYTHONFAULTHANDLER=1 SCRIMP_MPI_TRACE=1 \
+timeout -k 5s 120s mpiexec -n 2 python -u \
+    sandbox/viscous_swe_2d_mpi.py \
+    --case open --mesh 0.2 --final-time 0.5 \
+    --save-dt 0.1 --max-step 0.01 \
+    > mpi_open_2ranks.log 2>&1
+
+printf "exit code: %s\\n" "$?"
+tail -n 160 mpi_open_2ranks.log
+```
+
+If faulthandler shows only native frames, a GDB backtrace from the
+process that crashed may be needed; do not try to fix a SIGSEGV by
+blindly changing PETSc solver options or by inserting extra barriers.
+
 ## Pending work
 
 - Confirm that the full GetFEM MPI-2 matrix CSR is correctly reconstructed
