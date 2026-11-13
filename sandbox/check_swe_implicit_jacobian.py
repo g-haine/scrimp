@@ -45,6 +45,7 @@ Use --fail-above 1e-4 only when checking a candidate correction.
 import argparse
 import hashlib
 import json
+import os
 
 from mpi4py import MPI
 
@@ -144,6 +145,8 @@ def report(
         correct_mass_jacobian_by_fd(
             swe, z, zd, J, mass_epsilon
         )
+    # 'production': the real DPHS.IJacobian handles its opt-in
+    # contracted mass Hessian. No post-processing in the test.
 
     # Check the distributed PETSc Vec -> replicated GetFEM trial-state
     # scatter: errors here corrupt both nonlinear RHS and tangent assembly.
@@ -270,14 +273,14 @@ def main():
              "test than the old velocity parallel to the FD direction",
     )
     parser.add_argument(
-        "--residual-form", choices=("legacy", "direct_getfem"),
+        "--residual-form", choices=("legacy", "direct_getfem", "production"),
         default="legacy",
         help="DIAGNOSTIC ONLY: evaluate residual from GetFEM weak-form "
              "RHS and linear stiffness instead of K_tangent(z)*z+rhs. "
              "The production DPHS.IFunction is NOT modified.",
     )
     parser.add_argument(
-        "--mass-jacobian", choices=("legacy", "finite_difference"),
+        "--mass-jacobian", choices=("legacy", "finite_difference", "production"),
         default="legacy",
         help="DIAGNOSTIC ONLY: add contracted derivative of nonlinear "
              "mass matrix M(z)*zd via two GetFEM tangent assemblies",
@@ -303,6 +306,24 @@ def main():
     comm = PETSc.COMM_WORLD
     rank = comm.getRank()
     swe = setup_model(args.mesh)
+    if args.residual_form == "production":
+        # DO NOT patch swe.IFunction: use the *real* DPHS method, with
+        # SCRIMP_NONLINEAR_RESIDUAL_FORM=direct_getfem activated by env.
+        if os.environ.get(
+            "SCRIMP_NONLINEAR_RESIDUAL_FORM", "legacy"
+        ).strip().lower() != "direct_getfem":
+            raise ValueError(
+                "production residual test requires "
+                "SCRIMP_NONLINEAR_RESIDUAL_FORM=direct_getfem"
+            )
+    if args.mass_jacobian == "production":
+        if os.environ.get(
+            "SCRIMP_NONLINEAR_MASS_JACOBIAN", "legacy"
+        ).strip().lower() != "finite_difference":
+            raise ValueError(
+                "production Jacobian test requires "
+                "SCRIMP_NONLINEAR_MASS_JACOBIAN=finite_difference"
+            )
     if args.residual_form == "direct_getfem":
         # Avoid touching the package while testing a suspected
         # mathematical error in the state-dependent-mass IFunction
