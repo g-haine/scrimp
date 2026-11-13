@@ -65,6 +65,16 @@ def evaluate_case(mf, mim, expression, c=1.0, epsilon=1e-5):
         np.sum(raw_values[row_ptr[i]:row_ptr[i + 1]])
         for i in range(n)
     ])
+    # Include the entire sparse CSR structure and values in the
+    # fingerprint. A row-sum fingerprint alone is NOT proof that two
+    # tangent matrices are identical: differing sparse matrices can
+    # have the same action on the constant vector.
+    full_digest = hashlib.blake2b(digest_size=16)
+    for piece in (row_ptr, col_idx, raw_values):
+        full_digest.update(str(piece.dtype).encode("ascii"))
+        full_digest.update(
+            np.ascontiguousarray(piece).view(np.uint8).tobytes()
+        )
     rank_matrix_summaries = MPI.COMM_WORLD.allgather({
         "rank": MPI.COMM_WORLD.rank,
         "raw_tangent_integral": float(np.real(row_action.sum())),
@@ -74,6 +84,7 @@ def evaluate_case(mf, mim, expression, c=1.0, epsilon=1e-5):
             np.ascontiguousarray(row_action).view(np.uint8),
             digest_size=8,
         ).hexdigest(),
+        "raw_tangent_full_csr_digest": full_digest.hexdigest(),
     })
 
     matrix = PETSc.Mat().createAIJ(size=(n, n), comm=PETSc.COMM_WORLD)
