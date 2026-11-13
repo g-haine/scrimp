@@ -43,18 +43,21 @@ REGION_DOMAIN = 1
 REGION_WALL = 10
 
 
-def ramp_expression():
+def ramp_expression(start=75.0, end=200.0):
     """C1 smooth decreasing boundary velocity, 1 until 75 s, 0 after 200 s.
 
     The paper shows a smooth decay in this interval but does not provide
     its explicit analytic expression; this is an approximation, NOT
     necessarily the exact function used in the publication.
     """
-    s = "(min(1., max(0., (t-75.)/125.)))"
+    if start < 0 or end <= start:
+        raise ValueError("ramp start must be nonnegative and smaller than ramp end")
+    s = f"(min(1., max(0., (t-{start})/{end-start})))"
     return f"(1. - 3.*({s})*({s}) + 2.*({s})*({s})*({s}))"
 
 
-def build_system(gamma, mesh, final_time, save_dt, max_step):
+def build_system(gamma, mesh, final_time, save_dt, max_step,
+                 ramp_start=75.0, ramp_end=200.0):
     if gamma not in (0.0, 0.25):
         raise ValueError("gamma must be 0.0 (open) or 0.25 (closed)")
     if mesh <= 0 or final_time <= 0 or save_dt <= 0 or max_step <= 0:
@@ -107,7 +110,7 @@ def build_system(gamma, mesh, final_time, save_dt, max_step):
                 linear=False),
         S.Brick("-M_e_p[h]", "-h*e_p.Test_e_p", [REGION_DOMAIN],
                 linear=False),
-        S.Brick("Q_p[h]", "h*p/rho.Test_e_p", [REGION_DOMAIN],
+        S.Brick("Q_p[h]", "h*(p/rho).Test_e_p", [REGION_DOMAIN],
                 linear=False),
         # PFEM grad formulation; normal and viscous boundary ports.
         S.Brick("M_n[h]", "h*Y_n*Test_Y_n", [REGION_WALL],
@@ -135,7 +138,7 @@ def build_system(gamma, mesh, final_time, save_dt, max_step):
     for brick in bricks:
         swe.add_brick(brick)
 
-    f = ramp_expression()
+    f = ramp_expression(ramp_start, ramp_end)
     if gamma == 0.0:
         swe.set_control(control_normal.get_name(), "0.")
     else:
@@ -301,6 +304,8 @@ def main():
     parser.add_argument("--save-dt", type=float, default=1.0)
     parser.add_argument("--max-step", type=float, default=0.01)
     parser.add_argument("--output-dir", type=Path, default=None)
+    parser.add_argument("--ramp-start", type=float, default=75.0)
+    parser.add_argument("--ramp-end", type=float, default=200.0)
     args = parser.parse_args()
     gamma = 0.0 if args.case == "open" else 0.25
     out = args.output_dir or (
@@ -312,7 +317,8 @@ def main():
     comm.barrier()
 
     swe = build_system(gamma, args.mesh, args.final_time,
-                       args.save_dt, args.max_step)
+                       args.save_dt, args.max_step,
+                       args.ramp_start, args.ramp_end)
     swe.solve()
     result = diagnostics(swe, gamma)
     save_outputs(swe, result, out)
