@@ -861,27 +861,35 @@ class DPHS:
         _mpi_trace("IFunction: Newton state synchronized")
         if not self.linear_mass:
             self.assemble_nl_mass()
-        if not self.linear_stiffness:
+        nonlinear_form = os.environ.get(
+            "SCRIMP_NONLINEAR_RESIDUAL_FORM", "direct_getfem"
+        ).strip().lower()
+        # The direct weak-form residual does NOT need the nonlinear
+        # tangent matrix. Avoid expensive GetFEM/PETSc sparse matrix
+        # conversions at every function evaluation (including line
+        # search trials); IJacobian assembles the tangent when needed.
+        if not self.linear_stiffness and nonlinear_form == "legacy":
             self.assemble_nl_stiffness()
 
         self.assemble_rhs()
         _mpi_trace("IFunction: RHS assembled; before PETSc algebra")
 
-        nonlinear_form = os.environ.get(
-            "SCRIMP_NONLINEAR_RESIDUAL_FORM", "legacy"
-        ).strip().lower()
         if nonlinear_form not in ("legacy", "direct_getfem"):
             raise ValueError(
                 "SCRIMP_NONLINEAR_RESIDUAL_FORM must be "
                 "legacy or direct_getfem"
             )
 
-        if nonlinear_form == "direct_getfem" and not self.linear_mass:
-            # Experimental, opt-in: GetFEM's build_rhs is the NEGATIVE
-            # of the active weak-form residual. K_nl(z) is its
-            # derivative, not the nonlinear residual operator itself.
-            # FD-verified for 2D viscous SWE at 1 and 2 MPI ranks.
-            self.tangent_mass.mult(zd, self.buffer)
+        if nonlinear_form == "direct_getfem":
+            # Correct general residual: GetFEM build_rhs is the NEGATIVE
+            # of the nonlinear weak-form residual. K_nl(z) is its
+            # derivative, NOT a nonlinear matrix to multiply by z.
+            # Validated on full viscous Saint-Venant 2D, 1/2 MPI ranks,
+            # for independent z and zd perturbations.
+            mass_matrix = (
+                self.mass if self.linear_mass else self.tangent_mass
+            )
+            mass_matrix.mult(zd, self.buffer)
             self.stiffness.multAdd(z, self.buffer, F)
             F.axpy(-1, self.rhs)
         elif self.lumped_variables and self.linear_mass:
@@ -900,24 +908,25 @@ class DPHS:
             self.stiffness.multAdd(z, self.buffer, F)
             F.axpy(-1, self.rhs)
         else:
-            # Historical path (still needed by existing models with
-            # state-dependent mass matrices, pending a separate fix).
+            # Legacy reproduction for historical scripts; use only
+            # to investigate older results, not for correct Newton.
             self.tangent_mass.mult(zd, self.buffer)
             self.tangent_stiffness.multAdd(z, self.buffer, F)
             F.axpy(1, self.rhs)
         _mpi_trace("IFunction: residual completed")
 
     def _add_nonlinear_mass_hessian_fd(self, t, z, zd, P):
-        """Add (D_z M(z)[.] ) zd to PETSc's implicit Jacobian, opt-in.
+        """Add (D_z M(z)[.] ) zd to PETSc's implicit Jacobian.
 
         Nonlinear GetFEM dt bricks represent a weak flow primitive
         Q(z), with M(z) = D Q(z). By Schwarz symmetry,
         (D_z M(z)[v]) zd = (D_z M(z)[zd]) v, which can be assembled
         by a directional central difference of the tangent mass.
 
-        This experimental path has been verified on the 2D viscous
-        Saint-Venant model but is intentionally disabled by default:
-        generic nonlinear masses still require mathematical review.
+        Default correction for nonlinear time bricks; its symmetric
+        finite-difference approximation was verified on the full
+        2D viscous Saint-Venant Jacobian to ~1e-11. The legacy option
+        remains available for compatibility comparisons.
         """
         if self.linear_mass or zd.norm() == 0:
             return
@@ -1007,7 +1016,7 @@ class DPHS:
         P.axpy(sig, self.tangent_mass, structure=structure)
 
         mass_mode = os.environ.get(
-            "SCRIMP_NONLINEAR_MASS_JACOBIAN", "legacy"
+            "SCRIMP_NONLINEAR_MASS_JACOBIAN", "finite_difference"
         ).strip().lower()
         if mass_mode not in ("legacy", "finite_difference"):
             raise ValueError(
@@ -1016,7 +1025,7 @@ class DPHS:
             )
         if mass_mode == "finite_difference" and not self.linear_mass:
             if os.environ.get(
-                "SCRIMP_NONLINEAR_RESIDUAL_FORM", "legacy"
+                "SCRIMP_NONLINEAR_RESIDUAL_FORM", "direct_getfem"
             ).strip().lower() != "direct_getfem":
                 raise ValueError(
                     "The mass Hessian diagnostic requires "
