@@ -18,6 +18,7 @@ and fully replicated GetFEM matrices with GLOBAL row/column numbering.
 The real-GetFEM test checks a physical mass integral with MPI level 2.
 """
 
+import io
 import os
 import unittest
 from types import SimpleNamespace
@@ -65,6 +66,60 @@ class FakeGetFEMDistributedMatrix:
 
 
 class TestMPIAlgebra(unittest.TestCase):
+    def test_newton_block_trace_uses_port_registry_not_getfem_variable_list(self):
+        """GetFEM Model.variable_list() prints and RETURNS NONE in 5.4.2.
+
+        The optional trace must work without calling it; this test uses
+        a fake GetFEM model so it catches that accidental API misuse
+        without requiring a full TS initialization.
+        """
+        from scrimp import dphs as dphs_module
+
+        class DummyPort:
+            def __init__(self, flow, effort):
+                self.flow, self.effort = flow, effort
+
+            def get_flow(self):
+                return self.flow
+
+            def get_effort(self):
+                return self.effort
+
+        class DummyModel:
+            def variable_list(self):
+                raise AssertionError("print-only GetFEM API called")
+
+            def interval_of_variable(self, name):
+                if name == "Y":
+                    raise ValueError("substituted effort absent")
+                return {"h": (0, 2), "p": (2, 2),
+                        "e_h": (4, 1)}[name]
+
+        d = DPHS.__new__(DPHS)
+        d.ports = {
+            "height": DummyPort("h", "e_h"),
+            "momentum": DummyPort("p", "e_h"),
+            "wall": DummyPort("Y", "Y"),
+        }
+        d.gf_model = DummyModel()
+        d.GlobalVec = SimpleNamespace(
+            getArray=lambda readonly=False:
+            np.array([5.0, 5.0, 0.1, 0.2, 0.5]),
+        )
+        output = io.StringIO()
+        with patch.dict(os.environ, {"SCRIMP_NEWTON_BLOCK_TRACE": "1"}), \
+                patch.object(dphs_module, "rank", 0), \
+                patch.object(dphs_module.sys, "stderr", output):
+            d._trace_newton_blocks("IFunction", 0.0, None, None)
+        msg = output.getvalue()
+        self.assertIn("h:norm=", msg)
+        self.assertIn("min=5", msg)
+        self.assertIn("max=5", msg)
+        self.assertIn("p:norm=", msg)
+        self.assertIn("e_h:norm=", msg)
+        self.assertNotIn("Y:norm=", msg)
+        self.assertEqual(msg.count("e_h:norm="), 1)
+
     def test_distributed_matrix_contributions_are_added_and_not_accumulated(self):
         mat = PETSc.Mat().createAIJ(size=(N, N), comm=COMM)
         mat.setUp()
