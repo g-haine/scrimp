@@ -66,6 +66,26 @@ class FakeGetFEMDistributedMatrix:
 
 
 class TestMPIAlgebra(unittest.TestCase):
+    def test_final_solution_endpoint_keeps_one_ulp_roundoff_but_not_true_stepover(self):
+        """MCSS2024 reached PETSc t=0.00030000000000000003.
+
+        A strict <= 0.0003 comparison discarded the last accepted
+        snapshot. The same filter must still discard a genuinely
+        larger STEPOVER time (e.g. t=0.00031).
+        """
+        from scrimp.dphs import _select_saved_solution_through_final_time
+
+        t = [0.00031, 0.00030000000000000003, 0.0001, 0.0]
+        states = np.array([[31.0], [30.0], [10.0], [0.0]])
+        saved_t, saved_z = _select_saved_solution_through_final_time(
+            t, states, 0.0003
+        )
+        np.testing.assert_array_equal(saved_t, [0.0, 0.0001, 0.0003])
+        np.testing.assert_array_equal(
+            saved_z[:, 0], [0.0, 10.0, 30.0]
+        )
+        self.assertEqual(saved_t[-1], 0.0003)
+
     def test_direct_ifunction_keeps_source_sign_separate_from_nonlinear_rhs(self):
         """MCSS2024 controls: GetFEM rhs=-N(z)+S, but F includes +N+S.
 
