@@ -398,3 +398,118 @@ offending routine. Then run the **one-rank** smoke, followed by a
 two-rank `--no-init-step` diagnostic run if needed; do not interpret
 that latter run as physically valid.
 
+
+## 2026-11-13 — Native GDB identifies a forced PETSc Mat destroy during TS monitor
+
+The user provided `mpi_open_1rank.log` and `mpi_gdb.log`.
+
+### One-rank smoke: clean process exit, **invalid numerical result**
+
+```text
+exit code = 0
+pseudo-TS initial consistency step completed
+main TS: 1 accepted step, 6 rejected
+stopped at t = 1e-8 (requested t_f = 0.5)
+nonlinear-mass abs_sum ~ 1.10e14
+nonlinear-stiffness abs_sum ~ 5.26e38
+max relative energy/power-balance defect = 48602.5983353432
+```
+
+Therefore *no* physical validation is claimed, even in serial. In
+particular, the extreme Jacobian coefficients and automatic minimum-dt
+stop are numerically unacceptable. The current experimental driver
+now raises an explicit `RuntimeError` when it stops before `t_f`,
+rather than exiting 0 and producing misleading metrics.
+
+### Two-rank native stack: **specific destruction path**
+
+On **both** ranks the last completed nonlinear callback was followed
+by `free(): invalid pointer`. The GDB stack on the rank whose full
+backtrace was captured is:
+
+```text
+libc free
+ PetscFreeAlign -> PetscFreeA
+ MatSeqXAIJFreeAIJ -> MatDestroy_SeqAIJ
+ MatDestroy_MPIAIJ -> MatDestroy
+ PetscObjectDestroy -> PetscGarbageCleanup
+ petsc4py.PETSc.garbage_cleanup
+ petsc4py.PETSc_TS_Monitor
+ TSMonitor -> TSSolve
+```
+
+This identifies the **point of detection**: an MPIAIJ matrix is being
+destroyed *inside the TS monitor*, not in a MUMPS factorization.
+The invalid pointer may have been corrupted **before** destruction.
+It does **not**, by itself, prove a PETSc, GetFEM or MUMPS library bug.
+Gmsh had many parked worker threads, but they are not the crashing
+stack in this GDB trace.
+
+A code review then found:
+- `DPHS.monitor()` manually called `PETSc.garbage_cleanup()` at
+  **every** monitor event.
+- `DPHS.assemble_nl_mass()` replaced `self.tangent_mass` with a *new*
+  PETSc `Mat` via `self.mass.copy()` on **every** evaluation.
+- `DPHS.assemble_nl_stiffness()` similarly replaced
+  `self.tangent_stiffness` with `self.stiffness.copy()`.
+- The old MPIAIJ matrices were thus queued for native destruction at
+  the next forced `PetscGarbageCleanup`, inside `TS.solve`.
+
+### Targeted experimental repair committed to dedicated branch
+
+- **Persistent PETSc tangent matrices:** keep the original
+  `self.tangent_mass` and `self.tangent_stiffness` Mat handles; zero
+  and assemble them *in place* as linear + nonlinear contributions.
+  `MatAXPY(..., DIFFERENT_NONZERO_PATTERN)` handles changing sparse
+  patterns. Temporarily allow new nonzero allocation, then reinstate
+  normal strict allocation checking.
+- **No PETSc garbage collection inside `DPHS.monitor`:** remove the
+  manually forced cleanup during a live TS callback.
+- Avoid disposable `self.GlobalVec.copy()` allocations in the monitor;
+  copy only the needed local NumPy values.
+- New **ninth** MPI regression
+  `test_nonlinear_tangents_reuse_mpi_matrices_without_accumulation`
+  checks stable Mat identities, nonlinear coefficient and sparsity
+  changes, repeatable matrix actions and no accumulation.
+- The experimental SWE driver now explicitly errors if its main time
+  integration does not reach the requested `--final-time`.
+
+**These patches are hypotheses to test, NOT confirmed crash fixes.**
+The local container has no GetFEM/PETSc/MPICH numerical runtime. The
+GitHub source-check CI compiles syntax, not the distributed computation.
+
+### Validation order
+
+```bash
+git pull --ff-only
+for n in 1 2 4; do
+  echo "MPI ranks: $n"
+  timeout -k 5s 45s mpiexec -n "$n" \
+    python -u -m unittest -v tests.test_mpi_algebra || break
+done
+```
+
+Expected **9 tests on every MPI rank**; abort before the smoke test
+if an algebra test fails.
+
+```bash
+PYTHONFAULTHANDLER=1 SCRIMP_MPI_TRACE=1 \
+timeout -k 5s 120s mpiexec -n 2 \
+  python -u sandbox/viscous_swe_2d_mpi.py \
+    --case open --mesh 0.2 --final-time 0.5 \
+    --save-dt 0.1 --max-step 0.01 \
+  > mpi_open_2ranks.log 2>&1
+echo "exit=$?"
+tail -n 90 mpi_open_2ranks.log
+```
+
+If the native SIGABRT disappears but the integrator stops short or the
+Hamiltonian/power defect is large, the **MPI memory problem might be
+partially fixed, but the numerical Saint-Venant model is still wrong**.
+Do not close #6, merge #22 or tag v1.2.1 until physical balances and
+1/2/4-rank agreement are independently validated. The residual
+`IFunction` in SCRIMP still uses a historical
+`K_tangent(z) @ z + rhs(z)` reconstruction for state-dependent mass,
+which is **not generically equal** to the nonlinear residual. This
+requires a separate mathematical correction and finite-difference
+Jacobian audit.
