@@ -166,6 +166,49 @@ class TestMPIAlgebra(unittest.TestCase):
         finally:
             mat.destroy()
 
+    def test_distinct_operator_and_preconditioner_get_same_jacobian(self):
+        """TS's distinct A/P matrices must both receive J=K+shift*M."""
+        def diagonal_matrix(value):
+            mat = PETSc.Mat().createAIJ(size=(N, N), nnz=1, comm=COMM)
+            mat.setUp()
+            diag = mat.createVecLeft()
+            diag.set(value)
+            mat.setDiagonal(diag)
+            mat.assemble()
+            diag.destroy()
+            return mat
+
+        stiffness = diagonal_matrix(2.0)
+        mass = diagonal_matrix(3.0)
+        A = diagonal_matrix(0.0)
+        P = diagonal_matrix(0.0)
+        system = object.__new__(DPHS)
+        system.gf_model = SimpleNamespace(set_time=lambda t: None)
+        system.lumped_variables = set()
+        system.linear_mass = True
+        system.linear_stiffness = True
+        system.tangent_stiffness = stiffness
+        system.tangent_mass = mass
+        try:
+            system.IJacobian(None, 0.0, None, None, 5.0, A, P)
+            for mat in (A, P):
+                x, y = mat.createVecRight(), mat.createVecLeft()
+                try:
+                    x.set(1.0)
+                    mat.mult(x, y)
+                    lo, hi = y.getOwnershipRange()
+                    np.testing.assert_allclose(
+                        y.getArray(readonly=True),
+                        np.full(hi - lo, 17.0),
+                        atol=1e-12,
+                    )
+                finally:
+                    x.destroy()
+                    y.destroy()
+        finally:
+            for mat in (stiffness, mass, A, P):
+                mat.destroy()
+
     def test_rhs_inserted_on_owned_rows_only(self):
         rhs = PETSc.Vec().createMPI(N, comm=COMM)
         model = SimpleNamespace(
