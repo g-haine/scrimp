@@ -63,9 +63,15 @@ def convert_gmm_to_petsc(M, B, comm=comm):
     # Jacobians from prior iterates.
     trace = os.environ.get("SCRIMP_MPI_TRACE") == "1"
     if trace:
+        # Stored CSR slots can include zero-valued entries. Equal CSR
+        # lengths on ranks do not imply equal matrix contributions.
+        nz = int(np.count_nonzero(values))
+        magnitude = float(np.sum(np.abs(values)))
+        first = np.asarray(values[:4])
         print(
             f"[MPI {comm.getRank()}/{comm.getSize()}] "
-            f"GetFEM matrix -> PETSc: N={nrows}, nnz_local={len(values)}",
+            f"GetFEM matrix -> PETSc: N={nrows}, nnz_stored={len(values)}, "
+            f"nnz_nonzero={nz}, abs_sum={magnitude:.9g}, first4={first}",
             file=sys.stderr, flush=True,
         )
     B.zeroEntries()
