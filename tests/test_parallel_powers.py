@@ -31,12 +31,10 @@ class TestParallelPowerPlot(unittest.TestCase):
             with self.subTest(rank=rank):
                 fig = MagicMock()
                 ax = fig.add_subplot.return_value
-                with (
-                    patch.object(dphs_module, "rank", rank),
-                    patch.object(dphs_module.plt, "figure", return_value=fig) as figure,
-                    patch.object(dphs_module.plt, "show") as show,
-                    patch.object(DPHS, "plot_powers", autospec=True) as plot_powers,
-                ):
+                with patch.object(dphs_module, "rank", rank), \
+                     patch.object(dphs_module.plt, "figure", return_value=fig) as figure, \
+                     patch.object(dphs_module.plt, "show") as show, \
+                     patch.object(DPHS, "plot_powers", autospec=True) as plot_powers:
                     self.system.plot_Hamiltonian(with_powers=True)
                     plot_powers.assert_called_once()
                     args, kwargs = plot_powers.call_args
@@ -49,12 +47,10 @@ class TestParallelPowerPlot(unittest.TestCase):
     def test_without_powers_only_root_renders(self):
         for rank in (0, 1):
             with self.subTest(rank=rank):
-                with (
-                    patch.object(dphs_module, "rank", rank),
-                    patch.object(dphs_module.plt, "figure", return_value=MagicMock()),
-                    patch.object(dphs_module.plt, "show"),
-                    patch.object(DPHS, "plot_powers", autospec=True) as plot_powers,
-                ):
+                with patch.object(dphs_module, "rank", rank), \
+                     patch.object(dphs_module.plt, "figure", return_value=MagicMock()), \
+                     patch.object(dphs_module.plt, "show"), \
+                     patch.object(DPHS, "plot_powers", autospec=True) as plot_powers:
                     self.system.plot_Hamiltonian(with_powers=False)
                     plot_powers.assert_not_called()
 
