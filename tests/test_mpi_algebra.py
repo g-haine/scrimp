@@ -66,6 +66,95 @@ class FakeGetFEMDistributedMatrix:
 
 
 class TestMPIAlgebra(unittest.TestCase):
+    def test_direct_ifunction_keeps_source_sign_separate_from_nonlinear_rhs(self):
+        """MCSS2024 controls: GetFEM rhs=-N(z)+S, but F includes +N+S.
+
+        Direct nonlinear finite differences cannot detect the sign of
+        state-independent sources, since dS/dz=0. Check the residual
+        VALUE, and verify that source-only assembly happens iff a source
+        brick is present. PETSc ownership is real, so runs with MPI 1/2/4.
+        """
+        class DummyBrick:
+            def __init__(self, kind):
+                self.kind = kind
+
+            def get_position(self):
+                return self.kind
+
+        def mat_with_diagonal(value):
+            mat = PETSc.Mat().createAIJ(size=(N, N), nnz=1, comm=COMM)
+            mat.setUp()
+            diagonal = mat.createVecRight()
+            try:
+                diagonal.set(value)
+                mat.setDiagonal(diagonal)
+                mat.assemble()
+            finally:
+                diagonal.destroy()
+            return mat
+
+        sys = DPHS.__new__(DPHS)
+        sys.mass = mat_with_diagonal(0.0)
+        sys.stiffness = mat_with_diagonal(-1.0)
+        sys.linear_mass = True
+        sys.linear_stiffness = False
+        sys.lumped_variables = []
+        sys._sync_lumped_trial_state = lambda t, z: None
+        sys._trace_newton_blocks = lambda phase, t, z, zd: None
+
+        z = sys.stiffness.createVecRight()
+        zd = z.duplicate()
+        F = z.duplicate()
+        sys.buffer = z.duplicate()
+        sys.rhs = z.duplicate()
+        try:
+            for include_source in (False, True):
+                sys.bricks = {
+                    "N": DummyBrick("effort"),
+                }
+                if include_source:
+                    sys.bricks["S"] = DummyBrick("source")
+                for u in (0.0, 1.0):
+                    z.set(u)
+                    zd.set(0.0)
+                    calls = []
+
+                    def assemble_rhs(source_only=False):
+                        calls.append(source_only)
+                        # At a constant u, N(u)=3*u^2 and S=2.
+                        # GetFEM returns -N+S before SCRIMP signs.
+                        raw = (-3.0 * u**2) + (
+                            2.0 if include_source else 0.0
+                        )
+                        sys.rhs.set(
+                            2.0 if source_only else raw
+                        )
+                        sys.rhs.assemble()
+
+                    sys.assemble_rhs = assemble_rhs
+                    with patch.dict(
+                        os.environ,
+                        {"SCRIMP_NONLINEAR_RESIDUAL_FORM": "direct_getfem"},
+                    ):
+                        sys.IFunction(None, 0.0, z, zd, F)
+                    expected = -u + 3.0*u**2 + (
+                        2.0 if include_source else 0.0
+                    )
+                    np.testing.assert_allclose(
+                        F.getArray(readonly=True),
+                        np.full(F.getLocalSize(), expected),
+                        rtol=0, atol=1e-12,
+                    )
+                    self.assertEqual(
+                        calls, [False, True] if include_source else [False]
+                    )
+        finally:
+            for obj in (
+                sys.rhs, sys.buffer, F, zd, z,
+                sys.stiffness, sys.mass,
+            ):
+                obj.destroy()
+
     def test_newton_block_trace_uses_port_registry_not_getfem_variable_list(self):
         """GetFEM Model.variable_list() prints and RETURNS NONE in 5.4.2.
 
