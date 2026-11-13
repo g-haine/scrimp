@@ -1333,7 +1333,11 @@ class DPHS:
     def plot_Hamiltonian(self, with_powers=True, save_figure=False, filename="Hamiltonian.png"):
         """Plot each term constituting the Hamiltonian and the Hamiltonian
 
-        May include the `power terms`, i.e. the sum over [t_0, t_f] of the flow/effort product of algebraic ports
+        May include the `power terms`, i.e. the sum over [t_0, t_f] of the flow/effort product of algebraic ports.
+
+        In MPI runs this method must be called on every rank, since computing
+        Hamiltonian terms and port powers requires collective GetFEM assembly.
+        Only rank 0 creates and displays the plot.
 
         Args:
             - with_powers (bool): if `True` (default), the plot will also contains the power of each algebraic ports
@@ -1346,6 +1350,7 @@ class DPHS:
 
         t = np.array(self.solution["t"])
         HamTot = np.zeros(t.size)
+        ax = None
         if rank == 0:
             fig = plt.figure(figsize=[8, 5])
             ax = fig.add_subplot(111)
@@ -1359,7 +1364,9 @@ class DPHS:
         if len(self.hamiltonian) > 1 and rank == 0:
             ax.plot(t, HamTot, label=self.hamiltonian.get_name())
 
-        if with_powers and rank == 0:
+        # GetFEM power assembly can involve MPI collectives: every rank must
+        # enter plot_powers(), even though only rank 0 draws the result.
+        if with_powers:
             self.plot_powers(ax, HamTot=HamTot)
 
         if rank == 0:
