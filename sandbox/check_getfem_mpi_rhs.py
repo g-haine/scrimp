@@ -21,6 +21,15 @@ For N(u) = integral(u**p Test_u) on [0,1] at u=c=1:
   1^T DN(u) 1 = p,  1^T (-D rhs(u)) 1 = p.
 If GetFEM's full RHS has an unintended P-fold factor after MPI
 assembly, only the latter will scale with P.
+
+Critically, run EVERY form with BOTH documented model.assembly modes:
+  - build_rhs: the mode used in SCRIMP DPHS.assemble_rhs()
+  - build_all: simultaneous GetFEM RHS + tangent build
+If only build_rhs has the P-fold defect, SCRIMP could switch to
+build_all after verifying linear/source/constraint brick behavior.
+If both have it, changing the assembly option does not fix it.
+Both modes return a globally numbered, nondistributed GetFEM RHS.
+
 """
 
 import hashlib
@@ -34,7 +43,10 @@ from scrimp.utils.linalg import convert_gmm_to_petsc
 import getfem as gf
 
 
-def evaluate_case(mf, mim, expression, c=1.0, epsilon=1e-5):
+def evaluate_case(
+    mf, mim, expression, assembly_option="build_rhs",
+    c=1.0, epsilon=1e-5,
+):
     model = gf.Model("real")
     model.add_fem_variable("u", mf)
     model.add_nonlinear_term(mim, expression)
@@ -42,7 +54,7 @@ def evaluate_case(mf, mim, expression, c=1.0, epsilon=1e-5):
 
     def rhs_at(u):
         model.set_variable("u", np.full(n, u))
-        model.assembly(option="build_rhs")
+        model.assembly(option=assembly_option)
         return np.asarray(model.rhs(), dtype=float).ravel().copy()
 
     plus, minus = rhs_at(c + epsilon), rhs_at(c - epsilon)
@@ -117,6 +129,7 @@ def evaluate_case(mf, mim, expression, c=1.0, epsilon=1e-5):
     )
     return {
         "expression": expression,
+        "assembly_option": assembly_option,
         "dofs": n,
         "getfem_negative_rhs_derivative_integral":
             float(np.sum(derivative)),
@@ -145,10 +158,13 @@ def main():
     mf.set_fem(gf.Fem("FEM_PK(1,1)"))
     mim = gf.MeshIm(mesh, gf.Integ("IM_GAUSS1D(5)"))
 
+    expressions = [
+        "u*Test_u", "u*u*Test_u", "u*u*u*Test_u",
+    ]
     cases = [
-        evaluate_case(mf, mim, "u*Test_u"),
-        evaluate_case(mf, mim, "u*u*Test_u"),
-        evaluate_case(mf, mim, "u*u*u*Test_u"),
+        evaluate_case(mf, mim, expression, mode)
+        for expression in expressions
+        for mode in ("build_rhs", "build_all")
     ]
     if world.rank == 0:
         print(json.dumps({
