@@ -4,11 +4,11 @@ This branch adds the first **spatially global scalar ports** to SCRIMP,
 with an experimental full-domain 1-D viscous shallow-water / translating-tank
 example at [`sandbox/sloshing_tank.py`](sloshing_tank.py).
 
-**Status: prototype.** No successful full GetFEM/PETSc run has yet been
-performed in the development environment. Do not interpret the notebook's
-previous DG(0) "total momentum" as a genuine lumped state. Please validate
-the discretization, boundary conditions, convergence, and energy budget
-before relying on this example for research results.
+**Status: experimental prototype.** The numerical workstation has run the
+coupled model, including a 15-second Crank–Nicolson trajectory used for a
+visualization. This does **not** settle the open physical questions: boundary
+impermeability, spatial-field convergence and power-budget refinement.
+The old notebook's DG(0) "total momentum" was not a genuine lumped state.
 
 ## How to use it
 
@@ -67,7 +67,7 @@ is **not yet** a mesh/time convergence demonstration.
 This branch now sets `ts_exact_final_time="matchstep"` for the sandbox
 and records the final state explicitly when the exact endpoint is
 reached. The example also accepts `time_step`, `save_step`, and
-`adaptive` arguments. For reproducible fixed-step BDF2 tests:
+`adaptive` arguments. For reproducible fixed-step Crank–Nicolson tests (default):
 
 ```bash
 python sandbox/tank_convergence.py
@@ -84,8 +84,10 @@ impulse as well as to the trapezoidal integration.
 python sandbox/tank_convergence.py --mesh 0.05 0.025 --dt 0.008 0.004 0.002
 ```
 
-These changes have **not yet been executed on a GetFEM/PETSc-equipped
-machine**. Please report any PETSc option / endpoint handling errors.
+To reproduce the earlier BDF2 power-defect studies, append
+`--scheme bdf` (the new default is `--scheme cn`). Runtime simulation
+has succeeded on the numerical workstation; the spatial-field and boundary
+validation remains open.
 
 ## New API
 
@@ -214,7 +216,8 @@ target GetFEM/PETSc runtime**; it has not yet been rerun or validated.
 3. Correct discrete skew symmetry and viscous dissipation must be
    checked numerically after running the coupled model, especially for
    different FE orders and mesh refinements.
-4. Time integration with BDF2 is not energy conserving. In addition to
+4. Crank–Nicolson (and BDF2) is not in general exactly energy preserving
+   for the present nonlinear system. In addition to
    the algebraic and momentum residuals, compare discrete energy changes
    with mechanical work minus viscous dissipation (and numerical losses).
 5. The original file `swe_diss_tank.ipynb` treated `P` as a DG(0)
@@ -229,3 +232,12 @@ target GetFEM/PETSc runtime**; it has not yet been rerun or validated.
 The aim is to keep the feature narrowly scoped until validated in a full
 SCRIMP numerical environment. No change has been made to the repository's
 default branch.
+
+## Power-balance visualization
+
+Run `python sandbox/animate_sloshing_tank.py --scheme cn` to generate
+an MP4 with the true finite-element water surface, a tank-motion trace,
+and synchronized plots of `H(t)-H(0)`, the trapezoidal time integral of
+`force(t)*v(t)-D_visc(t)`, and their **numerical difference**. The video
+also writes a CSV with the time-resolved power and energy diagnostics.
+See `sandbox/README_sloshing_movie.md` for arguments and details.
