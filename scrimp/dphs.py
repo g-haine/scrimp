@@ -1350,11 +1350,24 @@ class DPHS:
                 raise ValueError(
                     "SCRIMP_INIT_PC_TYPE must be bjacobi, none or lu"
                 )
-            init_pc = TS.getSNES().getKSP().getPC()
+            init_ksp = TS.getSNES().getKSP()
+            init_pc = init_ksp.getPC()
             init_pc.setType(init_pc_type)
+            if init_pc_type in ("bjacobi", "none"):
+                # The SWE driver chooses KSPPREONLY for global LU/MUMPS.
+                # Replacing only the PC with BJACOBI while keeping
+                # PREONLY would apply *one* block-Jacobi step, not solve
+                # the linear system. The previous diagnostic therefore
+                # could only report TS DIVERGED_STEP_REJECTED.
+                # Use an actual iterative solve for PC alternatives.
+                init_ksp.setType("gmres")
+                init_ksp.setTolerances(
+                    rtol=1e-8, atol=1e-12, max_it=500
+                )
             _mpi_trace(
-                "init_step: diagnostic PC override="
-                f"{init_pc.getType()} (pseudo-TS only)"
+                "init_step: diagnostic linear solver override="
+                f"KSP={init_ksp.getType()}, PC={init_pc.getType()} "
+                "(pseudo-TS only)"
             )
 
         _mpi_trace("init_step: before algebraic tolerance setup")
