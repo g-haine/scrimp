@@ -907,6 +907,59 @@ class DPHS:
             F.axpy(1, self.rhs)
         _mpi_trace("IFunction: residual completed")
 
+    def _add_nonlinear_mass_hessian_fd(self, t, z, zd, P):
+        """Add (D_z M(z)[.] ) zd to PETSc's implicit Jacobian, opt-in.
+
+        Nonlinear GetFEM dt bricks represent a weak flow primitive
+        Q(z), with M(z) = D Q(z). By Schwarz symmetry,
+        (D_z M(z)[v]) zd = (D_z M(z)[zd]) v, which can be assembled
+        by a directional central difference of the tangent mass.
+
+        This experimental path has been verified on the 2D viscous
+        Saint-Venant model but is intentionally disabled by default:
+        generic nonlinear masses still require mathematical review.
+        """
+        if self.linear_mass or zd.norm() == 0:
+            return
+
+        eta = float(os.environ.get(
+            "SCRIMP_NONLINEAR_MASS_FD_EPSILON", "1e-4"
+        ))
+        if not np.isfinite(eta) or eta <= 0:
+            raise ValueError(
+                "SCRIMP_NONLINEAR_MASS_FD_EPSILON must be finite > 0"
+            )
+
+        z_plus, z_minus = z.copy(), z.copy()
+        mass_plus = mass_minus = correction = None
+        try:
+            z_plus.axpy(eta, zd)
+            z_minus.axpy(-eta, zd)
+
+            self._sync_lumped_trial_state(t, z_plus)
+            self.assemble_nl_mass()
+            mass_plus = self.tangent_mass.copy()
+
+            self._sync_lumped_trial_state(t, z_minus)
+            self.assemble_nl_mass()
+            mass_minus = self.tangent_mass.copy()
+
+            structure = PETSc.Mat.Structure.DIFFERENT_NONZERO_PATTERN
+            correction = mass_plus.copy()
+            correction.axpy(-1.0, mass_minus, structure=structure)
+            correction.scale(0.5 / eta)
+            P.axpy(1.0, correction, structure=structure)
+            P.assemble()
+        finally:
+            # Crucial: callbacks after IJacobian must see the original
+            # Newton trial state, not the displaced Hessian state.
+            self._sync_lumped_trial_state(t, z)
+            self.assemble_nl_mass()
+            for obj in (correction, mass_plus, mass_minus,
+                        z_plus, z_minus):
+                if obj is not None:
+                    obj.destroy()
+
     def set_linear_flags(self):
         """
         This function set the "linear flags" to speed-up IFunction calls for linear systems.
@@ -952,6 +1005,27 @@ class DPHS:
         _mpi_trace("IJacobian: after tangent -> preconditioner copy")
         _mpi_trace("IJacobian: before shift*mass AXPY")
         P.axpy(sig, self.tangent_mass, structure=structure)
+
+        mass_mode = os.environ.get(
+            "SCRIMP_NONLINEAR_MASS_JACOBIAN", "legacy"
+        ).strip().lower()
+        if mass_mode not in ("legacy", "finite_difference"):
+            raise ValueError(
+                "SCRIMP_NONLINEAR_MASS_JACOBIAN must be "
+                "legacy or finite_difference"
+            )
+        if mass_mode == "finite_difference" and not self.linear_mass:
+            if os.environ.get(
+                "SCRIMP_NONLINEAR_RESIDUAL_FORM", "legacy"
+            ).strip().lower() != "direct_getfem":
+                raise ValueError(
+                    "The mass Hessian diagnostic requires "
+                    "SCRIMP_NONLINEAR_RESIDUAL_FORM=direct_getfem"
+                )
+            _mpi_trace("IJacobian: before nonlinear mass Hessian FD")
+            self._add_nonlinear_mass_hessian_fd(t, z, zd, P)
+            _mpi_trace("IJacobian: after nonlinear mass Hessian FD")
+
         _mpi_trace("IJacobian: preconditioner assembled")
 
         if os.environ.get("SCRIMP_MPI_TRACE") == "1":
