@@ -255,6 +255,12 @@ class TestMPIAlgebra(unittest.TestCase):
                     patch.object(linalg.gf, "Spmat", return_value=fake):
                 for coefficient in (1.0, 2.0, 0.5, 3.0, 1.0):
                     for k in range(N):
+                        # Shift the offdiagonal column across assemblies:
+                        # the nonlinear matrix changes sparsity pattern as
+                        # well as coefficient values, but its row sum stays c.
+                        fake.col_idx[2*k+1] = (
+                            k + (1 if coefficient <= 1.0 else 2)
+                        ) % N
                         fake.values[2*k:2*k+2] = (
                             2.0 * coefficient, -coefficient
                         )
