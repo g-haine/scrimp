@@ -94,6 +94,78 @@ def describe_fields(system):
     return result
 
 
+def published_energy_balance(swe):
+    """Evaluate the same energy and power forms as MCSS2024, experiment 3.
+
+    The published script uses CN=True for power evaluation and
+    int_scheme='Explicit': right-end sample times each interval width.
+    This preserves its actual diagnostic convention, without plotting
+    or editing the archived published source.
+    """
+    t = np.asarray(swe.solution["t"], dtype=float)
+    if t.size < 2:
+        raise RuntimeError("Need at least two saved times to check energy")
+
+    swe.hamiltonian.set_name("Mechanical energy (MCSS2024)")
+    for title, formula in (
+        ("Kinetic energy", "0.5 * h * p.p / rho"),
+        ("Potential energy", "0.5 * rho * g * h*h"),
+    ):
+        swe.hamiltonian.add_term(S.Term(title, formula, [1]))
+    swe.compute_Hamiltonian()
+    energy = np.zeros_like(t)
+    for term in swe.hamiltonian.get_terms():
+        energy += np.asarray(term.get_values(), dtype=float)
+
+    # MCSS2024's original power expressions and signs (grad branch).
+    # Positive dissipation and negative boundary inflow terms are
+    # ADDED to H to form a nominally constant total-energy balance.
+    forms = {
+        "viscous_grad": (
+            "2 * mu * h * D(e_p) : D(e_p)", 1,
+        ),
+        "viscous_div": (
+            "2 * mu * h * div(e_p) * div(e_p)", 1,
+        ),
+        "normal_port": ("-h * U_n * Y_n", 10),
+        "vector_port": ("-h * U . Y", 10),
+    }
+    integrated = {}
+    for name, (expr, region) in forms.items():
+        if region == 1:
+            power = np.asarray(swe.get_quantity(expr, CN=True), dtype=float)
+        else:
+            power = np.asarray(
+                swe.get_quantity(expr, CN=True, region=region),
+                dtype=float,
+            )
+        if power.shape != t.shape:
+            raise ValueError(
+                f"Power {name} shape {power.shape} != times {t.shape}"
+            )
+        values = np.zeros_like(t)
+        values[1:] = np.cumsum(np.diff(t) * power[1:])
+        integrated[name] = values
+    total = energy.copy()
+    for values in integrated.values():
+        total += values
+    defect = total - total[0]
+    relative = defect / max(abs(float(energy[0])), 1e-14)
+    return {
+        "times": t.tolist(),
+        "hamiltonian": energy.tolist(),
+        "integrated_viscous_grad": integrated["viscous_grad"].tolist(),
+        "integrated_viscous_div": integrated["viscous_div"].tolist(),
+        "integrated_normal_port": integrated["normal_port"].tolist(),
+        "integrated_vector_port": integrated["vector_port"].tolist(),
+        "energy_balance_defect": defect.tolist(),
+        "maximum_relative_balance_error": float(
+            np.max(np.abs(relative))
+        ),
+        "discretization": "published: CN=True, int_scheme=Explicit",
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--final-time", type=float, default=0.0003)
@@ -109,6 +181,11 @@ def main():
     parser.add_argument(
         "--newton-block-trace", action="store_true",
         help="Optional per-block trace of initial nonlinear Newton steps",
+    )
+    parser.add_argument(
+        "--energy-balance", action="store_true",
+        help="Calculate MCSS2024 Hamiltonian and integrated physical "
+             "dissipation/boundary powers at all saved times",
     )
     args = parser.parse_args()
     if (not np.isfinite(args.final_time) or args.final_time <= 0
@@ -155,6 +232,7 @@ def main():
         }, indent=2), flush=True)
 
     swe.solve()
+    balance = published_energy_balance(swe) if args.energy_balance else None
     times = np.asarray(swe.solution["t"], dtype=float)
     # The monitor is NOT an authoritative record of the actual TS
     # endpoint: it samples on dt_save, potentially skipping the last
@@ -176,6 +254,7 @@ def main():
             "requested_final_time": args.final_time,
             "saved_steps": int(times.size),
             "state_fields": describe_fields(swe),
+            "published_energy_balance": balance,
         }, indent=2), flush=True)
     if (converged_reason <= 0 or not np.isfinite(reached) or (
         reached < args.final_time - 1e-10 * max(1.0, args.final_time)
