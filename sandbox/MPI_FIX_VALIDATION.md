@@ -605,3 +605,124 @@ pseudo-TS (no claim of valid initial DAE consistency), also try
 `--no-init-step` at 2 MPI ranks; if it does not crash but terminates
 early with the new `RuntimeError`, that still distinguishes the
 native failure stage from the invalid physical result.
+
+## 2026-11-13 — Ten tests green; GDB pinpoints MUMPS factor destruction in TS.reset
+
+**Latest user-verified results:** all **10 algebra tests pass** at MPI
+sizes 1, 2 and 4. The original 2-rank SWE smoke still exits **139**
+when not running under GDB, after both `IJacobian: completed`.
+
+The user then captured the CURRENT native GDB stack with the hardened
+MatCopy/MatAXPY code. **Crucially, the GDB run advances further than
+the non-GDB run:** on both ranks:
+
+```text
+[SCRIMP MPI 0/2] init_step: after pseudo TS.solve
+[SCRIMP MPI 1/2] init_step: after pseudo TS.solve
+double free or corruption (!prev)
+Thread 1 "python" received signal SIGABRT
+```
+
+GDB's native stack (same path on both ranks):
+
+```text
+__libc_free
+  PetscFreeAlign
+  MatDestroy_MUMPS
+  MatDestroy
+  PCReset_LU
+  PCReset
+  KSPReset
+  SNESReset
+  TSReset
+  petsc4py.PETSc.TS.reset
+```
+
+This identifies **MUMPS factor destruction during explicit
+`TS.reset()` AFTER `TS.solve()`** as the point where the allocator
+detects a double free / heap corruption. This is NOT a claim that the
+MUMPS library itself introduced the corruption. Since GDB affects
+memory layout, the earlier non-GDB SIGSEGV after the Jacobian can be a
+different manifestation of the same underlying native issue.
+
+Also, the GDB run shows massive growth in GetFEM nonlinear term norms
+during the pseudo-TS (nonlinear stiffness absolute sum about
+`4.48e46`): the formulation/consistency solve is **numerically
+invalid**, even when the native crash is isolated.
+
+### First isolate the PETSc/MUMPS factor lifecycle without SCRIMP
+
+A new standalone script, `sandbox/test_petsc_mumps_reset.py`, imports
+**only PETSc**, assembles a well-conditioned distributed tridiagonal
+matrix, solves with global LU/MUMPS and explicitly resets KSP
+(`PCReset_LU -> MatDestroy_MUMPS`). The option `--solver bjacobi`
+runs a control case without global MUMPS. Both run repeated cycles.
+
+```bash
+git pull --ff-only
+
+timeout -k 5s 45s mpiexec -n 1 \
+  python -u sandbox/test_petsc_mumps_reset.py \
+  --solver mumps --cycles 3 \
+  > mumps_minimal_1rank.log 2>&1
+echo "minimal 1 rank exit=$?"
+tail -n 35 mumps_minimal_1rank.log
+
+timeout -k 5s 45s mpiexec -n 2 \
+  python -u sandbox/test_petsc_mumps_reset.py \
+  --solver mumps --cycles 3 \
+  > mumps_minimal_2ranks.log 2>&1
+echo "minimal 2 ranks exit=$?"
+tail -n 35 mumps_minimal_2ranks.log
+```
+
+If global MUMPS crashes even on this small tridiagonal system, the
+failure is independently reproducible in the PETSc/MUMPS stack and
+should be treated as an environment/native library issue (preserving
+the original environment). If it passes, that **does not rule out**
+MUMPS on the large, indefinite 3300x3300 system.
+
+### Then isolate the pseudo-TS preconditioner only
+
+The code now accepts an **environment-variable diagnostic**:
+`SCRIMP_INIT_PC_TYPE=bjacobi`, which overrides just the *initial*
+TS's PC after its `setFromOptions()`, leaving the main TS unchanged.
+It is NOT a production solver configuration and is NOT evidence of
+valid numerical integration.
+
+```bash
+SCRIMP_INIT_PC_TYPE=bjacobi PYTHONFAULTHANDLER=1 SCRIMP_MPI_TRACE=1 \
+timeout -k 5s 120s mpiexec -n 2 \
+  python -u sandbox/viscous_swe_2d_mpi.py \
+  --case open --mesh 0.2 --final-time 0.5 \
+  --save-dt 0.1 --max-step 0.01 \
+  > mpi_open_init_bjacobi_2ranks.log 2>&1
+
+echo "pseudo-TS BJACOBI exit=$?"
+grep -E 'init_step:|solve:|RuntimeError|Fatal Python error|SIGSEGV|Aborted|PC override' \
+  mpi_open_init_bjacobi_2ranks.log | tail -n 45
+tail -n 60 mpi_open_init_bjacobi_2ranks.log
+```
+
+Interpretation:
+- **Minimal MUMPS fails**: strong signal of a native factor lifecycle
+  issue independent of SCRIMP/GetFEM.
+- **Minimal MUMPS passes; BJACOBI makes pseudo-TS reset succeed**:
+  factor destruction is specific to MUMPS **in this nonlinear
+  workload**, or earlier corruption is only revealed by MUMPS;
+  gather state/stack diagnostics before claiming a MUMPS bug.
+- **BJACOBI also crashes in TS.reset**: investigate other PETSc
+  matrices, state copies and allocator damage. GDB on BJACOBI
+  should show whether the factor-path changed.
+- **BJACOBI diverges before reset**: inconclusive. Some DAE linear
+  systems need global LU and block Jacobi may not converge.
+
+The callback now prints explicit messages before and after `TS.reset`
+and `TS.destroy`; logs can distinguish an actual reset corruption
+from a later destroy. If further profiling is required, use
+`-malloc_debug` in a dedicated PETSc test build; this is not enabled
+by default in a Conda release build.
+
+Do **not** remove `TS.reset()` merely to conceal the error: freeing
+a corrupted MUMPS factor later would still be unsafe. Do not merge or
+tag while the memory and numerical consistency problems persist.
