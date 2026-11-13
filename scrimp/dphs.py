@@ -48,6 +48,75 @@ def _mpi_trace(stage):
               file=sys.stderr, flush=True)
 
 
+# GetFEM promises a globally summed RHS, replicated on all ranks, NOT
+# a separate piece to be summed again in PETSc:
+# https://getfem.org/userdoc/parallel.html
+#
+# A full replicated RHS is normal and does NOT justify division by P.
+# On the original local GetFEM 5.4.2 MPI-2 build, however, actual
+# integrals were P times the sequential reference at P=1,2,4, while
+# their tangent was independent of P. Suspected cause: a contribution
+# is assembled redundantly across processes *before* GetFEM's reduction.
+# Avoid assuming ALL GetFEM MPI-2 binaries have that behavior. Calibrate
+# the installed generic-assembly RHS once against an exactly known
+# integral and normalize only if it really is duplicated.
+_getfem_rhs_calibration = None
+
+
+def _getfem_mpi_rhs_scale():
+    """Calibrate MPI reduction against the exact integral of u on [0,1].
+
+    A GetFEM reference model with u=1 and weak form u*Test_u must
+    return a negative RHS whose entry sum is -1, regardless of P.
+    Detect either correct global summation (1) or P-fold duplicated
+    summation (P). Do not silently normalize unexpected values.
+    This probes *generic nonlinear bricks* only: custom/explicit
+    RHS bricks can have different MPI conventions.
+    """
+    global _getfem_rhs_calibration
+    if max_rank == 1 or int(gf.util_mpi_parallelism_level()) != 2:
+        return 1.0
+    if _getfem_rhs_calibration is not None:
+        return _getfem_rhs_calibration
+
+    # All ranks must execute GetFEM's MPI-parallel model assembly.
+    mesh = gf.Mesh("cartesian", np.linspace(0.0, 1.0, 17))
+    mf = gf.MeshFem(mesh, 1)
+    mf.set_fem(gf.Fem("FEM_PK(1,1)"))
+    mim = gf.MeshIm(mesh, gf.Integ("IM_GAUSS1D(5)"))
+    probe = gf.Model("real")
+    probe.add_fem_variable("rhs_probe", mf)
+    probe.add_nonlinear_term(mim, "rhs_probe*Test_rhs_probe")
+    probe.set_variable("rhs_probe", np.ones(probe.nbdof()))
+    probe.assembly(option="build_rhs")
+    factor = -float(np.real(np.asarray(probe.rhs()).sum()))
+    # Respect the PETSc communicator; verify all processes independently
+    # see the same GetFEM reduction factor before accepting it.
+    factors = comm.tompi4py().allgather(factor)
+    if not np.allclose(factors, factor, rtol=1e-10, atol=1e-10):
+        raise RuntimeError(
+            "Inconsistent GetFEM RHS normalization across MPI ranks: "
+            f"{factors}"
+        )
+    if np.isclose(factor, 1.0, rtol=1e-8, atol=1e-8):
+        scale = 1.0
+    elif np.isclose(factor, max_rank, rtol=1e-8, atol=1e-8):
+        scale = 1.0 / max_rank
+    else:
+        raise RuntimeError(
+            "Unexpected GetFEM MPI RHS integral for u=1 on [0,1]: "
+            f"{factor:.12g} (expected 1 or {max_rank}). "
+            "Set SCRIMP_GETFEM_RHS_MODE=raw only after verifying "
+            "the installed GetFEM assembly."
+        )
+    _getfem_rhs_calibration = scale
+    _mpi_trace(
+        f"GetFEM RHS calibration: measured={factor:.12g}, "
+        f"mpi_ranks={max_rank}, scale={scale:.12g}"
+    )
+    return scale
+
+
 import scrimp.utils.config
 outputs_path = scrimp.utils.config.outputs_path
 
@@ -698,16 +767,19 @@ class DPHS:
         size = self.gf_model.nbdof()
         if gf_rhs.size != size or self.rhs.getSize() != size:
             raise ValueError("GetFEM/PETSc RHS size mismatch")
-        # On the validated GetFEM 5.4.2 MPI-level-2 build the
-        # *replicated* RHS is over-summed by exactly the MPI size.
-        # This has been measured for 1D linear/quadratic/cubic bricks
-        # at 1/2/4 ranks and for the full nonlinear 2D SWE. Correct
-        # the PETSc owned-row copy ONCE; never sum the replicated RHS.
+        # For the local GetFEM 5.4.2 MPI-2 installation, generic
+        # terms' *global* RHS is P-fold too large at P=1,2,4;
+        # the native matrices are not. This indicates duplicate
+        # contributions before/in GetFEM's MPI reduction, not duplicate
+        # PETSc insertion (only owned rows are copied here).
         #
-        # Other GetFEM builds could have fixed their reduction. Keep
-        # 'raw' as an explicit compatibility escape hatch and make
-        # 'auto' normalize only known MPI-level-2 assemblies. An
-        # integration test detects an unexpected over/under-scaling.
+        # WARNING: full RHS replication is normal and is NOT itself
+        # a reason to divide by P. 'auto' runs a small exact-integral
+        # calibration once per MPI process and scales *only if* a
+        # duplicate factor is observed. 'raw' is for already-correct
+        # GetFEM RHS or model-specific exceptions. Explicit RHS/
+        # constraint bricks have special master-only GetFEM semantics:
+        # a generic probe does not certify every such mixed model.
         rhs_mode = os.environ.get(
             "SCRIMP_GETFEM_RHS_MODE", "auto"
         ).strip().lower()
@@ -717,11 +789,11 @@ class DPHS:
                 "auto, raw or divide_by_mpi_size"
             )
         if rhs_mode == "auto":
-            is_mpi2 = int(gf.util_mpi_parallelism_level()) == 2
-            normalize = max_rank > 1 and is_mpi2
+            scale = _getfem_mpi_rhs_scale()
+        elif rhs_mode == "divide_by_mpi_size":
+            scale = 1.0 / max_rank
         else:
-            normalize = rhs_mode == "divide_by_mpi_size"
-        scale = 1.0 / max_rank if normalize else 1.0
+            scale = 1.0
         if os.environ.get("SCRIMP_MPI_TRACE") == "1":
             _mpi_trace(f"rhs: mode={rhs_mode}, scale={scale:.9g}")
         lo, hi = self.rhs.getOwnershipRange()
