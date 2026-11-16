@@ -1667,7 +1667,12 @@ class DPHS:
         TS.setTime(float(self.time_scheme["t_0"]))
         TS.setMaxTime(float(self.time_scheme["t_f"]))
         TS.setTimeStep(float(self.time_scheme["dt"]))
-        TS.setExactFinalTime(PETSc.TS.ExactFinalTime.STEPOVER)
+        # MATCHSTEP is the default: PETSc adapts the *last* time step
+        # so the integrated solution reaches t_f, rather than taking
+        # a STEPOVER step past t_f and losing its final saved state.
+        # A caller may explicitly restore legacy behavior using
+        # ts_exact_final_time=stepover (PETSc -ts_exact_final_time).
+        TS.setExactFinalTime(PETSc.TS.ExactFinalTime.MATCHSTEP)
         TS.setFromOptions()
         self.exclude_algebraic_var_from_lte(TS)
 
