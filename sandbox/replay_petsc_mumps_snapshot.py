@@ -140,7 +140,7 @@ def replay(path, cycles, factor_only, solver="mumps"):
 
 
 def replay_changing_operator(first_path, second_path, transitions,
-                             solver="mumps"):
+                             solver="mumps", transition_reset="none"):
     """Reuse a single KSP/PC and a single Mat across evolving sparsity.
 
     In contrast with replay(), this recreates the important Newton
@@ -176,11 +176,33 @@ def replay_changing_operator(first_path, second_path, transitions,
             comm,
             f"persistent KSP: {initial.getSize()}, "
             f"first norm={initial.norm(PETSc.NormType.FROBENIUS):.12g}, "
-            f"next norm={later.norm(PETSc.NormType.FROBENIUS):.12g}",
+            f"next norm={later.norm(PETSc.NormType.FROBENIUS):.12g}, "
+            f"solver={solver}, transition_reset={transition_reset}",
         )
         for index in range(transitions):
             source = initial if index % 2 == 0 else later
             if index > 0:
+                # Reset before changing the operator: after a symbolic
+                # factorization the PC may still own LU symbolic
+                # structures for the OLD sparse graph. This is an
+                # opt-in diagnostic; the default reproduces the bug.
+                if transition_reset != "none":
+                    emit(
+                        comm,
+                        f"transition={index} BEFORE "
+                        f"{transition_reset}.reset",
+                    )
+                    if transition_reset == "pc":
+                        ksp.getPC().reset()
+                    elif transition_reset == "ksp":
+                        ksp.reset()
+                    else:
+                        raise ValueError(transition_reset)
+                    emit(
+                        comm,
+                        f"transition={index} AFTER "
+                        f"{transition_reset}.reset",
+                    )
                 # Keep the exact Mat handle referenced by KSP while
                 # its sparsity changes, as happens during SWE Newton.
                 emit(
@@ -207,7 +229,26 @@ def replay_changing_operator(first_path, second_path, transitions,
                 f"reason={reason}, iterations={ksp.getIterationNumber()}, "
                 f"relative_linear_residual={relative_residual:.9g}",
             )
-            if reason <= 0 or relative_residual > 1e-5:
+            if reason <= 0 or not (
+                relative_residual <= 1e-5
+            ):
+                pc = ksp.getPC()
+                details = {
+                    "KSP_reason": reason,
+                    "PC_type": pc.getType(),
+                    "PC_failed_reason": str(pc.getFailedReason()),
+                }
+                if pc.getType() == "lu" and solver == "mumps":
+                    try:
+                        factor = pc.getFactorMatrix()
+                        details["MUMPS_INFOG(1)"] = factor.getMumpsInfog(1)
+                        details["MUMPS_INFOG(2)"] = factor.getMumpsInfog(2)
+                    except Exception as exc:
+                        details["factor_query_error"] = repr(exc)
+                emit(
+                    comm,
+                    f"transition={index} factor_failure={details}"
+                )
                 raise RuntimeError(
                     "Persistent KSP failed after a nonlinear matrix update"
                 )
@@ -241,6 +282,13 @@ def main():
              "KSP and Mat while alternating old/new Jacobian patterns",
     )
     parser.add_argument(
+        "--transition-reset", choices=("none", "pc", "ksp"),
+        default="none",
+        help="For a changing matrix, reset the factor PC or full KSP "
+             "BEFORE in-place Mat.copy; isolate stale sparse symbolic "
+             "factorization. Default none reproduces the failure.",
+    )
+    parser.add_argument(
         "--factor-only", action="store_true",
         help="Set up/factor and reset, without KSP.solve()",
     )
@@ -252,9 +300,11 @@ def main():
             parser.error("--factor-only cannot be used with --next-matrix")
         replay_changing_operator(
             args.matrix, args.next_matrix, args.cycles,
-            solver=args.solver,
+            solver=args.solver, transition_reset=args.transition_reset,
         )
     else:
+        if args.transition_reset != "none":
+            parser.error("--transition-reset requires --next-matrix")
         replay(args.matrix, args.cycles, args.factor_only,
                solver=args.solver)
 
