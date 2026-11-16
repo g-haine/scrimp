@@ -129,6 +129,7 @@ def main():
             ("Main IFunction callback", "main.petsc.callback.ifunction"),
             ("Main IJacobian callback", "main.petsc.callback.ijacobian"),
             ("Main PETSc remainder", "main.petsc.non_callback_remainder"),
+            ("Main MUMPS PC.reset (opt-in)", "main.petsc.pc_reset"),
             ("Main GetFEM RHS", "main.getfem.rhs"),
             ("Main GetFEM nonlinear mass", "main.getfem.nl_mass"),
             ("Main GetFEM nonlinear stiffness", "main.getfem.nl_stiffness"),
