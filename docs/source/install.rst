@@ -187,8 +187,8 @@ container the mandatory CI command is:
 
 .. code-block:: bash
 
-    python sandbox/analyze_getfem_mpi_assembly.py \\
-        --matrix-mode distributed --require-physical-rhs \\
+    python sandbox/analyze_getfem_mpi_assembly.py \
+        --matrix-mode distributed --require-physical-rhs \
         sandbox/outputs/getfem-assembly/*.json
 
 The RHS bridge calibrates generic contributions in
