@@ -63,6 +63,14 @@ else
   exit 2
 fi
 
+# GetFEM 5.5 prints "Assembly time" unconditionally on MPI rank 0
+# during *every* assembly, even with gf.util_trace_level(0).
+# Make this diagnostic opt-in in future native builds; never redirect
+# stdout/stderr from SCRIMP or edit the numerical assembly itself.
+# Refuse unrecognised upstream layouts instead of silently guessing.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+python "$SCRIPT_DIR/patch-getfem-mpi-timing.py" "$src/src/getfem_models.cc"
+
 echo "GetFEM=$GETFEM_VERSION source=$GETFEM_SOURCE"
 echo "MPI=$("$CC" -show 2>/dev/null || command -v "$CC")"
 echo "Python=$PYTHON_BIN NumPy=$(python -c 'import numpy; print(numpy.__version__)')"
