@@ -57,6 +57,29 @@ No production `dphs.py` policy change until GetFEM nonlinear verification.
 Next prioritize the full acoustic state parity and power balance, then
 real GetFEM nonlinear Jacobians with a deliberately changing pattern.
 
+**Four-rank full acoustic trajectory parity confirmed (2026-11-16):**
+the real `examples/wave.py` model with 12,682 DOFs, Crank–Nicolson
+`dt=0.002` and `t_f=0.04` completed 20 accepted steps, 0 rejected
+steps, 0 SNES failures, and 20 saved snapshots under both
+`SCRIMP_MUMPS_RESET_PC_ON_JACOBIAN=1` and `=0`. Both runs gave
+zero rank-to-rank state differences. Full saved coefficient trajectories
+agree: maximum absolute difference 2.8765878568e-13, relative L2
+trajectory difference 6.0266261847e-14. Single-run reported solver
+elapsed times were 1.816 s (reset) and 0.5967 s (reuse), an
+approximately 3.04x indicative speedup; repeat runs before quoting a
+statistically reliable performance improvement.
+
+**Warning to investigate separately:** both runs issue
+`ComplexWarning: Casting complex values to real discards the imaginary
+part` in `scrimp/dphs.py:1046` during the initial consistency solve.
+The trajectories agree in spite of this warning, but this test alone
+does not establish that any imaginary data would be negligible in
+general. Do not silently suppress the warning.
+
+**Next:** audit driven-boundary Hamiltonian/port-power balance with
+`check_acoustic_energy_mpi.py`, for both reset settings, then test
+actual nonlinear GetFEM Jacobians.
+
 
 ## Rationale
 
