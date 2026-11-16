@@ -1624,7 +1624,48 @@ class DPHS:
         comm.barrier()
         
         _mpi_trace("solve: before main TS.solve")
-        TS.solve(InitVec)
+        try:
+            TS.solve(InitVec)
+        except PETSc.Error:
+            # Requested only for a SERIAL native MUMPS failure. Read
+            # KSP/PC and the actual LU factor's MUMPS status *before*
+            # PETSc may destroy them. No extra assembly, no change to
+            # the nonlinear PDE or the solver options. Do not attempt
+            # diagnostics on only rank 0 in MPI: some getters are
+            # logically collective.
+            if (
+                os.environ.get("SCRIMP_MUMPS_FACTOR_DIAGNOSTICS") == "1"
+                and max_rank == 1
+            ):
+                try:
+                    ksp = TS.getSNES().getKSP()
+                    pc = ksp.getPC()
+                    factor_details = {}
+                    if pc.getType() == "lu":
+                        factor = pc.getFactorMatrix()
+                        factor_details = {
+                            "type": factor.getType(),
+                            "INFOG(1)": factor.getMumpsInfog(1),
+                            "INFOG(2)": factor.getMumpsInfog(2),
+                            "INFO(1)": factor.getMumpsInfo(1),
+                            "INFO(2)": factor.getMumpsInfo(2),
+                        } if pc.getFactorSolverType() == "mumps" else {}
+                    logging.error(
+                        "MAIN TS PETSc linear-solve failure: "
+                        f"TS_reason={int(TS.getConvergedReason())}, "
+                        f"SNES_reason={int(TS.getSNES().getConvergedReason())}, "
+                        f"KSP_reason={int(ksp.getConvergedReason())}, "
+                        f"PC_type={pc.getType()}, "
+                        f"PC_failed={pc.getFailedReason()}, "
+                        f"factor_solver={pc.getFactorSolverType()}, "
+                        f"MUMPS_factor={factor_details}"
+                    )
+                except Exception as diagnostic_error:
+                    logging.error(
+                        "MAIN TS MUMPS factor diagnostic unavailable: "
+                        f"{diagnostic_error!r}"
+                    )
+            raise
         # The stored solution samples depend on dt_save and the monitor.
         # Their last timestamp need NOT equal the actual PETSc TS end
         # time (e.g. steps at 0.0001, 0.0003 with dt_save=0.0001).
