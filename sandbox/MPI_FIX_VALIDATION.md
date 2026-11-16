@@ -3340,3 +3340,90 @@ Long-term preferred: stabilize the sparsity graph and avoid needless
 symbolic factorization; optimize collective pattern change detection
 only *after* the safe reset experiment is validated.
 The draft PR #22 remains unmerged; no v1.2.1 tag.
+
+## 2026-11-16 — Full MCSS2024 main TS with opt-in MUMPS reset PASSED (one rank)
+
+**Native full user log:** `mcss2024_pc_reset_main_mumps_1rank.log`
+(1045 lines), exit 0, original published MCSS 2024 experiment 3
+imported unchanged, current SCRIMP branch. PETSc 3.21.6 with complex
+scalars; **10,272 DOFs**. Set
+`SCRIMP_MUMPS_RESET_PC_ON_JACOBIAN=1`,
+`SCRIMP_GETFEM_RHS_MODE=divide_by_mpi_size`. The historical
+two-step pseudo initial consistency TS used **SuperLU** (23.58s)
+and the physical **BDF2 used MUMPS**.
+
+- Five `before opt-in MUMPS PC.reset` messages followed by five
+  `after` messages, all within main IJacobian callbacks, before
+  the in-place tangent-to-preconditioner copy. No MUMPS failure.
+- **Main TS completed**, reason=1, reached
+  `t=0.00030000000000000003`, 2 accepted steps,
+  0 rejected steps, 0 SNES failures, 5 Newton/linear iterations,
+  3 saved physical states through the correct endpoint.
+  Total elapsed time was 26.62s.
+- The first physical BDF Jacobian had **449417 stored CSR
+  entries**; its next Newton Jacobian had **451590**. Both now
+  solve within the SAME TS/SNES/KSP lifecycle, showing the
+  previously failing changing-sparsity transition is handled
+  on one rank by opt-in PC reset.
+- PETSc reported **no nonfinite Jacobian entries** and no fully
+  zero numerical rows. The 252 zero diagonal entries are a
+  separate mixed saddle-point issue and do not imply singularity.
+- State-field values remained finite, with final height
+  approximately `[49.9997632, 50.0002367]`.
+- **Published physical maximum relative power/energy defect**
+  `9.589926180401037e-09`, identical to the previously
+  verified serial SuperLU value (at the printed precision).
+  `H0=41.40691140421561`,
+  `Hf=41.40690686525292`,
+  `D_grad=7.266481074724566e-07`,
+  `D_div=1.8637708506289446e-09`,
+  `B_normal=0`,
+  `B_vector=+3.4133615890518872e-06`.
+  Here **B has the published SIGNED expression**
+  `-h*U.Y`, not a positive-input-power convention;
+  `defect=Hf-H0 + D_grad + D_div + B_normal+B_vector
+  = -3.9708922372483357e-07`.
+  Do not mistakenly subtract the positive numerical B value.
+
+**Verdict:** the opt-in PC reset addresses the original MUMPS
+`INFOG(1)=-3` failure in the full one-rank physical BDF2
+experiment. It does **not** establish all-MUMPS pseudo-startup,
+two-rank assembly / parallel MUMPS convergence, scalable
+performance, or the published 500-second long-time behavior.
+
+**Next experiment:** use MUMPS for BOTH the historical pseudo
+initial TS and main BDF2, with reset still enabled, first on
+**one** rank. The earlier all-MUMPS startup failed with
+`DIVERGED_STEP_REJECTED` *before the new reset existed*.
+Only if all-MUMPS one-rank startup + physical time integration
+pass should the **same** test be attempted with two ranks.
+Before a parallel physical run, rerun `tests.test_mpi_algebra`
+with 1/2/4 ranks. Do not use SuperLU for MPI2 initialization.
+
+```bash
+git pull --ff-only
+conda activate scrimp
+
+SCRIMP_GETFEM_RHS_MODE=divide_by_mpi_size \
+SCRIMP_MUMPS_RESET_PC_ON_JACOBIAN=1 \
+PYTHONFAULTHANDLER=1 \
+timeout -k 5s 180s mpiexec -n 1 \
+  python -u sandbox/probe_mcss2024_reference.py \
+    --solver mumps --init-solver mumps \
+    --final-time 0.0003 --save-dt 0.0001 \
+    --energy-balance --mumps-factor-diagnostics \
+  > mcss2024_all_mumps_reset_1rank.log 2>&1
+status=$?
+echo "all-MUMPS reset, 1 rank: exit=$status"
+grep -E 'Initial consistency|Initialisation done|main TS completed|actual_final_time|last_saved_time|ts_converged_reason|maximum_relative_balance_error|DIVERGED_|MUMPS error|Traceback' \
+  mcss2024_all_mumps_reset_1rank.log | tail -n 45
+```
+
+A residual `ComplexWarning` in `dphs.py` reports casting
+PETSc complex state to real GetFEM coefficients; it is not a
+new error in this successful run, but should be audited for
+nonzero imaginary states. An unused `-ts_arkimex_type a2`
+PETSc option is harmless here because the active TS is BDF2;
+tidy option scope in a later, independent patch.
+
+Keep PR #22 draft, issue #6 open and v1.2.1 untagged.
