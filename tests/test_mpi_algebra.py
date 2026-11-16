@@ -28,6 +28,7 @@ import numpy as np
 from petsc4py import PETSc
 
 from scrimp.dphs import DPHS
+from scrimp.brick import Brick
 from scrimp.utils import linalg
 
 
@@ -654,6 +655,90 @@ class TestMPIAlgebra(unittest.TestCase):
                 )
         finally:
             rhs.destroy()
+
+    def test_source_aware_rhs_recovers_mixed_getfem_control_on_mpi(self):
+        """Prescribed sources are summed once; nonlinear RHS is P-fold.
+
+        The tested GetFEM 5.4.2 MPI-2 build assembles an explicit
+        source brick globally (no P-fold duplication), but nonlinear
+        generic terms P times. Use a real GetFEM model plus the REAL
+        DPHS.assemble_rhs/IFunction to confirm N+S=1+2=3 at 1/2/4
+        ranks, not 1+2/P. The new behavior is opt-in.
+        """
+        gf = linalg.gf
+        if int(gf.util_mpi_parallelism_level()) != 2:
+            self.skipTest("requires GetFEM MPI level 2")
+
+        mesh = gf.Mesh("cartesian", np.linspace(0.0, 1.0, 17))
+        mf = gf.MeshFem(mesh, 1)
+        mf.set_fem(gf.Fem("FEM_PK(1,1)"))
+        mim = gf.MeshIm(mesh, gf.Integ("IM_GAUSS1D(5)"))
+        model = gf.Model("real")
+        model.add_fem_variable("u", mf)
+        model.add_initialized_data("desired", np.array([2.0]))
+        nonlinear_id = model.add_nonlinear_term(
+            mim, "u*u*Test_u"
+        )
+        source_id = model.add_source_term_brick(
+            mim, "u", "desired"
+        )
+        nonlinear = Brick(
+            "nonlinear", "u*u*Test_u", [0],
+            linear=False, position="effort",
+        )
+        nonlinear.add_id_brick_to_list(nonlinear_id)
+        source = Brick(
+            "source", "desired*Test_u", [0],
+            position="source",
+        )
+        source.add_id_brick_to_list(source_id)
+        model.disable_bricks([nonlinear_id, source_id])
+        model.set_variable("u", np.ones(model.nbdof()))
+
+        system = DPHS.__new__(DPHS)
+        system.gf_model = model
+        system.bricks = {"nonlinear": nonlinear, "source": source}
+        system.linear_mass = True
+        system.linear_stiffness = False
+        system.lumped_variables = []
+        system._sync_lumped_trial_state = lambda t, z: None
+        system._trace_newton_blocks = lambda phase, t, z, zd: None
+        n = model.nbdof()
+        mat = PETSc.Mat().createAIJ(
+            size=(n, n), nnz=1, comm=COMM
+        )
+        mat.setUp()
+        mat.assemble()
+        system.mass = mat
+        system.stiffness = mat
+        system.rhs = PETSc.Vec().createMPI(n, comm=COMM)
+        z = system.rhs.duplicate()
+        zd = system.rhs.duplicate()
+        F = system.rhs.duplicate()
+        system.buffer = system.rhs.duplicate()
+        z.set(1.0)
+        zd.set(0.0)
+        try:
+            for source_mode, expected in (
+                ("match_generic", 1.0 + 2.0 / SIZE),
+                ("raw", 3.0),
+            ):
+                with patch.dict(os.environ, {
+                    "SCRIMP_GETFEM_RHS_MODE": "divide_by_mpi_size",
+                    "SCRIMP_GETFEM_SOURCE_RHS_MODE": source_mode,
+                    "SCRIMP_NONLINEAR_RESIDUAL_FORM": "direct_getfem",
+                }):
+                    system.IFunction(None, 0.0, z, zd, F)
+                self.assertAlmostEqual(
+                    float(np.real(F.sum())),
+                    expected, places=9,
+                    msg=f"source_mode={source_mode}, ranks={SIZE}",
+                )
+        finally:
+            for obj in (
+                system.buffer, F, zd, z, system.rhs, mat,
+            ):
+                obj.destroy()
 
     def test_rhs_inserted_on_owned_rows_only(self):
         rhs = PETSc.Vec().createMPI(N, comm=COMM)
