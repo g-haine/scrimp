@@ -101,6 +101,16 @@ The build script uses the active ``CONDA_PREFIX``, the
 GetFEM: it checks the runtime value
 ``getfem.util_mpi_parallelism_level() == 2``.
 
+**Python 3.12 installation compatibility:** The GetFEM 5.5 tarball
+still bundles an older Automake ``py-compile`` that imports
+``imp``, which was removed from Python 3.12. The shared
+``scripts/build-getfem-mpi.sh`` installation therefore overrides
+**only** Automake's bytecode compiler
+(``make install 'am__py_compile=:'``), and immediately performs
+``compileall`` with the active Python interpreter. This retains
+native build and installation, rather than downgrading Python
+or installing a global ``imp`` shim.
+
 To build the latest **development** GetFEM, use
 ``GETFEM_SOURCE=git GETFEM_REF=<commit-sha>`` and keep the
 specific upstream commit in the experiment manifest.
