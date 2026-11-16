@@ -28,6 +28,20 @@ The original no-reset vs always-reset acoustic benchmark used a
 constant sparsity pattern, so its measured speedup remains valid for
 that case. Do not extrapolate it to time-varying nonlinear sparsity.
 
+**Confirmed four-cycle `on_change` run (1 and 4 MPI ranks):** both exit
+successfully, `PC.reset()` executes once at cycle 3 (and on every rank in
+MPI), exactly 2 symbolic LU / 4 numeric LU / 4 linear solves occur, and
+all four full-state / residual errors are below 3e-16. The four-rank
+`always` reference executes 4 symbolic LU / 4 numeric LU / 4 solves and
+agrees to machine precision. These are tiny 240-by-240 probe matrices:
+do not infer a meaningful wall-time speedup from these timings.
+
+**Next check:** run all 6 cycles for `always` and `on_change` at 1, 2, 4,
+and 6 ranks; specifically verify that the cycle-5 structural *removal*
+(if it really changes the stored CSR pattern) is detected, the state
+checks pass, and the solver shuts down normally. No production
+`dphs.py` policy change until GetFEM nonlinear verification.
+
 
 ## Rationale
 
