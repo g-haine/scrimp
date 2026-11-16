@@ -23,6 +23,7 @@ on:
       - sandbox/analyze_acoustic_power_balance.py
       - scrimp/**
       - tests/test_mpi_algebra.py
+      - tests/test_profiling.py
       - .github/workflows/docker-mpi.yml
 
 permissions:
@@ -116,7 +117,8 @@ jobs:
               mpiexec --oversubscribe -n "$n" \
                 python -u sandbox/bench_acoustic_2d.py \
                 --mesh 0.2 --final-time 0.002 --dt 0.001 \
-                --save-dt 0.001 --output "/artifacts/wave_${n}ranks.json" \
+                --save-dt 0.001 --profile \
+                --output "/artifacts/wave_${n}ranks.json" \
                 > "acoustic-mpi/wave_${n}ranks.log" 2>&1 || {
                   cat "acoustic-mpi/wave_${n}ranks.log"
                   exit 1
