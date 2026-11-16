@@ -2810,3 +2810,95 @@ grep -E 'Steps:|actual_final_time|last_saved_time|ts_converged_reason|saved_step
 Evaluate 1→2 parity in PETSc final time, saved times, `h` and `p` norms, and balance defects. Do **not** infer any broad need to divide GetFEM explicit source bricks by P solely from the generic `1/P` RHS calibration: if the 2-rank model has different results, inspect **source-only RHS vs generic nonlinear RHS partitioning** separately (upstream GetFEM concern in #23). In particular, a 2-rank MUMPS crash might still be a native PETSc/MUMPS lifecycle failure (previous `INFOG(1)=-3`, exit 139/157).
 
 Do not merge PR #22, close #6 or tag a release until MUMPS/MPI parity, long-time numerical integration and time/mesh energy-balance convergence pass.
+
+
+## 2026-11-16 — Published MCSS2024 + MUMPS (one rank) fails DURING pseudo initialization, before BDF2
+
+The user ran the exact validated original MCSS2024 experiment 3
+with the current SCRIMP direct-residual/source fixes, `--solver mumps`,
+`--energy-balance`, `-n 1`, `t_f=0.0003`, in the same Conda
+environment where SuperLU reaches t_f with physical relative
+energy/power-balance defect `9.589926180401037e-09`.
+
+**Observed:** `exit=1`, `PETSc.Error 91`,
+`TSStep has failed due to DIVERGED_STEP_REJECTED`,
+on `DPHS.init_step() -> TS.solve(InitVec)`, using
+historical two-step pseudo TS dt=1e-8. The main BDF2 TS
+has **not begun**; there is **NO MUMPS INFOG error
+and no segmentation fault** in this log. The original
+model assembly succeeded. The error means PETSc rejected
+too many step attempts (could stem from SNES or KSP
+convergence failure, error estimation, etc.), *not*
+proof of a factorization failure or invalid MUMPS JOB.
+The earlier 3300-dof custom benchmark's MUMPS
+`INFOG(1)=-3` is a **different error**.
+
+**Controlled next experiment: change only the factor
+solver used by the initial pseudo-TS**. This separates
+whether MUMPS can solve the *main BDF2* if the
+initial consistency state is built with the already
+working sequential SuperLU.
+
+New opt-in `SCRIMP_INIT_FACTOR_SOLVER_TYPE`
+in `DPHS.init_step` sets
+`TS.getSNES().getKSP().getPC().setFactorSolverType(...)`
+**AFTER** initial `TS.setFromOptions()`;
+this affects only the initial TS's LU factorization,
+not the global PETSc Options or the separately
+constructed main TS. Checks LU PC type and accepts
+`superlu` / `mumps`. It does not change defaults.
+`sandbox/probe_mcss2024_reference.py --init-solver`
+exposes this as a convenient explicit diagnostic;
+`--solver` continues to configure the **main** TS
+and inherited init unless overridden. In
+`DPHS.init_step`, failure exceptions now print
+TS convergence reason, rejections, SNES reason,
+and KSP reason *before* re-raising the PETSc error.
+
+First test on **one rank only**, original MCSS2024
+reference model and physical energy-balance diagnostic:
+
+```bash
+git pull --ff-only
+conda activate scrimp
+SCRIMP_GETFEM_RHS_MODE=divide_by_mpi_size \
+PYTHONFAULTHANDLER=1 \
+timeout -k 5s 150s mpiexec -n 1 \
+  python -u sandbox/probe_mcss2024_reference.py \
+    --solver mumps --init-solver superlu \
+    --final-time 0.0003 --save-dt 0.0001 \
+    --energy-balance \
+  > mcss2024_init_superlu_main_mumps_1rank.log 2>&1
+status=$?
+echo "split LU 1-rank exit=$status"
+grep -E 'Initial consistency solver override|Initial consistency:|Initialisation done|Initial consistency FAILED|main TS completed|Steps:|actual_final_time|ts_converged_reason|maximum_relative_balance_error|DIVERGED_|INFOG|Traceback' \
+  mcss2024_init_superlu_main_mumps_1rank.log | tail -n 35
+```
+
+**Interpretation**:
+- If the split-Solver run **completes** with a
+  relative energy/power-balance defect near `1e-8`,
+  the failure on n=1 is isolated to **MUMPS during
+  pseudo initialization**; MUMPS can then be used
+  for the subsequent main BDF2 with consistent
+  initial conditions on a serial model. This is
+  **not yet a valid MPI 2-rank solver strategy**:
+  SuperLU generally has serial factorization, so
+  an MPI-compatible parallel initialization option
+  would still be needed.
+- If pseudo init succeeds but the main MUMPS TS
+  fails, the problem is NOT confined to startup:
+  examine KSP/SNES reasons and MUMPS messages in
+  the same physical problem without modifying it.
+- If the alternate initial solver does not change
+  convergence, suspect more general pseudo-TS
+  stiffness/DAE initialization behavior and inspect
+  PETSc diagnostics.
+- **No energy/power-balance conclusion** can be
+  made from the first MUMPS failed run, as it
+  never entered physical time integration.
+
+The published source has NOT been modified,
+nor have any production default solver settings.
+The feature branch PR #22 stays draft;
+MPI 2-rank and long-time tests still blocked.
