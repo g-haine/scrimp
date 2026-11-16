@@ -139,6 +139,20 @@ and ``--final-time`` strictly fixed:
             > "sandbox/outputs/scaling/wave_${n}ranks.log" 2>&1
     done
 
+To summarize multiple comparable runs automatically:
+
+.. code-block:: bash
+
+    python sandbox/analyze_acoustic_scaling.py \
+        sandbox/outputs/scaling/wave_*ranks.json
+
+For more robust measurements, repeat each configuration several
+times and provide all of the resulting JSON files to the analyzer.
+It refuses mismatched meshes, end times, integrator settings or
+significantly different physical field norms. The benchmark itself
+exposes per-rank peak memory usage; for detailed PETSc timing,
+append ``-log_view`` to the command line and capture its log.
+
 Report strong-scaling speedup
 :math:`S_P=T_1/T_P` and efficiency :math:`E_P=S_P/P`
 only for the **same mesh, time scheme, time horizon and
