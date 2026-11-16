@@ -100,12 +100,29 @@ def replay(path, cycles, factor_only, solver="mumps"):
                     if not factor_only:
                         emit(comm, f"cycle={cycle} before KSP.solve")
                         ksp.solve(b, x)
+                        check = matrix.createVecLeft()
+                        try:
+                            matrix.mult(x, check)
+                            check.axpy(-1.0, b)
+                            relative_residual = (
+                                check.norm() / max(b.norm(), 1.0)
+                            )
+                        finally:
+                            check.destroy()
                         emit(
                             comm,
                             f"cycle={cycle} after KSP.solve, "
                             f"reason={int(ksp.getConvergedReason())}, "
-                            f"iterations={ksp.getIterationNumber()}",
+                            f"iterations={ksp.getIterationNumber()}, "
+                            f"relative_linear_residual="
+                            f"{relative_residual:.9g}",
                         )
+                        if (int(ksp.getConvergedReason()) <= 0
+                                or relative_residual > 1e-5):
+                            raise RuntimeError(
+                                "LU solver failed to reproduce the "
+                                "known consistent Jacobian solution"
+                            )
                     emit(comm, f"cycle={cycle} before KSP.reset")
                     ksp.reset()
                     emit(comm, f"cycle={cycle} after KSP.reset")
