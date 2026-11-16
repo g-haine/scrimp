@@ -3637,3 +3637,99 @@ construction at native model level before patching.
 controlled LHMNC2027 claims, and no release tag.** Do
 not mistake positive PETSc TS reason for physically
 correct parallel dynamics.
+
+## 2026-11-16 — CONFIRMED: GetFEM MPI generic nonlinear RHS vs explicit source have different scaling
+
+Native `sandbox/check_mcss_source_sign.py` on the same Conda
+GetFEM MPI level 2 installation, `-n 1,2,4`, exit 0 on all
+ranks. All ranks reported the same replicated raw totals:
+
+| P | raw generic `-N` | raw explicit `S=1` | raw mixed `-N + S` with `S=2` | reconstructed residual: old uniform | separately normalized |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | -1 | +1 | +1 | 3 | 3 |
+| 2 | -2 | +1 | 0 | 2 | **3** |
+| 4 | -4 | +1 | -2 | 1.5 | **3** |
+
+This **proves** on this specific GetFEM MPI-2 build that generic
+nonlinear forms are over-summed P times while
+`add_source_term_brick` is already globally summed ONCE.
+Uniform `SCRIMP_GETFEM_RHS_MODE=divide_by_mpi_size`
+therefore incorrectly attenuates explicit prescribed controls.
+The observed MCSS2024 vector control `||U||` at MPI2 was
+exactly one half of MPI1. This is a strong causal hypothesis for
+the previously bad 2-rank physical power balance, NOT yet a
+verified full-model remedy.
+
+**Opt-in production fix** (no changes to model weak forms,
+no default behavior change):
+`SCRIMP_GETFEM_SOURCE_RHS_MODE=raw` alongside the existing
+`SCRIMP_GETFEM_RHS_MODE=divide_by_mpi_size`.
+In direct `IFunction` only, the raw full GetFEM RHS is
+`R_full=-P*N+S`. Generic scale `alpha=1/P`;
+isolated source-only raw assembly is `R_src=S`.
+Then the correct residual contribution is
+
+```
+  - alpha * R_full + (1 + alpha) * R_src
+  = -alpha * (-P*N + S) + (1+alpha)*S
+  = N + S
+```
+
+The existing `source_only` GetFEM assembly is reused; no
+extra assembly or new MPI collectives beyond current ones.
+In the default `SCRIMP_GETFEM_SOURCE_RHS_MODE=match_generic`
+the original `-alpha*R_full + 2*alpha*R_src` is retained
+for legacy parity until proven generally safe.
+The opt-in path covers source-position bricks; other explicit
+brick categories are not automatically reclassified.
+
+A **15th** `tests.test_mpi_algebra` regression test uses a
+REAL mixed GetFEM nonlinear+source model and the actual
+`DPHS.assemble_rhs` / `DPHS.IFunction`, checking the old
+`1+2/P` and corrected `3` under the opt-in flag.
+This new test has **NOT yet been executed natively**.
+Do not merge, tag, or assume full physical parity until tests
+and full 2-rank MCSS2024 physical experiment pass.
+
+### Next native test gate
+
+```bash
+git pull --ff-only
+conda activate scrimp
+for n in 1 2 4; do
+    timeout -k 5s 90s mpiexec -n "$n" \
+      python -u -m unittest -v tests.test_mpi_algebra \
+      > "mcss_algebra_sourcefix_${n}ranks.log" 2>&1
+    status=$?
+    echo "ranks=$n exit=$status"
+    tail -n 16 "mcss_algebra_sourcefix_${n}ranks.log"
+    if [ "$status" -ne 0 ]; then break; fi
+done
+```
+
+If all 15 tests pass (per rank), rerun **unmodified physical
+MCSS2024 model** with only the new source flag changed,
+2 MPI ranks (all-MUMPS startup + BDF2):
+
+```bash
+SCRIMP_GETFEM_RHS_MODE=divide_by_mpi_size \
+SCRIMP_GETFEM_SOURCE_RHS_MODE=raw \
+SCRIMP_MUMPS_RESET_PC_ON_JACOBIAN=1 \
+PYTHONFAULTHANDLER=1 \
+timeout -k 5s 180s mpiexec -n 2 \
+  python -u sandbox/probe_mcss2024_reference.py \
+    --solver mumps --init-solver mumps \
+    --final-time 0.0003 --save-dt 0.0001 \
+    --energy-balance \
+  > mcss2024_mumps_2ranks_sourcefix.log 2>&1
+status=$?
+echo "source-aware 2 ranks: exit=$status"
+grep -E 'Initialisation done|Steps:|actual_final_time|ts_converged_reason|maximum_relative_balance_error|DIVERGED_|MUMPS error|Traceback' \
+  mcss2024_mumps_2ranks_sourcefix.log | tail -n 30
+```
+
+Compare **full JSON**, including initial/final H, h/p/U/Y
+norms, viscous dissipation and signed boundary powers,
+to prior all-MUMPS 1-rank baseline `1.1882123211740075e-08`.
+Same physical model, same FE mesh, same time horizon.
+**TS reason > 0 alone does not establish parity.**
