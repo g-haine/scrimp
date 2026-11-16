@@ -20,6 +20,20 @@ export LDFLAGS="-L$CONDA_PREFIX/lib -Wl,-rpath,$CONDA_PREFIX/lib ${LDFLAGS:-}"
 export CC="${GETFEM_CC:-mpicc}"
 export CXX="${GETFEM_CXX:-mpicxx}"
 export FC="${GETFEM_FC:-mpifort}"
+
+# Autoconf/libtool can silently substitute "false" for an absent
+# archiver and only fail after compiling all GetFEM C++ objects:
+#   libtool: link: false cr .libs/libgetfem.a ...
+# Check the complete native toolchain *before* downloading/compiling.
+for tool in "$CC" "$CXX" "$FC" ar ranlib objdump nm file make; do
+  if ! command -v "$tool" >/dev/null 2>&1; then
+    echo "ERROR: missing required GetFEM build tool '$tool'." >&2
+    echo "Ubuntu: sudo apt-get install binutils file" >&2
+    exit 2
+  fi
+done
+export AR="$(command -v ar)"
+export RANLIB="$(command -v ranlib)"
 PYTHON_BIN="$(command -v python)"
 
 if [[ "$GETFEM_SOURCE" == release ]]; then
