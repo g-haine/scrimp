@@ -152,6 +152,30 @@ pattern reuse already caused a SIGSEGV. Independently factoring
 an already captured Jacobian does **not** validate the nonlinear
 BDF2 step or the model's Hamiltonian balance.
 
+**Four-solve real-GetFEM persistent-factor reference passed
+(2026-11-16, 1 MPI rank):** the same KSP/PC/Mat was used for the
+001 -> 002 -> 001 -> 002 sequence, with explicit `PC.reset()`
+before each MatCopy transition. External relative residuals were
+2.29575684e-16, 1.99743508e-16, 2.43279796e-16,
+1.99743508e-16; the new manufactured-solution relative state
+errors were **4.19515974e-7, 3.53538232e-7, 4.12679850e-7,
+3.53538232e-7**, respectively. All were under the declared
+1e-5 acceptance threshold, and full reset/destroy succeeded. This
+is NOT 1e-16 accuracy in the unknowns: the state error indicates
+nontrivial sensitivity, consistent with possible conditioning/scaling
+issues in these matrices obtained during a divergent BDF2 solve.
+
+**New targeted PETSc-only diagnostic:** `--transition-reset on_change`
+compares the exact stored CSR on all ranks *after* in-place MatCopy and
+before the next KSPSolve. It performs a collective `PC.reset()` and
+`KSP.setOperators()` only if that stored pattern changed; it emits
+`stored_pattern_changed` and `explicit_factor_resets`. This variant
+has not yet been run on the captured nonlinear pair. Test it with
+`--cycles 4` at 1 rank against the existing `pc` reference, then at
+4 ranks (reloading/repartitioning the PETSc binary snapshots).
+If the 4-rank load fails, first diagnose the binary MatLoad MPI
+compatibility rather than altering SCRIMP.
+
 **Separately:** diagnose BDF2 initial consistency and validate a
 converged nonlinear reference before proposing any `dphs.py`
 policy change.
