@@ -118,9 +118,34 @@ that a failed nonlinear initialization produces well-conditioned LU
 test matrices. Only once this inspection is understood should the
 existing snapshot replay with explicit PC reset be considered.
 
-**Next:** inspect the saved nonlinear Jacobians first; separately
-diagnose BDF2 initial consistency and validate a converged nonlinear
-reference before proposing any `dphs.py` policy change.
+**Independent nonlinear Jacobian snapshot inspection passed
+(2026-11-16, 1 MPI rank):** snapshots `swe_jac_001` and `swe_jac_002`
+are both 3300 x 3300, with 123,765 and 137,114 stored nonzeros,
+respectively. Matrix 002 **adds exactly 13,349 distinct stored
+locations**, removes none, and changes the stored pattern in 1,169
+rows; this is genuine sparsity growth in *actual GetFEM* Jacobians,
+not mere numerical zeros or lingering PETSc MatCopy slots. Both
+snapshots have zero nonfinite entries; their stored numerical zeros
+number 132 and 167. Their Frobenius norms are about 1.5133e9,
+with a Frobenius difference of 1.082386e6 (relative difference
+7.152434e-4). These matrices come from an **aborted, divergent BDF2
+initialization** and are *not* evidence of a physically valid
+Saint-Venant simulation; the extremely large matrix norm also
+limits numerical interpretation.
+
+**Next diagnostic gate:** first test each snapshot on its own
+with `sandbox/replay_petsc_mumps_snapshot.py` (`--cycles 1`,
+independent KSP). If both individually factor/solve with controlled
+algebraic residuals, test the persistent 001 -> 002 transition
+with `--next-matrix ... --transition-reset pc --cycles 2`. Do
+not run unsafe `--transition-reset none` in this environment as
+the synthetic changing-pattern case already caused a SIGSEGV.
+A successful replay is linear-algebraic evidence, not proof
+of nonlinear convergence or acceptable Hamiltonian balance.
+
+**Separately:** diagnose BDF2 initial consistency and validate a
+converged nonlinear reference before proposing any `dphs.py`
+policy change.
 
 
 ## Rationale
