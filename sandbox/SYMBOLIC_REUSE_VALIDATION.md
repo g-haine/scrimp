@@ -1,0 +1,141 @@
+# PETSc/MUMPS symbolic reuse validation (SCRIMP v1.3.0)
+
+Status: **experimental tests; no production solver-policy change yet**.
+
+## Rationale
+
+SCRIMP's existing `DPHS.IJacobian()` builds the preconditioner matrix by
+`MatCopy(..., DIFFERENT_NONZERO_PATTERN)` followed by
+`MatAXPY(..., DIFFERENT_NONZERO_PATTERN)`. These calls correctly refuse
+to assume equality of the source and destination sparsity structures.
+
+In PETSc 3.26.1, `PCSetUp()` compares the current nonzero state of its
+preconditioning matrix with the previous state. `PCLU` redoes symbolic
+factorization if that state changed; otherwise it can do a new numerical
+factorization without repeating the symbolic phase. It is important not
+to use `PC.setReusePreconditioner(True)`, because the **numeric**
+factorization must track the current Jacobian.
+
+The acoustic 4-rank single-run comparison gives 21 to 2 symbolic
+factorizations and 2.0934 s to 0.8495 s for `DPHS.solve()` without
+unconditional `PC.reset()`. That is **not** sufficient evidence to
+remove the conservative workaround on nonlinear Saint-Venant.
+
+Reference PETSc code:
+- `PCSetUp()`: https://petsc.org/release/src/ksp/pc/interface/precon.c.html
+- `PCSetUp_LU()`: https://petsc.org/release/src/ksp/pc/impls/factor/lu/lu.c.html
+- `MatCopy()`: https://petsc.org/release/manualpages/Mat/MatCopy/
+- `MatGetNonzeroState()`: https://petsc.org/release/manualpages/Mat/MatGetNonzeroState/
+
+## 1. Standalone PETSc/MUMPS structural-change probe
+
+Run from the repository root on the existing `scrimp-mpi:local` image.
+These functional checks disable OpenMPI affinity to avoid the container
+hwloc memory-binding warning; do not use their timings for scaling claims.
+No native library needs to be rebuilt.
+
+```bash
+set -euo pipefail
+out="$PWD/sandbox/outputs/symbolic-reuse"
+mkdir -p "$out"
+
+for n in 1 2 4 6; do
+    case "$n" in
+        1) cpus=0 ;;
+        2) cpus=0,2 ;;
+        4) cpus=0,2,4,6 ;;
+        6) cpus=0,2,4,6,8,10 ;;
+    esac
+    for mode in always native; do
+        sudo docker run --rm --cpuset-cpus="$cpus" \
+            -v "$PWD/sandbox:/workspace/scrimp/sandbox:ro" \
+            scrimp-mpi:local \
+            mpiexec --bind-to none -n "$n" python -u \
+            sandbox/check_petsc_mumps_symbolic_reuse.py \
+            --mode "$mode" --petsc-log \
+            > "$out/petsc_${n}_${mode}.log" 2>&1
+
+        grep -aE '^MatLUFactorSym|^MatLUFactorNum|^MatSolve ' \
+            "$out/petsc_${n}_${mode}.log"
+    done
+done
+```
+
+**Gates:** all six linear systems converge in each run, relative
+state/residual errors < 1e-10, cycle 3 truly introduces a new stored
+nonzero, and cycles 1/2/4 retain their patterns. Compare native and
+always-reset PETSc event counts. Both execute six numerical LU solves;
+the native branch should avoid symbolic reanalysis for fixed patterns.
+Cycle 5 intentionally removes the extra coupling, but the test does
+not require any particular symbolic event count for this transition.
+
+## 2. Full acoustic state parity (reset versus native reuse)
+
+`check_acoustic_state_parity.py` reconstructs exactly `examples/wave.py`
+with the same mesh and time integrator as `bench_acoustic_2d.py`.
+It stores every snapshot and *all* GetFEM state coefficients in NumPy
+NPZ format (complex values preserved), compares full arrays rather than
+just norms, and checks MPI rank-to-rank agreement after integration.
+
+The container user needs write access to the host artifact directory
+(no change to SCRIMP, conda, or Docker image).
+
+```bash
+set -euo pipefail
+out="$PWD/sandbox/outputs/symbolic-reuse"
+mkdir -p "$out"
+chmod a+rwx "$out"
+
+for n in 1 2 4 6; do
+    case "$n" in
+        1) cpus=0 ;;
+        2) cpus=0,2 ;;
+        4) cpus=0,2,4,6 ;;
+        6) cpus=0,2,4,6,8,10 ;;
+    esac
+    for reset in 1 0; do
+        reference=()
+        label=reset
+        if [ "$reset" = 0 ]; then
+            label=native
+            reference=(--reference "/artifacts/acoustic_${n}_reset.npz")
+        fi
+        sudo docker run --rm --cpuset-cpus="$cpus" \
+            -e SCRIMP_MUMPS_RESET_PC_ON_JACOBIAN="$reset" \
+            -v "$PWD/scrimp:/workspace/scrimp/scrimp:ro" \
+            -v "$PWD/sandbox:/workspace/scrimp/sandbox:ro" \
+            -v "$PWD/examples:/workspace/scrimp/examples:ro" \
+            -v "$out:/artifacts" \
+            scrimp-mpi:local \
+            mpiexec --bind-to none -n "$n" python -u \
+            sandbox/check_acoustic_state_parity.py \
+            --mesh 0.08 --dt 0.002 --final-time 0.04 \
+            --output "/artifacts/acoustic_${n}_${label}.npz" \
+            "${reference[@]}" \
+            > "$out/acoustic_${n}_${label}.log" 2>&1
+    done
+done
+```
+
+**Gates:** complete state arrays agree within rtol=1e-10 and
+atol=1e-11 at every saved time; 20 accepted CN steps, no rejections,
+no SNES failures; final time exactly 0.04 within floating-point ULP.
+The separately existing `check_acoustic_energy_mpi.py` must still be
+run with **nonzero boundary power**, on 1/2/4/6 ranks and both reset
+modes. Require the Hamiltonian + port-work identity, not merely
+matching final solution norms.
+
+## 3. Prerequisites for a SCRIMP production policy change
+
+1. Verify the native PETSc structural test for all targeted MPI sizes.
+2. Verify full acoustic trajectories and driven-port energy balances.
+3. Reproduce a *real GetFEM* changing-sparsity nonlinear Jacobian and
+   inspect PETSc symbolic/numeric counts and Newton residuals.
+4. Validate nonlinear viscous Saint-Venant 2D and the factor lifecycle
+   (repeated solve and teardown) with and without PC reset.
+5. Only then integrate a documented default policy. Keep an explicit,
+   safe fallback for configurations with unresolved native MUMPS defects.
+
+Do **not** replace `DIFFERENT_NONZERO_PATTERN` with
+`SAME_NONZERO_PATTERN` without a proof of structural equality.
+Do **not** disable numeric factorization updates.
