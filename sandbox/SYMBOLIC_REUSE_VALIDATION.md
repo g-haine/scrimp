@@ -76,9 +76,31 @@ The trajectories agree in spite of this warning, but this test alone
 does not establish that any imaginary data would be negligible in
 general. Do not silently suppress the warning.
 
-**Next:** audit driven-boundary Hamiltonian/port-power balance with
-`check_acoustic_energy_mpi.py`, for both reset settings, then test
-actual nonlinear GetFEM Jacobians.
+**Driven boundary-power audit completed at 4 MPI ranks (2026-11-16):**
+the acoustic 2D problem with 2,230 DOFs and boundary control
+`U_L=0.08*sin(20*t)` completed 10 Crank–Nicolson steps at `dt=0.002`
+for both `SCRIMP_MUMPS_RESET_PC_ON_JACOBIAN=1` and `=0` (exit 0, no
+rejected steps, no SNES failures). The measured energy change was
+`+3.352923209074335e-5` and integrated port work was
+`-3.3529232090756814e-5`. The maximum absolute cumulative
+power-balance defect was `1.8730439562634343e-17` (relative to H:
+`1.3097473795212481e-15`); the maximum per-step defect was
+`1.7550522667109103e-17`. In the uploaded run logs, **all 23
+fields** of the JSON audit were *exactly equal*, including all saved
+Hamiltonian samples, the separate energy terms, all four boundary
+power series, every time-integrated port-work sample, and every
+stepwise power-balance defect. The boundary work is appreciably
+nonzero, so this is not a vacuous closed-boundary test.
+
+Both runs emit the already documented real/complex cast warning
+in initial consistency. They additionally print PETSc
+'unused database options' messages for the script's argparse flags;
+the JSON confirms the intended parameter values were applied and
+this message is not a failed test.
+
+**Next:** validate actual nonlinear GetFEM Jacobians and the MUMPS
+factor lifecycle with and without reset, retaining the existing
+conservative fallback until structurally safe reuse is demonstrated.
 
 
 ## Rationale
