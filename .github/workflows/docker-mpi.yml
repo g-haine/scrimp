@@ -1,0 +1,76 @@
+name: Build and validate modern GetFEM MPI image
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Push validated image to GHCR (experimental tag)'
+        type: boolean
+        default: false
+        required: false
+  pull_request:
+    paths:
+      - docker/**
+      - scripts/build-getfem-mpi.sh
+      - sandbox/smoke_modern_stack.py
+      - sandbox/bench_acoustic_2d.py
+      - scrimp/**
+      - tests/test_mpi_algebra.py
+      - .github/workflows/docker-mpi.yml
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  mpi-container:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build experimental GetFEM 5.5/NumPy 2 image
+        run: |
+          docker build --progress=plain \
+            --build-arg GETFEM_VERSION=5.5 \
+            --build-arg MAKE_JOBS=2 \
+            -f docker/Dockerfile -t scrimp-mpi:candidate .
+      - name: Verify MPI, NumPy 2, complex PETSc and MUMPS
+        run: |
+          for n in 1 2 4; do
+            docker run --rm --cpus=4 scrimp-mpi:candidate \
+              mpiexec -n "$n" python -u sandbox/smoke_modern_stack.py
+          done
+      - name: Run SCRIMP algebra tests on 1, 2 and 4 ranks
+        run: |
+          for n in 1 2 4; do
+            docker run --rm --cpus=4 scrimp-mpi:candidate \
+              mpiexec -n "$n" python -u -m unittest -v tests.test_mpi_algebra
+          done
+      - name: Smoke real 2D acoustic system (single rank)
+        run: |
+          docker run --rm --cpus=4 \
+            -e SCRIMP_MUMPS_RESET_PC_ON_JACOBIAN=1 \
+            scrimp-mpi:candidate \
+            mpiexec -n 1 python -u sandbox/bench_acoustic_2d.py \
+              --mesh 0.2 --final-time 0.002 --dt 0.001 --save-dt 0.001
+      - name: Archive resolved package manifest
+        run: |
+          docker run --rm scrimp-mpi:candidate \
+            cat /workspace/scrimp/docker-resolved-spec.txt \
+            > docker-resolved-spec.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: scrimp-mpi-resolved-conda-spec
+          path: docker-resolved-spec.txt
+      - name: Login to GHCR (only on explicit opt-in)
+        if: github.event_name == 'workflow_dispatch' && inputs.publish
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish verified experimental image
+        if: github.event_name == 'workflow_dispatch' && inputs.publish
+        run: |
+          docker tag scrimp-mpi:candidate "ghcr.io/${{ github.repository }}:getfem55-mpi-experimental"
+          docker push "ghcr.io/${{ github.repository }}:getfem55-mpi-experimental"
