@@ -12,7 +12,10 @@ jobs:
           python-version: "3.11"
       - name: Compile modified Python sources
         run: |
-          python -m py_compile scrimp/dphs.py scrimp/utils/linalg.py tests/test_parallel_powers.py tests/test_mpi_algebra.py sandbox/viscous_swe_2d_mpi.py sandbox/test_petsc_mumps_reset.py sandbox/check_swe_implicit_jacobian.py sandbox/check_getfem_mpi_rhs.py sandbox/replay_petsc_mumps_snapshot.py sandbox/bench_acoustic_2d.py sandbox/analyze_acoustic_scaling.py sandbox/check_acoustic_energy_mpi.py sandbox/analyze_acoustic_power_balance.py sandbox/smoke_modern_stack.py sandbox/diagnose_getfem_mpi_assembly.py sandbox/analyze_getfem_mpi_assembly.py scripts/patch-getfem-mpi-timing.py tests/test_getfem_timing_patch.py
+          python -m py_compile scrimp/dphs.py scrimp/utils/linalg.py scrimp/utils/profiling.py tests/test_profiling.py tests/test_parallel_powers.py tests/test_mpi_algebra.py sandbox/viscous_swe_2d_mpi.py sandbox/test_petsc_mumps_reset.py sandbox/check_swe_implicit_jacobian.py sandbox/check_getfem_mpi_rhs.py sandbox/replay_petsc_mumps_snapshot.py sandbox/bench_acoustic_2d.py sandbox/analyze_acoustic_scaling.py sandbox/check_acoustic_energy_mpi.py sandbox/analyze_acoustic_power_balance.py sandbox/smoke_modern_stack.py sandbox/diagnose_getfem_mpi_assembly.py sandbox/analyze_getfem_mpi_assembly.py scripts/patch-getfem-mpi-timing.py tests/test_getfem_timing_patch.py
+      - name: Validate opt-in SCRIMP profiling
+        run: |
+          python -m unittest -v tests.test_profiling
       - name: Validate native GetFEM MPI timing patch
         run: |
           python -m unittest -v tests.test_getfem_timing_patch
