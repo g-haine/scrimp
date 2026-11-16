@@ -2,6 +2,33 @@
 
 Status: **experimental tests; no production solver-policy change yet**.
 
+## Reproduced changing-sparsity failure (2026-11-16)
+
+In the standalone PETSc 3.26.1 complex-scalar MUMPS probe, cycles 0-2
+preserve the CSR sparsity pattern and `native` succeeds for both 1 and 4 MPI
+ranks, with 1 symbolic LU, 2 numeric LU and 2 solves in the initial
+two-cycle run. With the second-neighbour couplings added at cycle 3,
+the **unconditional native-reuse policy is unsafe in this test**:
+
+- 1 rank, `native`, 4 cycles: KSP reports convergence, but the external
+  relative residual is ~7.22 and the relative state error ~6.02.
+- 4 ranks, `native`, 4 cycles: SIGSEGV in `KSPSolve`.
+- 1 and 4 ranks, `always`, 4 cycles: all residual and state errors remain
+  around 1e-16, with 4 symbolic and 4 numeric factorizations.
+- The earlier `always` setup error (PETSc error 75) was a *probe defect*:
+  after `PC.reset()` the standalone KSP must call
+  `ksp.setOperators(operator)` to reattach the operator.
+
+The exact-CSR diagnostic mode `--mode on_change` now resets PC and
+rebinds KSP only on a collective change of *stored* sparsity. This is a
+**hypothesis to validate**, not a production default or evidence that
+the PETSc nonzero-state bookkeeping itself is necessarily defective.
+
+The original no-reset vs always-reset acoustic benchmark used a
+constant sparsity pattern, so its measured speedup remains valid for
+that case. Do not extrapolate it to time-varying nonlinear sparsity.
+
+
 ## Rationale
 
 SCRIMP's existing `DPHS.IJacobian()` builds the preconditioner matrix by
