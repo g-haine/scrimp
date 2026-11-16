@@ -76,7 +76,7 @@ SCRIMP installation:
 
     # Ubuntu: GL runtime for the Gmsh Python wheel.
     sudo apt-get update
-    sudo apt-get install -y libglu1-mesa libgl1
+    sudo apt-get install -y binutils file libglu1-mesa libgl1
 
     # Create a new environment from the same solver-compatible recipe.
     conda env create -n scrimp55 -f docker/environment.yml
