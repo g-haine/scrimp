@@ -3924,3 +3924,116 @@ for n in 1 4; do
     if [ "$status" -ne 0 ]; then break; fi
 done
 ```
+
+## 2026-11-16 — MATCHSTEP is now SCRIMP's default main-TS endpoint
+
+**Requested by maintainer:** change production `DPHS.solve()` to
+default to `PETSc.TS.ExactFinalTime.MATCHSTEP` instead of
+`STEPOVER`. `TS.setFromOptions()` still follows, so
+explicit `ts_exact_final_time=stepover` (or
+`-ts_exact_final_time stepover`) remains available to
+reproduce the legacy policy. The *initial* DAE pseudo-TS
+is unchanged. The MCSS2024 probe option
+`--exact-final-time` now defaults to `matchstep`,
+with explicit `--exact-final-time stepover` retained.
+A sixteenth `tests.test_mpi_algebra` regression ensures
+SCRIMP sets MATCHSTEP as its main-TS default.
+**These changes have not yet been run natively**, and
+the prior P=1/4 observations below predate the change.
+
+### Why the default had to change
+
+Original unchanged MCSS2024 reference with
+`--final-time 0.03 --save-dt 0.001`
+and the SOURCE-aware MPI/MUMPS flags completed on
+P=1 and P=4: exits 0, 11 accepted steps, 0 rejected,
+0 nonlinear failures, 22 Newton/linear iterations.
+But **both physical TS solvers stopped at 0.0313**
+despite user horizon 0.03, because production
+`DPHS.solve()` set `STEPOVER`. Monitor stored only
+**8 snapshots through t=0.0263**, so the published
+postprocessed Hamiltonian and power balance did
+NOT cover t=0.03 or t=0.0313.
+Do not call the previous final state an exact
+t=0.03 state.
+
+Pre-change, physically reproducible P=1 vs P=4
+comparison at the last saved state t=0.0263:
+
+| Quantity | P=1 | P=4 |
+| --- | ---: | ---: |
+| H(last saved) | 41.40651090251929 | 41.406510902519194 |
+| h norm | 1991.289759582088 | 1991.2897595820882 |
+| p norm | 6.7787153966745395 | 6.7787153966745395 |
+| U norm | 2.240884951585336 | 2.240884951585336 |
+| Y norm | 0.007386468775199047 | 0.00738646877519967 |
+| signed integrated vector boundary work | 0.00024212730906565054 | 0.00024213055569421855 |
+| final saved absolute balance defect | -9.40953312422721e-05 | -9.409208463750929e-05 |
+| maximum relative balance error | 2.2724547195445317e-06 | 2.2723763122291212e-06 |
+
+P1 elapsed 15.78s, P4 elapsed 12.22s (single smoke
+runs, NOT a benchmark or evidence of speedup).
+The small power-work difference is plausibly
+linked to different DAE algebraic initialization.
+The `~2.27e-6` energy defect is measured at the
+**saved time 0.0263**, normalized by H(0), and
+must NOT be mistaken for an exact discrete power law.
+
+MATCHSTEP asks PETSc to *integrate* the final
+adjusted step; it does **not interpolate**
+between unequal-time states. The existing
+`DPHS.solve()` final-monitor safeguard should
+then append the accepted t_f state if the
+ordinary `dt_save` sampling omitted it.
+`sandbox/probe_mcss2024_reference.py` now
+checks `actual_final_time` and `last_saved_time`
+against t_f to within 32 ULP when MATCHSTEP
+is selected; a silent overshoot or missing
+endpoint now fails the smoke test.
+
+### Next native gate
+
+```bash
+git pull --ff-only
+conda activate scrimp
+python -m py_compile scrimp/dphs.py tests/test_mpi_algebra.py \
+    sandbox/probe_mcss2024_reference.py
+
+for n in 1 2 4; do
+    timeout -k 5s 90s mpiexec -n "$n" \
+        python -u -m unittest -v tests.test_mpi_algebra \
+        > "mcss_matchstep_algebra_${n}ranks.log" 2>&1
+    status=$?
+    echo "MATCHSTEP unit tests n=$n exit=$status"
+    tail -n 12 "mcss_matchstep_algebra_${n}ranks.log"
+    if [ "$status" -ne 0 ]; then break; fi
+done
+
+# Only after all 16 tests pass; default MATCHSTEP (no override):
+for n in 1 4; do
+    SCRIMP_GETFEM_RHS_MODE=divide_by_mpi_size \
+    SCRIMP_GETFEM_SOURCE_RHS_MODE=raw \
+    SCRIMP_MUMPS_RESET_PC_ON_JACOBIAN=1 \
+    PYTHONFAULTHANDLER=1 \
+    timeout -k 5s 300s mpiexec -n "$n" \
+        python -u sandbox/probe_mcss2024_reference.py \
+        --solver mumps --init-solver mumps \
+        --final-time 0.03 --save-dt 0.001 \
+        --energy-balance \
+        > "mcss2024_matchstep_0p03_${n}ranks.log" 2>&1
+    status=$?
+    echo "MATCHSTEP physical n=$n exit=$status"
+    grep -E '"actual_final_time"|"last_saved_time"|"exact_final_time_policy"|"saved_steps"|"maximum_relative_balance_error"|Steps:|Traceback|RuntimeError|DIVERGED_' \
+        "mcss2024_matchstep_0p03_${n}ranks.log" | tail -n 30
+    if [ "$status" -ne 0 ]; then break; fi
+done
+```
+
+Accept only if both PETSc actual endpoint and last
+saved state are at `t_f=0.03` and the full
+Hamiltonian/boundary-power histories agree for
+P=1/4. The original validation (P=1,2,4,
+t_f=0.0003) predates the new default; repeat
+selected regression cases to rule out unintended
+solver effects. Keep PR #22 in draft, issue #6 open,
+no v1.2.1 release/tag until extended validity gates.
