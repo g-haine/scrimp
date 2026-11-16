@@ -3040,3 +3040,123 @@ Do not change the validated original MCSS source,
 merge PR #22, close #6 or tag release. MPI2 testing
 remains deferred until the same Jacobian is
 understood on one rank.
+
+
+## 2026-11-16 — First published BDF Jacobian factors on BOTH solvers: narrow failure to subsequent Newton/factor lifecycle
+
+The user's actual one-rank native result from
+`mcss_mumps_matrix_capture.log` is now conclusive for
+the FIRST physical BDF2 Jacobian:
+
+- Exact unchanged published MCSS2024 grad model:
+  **10,272 DOFs**. SuperLU-only pseudo initial
+  consistency completed in **23.4s**.
+- Main BDF2 first Jacobian was captured at
+  **t=5e-05**, **shift=20000**, PETSc binary
+  `sandbox/outputs/mcss_mumps/first_bdf_jacobian.petscbin`.
+- Main TS subsequently failed at
+  `MatSolve_MUMPS` with `INFOG(1)=-3`,
+  `INFOG(2)=3`, `INFO(1)=-3`, `INFO(2)=3`;
+  PETSc 76. Recorded `TS_reason=0`,
+  `SNES_reason=0`, `KSP_reason=0`,
+  `PC_failed=0`. These null reasons do NOT
+  establish valid factorization, only that a
+  classified PETSc divergence reason was not set
+  before MUMPS raised its native error.
+- **Standalone, 1 rank, SAME exact first Jacobian**:
+  - SuperLU PREONLY/LU succeeds, relative linear
+    residual **6.92917192e-16**, 1 iteration,
+    `KSP.reset` and `KSP.destroy` succeed.
+  - MUMPS PREONLY/LU also succeeds, relative linear
+    residual **2.05845838e-16**, 1 iteration,
+    `KSP.reset` and `KSP.destroy` succeed.
+
+**Therefore** the initial physical Jacobian is NOT
+intrinsically unfactorable by MUMPS and neither
+standalone LU reset nor cleanup invariably fails.
+Do NOT claim generic MUMPS numerical instability,
+matrix singularity, or a proven MPI problem from
+that first Jacobian. The failure must be either
+in a subsequent Jacobian/numeric state or in
+PETSc TS/SNES/KSP repeated-factor lifecycle,
+including in-place assembled matrix mutations.
+The original capture log confirms several
+GetFEM assembly calls occur after the first
+snapshot before MUMPS reports -3.
+
+### NEXT — Capture 3 consecutive main Newton Jacobians
+
+`sandbox/probe_mcss2024_reference.py` now supports
+`--capture-count 1..6` together with
+`--capture-main-jacobian`.
+First file keeps existing PATH name; later files
+use `_002`, `_003` suffix before extension.
+Each capture prints time, BDF shift, A/P equality,
+CSR stored nnz, BLAKE2b digest of CSR structure
+and values, allowing a direct test for changing
+numerical coefficients or sparsity. The original
+published weak forms, initial SuperLU solve, main
+MUMPS TS and nonlinear assembly remain unchanged.
+
+```bash
+git pull --ff-only
+conda activate scrimp
+SCRIMP_GETFEM_RHS_MODE=divide_by_mpi_size \
+PYTHONFAULTHANDLER=1 \
+timeout -k 5s 150s mpiexec -n 1 \
+  python -u sandbox/probe_mcss2024_reference.py \
+    --solver mumps --init-solver superlu \
+    --final-time 0.0003 --save-dt 0.0001 \
+    --mumps-factor-diagnostics --capture-count 3 \
+    --capture-main-jacobian \
+      sandbox/outputs/mcss_mumps/first_bdf_jacobian.petscbin \
+  > mcss_mumps_matrix_sequence.log 2>&1
+echo "capture exit=$?"
+grep -E 'Captured physical BDF2 Jacobian|MAIN TS PETSc|MUMPS error' \
+  mcss_mumps_matrix_sequence.log
+```
+
+To avoid unnecessary recomputation, first test **the
+already captured single matrix** updated repeatedly
+through one persistent KSP and PETSc Mat
+(`--next-matrix` can be the SAME file):
+
+```bash
+mpiexec -n 1 python -u sandbox/replay_petsc_mumps_snapshot.py \
+  --matrix sandbox/outputs/mcss_mumps/first_bdf_jacobian.petscbin \
+  --next-matrix sandbox/outputs/mcss_mumps/first_bdf_jacobian.petscbin \
+  --solver mumps --cycles 3
+```
+
+When `_002.petscbin` exists, compare **fresh** MUMPS
+factorization for exactly the second snapshot and a
+**persistent** KSP across first→second:
+
+```bash
+mpiexec -n 1 python -u sandbox/replay_petsc_mumps_snapshot.py \
+  --matrix sandbox/outputs/mcss_mumps/first_bdf_jacobian_002.petscbin \
+  --solver mumps --cycles 1
+
+mpiexec -n 1 python -u sandbox/replay_petsc_mumps_snapshot.py \
+  --matrix sandbox/outputs/mcss_mumps/first_bdf_jacobian.petscbin \
+  --next-matrix sandbox/outputs/mcss_mumps/first_bdf_jacobian_002.petscbin \
+  --solver mumps --cycles 2
+```
+
+Interpretation:
+- Second snapshot MUMPS fresh FAILS but SuperLU
+  fresh succeeds: second Newton Jacobian may have
+  a different rank/pivot/numerical issue.
+- Both snapshots factor with fresh MUMPS, but
+  persistent KSP fails: refactorization/reuse
+  or in-place matrix-update lifecycle.
+- Fresh and persistent cases pass, but original
+  PETSc TS still fails: examine actual SNES
+  update order, TS BDF restart, and possible
+  earlier native memory corruption with GetFEM.
+  A standalone replay cannot duplicate TS history.
+
+Keep PR #22 draft; do not advance to MPI2 until
+same-model n=1 MUMPS run is understood. Relative
+power balance ~9.59e-9 is still validated only
+on short one-rank SuperLU reference.
