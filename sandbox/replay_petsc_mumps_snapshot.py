@@ -34,8 +34,11 @@ This still does NOT instantiate SNES/TS or call GetFEM.
 """
 
 import argparse
+import json
 from pathlib import Path
 
+from mpi4py import MPI
+import numpy as np
 from petsc4py import PETSc
 
 
@@ -58,6 +61,103 @@ def load_matrix(path, comm):
     finally:
         viewer.destroy()
     return matrix
+
+
+
+def inspect_two_matrices(first_path, second_path):
+    """Compare actual stored CSR and numerical values without factorization.
+
+    The matrices are loaded independently: PETSc MatCopy cannot hide a
+    removed nonzero by retaining the old destination's allocated slots.
+    Report exact rank-local added/removed locations and the Frobenius
+    difference of the matrices, reduced across all MPI ranks.
+    """
+    comm = PETSc.COMM_WORLD
+    mpi = MPI.COMM_WORLD
+    if not Path(first_path).is_file() or not Path(second_path).is_file():
+        raise FileNotFoundError(
+            f"Both snapshot files are required: {first_path}; {second_path}"
+        )
+    first = load_matrix(first_path, comm)
+    second = load_matrix(second_path, comm)
+    try:
+        if (first.getSize() != second.getSize()
+                or first.getOwnershipRange() != second.getOwnershipRange()):
+            raise ValueError("Snapshot sizes or distributed ownership differ")
+        ra, ca, va = first.getValuesCSR()
+        rb, cb, vb = second.getValuesCSR()
+        if len(ra) != len(rb):
+            raise ValueError("Snapshot local row counts differ")
+
+        added = removed = 0
+        rows_pattern_changed = 0
+        local_delta_sq = 0.0
+        local_nonfinite_a = int(np.count_nonzero(~np.isfinite(va)))
+        local_nonfinite_b = int(np.count_nonzero(~np.isfinite(vb)))
+        for row in range(len(ra) - 1):
+            ia0, ia1 = int(ra[row]), int(ra[row + 1])
+            ib0, ib1 = int(rb[row]), int(rb[row + 1])
+            cols_a, cols_b = ca[ia0:ia1], cb[ib0:ib1]
+            vals_a, vals_b = va[ia0:ia1], vb[ib0:ib1]
+            _shared, inda, indb = np.intersect1d(
+                cols_a, cols_b, assume_unique=True, return_indices=True
+            )
+            row_added = len(cols_b) - len(indb)
+            row_removed = len(cols_a) - len(inda)
+            added += row_added
+            removed += row_removed
+            if row_added or row_removed:
+                rows_pattern_changed += 1
+            # Compare aligned values, including entries present in only one
+            # of the two matrices, without any in-place PETSc operations.
+            keep_a = np.ones(len(cols_a), dtype=bool)
+            keep_b = np.ones(len(cols_b), dtype=bool)
+            keep_a[inda] = False
+            keep_b[indb] = False
+            local_delta_sq += float(np.sum(np.abs(vals_a[inda] - vals_b[indb]) ** 2))
+            local_delta_sq += float(np.sum(np.abs(vals_a[keep_a]) ** 2))
+            local_delta_sq += float(np.sum(np.abs(vals_b[keep_b]) ** 2))
+
+        norm_a = float(first.norm(PETSc.NormType.FROBENIUS))
+        norm_b = float(second.norm(PETSc.NormType.FROBENIUS))
+        diff_frob = float(np.sqrt(mpi.allreduce(local_delta_sq, op=MPI.SUM)))
+        result = {
+            "mode": "inspect_only_no_factorization",
+            "mpi_size": mpi.Get_size(),
+            "first": str(first_path),
+            "second": str(second_path),
+            "global_size": first.getSize(),
+            "stored_nnz_first": int(mpi.allreduce(len(ca), op=MPI.SUM)),
+            "stored_nnz_second": int(mpi.allreduce(len(cb), op=MPI.SUM)),
+            "stored_nnz_added": int(mpi.allreduce(added, op=MPI.SUM)),
+            "stored_nnz_removed": int(mpi.allreduce(removed, op=MPI.SUM)),
+            "rows_with_pattern_change": int(
+                mpi.allreduce(rows_pattern_changed, op=MPI.SUM)
+            ),
+            "stored_zeros_first": int(
+                mpi.allreduce(np.count_nonzero(va == 0), op=MPI.SUM)
+            ),
+            "stored_zeros_second": int(
+                mpi.allreduce(np.count_nonzero(vb == 0), op=MPI.SUM)
+            ),
+            "nonfinite_first": int(
+                mpi.allreduce(local_nonfinite_a, op=MPI.SUM)
+            ),
+            "nonfinite_second": int(
+                mpi.allreduce(local_nonfinite_b, op=MPI.SUM)
+            ),
+            "frobenius_first": norm_a,
+            "frobenius_second": norm_b,
+            "frobenius_difference": diff_frob,
+            "relative_frobenius_difference": diff_frob / max(1.0, norm_a),
+        }
+        if mpi.Get_rank() == 0:
+            print(json.dumps(result, indent=2), flush=True)
+        if result["nonfinite_first"] or result["nonfinite_second"]:
+            raise RuntimeError("At least one snapshot has non-finite coefficients")
+    finally:
+        second.destroy()
+        first.destroy()
 
 
 def replay(path, cycles, factor_only, solver="mumps"):
@@ -272,6 +372,11 @@ def main():
                         help="PETSc binary Jacobian captured on OLD env")
     parser.add_argument("--cycles", type=int, default=3)
     parser.add_argument(
+        "--inspect-only", action="store_true",
+        help="Compare exact stored CSR patterns and numeric coefficients "
+             "of two binary matrices without invoking KSP or MUMPS",
+    )
+    parser.add_argument(
         "--solver", choices=("mumps", "superlu"), default="mumps",
         help="Compare the exact same stored Jacobian with MUMPS versus "
              "SuperLU (one rank); defaults to MUMPS",
@@ -295,6 +400,13 @@ def main():
     args = parser.parse_args()
     if args.cycles <= 0:
         parser.error("--cycles must be positive")
+    if args.inspect_only:
+        if not args.next_matrix:
+            parser.error("--inspect-only requires --next-matrix")
+        if args.factor_only or args.transition_reset != "none":
+            parser.error("--inspect-only is incompatible with factor-only/reset")
+        inspect_two_matrices(args.matrix, args.next_matrix)
+        return
     if args.next_matrix:
         if args.factor_only:
             parser.error("--factor-only cannot be used with --next-matrix")
