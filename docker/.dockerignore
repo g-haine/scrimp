@@ -1,0 +1,3 @@
+# Build with: docker build -f docker/Dockerfile -t scrimp-mpi:dev .
+# This file is NOT automatically applied unless copied to project-root
+# .dockerignore; use root .dockerignore for build context exclusion.
