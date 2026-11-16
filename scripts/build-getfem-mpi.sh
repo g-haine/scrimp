@@ -17,9 +17,9 @@ export PKG_CONFIG_PATH="$CONDA_PREFIX/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
 export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:${LD_LIBRARY_PATH:-}"
 export CPPFLAGS="-I$CONDA_PREFIX/include ${CPPFLAGS:-}"
 export LDFLAGS="-L$CONDA_PREFIX/lib -Wl,-rpath,$CONDA_PREFIX/lib ${LDFLAGS:-}"
-export CC="${CC:-mpicc}"
-export CXX="${CXX:-mpicxx}"
-export FC="${FC:-mpifort}"
+export CC="${GETFEM_CC:-mpicc}"
+export CXX="${GETFEM_CXX:-mpicxx}"
+export FC="${GETFEM_FC:-mpifort}"
 PYTHON_BIN="$(command -v python)"
 
 if [[ "$GETFEM_SOURCE" == release ]]; then
