@@ -87,7 +87,7 @@ def _changed(before, after):
     )
 
 
-def run(mode, n, tolerance, petsc_log):
+def run(mode, n, tolerance, petsc_log, cycles, verbose):
     mpi = MPI.COMM_WORLD
     rank, size = mpi.Get_rank(), mpi.Get_size()
     n = max(n, 24 * size)
@@ -116,11 +116,16 @@ def run(mode, n, tolerance, petsc_log):
     previous_pattern = None
     events = []
     try:
-        for cycle in range(6):
+        for cycle in range(cycles):
+            if verbose:
+                print(f"[rank={rank}] cycle={cycle} begin", flush=True)
             stiffness = stiffness_matrix(n, cycle)
             mass = mass_matrix(n, cycle)
             try:
-                if mode == "always":
+                # A first-iteration PC reset is unnecessary: no factor exists yet.
+                if mode == "always" and cycle > 0:
+                    if verbose:
+                        print(f"[rank={rank}] cycle={cycle} PC.reset", flush=True)
                     pc.reset()
 
                 # Mirrors DPHS.IJacobian: never claim equal sparsity.
@@ -137,10 +142,22 @@ def run(mode, n, tolerance, petsc_log):
                 )
                 changed_any = bool(mpi.allreduce(changed_local, op=MPI.LOR))
                 previous_pattern = current_pattern
+                if verbose:
+                    print(
+                        f"[rank={rank}] cycle={cycle} assembled: "
+                        f"type={operator.getType()} "
+                        f"size={operator.getSize()} "
+                        f"local_size={operator.getLocalSize()} "
+                        f"changed={changed_any}", flush=True,
+                    )
 
                 operator.mult(exact, rhs)
                 numerical.set(0.0)
+                if verbose:
+                    print(f"[rank={rank}] cycle={cycle} entering KSPSolve", flush=True)
                 ksp.solve(rhs, numerical)
+                if verbose:
+                    print(f"[rank={rank}] cycle={cycle} KSPSolve returned", flush=True)
                 operator.mult(numerical, residual)
                 residual.axpy(-1.0, rhs)
                 residual_relative = residual.norm() / max(1.0, rhs.norm())
@@ -200,7 +217,14 @@ if __name__ == "__main__":
     parser.add_argument("--size", type=int, default=240)
     parser.add_argument("--tol", type=float, default=1e-10)
     parser.add_argument("--petsc-log", action="store_true")
+    parser.add_argument("--cycles", type=int, default=6,
+                        help="Run the first 1-6 cycles (default: all 6)")
+    parser.add_argument("--verbose", action="store_true",
+                        help="Print per-rank diagnostics before and after each solve")
     args = parser.parse_args()
     if args.size <= 0 or args.tol <= 0 or not np.isfinite(args.tol):
         parser.error("size and tol must be finite and positive")
-    run(args.mode, args.size, args.tol, args.petsc_log)
+    if not 1 <= args.cycles <= 6:
+        parser.error("cycles must be between 1 and 6")
+    run(args.mode, args.size, args.tol, args.petsc_log,
+        args.cycles, args.verbose)
