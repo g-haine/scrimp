@@ -1803,30 +1803,48 @@ class DPHS:
         # Using BJACOBI in the initial pseudo-TS alone helps distinguish a
         # MUMPS-specific factor lifecycle defect from an earlier heap write.
         init_pc_type = os.environ.get("SCRIMP_INIT_PC_TYPE", "").strip()
-        if init_pc_type:
-            if init_pc_type not in ("bjacobi", "none", "lu"):
-                raise ValueError(
-                    "SCRIMP_INIT_PC_TYPE must be bjacobi, none or lu"
-                )
+        init_solver = os.environ.get(
+            "SCRIMP_INIT_FACTOR_SOLVER_TYPE", ""
+        ).strip().lower()
+        if init_pc_type or init_solver:
             init_ksp = TS.getSNES().getKSP()
             init_pc = init_ksp.getPC()
-            init_pc.setType(init_pc_type)
-            if init_pc_type in ("bjacobi", "none"):
-                # The SWE driver chooses KSPPREONLY for global LU/MUMPS.
-                # Replacing only the PC with BJACOBI while keeping
-                # PREONLY would apply *one* block-Jacobi step, not solve
-                # the linear system. The previous diagnostic therefore
-                # could only report TS DIVERGED_STEP_REJECTED.
-                # Use an actual iterative solve for PC alternatives.
-                init_ksp.setType("gmres")
-                init_ksp.setTolerances(
-                    rtol=1e-8, atol=1e-12, max_it=500
+            if init_pc_type:
+                if init_pc_type not in ("bjacobi", "none", "lu"):
+                    raise ValueError(
+                        "SCRIMP_INIT_PC_TYPE must be bjacobi, none or lu"
+                    )
+                init_pc.setType(init_pc_type)
+                if init_pc_type in ("bjacobi", "none"):
+                    # KSPPREONLY would apply just one preconditioner
+                    # action, not solve the system. Use GMRES.
+                    init_ksp.setType("gmres")
+                    init_ksp.setTolerances(
+                        rtol=1e-8, atol=1e-12, max_it=500
+                    )
+            if init_solver:
+                # Diagnostically mix TWO LU packages on the SAME
+                # published FE model: e.g. SuperLU only for the
+                # consistent-state pseudo-TS; MUMPS for main BDF2.
+                # This does NOT change the global PETSc options or
+                # the main TS's factor package.
+                if init_solver not in ("superlu", "mumps"):
+                    raise ValueError(
+                        "SCRIMP_INIT_FACTOR_SOLVER_TYPE must be "
+                        "superlu or mumps"
+                    )
+                if init_pc.getType() != "lu":
+                    raise ValueError(
+                        "SCRIMP_INIT_FACTOR_SOLVER_TYPE requires "
+                        "pc_type=lu during initialization"
+                    )
+                init_pc.setFactorSolverType(init_solver)
+            if rank == 0:
+                logging.info(
+                    "Initial consistency solver override: "
+                    f"KSP={init_ksp.getType()}, PC={init_pc.getType()}, "
+                    f"LU={init_solver or 'inherited'} (initial TS only)"
                 )
-            _mpi_trace(
-                "init_step: diagnostic linear solver override="
-                f"KSP={init_ksp.getType()}, PC={init_pc.getType()} "
-                "(pseudo-TS only)"
-            )
 
         _mpi_trace("init_step: before algebraic tolerance setup")
         self.exclude_algebraic_var_from_lte(TS)
@@ -1865,7 +1883,28 @@ class DPHS:
         comm.barrier()
 
         _mpi_trace("init_step: before consistency TS.solve")
-        TS.solve(InitVec)
+        try:
+            TS.solve(InitVec)
+        except PETSc.Error:
+            # A TS_DIVERGED_STEP_REJECTED is not an MUMPS error.
+            # Expose the nested SNES/KSP reasons before PETSc's
+            # traceback; a failure of the nonlinear convergence
+            # test differs fundamentally from failed LU factorization.
+            if rank == 0:
+                snes = TS.getSNES()
+                ksp = snes.getKSP()
+                logging.error(
+                    "Initial consistency FAILED: "
+                    f"TS_reason={int(TS.getConvergedReason())}, "
+                    f"steps={TS.getStepNumber()}, "
+                    f"rejected={TS.getStepRejections()}, "
+                    f"SNES_failures={TS.getSNESFailures()}, "
+                    f"SNES_reason={int(snes.getConvergedReason())}, "
+                    f"SNES_iterations={snes.getIterationNumber()}, "
+                    f"KSP_reason={int(ksp.getConvergedReason())}, "
+                    f"KSP_iterations={ksp.getIterationNumber()}"
+                )
+            raise
         final_state_norm = float(InitVec.norm())
         _mpi_trace(
             "init_step: consistency TS completed: reason={}, "
