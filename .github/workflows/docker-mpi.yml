@@ -37,11 +37,14 @@ jobs:
             --build-arg GETFEM_VERSION=5.5 \
             --build-arg MAKE_JOBS=2 \
             -f docker/Dockerfile -t scrimp-mpi:candidate .
+      # ubuntu-24.04 hosted runners may expose only 2 physical CPU slots.
+      # OpenMPI must be allowed to start 4 ranks for FUNCTIONAL CI checks.
+      # --oversubscribe must never be used for performance benchmarks.
       - name: Verify MPI, NumPy 2, complex PETSc and MUMPS
         run: |
           for n in 1 2 4; do
             docker run --rm --cpus=4 scrimp-mpi:candidate \
-              mpiexec -n "$n" python -u sandbox/smoke_modern_stack.py
+              mpiexec --oversubscribe -n "$n" python -u sandbox/smoke_modern_stack.py
           done
       - name: Measure native GetFEM RHS and matrix semantics at 1/2/4 ranks
         run: |
@@ -52,7 +55,7 @@ jobs:
             docker run --rm --cpus=4 \
               -v "$PWD/getfem-assembly:/artifacts" \
               scrimp-mpi:candidate \
-              mpiexec -n "$n" python -u \
+              mpiexec --oversubscribe -n "$n" python -u \
               sandbox/diagnose_getfem_mpi_assembly.py \
               --output "/artifacts/getfem_${n}ranks.json"
           done
@@ -69,7 +72,7 @@ jobs:
         run: |
           for n in 1 2 4; do
             docker run --rm --cpus=4 scrimp-mpi:candidate \
-              mpiexec -n "$n" python -u -m unittest -v tests.test_mpi_algebra
+              mpiexec --oversubscribe -n "$n" python -u -m unittest -v tests.test_mpi_algebra
           done
       - name: Smoke real 2D acoustic system (single rank)
         run: |
