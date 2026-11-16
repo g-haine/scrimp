@@ -1338,7 +1338,10 @@ class DPHS:
             if (pc.getType() == "lu"
                     and pc.getFactorSolverType() == "mumps"):
                 _mpi_trace("IJacobian: before opt-in MUMPS PC.reset")
-                pc.reset()
+                with self.profiler.measure(
+                    f"{self._profile_phase}.petsc.pc_reset"
+                ):
+                    pc.reset()
                 _mpi_trace("IJacobian: after opt-in MUMPS PC.reset")
 
         _mpi_trace("IJacobian: before tangent -> preconditioner copy")
