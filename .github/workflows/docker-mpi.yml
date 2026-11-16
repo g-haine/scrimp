@@ -12,6 +12,7 @@ on:
     paths:
       - docker/**
       - scripts/build-getfem-mpi.sh
+      - scripts/install-petsc-python-bindings.sh
       - sandbox/smoke_modern_stack.py
       - sandbox/bench_acoustic_2d.py
       - scrimp/**
