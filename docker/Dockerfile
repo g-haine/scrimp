@@ -11,12 +11,18 @@ USER root
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates binutils file libgl1 libglu1-mesa libxrender1 libxext6 \
     libxcursor1 libxinerama1 libxi6 libxrandr2 libxfixes3 libsm6 libice6 \
+    libxft2 libfontconfig1 libfreetype6 libxmu6 libxt6 libx11-6 libxcb1 \
     && rm -rf /var/lib/apt/lists/*
 USER $MAMBA_USER
 
 COPY --chown=$MAMBA_USER:$MAMBA_USER docker/environment.yml /tmp/scrimp-environment.yml
 RUN micromamba create -y -f /tmp/scrimp-environment.yml \
     && micromamba clean -a -y
+
+# Fail early on missing transitive shared libraries of the pip Gmsh wheel.
+# This is intentionally BEFORE the expensive PETSc bindings and GetFEM C++
+# compilation; missing libXcursor/libXft previously surfaced minutes later.
+RUN micromamba run -n scrimp python -c "import gmsh; print('Gmsh native library loaded:', gmsh.__version__)"
 
 ENV ENV_NAME=scrimp \
     OMP_NUM_THREADS=1 \
