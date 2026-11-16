@@ -205,6 +205,61 @@ issue from an upstream GetFEM convention.
 GetFEM parallelism reference:
 `GetFEM parallel documentation <https://getfem.org/userdoc/parallel.html>`_.
 
+2D wave Hamiltonian and boundary-power balance (MPI)
+----------------------------------------------------
+
+Before timing the parallel solver, validate the **undamped** wave
+example's port-Hamiltonian power identity using the same GetFEM
+Hamiltonian integrands as ``examples/wave.py``. The prescribed
+left-boundary input in the published example is nearly zero during
+short smoke runs; a separate **nonzero boundary drive** prevents
+vacuous energy-balance checks without changing the wave equations.
+
+For the quadratic Hamiltonian and Crank--Nicolson, check the discrete
+midpoint identity (all four control ports have
+``dissipative=True``, meaning a positive ``flow*effort`` is
+subtracted from energy in SCRIMP's existing plot convention):
+
+.. math::
+
+   H(z_{k})-H(z_{k-1}) + (t_k-t_{k-1})
+   \\sum_{\\Gamma} \\int_{\\Gamma}
+   f_{\\Gamma}(z_{k-1/2}) e_{\\Gamma}(z_{k-1/2}) \\,d\\Gamma = 0.
+
+The residual is calculated **per time step** at midpoint *state and
+time*, not inferred from Hamiltonian conservation with zero input.
+It also checks each scalar GetFEM integral is the same on every
+rank before accepting it. The full Hamiltonian, each boundary
+power trace, the signed work and the numerical defect are exported.
+
+Inside the validated GetFEM 5.5 container (from repository root):
+
+.. code-block:: bash
+
+    mkdir -p sandbox/outputs/energy
+    for n in 1 2 4; do
+        mpiexec --oversubscribe -n "$n" \\
+            python sandbox/check_acoustic_energy_mpi.py \\
+            --mesh 0.2 --dt 0.002 --final-time 0.02 \\
+            --drive-left '0.08*sin(20*t)' \\
+            --output "sandbox/outputs/energy/wave_${n}.json"
+    done
+
+    python sandbox/analyze_acoustic_power_balance.py \\
+        sandbox/outputs/energy/wave_*.json
+
+Use ``--diagnose-only`` to archive **raw measurements**, without
+asserting an energy tolerance, when investigating a previously
+unvalidated GetFEM build; do not describe such a run as validated.
+CI uses a strict numeric gate and compares the complete Hamiltonian
+and boundary-power trajectories at MPI 1, 2 and 4. Hosted CI uses
+oversubscribed cores and its timing data are **not** suitable for
+strong-scaling claims.
+
+This check covers the *linear undamped acoustic problem*. It does
+not yet prove energy consistency for nonlinear Saint-Venant models
+or for substituted/dissipative ports.
+
 2D acoustic-wave strong scaling
 -------------------------------
 
