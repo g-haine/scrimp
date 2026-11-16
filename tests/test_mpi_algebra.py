@@ -155,6 +155,14 @@ class TestMPIAlgebra(unittest.TestCase):
 
                     def assemble_rhs(source_only=False):
                         calls.append(source_only)
+                        # This mock returns the already-physical RHS:
+                        # alpha=1. Real DPHS.assemble_rhs records the
+                        # full-assembly scale, which IFunction needs for
+                        # the source-aware sign correction. Mirror that
+                        # contract explicitly rather than relying on
+                        # an attribute left by an earlier invocation.
+                        if not source_only:
+                            sys._getfem_full_rhs_scale = 1.0
                         # At a constant u, N(u)=3*u^2 and S=2.
                         # GetFEM returns -N+S before SCRIMP signs.
                         raw = (-3.0 * u**2) + (
@@ -168,7 +176,10 @@ class TestMPIAlgebra(unittest.TestCase):
                     sys.assemble_rhs = assemble_rhs
                     with patch.dict(
                         os.environ,
-                        {"SCRIMP_NONLINEAR_RESIDUAL_FORM": "direct_getfem"},
+                        {
+                            "SCRIMP_NONLINEAR_RESIDUAL_FORM": "direct_getfem",
+                            "SCRIMP_GETFEM_SOURCE_RHS_MODE": "raw",
+                        },
                     ):
                         sys.IFunction(None, 0.0, z, zd, F)
                     expected = -u + 3.0*u**2 + (
