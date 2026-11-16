@@ -48,6 +48,15 @@ def _mpi_trace(stage):
               file=sys.stderr, flush=True)
 
 
+def _set_main_ts_default_exact_final_time(ts):
+    """Default main time integration to the physically integrated t_f.
+
+    PETSc's ts_exact_final_time option can still override this choice
+    when a caller explicitly requests legacy STEPOVER semantics.
+    """
+    ts.setExactFinalTime(PETSc.TS.ExactFinalTime.MATCHSTEP)
+
+
 def _select_saved_solution_through_final_time(times, states, t_final):
     """Keep accepted solution snapshots up to t_f with ULP tolerance.
 
@@ -1672,7 +1681,7 @@ class DPHS:
         # a STEPOVER step past t_f and losing its final saved state.
         # A caller may explicitly restore legacy behavior using
         # ts_exact_final_time=stepover (PETSc -ts_exact_final_time).
-        TS.setExactFinalTime(PETSc.TS.ExactFinalTime.MATCHSTEP)
+        _set_main_ts_default_exact_final_time(TS)
         TS.setFromOptions()
         self.exclude_algebraic_var_from_lte(TS)
 
