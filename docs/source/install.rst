@@ -292,6 +292,54 @@ This check covers the *linear undamped acoustic problem*. It does
 not yet prove energy consistency for nonlinear Saint-Venant models
 or for substituted/dissipative ports.
 
+Optional SCRIMP phase profiling (without rebuilding GetFEM)
+---------------------------------------------------------
+
+For v1.3.0 development, SCRIMP can measure its own GetFEM assembly
+steps, GetFEM-to-PETSc transfers, DAE consistency initialization,
+PETSc TS calls and implicit residual/Jacobian callbacks **per MPI rank**.
+Profiling is disabled by default. It adds no MPI collectives inside
+PETSc callbacks; reports are gathered explicitly after the solve.
+
+Update the Python sources from the branch under development, then
+reuse the **existing local Docker image** with a bind mount; no new
+GetFEM compilation is necessary:
+
+.. code-block:: bash
+
+    git pull --ff-only
+    mkdir -p sandbox/outputs/scaling-profile
+    sudo docker run --rm \
+        --cpuset-cpus="0,2,4,6" \
+        -e SCRIMP_MUMPS_RESET_PC_ON_JACOBIAN=1 \
+        -v "$PWD:/workspace/scrimp" \
+        scrimp-mpi:local \
+        mpiexec --map-by hwthread --bind-to hwthread -n 4 \
+        python -u sandbox/bench_acoustic_2d.py \
+        --mesh 0.08 --dt 0.002 --final-time 0.04 \
+        --save-dt 0.01 --profile \
+        --output /workspace/scrimp/sandbox/outputs/scaling-profile/wave_4.json
+
+The container's non-root user needs write access to the chosen output
+directory. Alternatively, write JSON under ``/tmp`` inside the
+container and pipe/copy it to a local file. Without ``--profile``,
+the original benchmark behaves as before.
+
+In other DPHS scripts, set ``SCRIMP_PROFILE=1`` **before** constructing
+the DPHS and call ``system.get_profile()`` on **every** MPI rank
+after ``system.solve()``. The return value is JSON-serializable.
+
+Reported wall durations use per-event MPI rank min/mean/max, and
+record the number of calls. **Nested timers overlap**:
+``main.petsc.ts_solve`` includes time spent in Python IFunction
+and IJacobian callbacks, whose timings in turn include GetFEM and
+PETSc bridge work. The derived ``main.petsc.non_callback_remainder``
+subtracts callback durations on each rank; it includes factorization,
+solve, monitoring and MPI waiting, and is **not pure MUMPS time**.
+Use PETSc native event logging (``-log_view``) in a separate run to
+break down MUMPS factorization/solve. These measurements do not alter
+matrices, RHS scaling, equations or the Crank--Nicolson scheme.
+
 2D acoustic-wave strong scaling
 -------------------------------
 
