@@ -103,6 +103,82 @@ def main():
         "RSS is peak PER RANK, not sum."
     )
 
+    profiles = [
+        run.get("profile")
+        for runs in grouped.values()
+        for _, run in runs
+    ]
+    if any(p is not None for p in profiles):
+        if not all(p is not None and p.get("enabled") for p in profiles):
+            raise SystemExit(
+                "Mixed profiled and unprofiled runs; repeat with --profile"
+            )
+        labels = [
+            ("Full DPHS.solve", "solve.total"),
+            ("GetFEM setup mass", "setup.getfem.mass"),
+            ("GetFEM setup stiffness", "setup.getfem.stiffness"),
+            ("GetFEM setup RHS", "setup.getfem.rhs"),
+            ("Bridge setup mass", "setup.bridge.mass"),
+            ("Bridge setup stiffness", "setup.bridge.stiffness"),
+            ("Bridge setup RHS", "setup.bridge.rhs"),
+            ("Initial DAE consistency (all)", "initial.consistency_total"),
+            ("Initial PETSc TS.solve", "initial.petsc.ts_solve"),
+            ("Initial IFunction callback", "initial.petsc.callback.ifunction"),
+            ("Initial IJacobian callback", "initial.petsc.callback.ijacobian"),
+            ("Main PETSc TS.solve", "main.petsc.ts_solve"),
+            ("Main IFunction callback", "main.petsc.callback.ifunction"),
+            ("Main IJacobian callback", "main.petsc.callback.ijacobian"),
+            ("Main PETSc remainder", "main.petsc.non_callback_remainder"),
+            ("Main GetFEM RHS", "main.getfem.rhs"),
+            ("Main GetFEM nonlinear mass", "main.getfem.nl_mass"),
+            ("Main GetFEM nonlinear stiffness", "main.getfem.nl_stiffness"),
+            ("Main bridge RHS", "main.bridge.rhs"),
+            ("Main bridge nonlinear mass", "main.bridge.nl_mass"),
+            ("Main bridge nonlinear stiffness", "main.bridge.nl_stiffness"),
+        ]
+        nrows = [row for row in labels if any(
+            row[1] in run["profile"]["events"]
+            for runs in grouped.values() for _, run in runs
+        )]
+        print("\nSCRIMP internal profiler (s, medians of MPI rank maxima):")
+        print("| Event | " + " | ".join(str(p) for p in sorted(grouped)) + " |")
+        print("|---|" + "|".join("---:" for _ in grouped) + "|")
+        for title, key in nrows:
+            values = []
+            for ranks, runs in sorted(grouped.items()):
+                durations = [
+                    run["profile"]["events"].get(
+                        key, {}
+                    ).get("seconds_rank_max", 0.)
+                    for _, run in runs
+                ]
+                values.append(f"{statistics.median(durations):.5g}")
+            print("| " + title + " | " + " | ".join(values) + " |")
+        print(
+            "Timings are INCLUSIVE and nested: do not sum callback, "
+            "GetFEM and PETSc TS durations. PETSc remainder = TS.solve "
+            "minus Python IFunction/IJacobian callback times on each rank; "
+            "it includes native factorization/solve, waiting and other "
+            "PETSc work, NOT isolated MUMPS time."
+        )
+
+        print("\nPETSc callbacks (calls per rank, median):")
+        print("| Callback | " + " | ".join(str(p) for p in sorted(grouped)) + " |")
+        print("|---|" + "|".join("---:" for _ in grouped) + "|")
+        for title, key in [
+            ("Main IFunction", "main.petsc.callback.ifunction"),
+            ("Main IJacobian", "main.petsc.callback.ijacobian"),
+        ]:
+            counts = []
+            for ranks, runs in sorted(grouped.items()):
+                counts.append(str(int(statistics.median([
+                    run["profile"]["events"].get(key, {}).get(
+                        "calls_rank_max", 0
+                    ) for _, run in runs
+                ]))))
+            print("| " + title + " | " + " | ".join(counts) + " |")
+
+
 
 if __name__ == "__main__":
     main()
