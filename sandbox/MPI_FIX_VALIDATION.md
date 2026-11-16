@@ -2756,3 +2756,57 @@ For a physically meaningful long run, tighten
 power-balance tolerance and test time/mesh convergence;
 a three-snapshot tiny-time test is only a smoke test.
 Keep issue #6 open, PR #22 draft and #23 separate.
+
+
+## 2026-11-16 — Published MCSS2024: short serial energy/power-balance gate PASSED
+
+**Native user results** (original `scrimp` Conda env, one MPI rank):
+
+1. `tests.test_mpi_algebra.TestMPIAlgebra.test_final_solution_endpoint_keeps_one_ulp_roundoff_but_not_true_stepover`: **PASS** (0.011s); the final snapshot is no longer lost in the 1-ULP `0.00030000000000000003 > 0.0003` comparison.
+2. `sandbox/probe_mcss2024_reference.py --final-time 0.0003 --save-dt 0.0001 --solver superlu --energy-balance`: **exit 0**. Actual PETSc end time **0.00030000000000000003**, last saved time **0.0003**, **3 saved states**, positive TS convergence reason **1**.
+3. **Maximum relative physical energy/power-balance defect**: `9.589926180401037e-09`. This is the **published** Hamiltonian (kinetic + potential), plus integrated positive viscous dissipation (grad + div) and negative boundary supply (normal + vector), computed using the publication's own `get_quantity(..., CN=True)` and `int_scheme="Explicit"` convention.
+
+These are the **first confirmed** simultaneous positive tests for the true published MCSS2024 Saint-Venant equations, corrected production source signs, nonlinear residual/Jacobian, PETSc TS completion, reliable endpoint saving and a *physical* energy/power-balance diagnostic **on the current one-rank SuperLU/BDF2 runtime**.
+
+**Important scope:** only `t=0` through `3e-4` seconds, two accepted time steps, three saved samples. At this horizon the small relative defect is encouraging but is not a convergence study, a long-time conservation result, or MPI verification. The original MCSS2024 published script is unchanged.
+
+### NEXT: change only LU implementation, then only MPI size
+
+Keep **exactly** the same published model, GetFEM bricks, FE mesh, 2024 settings BDF2 and pseudo startup, corrected production RHS, and physical power balance. Change first the LU factor from SuperLU to MUMPS **on a single rank**:
+
+```bash
+git pull --ff-only
+conda activate scrimp
+
+SCRIMP_GETFEM_RHS_MODE=divide_by_mpi_size \
+PYTHONFAULTHANDLER=1 \
+timeout -k 5s 150s mpiexec -n 1 \
+  python -u sandbox/probe_mcss2024_reference.py \
+    --final-time 0.0003 --save-dt 0.0001 \
+    --solver mumps --energy-balance \
+  > mcss2024_mumps_1rank.log 2>&1
+status=$?
+echo "MUMPS 1 rank exit=$status"
+grep -E 'Steps:|actual_final_time|last_saved_time|ts_converged_reason|saved_steps|maximum_relative_balance_error|INFOG|Instance Error|Traceback' \
+  mcss2024_mumps_1rank.log | tail -n 24
+```
+
+**ONLY if 1 rank exits 0 with positive convergence and sensible balance**, repeat with **two ranks**, all other settings unchanged:
+
+```bash
+SCRIMP_GETFEM_RHS_MODE=divide_by_mpi_size \
+PYTHONFAULTHANDLER=1 \
+timeout -k 5s 150s mpiexec -n 2 \
+  python -u sandbox/probe_mcss2024_reference.py \
+    --final-time 0.0003 --save-dt 0.0001 \
+    --solver mumps --energy-balance \
+  > mcss2024_mumps_2ranks.log 2>&1
+status=$?
+echo "MUMPS 2 ranks exit=$status"
+grep -E 'Steps:|actual_final_time|last_saved_time|ts_converged_reason|saved_steps|maximum_relative_balance_error|INFOG|Instance Error|Traceback|Segmentation fault' \
+  mcss2024_mumps_2ranks.log | tail -n 24
+```
+
+Evaluate 1→2 parity in PETSc final time, saved times, `h` and `p` norms, and balance defects. Do **not** infer any broad need to divide GetFEM explicit source bricks by P solely from the generic `1/P` RHS calibration: if the 2-rank model has different results, inspect **source-only RHS vs generic nonlinear RHS partitioning** separately (upstream GetFEM concern in #23). In particular, a 2-rank MUMPS crash might still be a native PETSc/MUMPS lifecycle failure (previous `INFOG(1)=-3`, exit 139/157).
+
+Do not merge PR #22, close #6 or tag a release until MUMPS/MPI parity, long-time numerical integration and time/mesh energy-balance convergence pass.
