@@ -63,10 +63,14 @@ def _build_wave(mesh):
 
 
 def _norms(system):
-    if not system.solution["z"]:
+    # DPHS stores saved trajectories as an ndarray after solve(). A
+    # NumPy array with multiple entries has no unambiguous truth value.
+    if len(system.solution["z"]) == 0:
         return {}
     result = {}
-    last = np.asarray(system.solution["z"][-1], dtype=float)
+    # Preserve complex-valued PETSc states: physical state norms are
+    # defined by magnitudes, not by silently dropping imaginary parts.
+    last = np.asarray(system.solution["z"][-1]).ravel()
     for name in ("q", "p", "e_q", "e_p", "U_B", "U_R", "U_T", "U_L"):
         try:
             start, n = system.gf_model.interval_of_variable(name)
