@@ -98,9 +98,29 @@ in initial consistency. They additionally print PETSc
 the JSON confirms the intended parameter values were applied and
 this message is not a failed test.
 
-**Next:** validate actual nonlinear GetFEM Jacobians and the MUMPS
-factor lifecycle with and without reset, retaining the existing
-conservative fallback until structurally safe reuse is demonstrated.
+**Nonlinear viscous Saint-Venant baseline (2026-11-16; not yet
+converged):** 1 MPI rank, disk mesh=0.2, open case, rigid initial
+rotation=0.02, `t_f=0.01`, fixed ARKIMEX step=0.005, and
+`SCRIMP_MUMPS_RESET_PC_ON_JACOBIAN=1`. The initial BDF2 consistency
+step from `-1e-9` to `0` failed SCRIMP's state-amplification guard:
+`||z_initial||=110.000484`, `||z_final||=5998040.66`, maximum
+amplification 100. This is **not** evidence of a symbolic-reuse bug:
+the conservative reset policy was enabled and the main ARKIMEX
+integration never began. The run nonetheless generated two real
+GetFEM/PETSc Jacobian snapshots,
+`swe_jac_001.petscbin` and `swe_jac_002.petscbin`.
+
+Use `replay_petsc_mumps_snapshot.py --inspect-only` to compare the
+actual stored CSR patterns and matrix values of these two snapshots
+*without factorization*. This new diagnostic avoids the old benchmark's
+cycle-5 ambiguity from retained MatCopy sparsity and does not assume
+that a failed nonlinear initialization produces well-conditioned LU
+test matrices. Only once this inspection is understood should the
+existing snapshot replay with explicit PC reset be considered.
+
+**Next:** inspect the saved nonlinear Jacobians first; separately
+diagnose BDF2 initial consistency and validate a converged nonlinear
+reference before proposing any `dphs.py` policy change.
 
 
 ## Rationale
