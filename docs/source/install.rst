@@ -223,8 +223,8 @@ subtracted from energy in SCRIMP's existing plot convention):
 .. math::
 
    H(z_{k})-H(z_{k-1}) + (t_k-t_{k-1})
-   \\sum_{\\Gamma} \\int_{\\Gamma}
-   f_{\\Gamma}(z_{k-1/2}) e_{\\Gamma}(z_{k-1/2}) \\,d\\Gamma = 0.
+   \sum_{\Gamma} \int_{\Gamma}
+   f_{\Gamma}(z_{k-1/2}) e_{\Gamma}(z_{k-1/2}) \,d\Gamma = 0.
 
 The residual is calculated **per time step** at midpoint *state and
 time*, not inferred from Hamiltonian conservation with zero input.
@@ -238,14 +238,14 @@ Inside the validated GetFEM 5.5 container (from repository root):
 
     mkdir -p sandbox/outputs/energy
     for n in 1 2 4; do
-        mpiexec --oversubscribe -n "$n" \\
-            python sandbox/check_acoustic_energy_mpi.py \\
-            --mesh 0.2 --dt 0.002 --final-time 0.02 \\
-            --drive-left '0.08*sin(20*t)' \\
+        mpiexec --oversubscribe -n "$n" \
+            python sandbox/check_acoustic_energy_mpi.py \
+            --mesh 0.2 --dt 0.002 --final-time 0.02 \
+            --drive-left '0.08*sin(20*t)' \
             --output "sandbox/outputs/energy/wave_${n}.json"
     done
 
-    python sandbox/analyze_acoustic_power_balance.py \\
+    python sandbox/analyze_acoustic_power_balance.py \
         sandbox/outputs/energy/wave_*.json
 
 Use ``--diagnose-only`` to archive **raw measurements**, without
