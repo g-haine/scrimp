@@ -31,12 +31,26 @@ from scrimp.dphs import (DPHS, _set_main_ts_default_exact_final_time,
                         _getfem_mpi_rhs_scale)
 from scrimp.brick import Brick
 from scrimp.utils import linalg
+from scrimp.utils.profiling import TimingProfiler
 
 
 COMM = PETSc.COMM_WORLD
 RANK = COMM.getRank()
 SIZE = COMM.getSize()
 N = max(8, SIZE * 2)
+
+
+def _partial_dphs():
+    """Construct a minimal DPHS for unit-level algebra tests.
+
+    Tests bypass __init__ intentionally to avoid allocating a full
+    GetFEM model. Mirror the profiler fields required by the assembly
+    methods without introducing timing or MPI collectives.
+    """
+    instance = object.__new__(DPHS)
+    instance.profiler = TimingProfiler(enabled=False)
+    instance._profile_phase = "test"
+    return instance
 
 
 class FakeGetFEMDistributedMatrix:
@@ -155,7 +169,7 @@ class TestMPIAlgebra(unittest.TestCase):
                 diagonal.destroy()
             return mat
 
-        sys = DPHS.__new__(DPHS)
+        sys = _partial_dphs()
         sys.mass = mat_with_diagonal(0.0)
         sys.stiffness = mat_with_diagonal(-1.0)
         sys.linear_mass = True
@@ -257,7 +271,7 @@ class TestMPIAlgebra(unittest.TestCase):
                 return {"h": (0, 2), "p": (2, 2),
                         "e_h": (4, 1)}[name]
 
-        d = DPHS.__new__(DPHS)
+        d = _partial_dphs()
         d.ports = {
             "height": DummyPort("h", "e_h"),
             "momentum": DummyPort("p", "e_h"),
@@ -447,7 +461,7 @@ class TestMPIAlgebra(unittest.TestCase):
             assembly=lambda **kwargs: None,
             tangent_matrix=lambda: None,
         )
-        system = object.__new__(DPHS)
+        system = _partial_dphs()
         system.gf_model = model
         system.bricks = {}
         system.mass = linear_diagonal(3.0)
@@ -514,7 +528,7 @@ class TestMPIAlgebra(unittest.TestCase):
         an invalid way to fill the distributed PETSc vector with zero.
         Repeatedly initialize, assemble, then use a PETSc-owned vector.
         """
-        system = object.__new__(DPHS)
+        system = _partial_dphs()
         system.gf_model = SimpleNamespace(nbdof=lambda: N)
         for _ in range(4):
             matrix = PETSc.Mat().create(comm=COMM)
@@ -566,7 +580,7 @@ class TestMPIAlgebra(unittest.TestCase):
         mass = diag_matrix(2.0)
         A = diag_matrix(0.0)
         P = diag_matrix(0.0)
-        system = object.__new__(DPHS)
+        system = _partial_dphs()
         system.gf_model = SimpleNamespace(set_time=lambda t: None)
         system.lumped_variables = set()
         system.linear_mass = True
@@ -625,7 +639,7 @@ class TestMPIAlgebra(unittest.TestCase):
         mass = diagonal_matrix(3.0)
         A = diagonal_matrix(0.0)
         P = diagonal_matrix(0.0)
-        system = object.__new__(DPHS)
+        system = _partial_dphs()
         system.gf_model = SimpleNamespace(set_time=lambda t: None)
         system.lumped_variables = set()
         system.linear_mass = True
@@ -674,7 +688,7 @@ class TestMPIAlgebra(unittest.TestCase):
         n = model.nbdof()
         model.set_variable("u", np.ones(n))
         rhs = PETSc.Vec().createMPI(n, comm=COMM)
-        system = object.__new__(DPHS)
+        system = _partial_dphs()
         system.gf_model = model
         system.bricks = {}
         system.rhs = rhs
@@ -750,7 +764,7 @@ class TestMPIAlgebra(unittest.TestCase):
         model.disable_bricks([nonlinear_id, source_id])
         model.set_variable("u", np.ones(model.nbdof()))
 
-        system = DPHS.__new__(DPHS)
+        system = _partial_dphs()
         system.gf_model = model
         system.bricks = {"nonlinear": nonlinear, "source": source}
         system.linear_mass = True
@@ -809,7 +823,7 @@ class TestMPIAlgebra(unittest.TestCase):
             assembly=lambda **kwargs: None,
             rhs=lambda: np.arange(N, dtype=float) + 1.0,
         )
-        system = object.__new__(DPHS)
+        system = _partial_dphs()
         system.bricks = {}
         system.gf_model = model
         system.rhs = rhs
@@ -832,7 +846,7 @@ class TestMPIAlgebra(unittest.TestCase):
 
     def test_algebraic_tolerances_preserve_distributed_layout(self):
         residual = PETSc.Vec().createMPI(N, comm=COMM)
-        system = object.__new__(DPHS)
+        system = _partial_dphs()
         system.F = residual
         system.gf_model = SimpleNamespace(
             nbdof=lambda: N,
