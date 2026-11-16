@@ -79,7 +79,28 @@ if ! grep -E 'GETFEM_PARA_LEVEL[^0-9]*2|enable.paralevel[^0-9]*2' config.log >/d
   echo "NOTE: verify configure's MPI level 2 from the runtime smoke." >&2
 fi
 make -j "$MAKE_JOBS"
-make install
+
+# GetFEM 5.5 ships GNU Automake 1.16's obsolete "py-compile" helper.
+# That helper still uses "import imp", removed in Python 3.12; the
+# shared library and _getfem extension are already compiled by now.
+# Override only Automake's optional byte-compilation stage while
+# keeping all library, header and extension installation active.
+# The command-line variable propagates to recursive make invocations.
+# Compile real .py modules afterwards using the supported stdlib API.
+echo "Installing GetFEM without legacy Automake py-compile (Python >=3.12)"
+make install 'am__py_compile=:'
+python - <<'PYCOMPILE'
+import compileall
+import pathlib
+import sysconfig
+package = pathlib.Path(sysconfig.get_path("platlib")) / "getfem"
+if not package.is_dir():
+    raise RuntimeError(f"GetFEM Python package missing after install: {package}")
+if not compileall.compile_dir(str(package), quiet=1, force=True):
+    raise RuntimeError(f"Python byte-compilation failed for {package}")
+print("GetFEM Python byte-compiled:", package)
+PYCOMPILE
+
 python - <<'PY'
 import getfem
 level = int(getfem.util_mpi_parallelism_level())
