@@ -145,6 +145,23 @@ def _getfem_mpi_rhs_scale():
     return scale
 
 
+def _getfem_source_rhs_mode():
+    """Opt-in GetFEM MPI source-brick treatment.
+
+    The tested GetFEM MPI-2 build duplicates generic nonlinear RHS
+    contributions P times, but add_source_term_brick is already globally
+    reduced. Keep the old uniform treatment unless explicitly requested.
+    """
+    mode = os.environ.get(
+        "SCRIMP_GETFEM_SOURCE_RHS_MODE", "match_generic"
+    ).strip().lower()
+    if mode not in ("match_generic", "raw"):
+        raise ValueError(
+            "SCRIMP_GETFEM_SOURCE_RHS_MODE must be match_generic or raw"
+        )
+    return mode
+
+
 import scrimp.utils.config
 outputs_path = scrimp.utils.config.outputs_path
 
@@ -781,12 +798,16 @@ class DPHS:
         * generic nonlinear weak terms N(z): rhs = -N(z);
         * add_source_term_brick prescribed forcing S(t): rhs = +S(t).
 
-        The direct IFunction must therefore use -rhs_total + 2*rhs_source
-        to recover N(z)+S(t), including controls such as -U+U_given=0.
-        The historical +rhs convention happened to handle prescribed
-        controls, but is not a general nonlinear weak-form residual.
-        The isolated source-sign reproducer is
-        sandbox/check_mcss_source_sign.py (MCSS2024).
+        For raw GetFEM rhs_total=-P*N(z)+S(t), a generic RHS scale
+        alpha=1/P alone incorrectly scales the source S/P. The tested
+        GetFEM MPI-2 build treats generic terms and source bricks
+        differently. Opt-in SCRIMP_GETFEM_SOURCE_RHS_MODE=raw inserts
+        unscaled source-only RHS and reconstructs the direct residual as
+        -alpha*rhs_total + (1+alpha)*rhs_source = N(z)+S(t).
+        match_generic (default) preserves historical uniform scaling.
+        This flag only affects source bricks' contribution to the
+        direct nonlinear residual, not the physical equations or LU.
+        See sandbox/check_mcss_source_sign.py.
         """
 
         for _, brick in self.bricks.items():
@@ -838,8 +859,21 @@ class DPHS:
             scale = 1.0 / max_rank
         else:
             scale = 1.0
+        source_mode = _getfem_source_rhs_mode()
+        if not source_only:
+            # Save alpha used for the full mixed (-N+S) RHS. The direct
+            # residual needs it to undo source attenuation when source
+            # bricks are already globally assembled under GetFEM MPI-2.
+            self._getfem_full_rhs_scale = scale
+        elif source_mode == "raw":
+            # On the validated GetFEM MPI-2 build, source bricks are
+            # already globally summed ONCE, unlike generic RHS terms.
+            scale = 1.0
         if os.environ.get("SCRIMP_MPI_TRACE") == "1":
-            _mpi_trace(f"rhs: mode={rhs_mode}, scale={scale:.9g}")
+            _mpi_trace(
+                f"rhs: mode={rhs_mode}, source_mode={source_mode}, "
+                f"source_only={source_only}, scale={scale:.9g}"
+            )
         lo, hi = self.rhs.getOwnershipRange()
         if hi > lo:
             self.rhs.setValues(
@@ -1079,13 +1113,17 @@ class DPHS:
                 brick.get_position() == "source"
                 for brick in self.bricks.values()
             ):
-                # The full RHS is (-N + S). Subtracting it would make
-                # the source -S. Restore the *positive* prescribed
-                # source contribution: -(-N+S) + 2*S = N+S.
-                # The source-only assembly uses the same explicit
-                # per-installation MPI RHS normalization as the full one.
+                # The full scaled RHS is alpha*(-P*N+S); with source
+                # raw=+S (opt-in), -full + (1+alpha)*source = N+S.
+                # Without opt-in, source is also scaled by alpha:
+                # -full + 2*source preserves the previous behavior.
+                source_mode = _getfem_source_rhs_mode()
+                correction = (
+                    1.0 + self._getfem_full_rhs_scale
+                    if source_mode == "raw" else 2.0
+                )
                 self.assemble_rhs(source_only=True)
-                F.axpy(2, self.rhs)
+                F.axpy(correction, self.rhs)
         elif self.lumped_variables and self.linear_mass:
             # GetFEM's build_rhs returns MINUS the nonlinear weak-form
             # residual (plus source contributions).  Its nonlinear tangent
@@ -1105,8 +1143,13 @@ class DPHS:
                 brick.get_position() == "source"
                 for brick in self.bricks.values()
             ):
+                source_mode = _getfem_source_rhs_mode()
+                correction = (
+                    1.0 + self._getfem_full_rhs_scale
+                    if source_mode == "raw" else 2.0
+                )
                 self.assemble_rhs(source_only=True)
-                F.axpy(2, self.rhs)
+                F.axpy(correction, self.rhs)
         else:
             # Legacy reproduction for historical scripts; use only
             # to investigate older results, not for correct Newton.
