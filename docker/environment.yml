@@ -1,0 +1,44 @@
+# Experimental modern stack; the conda-forge solver selects the newest
+# mutually compatible *complex* PETSc/SLEPc builds at image build time.
+# After native validation, freeze the resolved explicit lock for releases.
+name: scrimp
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - pip
+  - setuptools
+  - wheel
+  - c-compiler
+  - cxx-compiler
+  - fortran-compiler
+  - make
+  - pkg-config
+  - libtool
+  - autoconf
+  - automake
+  - openmpi
+  - mpi4py
+  - mumps-mpi
+  - metis
+  - parmetis
+  - scalapack
+  - petsc=*=*complex*
+  - petsc4py=*=*complex*
+  - slepc=*=*complex*
+  - slepc4py=*=*complex*
+  - numpy>=2,<3
+  - scipy
+  - matplotlib-base
+  - sympy
+  - pydantic
+  - pyyaml
+  - pytest
+  - sphinx
+  - sphinx_rtd_theme
+  - qhull
+  - curl
+  - ca-certificates
+  - libglu
+  - pip:
+      - gmsh
