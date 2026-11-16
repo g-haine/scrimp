@@ -30,7 +30,10 @@ ENV ENV_NAME=scrimp \
     MPLBACKEND=Agg \
     PETSC_DIR=/opt/conda/envs/scrimp \
     SLEPC_DIR=/opt/conda/envs/scrimp \
-    LD_LIBRARY_PATH=/opt/conda/envs/scrimp/lib
+    LD_LIBRARY_PATH=/opt/conda/envs/scrimp/lib \
+    SCRIMP_GETFEM_MATRIX_MODE=distributed \
+    SCRIMP_GETFEM_RHS_MODE=auto \
+    SCRIMP_GETFEM_SOURCE_RHS_MODE=raw
 
 WORKDIR /workspace/scrimp
 COPY --chown=$MAMBA_USER:$MAMBA_USER . /workspace/scrimp
