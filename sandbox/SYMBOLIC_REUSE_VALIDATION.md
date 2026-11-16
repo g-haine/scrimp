@@ -209,6 +209,37 @@ enabled. Review the per-GetFEM-block Newton norms and the
 height minima/maxima to locate the source of initialization
 divergence before retrying alternative time steps or solvers.
 
+**BDF2 state-block diagnosis (2026-11-16):** With the original
+1-rank open-loop configuration (rotation 0.02, rigid initial
+momentum, `init_dt=1e-9`), PETSc solves and Newton converge and
+TS accepts the BDF2 startup step, but SCRIMP correctly rejects
+the final state norm. The only wildly amplified block is the
+boundary traction multiplier `Y`: 0 initially, `1.19961e7`
+at the intermediate t=-5e-10, and `5.99804e6` at t=0.
+Meanwhile h remains identically 5 (||h||=110), p changes
+only from ||p||=0.326364 to 0.329979, e_p to 0.329979,
+e_h to 11.0, Y_n to 4.05736 and prescribed boundary
+velocity U to 0.161759; U_n stays near zero. Maximum local
+Y magnitude is ~1.78704e6 at the intermediate step and
+~8.93519e5 at t=0. This is **not** a SNES convergence
+failure, a MUMPS factorization failure, or a physical height
+blow-up: it is an unacceptably large algebraic boundary
+traction that dominates the state norm.
+
+**Testable hypothesis, not yet established:** the rigid
+initial p/rho = rotation*(y,-x) is tangent to an ideal circle,
+whereas the mesh's imposed U=rotation*Rot*Normal follows
+faceted outward normals, which can generate a nonzero
+velocity-trace mismatch at t=0. A 1e-9-second startup
+may convert such a mismatch into a very large constraint
+reaction Y. Other explanations include boundary-brick
+sign errors or ill-conditioning / overconstraint.
+A useful noninvasive discriminator is to re-run the
+**same safe startup** with rotation=0 (no velocity mismatch),
+followed, if useful, by testing sensitivity to `--init-dt`.
+Never disable the state-amplification guard merely to
+force the main simulation forward.
+
 **Separately:** validate a converged nonlinear reference before
 proposing any `dphs.py` policy change.
 
