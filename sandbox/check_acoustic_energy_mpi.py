@@ -38,7 +38,7 @@ from mpi4py import MPI
 import numpy as np
 import scrimp as S
 
-from sandbox.bench_acoustic_2d import _build_wave
+from bench_acoustic_2d import _build_wave
 
 
 def _build_with_left_drive(mesh, left_drive):
