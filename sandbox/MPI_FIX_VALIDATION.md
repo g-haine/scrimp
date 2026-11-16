@@ -3427,3 +3427,117 @@ PETSc option is harmless here because the active TS is BDF2;
 tidy option scope in a later, independent patch.
 
 Keep PR #22 draft, issue #6 open and v1.2.1 untagged.
+
+## 2026-11-16 — All-MUMPS pseudo initialization and main BDF2 PASS, ONE rank
+
+User's full native log `mcss2024_all_mumps_reset_1rank.log`
+(303 lines), after opt-in
+`SCRIMP_MUMPS_RESET_PC_ON_JACOBIAN=1`:
+`--solver mumps --init-solver mumps --energy-balance`,
+`SCRIMP_GETFEM_RHS_MODE=divide_by_mpi_size`,
+original MCSS2024 published open-loop experiment 3,
+unchanged weak forms, PETSc 3.21.6 (complex scalar),
+10,272 DOFs. **Exit 0**:
+
+- Historical 2-step pseudo initial consistency TS with MUMPS
+  **passes**, 4.622s (without reset this had previously
+  failed with `DIVERGED_STEP_REJECTED`).
+- Main BDF2 TS with MUMPS **passes**: 2 accepted steps,
+  0 rejected, 0 nonlinear failures, 5 Newton/linear
+  iterations, PETSc reason=1, actual final
+  `t=0.00030000000000000003`, 3 saved states through
+  `0.0003`. Total elapsed 7.482s.
+- Physical Hamiltonian from `41.40691140421563` to
+  `41.40690686525291`; dissipation
+  `D_grad=7.266481074724646e-07` and
+  `D_div=1.8637708506434327e-09`;
+  signed boundary term `B_vector=+3.3184488185643337e-06`
+  using the **published minus sign** in `-h*U.Y`.
+  Absolute energy-balance defect
+  `-4.920020231224953e-07`, relative to initial
+  energy `1.1882123211740075e-08`.
+- Compared with the previous MUMPS main + SuperLU pseudo
+  initialization (same equations and 1-rank mesh),
+  Hamiltonian endpoints agree within ~`2e-14`, but
+  signed integrated boundary power changes by
+  `-9.491277048755352e-08`, and the initial algebraic
+  boundary multiplier `Y` has a different 2-norm
+  (`0.364463752693619` vs `0.3641345881518082`).
+  This is a **real initialization-sensitive diagnostic
+  difference**, even though the state `h,p` remains
+  virtually identical. Investigate DAE algebraic startup,
+  port-power evaluation and convergence before claiming
+  solver-independent physical power accuracy.
+- The relative balance defect normalized by
+  `|H(0)|` is ~`1.19e-8`, but the absolute defect is
+  ~**10.84% of the tiny observed energy variation**
+  `|H(t_f)-H(0)|`. This short-time normalization can
+  mask appreciable relative quadrature/model errors.
+  Track absolute defect and convergence in time step,
+  not just normalization by initial Hamiltonian.
+
+**Scientific scope correction from project owner:**
+the **published MCSS2024 experiment is only an external
+numerical/engineering reference**. The intended research
+output for **LHMNC 2027** is the *not-yet-published*
+2D dissipative **controlled** SWE model and improved
+numerical results. Do not describe these controlled
+results as already published or pretend the MCSS2024
+open-loop smoke test validates them.
+
+### Next gates: MPI algebra, then all-MUMPS physical 2-rank test
+
+The current `tests.test_mpi_algebra` has **14 tests**.
+Run the same branch environment at 1, 2 and 4 ranks
+first. Do not run full physical MPI2 if they fail:
+
+```bash
+git pull --ff-only
+conda activate scrimp
+for n in 1 2 4; do
+  echo "==== algebra, ranks=$n ===="
+  timeout -k 5s 90s mpiexec -n "$n" \
+      python -u -m unittest -v tests.test_mpi_algebra \
+      > "mcss_algebra_${n}ranks.log" 2>&1
+  status=$?
+  echo "ranks=$n exit=$status"
+  tail -n 15 "mcss_algebra_${n}ranks.log"
+  if [ "$status" -ne 0 ]; then break; fi
+done
+```
+
+After all MPI algebra tests pass, compare **identical
+all-MUMPS setup** for one and two ranks. Serial result
+above is the reference; keep every model parameter,
+mesh, pseudo initialization, BDF2 step and diagnostics
+unchanged, only change `mpiexec -n`:
+
+```bash
+SCRIMP_GETFEM_RHS_MODE=divide_by_mpi_size \
+SCRIMP_MUMPS_RESET_PC_ON_JACOBIAN=1 \
+PYTHONFAULTHANDLER=1 \
+timeout -k 5s 240s mpiexec -n 2 \
+  python -u sandbox/probe_mcss2024_reference.py \
+    --solver mumps --init-solver mumps \
+    --final-time 0.0003 --save-dt 0.0001 \
+    --energy-balance \
+  > mcss2024_all_mumps_reset_2ranks.log 2>&1
+status=$?
+echo "all-MUMPS, two ranks: exit=$status"
+grep -E 'Initialisation done|Steps:|actual_final_time|ts_converged_reason|saved_steps|maximum_relative_balance_error|DIVERGED_|MUMPS error|Traceback|Segmentation fault|Aborted' \
+  mcss2024_all_mumps_reset_2ranks.log | tail -n 50
+```
+
+If success, inspect full JSON for all-rank parity in
+final-state `h,p` norms, saved timestamps,
+Hamiltonian, both viscous dissipation terms, signed
+boundary powers and energy balance. A two-rank exit
+0 alone is insufficient. If failure, retain complete
+log and native trace; distinguish pseudo startup,
+matrix assembly, parallel LU, postprocessing or
+racy output. Do not change the model to force success.
+
+Then investigate full controlled dissipative SWE2D
+open/feedback runs, robust power-balance metrics,
+time/mesh convergence and eventual MPI performance.
+No merge of draft PR #22, issue #6 closure or v1.2.1 tag yet.
