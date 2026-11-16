@@ -22,12 +22,12 @@ import io
 import os
 import unittest
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import numpy as np
 from petsc4py import PETSc
 
-from scrimp.dphs import DPHS
+from scrimp.dphs import DPHS, _set_main_ts_default_exact_final_time
 from scrimp.brick import Brick
 from scrimp.utils import linalg
 
@@ -67,6 +67,18 @@ class FakeGetFEMDistributedMatrix:
 
 
 class TestMPIAlgebra(unittest.TestCase):
+    def test_main_ts_default_exact_final_time_is_matchstep(self):
+        """The production TS must not silently overshoot requested t_f.
+
+        STEPOVER remains possible as a deliberate PETSc option after
+        TS.setFromOptions(), but not as SCRIMP's main-TS default.
+        """
+        ts = Mock()
+        _set_main_ts_default_exact_final_time(ts)
+        ts.setExactFinalTime.assert_called_once_with(
+            PETSc.TS.ExactFinalTime.MATCHSTEP
+        )
+
     def test_final_solution_endpoint_keeps_one_ulp_roundoff_but_not_true_stepover(self):
         """MCSS2024 reached PETSc t=0.00030000000000000003.
 
