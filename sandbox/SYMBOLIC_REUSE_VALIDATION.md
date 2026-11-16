@@ -176,9 +176,41 @@ has not yet been run on the captured nonlinear pair. Test it with
 If the 4-rank load fails, first diagnose the binary MatLoad MPI
 compatibility rather than altering SCRIMP.
 
-**Separately:** diagnose BDF2 initial consistency and validate a
-converged nonlinear reference before proposing any `dphs.py`
-policy change.
+**Real GetFEM conditional-reuse replay passed in serial and MPI
+(2026-11-16):** all four cases (1 and 4 ranks, `pc` versus
+`on_change`) completed four persistent-KSP solves and a clean
+reset/destroy. Only the initial 001 -> 002 transition grows the
+*stored* CSR; the later 002 -> 001 -> 002 transitions retain its
+superset pattern. The `pc` reference resets 3 times, whereas
+`on_change` resets just once **collectively on all ranks**.
+In serial, both modes have maximum relative residual
+2.43279796e-16 and maximum relative state error 4.19515974e-7.
+With four ranks, the largest observed residual is 3.8289517e-16
+(`on_change`) and the largest state error 1.90574948e-6
+(both modes). The `pc` and `on_change` four-rank state errors
+are close but not bitwise identical; this is consistent with
+roundoff sensitivity and is not itself proof of a condition number.
+All states passed the exploratory 1e-5 forward-error gate.
+
+**What this does not prove:** these logs do not include PETSc
+`MatLUFactorSym` event counts, so 3 versus 1 explicit PC resets
+cannot yet be translated directly into symbolic-factorization
+counts or an actual runtime speedup. The exact CSR comparison has
+a per-Jacobian cost and an MPI collective. Furthermore, these
+are replayed matrices from a BDF2 initialization that failed its
+state-amplification safety gate, not a converged nonlinear
+time-domain simulation. Keep the existing `dphs.py` behavior
+and explicit opt-in flags unchanged.
+
+**Next priority:** run the current 1-rank viscous Saint-Venant
+baseline with `--newton-block-trace`, the same safe explicit
+MUMPS reset, and the existing BDF2 amplification guard still
+enabled. Review the per-GetFEM-block Newton norms and the
+height minima/maxima to locate the source of initialization
+divergence before retrying alternative time steps or solvers.
+
+**Separately:** validate a converged nonlinear reference before
+proposing any `dphs.py` policy change.
 
 
 ## Rationale
