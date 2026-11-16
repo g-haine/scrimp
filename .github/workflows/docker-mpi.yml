@@ -17,6 +17,8 @@ on:
       - sandbox/bench_acoustic_2d.py
       - sandbox/diagnose_getfem_mpi_assembly.py
       - sandbox/analyze_getfem_mpi_assembly.py
+      - sandbox/check_acoustic_energy_mpi.py
+      - sandbox/analyze_acoustic_power_balance.py
       - scrimp/**
       - tests/test_mpi_algebra.py
       - .github/workflows/docker-mpi.yml
@@ -116,6 +118,41 @@ jobs:
         with:
           name: scrimp-acoustic-mpi-parity
           path: acoustic-mpi/
+          if-no-files-found: warn
+      - name: Check driven 2D wave Hamiltonian and boundary powers on 1/2/4 ranks
+        run: |
+          mkdir -p acoustic-energy
+          chmod 777 acoustic-energy
+          for n in 1 2 4; do
+            timeout -k 10s 240s docker run --rm --cpus=4 \
+              -e SCRIMP_MUMPS_RESET_PC_ON_JACOBIAN=1 \
+              -v "$PWD/acoustic-energy:/artifacts" \
+              scrimp-mpi:candidate \
+              mpiexec --oversubscribe -n "$n" \
+                python -u sandbox/check_acoustic_energy_mpi.py \
+                --mesh 0.2 --dt 0.002 --final-time 0.02 \
+                --drive-left '0.08*sin(20*t)' \
+                --output "/artifacts/wave_energy_${n}ranks.json" \
+                > "acoustic-energy/wave_energy_${n}ranks.log" 2>&1 || {
+                  tail -n 110 "acoustic-energy/wave_energy_${n}ranks.log"
+                  exit 1
+                }
+            echo "Wave Hamiltonian/boundary power, $n ranks:"
+            tail -n 65 "acoustic-energy/wave_energy_${n}ranks.log"
+          done
+          docker run --rm \
+            -v "$PWD/acoustic-energy:/artifacts:ro" \
+            scrimp-mpi:candidate \
+            python sandbox/analyze_acoustic_power_balance.py \
+              /artifacts/wave_energy_1ranks.json \
+              /artifacts/wave_energy_2ranks.json \
+              /artifacts/wave_energy_4ranks.json
+      - name: Preserve wave Hamiltonian and boundary-power evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scrimp-wave-energy-mpi
+          path: acoustic-energy/
           if-no-files-found: warn
       - name: Archive resolved package manifest
         run: |
