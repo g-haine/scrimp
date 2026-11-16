@@ -26,6 +26,7 @@ Example (published BDF2/SuperLU setup, first 3 physical steps):
 
 import argparse
 import importlib.util
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -202,13 +203,23 @@ def main():
     parser.add_argument(
         "--capture-main-jacobian", default=None,
         metavar="PATH.petscbin",
-        help="Write the first main BDF2 Jacobian actually passed to "
+        help="Write the main BDF2 Jacobian actually passed to "
              "the solver in PETSc binary format; no published form change",
+    )
+    parser.add_argument(
+        "--capture-count", type=int, default=1,
+        help="Number of consecutive main BDF2 Newton Jacobians to "
+             "save (1..6); first uses PATH.petscbin, later ones "
+             "PATH_002.petscbin, PATH_003.petscbin, etc.",
     )
     args = parser.parse_args()
     if (not np.isfinite(args.final_time) or args.final_time <= 0
             or not np.isfinite(args.save_dt) or args.save_dt <= 0):
         parser.error("final-time and save-dt must be finite and positive")
+    if not 1 <= args.capture_count <= 6:
+        parser.error("capture-count must be between 1 and 6")
+    if args.capture_count > 1 and not args.capture_main_jacobian:
+        parser.error("--capture-count requires --capture-main-jacobian")
 
     if args.newton_block_trace:
         os.environ["SCRIMP_NEWTON_BLOCK_TRACE"] = "1"
@@ -262,34 +273,61 @@ def main():
         }, indent=2), flush=True)
 
     if args.capture_main_jacobian:
-        # A true first-MAIN-BDF2 snapshot, independent of the
-        # number of nonlinear Jacobian calls during pseudo-TS startup.
-        # Keep the published DPHS weak forms and numerical callback.
-        # PETSc binary MatView is collective: all ranks must enter.
+        # Save consecutive MAIN-BDF2 Jacobians, not any pseudo-TS
+        # initialization matrices. The first snapshot is the exact
+        # operator previously proven solvable by both SuperLU and
+        # MUMPS. Later snapshots identify whether MUMPS fails only
+        # after a Newton Jacobian update and/or a structure change.
+        # We deliberately do not modify the original weak forms,
+        # callback output, KSP, PC or nonlinear iteration.
         original_jacobian = swe.IJacobian
-        snapshot_done = [False]
+        captured = [0]
+        base_path = Path(args.capture_main_jacobian).resolve()
 
         def capture_jacobian(ts, t, z, zd, shift, A, P):
             original_jacobian(ts, t, z, zd, shift, A, P)
-            if ts.getType() == "bdf" and not snapshot_done[0]:
-                target = Path(args.capture_main_jacobian).resolve()
-                if PETSc.COMM_WORLD.getRank() == 0:
-                    target.parent.mkdir(parents=True, exist_ok=True)
-                PETSc.COMM_WORLD.barrier()
-                viewer = PETSc.Viewer().createBinary(
-                    str(target), mode="w", comm=PETSc.COMM_WORLD
+            if ts.getType() != "bdf" or captured[0] >= args.capture_count:
+                return
+
+            captured[0] += 1
+            count = captured[0]
+            target = (
+                base_path if count == 1
+                else base_path.with_name(
+                    f"{base_path.stem}_{count:03d}{base_path.suffix}"
                 )
-                try:
-                    P.view(viewer)
-                finally:
-                    viewer.destroy()
-                snapshot_done[0] = True
-                if PETSc.COMM_WORLD.getRank() == 0:
-                    print(
-                        f"Captured first physical BDF2 Jacobian: "
-                        f"{target}, t={t:.12g}, shift={shift:.12g}",
-                        flush=True,
-                    )
+            )
+            if PETSc.COMM_WORLD.getRank() == 0:
+                target.parent.mkdir(parents=True, exist_ok=True)
+            PETSc.COMM_WORLD.barrier()
+            viewer = PETSc.Viewer().createBinary(
+                str(target), mode="w", comm=PETSc.COMM_WORLD
+            )
+            try:
+                P.view(viewer)
+            finally:
+                viewer.destroy()
+
+            # Per-rank CSR pattern/value digests distinguish genuine
+            # numerical changes from a stale PETSc KSP factor state.
+            # No extra assembly or solver calls occur here.
+            indptr, indices, values = P.getValuesCSR()
+            pattern = hashlib.blake2b(digest_size=12)
+            pattern.update(np.asarray(indptr).tobytes())
+            pattern.update(np.asarray(indices).tobytes())
+            full = pattern.copy()
+            full.update(np.asarray(values).tobytes())
+            print(
+                "Captured physical BDF2 Jacobian "
+                f"{count}/{args.capture_count}: {target}, "
+                f"rank={PETSc.COMM_WORLD.getRank()}, "
+                f"t={t:.12g}, shift={shift:.12g}, "
+                f"A_equals_P={A == P}, "
+                f"nnz={len(values)}, "
+                f"pattern_digest={pattern.hexdigest()}, "
+                f"values_digest={full.hexdigest()}",
+                flush=True,
+            )
 
         swe.IJacobian = capture_jacobian
 
