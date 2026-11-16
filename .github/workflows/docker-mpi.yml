@@ -1,5 +1,11 @@
 name: Build and validate modern GetFEM MPI image
 
+# Deliberately manual-only during SCRIMP v1.3.0 local PETSc/MUMPS
+# optimization. The native GetFEM/PETSc image takes minutes to compile
+# on GitHub runners, and Python-only source changes are tested locally
+# with the existing scrimp-mpi:local image. Revisit automatic Docker CI
+# and build caching in issue #25.
+
 on:
   workflow_dispatch:
     inputs:
@@ -8,23 +14,6 @@ on:
         type: boolean
         default: false
         required: false
-  pull_request:
-    paths:
-      - docker/**
-      - scripts/build-getfem-mpi.sh
-      - scripts/patch-getfem-mpi-timing.py
-      - tests/test_getfem_timing_patch.py
-      - scripts/install-petsc-python-bindings.sh
-      - sandbox/smoke_modern_stack.py
-      - sandbox/bench_acoustic_2d.py
-      - sandbox/diagnose_getfem_mpi_assembly.py
-      - sandbox/analyze_getfem_mpi_assembly.py
-      - sandbox/check_acoustic_energy_mpi.py
-      - sandbox/analyze_acoustic_power_balance.py
-      - scrimp/**
-      - tests/test_mpi_algebra.py
-      - tests/test_profiling.py
-      - .github/workflows/docker-mpi.yml
 
 permissions:
   contents: read
