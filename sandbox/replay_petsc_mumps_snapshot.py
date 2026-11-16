@@ -160,6 +160,21 @@ def inspect_two_matrices(first_path, second_path):
         first.destroy()
 
 
+def relative_state_error(solution, expected):
+    """Check the manufactured exact state, not only the algebraic residual.
+
+    A tiny ||A*x-b|| / ||b|| alone may hide a large state error when
+    the captured, potentially divergent Jacobian is ill-conditioned.
+    """
+    difference = solution.duplicate()
+    try:
+        solution.copy(difference)
+        difference.axpy(-1.0, expected)
+        return difference.norm() / max(expected.norm(), 1.0)
+    finally:
+        difference.destroy()
+
+
 def replay(path, cycles, factor_only, solver="mumps"):
     comm = PETSc.COMM_WORLD
     # PETSc binary I/O is collective; all ranks read the same path.
@@ -209,16 +224,19 @@ def replay(path, cycles, factor_only, solver="mumps"):
                             )
                         finally:
                             check.destroy()
+                        state_error = relative_state_error(x, x_true)
                         emit(
                             comm,
                             f"cycle={cycle} after KSP.solve, "
                             f"reason={int(ksp.getConvergedReason())}, "
                             f"iterations={ksp.getIterationNumber()}, "
                             f"relative_linear_residual="
-                            f"{relative_residual:.9g}",
+                            f"{relative_residual:.9g}, "
+                            f"relative_state_error={state_error:.9g}",
                         )
                         if (int(ksp.getConvergedReason()) <= 0
-                                or relative_residual > 1e-5):
+                                or not (relative_residual <= 1e-5)
+                                or not (state_error <= 1e-5)):
                             raise RuntimeError(
                                 "LU solver failed to reproduce the "
                                 "known consistent Jacobian solution"
@@ -323,17 +341,20 @@ def replay_changing_operator(first_path, second_path, transitions,
             working.mult(x, check)
             check.axpy(-1.0, rhs)
             relative_residual = check.norm() / max(rhs.norm(), 1.0)
+            state_error = relative_state_error(x, x_true)
             emit(
                 comm,
                 f"transition={index} after KSP.solve "
                 f"reason={reason}, iterations={ksp.getIterationNumber()}, "
-                f"relative_linear_residual={relative_residual:.9g}",
+                f"relative_linear_residual={relative_residual:.9g}, "
+                f"relative_state_error={state_error:.9g}",
             )
-            if reason <= 0 or not (
-                relative_residual <= 1e-5
-            ):
+            if (reason <= 0 or not (relative_residual <= 1e-5)
+                    or not (state_error <= 1e-5)):
                 pc = ksp.getPC()
                 details = {
+                    "relative_linear_residual": relative_residual,
+                    "relative_state_error": state_error,
                     "KSP_reason": reason,
                     "PC_type": pc.getType(),
                     "PC_failed_reason": str(pc.getFailedReason()),
