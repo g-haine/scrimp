@@ -1234,6 +1234,26 @@ class DPHS:
         # explicitly unsafe in PETSc (and can crash). Likewise MatAXPY
         # must not assume that M(z) has the same nonzeros as K(z).
         structure = PETSc.Mat.Structure.DIFFERENT_NONZERO_PATTERN
+        # Opt-in workaround for MUMPS: the symbolic LU factor from a
+        # previous Newton iteration may be incompatible with the next
+        # Jacobian's sparsity pattern, even when MatCopy is explicitly
+        # marked DIFFERENT_NONZERO_PATTERN. Reset the *PC* before
+        # modifying the existing operator Mat; do not reset the KSP or
+        # change any solver defaults. Resetting on every Jacobian is
+        # deliberately conservative until a collective, reliable
+        # global sparsity-change detector is validated under MPI.
+        #
+        # PC.reset() is collective: all MPI ranks must use the same
+        # opt-in setting and solver. This also applies to the initial
+        # consistency TS, which is typically SuperLU in the MCSS probe.
+        if os.environ.get("SCRIMP_MUMPS_RESET_PC_ON_JACOBIAN") == "1":
+            pc = TS.getSNES().getKSP().getPC()
+            if (pc.getType() == "lu"
+                    and pc.getFactorSolverType() == "mumps"):
+                _mpi_trace("IJacobian: before opt-in MUMPS PC.reset")
+                pc.reset()
+                _mpi_trace("IJacobian: after opt-in MUMPS PC.reset")
+
         _mpi_trace("IJacobian: before tangent -> preconditioner copy")
         self.tangent_stiffness.copy(P, structure=structure)
         _mpi_trace("IJacobian: after tangent -> preconditioner copy")
