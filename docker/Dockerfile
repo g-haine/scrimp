@@ -33,6 +33,6 @@ RUN GETFEM_VERSION="${GETFEM_VERSION}" \
 
 RUN python -m pip install --no-deps --no-build-isolation -e . \
     && python sandbox/smoke_modern_stack.py \
-    && micromamba list -n scrimp --explicit > /workspace/scrimp/docker-resolved-spec.txt
+    && micromamba env export -n scrimp --explicit > /workspace/scrimp/docker-resolved-spec.txt
 
 CMD ["/bin/bash"]
