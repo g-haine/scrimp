@@ -16,7 +16,9 @@ that mode was observed to give a wrong solution (1 rank) or segfault
 rank-collective CSR comparison detects a new nonzero pattern.
 
 Six numerical Jacobians are tested: three with fixed sparsity, two with
-an added second-neighbour coupling, then one without that coupling.
+an added second-neighbour coupling, then one whose numerical coupling is
+removed. Note that MatCopy may *retain* allocated CSR locations from the
+previous matrix: cycle 5 is not an actual stored-pattern shrink test.
 The full solution and relative algebraic residual are checked every time.
 The local stored CSR pattern is compared exactly (no probabilistic hash),
 and MPI.LOR reports changes on any rank.
@@ -28,7 +30,7 @@ This test does not prove GetFEM's nonlinear Jacobian preserves sparsity.
 
 Example:
   mpiexec -n 4 python -u sandbox/check_petsc_mumps_symbolic_reuse.py \
-      --mode native --petsc-log
+      --mode on_change --petsc-log
 """
 
 import argparse
@@ -228,7 +230,7 @@ def run(mode, n, tolerance, petsc_log, cycles, verbose):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mode", choices=("native", "always", "on_change"),
-                        default="native")
+                        default="on_change")
     parser.add_argument("--size", type=int, default=240)
     parser.add_argument("--tol", type=float, default=1e-10)
     parser.add_argument("--petsc-log", action="store_true")
