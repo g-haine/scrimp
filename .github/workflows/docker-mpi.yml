@@ -100,8 +100,15 @@ jobs:
           done
           # This analyzer requires matching DOFs, time discretization,
           # convergence and final field norms. Do not weaken its gates.
-          python sandbox/analyze_acoustic_scaling.py \
-            acoustic-mpi/wave_*ranks.json
+          # Use the image's NumPy rather than relying on the host
+          # runner having an appropriate Python scientific stack.
+          docker run --rm \
+            -v "$PWD/acoustic-mpi:/artifacts:ro" \
+            scrimp-mpi:candidate \
+            python sandbox/analyze_acoustic_scaling.py \
+              /artifacts/wave_1ranks.json \
+              /artifacts/wave_2ranks.json \
+              /artifacts/wave_4ranks.json
           echo 'CI-only timing: oversubscribed; not a scalability result.'
       - name: Preserve 2D acoustic 1/2/4 rank validation evidence
         if: always()
