@@ -127,6 +127,10 @@ def run(mode, n, tolerance, petsc_log, cycles, verbose):
                     if verbose:
                         print(f"[rank={rank}] cycle={cycle} PC.reset", flush=True)
                     pc.reset()
+                    # PCReset releases its Mat references; unlike TS/SNES, this
+                    # standalone KSP is not automatically rebound by a Jacobian
+                    # callback, so restore both operators before the next solve.
+                    ksp.setOperators(operator)
 
                 # Mirrors DPHS.IJacobian: never claim equal sparsity.
                 structure = PETSc.Mat.Structure.DIFFERENT_NONZERO_PATTERN
