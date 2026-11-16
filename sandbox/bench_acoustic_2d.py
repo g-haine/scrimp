@@ -93,6 +93,11 @@ def main():
         "--profile", action="store_true",
         help="Record SCRIMP GetFEM, bridge and PETSc phase timings in JSON",
     )
+    parser.add_argument(
+        "--petsc-log", action="store_true",
+        help="Enable PETSc native event logging and show its summary at "
+             "the end (including LU factorization and solve events)",
+    )
     # PETSc options, including -log_view, have already been parsed by
     # petsc4py before this parser. Leave their argv entries intact.
     args, _petsc_options = parser.parse_known_args()
@@ -107,6 +112,12 @@ def main():
     p = mpi.Get_size()
     rank = mpi.Get_rank()
     os.environ.setdefault("SCRIMP_INIT_FACTOR_SOLVER_TYPE", "mumps")
+    if args.petsc_log:
+        # DPHS.get_cleared_TS_options() clears PETSc's options database.
+        # Start the native event logger explicitly rather than relying
+        # on -log_view being preserved across DPHS construction.
+        # PETSc.Log.begin and PETSc.Log.view are MPI-collective.
+        PETSc.Log.begin()
 
     mpi.Barrier()
     start = time.perf_counter()
@@ -172,6 +183,11 @@ def main():
         if args.output is not None:
             args.output.parent.mkdir(parents=True, exist_ok=True)
             args.output.write_text(text + "\n", encoding="utf-8")
+    if args.petsc_log:
+        # Collective: every rank enters after the full time integration.
+        # -log_view on command line is not sufficient here because SCRIMP
+        # clears the PETSc Options object when constructing DPHS.
+        PETSc.Log.view()
     tol = 32.0 * abs(np.spacing(args.final_time))
     if (report["ts_converged_reason"] <= 0
             or abs(t_petsc - args.final_time) > tol
