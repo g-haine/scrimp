@@ -133,15 +133,24 @@ initialization** and are *not* evidence of a physically valid
 Saint-Venant simulation; the extremely large matrix norm also
 limits numerical interpretation.
 
-**Next diagnostic gate:** first test each snapshot on its own
-with `sandbox/replay_petsc_mumps_snapshot.py` (`--cycles 1`,
-independent KSP). If both individually factor/solve with controlled
-algebraic residuals, test the persistent 001 -> 002 transition
-with `--next-matrix ... --transition-reset pc --cycles 2`. Do
-not run unsafe `--transition-reset none` in this environment as
-the synthetic changing-pattern case already caused a SIGSEGV.
-A successful replay is linear-algebraic evidence, not proof
-of nonlinear convergence or acceptable Hamiltonian balance.
+**Real GetFEM MUMPS factorization/replay checks passed on one MPI rank
+(2026-11-16):** snapshot 001, separately factored and solved, gave
+relative residual `2.29575684e-16`; snapshot 002 gave
+`1.99743508e-16`. With one persistent KSP/PC/Mat across 001 -> 002,
+an explicit `PC.reset()` before the in-place MatCopy gave the same
+two residuals, and `KSP.reset()` / `KSP.destroy()` completed normally.
+All three runs exit 0. **Limit:** the original replay script checked
+external residuals but did not yet compare the recovered state with
+the manufactured exact solution `x=1`. These large-norm Jacobians
+may be ill-conditioned, so tiny residuals alone do not prove a
+small forward error. The replay script now reports and gates both
+`relative_linear_residual` and `relative_state_error` at 1e-5.
+Re-run the 001 -> 002 transition with this state-error check and
+consider 4 cycles (001 -> 002 -> 001 -> 002) under explicit reset.
+Do not run the unsafe `--transition-reset none`: synthetic changing-
+pattern reuse already caused a SIGSEGV. Independently factoring
+an already captured Jacobian does **not** validate the nonlinear
+BDF2 step or the model's Hamiltonian balance.
 
 **Separately:** diagnose BDF2 initial consistency and validate a
 converged nonlinear reference before proposing any `dphs.py`
