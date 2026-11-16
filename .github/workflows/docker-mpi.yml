@@ -75,13 +75,41 @@ jobs:
             docker run --rm --cpus=4 scrimp-mpi:candidate \
               mpiexec --oversubscribe -n "$n" python -u -m unittest -v tests.test_mpi_algebra
           done
-      - name: Smoke real 2D acoustic system (single rank)
+      - name: Check 2D acoustic-wave physical parity at 1/2/4 ranks
         run: |
-          docker run --rm --cpus=4 \
-            -e SCRIMP_MUMPS_RESET_PC_ON_JACOBIAN=1 \
-            scrimp-mpi:candidate \
-            mpiexec -n 1 python -u sandbox/bench_acoustic_2d.py \
-              --mesh 0.2 --final-time 0.002 --dt 0.001 --save-dt 0.001
+          mkdir -p acoustic-mpi
+          # Mounted CI directory must be writable by the image's mambauser.
+          chmod 777 acoustic-mpi
+          for n in 1 2 4; do
+            # Functional CI only; hosted runners have insufficient cores
+            # for meaningful strong-scaling timings at 4 ranks.
+            timeout -k 10s 180s docker run --rm --cpus=4 \
+              -e SCRIMP_MUMPS_RESET_PC_ON_JACOBIAN=1 \
+              -v "$PWD/acoustic-mpi:/artifacts" \
+              scrimp-mpi:candidate \
+              mpiexec --oversubscribe -n "$n" \
+                python -u sandbox/bench_acoustic_2d.py \
+                --mesh 0.2 --final-time 0.002 --dt 0.001 \
+                --save-dt 0.001 --output "/artifacts/wave_${n}ranks.json" \
+                > "acoustic-mpi/wave_${n}ranks.log" 2>&1 || {
+                  cat "acoustic-mpi/wave_${n}ranks.log"
+                  exit 1
+                }
+            echo "Acoustic run with $n ranks:"
+            tail -n 40 "acoustic-mpi/wave_${n}ranks.log"
+          done
+          # This analyzer requires matching DOFs, time discretization,
+          # convergence and final field norms. Do not weaken its gates.
+          python sandbox/analyze_acoustic_scaling.py \
+            acoustic-mpi/wave_*ranks.json
+          echo 'CI-only timing: oversubscribed; not a scalability result.'
+      - name: Preserve 2D acoustic 1/2/4 rank validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scrimp-acoustic-mpi-parity
+          path: acoustic-mpi/
+          if-no-files-found: warn
       - name: Archive resolved package manifest
         run: |
           docker run --rm scrimp-mpi:candidate \
