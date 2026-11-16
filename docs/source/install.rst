@@ -126,6 +126,65 @@ runtime. If either compilation or tests fail, do not downgrade
 NumPy silently inside the modern environment; preserve the
 error logs for debugging. Keep ``scrimp.yml`` as a fallback.
 
+Native GetFEM MPI assembly audit (important)
+---------------------------------------------
+
+Before interpreting any parallel simulation, compare the **raw
+GetFEM outputs** at P=1, 2 and 4. The official GetFEM MPI
+documentation says:
+
+* Model RHS vectors are **globally assembled and replicated** on
+  every rank. A complete vector is expected and by itself is **not**
+  a reason to divide its values by P.
+* Tangent matrices are normally **distributed contributions**;
+  the GetFEM-to-PETSc bridge must ADD these across ranks.
+* The original maintainer's GetFEM 5.4.2 build instead returned
+  full replicated tangent matrices and P-fold nonlinear RHS terms;
+  this is a measured local behavior, **not** an assumption for 5.5.
+
+We explicitly audit native matrices, generic nonlinear RHS,
+prescribed source RHS and their sum, separately, without invoking
+SCRIMP's normalization, PETSc transfer or MUMPS:
+
+.. code-block:: bash
+
+    mkdir -p sandbox/outputs/getfem-assembly
+    for n in 1 2 4; do
+        mpiexec -n "$n" python -u \
+            sandbox/diagnose_getfem_mpi_assembly.py \
+            --output "sandbox/outputs/getfem-assembly/${n}.json"
+    done
+
+    python sandbox/analyze_getfem_mpi_assembly.py \
+        sandbox/outputs/getfem-assembly/*.json
+
+The analytical references on [0,1], with u=1 and source=2,
+are -1 for the generic RHS, +2 for the source-only RHS,
++1 for the mixed RHS, and 1/2 for the linear/nonlinear
+tangent actions on a vector of ones.
+
+The analyzer reports whether the generic RHS or source RHS
+are **physical** or **P-fold duplicated**, and whether tangent
+matrices are **full and replicated** or **distributed by
+contribution**. The matrix bridge default is currently
+``SCRIMP_GETFEM_MATRIX_MODE=replicated``; if native 5.5
+has distributed tangents, the analyzer **fails deliberately**,
+since that default must be changed or selected explicitly before
+validating the physical model. The RHS bridge already calibrates
+generic contributions in
+``SCRIMP_GETFEM_RHS_MODE=auto``, but its source-brick behavior
+requires separate verification; ``SCRIMP_GETFEM_SOURCE_RHS_MODE=raw``
+preserves unscaled GetFEM sources where they are assembled once.
+
+**Do not change RHS normalization solely because GetFEM returns
+full vectors or matrices.** First compare raw numerical values with
+the known integrals and the P=1 reference. Preserve logs from
+both GetFEM 5.4.2 and GetFEM 5.5 to distinguish an installation
+issue from an upstream GetFEM convention.
+
+GetFEM parallelism reference:
+`GetFEM parallel documentation <https://getfem.org/userdoc/parallel.html>`_.
+
 2D acoustic-wave strong scaling
 -------------------------------
 
