@@ -126,6 +126,38 @@ runtime. If either compilation or tests fail, do not downgrade
 NumPy silently inside the modern environment; preserve the
 error logs for debugging. Keep ``scrimp.yml`` as a fallback.
 
+Native GetFEM MPI assembly timing verbosity
+-----------------------------------------
+
+GetFEM 5.5 prints ``Assembly time ...`` for **every model assembly**
+on the master MPI rank, even when SCRIMP calls
+``gf.util_trace_level(0)``. This comes from an unconditional
+C++ ``std::cout`` in ``src/getfem_models.cc``, rather than
+SCRIMP's Python logger.
+
+For **new native GetFEM builds made with SCRIMP's build script**,
+``scripts/patch-getfem-mpi-timing.py`` changes only this single
+diagnostic print, after extracting the upstream source and before
+compilation. Normal execution is quiet. To restore upstream-style
+per-assembly timing information for diagnosis, set:
+
+.. code-block:: bash
+
+    SCRIMP_GETFEM_ASSEMBLY_TIMING=1 mpiexec -n 4 \
+        python sandbox/smoke_modern_stack.py
+
+The flag must be present in the environment **inside** the
+container and on all MPI ranks. The script fails on unrecognised
+upstream source instead of guessing at a patch; tests cover the exact
+source rewrite. Neither mathematical expressions, assembly results,
+nor MPI communication are changed. Avoid silencing all stdout/stderr
+in Python: GetFEM's native errors and diagnostics must remain visible.
+
+**An image built before this change still prints the messages.**
+Rebuilding the native GetFEM layer is necessary to change that image;
+defer it to the next planned image rebuild rather than recompiling
+GetFEM solely to remove cosmetic output.
+
 Native GetFEM MPI assembly audit (important)
 ---------------------------------------------
 
