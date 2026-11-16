@@ -68,6 +68,34 @@ class FakeGetFEMDistributedMatrix:
 
 
 class TestMPIAlgebra(unittest.TestCase):
+    def test_acoustic_benchmark_norms_accept_numpy_trajectories(self):
+        """Wave benchmark must accept DPHS's post-solve NumPy arrays.
+
+        A successful Crank-Nicolson wave solve previously failed in
+        *reporting* because it tested a non-empty ndarray's truth value.
+        Preserve complex-state magnitudes as well.
+        """
+        from sandbox.bench_acoustic_2d import _norms
+
+        intervals = {"q": (0, 1), "p": (1, 1)}
+        model = SimpleNamespace(
+            interval_of_variable=lambda name: intervals[name],
+        )
+        system = SimpleNamespace(
+            solution={
+                "z": np.array([
+                    [0.0 + 0.0j, 0.0 + 0.0j],
+                    [3.0 + 4.0j, 5.0 + 12.0j],
+                ]),
+            },
+            gf_model=model,
+        )
+        self.assertEqual(_norms(system), {"q": 5.0, "p": 13.0})
+        system.solution["z"] = []
+        self.assertEqual(_norms(system), {})
+        system.solution["z"] = np.empty((0, 2))
+        self.assertEqual(_norms(system), {})
+
     def test_main_ts_default_exact_final_time_is_matchstep(self):
         """The production TS must not silently overshoot requested t_f.
 
