@@ -29,6 +29,7 @@ JSON records with analyze_acoustic_power_balance.py.
 """
 import argparse
 import json
+import os
 from pathlib import Path
 from unittest.mock import patch
 
@@ -197,6 +198,9 @@ def main():
         parser.error("rtol/atol must be non-negative")
 
     mpi = MPI.COMM_WORLD
+    # Use the same consistent-initialization LU package as the previously
+    # validated acoustic smoke benchmark, also for multi-rank runs.
+    os.environ.setdefault("SCRIMP_INIT_FACTOR_SOLVER_TYPE", "mumps")
     system = _build_with_left_drive(args.mesh, args.drive_left)
     system.set_time_scheme(
         ts_type="cn", ts_adapt_type="none",
