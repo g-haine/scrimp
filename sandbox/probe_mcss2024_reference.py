@@ -174,10 +174,10 @@ def main():
     parser.add_argument(
         "--exact-final-time",
         choices=("stepover", "matchstep"),
-        default="stepover",
-        help="PETSc main-TS endpoint policy: stepover retains the "
-             "published runtime behavior, matchstep adjusts the last "
-             "BDF time step to reach precisely --final-time",
+        default="matchstep",
+        help="PETSc main-TS endpoint policy: matchstep (default) "
+             "adjusts the last BDF time step to --final-time; "
+             "stepover explicitly restores legacy SCRIMP behavior",
     )
     parser.add_argument(
         "--solver", choices=("superlu", "mumps"), default="superlu",
@@ -253,12 +253,11 @@ def main():
         pc_factor_mat_solver_type=args.solver,
         init_step=not args.no_init_step,
     )
-    # DPHS.solve() sets STEPOVER before TS.setFromOptions().
-    # An explicit PETSc option overrides that choice for the main TS.
-    # The published default (STEPOVER) is preserved unless requested.
-    # Pseudo startup is step-count-limited and its method is unchanged.
-    if args.exact_final_time == "matchstep":
-        scheme_overrides["ts_exact_final_time"] = "matchstep"
+    # DPHS.solve() defaults to MATCHSTEP. Make the requested policy
+    # explicit in the PETSc options DB for reproducibility; STEPOVER
+    # is now an opt-in legacy comparison, never the probe default.
+    # Pseudo initialization remains step-count-limited.
+    scheme_overrides["ts_exact_final_time"] = args.exact_final_time
     swe.set_time_scheme(**scheme_overrides)
     rank = PETSc.COMM_WORLD.getRank()
     options_to_show = {
