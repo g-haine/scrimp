@@ -23,10 +23,12 @@ dependencies:
   - metis
   - parmetis
   - scalapack
-  - petsc=*=*complex*
-  - petsc4py=*=*complex*
-  - slepc=*=*complex*
-  - slepc4py=*=*complex*
+  # Native complex PETSc/SLEPc from conda-forge; Python bindings
+  # are then built against THESE EXACT libraries and NumPy 2 via pip.
+  # The conda-forge complex petsc4py builds currently force NumPy<2.
+  - petsc=3.26.*=*complex*
+  - slepc=3.26.*=*complex*
+  - cython>=3
   - numpy>=2,<3
   - scipy
   - matplotlib-base
