@@ -17,3 +17,14 @@ The easiest way to install SCRIMP is to use a conda environment.
 4. Create the conda environment:  ```conda env create --file /path/to/scrimp/scrimp.yml```
 5. Activate the environment:  ```conda activate scrimp```
 6. Finish with pip: ```pip install -e .```
+
+## Experimental GetFEM 5.5 / NumPy 2 experimental MPI stack
+
+For a from-source **parallel GetFEM 5.5** build (Conda or Docker), MPI
+dependency checks, 2D acoustic-wave scaling scripts, and an opt-in
+GHCR image publication workflow, see
+[installation and MPI build instructions](docs/source/install.rst).
+
+The conventional `scrimp.yml` setup remains unchanged until
+GetFEM 5.5 + NumPy 2 and physical parallel benchmarks pass in CI.
+No experimental container is advertised as validated or released yet.
