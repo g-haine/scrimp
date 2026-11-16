@@ -160,6 +160,18 @@ def inspect_two_matrices(first_path, second_path):
         first.destroy()
 
 
+def stored_csr_pattern(matrix):
+    """Return a detached copy of the locally stored sparse pattern."""
+    indptr, indices, _ = matrix.getValuesCSR()
+    return np.array(indptr, copy=True), np.array(indices, copy=True)
+
+
+def local_pattern_changed(before, after):
+    """Compare CSR positions, without checking numerical values."""
+    return (not np.array_equal(before[0], after[0])
+            or not np.array_equal(before[1], after[1]))
+
+
 def relative_state_error(solution, expected):
     """Check the manufactured exact state, not only the algebraic residual.
 
@@ -266,6 +278,7 @@ def replay_changing_operator(first_path, second_path, transitions,
     reassembles the SAME PETSc Mat handle with A_002's new structure.
     """
     comm = PETSc.COMM_WORLD
+    mpi = MPI.COMM_WORLD
     if not Path(first_path).is_file() or not Path(second_path).is_file():
         raise FileNotFoundError(
             f"Snapshots must both exist: {first_path}; {second_path}"
@@ -289,6 +302,8 @@ def replay_changing_operator(first_path, second_path, transitions,
         pc.setFactorSolverType(solver)
         ksp.setOperators(working)
         structure = PETSc.Mat.Structure.DIFFERENT_NONZERO_PATTERN
+        previous_pattern = stored_csr_pattern(working)
+        reset_count = 0
 
         emit(
             comm,
@@ -304,7 +319,7 @@ def replay_changing_operator(first_path, second_path, transitions,
                 # factorization the PC may still own LU symbolic
                 # structures for the OLD sparse graph. This is an
                 # opt-in diagnostic; the default reproduces the bug.
-                if transition_reset != "none":
+                if transition_reset in ("pc", "ksp"):
                     emit(
                         comm,
                         f"transition={index} BEFORE "
@@ -312,10 +327,9 @@ def replay_changing_operator(first_path, second_path, transitions,
                     )
                     if transition_reset == "pc":
                         ksp.getPC().reset()
-                    elif transition_reset == "ksp":
-                        ksp.reset()
                     else:
-                        raise ValueError(transition_reset)
+                        ksp.reset()
+                    reset_count += 1
                     emit(
                         comm,
                         f"transition={index} AFTER "
@@ -330,8 +344,29 @@ def replay_changing_operator(first_path, second_path, transitions,
                 )
                 source.copy(working, structure=structure)
                 working.assemble()
+                new_pattern = stored_csr_pattern(working)
+                pattern_changed = bool(mpi.allreduce(
+                    local_pattern_changed(previous_pattern, new_pattern),
+                    op=MPI.LOR,
+                ))
+                previous_pattern = new_pattern
+                emit(
+                    comm,
+                    f"transition={index} after in-place Mat.copy "
+                    f"stored_pattern_changed={pattern_changed}",
+                )
+                if transition_reset == "on_change" and pattern_changed:
+                    # In this PETSc-only diagnostic the exact, collective
+                    # CSR check is made after MatCopy. Reset the stale LU
+                    # before the next factorization/KSPSolve. Retained
+                    # allocated slots are intentionally considered unchanged.
+                    emit(comm, f"transition={index} BEFORE pc.reset "
+                               "(stored pattern changed)")
+                    ksp.getPC().reset()
+                    reset_count += 1
+                    emit(comm, f"transition={index} AFTER pc.reset "
+                               "(stored pattern changed)")
                 ksp.setOperators(working)
-                emit(comm, f"transition={index} after in-place Mat.copy")
 
             working.mult(x_true, rhs)
             x.set(0.0)
@@ -374,6 +409,7 @@ def replay_changing_operator(first_path, second_path, transitions,
                     "Persistent KSP failed after a nonlinear matrix update"
                 )
 
+        emit(comm, f"persistent KSP explicit_factor_resets={reset_count}")
         emit(comm, "persistent KSP before KSP.reset")
         ksp.reset()
         emit(comm, "persistent KSP after KSP.reset")
@@ -408,11 +444,12 @@ def main():
              "KSP and Mat while alternating old/new Jacobian patterns",
     )
     parser.add_argument(
-        "--transition-reset", choices=("none", "pc", "ksp"),
+        "--transition-reset", choices=("none", "pc", "ksp", "on_change"),
         default="none",
-        help="For a changing matrix, reset the factor PC or full KSP "
-             "BEFORE in-place Mat.copy; isolate stale sparse symbolic "
-             "factorization. Default none reproduces the failure.",
+        help="For a changing matrix: pc/ksp reset before every MatCopy; "
+             "on_change resets only after a rank-collective exact comparison "
+             "of the newly stored CSR against the prior CSR, before solve. "
+             "The unsafe default 'none' is retained for legacy diagnostics.",
     )
     parser.add_argument(
         "--factor-only", action="store_true",
