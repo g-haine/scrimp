@@ -14,6 +14,7 @@
 """
 
 import sys
+import os
 import getfem as gf
 import numpy as np
 import petsc4py
@@ -27,30 +28,93 @@ comm = PETSc.COMM_WORLD
 import scipy.sparse as sp
 
 def convert_gmm_to_petsc(M, B, comm=comm):
-    """Convert a GetFEM matrix M to a PETSc one B
+    """Transfer GetFEM's globally numbered matrix into distributed PETSc.
 
-    Args:
-        M (SPMat GetFEM): matrix to transfer
-        B (PETSc.Mat): matrix to fill M with
-        comm (MPI_Comm): MPI communicator
+    For gf.Model.tangent_matrix() in the tested GetFEM Python MPI-2
+    builds, the returned sparse matrix is already globally assembled
+    and available on every rank. It must be inserted only once, using
+    the rows owned by each PETSc rank (the default 'replicated' mode).
 
-    Returns:
-        None
+    Other callers can explicitly select 'distributed' for partial
+    GetFEM contributions by setting SCRIMP_GETFEM_MATRIX_MODE.
+    Never automatically switch the assembly semantic from Newton step
+    to Newton step based on exact hashes of floating-point entries:
+    the prior heuristic caused unstable replicated/distributed mode
+    changes in a 2D nonlinear shallow-water solve.
+
+    Every rank must enter this method; do not add external barriers.
     """
-
     A = gf.Spmat("copy", M)
-    # Because CSR is CSC of the transpose
-    # and CSR is not available in getfem
+    # GetFEM exposes CSC of the transpose; this yields CSR of M.
     A.transpose()
     row_ptr, col_idx = A.csc_ind()
     values = A.csc_val()
-    
-    B.setOption(PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR,False)
-    B.setValuesLocalCSR(row_ptr, col_idx, values, addv=PETSc.InsertMode.INSERT_VALUES)
-    B.setOption(PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR,True)
 
-    # Assemble the PETSc matrix in parallel
-    B.assemble()
+    row_ptr = np.asarray(row_ptr)
+    col_idx = np.asarray(col_idx)
+    values = np.asarray(values)
+    nrows, ncols = B.getSize()
+    if len(row_ptr) != nrows + 1:
+        raise ValueError(
+            f"GetFEM/PETSc row count mismatch on rank {comm.getRank()}: "
+            f"{len(row_ptr)-1} vs PETSc {nrows}"
+        )
+    if len(col_idx) != len(values) or int(row_ptr[-1]) != len(values):
+        raise ValueError("Invalid GetFEM CSR data (column/value count)")
+    if len(col_idx) and (min(col_idx) < 0 or max(col_idx) >= ncols):
+        raise ValueError("GetFEM CSR has columns outside the PETSc matrix")
+
+    mode = os.environ.get("SCRIMP_GETFEM_MATRIX_MODE", "replicated").lower()
+    if mode not in ("replicated", "distributed"):
+        raise ValueError(
+            "SCRIMP_GETFEM_MATRIX_MODE must be replicated or distributed"
+        )
+
+    trace = os.environ.get("SCRIMP_MPI_TRACE") == "1"
+    if trace:
+        print(
+            f"[MPI {comm.getRank()}/{comm.getSize()}] "
+            f"GetFEM -> PETSc: rows={nrows}, nnz_stored={len(values)}, "
+            f"nnz_nonzero={np.count_nonzero(values)}, "
+            f"abs_sum={np.sum(np.abs(values)):.9g}, mode={mode}",
+            file=sys.stderr, flush=True,
+        )
+
+    # Both INSERT and ADD are used only after clearing the old Jacobian.
+    B.zeroEntries()
+    B.setOption(PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR, False)
+    try:
+        if mode == "replicated":
+            # Every rank holds the *whole* matrix; retain only PETSc-owned
+            # rows on that rank to avoid inserting the same entry P times.
+            lo, hi = B.getOwnershipRange()
+            if hi > lo:
+                begin, end = int(row_ptr[lo]), int(row_ptr[hi])
+                B.setValuesIJV(
+                    row_ptr[lo:hi + 1] - begin,
+                    col_idx[begin:end],
+                    values[begin:end],
+                    addv=PETSc.InsertMode.INSERT_VALUES,
+                    rowmap=np.arange(lo, hi, dtype=PETSc.IntType),
+                )
+        elif len(values):
+            # True distributed GetFEM contributions can include overlaps
+            # and off-process rows: sum by GLOBAL index in PETSc.
+            B.setValuesIJV(
+                row_ptr, col_idx, values,
+                addv=PETSc.InsertMode.ADD_VALUES,
+                rowmap=np.arange(nrows, dtype=PETSc.IntType),
+            )
+        if trace:
+            print(f"[MPI {comm.getRank()}] before PETSc Mat.assemble",
+                  file=sys.stderr, flush=True)
+        B.assemble()
+        if trace:
+            print(f"[MPI {comm.getRank()}] after PETSc Mat.assemble",
+                  file=sys.stderr, flush=True)
+    finally:
+        B.setOption(PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR, True)
+
 
 def extract_gmm_to_scipy(I, J, M):
     """Extract a sub-matrix A from M, on interval I, J
