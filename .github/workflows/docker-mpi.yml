@@ -60,6 +60,7 @@ jobs:
               --output "/artifacts/getfem_${n}ranks.json"
           done
           python sandbox/analyze_getfem_mpi_assembly.py \
+            --matrix-mode distributed --require-physical-rhs \
             getfem-assembly/*.json
       - name: Preserve GetFEM MPI native assembly evidence
         if: always()
