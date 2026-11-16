@@ -328,8 +328,10 @@ class TestMPIAlgebra(unittest.TestCase):
         mat.setUp()
         mat.setOption(PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR, False)
         try:
-            with patch.dict(os.environ, {"SCRIMP_GETFEM_MATRIX_MODE": "replicated"}):
-                linalg.convert_gmm_to_petsc(model.tangent_matrix(), mat)
+            # Unlike the original local GetFEM 5.4.2 install, 5.5
+            # supplies distributed native tangent contributions. Respect
+            # the matrix mode selected for the actual environment.
+            linalg.convert_gmm_to_petsc(model.tangent_matrix(), mat)
             x, y = mat.createVecRight(), mat.createVecLeft()
             try:
                 x.set(1.0)
@@ -364,21 +366,20 @@ class TestMPIAlgebra(unittest.TestCase):
         mat.setUp()
         mat.setOption(PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR, False)
         try:
-            with patch.dict(os.environ, {"SCRIMP_GETFEM_MATRIX_MODE": "replicated"}):
-                for c in (1.0, 2.0):
-                    model.set_variable("u", np.full(n, c, dtype=float))
-                    model.assembly(option="build_matrix")
-                    linalg.convert_gmm_to_petsc(model.tangent_matrix(), mat)
-                    x, y = mat.createVecRight(), mat.createVecLeft()
-                    try:
-                        x.set(1.0)
-                        mat.mult(x, y)
-                        self.assertAlmostEqual(
-                            float(np.real(x.dot(y))), 2.0*c, places=9
-                        )
-                    finally:
-                        x.destroy()
-                        y.destroy()
+            for c in (1.0, 2.0):
+                model.set_variable("u", np.full(n, c, dtype=float))
+                model.assembly(option="build_matrix")
+                linalg.convert_gmm_to_petsc(model.tangent_matrix(), mat)
+                x, y = mat.createVecRight(), mat.createVecLeft()
+                try:
+                    x.set(1.0)
+                    mat.mult(x, y)
+                    self.assertAlmostEqual(
+                        float(np.real(x.dot(y))), 2.0*c, places=9
+                    )
+                finally:
+                    x.destroy()
+                    y.destroy()
         finally:
             mat.destroy()
 
