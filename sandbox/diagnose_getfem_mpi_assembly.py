@@ -53,7 +53,10 @@ def _prepare_model(kind):
     if kind == "linear_tangent":
         model.add_linear_term(integration, "u*Test_u")
     model.set_variable("u", np.ones(model.nbdof()))
-    return model
+    # GetFEM's C++ context tracks dependencies by object identity.
+    # Holding only Model is NOT enough: Mesh, MeshFem and MeshIm must
+    # stay alive until all native assemblies and matrix probes finish.
+    return model, mesh, fem, integration
 
 
 def _matrix_fingerprint(model):
@@ -78,7 +81,10 @@ def _matrix_fingerprint(model):
 
 
 def _case(kind):
-    model = _prepare_model(kind)
+    model, mesh, fem, integration = _prepare_model(kind)
+    # Keep the native GetFEM dependency graph alive for the entire case.
+    # Local refs are intentional despite no explicit Python-side access.
+    _dependencies = (mesh, fem, integration)
     n = int(model.nbdof())
     record = {"kind": kind, "dofs": n}
     if kind in ("generic", "source", "mixed"):
