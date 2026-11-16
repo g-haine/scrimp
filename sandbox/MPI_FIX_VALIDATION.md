@@ -2902,3 +2902,141 @@ The published source has NOT been modified,
 nor have any production default solver settings.
 The feature branch PR #22 stays draft;
 MPI 2-rank and long-time tests still blocked.
+
+
+## 2026-11-16 — Split SuperLU init + MUMPS main BDF2 STILL fails at MatSolve_MUMPS INFOG(1)=-3 (one rank)
+
+**Native user's `mcss2024_init_superlu_main_mumps_1rank.log`**
+showed explicit:
+```
+Initial consistency solver override:
+    KSP=preonly, PC=lu, LU=superlu (initial TS only)
+Initialisation done in 23.53s
+i=0 t=0 dt=0.0001
+...
+PETSc.Error: error code 76
+TSStep_BDF -> TSBDF_Restart -> SNESSolve
+    -> KSPSolve_PREONLY -> PCApply_LU
+    -> MatSolve_MUMPS
+MUMPS error in solve: INFOG(1)=-3
+```
+
+**Inference:** the published model's historical 2-step
+pseudo-initialization succeeds with SuperLU. On the **same
+10,272-dof model**, using MUMPS only for the physical main
+BDF2 then errors during the first actual BDF2 nonlinear
+solve. Thus MUMPS's problem is **NOT confined to
+pseudo-initialization** (nor a failure of a custom sandbox
+boundary brick). The two observed MUMPS failures are:
+
+- MUMPS for startup and main: pseudo `DIVERGED_STEP_REJECTED`
+  (PETSc error 91; no explicit INFOG).
+- SuperLU startup + MUMPS main: startup finishes; first
+  physical BDF2 `MatSolve_MUMPS` returns INFOG(1)=-3
+  (PETSc error 76).
+
+MUMPS 5.7.3 error `-3` means invalid JOB/phase
+sequence, e.g. failed analysis/factor before solve or
+instance not initialized; it is **not** its structural
+or numeric zero-pivot error. Reference:
+https://sources.debian.org/data/main/m/mumps/5.7.3-3/doc/userguide_5.7.3.pdf
+It does NOT establish if the root cause is the actual
+indefinite FE Jacobian or PETSc-MUMPS factor reuse.
+Do not assume there was a successful factorization.
+
+### New independent Jacobian factorization experiment
+
+Two **opt-in diagnostics**, no changes to the published
+equations, default solver, or normal DPHS behavior:
+
+1. `sandbox/probe_mcss2024_reference.py` now accepts
+   `--capture-main-jacobian PATH.petscbin`. It wraps
+   only that captured instance's IJacobian callback,
+   performs the original assembly, then **on the
+   first MAIN TS whose type is `bdf` only** writes
+   the exact assembled `P` passed to KSP via
+   `PETSc.Viewer().createBinary`. The pseudo-TS
+   Jacobians are deliberately excluded.
+2. `--mumps-factor-diagnostics` enables
+   `SCRIMP_MUMPS_FACTOR_DIAGNOSTICS=1` in the
+   `DPHS.solve` exception path, on **one MPI rank
+   only**. On a native PETSc error it prints
+   TS/SNES/KSP reasons, PC failed reason and, if
+   available, actual factor's MUMPS
+   `INFOG(1/2)` and `INFO(1/2)` *before* cleanup.
+   All individual getter failures are caught and
+   never replace the original PETSc traceback.
+3. `sandbox/replay_petsc_mumps_snapshot.py`
+   now accepts `--solver {mumps,superlu}` for the
+   **same captured operator** and verifies
+   `||Ax-b||/max(||b||,1)` with consistent
+   `b=A*ones` using a fresh KSP/PC outside TS,
+   GetFEM and SCRIMP. Existing MUMPS reset /
+   changing-matrix workflows remain unchanged.
+
+Run **one capture** with the already known failing
+published model, on **1 rank**:
+
+```bash
+git pull --ff-only
+conda activate scrimp
+mkdir -p sandbox/outputs/mcss_mumps
+SCRIMP_GETFEM_RHS_MODE=divide_by_mpi_size \
+PYTHONFAULTHANDLER=1 \
+timeout -k 5s 150s mpiexec -n 1 \
+  python -u sandbox/probe_mcss2024_reference.py \
+    --solver mumps --init-solver superlu \
+    --final-time 0.0003 --save-dt 0.0001 \
+    --mumps-factor-diagnostics \
+    --capture-main-jacobian \
+      sandbox/outputs/mcss_mumps/first_bdf_jacobian.petscbin \
+  > mcss_mumps_matrix_capture.log 2>&1
+echo "capture exit=$?"
+grep -E 'Initialisation done|Captured first physical|MAIN TS PETSc|MUMPS_factor|MUMPS error|Traceback' \
+  mcss_mumps_matrix_capture.log | tail -n 18
+```
+
+**Only if** `first_bdf_jacobian.petscbin` exists,
+replay with both independent LU backends:
+```bash
+for solver in superlu mumps; do
+  PYTHONFAULTHANDLER=1 timeout -k 5s 90s mpiexec -n 1 \
+    python -u sandbox/replay_petsc_mumps_snapshot.py \
+    --matrix sandbox/outputs/mcss_mumps/first_bdf_jacobian.petscbin \
+    --solver "$solver" --cycles 1 \
+    > "mcss_replay_${solver}.log" 2>&1
+  echo "replay $solver exit=$?"
+  grep -E 'loaded|before KSP|after KSP|residual|MUMPS error|Traceback' \
+    "mcss_replay_${solver}.log" | tail -n 18
+done
+```
+
+**Decisive interpretation:**
+
+- SuperLU replay **passes**, MUMPS replay **fails**
+  on the **same fixed pre-Newton operator**: an
+  MUMPS factorization/solve incompatibility with
+  this Jacobian independent of TS lifecycle.
+  Check numeric pivoting / rank / factor diagnostics,
+  not arbitrary pseudo steps or initial swirl.
+- Both replays **pass** but original main TS
+  **fails**: investigate SNES->KSP/PC repeated
+  factorization with an in-place Jacobian update,
+  factor reuse/reset and changing sparsity; existing
+  `--next-matrix` replay can reproduce stateful
+  changes using two captured snapshots.
+- Both replays **fail**: investigate invalid
+  operator/storage/sparsity (or linear singularity),
+  not MUMPS alone.
+- Replay with `b=A*ones` is a *necessary
+  feasibility test*, not proof Newton's physical
+  right-hand sides are well conditioned or that
+  the discretized model is physically valid.
+- If the first BDF Jacobian is factorable with
+  MUMPS, but subsequent Newton updates are not,
+  capture a second main BDF matrix before deciding.
+
+Do not change the validated original MCSS source,
+merge PR #22, close #6 or tag release. MPI2 testing
+remains deferred until the same Jacobian is
+understood on one rank.
