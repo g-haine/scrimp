@@ -9,9 +9,11 @@
 """Isolate PETSc/MUMPS symbolic reuse with the same MatCopy/MatAXPY sequence
 as DPHS.IJacobian, without GetFEM, a time integrator, or a physical model.
 
-The default 'native' mode deliberately does NOT call PC.reset(): PETSc's
-PCSetUp should notice matrix nonzero-state changes and rebuild symbolic LU
-only when needed. 'always' reproduces the old conservative workaround.
+The 'native' mode deliberately does NOT call PC.reset(). In PETSc 3.26.1,
+that mode was observed to give a wrong solution (1 rank) or segfault
+(4 ranks) on a sparsity change with this MatCopy/MatAXPY update sequence.
+'always' resets every step; 'on_change' resets only when an explicit
+rank-collective CSR comparison detects a new nonzero pattern.
 
 Six numerical Jacobians are tested: three with fixed sparsity, two with
 an added second-neighbour coupling, then one without that coupling.
@@ -20,9 +22,9 @@ The local stored CSR pattern is compared exactly (no probabilistic hash),
 and MPI.LOR reports changes on any rank.
 
 Use PETSc's -log_view output (enabled by --petsc-log) to inspect the counts
-of MatLUFactorSym, MatLUFactorNum and MatSolve; the first should be much
-smaller in native mode for fixed-pattern updates. The test does not prove
-GetFEM's nonlinear Jacobian respects PETSc's structure-state bookkeeping.
+of MatLUFactorSym, MatLUFactorNum and MatSolve. The explicit CSR comparison
+is for diagnostic correctness, not a proposed production implementation.
+This test does not prove GetFEM's nonlinear Jacobian preserves sparsity.
 
 Example:
   mpiexec -n 4 python -u sandbox/check_petsc_mumps_symbolic_reuse.py \
@@ -146,6 +148,15 @@ def run(mode, n, tolerance, petsc_log, cycles, verbose):
                 )
                 changed_any = bool(mpi.allreduce(changed_local, op=MPI.LOR))
                 previous_pattern = current_pattern
+                # PETSc 3.26.1 did not safely redo symbolic LU for this
+                # in-place MatCopy/MatAXPY sparsity transition on its own.
+                # Reset only when our exact CSR comparison proves a change.
+                if mode == "on_change" and changed_any:
+                    if verbose:
+                        print(f"[rank={rank}] cycle={cycle} PC.reset "
+                              "(sparsity changed)", flush=True)
+                    pc.reset()
+                    ksp.setOperators(operator)
                 if verbose:
                     print(
                         f"[rank={rank}] cycle={cycle} assembled: "
@@ -216,7 +227,7 @@ def run(mode, n, tolerance, petsc_log, cycles, verbose):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--mode", choices=("native", "always"),
+    parser.add_argument("--mode", choices=("native", "always", "on_change"),
                         default="native")
     parser.add_argument("--size", type=int, default=240)
     parser.add_argument("--tol", type=float, default=1e-10)
