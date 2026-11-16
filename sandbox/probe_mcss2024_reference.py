@@ -172,6 +172,14 @@ def main():
     parser.add_argument("--final-time", type=float, default=0.0003)
     parser.add_argument("--save-dt", type=float, default=0.0001)
     parser.add_argument(
+        "--exact-final-time",
+        choices=("stepover", "matchstep"),
+        default="stepover",
+        help="PETSc main-TS endpoint policy: stepover retains the "
+             "published runtime behavior, matchstep adjusts the last "
+             "BDF time step to reach precisely --final-time",
+    )
+    parser.add_argument(
         "--solver", choices=("superlu", "mumps"), default="superlu",
         help="Published SuperLU (default) or MUMPS on same reference model",
     )
@@ -239,12 +247,19 @@ def main():
     # fields, control ports, BDF2 and pseudo-startup EXACTLY as they
     # were constructed. Override only output horizon and factor solver
     # (when explicitly requested). Published dt=1e-4, init_dt=1e-8.
-    swe.set_time_scheme(
+    scheme_overrides = dict(
         t_f=args.final_time,
         dt_save=args.save_dt,
         pc_factor_mat_solver_type=args.solver,
         init_step=not args.no_init_step,
     )
+    # DPHS.solve() sets STEPOVER before TS.setFromOptions().
+    # An explicit PETSc option overrides that choice for the main TS.
+    # The published default (STEPOVER) is preserved unless requested.
+    # Pseudo startup is step-count-limited and its method is unchanged.
+    if args.exact_final_time == "matchstep":
+        scheme_overrides["ts_exact_final_time"] = "matchstep"
+    swe.set_time_scheme(**scheme_overrides)
     rank = PETSc.COMM_WORLD.getRank()
     options_to_show = {
         key: swe.time_scheme.getString(key)
@@ -253,6 +268,7 @@ def main():
             "pc_factor_mat_solver_type", "dt", "dt_save",
             "init_step", "init_step_ts_type",
             "init_step_nb_iter", "init_step_dt", "t_f",
+            "ts_exact_final_time",
         )
     }
     if rank == 0:
@@ -352,6 +368,7 @@ def main():
             "ts_rejected_steps": getattr(swe, "last_ts_rejections", None),
             "ts_snes_failures": getattr(swe, "last_ts_snes_failures", None),
             "requested_final_time": args.final_time,
+            "exact_final_time_policy": args.exact_final_time,
             "saved_steps": int(times.size),
             "state_fields": describe_fields(swe),
             "published_energy_balance": balance,
@@ -364,6 +381,18 @@ def main():
             f"reach requested t_f={args.final_time}: PETSc t={reached}, "
             f"reason={converged_reason}, last saved t={saved_time}"
         )
+    if args.exact_final_time == "matchstep":
+        # Require a physically integrated state at t_f: not interpolation,
+        # a STEPOVER result, or merely an earlier saved diagnostic.
+        tol = 32.0 * abs(np.spacing(args.final_time))
+        if (not np.isfinite(saved_time)
+                or abs(reached - args.final_time) > tol
+                or abs(saved_time - args.final_time) > tol):
+            raise RuntimeError(
+                "MATCHSTEP endpoint/snapshot mismatch: "
+                f"requested={args.final_time}, PETSc={reached}, "
+                f"last saved={saved_time}, ulp_tolerance={tol}"
+            )
 
 
 if __name__ == "__main__":
