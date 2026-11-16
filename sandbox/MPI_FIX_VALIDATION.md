@@ -3831,3 +3831,96 @@ echo "Four ranks full physical: exit=$status"
 grep -E 'Initialisation done|Steps:|actual_final_time|ts_converged_reason|saved_steps|maximum_relative_balance_error|DIVERGED_|MUMPS error|Traceback|Segmentation fault' \
     mcss2024_mumps_4ranks_sourcefix.log | tail -n 30
 ```
+
+## 2026-11-16 — PHYSICAL PARITY: 1, 2, 4 ranks PASS (short MCSS2024 reference)
+
+Native uploaded `mcss2024_mumps_4ranks_sourcefix.log` (full
+310-line journal). On `fix/issue-6-parallel-powers-saint-venant-2d`,
+same published MCSS2024 experiment 3, unchanged physical weak
+forms and domain, **10272 DOFs**, all-MUMPS, BDF2, experimental
+`SCRIMP_GETFEM_RHS_MODE=divide_by_mpi_size` plus
+`SCRIMP_GETFEM_SOURCE_RHS_MODE=raw` plus
+`SCRIMP_MUMPS_RESET_PC_ON_JACOBIAN=1`.
+
+**P=4 EXIT 0**; pseudo consistency startup 1.32s;
+main 2 accepted BDF2 steps, 0 rejected, 0 nonlinear
+failures, 5 nonlinear + 5 linear iterations, reason=1,
+`t_final=0.00030000000000000003`, 3 snapshots, total
+3.879s. No native MPI/MUMPS failure.
+
+Direct JSON comparison to native P=1 all-MUMPS baseline
+(with source normalization alpha=1) and P=2 source-aware
+run:
+
+| Metric | P=1 | P=2 source-aware | P=4 source-aware |
+| --- | ---: | ---: | ---: |
+| H(0) | 41.40691140421563 | 41.40691140421567 | 41.406911404215556 |
+| H(tf) | 41.40690686525291 | 41.40690686525268 | 41.40690686525276 |
+| p(tf) 2-norm | 6.779240151344621 | 6.77924015134462 | 6.779240151344621 |
+| U(tf) 2-norm | 2.240884951585336 | 2.2408849515853357 | 2.2408849515853357 |
+| h_min(tf) | 49.99976320021396 | 49.99976320021396 | 49.99976320021396 |
+| h_max(tf) | 50.00023666658005 | 50.00023666658005 | 50.00023666658005 |
+| Y(0) 2-norm | 0.364463752693619 | 0.3644641071905507 | 0.3644657491818347 |
+| Y(tf) 2-norm | 0.006211463607284161 | 0.006211463607293473 | 0.006211463607261264 |
+| integrated viscous grad | 7.266481074724646e-07 | 7.266481074724647e-07 | 7.266481074724643e-07 |
+| integrated viscous div | 1.8637708506434327e-09 | 1.8637708506434323e-09 | 1.8637708506434555e-09 |
+| signed integrated boundary vector | +3.3184488185643337e-06 | +3.318300328025717e-06 | +3.318590973938039e-06 |
+| absolute energy defect final | -4.920020231224953e-07 | -4.92150782349654e-07 | -4.918599429970527e-07 |
+| maximum relative balance error | 1.1882123211740075e-08 | 1.1885715830028023e-08 | 1.1878691897483023e-08 |
+
+Compared with P=1, P=4 has `|Delta H(tf)| ~1.49e-13`,
+exactly matching p(tf) norm at displayed precision,
+`|Delta Y(0)| ~1.996e-6` (~5.48e-6 relative),
+`Delta integrated boundary work ~+1.422e-10`,
+and `Delta maximum relative balance error ~-3.43e-12`.
+
+**Conclusion:** short-time **physical state** and prescribed
+control parity has been demonstrated across P=1,2,4,
+with tiny but nonzero P-dependent algebraic initialization
+and boundary-power postprocessing effects. The relative
+energy defect here is normalized by `|H(0)|`, uses
+published right-end integration (`CN=True,
+int_scheme=Explicit`), and is NOT a claim of an
+exact discrete power-preserving time integrator.
+Only **2 accepted physical BDF steps**; still no
+temporal or mesh convergence, long-time stability,
+performance scaling or controlled dissipative SWE
+validation. No production defaults changed.
+
+**Next gate, priority:** broaden time horizon in the same
+reference model, at P=1/2/4 with exactly identical
+source-aware flags, model and BDF2 options. Suggest
+`--final-time 0.03 --save-dt 0.001` as a first
+modest extension (adaptive PETSc BDF may not save
+every 0.001). Compare whole final-state diagnostics
+and signed power-balance terms, not only exit status.
+Do not force a fixed step or construe `save-dt` as
+the integration step. Avoid interpreting a single
+short-timing comparison as MPI strong-scaling evidence.
+After longer baseline parity, add time/mesh convergence,
+initial algebraic Y sensitivity and controlled SWE
+feedback experiments for target **LHMNC 2027**.
+
+### Suggested next run (first 1 and 4, then 2 if needed)
+
+```bash
+git pull --ff-only
+conda activate scrimp
+for n in 1 4; do
+    SCRIMP_GETFEM_RHS_MODE=divide_by_mpi_size \
+    SCRIMP_GETFEM_SOURCE_RHS_MODE=raw \
+    SCRIMP_MUMPS_RESET_PC_ON_JACOBIAN=1 \
+    PYTHONFAULTHANDLER=1 \
+    timeout -k 5s 300s mpiexec -n "$n" \
+        python -u sandbox/probe_mcss2024_reference.py \
+        --solver mumps --init-solver mumps \
+        --final-time 0.03 --save-dt 0.001 \
+        --energy-balance \
+        > "mcss2024_sourcefix_0p03_${n}ranks.log" 2>&1
+    status=$?
+    echo "0.03 full physical, ranks=$n exit=$status"
+    grep -E 'Initialisation done|Steps:|actual_final_time|ts_converged_reason|saved_steps|maximum_relative_balance_error|DIVERGED_|MUMPS error|Traceback' \
+        "mcss2024_sourcefix_0p03_${n}ranks.log" | tail -n 30
+    if [ "$status" -ne 0 ]; then break; fi
+done
+```
