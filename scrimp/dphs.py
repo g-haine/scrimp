@@ -14,6 +14,7 @@
 """
 
 from scrimp.utils.linalg import convert_gmm_to_petsc, extract_gmm_to_scipy
+from scrimp.utils.profiling import TimingProfiler
 from scrimp.hamiltonian import Hamiltonian
 from scrimp.brick import Brick
 from scrimp.control import Control_Port
@@ -191,6 +192,9 @@ class DPHS:
 
         #: The `domain` of a dphs is an object that handle mesh(es) and dict of regions with getfem indices (for each mesh), useful to define `bricks` (i.e. forms) in the getfem syntax
         self.domain = None
+        #: Opt-in, rank-local timing collector (SCRIMP_PROFILE=1).
+        self.profiler = TimingProfiler()
+        self._profile_phase = "setup"
         #: Clear and init `time_scheme` member, which embed PETSc TS options database
         self.get_cleared_TS_options()
         #: The dict of `states`, store many infos for display()
@@ -261,6 +265,27 @@ class DPHS:
 
         if rank == 0:
             logging.info(f"A model with {basis_field} unknowns has been initialized")
+
+    def get_profile(self):
+        """Collect per-rank timings, call counts and MPI min/mean/max.
+
+        **Collective** when SCRIMP_PROFILE=1: every MPI rank must call
+        this method after solve(). Returns None when profiling is off.
+        Events are inclusive, including nested GetFEM and PETSc work.
+        """
+        return self.profiler.report(comm.tompi4py())
+
+    def _profile_ifunction(self, *args):
+        with self.profiler.measure(
+            f"{self._profile_phase}.petsc.callback.ifunction"
+        ):
+            return self.IFunction(*args)
+
+    def _profile_ijacobian(self, *args):
+        with self.profiler.measure(
+            f"{self._profile_phase}.petsc.callback.ijacobian"
+        ):
+            return self.IJacobian(*args)
 
     def set_domain(self, domain: Domain):
         """This function sets a domain for the dphs.
@@ -756,12 +781,14 @@ class DPHS:
                 brick.enable_id_bricks(self.gf_model)
 
         _mpi_trace("mass: before GetFEM build_matrix")
-        self.gf_model.assembly(option="build_matrix")
+        with self.profiler.measure(f"{self._profile_phase}.getfem.mass"):
+            self.gf_model.assembly(option="build_matrix")
         _mpi_trace("mass: before GetFEM -> PETSc conversion")
-        convert_gmm_to_petsc(
-            self.gf_model.tangent_matrix(),
-            self.mass,
-        )
+        with self.profiler.measure(f"{self._profile_phase}.bridge.mass"):
+            convert_gmm_to_petsc(
+                self.gf_model.tangent_matrix(),
+                self.mass,
+            )
         _mpi_trace("mass: PETSc matrix assembled")
 
         self.disable_all_bricks()
@@ -785,12 +812,14 @@ class DPHS:
                 brick.enable_id_bricks(self.gf_model)
 
         _mpi_trace("stiffness: before GetFEM build_matrix")
-        self.gf_model.assembly(option="build_matrix")
+        with self.profiler.measure(f"{self._profile_phase}.getfem.stiffness"):
+            self.gf_model.assembly(option="build_matrix")
         _mpi_trace("stiffness: before GetFEM -> PETSc conversion")
-        convert_gmm_to_petsc(
-            self.gf_model.tangent_matrix(),
-            self.stiffness,
-        )
+        with self.profiler.measure(f"{self._profile_phase}.bridge.stiffness"):
+            convert_gmm_to_petsc(
+                self.gf_model.tangent_matrix(),
+                self.stiffness,
+            )
         _mpi_trace("stiffness: PETSc matrix assembled")
 
         self.disable_all_bricks()
@@ -832,7 +861,8 @@ class DPHS:
                     brick.enable_id_bricks(self.gf_model)
 
         _mpi_trace("rhs: before GetFEM build_rhs")
-        self.gf_model.assembly(option="build_rhs")
+        with self.profiler.measure(f"{self._profile_phase}.getfem.rhs"):
+            self.gf_model.assembly(option="build_rhs")
         _mpi_trace("rhs: before PETSc owned-row insertion")
         # GetFEM MPI-2 already sums and replicates the entire RHS on
         # every rank. Insert only PETSc-owned rows; never ADD these
@@ -883,14 +913,15 @@ class DPHS:
                 f"rhs: mode={rhs_mode}, source_mode={source_mode}, "
                 f"source_only={source_only}, scale={scale:.9g}"
             )
-        lo, hi = self.rhs.getOwnershipRange()
-        if hi > lo:
-            self.rhs.setValues(
-                range(lo, hi),
-                gf_rhs[lo:hi] * scale,
-                addv=PETSc.InsertMode.INSERT_VALUES,
-            )
-        self.rhs.assemble()
+        with self.profiler.measure(f"{self._profile_phase}.bridge.rhs"):
+            lo, hi = self.rhs.getOwnershipRange()
+            if hi > lo:
+                self.rhs.setValues(
+                    range(lo, hi),
+                    gf_rhs[lo:hi] * scale,
+                    addv=PETSc.InsertMode.INSERT_VALUES,
+                )
+            self.rhs.assemble()
         _mpi_trace("rhs: PETSc vector assembled")
 
         self.disable_all_bricks()
@@ -904,12 +935,14 @@ class DPHS:
                 brick.enable_id_bricks(self.gf_model)
 
         _mpi_trace("nl_mass: before GetFEM build_matrix")
-        self.gf_model.assembly(option="build_matrix")
+        with self.profiler.measure(f"{self._profile_phase}.getfem.nl_mass"):
+            self.gf_model.assembly(option="build_matrix")
         _mpi_trace("nl_mass: before GetFEM -> PETSc conversion")
-        convert_gmm_to_petsc(
-            self.gf_model.tangent_matrix(),
-            self.nl_mass,
-        )
+        with self.profiler.measure(f"{self._profile_phase}.bridge.nl_mass"):
+            convert_gmm_to_petsc(
+                self.gf_model.tangent_matrix(),
+                self.nl_mass,
+            )
         _mpi_trace("nl_mass: PETSc matrix assembled")
         _mpi_trace("nl_mass: before PETSc copy/AXPY")
         # Keep the allocated PETSc Mat alive throughout TS/Newton iterations.
@@ -952,12 +985,14 @@ class DPHS:
                 brick.enable_id_bricks(self.gf_model)
 
         _mpi_trace("nl_stiffness: before GetFEM build_matrix")
-        self.gf_model.assembly(option="build_matrix")
+        with self.profiler.measure(f"{self._profile_phase}.getfem.nl_stiffness"):
+            self.gf_model.assembly(option="build_matrix")
         _mpi_trace("nl_stiffness: before GetFEM -> PETSc conversion")
-        convert_gmm_to_petsc(
-            self.gf_model.tangent_matrix(),
-            self.nl_stiffness,
-        )
+        with self.profiler.measure(f"{self._profile_phase}.bridge.nl_stiffness"):
+            convert_gmm_to_petsc(
+                self.gf_model.tangent_matrix(),
+                self.nl_stiffness,
+            )
         _mpi_trace("nl_stiffness: PETSc matrix assembled")
         _mpi_trace("nl_stiffness: before PETSc copy/AXPY")
         # As for the nonlinear mass, retain the existing PETSc Mat handle.
@@ -1583,9 +1618,20 @@ class DPHS:
             )
 
     def solve(self):
-        """Perform the time-resolution of the dphs thanks to PETSc TS
+        """Solve the DPHS; optionally record inclusive solve timings.
 
-        The options database is set in the `time_scheme` attribute
+        Enable SCRIMP_PROFILE=1 before creating the system, then call
+        get_profile() on ALL MPI ranks to aggregate the timing report.
+        """
+        self.profiler.reset()
+        self._profile_phase = "setup"
+        with self.profiler.measure("solve.total"):
+            return self._solve_impl()
+
+    def _solve_impl(self):
+        """Perform the time-resolution of the dphs thanks to PETSc TS.
+
+        The options database is set in the `time_scheme` attribute.
         """
 
         assert self.time_scheme[
@@ -1621,7 +1667,8 @@ class DPHS:
 
         # Load time scheme options to PETSc
         self.time_scheme = PETSc.Options()
-        self.allocate_memory()
+        with self.profiler.measure("setup.petsc.allocate_memory"):
+            self.allocate_memory()
 
         # Initialization
         self.disable_all_bricks()  # enabling is done in assembly accurately
@@ -1652,8 +1699,11 @@ class DPHS:
             self.time_scheme["init_step"] == "true"
         ):  # Because PETSc DB store everything as str
             _mpi_trace("solve: before initial consistency step")
-            self.init_step()
+            self._profile_phase = "initial"
+            with self.profiler.measure("initial.consistency_total"):
+                self.init_step()
             _mpi_trace("solve: after initial consistency step")
+        self._profile_phase = "main"
 
         # TS
         TS = PETSc.TS().create(comm=comm)
@@ -1671,8 +1721,8 @@ class DPHS:
         TS.setMonitor(monitor)
         TS.setEventHandler([0], [True], self.event, self.postevent)
         TS.setEventTolerances(1e-16, vtol=[1e-19])
-        TS.setIFunction(self.IFunction, self.F)
-        TS.setIJacobian(self.IJacobian, self.J)
+        TS.setIFunction(self._profile_ifunction, self.F)
+        TS.setIJacobian(self._profile_ijacobian, self.J)
         TS.setTime(float(self.time_scheme["t_0"]))
         TS.setMaxTime(float(self.time_scheme["t_f"]))
         TS.setTimeStep(float(self.time_scheme["dt"]))
@@ -1702,7 +1752,8 @@ class DPHS:
         
         _mpi_trace("solve: before main TS.solve")
         try:
-            TS.solve(InitVec)
+            with self.profiler.measure("main.petsc.ts_solve"):
+                TS.solve(InitVec)
         except PETSc.Error:
             # Requested only for a SERIAL native MUMPS failure. Read
             # KSP/PC and the actual LU factor's MUMPS status *before*
@@ -1798,9 +1849,10 @@ class DPHS:
                 f"Nonlinear iterations: {TS.getSNESIterations()}, Linear iterations: {TS.getKSPIterations()}"
             )
         
-        TS.reset()
-        TS.destroy()
-        gc.collect()
+        with self.profiler.measure("main.petsc.cleanup"):
+            TS.reset()
+            TS.destroy()
+            gc.collect()
 
         # Keep the true endpoint even when PETSc accumulates an
         # extra floating-point ULP beyond the Python literal t_f.
@@ -1855,8 +1907,8 @@ class DPHS:
             )
 
         TS.setMonitor(monitor)
-        TS.setIFunction(self.IFunction, self.F)
-        TS.setIJacobian(self.IJacobian, self.J)
+        TS.setIFunction(self._profile_ifunction, self.F)
+        TS.setIJacobian(self._profile_ijacobian, self.J)
         TS.setTime(t0 - init_dt if negative_bdf_start else t0)
         TS.setMaxSteps(
             1 if negative_bdf_start
@@ -2002,7 +2054,8 @@ class DPHS:
 
         _mpi_trace("init_step: before consistency TS.solve")
         try:
-            TS.solve(InitVec)
+            with self.profiler.measure("initial.petsc.ts_solve"):
+                TS.solve(InitVec)
         except PETSc.Error:
             # A TS_DIVERGED_STEP_REJECTED is not an MUMPS error.
             # Expose the nested SNES/KSP reasons before PETSc's
@@ -2069,11 +2122,12 @@ class DPHS:
             )
 
         _mpi_trace("init_step: before TS.reset (PC factor cleanup)")
-        TS.reset()
-        _mpi_trace("init_step: after TS.reset")
-        TS.destroy()
-        _mpi_trace("init_step: after TS.destroy")
-        gc.collect()
+        with self.profiler.measure("initial.petsc.cleanup"):
+            TS.reset()
+            _mpi_trace("init_step: after TS.reset")
+            TS.destroy()
+            _mpi_trace("init_step: after TS.destroy")
+            gc.collect()
 
         # Delete temporary options, including BDF2/adapt overrides
         # which must not leak into the main time integrator.
