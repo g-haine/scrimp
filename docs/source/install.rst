@@ -27,8 +27,9 @@ Modern parallel Docker image (GetFEM 5.5)
 
 A versioned image recipe lives in ``docker/Dockerfile``, with
 ``docker/environment.yml``. It uses one *consistent* conda-forge
-OpenMPI stack for GetFEM, PETSc, petsc4py, SLEPc and MUMPS, with a
-complex PETSc scalar type. GetFEM 5.5 is built from the official
+OpenMPI stack for native PETSc, SLEPc and MUMPS, with a
+complex PETSc scalar type. The petsc4py/slepc4py Python bindings
+are built against that stack and the NumPy 2 headers from source. GetFEM 5.5 is built from the official
 release source with ``--enable-paralevel=2``. NumPy 2 is **required**,
 not presumed to work: builds fail if its ABI smoke test fails.
 
@@ -81,7 +82,11 @@ SCRIMP installation:
     conda env create -n scrimp55 -f docker/environment.yml
     conda activate scrimp55
 
-    # Run from the repository root. With GetFEM 5.5 release tarball:
+    # Build matching NumPy-2 Python wrappers against the installed
+    # complex native PETSc/SLEPc (conda petsc4py may require NumPy<2).
+    bash scripts/install-petsc-python-bindings.sh
+
+    # Compile the official GetFEM 5.5 sources in MPI level 2.
     GETFEM_VERSION=5.5 MAKE_JOBS=4 \
         bash scripts/build-getfem-mpi.sh
 
