@@ -42,6 +42,16 @@ COPY --chown=$MAMBA_USER:$MAMBA_USER . /workspace/scrimp
 # complex PETSc/SLEPc libraries (conda petsc4py currently pins NumPy 1).
 RUN bash scripts/install-petsc-python-bindings.sh
 
+# The legacy Docker builder may keep the WORKDIR itself owned by root,
+# even though COPY --chown assigns the source files to mambauser.
+# GetFEM builds in /workspace/scrimp/.build by default and editable pip
+# installs may also write project metadata. Fix the directory ownership
+# before either operation. Keep this AFTER petsc4py/slepc4py compilation
+# so an ownership fix does not invalidate that expensive cached layer.
+USER root
+RUN chown -R "$MAMBA_USER:$MAMBA_USER" /workspace/scrimp
+USER $MAMBA_USER
+
 # The same GetFEM source-build script also works in local conda.
 RUN GETFEM_VERSION="${GETFEM_VERSION}" \
     MAKE_JOBS="${MAKE_JOBS}" \
