@@ -179,6 +179,13 @@ def main():
         help="DIAGNOSTIC ONLY; bypass published pseudo initialization",
     )
     parser.add_argument(
+        "--init-solver", choices=("inherit", "superlu", "mumps"),
+        default="inherit",
+        help="Factor solver for the initial pseudo-TS only; the main "
+             "--solver remains unchanged. Allows SuperLU initialization "
+             "with MUMPS main BDF2 (one MPI rank only).",
+    )
+    parser.add_argument(
         "--newton-block-trace", action="store_true",
         help="Optional per-block trace of initial nonlinear Newton steps",
     )
@@ -194,6 +201,14 @@ def main():
 
     if args.newton_block_trace:
         os.environ["SCRIMP_NEWTON_BLOCK_TRACE"] = "1"
+
+    # The core DPHS.init_step() reads this only for initial TS.
+    # Main TS always follows --solver, so the physical experiment
+    # changes only ONE linear-factorization choice at a time.
+    if args.init_solver != "inherit":
+        os.environ["SCRIMP_INIT_FACTOR_SOLVER_TYPE"] = args.init_solver
+    else:
+        os.environ.pop("SCRIMP_INIT_FACTOR_SOLVER_TYPE", None)
 
     swe, path = build_published_model()
     # Keep the published finite-element forms, parameters, initial
@@ -228,6 +243,8 @@ def main():
                 np.issubdtype(PETSc.ScalarType, np.complexfloating)
             ),
             "mpi_size": PETSc.COMM_WORLD.getSize(),
+            "initial_factor_solver": args.init_solver,
+            "main_factor_solver": args.solver,
             "time_scheme": options_to_show,
         }, indent=2), flush=True)
 
