@@ -336,9 +336,24 @@ and IJacobian callbacks, whose timings in turn include GetFEM and
 PETSc bridge work. The derived ``main.petsc.non_callback_remainder``
 subtracts callback durations on each rank; it includes factorization,
 solve, monitoring and MPI waiting, and is **not pure MUMPS time**.
-Use PETSc native event logging (``-log_view``) in a separate run to
-break down MUMPS factorization/solve. These measurements do not alter
-matrices, RHS scaling, equations or the Crank--Nicolson scheme.
+For the acoustic benchmark, add ``--petsc-log`` on a **separate
+profiling run** to activate PETSc's native event logger programmatically
+(``PETSc.Log.begin()`` before setup and ``PETSc.Log.view()`` after
+the simulation, collectively on all ranks). This distinction matters:
+DPHS currently clears PETSc's options database at construction,
+so relying on the command-line ``-log_view`` alone can be misleading.
+PETSc's printed summary contains native matrix, factorization and
+solve events, including ``MatLUFactorSym``, ``MatLUFactorNum`` and
+``MatSolve`` when exposed by the linked PETSc build.
+
+With ``SCRIMP_MUMPS_RESET_PC_ON_JACOBIAN=1``, the profiler also
+reports ``main.petsc.pc_reset`` (inclusive in
+``main.petsc.callback.ijacobian``). Do not disable this stability
+workaround simply to improve benchmark timings without verifying
+sparsity lifecycle and physical parity.
+
+These measurements do not alter matrices, RHS scaling, equations
+or the Crank--Nicolson scheme.
 
 2D acoustic-wave strong scaling
 -------------------------------
