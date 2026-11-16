@@ -36,11 +36,26 @@ all four full-state / residual errors are below 3e-16. The four-rank
 agrees to machine precision. These are tiny 240-by-240 probe matrices:
 do not infer a meaningful wall-time speedup from these timings.
 
-**Next check:** run all 6 cycles for `always` and `on_change` at 1, 2, 4,
-and 6 ranks; specifically verify that the cycle-5 structural *removal*
-(if it really changes the stored CSR pattern) is detected, the state
-checks pass, and the solver shuts down normally. No production
-`dphs.py` policy change until GetFEM nonlinear verification.
+**Completed six-cycle tests (2026-11-16):** all eight combinations
+(1, 2, 4, 6 MPI ranks x `always` / `on_change`) return exit code 0.
+Each performs six accurate solves and six numeric factorizations. `always`
+performs six symbolic factorizations; `on_change` performs **two**, with
+one reset at cycle 3 on all ranks. Maximum external algebraic residual
+and full-state relative error are below 3.6e-16 for every configuration.
+
+**Important coverage limit:** the cycle-5 source stiffness omits the
+second-neighbour connections, but `MatCopy` into the persistent Pmat
+*retains the already allocated CSR positions*. The observed stored CSR
+change flag at cycle 5 is `false` on every rank: this case tests
+numerically zeroed couplings, **not deletion of stored nonzeros**.
+A genuine shrinking-pattern case remains untested. Do not interpret
+cycle 5 as proof of safe symbolic reuse after structural removal.
+
+The standalone test defaults to `on_change`, because `native` has already
+crashed on the cycle-3 structural growth in this PETSc 3.26.1 build.
+No production `dphs.py` policy change until GetFEM nonlinear verification.
+Next prioritize the full acoustic state parity and power balance, then
+real GetFEM nonlinear Jacobians with a deliberately changing pattern.
 
 
 ## Rationale
@@ -87,7 +102,7 @@ for n in 1 2 4 6; do
         4) cpus=0,2,4,6 ;;
         6) cpus=0,2,4,6,8,10 ;;
     esac
-    for mode in always native; do
+    for mode in always on_change; do
         sudo docker run --rm --cpuset-cpus="$cpus" \
             -v "$PWD/sandbox:/workspace/scrimp/sandbox:ro" \
             scrimp-mpi:local \
@@ -104,11 +119,11 @@ done
 
 **Gates:** all six linear systems converge in each run, relative
 state/residual errors < 1e-10, cycle 3 truly introduces a new stored
-nonzero, and cycles 1/2/4 retain their patterns. Compare native and
-always-reset PETSc event counts. Both execute six numerical LU solves;
-the native branch should avoid symbolic reanalysis for fixed patterns.
-Cycle 5 intentionally removes the extra coupling, but the test does
-not require any particular symbolic event count for this transition.
+nonzero, and cycles 1/2/4/5 retain their stored patterns. Compare
+`on_change` and `always` PETSc event counts. Both perform six numerical
+LU factorizations/solves; `on_change` performs two symbolic factorizations
+on the observed initial and expanded patterns. Cycle 5 omits numerical
+second-neighbour couplings, but does **not** shrink stored CSR.
 
 ## 2. Full acoustic state parity (reset versus native reuse)
 
