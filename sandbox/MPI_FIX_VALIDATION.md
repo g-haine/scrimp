@@ -3733,3 +3733,101 @@ norms, viscous dissipation and signed boundary powers,
 to prior all-MUMPS 1-rank baseline `1.1882123211740075e-08`.
 Same physical model, same FE mesh, same time horizon.
 **TS reason > 0 alone does not establish parity.**
+
+## 2026-11-16 — Source-aware GetFEM RHS FIX PASSES: physical 1-vs-2 MPI parity
+
+Native uploaded logs:
+- `mcss_algebra_sourcefix_1ranks.log`
+- `mcss_algebra_sourcefix_2ranks.log`
+- `mcss_algebra_sourcefix_4ranks.log`
+- `mcss2024_mumps_2ranks_sourcefix.log`
+
+**Tests:** all **15/15** MPI algebra tests PASS per rank at
+**P=1,2,4** using the source-aware opt-in code. This includes
+the new *real GetFEM mixed nonlinear-plus-source*
+`test_source_aware_rhs_recovers_mixed_getfem_control_on_mpi`.
+No Python compilation errors. The unused PETSc `-info`
+message is a warning, not a failed test.
+
+**Physical:** original unchanged MCSS2024 published experiment 3,
+10272 DOFs, `--solver mumps --init-solver mumps`, BDF2,
+`t_f=0.0003`, `dt_save=0.0001`, GetFEM MPI-2,
+`SCRIMP_GETFEM_RHS_MODE=divide_by_mpi_size`,
+**`SCRIMP_GETFEM_SOURCE_RHS_MODE=raw`**,
+`SCRIMP_MUMPS_RESET_PC_ON_JACOBIAN=1`,
+now completes at **P=2**: exit 0; initial consistency
+completed in 2.172s, 2 accepted BDF2 steps, no rejected
+steps, 0 SNES failures, 5 Newton + linear iterations,
+PETSc reason=1, PETSc actual endpoint=0.00030000000000000003,
+3 saved states including 0.0003, elapsed=4.745s.
+
+Direct full JSON comparison versus prior **all-MUMPS P=1**
+(when P=1 the new source flag has alpha=1 and changes no
+mathematical residual):
+
+| Quantity | P=1 | P=2 source-aware |
+| --- | ---: | ---: |
+| H(0) | 41.40691140421563 | 41.40691140421567 |
+| H(t_f) | 41.40690686525291 | 41.40690686525268 |
+| p(t_f) norm | 6.779240151344621 | 6.779240151344620 |
+| U(t_f) norm | 2.240884951585336 | 2.2408849515853357 |
+| h_min(t_f) | 49.99976320021396 | 49.99976320021396 |
+| h_max(t_f) | 50.00023666658005 | 50.00023666658005 |
+| Y(0) norm | 0.364463752693619 | 0.3644641071905507 |
+| Y(t_f) norm | 0.006211463607284161 | 0.006211463607293473 |
+| integrated viscous grad | 7.266481074724646e-07 | 7.266481074724647e-07 |
+| integrated viscous div | 1.8637708506434327e-09 | 1.8637708506434323e-09 |
+| signed integrated vector boundary | +3.3184488185643337e-06 | +3.318300328025717e-06 |
+| final absolute balance defect | -4.920020231224953e-07 | -4.92150782349654e-07 |
+| max relative balance defect / H0 | 1.1882123211740075e-08 | 1.1885715830028023e-08 |
+
+**Interpretation:** physical state and prescribed control
+agreement is effectively at floating-point precision.
+Boundary algebraic startup `Y(0)` differs by ~3.545e-7
+(~9.7e-7 relative) and the signed integrated boundary
+power by ~1.485e-10 (~4.5e-5 relative); power-balance
+diagnostic difference is ~3.59e-12 relative to H0.
+This tiny but nonzero algebraic/port difference may come
+from pseudo-TS startup and should NOT be hidden under
+"bitwise identical" claims. The relative power-balance
+defect of ~1.19e-8 only spans two accepted BDF steps,
+so is **not** a long-time or time/mesh convergence result.
+
+**Root cause established** by the preceding P=1/2/4
+independent exact-integral probe: GetFEM 5.4.2 MPI-2
+duplicates generic nonlinear RHS by P but assembles
+`add_source_term_brick` only once. Uniform RHS
+normalization incorrectly attenuated the controls.
+Source-aware opt-in restores their expected amplitude
+and the observed 1-vs-2 physical parity.
+
+**Next gate:** repeat unchanged physical problem with
+P=4 (same environment including source-aware flag).
+Do NOT increase `t_f` yet; first compare P=4 with
+the well-characterized P=1/2 reference. Then rerun
+P=1 with the **same explicit source-aware flag** and
+optionally automate comparison for regression; after
+short-time parity across P=1,2,4 consider longer time
+and temporal/mesh refinement, ideally with a direct
+physical power-balance residual and DAE-consistent
+initialization sensitivity study. Keep draft PR #22
+open, issue #6 open and v1.2.1 untagged.
+
+```bash
+git pull --ff-only
+conda activate scrimp
+SCRIMP_GETFEM_RHS_MODE=divide_by_mpi_size \
+SCRIMP_GETFEM_SOURCE_RHS_MODE=raw \
+SCRIMP_MUMPS_RESET_PC_ON_JACOBIAN=1 \
+PYTHONFAULTHANDLER=1 \
+timeout -k 5s 240s mpiexec -n 4 \
+    python -u sandbox/probe_mcss2024_reference.py \
+      --solver mumps --init-solver mumps \
+      --final-time 0.0003 --save-dt 0.0001 \
+      --energy-balance \
+    > mcss2024_mumps_4ranks_sourcefix.log 2>&1
+status=$?
+echo "Four ranks full physical: exit=$status"
+grep -E 'Initialisation done|Steps:|actual_final_time|ts_converged_reason|saved_steps|maximum_relative_balance_error|DIVERGED_|MUMPS error|Traceback|Segmentation fault' \
+    mcss2024_mumps_4ranks_sourcefix.log | tail -n 30
+```
