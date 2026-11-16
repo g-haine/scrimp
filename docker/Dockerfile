@@ -9,7 +9,7 @@ ARG MAKE_JOBS=4
 
 USER root
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates libgl1 libglu1-mesa libxrender1 libxext6 \
+    ca-certificates binutils file libgl1 libglu1-mesa libxrender1 libxext6 \
     && rm -rf /var/lib/apt/lists/*
 USER $MAMBA_USER
 
