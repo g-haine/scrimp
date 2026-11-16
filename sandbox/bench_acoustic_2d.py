@@ -89,11 +89,19 @@ def main():
     parser.add_argument("--save-dt", type=float, default=0.01)
     parser.add_argument("--output", type=Path, default=None,
                         help="Write JSON report from MPI rank 0")
+    parser.add_argument(
+        "--profile", action="store_true",
+        help="Record SCRIMP GetFEM, bridge and PETSc phase timings in JSON",
+    )
     # PETSc options, including -log_view, have already been parsed by
     # petsc4py before this parser. Leave their argv entries intact.
     args, _petsc_options = parser.parse_known_args()
     if min(args.mesh, args.final_time, args.dt, args.save_dt) <= 0:
         parser.error("mesh/final-time/dt/save-dt must all be positive")
+
+    if args.profile:
+        # Must be set before DPHS is constructed.
+        os.environ["SCRIMP_PROFILE"] = "1"
 
     mpi = MPI.COMM_WORLD
     p = mpi.Get_size()
@@ -154,6 +162,10 @@ def main():
         "final_variable_norms": _norms(system),
         "numpy_version": np.__version__,
     }
+    if system.profiler.enabled:
+        # Collective across ALL ranks, once TS has completed. Timers
+        # inside PETSc callbacks use no MPI collectives.
+        report["profile"] = system.get_profile()
     if rank == 0:
         text = json.dumps(report, indent=2)
         print(text, flush=True)
