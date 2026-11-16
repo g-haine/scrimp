@@ -60,7 +60,7 @@ def load_matrix(path, comm):
     return matrix
 
 
-def replay(path, cycles, factor_only):
+def replay(path, cycles, factor_only, solver="mumps"):
     comm = PETSc.COMM_WORLD
     # PETSc binary I/O is collective; all ranks read the same path.
     if not Path(path).is_file():
@@ -74,7 +74,7 @@ def replay(path, cycles, factor_only):
             comm,
             f"loaded {path}: size={shape}, "
             f"Frobenius={matrix.norm(PETSc.NormType.FROBENIUS):.12g}, "
-            f"factor_only={factor_only}, cycles={cycles}",
+            f"factor_only={factor_only}, cycles={cycles}, solver={solver}",
         )
 
         x_true = matrix.createVecRight()
@@ -93,7 +93,7 @@ def replay(path, cycles, factor_only):
                     ksp.setType("preonly")
                     pc = ksp.getPC()
                     pc.setType("lu")
-                    pc.setFactorSolverType("mumps")
+                    pc.setFactorSolverType(solver)
                     emit(comm, f"cycle={cycle} before KSP.setUp")
                     ksp.setUp()
                     emit(comm, f"cycle={cycle} after KSP.setUp")
@@ -122,7 +122,8 @@ def replay(path, cycles, factor_only):
     emit(comm, "all snapshot cycles finished")
 
 
-def replay_changing_operator(first_path, second_path, transitions):
+def replay_changing_operator(first_path, second_path, transitions,
+                             solver="mumps"):
     """Reuse a single KSP/PC and a single Mat across evolving sparsity.
 
     In contrast with replay(), this recreates the important Newton
@@ -150,7 +151,7 @@ def replay_changing_operator(first_path, second_path, transitions):
         ksp.setType("preonly")
         pc = ksp.getPC()
         pc.setType("lu")
-        pc.setFactorSolverType("mumps")
+        pc.setFactorSolverType(solver)
         ksp.setOperators(working)
         structure = PETSc.Mat.Structure.DIFFERENT_NONZERO_PATTERN
 
@@ -213,6 +214,11 @@ def main():
                         help="PETSc binary Jacobian captured on OLD env")
     parser.add_argument("--cycles", type=int, default=3)
     parser.add_argument(
+        "--solver", choices=("mumps", "superlu"), default="mumps",
+        help="Compare the exact same stored Jacobian with MUMPS versus "
+             "SuperLU (one rank); defaults to MUMPS",
+    )
+    parser.add_argument(
         "--next-matrix", default=None,
         help="Second PETSc snapshot; when provided, reuse a single "
              "KSP and Mat while alternating old/new Jacobian patterns",
@@ -228,10 +234,12 @@ def main():
         if args.factor_only:
             parser.error("--factor-only cannot be used with --next-matrix")
         replay_changing_operator(
-            args.matrix, args.next_matrix, args.cycles
+            args.matrix, args.next_matrix, args.cycles,
+            solver=args.solver,
         )
     else:
-        replay(args.matrix, args.cycles, args.factor_only)
+        replay(args.matrix, args.cycles, args.factor_only,
+               solver=args.solver)
 
 
 if __name__ == "__main__":
