@@ -3273,3 +3273,70 @@ The published one-rank SuperLU model's
 physical power balance remains ~9.59e-9 only
 on t=0..0.0003. Parallel MPI2 validation awaits
 resolution of this one-rank structure transition.
+
+## 2026-11-16 — MUMPS symbolic-factor lifecycle: PC.reset A/B passes
+
+The user replayed TWO different real MCSS2024 physical BDF Jacobian
+snapshots with one rank, using the SAME mutable PETSc matrix and
+persistent KSP/PC. All three newly tested combinations passed:
+
+| Solver | Before in-place Jacobian update | First residual | Second residual |
+| --- | --- | ---: | ---: |
+| SuperLU | no reset | 6.92917192e-16 | 6.91998807e-16 |
+| MUMPS | `PC.reset()` | 2.07503358e-16 | 2.09159297e-16 |
+| MUMPS | `KSP.reset()` | 2.06719253e-16 | 2.08562440e-16 |
+
+Each solve converged in one KSP iteration; final reset/destroy succeeded.
+Earlier **MUMPS without reset** failed at the 001->002 structural
+transition; individually both matrices had factored successfully.
+This strongly implicates stale LU symbolic setup on changing sparsity
+*in that standalone one-rank lifecycle*, not an intrinsically
+singular Jacobian. It is **not** a validated full TS or MPI fix.
+
+### Opt-in SCRIMP experiment (defaults untouched)
+
+`DPHS.IJacobian` now recognizes
+`SCRIMP_MUMPS_RESET_PC_ON_JACOBIAN=1`. If the active TS/SNES/KSP
+uses `PC=lu` and factor solver `mumps`, it calls `PC.reset()`
+**before** mutating the PETSc Jacobian/preconditioner matrix.
+The reset is deliberately unconditional for this opt-in experiment;
+it may be expensive (new symbolic factorization every iteration).
+No reset occurs for SuperLU or when the variable is unset.
+`PC.reset()` is **collective** and must run on ALL MPI ranks.
+
+**First native test: unchanged published model, ONE rank only.**
+
+```bash
+git pull --ff-only
+conda activate scrimp
+python -m py_compile scrimp/dphs.py
+
+SCRIMP_GETFEM_RHS_MODE=divide_by_mpi_size \
+SCRIMP_MUMPS_RESET_PC_ON_JACOBIAN=1 \
+SCRIMP_MPI_TRACE=1 PYTHONFAULTHANDLER=1 \
+timeout -k 5s 240s mpiexec -n 1 \
+  python -u sandbox/probe_mcss2024_reference.py \
+    --solver mumps --init-solver superlu \
+    --final-time 0.0003 --save-dt 0.0001 \
+    --energy-balance --mumps-factor-diagnostics \
+  > mcss2024_pc_reset_main_mumps_1rank.log 2>&1
+status=$?
+echo "full TS MUMPS PC reset exit=$status"
+grep -E 'opt-in MUMPS PC.reset|Initialisation done|main TS completed|actual_final_time|ts_converged_reason|maximum_relative_balance_error|MAIN TS PETSc|MUMPS error|Traceback' \
+  mcss2024_pc_reset_main_mumps_1rank.log | tail -n 60
+```
+
+This needs a real PETSc/GetFEM conda environment; source-only CI
+cannot validate it. In particular, `exit=0` alone is not sufficient:
+check `actual_final_time`, `ts_converged_reason`, initial
+consistency, and physical power-balance error. Compare against
+the existing one-rank SuperLU reference (~9.59e-9 relative
+power-balance error for this short interval). If a new PETSc
+error occurs, inspect the full log before trying alternative resets.
+
+If this serial TS test passes, rerun `tests.test_mpi_algebra` at
+1/2/4 ranks before attempting the full two-rank physical case.
+Long-term preferred: stabilize the sparsity graph and avoid needless
+symbolic factorization; optimize collective pattern change detection
+only *after* the safe reset experiment is validated.
+The draft PR #22 remains unmerged; no v1.2.1 tag.
