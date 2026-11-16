@@ -166,15 +166,35 @@ tangent actions on a vector of ones.
 The analyzer reports whether the generic RHS or source RHS
 are **physical** or **P-fold duplicated**, and whether tangent
 matrices are **full and replicated** or **distributed by
-contribution**. The matrix bridge default is currently
-``SCRIMP_GETFEM_MATRIX_MODE=replicated``; if native 5.5
-has distributed tangents, the analyzer **fails deliberately**,
-since that default must be changed or selected explicitly before
-validating the physical model. The RHS bridge already calibrates
-generic contributions in
-``SCRIMP_GETFEM_RHS_MODE=auto``, but its source-brick behavior
-requires separate verification; ``SCRIMP_GETFEM_SOURCE_RHS_MODE=raw``
-preserves unscaled GetFEM sources where they are assembled once.
+contribution**. The GetFEM 5.5 Docker build was measured with
+correct raw generic and source RHS and distributed matrix
+contributions on P=2/4. The Docker image therefore sets:
+
+.. code-block:: bash
+
+    SCRIMP_GETFEM_MATRIX_MODE=distributed
+    SCRIMP_GETFEM_RHS_MODE=auto
+    SCRIMP_GETFEM_SOURCE_RHS_MODE=raw
+
+The default for non-Docker environments remains
+``SCRIMP_GETFEM_MATRIX_MODE=replicated``, preserving the behavior
+of the previously validated *local* GetFEM 5.4.2 installation.
+For a freshly compiled GetFEM **never** copy these flags blindly:
+first measure the native assembly with the diagnostic above, then
+run its analyzer with the matching ``--matrix-mode replicated``
+or ``--matrix-mode distributed`` parameter. For this GetFEM 5.5
+container the mandatory CI command is:
+
+.. code-block:: bash
+
+    python sandbox/analyze_getfem_mpi_assembly.py \\
+        --matrix-mode distributed --require-physical-rhs \\
+        sandbox/outputs/getfem-assembly/*.json
+
+The RHS bridge calibrates generic contributions in
+``SCRIMP_GETFEM_RHS_MODE=auto``, while
+``SCRIMP_GETFEM_SOURCE_RHS_MODE=raw``
+preserves unscaled GetFEM source terms that are assembled once.
 
 **Do not change RHS normalization solely because GetFEM returns
 full vectors or matrices.** First compare raw numerical values with
