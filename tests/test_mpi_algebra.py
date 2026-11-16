@@ -27,7 +27,8 @@ from unittest.mock import Mock, patch
 import numpy as np
 from petsc4py import PETSc
 
-from scrimp.dphs import DPHS, _set_main_ts_default_exact_final_time
+from scrimp.dphs import (DPHS, _set_main_ts_default_exact_final_time,
+                        _getfem_mpi_rhs_scale)
 from scrimp.brick import Brick
 from scrimp.utils import linalg
 
@@ -669,13 +670,15 @@ class TestMPIAlgebra(unittest.TestCase):
             rhs.destroy()
 
     def test_source_aware_rhs_recovers_mixed_getfem_control_on_mpi(self):
-        """Prescribed sources are summed once; nonlinear RHS is P-fold.
+        """Source-aware model must retain the actual forcing on all ranks.
 
-        The tested GetFEM 5.4.2 MPI-2 build assembles an explicit
-        source brick globally (no P-fold duplication), but nonlinear
-        generic terms P times. Use a real GetFEM model plus the REAL
-        DPHS.assemble_rhs/IFunction to confirm N+S=1+2=3 at 1/2/4
-        ranks, not 1+2/P. The new behavior is opt-in.
+        The tested local GetFEM 5.4.2 has generic RHS multiplied by
+        P and source RHS assembled once. GetFEM 5.5 may instead have
+        a correct (factor=1) generic RHS. Never assume that generic
+        RHS *must* be P-fold: let SCRIMP calibrate it from an exact
+        integral, then assert that unscaled source recovers N+S=3.
+        Independent native probes classify source scaling on each
+        installed GetFEM build before this SCRIMP integration test.
         """
         gf = linalg.gf
         if int(gf.util_mpi_parallelism_level()) != 2:
@@ -731,20 +734,27 @@ class TestMPIAlgebra(unittest.TestCase):
         z.set(1.0)
         zd.set(0.0)
         try:
-            for source_mode, expected in (
-                ("match_generic", 1.0 + 2.0 / SIZE),
-                ("raw", 3.0),
-            ):
+            for source_mode in ("match_generic", "raw"):
                 with patch.dict(os.environ, {
-                    "SCRIMP_GETFEM_RHS_MODE": "divide_by_mpi_size",
+                    # Auto must select 1 when GetFEM is correct and
+                    # 1/P only when GetFEM's generic weak form is
+                    # actually multiplied by MPI size.
+                    "SCRIMP_GETFEM_RHS_MODE": "auto",
                     "SCRIMP_GETFEM_SOURCE_RHS_MODE": source_mode,
                     "SCRIMP_NONLINEAR_RESIDUAL_FORM": "direct_getfem",
                 }):
                     system.IFunction(None, 0.0, z, zd, F)
+                    generic_scale = _getfem_mpi_rhs_scale()
+                expected = (
+                    1.0 + 2.0 * generic_scale
+                    if source_mode == "match_generic"
+                    else 3.0
+                )
                 self.assertAlmostEqual(
                     float(np.real(F.sum())),
                     expected, places=9,
-                    msg=f"source_mode={source_mode}, ranks={SIZE}",
+                    msg=(f"source_mode={source_mode}, "
+                         f"generic_scale={generic_scale}, ranks={SIZE}"),
                 )
         finally:
             for obj in (
