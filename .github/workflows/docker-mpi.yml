@@ -15,6 +15,8 @@ on:
       - scripts/install-petsc-python-bindings.sh
       - sandbox/smoke_modern_stack.py
       - sandbox/bench_acoustic_2d.py
+      - sandbox/diagnose_getfem_mpi_assembly.py
+      - sandbox/analyze_getfem_mpi_assembly.py
       - scrimp/**
       - tests/test_mpi_algebra.py
       - .github/workflows/docker-mpi.yml
@@ -41,6 +43,28 @@ jobs:
             docker run --rm --cpus=4 scrimp-mpi:candidate \
               mpiexec -n "$n" python -u sandbox/smoke_modern_stack.py
           done
+      - name: Measure native GetFEM RHS and matrix semantics at 1/2/4 ranks
+        run: |
+          mkdir -p getfem-assembly
+          # Container uses unprivileged mambauser; allow CI artifact writes.
+          chmod 777 getfem-assembly
+          for n in 1 2 4; do
+            docker run --rm --cpus=4 \
+              -v "$PWD/getfem-assembly:/artifacts" \
+              scrimp-mpi:candidate \
+              mpiexec -n "$n" python -u \
+              sandbox/diagnose_getfem_mpi_assembly.py \
+              --output "/artifacts/getfem_${n}ranks.json"
+          done
+          python sandbox/analyze_getfem_mpi_assembly.py \
+            getfem-assembly/*.json
+      - name: Preserve GetFEM MPI native assembly evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: getfem-native-mpi-assembly
+          path: getfem-assembly/*.json
+          if-no-files-found: warn
       - name: Run SCRIMP algebra tests on 1, 2 and 4 ranks
         run: |
           for n in 1 2 4; do
