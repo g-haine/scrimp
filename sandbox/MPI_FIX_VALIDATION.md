@@ -3160,3 +3160,116 @@ Keep PR #22 draft; do not advance to MPI2 until
 same-model n=1 MUMPS run is understood. Relative
 power balance ~9.59e-9 is still validated only
 on short one-rank SuperLU reference.
+
+
+## 2026-11-16 — **Reproduced** changing-sparsity persistent MUMPS failure OUTSIDE SCRIMP/TS/GetFEM
+
+The user ran three key standalone tests on the two exact
+published MCSS2024 BDF Newton Jacobian snapshots, one rank:
+
+1. **Same matrix x 3**, persistent PETSc KSP/PC, in-place
+   `Mat.copy` to the SAME matrix, calling `KSP.setOperators`
+   each time: ALL **3 solves PASS**, relative residual
+   `2.06771957e-16`, `2.05651332e-16`,
+   `2.06805985e-16`; MUMPS factor cleanup passes.
+2. Physical snapshot no. 2 `first_bdf_jacobian_002.petscbin`
+   with fresh MUMPS KSP: **PASS** with relative residual
+   `2.08412131e-16`.
+3. Physical snapshot no. 1 followed by no. 2,
+   **same PETSc KSP/PC and in-place Mat handle**:
+   first solve PASS `2.05934715e-16`, but second
+   solve **FAILS** with `KSP_reason=-11`
+   (`KSP_DIVERGED_PC_FAILED`), zero iterations and
+   **NaN relative residual**. Script raises
+   `RuntimeError: Persistent KSP failed after a nonlinear matrix update`.
+
+The native MCSS BDF capture log shows an important **actual
+change in CSR sparsity**, not just floating values:
+
+| first BDF Jacobian | #1 | #2 | #3 |
+| --- | ---: | ---: | ---: |
+| time | 5e-05 | 5e-05 | 1.25e-05 |
+| shift | 20000 | 20000 | 80000 |
+| stored CSR nnz | **449417** | **451590** | **451590** |
+| structure digest | `7c053e8f6392d192d4f8bf30` | `e284cf39ed8e2e0003dd77c1` | SAME AS #2 |
+| values digest | `201efd1aab9f620baa9bb12d` | `18eb63cbc22d4f225aa27a86` | `9c2a8cf49107e68c1e173381` |
+
+Thus **2,173 additional stored CSR nonzeros** appeared
+during first Newton iteration at SAME t and BDF shift,
+while the matrix remained the same PETSc object
+(`A_equals_P=True`). Third Jacobian has the #2
+pattern but different values after PETSc reduced BDF
+startup time/changed shift.
+
+Original **main TS** reproduces `MatSolve_MUMPS`
+`INFOG(1)=-3`, `INFOG(2)=3`,
+indicating the native factor/solve phase sequence was
+not usable. The exact standalone replay **also fails
+on the structural transition**, so the fault is NOT
+intrinsic to either Jacobian matrix and does NOT need
+GetFEM/SCRIMP/TS in order to manifest. What remains to
+prove is whether PETSc fails to invalidate/rebuild
+the symbolic factor after `Mat.copy(...,
+DIFFERENT_NONZERO_PATTERN)` into the same Mat or
+whether a library-specific transition error is
+present despite correctly detected graph change.
+PETSc documents the significance of correct sparsity
+flags and that a `PC` may be reset between
+factorizations:
+https://web.cels.anl.gov/projects/petsc/vault/petsc-3.21/docs/manualpages/PC/PCFactorSetReuseOrdering.html
+https://petsc.org/main/manualpages/Mat/MatCopy/
+https://petsc.gitlab.io/petsc/release/petsc4py/reference/petsc4py.PETSc.PC.html
+
+### NEXT — Reset-only A/B using existing snapshots (NO 23s GetFEM rebuild)
+
+`sandbox/replay_petsc_mumps_snapshot.py` now accepts
+`--transition-reset {none,pc,ksp}` when using
+`--next-matrix`. `pc` resets just the LU
+preconditioner **before** writing the changed
+structure into the existing matrix, whereas
+`ksp` resets both KSP and its PC, then rebinds
+the same Mat with `KSP.setOperators`. `none`
+preserves the failing baseline. On failure the
+replay logs `PC_failed_reason` and
+MUMPS `INFOG(1/2)` where available. This opt-in
+test changes NO production SCRIMP behavior.
+
+```bash
+git pull --ff-only
+conda activate scrimp
+for variant in "superlu none" "mumps pc" "mumps ksp"; do
+  set -- $variant
+  solver=$1; reset=$2
+  PYTHONFAULTHANDLER=1 \
+  timeout -k 5s 90s mpiexec -n 1 \
+    python -u sandbox/replay_petsc_mumps_snapshot.py \
+      --matrix sandbox/outputs/mcss_mumps/first_bdf_jacobian.petscbin \
+      --next-matrix sandbox/outputs/mcss_mumps/first_bdf_jacobian_002.petscbin \
+      --solver "$solver" --transition-reset "$reset" --cycles 2 \
+    > "mcss_refactor_${solver}_${reset}.log" 2>&1
+  echo "solver=$solver reset=$reset status=$?"
+  grep -E 'transition=|factor_failure|RuntimeError|MUMPS error' \
+    "mcss_refactor_${solver}_${reset}.log" | tail -n 16
+done
+```
+
+If MUMPS PC.reset succeeds, candidate opt-in production
+mitigation: reset only the LU PC when the **actual
+global PETSc sparsity pattern changes** (be cautious
+with collective MPI, PETSc SNES callback lifecycle).
+Long-term preferable: keep a **fixed structural union
+sparsity pattern** for a given finite-element weak form
+through Newton, avoiding repeated symbolic analysis.
+If only full KSP.reset succeeds, probe PC vs KSP
+setup/rebinding semantics before touching production
+`DPHS.IJacobian`. If SuperLU also fails on changed
+sparsity, this is a more general PETSc reassembly/
+symbolic-analysis issue, not MUMPS-specific. PETSc
+KSP_DIVERGED_PC_FAILED denotes failure to build/apply
+a requested PC, not necessarily numeric singularity.
+
+**No master merge, issue #6 closure or release.**
+The published one-rank SuperLU model's
+physical power balance remains ~9.59e-9 only
+on t=0..0.0003. Parallel MPI2 validation awaits
+resolution of this one-rank structure transition.
