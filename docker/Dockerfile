@@ -21,12 +21,18 @@ ENV ENV_NAME=scrimp \
     OMP_NUM_THREADS=1 \
     OPENBLAS_NUM_THREADS=1 \
     MPLBACKEND=Agg \
+    PETSC_DIR=/opt/conda/envs/scrimp \
+    SLEPC_DIR=/opt/conda/envs/scrimp \
     LD_LIBRARY_PATH=/opt/conda/envs/scrimp/lib
 
 WORKDIR /workspace/scrimp
 COPY --chown=$MAMBA_USER:$MAMBA_USER . /workspace/scrimp
 
-# The shared script is also usable from a locally activated conda env.
+# Compile the Python wrappers *against* NumPy 2 and conda's
+# complex PETSc/SLEPc libraries (conda petsc4py currently pins NumPy 1).
+RUN bash scripts/install-petsc-python-bindings.sh
+
+# The same GetFEM source-build script also works in local conda.
 RUN GETFEM_VERSION="${GETFEM_VERSION}" \
     MAKE_JOBS="${MAKE_JOBS}" \
     bash scripts/build-getfem-mpi.sh
