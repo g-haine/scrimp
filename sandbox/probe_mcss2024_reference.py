@@ -194,6 +194,17 @@ def main():
         help="Calculate MCSS2024 Hamiltonian and integrated physical "
              "dissipation/boundary powers at all saved times",
     )
+    parser.add_argument(
+        "--mumps-factor-diagnostics", action="store_true",
+        help="On a one-rank PETSc error, print MUMPS factor INFOG/INFO "
+             "and KSP/SNES/PC statuses before PETSc teardown",
+    )
+    parser.add_argument(
+        "--capture-main-jacobian", default=None,
+        metavar="PATH.petscbin",
+        help="Write the first main BDF2 Jacobian actually passed to "
+             "the solver in PETSc binary format; no published form change",
+    )
     args = parser.parse_args()
     if (not np.isfinite(args.final_time) or args.final_time <= 0
             or not np.isfinite(args.save_dt) or args.save_dt <= 0):
@@ -201,6 +212,8 @@ def main():
 
     if args.newton_block_trace:
         os.environ["SCRIMP_NEWTON_BLOCK_TRACE"] = "1"
+    if args.mumps_factor_diagnostics:
+        os.environ["SCRIMP_MUMPS_FACTOR_DIAGNOSTICS"] = "1"
 
     # The core DPHS.init_step() reads this only for initial TS.
     # Main TS always follows --solver, so the physical experiment
@@ -247,6 +260,38 @@ def main():
             "main_factor_solver": args.solver,
             "time_scheme": options_to_show,
         }, indent=2), flush=True)
+
+    if args.capture_main_jacobian:
+        # A true first-MAIN-BDF2 snapshot, independent of the
+        # number of nonlinear Jacobian calls during pseudo-TS startup.
+        # Keep the published DPHS weak forms and numerical callback.
+        # PETSc binary MatView is collective: all ranks must enter.
+        original_jacobian = swe.IJacobian
+        snapshot_done = [False]
+
+        def capture_jacobian(ts, t, z, zd, shift, A, P):
+            original_jacobian(ts, t, z, zd, shift, A, P)
+            if ts.getType() == "bdf" and not snapshot_done[0]:
+                target = Path(args.capture_main_jacobian).resolve()
+                if PETSc.COMM_WORLD.getRank() == 0:
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                PETSc.COMM_WORLD.barrier()
+                viewer = PETSc.Viewer().createBinary(
+                    str(target), mode="w", comm=PETSc.COMM_WORLD
+                )
+                try:
+                    P.view(viewer)
+                finally:
+                    viewer.destroy()
+                snapshot_done[0] = True
+                if PETSc.COMM_WORLD.getRank() == 0:
+                    print(
+                        f"Captured first physical BDF2 Jacobian: "
+                        f"{target}, t={t:.12g}, shift={shift:.12g}",
+                        flush=True,
+                    )
+
+        swe.IJacobian = capture_jacobian
 
     swe.solve()
     balance = published_energy_balance(swe) if args.energy_balance else None
