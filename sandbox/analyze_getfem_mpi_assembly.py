@@ -48,6 +48,15 @@ def classify_rhs(observed, exact, count):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("reports", nargs="+", type=Path)
+    parser.add_argument(
+        "--matrix-mode", choices=("replicated", "distributed"),
+        default="replicated",
+        help="Configured SCRIMP_GETFEM_MATRIX_MODE for the tested build",
+    )
+    parser.add_argument(
+        "--require-physical-rhs", action="store_true",
+        help="Require native generic/source RHS to be unscaled (GetFEM 5.5)",
+    )
     args = parser.parse_args()
     reports = [json.loads(p.read_text(encoding="utf-8")) for p in args.reports]
     sizes = [int(r["mpi_size"]) for r in reports]
@@ -119,15 +128,22 @@ def main():
             incompatible.append(
                 f"P={p}: unrecognized GetFEM assembly semantics"
             )
-        if p > 1 and (lin == "distributed_contributions"
-                      or nonlin == "distributed_contributions"):
-            # SCRIMP's current DEFAULT matrix bridge uses PETSc-owned
-            # insertion assuming a replicated global GetFEM tangent.
-            # Native distributed matrices require separate ADD_VALUES.
+        if p > 1:
+            observed = {lin, nonlin}
+            required = (
+                "distributed_contributions"
+                if args.matrix_mode == "distributed" else "replicated_full"
+            )
+            if observed != {required}:
+                incompatible.append(
+                    f"P={p}: native GetFEM matrices={observed}, "
+                    f"configured matrix mode={args.matrix_mode}; "
+                    f"expected {required}. Select the correct PETSc bridge."
+                )
+        if args.require_physical_rhs and (g != "physical" or s != "physical"):
             incompatible.append(
-                f"P={p}: matrix is distributed but SCRIMP default "
-                "SCRIMP_GETFEM_MATRIX_MODE=replicated; "
-                "set/test distributed mode before running physics"
+                f"P={p}: native RHS not physical (generic={g}, "
+                f"source={s}); do not assume GetFEM 5.5 is unscaled"
             )
         if g != s and p > 1:
             print(
