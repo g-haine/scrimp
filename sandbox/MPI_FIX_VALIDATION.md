@@ -3541,3 +3541,99 @@ Then investigate full controlled dissipative SWE2D
 open/feedback runs, robust power-balance metrics,
 time/mesh convergence and eventual MPI performance.
 No merge of draft PR #22, issue #6 closure or v1.2.1 tag yet.
+
+## 2026-11-16 — MUMPS 2-rank full TS now completes; **physical parity FAILS**
+
+Native user's files:
+`mcss_algebra_{1,2,4}ranks.log` and
+`mcss2024_all_mumps_reset_2ranks.log`. Exact original
+MCSS2024 grad experiment 3, all-MUMPS pseudo init + main BDF2,
+`SCRIMP_MUMPS_RESET_PC_ON_JACOBIAN=1`,
+`SCRIMP_GETFEM_RHS_MODE=divide_by_mpi_size`.
+
+**Algebra gate:** 14/14 tests PASS on each MPI process for
+1, 2, and 4 ranks. The unused PETSc `-info` option is a
+harmless warning in these tests.
+
+**2-rank actual physical solve:** exit 0; BOTH ranks complete
+pseudo init and BDF2, TS reason=1, reached t=0.0003,
+2 accepted steps, 0 rejected or nonlinear failures,
+6 Newton/linear iterations, 3 saved physical snapshots.
+No 134/139 abort. This is a solver execution milestone,
+**NOT a correct parallel simulation**.
+
+| Quantity | 1-rank all-MUMPS | 2-rank all-MUMPS |
+| --- | ---: | ---: |
+| Hamiltonian initial | 41.40691140421563 | 41.36346576524895 |
+| Hamiltonian final | 41.40690686525291 | 41.36337179110358 |
+| p initial norm | 6.779245052597557 | 6.4781052195196605 |
+| p final norm | 6.779240151344621 | 6.478188384985926 |
+| h final min | 49.99976320021396 | 49.989454341443256 |
+| h final max | 50.00023666658005 | 50.00943354612035 |
+| U final norm | 2.240884951585336 | **1.1204424757926679** |
+| Y initial norm | 0.364463752693619 | **17213.702988483823** |
+| integrated viscous grad | 7.266481074724646e-07 | 4.733102977404782e-05 |
+| integrated viscous div | 1.8637708506434327e-09 | 9.677062928364302e-07 |
+| signed integrated vector port | +3.3184488185643337e-06 | **-0.004704998867940095** |
+| absolute balance defect (final) | -4.920020231224953e-07 | -0.0047506742772398525 |
+| max relative balance error | 1.1882123211740075e-08 | **1.1485214036789398e-04** |
+
+During 2-rank pseudo startup, `||z||` grows from 1991.24232
+to **17328.5056**, whereas 1-rank startup was near
+1991.37. GetFEM matrix assembly remains in replicated mode;
+PETSc MUMPS solves are completed. At 2 ranks
+`assemble_rhs` logs `mode=divide_by_mpi_size, scale=0.5`
+for BOTH the nonlinear-plus-source and source-only assemblies.
+
+**Strong diagnostic hypothesis (not yet proven):**
+GetFEM 5.4.2 MPI-2 generic nonlinear RHS is spuriously
+multiplied by P in this environment, BUT explicit
+`add_source_term_brick` may already be globally normalized
+(or assembled on master only). Applying the same 1/P factor
+to both would halve the prescribed boundary control U at
+two ranks, exactly as seen. This may cause the DAE boundary
+variables Y to diverge during pseudo initialization.
+The generic nonlinear integral tests do **NOT** validate
+source-brick MPI semantics. Never change the source scaling
+without an independent native probe.
+
+**Narrow probe committed:** `sandbox/check_mcss_source_sign.py`
+now reports independent exact 1D raw GetFEM RHS sums for:
+(i) generic nonlinear term N=1 (expected raw -1 at P=1),
+(ii) a source brick S=1 (expected raw +1 at P=1),
+(iii) a mixed model with N=1,S=2 (expected raw +1 at P=1);
+it prints predicted direct residual under uniform division and
+separately normalized generic-vs-source handling.
+No SCRIMP equation, DPHS solver, MUMPS or production defaults
+are changed by this diagnostic. Run native 1/2/4 ranks:
+
+```bash
+git pull --ff-only
+conda activate scrimp
+for n in 1 2 4; do
+  timeout -k 5s 45s mpiexec -n "$n" \
+    python -u sandbox/check_mcss_source_sign.py \
+    > "mcss_source_scaling_${n}ranks.log" 2>&1
+  status=$?
+  echo "source scaling n=$n exit=$status"
+  grep -E '"mpi_size"|"mpi_rank"|"nonlinear_rhs_integral"|"source_rhs_integral"|"mixed_raw_rhs_integral"|"mixed_uniform_scaling_direct_residual"|"mixed_separate_generic_and_source_direct_residual"|Traceback' \
+    "mcss_source_scaling_${n}ranks.log"
+  if [ "$status" -ne 0 ]; then break; fi
+done
+```
+
+**Interpretation:** if at n=2 generic raw RHS=-2 but
+source raw=+1, and mixed raw=-2+2=0, then current
+uniform scaling yields direct residual N+S/2=2
+instead of correct N+S=3. That justifies a
+source-aware *opt-in* normalization (separate source
+and nonlinear contribution) with a regression test,
+then rerun exact physical 1/2 parity. If source is
+also doubled, U/2 has another cause: investigate
+GetFEM explicit control brick assembly and source
+construction at native model level before patching.
+
+**No 4-rank physical run, no long-time testing, no
+controlled LHMNC2027 claims, and no release tag.** Do
+not mistake positive PETSc TS reason for physically
+correct parallel dynamics.
