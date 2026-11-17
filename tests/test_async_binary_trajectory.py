@@ -90,6 +90,71 @@ class AsyncBinaryTrajectoryTests(unittest.TestCase):
                 indices=np.array([0, 99]),
             )
 
+    def test_payload_bitflip_is_rejected_on_lazy_read(self):
+        reader, _ = self._write_pair(np.float64)
+        manifest = self.directory / "trajectory_manifest.json"
+        metadata = json.loads(manifest.read_text())
+        self.assertEqual(metadata["format"], "scrimp-rank-binary-v2")
+        # Alter one data byte *after* the writer has committed.
+        path = self.directory / "trajectory_rank0000.bin"
+        with path.open("r+b") as handle:
+            handle.seek(IO.HEADER.size + IO.FRAME.size + 5)
+            before = handle.read(1)
+            handle.seek(-1, 1)
+            handle.write(bytes([before[0] ^ 1]))
+        with self.assertRaisesRegex(ValueError, "CRC32"):
+            reader[0]
+
+    def test_truncated_rank_file_is_rejected_before_read(self):
+        self._write_pair(np.float64)
+        file = self.directory / "trajectory_rank0001.bin"
+        with file.open("r+b") as handle:
+            handle.truncate(file.stat().st_size - 1)
+        with self.assertRaisesRegex(ValueError, "Truncated"):
+            IO.LazyTrajectory(
+                self.directory / "trajectory_manifest.json"
+            )
+
+    def test_corrupted_frame_header_is_rejected_on_read(self):
+        reader, _ = self._write_pair(np.float64)
+        path = self.directory / "trajectory_rank0000.bin"
+        with path.open("r+b") as handle:
+            handle.seek(IO.HEADER.size)
+            handle.write(b"\\x04")
+        with self.assertRaisesRegex(ValueError, "frame metadata"):
+            reader[0]
+
+    def test_corrupted_rank_header_is_rejected_before_read(self):
+        self._write_pair(np.float64)
+        path = self.directory / "trajectory_rank0001.bin"
+        with path.open("r+b") as handle:
+            handle.write(b"NOT-MAG!")
+        with self.assertRaisesRegex(ValueError, "rank binary header"):
+            IO.LazyTrajectory(
+                self.directory / "trajectory_manifest.json"
+            )
+
+    def test_corrupted_crc_sidecar_is_rejected_on_read(self):
+        reader, _ = self._write_pair(np.float64)
+        path = self.directory / "trajectory_rank0000.crc32"
+        with path.open("r+b") as handle:
+            original = handle.read(1)
+            handle.seek(0)
+            handle.write(bytes([original[0] ^ 1]))
+        with self.assertRaisesRegex(ValueError, "CRC32"):
+            reader[0]
+
+    def test_reader_can_open_original_v1_archives(self):
+        _, expected = self._write_pair(np.float64)
+        file = self.directory / "trajectory_manifest.json"
+        manifest = json.loads(file.read_text())
+        manifest["format"] = "scrimp-rank-binary-v1"
+        for part in manifest["partitions"]:
+            part.pop("checksum_file")
+        file.write_text(json.dumps(manifest), encoding="utf-8")
+        old = IO.LazyTrajectory(file)
+        np.testing.assert_array_equal(old[-1], expected + 7)
+
     def test_binary_writer_round_trip_complex(self):
         trajectory, initial = self._write_pair(np.complex128)
         for i, step in enumerate((0, 1, 3, 7)):
