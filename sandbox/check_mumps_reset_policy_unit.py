@@ -20,6 +20,7 @@ validation is documented in SYMBOLIC_REUSE_VALIDATION.md.
 import os
 import numpy as np
 from scrimp.dphs import (
+    DPHS,
     _all_bricks_are_linear,
     _get_mumps_reset_policy,
     _local_stored_csr_pattern,
@@ -28,11 +29,19 @@ from scrimp.dphs import (
 
 
 class FakeBrick:
-    def __init__(self, linear):
+    def __init__(self, linear, position="effort", dt=False):
         self.linear = linear
+        self.position = position
+        self.dt = dt
 
     def get_linear(self):
         return self.linear
+
+    def get_position(self):
+        return self.position
+
+    def get_dt(self):
+        return self.dt
 
 
 def brick_linearity_checks():
@@ -40,13 +49,39 @@ def brick_linearity_checks():
     assert _all_bricks_are_linear({"M": FakeBrick(True)})
     assert _all_bricks_are_linear({
         "mass": FakeBrick(True),
-        "source": FakeBrick(True),
+        "source": FakeBrick(False, position="source"),
         "boundary": FakeBrick(True),
-    })
+    }), "Prescribed control source is RHS-only, not a nonlinear tangent"
     assert not _all_bricks_are_linear({
         "mass": FakeBrick(True),
         "boundary": FakeBrick(False),
+        "source": FakeBrick(False, position="source"),
     })
+    assert not _all_bricks_are_linear({
+        "mass": FakeBrick(True),
+        "nonlinear_explicit": FakeBrick(
+            False, position="effort",
+        ),
+    })
+
+    # Isolate set_linear_flags without constructing a GetFEM domain.
+    system = DPHS.__new__(DPHS)
+    system.bricks = {
+        "mass": FakeBrick(True, dt=True),
+        "control_mass": FakeBrick(True),
+        "prescribed_control": FakeBrick(False, position="source"),
+    }
+    system.set_linear_flags()
+    assert system.linear_mass is True
+    assert system.linear_stiffness is True
+    system.bricks["stiffness_nl"] = FakeBrick(False)
+    system.set_linear_flags()
+    assert system.linear_mass is True
+    assert system.linear_stiffness is False
+    system.bricks["mass_nl"] = FakeBrick(False, dt=True)
+    system.set_linear_flags()
+    assert system.linear_mass is False
+    assert system.linear_stiffness is False
 
 
 class Matrix:
