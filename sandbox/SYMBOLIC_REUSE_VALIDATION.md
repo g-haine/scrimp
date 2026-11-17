@@ -2,6 +2,62 @@
 
 Status: **experimental tests; no production solver-policy change yet**.
 
+## End-to-end MPI on_change/always nonlinear parity (2026-11-17)
+
+The user reran the already-validated P3/P2 physical Saint-Venant
+smooth spin-up at `mesh=0.2`, `rotation=0.02`, `dt=0.002`,
+`t_f=0.02`, with the new **automatic** nonlinear policy
+(`on_change`) and `always`. Both policies passed on 2 and 4
+MPI ranks, with 10 accepted steps, zero rejected steps, zero
+nonlinear solver failures, 20 nonlinear and 20 linear iterations.
+
+| MPI ranks | always elapsed (s) | automatic elapsed (s) | Indicative time reduction |
+| ---: | ---: | ---: | ---: |
+| 2 | 2.943 | 2.751 | 6.52% |
+| 4 | 2.334 | 2.236 | 4.20% |
+
+At 4 ranks, the maximum relative volume balance errors agree
+within floating-point noise (1.365270688239657e-15 for always,
+1.36527068823965e-15 for auto). The maximum energy residual
+normalized by actual exchange is 1.3790925633682102e-6 for
+always and 1.3790925632450105e-6 for auto. At 2 ranks the
+corresponding energy-exchange residuals are
+1.3790279710293058e-6 and 1.379023934139024e-6.
+These are **single runs**, not statistical speedups.
+PETSc symbolic factor counts were not collected in these
+four runs. These successful tests validate this particular
+nonlinear MPI physical trajectory, not arbitrary changing
+CSR patterns in every solver or PC type.
+
+## Repeating the five-repetition 2D acoustic scaling chart
+
+The original acoustic-wave strong-scaling experiment
+(`examples/wave.py`, fixed mesh `h=0.08`,
+12,682 DOFs, Crank–Nicolson `dt=0.002`,
+`t_f=0.04`, ranks 1/2/4/6 on distinct physical cores)
+is used to visualize the impact of the **new all-linear
+automatic `never` policy**. The existing
+`sandbox/bench_acoustic_2d.py` accepts
+`--series auto` or `--series always` for tagging
+each JSON report and validates the actual selected policy
+after the solve (auto must resolve to `never`; always
+to `always`). The existing
+`sandbox/analyze_acoustic_scaling.py` accepts
+`--plot-comparison PREFIX` and all tagged JSON
+reports. It checks identical physical numerical results,
+time-stepping parameters and per-point repeat counts
+before producing `PREFIX_speedup.png` and
+`PREFIX_times.png`. Each curve uses **median**
+end-to-end `wall_solve_seconds_max` values.
+`--profile` invokes the preexisting SCRIMP profiler;
+no new timing infrastructure was introduced.
+
+For a legitimate comparison, run both policies with
+the same P-core affinity at each MPI rank, five
+repetitions per (policy, rank), preferably interleaved.
+The previous image is a historical reference, not a
+measured outcome for the newly integrated policy.
+
 ## Production DPHS reset policy: automatic linear fast path (2026-11-17)
 
 **Implemented in `scrimp/dphs.py` on this PR; awaiting local runtime
