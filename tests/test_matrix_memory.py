@@ -131,7 +131,10 @@ class CompactMatrixMemoryTests(unittest.TestCase):
             )
             np.testing.assert_allclose(
                 jacobian.values, base_jacobian + reference_perturbation,
-                rtol=0., atol=4e-12,
+                # Central differences of double-precision values
+                # around O(1) matrices with eta=1e-4 incur O(1e-12)
+                # roundoff. Bound it tightly without demanding exactness.
+                rtol=0., atol=2e-11,
             )
             np.testing.assert_array_equal(new_state.values, state_before)
             np.testing.assert_array_equal(owner.current, state_before)
