@@ -15,6 +15,9 @@
 
 from scrimp.utils.linalg import convert_gmm_to_petsc, extract_gmm_to_scipy
 from scrimp.utils.profiling import TimingProfiler
+from scrimp.utils.matrix_memory import (
+    alias_readonly_linear_tangent, add_mass_hessian_fd_reused,
+)
 from scrimp.utils.async_binary_trajectory import (
     RankSender, LazyTrajectory, wait_for_manifest,
 )
@@ -369,6 +372,13 @@ class DPHS:
         self._trajectory_backend = "memory"
         self._trajectory_sender = None
         self._trajectory_directory = None
+        #: Keep historical matrix layout until compact mode is validated.
+        self._matrix_memory_mode = "legacy"
+        self._mass_hessian_fd_probe = None
+        self._mass_hessian_fd_matrix = None
+        self._mass_hessian_fd_probe_allocations = 0
+        self._mass_hessian_fd_matrix_allocations = 0
+        self._mass_hessian_fd_matrix_reuses = 0
         #: To check if the system has been solved
         self.solve_done = False
         #: To stop TS integration by keeping already computed timesteps if one step fails
@@ -1106,6 +1116,11 @@ class DPHS:
     def assemble_nl_mass(self):
         """This function performs the assembly of the bricks dt=True and linear=False and set the PETSc.Mat attribute `nl_mass`"""
 
+        if self._matrix_memory_mode == "compact" and self.linear_mass:
+            # The tangent aliases the *assembled* linear mass; do not
+            # accidentally change that read-only matrix via zeroEntries.
+            return
+
         for _, brick in self.bricks.items():
             # Enable the bricks that are dynamical and non-linear
             if brick.get_dt() and not brick.get_linear():
@@ -1153,6 +1168,11 @@ class DPHS:
 
     def assemble_nl_stiffness(self):
         """This function performs the assembly of the bricks dt=False and linear=False and set the PETSc.Mat attribute `nl_stiffness`"""
+
+        if self._matrix_memory_mode == "compact" and self.linear_stiffness:
+            # Do not modify the aliased linear stiffness by accidentally
+            # assembling an empty nonlinear tangent.
+            return
 
         for _, brick in self.bricks.items():
             # Enable the bricks that are non-dynamical and non-linear
