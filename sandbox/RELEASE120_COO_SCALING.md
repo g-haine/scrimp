@@ -61,6 +61,65 @@ Un échantillon unique ne donne aucune information statistique ;
 avec ≥2 répétitions, le graphe utilise la médiane et représente
 la plage min/max des mesures de scalabilité.
 
+## Campagne `--mpi-only` : maillages plus fins sans release
+
+Pour privilégier la **scalabilité forte** COO sur un maillage plus
+fin, sans compiler, extraire ni lancer la release historique :
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+
+# 1, 2, 4 et 6 rangs ; COO + never et COO + on_change ;
+# h = 0.025, 2 répétitions par configuration.
+bash sandbox/run_release120_coo_scaling.sh --mpi-only 0.025 2
+
+# La forme avec l'option à la fin fonctionne aussi :
+bash sandbox/run_release120_coo_scaling.sh 0.025 2 --mpi-only
+```
+
+Le mode `--mpi-only` **n'accède pas au tag v1.2.0**,
+ne crée aucun worktree temporaire et n'exécute aucun calcul de
+la release. Il valide les états complets entre les différentes
+configurations de la **branche actuelle**, toujours avec le même
+maillage et les mêmes 20 pas CN. Il produit **trois** figures
+(temps, accélération forte, efficacité). Aucune accélération
+**inter-versions** n'est calculée ni revendiquée.
+
+Le répertoire produit est
+`sandbox/outputs/mpi-coo-h0p025-<sha>-<identifiant>/`.
+Les figures sont rangées ainsi :
+
+```text
+sandbox/outputs/<campagne>/
+├── png/
+│   ├── 02_strong_scaling_coo.png
+│   ├── 03_speedup_coo.png
+│   └── 04_efficiency_coo.png
+├── svg/
+│   ├── 02_strong_scaling_coo.svg
+│   ├── 03_speedup_coo.svg
+│   └── 04_efficiency_coo.svg
+├── performance_medians.csv
+├── performance_summary.json
+└── current_*_rep*.json / current_*_rep*_state.npz / logs
+```
+
+Pour la campagne standard v1.2.0 + MPI, une **quatrième**
+figure `01_version120_vs_coo_serial` apparaît dans `png/`
+et `svg/`, uniquement si la parité des états est vérifiée.
+
+Pour **réanalyser sans aucun nouveau calcul** les résultats d'une
+campagne déjà terminée (y compris `--mpi-only`) :
+
+```bash
+bash sandbox/analyze_existing_release120_scaling.sh \
+  sandbox/outputs/mpi-coo-h0p025-<sha>-<identifiant>
+```
+
+Les données et rapports restent à la racine de chaque dossier
+de campagne. Les figures ne sont plus déposées en vrac.
+
 ## Commande pour les figures de ce soir
 
 Depuis le dépôt de développement :
@@ -82,7 +141,9 @@ Pour un maillage plus grand, conservant exactement le même protocole :
 (~47 942 DDL ; davantage de calcul).
 
 Le lanceur créera `sandbox/outputs/release120-coo-h0p08-<sha>-<id>/`.
-Il produit **quatre figures** en PNG 240 dpi **et SVG vectoriel** :
+Il produit **quatre figures** en PNG 240 dpi (sous `png/`)
+**et SVG vectoriel** (sous `svg/`) lorsque la comparaison avec
+v1.2.0 est admissible :
 
 | Fichier | Question illustrée |
 |---|---|
