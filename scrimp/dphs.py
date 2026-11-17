@@ -203,14 +203,21 @@ def _get_mumps_reset_policy(all_bricks_linear=False):
 
 
 def _all_bricks_are_linear(bricks):
-    """Require every registered brick to be declared linear.
+    """Determine whether all *Jacobian-contributing* bricks are linear.
 
-    An empty model is not a validated linear problem. Inspect all bricks,
-    including explicit, source and boundary forms, not only the flags
-    used to speed up PDE mass/stiffness assembly.
+    SCRIMP.set_control() creates a prescribed RHS source brick with
+    linear=False to route it through GetFEM's source assembly, even if
+    the prescribed control is independent of the state. Such bricks
+    contribute to the residual but not to the Jacobian or its sparsity;
+    treating them as nonlinear would unnecessarily select on_change
+    even for the linear acoustic wave example.
+
+    All other bricks (including boundary and explicit bricks) must be
+    declared linear. An empty model is never classified as linear.
     """
     return bool(bricks) and all(
-        brick.get_linear() for brick in bricks.values()
+        brick.get_position() == "source" or brick.get_linear()
+        for brick in bricks.values()
     )
 
 
@@ -1346,11 +1353,18 @@ class DPHS:
                     obj.destroy()
 
     def set_linear_flags(self):
-        """
-        This function set the "linear flags" to speed-up IFunction calls for linear systems.
-        """
+        """Flag state-dependent mass/stiffness terms for reassembly.
 
-        for _, brick in self.bricks.items():
+        GetFEM source bricks are prescribed forcing (RHS only), created
+        with linear=False for their special assembly route. They do not
+        cause a nonlinear tangent and must not force stiffness matrix
+        reassembly or PETSc Newton trial-state synchronization.
+        """
+        self.linear_mass = True
+        self.linear_stiffness = True
+        for brick in self.bricks.values():
+            if brick.get_position() == "source":
+                continue
             if brick.get_dt() and not brick.get_linear():
                 self.linear_mass = False
             if not brick.get_dt() and not brick.get_linear():
@@ -1780,9 +1794,9 @@ class DPHS:
         # never inherit the CSR graph of a previously destroyed LU factor.
         self._mumps_csr_patterns = {}
         self._mumps_phase_enabled = {}
-        # Do not rely only on the mass/stiffness shortcut flags: those
-        # omit some explicit/source forms. The user's requirement is that
-        # EVERY registered brick must be declared linear.
+        # All Jacobian-contributing bricks must be declared linear.
+        # Prescribed GetFEM source bricks are RHS-only and use
+        # linear=False solely to route their separate assembly.
         self._all_bricks_linear = _all_bricks_are_linear(self.bricks)
         self._mumps_reset_policy = _get_mumps_reset_policy(
             all_bricks_linear=self._all_bricks_linear
