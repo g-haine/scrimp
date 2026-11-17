@@ -182,6 +182,10 @@ norms. Reports and plots identify `T_CSR(p)`, `T_COO(p)`,
 `T_CSR(p)/T_COO(p)` at equal rank and MUMPS policy.
 
 ```bash
+# Fine-mesh 1/2/4/6 ranks × 3 repetitions × 2 bridges × 1 MUMPS policy
+# = 24 Docker simulations, in a dedicated Git-SHA output folder.
+SCRIMP_SCALING_TIMEOUT_S=1800 bash sandbox/run_acoustic_mumps_scaling.sh 0.02 sweep both never 3
+
 # Only four runs: 1 and 6 ranks, one repetition, never policy
 bash sandbox/run_acoustic_mumps_scaling.sh 0.04 pilot both never
 
