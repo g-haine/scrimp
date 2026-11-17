@@ -24,7 +24,7 @@ from pathlib import Path
 import numpy as np
 
 
-def analyze(directory, prefix=None, *, rtol=1e-10, atol=1e-11):
+def analyze(directory, prefix=None, *, l2_rtol=1e-10, linf_rtol=1e-10):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -37,6 +37,8 @@ def analyze(directory, prefix=None, *, rtol=1e-10, atol=1e-11):
     commit_ref = None
     reference_states = None
     max_state_abs_difference = 0.
+    max_state_relative_l2 = 0.
+    max_state_relative_linf = 0.
 
     for mode in ("dense", "sparse"):
         files = sorted(directory.glob(f"memory_{mode}_rank*.json"))
@@ -98,16 +100,46 @@ def analyze(directory, prefix=None, *, rtol=1e-10, atol=1e-11):
                     ("initial", initial, reference_states[0]),
                     ("final", final, reference_states[1]),
                 ):
-                    if actual.shape != expected.shape or not np.allclose(
-                        actual, expected, rtol=rtol, atol=atol
-                    ):
+                    if actual.shape != expected.shape:
+                        raise ValueError(
+                            f"{state_path}: {label} state shape differs"
+                        )
+                    if not np.all(np.isfinite(actual)):
+                        raise ValueError(
+                            f"{state_path}: {label} state is non-finite"
+                        )
+                    delta = actual - expected
+                    abs_max = float(np.max(np.abs(delta)))
+                    scale_l2 = max(
+                        float(np.linalg.norm(actual)),
+                        float(np.linalg.norm(expected)),
+                        float(np.finfo(float).tiny),
+                    )
+                    scale_linf = max(
+                        float(np.max(np.abs(actual))),
+                        float(np.max(np.abs(expected))),
+                        float(np.finfo(float).tiny),
+                    )
+                    relative_l2 = float(np.linalg.norm(delta)) / scale_l2
+                    relative_linf = abs_max / scale_linf
+                    if (relative_l2 > l2_rtol
+                            or relative_linf > linf_rtol):
                         raise ValueError(
                             f"{state_path}: {label} state differs across "
-                            "rank or saving schedule"
+                            "rank or saving schedule: "
+                            f"max_abs={abs_max:.6e}, "
+                            f"rel_L2={relative_l2:.6e}, "
+                            f"rel_Linf={relative_linf:.6e} "
+                            f"(limits {l2_rtol:g}/{linf_rtol:g})"
                         )
                     max_state_abs_difference = max(
-                        max_state_abs_difference,
-                        float(np.max(np.abs(actual - expected)))
+                        max_state_abs_difference, abs_max
+                    )
+                    max_state_relative_l2 = max(
+                        max_state_relative_l2, relative_l2
+                    )
+                    max_state_relative_linf = max(
+                        max_state_relative_linf, relative_linf
                     )
             reports.setdefault(mode, {})[rank] = report
 
@@ -224,6 +256,14 @@ def analyze(directory, prefix=None, *, rtol=1e-10, atol=1e-11):
         "accepted_steps": physical_signature[5],
         "max_initial_final_state_abs_difference":
             max_state_abs_difference,
+        "max_initial_final_state_relative_l2":
+            max_state_relative_l2,
+        "max_initial_final_state_relative_linf":
+            max_state_relative_linf,
+        "full_state_relative_error_limits": {
+            "l2": l2_rtol,
+            "linf": linf_rtol,
+        },
         "rank_summary": rank_rows,
         "notes": [
             "VmRSS/VmHWM are rank-local Linux measurements including "
@@ -235,6 +275,12 @@ def analyze(directory, prefix=None, *, rtol=1e-10, atol=1e-11):
             "factorization memory, and may undercount native allocations.",
             "Comparisons do not yet establish memory-leak behavior; "
             "a plateau test needs longer simulation horizons.",
+            "Both runs have the same accepted steps, but a final state "
+            "saved within TS.monitor may not be bitwise equal to the "
+            "same-time state exported from TS after solve.",
+            "Full initial/final state comparisons use strict global "
+            "relative L2 and L-infinity error thresholds (each 1e-10), "
+            "not per-coefficient np.allclose near-zero tests.",
             "No additional collectives were made during callbacks.",
         ],
     }
@@ -288,10 +334,15 @@ def analyze(directory, prefix=None, *, rtol=1e-10, atol=1e-11):
         f"{physical_signature[0]} ranks, "
         f"{physical_signature[5]} CN steps, commit {commit_ref}"
     )
-    print("Initial/final full-state comparison: PASS")
     print(
-        "Maximum coefficient difference:",
-        max_state_abs_difference,
+        "Initial/final full-state comparison: PASS "
+        "(relative L2 and scaled L-infinity each <= 1e-10)"
+    )
+    print(
+        f"Max absolute coefficient difference: "
+        f"{max_state_abs_difference:.9e}; "
+        f"relative L2: {max_state_relative_l2:.9e}; "
+        f"relative Linf: {max_state_relative_linf:.9e}"
     )
     print(
         "| Save policy | Saved states/rank | Payload MiB/rank "
