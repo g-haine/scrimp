@@ -57,6 +57,25 @@ class AsyncBinaryTrajectoryTests(unittest.TestCase):
         self.assertTrue(manifest.is_file())
         return IO.LazyTrajectory(manifest), initial
 
+    def test_native_docker_runner_mounts_production_io_source(self):
+        """The sandbox shim loads production I/O by filename.
+
+        Catch a missing Docker source mount *before* re-running the
+        native PETSc smoke. This failure occurred after v1->v2 refactor.
+        """
+        launcher = (
+            SOURCE.parent / "run_async_binary_smoke.sh"
+        ).read_text(encoding="utf-8")
+        self.assertIn(
+            '-v "$root/scrimp:/workspace/scrimp/scrimp:ro"',
+            launcher,
+        )
+        self.assertIn(
+            "test -r /workspace/scrimp/scrimp/utils/"
+            "async_binary_trajectory.py",
+            launcher,
+        )
+
     def test_binary_writer_round_trip_real(self):
         trajectory, initial = self._write_pair(np.float64)
         self.assertEqual(len(trajectory), 4)
