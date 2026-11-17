@@ -226,17 +226,47 @@ failure, a MUMPS factorization failure, or a physical height
 blow-up: it is an unacceptably large algebraic boundary
 traction that dominates the state norm.
 
-**Testable hypothesis, not yet established:** the rigid
-initial p/rho = rotation*(y,-x) is tangent to an ideal circle,
-whereas the mesh's imposed U=rotation*Rot*Normal follows
-faceted outward normals, which can generate a nonzero
-velocity-trace mismatch at t=0. A 1e-9-second startup
-may convert such a mismatch into a very large constraint
-reaction Y. Other explanations include boundary-brick
-sign errors or ill-conditioning / overconstraint.
-A useful noninvasive discriminator is to re-run the
-**same safe startup** with rotation=0 (no velocity mismatch),
-followed, if useful, by testing sensitivity to `--init-dt`.
+**Rotation=0 control passed (2026-11-17):** repeat with the same
+mesh=0.2, open case, BDF2 `init_dt=1e-9`, fixed ARKIMEX
+`dt=0.005`, and rigid initial profile, but `rotation=0`,
+completed initial consistency and the two main steps to
+`t_f=0.01` (exit 0, no rejected steps/SNES failures).
+At the final initial BDF2 state, `||h||=110`, `||e_h||=11`,
+`||Y_n||=4.06202`, while `||p||` and `||e_p||` are
+essentially zero and the wall traction `||Y||≈6.25e-13`.
+The reported maximum relative power balance defect is
+`2.1517886618086806e-27`; this is a **stationary**
+equilibrium check with vanishing boundary power, not a
+nontrivial driven nonlinear power-balance validation.
+
+**Critical ramp clarification:** `ramp_expression()` is
+**decreasing**, with `f(t)=1` up to 75 s and 0 after 200 s
+by default. Thus `f(0)=1`, **not 0**. The finite-rotation
+initial rigid-body field `p/rho=omega*(y,-x)` has the
+correct orientation and amplitude for the *ideal* circular
+boundary, but the discrete wall condition uses facetwise
+`U=omega*Rot*Normal`, which does not coincide exactly
+with that field on the polygonal mesh. Normal velocity
+`U_n=0` is also imposed using the facet normals.
+At rotation=0, the geometric mismatch disappears and
+`Y` stays close to zero. This is consistent with, but does
+not yet prove, a tiny-BDF2-step `O(1/init_dt)` constraint
+reaction from an incompatible initial trace; possible
+alternative causes include boundary-law sign/scaling,
+mixed FEM inf-sup behavior and conditioning. The original
+comment suggesting the initial p matches facet normals
+exactly was misleading and has been corrected.
+
+**Next noninvasive diagnostic:** with `rotation=0.02`,
+rigid initial profile and the existing state-amplification
+safeguard, compare `--init-dt 1e-8` and `1e-7` against
+the recorded `1e-9` case. Inspect the final BDF2
+`||Y||` and product `init_dt*||Y||` for approximately
+inverse-dt scaling, and distinguish this from mere
+large-norm conditioning. Do not promote a passing
+startup to physical validation until the boundary
+conditions are checked against the initial discrete trace.
+
 Never disable the state-amplification guard merely to
 force the main simulation forward.
 
