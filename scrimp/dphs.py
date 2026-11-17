@@ -1922,7 +1922,7 @@ class DPHS:
                     "and SCRIMP_TRAJECTORY_SOCKET; start the independent "
                     "writer BEFORE mpiexec (never fork a live MPI rank)"
                 )
-            if self.solution["t"] or len(self.solution["z"]):
+            if len(self.solution["t"]) or len(self.solution["z"]):
                 raise RuntimeError(
                     "async_binary requires an empty output trajectory"
                 )
@@ -2199,6 +2199,12 @@ class DPHS:
         # Preserve the real end time and publish the trajectory only
         # after all local transport threads have drained. A committed
         # manifest is mandatory; no incomplete output can look solved.
+        if self._trajectory_backend == "async_binary" and (
+            self.last_ts_converged_reason <= 0
+        ):
+            raise RuntimeError(
+                "Refusing to commit an unconverged PETSc trajectory"
+            )
         if self._trajectory_backend == "async_binary":
             self._trajectory_sender.close()
             self._trajectory_sender = None
