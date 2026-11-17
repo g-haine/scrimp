@@ -63,6 +63,15 @@ for policy in "${policies[@]}"; do
     seen_policy["$normalized"]=1
 done
 
+# Large h=0.02 pilots may require more than the previous 240 s/run.
+# Explicit, bounded per-run timeout, independent of Docker/Conda state.
+timeout_s="${SCRIMP_SCALING_TIMEOUT_S:-240}"
+if [[ ! "$timeout_s" =~ ^[0-9]+$ ]] ||
+   (( timeout_s < 30 || timeout_s > 3600 )); then
+    echo "SCRIMP_SCALING_TIMEOUT_S must be 30..3600 seconds" >&2
+    exit 2
+fi
+
 cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 1
 root="$PWD"
 sha="$(git rev-parse --short=8 HEAD)"
@@ -125,7 +134,7 @@ if ! sudo -v; then
     echo "sudo authentication failed" >&2
     exit 1
 fi
-echo "SCRIMP $sha | h=$mesh | policies=$policies_arg | bridge=$bridge_arg | $mode"
+echo "SCRIMP $sha | h=$mesh | policies=$policies_arg | bridge=$bridge_arg | $mode | timeout=${timeout_s}s/run"
 echo "Output: $out"
 
 for rep in $(seq 1 "$repetitions"); do
@@ -171,7 +180,7 @@ for rep in $(seq 1 "$repetitions"); do
                     -v "$out:/workspace/scrimp/outputs" \
                     -v "$out:/artifacts" \
                     scrimp-mpi:local \
-                    timeout -k 10s 240s \
+                    timeout -k 10s "${timeout_s}s" \
                     env -u SCRIMP_MUMPS_RESET_PC_ON_JACOBIAN \
                         -u SCRIMP_MUMPS_RESET_POLICY \
                         SCRIMP_GETFEM_MATRIX_MODE=distributed \
@@ -181,7 +190,7 @@ for rep in $(seq 1 "$repetitions"); do
                     mpiexec --bind-to none -n "$n" \
                     python -u sandbox/bench_acoustic_2d.py \
                         --mesh "$mesh" --dt 0.002 --final-time 0.04 \
-                        --save-dt 0.01 --series "$policy" \
+                        --save-dt 0.01 --series "$policy" --profile \
                         --output "/artifacts/$label.json" \
                     >"$logfile" 2>&1; then
                     echo "FAILED: $label" >&2
