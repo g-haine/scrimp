@@ -10,6 +10,7 @@
 import importlib.util
 import json
 from pathlib import Path
+import subprocess
 import tempfile
 import unittest
 
@@ -94,11 +95,14 @@ class Release120ComparisonPlotTests(unittest.TestCase):
             "04_efficiency_coo",
         ):
             self.assertGreater(
-                (self.dir / (name + ".png")).stat().st_size, 3000
+                (self.dir / "png" / (name + ".png")).stat().st_size, 3000
             )
             self.assertGreater(
-                (self.dir / (name + ".svg")).stat().st_size, 3000
+                (self.dir / "svg" / (name + ".svg")).stat().st_size, 3000
             )
+            # No visual artefacts at the root of the output folder.
+            self.assertFalse((self.dir / (name + ".png")).exists())
+            self.assertFalse((self.dir / (name + ".svg")).exists())
 
     def test_current_only_salvages_scaling_after_v120_state_mismatch(self):
         # Reproduce the observed failure: release v1.2.0 states do NOT
@@ -123,14 +127,17 @@ class Release120ComparisonPlotTests(unittest.TestCase):
         self.assertEqual(result["provenance"]["baseline_tag"], None)
         self.assertIsNone(result["baseline_median_s"])
         self.assertFalse(
-            (self.dir / "01_version120_vs_coo_serial.png").exists()
+            (self.dir / "png" / "01_version120_vs_coo_serial.png").exists()
         )
         for stem in (
             "02_strong_scaling_coo", "03_speedup_coo",
             "04_efficiency_coo",
         ):
             self.assertGreater(
-                (self.dir / (stem + ".png")).stat().st_size, 3000
+                (self.dir / "png" / (stem + ".png")).stat().st_size, 3000
+            )
+            self.assertGreater(
+                (self.dir / "svg" / (stem + ".svg")).stat().st_size, 3000
             )
 
     def test_current_only_still_rejects_rank_dependent_state_drift(self):
@@ -142,6 +149,31 @@ class Release120ComparisonPlotTests(unittest.TestCase):
         )
         with self.assertRaisesRegex(ValueError, "PARITY FAILED"):
             PLOT.plot(self.dir, 2, current_only=True)
+
+    def test_mpi_only_shell_cli_does_not_require_release(self):
+        launcher = SOURCE.with_name("run_release120_coo_scaling.sh")
+        result = subprocess.run(
+            ["bash", str(launcher), "--mpi-only", "--help"],
+            capture_output=True, text=True, timeout=10,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("--mpi-only", result.stdout)
+        self.assertIn("No v1.2.0 tag, worktree", result.stdout)
+        result = subprocess.run(
+            ["bash", str(launcher), "--mpi-only", "0.025", "0"],
+            capture_output=True, text=True, timeout=10,
+        )
+        self.assertEqual(result.returncode, 2)
+        # Tag/worktree setup is guarded by !mpi_only.
+        content = launcher.read_text(encoding="utf-8")
+        self.assertIn("if (( mpi_only )); then", content)
+        self.assertIn("if (( !mpi_only )); then", content)
+        self.assertIn("plot_flags+=(--current-only)", content)
+        syntax = subprocess.run(
+            ["bash", "-n", str(launcher)],
+            capture_output=True, text=True, timeout=10,
+        )
+        self.assertEqual(syntax.returncode, 0, syntax.stderr)
 
     def test_missing_MPI_measurements_cannot_be_fabricated(self):
         target = self.dir / "current_on_change_6r_rep2.json"
