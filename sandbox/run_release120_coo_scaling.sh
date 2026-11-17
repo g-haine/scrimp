@@ -247,5 +247,7 @@ if (( mpi_only )); then
 else
     echo "SUCCESS. Four PNG + SVG figures, CSV and full data:"
 fi
-ls -lh "$out"/*.png "$out"/*.svg "$out"/*.csv "$out"/*.json | tail -n 26
-echo "Results: $out"
+ls -lh "$out"/png/*.png "$out"/svg/*.svg "$out"/*.csv "$out"/*.json | tail -n 26
+echo "PNG figures: $out/png/"
+echo "SVG figures: $out/svg/"
+echo "Data and reports: $out/"
