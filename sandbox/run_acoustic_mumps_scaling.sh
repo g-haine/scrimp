@@ -10,12 +10,14 @@
 # Strong scaling, fixed 2D acoustic mesh, historical CSR vs PETSc COO,
 # crossed independently with explicit MUMPS reset policies.
 #
+#   bash sandbox/run_acoustic_mumps_scaling.sh 0.02 sweep both never
 #   bash sandbox/run_acoustic_mumps_scaling.sh 0.04 pilot both never
 #   bash sandbox/run_acoustic_mumps_scaling.sh 0.04 full both never,always
 #   bash sandbox/run_acoustic_mumps_scaling.sh 0.04 full both never,on_change,always
 #
 # pilot = ranks 1,6 (1 repetition per variant);
-# full  = ranks 1,2,4,6 (5 repetitions per variant; reuses valid pilot).
+# sweep = ranks 1,2,4,6 (1 repetition per variant);
+# full  = ranks 1,2,4,6 (5 repetitions per variant; reuses valid pilot/sweep).
 # Default policy set: never,always; on_change is opt-in for linear acoustics.
 # All SIMULATIONS and PLOTTING run inside scrimp-mpi:local (NOT host Conda).
 # Old scaling-mumps-h* results are left untouched; new results are
@@ -30,9 +32,9 @@ bridge_arg="${3:-both}"
 policies_arg="${4:-never,always}"
 
 if [[ ! "$mesh" =~ ^0\.[0-9]+$ ]] ||
-   [[ "$mode" != pilot && "$mode" != full ]] ||
+   [[ "$mode" != pilot && "$mode" != sweep && "$mode" != full ]] ||
    [[ "$bridge_arg" != csr && "$bridge_arg" != coo && "$bridge_arg" != both ]]; then
-    echo "Usage: bash sandbox/run_acoustic_mumps_scaling.sh 0.04 [pilot|full] [csr|coo|both] [never,always|never,on_change,always|...]" >&2
+    echo "Usage: bash sandbox/run_acoustic_mumps_scaling.sh 0.04 [pilot|sweep|full] [csr|coo|both] [never,always|never,on_change,always|...]" >&2
     exit 2
 fi
 case "$bridge_arg" in
@@ -81,6 +83,9 @@ mkdir -p "$out"
 pcores=(0 2 4 6 8 10)
 if [[ "$mode" == pilot ]]; then
     ranks=(1 6)
+    repetitions=1
+elif [[ "$mode" == sweep ]]; then
+    ranks=(1 2 4 6)
     repetitions=1
 else
     ranks=(1 2 4 6)
