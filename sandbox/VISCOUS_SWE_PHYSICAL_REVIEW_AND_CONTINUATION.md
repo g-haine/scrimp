@@ -266,31 +266,84 @@ directly callable. PETSc SNES supports successive nonlinear
 solves with warm-started vectors and therefore provides
 a straightforward lower-level implementation route.
 
-## Recommended immediate next experiment
+## Validated short spin-up: physical consistency gate (2026-11-17)
 
-1. Repeat the same safe transient spin-up on mesh 0.2 with
-   `--height-order 3`, `--rotation 0.02`,
-   `--start-from-rest-duration 0.02`, `--init-method bdf`,
-   `--init-dt 1e-8`, `--max-step 0.002`,
-   `--final-time 0.02`, `--save-dt 0.002`,
-   `--adapt-type none`. This reaches **full** wall speed,
-   and exercises the paper's P3/P2 FE pair without other
-   changes. Keep the BDF2 norm guard, 1 MPI rank first.
-2. Check `maximum_balance_error_over_actual_exchange`,
-   `maximum_relative_volume_balance_error`,
-   `initial_volume`, `final_volume`,
-   `final_hamiltonian_change`,
-   `integrated_boundary_work`, and
-   `integrated_viscous_dissipation` from `metrics.json`.
-3. Repeat with dt=0.001 and compare mass, energy exchange,
-   and actual power-balance convergence.
-4. Only after physically trustworthy time trajectories,
-   build an experimental *stationary* parameter continuation
-   on the open rotating disk with explicit volume constraint.
-   Benchmark against the approximate analytical paraboloid
-   at small omega; check limiting omega->0.
-5. Next add the generic SCRIMP continuation abstraction and
-   regression tests before exposing it as production API.
+Both runs used one MPI rank, h=0.2 mesh, `rotation=0.02`,
+`start_from_rest_duration=0.02`, BDF2 1e-8 s initial
+consistency, ARKIMEX-A2 0.002 s main step, t_f=0.02,
+and the conservative MUMPS PC reset. Both completed
+successfully. The spin-up ramp reaches full angular
+boundary speed at the requested endpoint.
 
-**Do not replace the current working solver, the BDF2 safety
-guard, or the production API based on these preliminary tests.**
+| Metric | P2/P2 | P3/P2 (paper's mixed-order pair) |
+| --- | ---: | ---: |
+| Final time | 0.02 | 0.02 |
+| Initial volume | 15.613227659735374 | 15.613227659735374 |
+| Final volume | 15.613227659735394 | 15.613227659735387 |
+| Maximum relative volume defect | 4.892219966223144e-15 | 3.754494392700675e-15 |
+| Final Hamiltonian change | 0.00010770237425150597 | 0.00010777208511703051 |
+| Integrated boundary work | 0.00010993744330331183 | 0.00011000439108787657 |
+| Integrated viscous dissipation | 2.235019784423486e-6 | 2.2321542779310383e-6 |
+| Max relative balance / H(0) | 1.2621959646808816e-11 | 3.8862666536424995e-11 |
+| Max balance / measured energy exchange | 4.4814015033511895e-7 | 1.3789714530869638e-6 |
+
+These figures establish a usable **nontrivial, physically
+conservative smoke test** on 1 rank; they do not prove
+time-step convergence, mesh convergence, or stability of the
+original initially rotating profile. The relative defect
+scaled by actual exchanges is the more meaningful metric
+for this near-equilibrium flow.
+
+## Explicit project priority: parallel SCRIMP performance
+
+**Scope decision:** The immediate project goal is to optimize
+parallel SCRIMP/GetFEM/PETSc/MUMPS behavior for PR #24,
+**not** to complete the physical 2D Saint-Venant simulation
+for LHMNC. The three proposed features
+(A) stationary parameter continuation, (B) generic
+time-dependent control ramp/spin-up, and (C) nonlinear
+DAE-consistent initialization are **accepted as future ideas
+but DEFERRED**. Do not implement these generic APIs or
+pursue the unstable initially rotating SWE case as a
+precondition to MPI optimization.
+
+Use the now-working P2/P2 and especially P3/P2 short
+spin-up as **correctness sentinels** for parallel work.
+Suggested prioritized next gates:
+
+1. Repeat the same deterministic full spin-up with 1, 2
+   and 4 MPI ranks; compare final time, accepted/rejected
+   steps, no SNES/KSP failure, final Hamiltonian and
+   physical volume/work/dissipation against the one-rank
+   baseline. Track differences with tolerances appropriate
+   to floating-point MPI reductions; never infer accuracy
+   from successful exit alone.
+2. Profile `DPHS.solve()` with PETSc `-log_view` and
+   SCRIMP's phase profiler, separating GetFEM assembly,
+   GetFEM-to-PETSc bridge, Jacobian assembly, factor
+   symbolic/numerical stages, linear solves and cleanup.
+   Measure enough repeated samples and fixed CPU affinity
+   to avoid attributing Python / logging / plotting overhead
+   to parallel efficiency.
+3. After correctness and phase profiling, increase the
+   spatial problem size (mesh 0.1, then 0.05 where
+   practical) for strong scaling; a 3300-DOF
+   small-mesh case is NOT a credible speedup benchmark.
+   Keep the 0.2 mesh as a fast correctness gate.
+4. Compare conservative PC resets to an explicitly
+   validated pattern-change-only policy in a targeted
+   diagnostic. Existing saved 3300x3300 Jacobian replays
+   on 1 and 4 ranks passed four persistent solves with
+   only one reset on initial pattern growth (versus
+   three unconditional resets), but this does NOT yet
+   demonstrate a speedup or automatic safe integration
+   in production `DPHS.IJacobian()`.
+5. Leave `scrimp/dphs.py` default MUMPS reset semantics
+   and production API unchanged until full multi-rank
+   correctness, factor event counts, teardown and
+   performance gates have passed.
+
+**Avoid conflating a working transient physical spin-up
+with a solution of the original rotating-initial-state
+DAE. Neither the previously proposed continuation API nor
+new LHMNC-specific physics are part of the current PR.**
