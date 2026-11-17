@@ -19,6 +19,9 @@ from scrimp.utils.matrix_memory import (
     alias_readonly_linear_tangent, add_mass_hessian_fd_reused,
 )
 from scrimp.utils.phase_memory_audit import PhaseMemoryAudit
+from scrimp.utils.constant_jacobian_reuse import (
+    enable_constant_jacobian_lu_reuse,
+)
 from scrimp.utils.async_binary_trajectory import (
     RankSender, LazyTrajectory, wait_for_manifest,
 )
@@ -1966,6 +1969,19 @@ class DPHS:
         self._mass_hessian_fd_probe_allocations = 0
         self._mass_hessian_fd_matrix_allocations = 0
         self._mass_hessian_fd_matrix_reuses = 0
+        # Different from MUMPS reset-policy 'never', which does NOT
+        # imply reuse of the numerical LU factorization.
+        constant_reuse = os.environ.get(
+            "SCRIMP_CONSTANT_JACOBIAN_LU_REUSE", "0"
+        ).strip()
+        if constant_reuse not in ("0", "1"):
+            raise ValueError(
+                "SCRIMP_CONSTANT_JACOBIAN_LU_REUSE must be 0 or 1"
+            )
+        self._constant_jacobian_lu_reuse_requested = (
+            constant_reuse == "1"
+        )
+        self._constant_jacobian_lu_reuse_info = None
         audit_dir = os.environ.get(
             "SCRIMP_MEMORY_PHASE_AUDIT_DIR", ""
         ).strip()
@@ -2025,12 +2041,16 @@ class DPHS:
             f"(all_bricks_linear={self._all_bricks_linear})"
         )
         policies = comm.tompi4py().allgather(
-            (self._mumps_reset_policy, self._matrix_memory_mode)
+            (
+                self._mumps_reset_policy, self._matrix_memory_mode,
+                self._constant_jacobian_lu_reuse_requested,
+            )
         )
         if any(value != policies[0] for value in policies):
             raise RuntimeError(
-                "MUMPS policy and SCRIMP_MATRIX_MEMORY_MODE must resolve "
-                "identically on all MPI ranks: " + repr(policies)
+                "MUMPS policy, matrix-memory mode and constant LU reuse "
+                "must resolve identically on all MPI ranks: "
+                + repr(policies)
             )
         with self.profiler.measure("solve.total"):
             try:
@@ -2172,6 +2192,28 @@ class DPHS:
         _set_main_ts_default_exact_final_time(TS)
         TS.setFromOptions()
         self.exclude_algebraic_var_from_lte(TS)
+        if self._constant_jacobian_lu_reuse_requested:
+            # Explicit experiment: retain the first numerical LU
+            # across certified constant-matrix CN steps. The separate
+            # DAE consistency TS has already completed unchanged.
+            self._constant_jacobian_lu_reuse_info = (
+                enable_constant_jacobian_lu_reuse(
+                    TS,
+                    all_bricks_linear=self._all_bricks_linear,
+                    linear_mass=self.linear_mass,
+                    linear_stiffness=self.linear_stiffness,
+                    lumped_variables=self.lumped_variables,
+                    mumps_policy=self._mumps_reset_policy,
+                    initial_time=float(self.time_scheme["t_0"]),
+                    final_time=float(self.time_scheme["t_f"]),
+                    configured_dt=float(self.time_scheme["dt"]),
+                )
+            )
+            if rank == 0:
+                logging.info(
+                    "Opt-in constant-Jacobian numeric MUMPS LU reuse: "
+                    "%s", self._constant_jacobian_lu_reuse_info
+                )
 
         InitVec = self.tangent_stiffness.createVecRight()
         InitVec.zeroEntries()
