@@ -43,6 +43,26 @@ class Release120ComparisonPlotTests(unittest.TestCase):
                             np.sqrt(rank)
                         )
                         timing += .01 * rep
+                        # Synthetic timing records for ten accepted CN
+                        # steps. Rank 1 is deliberately slower, and
+                        # step 1 carries a large startup penalty.
+                        nsteps = 10
+                        step_base = timing / 13.
+                        step_profile = np.array(
+                            [3 * step_base] +
+                            [step_base * (1. + 0.004 * j)
+                             for j in range(nsteps - 1)]
+                        )
+                        rank_steps = [
+                            (step_profile * .95).tolist(),
+                            step_profile.tolist(),
+                        ] if rank > 1 else [step_profile.tolist()]
+                        monitor_costs = [
+                            [0.0005] * (nsteps + 1)
+                            for _ in range(rank)
+                        ]
+                        steady = step_profile[1:]
+                        half = len(steady) // 2
                         states = np.array([0., .1, .5, 2., 3.])
                         json_obj = {
                             "benchmark": "examples/wave.py:wave_eq()",
@@ -58,9 +78,9 @@ class Release120ComparisonPlotTests(unittest.TestCase):
                             "mesh_h": .08, "dofs": 5,
                             "scheme": "cn", "ts_adapt_type": "none",
                             "dt": .002,
-                            "time_final_requested": .04,
-                            "time_final_monitor": .04,
-                            "save_dt": .01, "steps": 20,
+                            "time_final_requested": .02,
+                            "time_final_monitor": .02,
+                            "save_dt": .01, "steps": nsteps,
                             "rejections": 0, "snes_failures": 0,
                             "ts_convergence_reason": (
                                 None if version == "release_120" else 2
@@ -74,6 +94,24 @@ class Release120ComparisonPlotTests(unittest.TestCase):
                             "wall_build_s": .04,
                             "wall_solve_s": float(timing),
                             "wall_total_s": float(timing + .04),
+                            "step_warmup_excluded": 1,
+                            "step_indices": list(range(1, nsteps + 1)),
+                            "step_physical_times": (
+                                np.arange(1, nsteps+1) * .002
+                            ).tolist(),
+                            "step_times_max_rank_s":
+                                step_profile.tolist(),
+                            "step_times_by_rank_s": rank_steps,
+                            "monitor_times_by_rank_s": monitor_costs,
+                            "first_step_wall_s": float(step_profile[0]),
+                            "steady_step_count": nsteps - 1,
+                            "steady_step_mean_s": float(np.mean(steady)),
+                            "steady_step_median_s": float(np.median(steady)),
+                            "steady_step_early_mean_s":
+                                float(np.mean(steady[:half])),
+                            "steady_step_late_mean_s":
+                                float(np.mean(steady[-half:])),
+                            "steady_step_window_size": half,
                             "state_file": filename + "_state.npz",
                         }
                         np.savez_compressed(
@@ -93,6 +131,10 @@ class Release120ComparisonPlotTests(unittest.TestCase):
             "02_strong_scaling_coo",
             "03_speedup_coo",
             "04_efficiency_coo",
+            "05_steady_step_time_coo",
+            "06_steady_step_speedup_coo",
+            "07_steady_step_efficiency_coo",
+            "08_first_step_overhead_coo",
         ):
             self.assertGreater(
                 (self.dir / "png" / (name + ".png")).stat().st_size, 3000
@@ -132,6 +174,10 @@ class Release120ComparisonPlotTests(unittest.TestCase):
         for stem in (
             "02_strong_scaling_coo", "03_speedup_coo",
             "04_efficiency_coo",
+            "05_steady_step_time_coo",
+            "06_steady_step_speedup_coo",
+            "07_steady_step_efficiency_coo",
+            "08_first_step_overhead_coo",
         ):
             self.assertGreater(
                 (self.dir / "png" / (stem + ".png")).stat().st_size, 3000
