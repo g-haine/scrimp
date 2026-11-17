@@ -110,7 +110,10 @@ def build_system(gamma, mesh, final_time, save_dt, max_step,
                  wall_velocity_profile="facet_tangent",
                  algebraic_initial_guess="zero",
                  start_from_rest_duration=0.0,
-                 init_method="bdf", init_pseudo_steps=1):
+                 init_method="bdf", init_pseudo_steps=1,
+                 height_order=2):
+    if height_order not in (2, 3):
+        raise ValueError("height_order must be 2 or 3")
     if gamma not in (0.0, 0.25):
         raise ValueError("gamma must be 0.0 (open) or 0.25 (closed)")
     if not np.isfinite(rotation):
@@ -185,7 +188,12 @@ def build_system(gamma, mesh, final_time, save_dt, max_step,
     )
     swe.add_control_port(control_normal)
     swe.add_control_port(control_vector)
-    for name in ("h", "p", control_normal.get_name(), control_vector.get_name()):
+    # The published PFEM experiments use k=2 for p/boundary fields
+    # and k+1=3 for h/e_h. The original sandbox used P2 throughout.
+    # Keep that historical baseline as the default; select 3 for
+    # fidelity with the published mixed-order discretization.
+    swe.add_FEM(S.FEM("h", height_order, FEM="CG"))
+    for name in ("p", control_normal.get_name(), control_vector.get_name()):
         swe.add_FEM(S.FEM(name, 2, FEM="CG"))
     for name, value in (("rho", RHO), ("g", GRAVITY), ("mu", VISCOSITY)):
         swe.add_parameter(S.Parameter(name, name, "scalar-field", str(value), "h"))
@@ -470,6 +478,12 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--case", choices=("open", "closed"), required=True)
     parser.add_argument("--mesh", type=float, default=0.05)
+    parser.add_argument(
+        "--height-order", type=int, choices=(2, 3), default=2,
+        help="CG polynomial order for h and e_h. The existing P2/P2 "
+             "sandbox baseline is the default; select 3 to reproduce "
+             "the paper's P3(h,e_h)/P2(p,e_p,boundary) choice.",
+    )
     parser.add_argument("--final-time", type=float, default=250.0)
     parser.add_argument("--save-dt", type=float, default=1.0)
     parser.add_argument("--max-step", type=float, default=0.01)
@@ -610,6 +624,7 @@ def main():
             f"TS={args.ts_type}, TSAdapt={args.adapt_type}, "
             f"pseudo_init={not args.no_init_step}, "
             f"dt={args.max_step}, t_f={args.final_time}, "
+            f"height_order={args.height_order}, "
             f"init_dt={args.init_dt}, init_method={args.init_method}, "
             f"init_pseudo_steps={args.init_pseudo_steps}, "
             f"rotation={args.rotation}, "
@@ -633,7 +648,8 @@ def main():
                        algebraic_initial_guess=args.algebraic_initial_guess,
                        start_from_rest_duration=args.start_from_rest_duration,
                        init_method=args.init_method,
-                       init_pseudo_steps=args.init_pseudo_steps)
+                       init_pseudo_steps=args.init_pseudo_steps,
+                       height_order=args.height_order)
     if args.petsc_monitor:
         # PETSc's -ts_monitor/-ts_adapt_monitor are VIEWER-valued
         # command-line flags, not Boolean-valued TS settings.
