@@ -81,7 +81,12 @@ sudo docker run --rm \
         python -u sandbox/plot_release120_coo_scaling.py \
             --directory /artifacts --repetitions "$1" --current-only
     ' _ "$reps"
-echo "PASS: 3 current-version COO/MPI scaling figures."
+if [[ -s "$out/png/05_steady_step_time_coo.png" &&
+      -s "$out/png/08_first_step_overhead_coo.png" ]]; then
+    echo "PASS: 7 current COO/MPI figures (global + steady-step metrics)."
+else
+    echo "PASS: 3 global COO/MPI figures; no step timing in legacy data."
+fi
 echo "NOTE: no cross-version gain is asserted in current-only figures."
 echo "PNG figures: $out/png/"
 echo "SVG figures: $out/svg/"
