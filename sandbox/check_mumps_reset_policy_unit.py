@@ -18,14 +18,35 @@ validation is documented in SYMBOLIC_REUSE_VALIDATION.md.
 """
 
 import os
-from unittest.mock import patch
-
 import numpy as np
 from scrimp.dphs import (
+    _all_bricks_are_linear,
     _get_mumps_reset_policy,
     _local_stored_csr_pattern,
     _local_csr_pattern_changed,
 )
+
+
+class FakeBrick:
+    def __init__(self, linear):
+        self.linear = linear
+
+    def get_linear(self):
+        return self.linear
+
+
+def brick_linearity_checks():
+    assert not _all_bricks_are_linear({})
+    assert _all_bricks_are_linear({"M": FakeBrick(True)})
+    assert _all_bricks_are_linear({
+        "mass": FakeBrick(True),
+        "source": FakeBrick(True),
+        "boundary": FakeBrick(True),
+    })
+    assert not _all_bricks_are_linear({
+        "mass": FakeBrick(True),
+        "boundary": FakeBrick(False),
+    })
 
 
 class Matrix:
@@ -54,12 +75,17 @@ def policy_checks():
         for key in envvars:
             os.environ.pop(key, None)
         assert _get_mumps_reset_policy() == "on_change"
+        assert _get_mumps_reset_policy(all_bricks_linear=False) == "on_change"
+        assert _get_mumps_reset_policy(all_bricks_linear=True) == "never"
         os.environ["SCRIMP_MUMPS_RESET_PC_ON_JACOBIAN"] = "1"
         assert _get_mumps_reset_policy() == "always"
+        assert _get_mumps_reset_policy(all_bricks_linear=True) == "always"
         os.environ["SCRIMP_MUMPS_RESET_PC_ON_JACOBIAN"] = "0"
         assert _get_mumps_reset_policy() == "never"
+        assert _get_mumps_reset_policy(all_bricks_linear=False) == "never"
         os.environ["SCRIMP_MUMPS_RESET_POLICY"] = "on_change"
         assert _get_mumps_reset_policy() == "on_change"
+        assert _get_mumps_reset_policy(all_bricks_linear=True) == "on_change"
         os.environ["SCRIMP_MUMPS_RESET_POLICY"] = "always"
         assert _get_mumps_reset_policy() == "always"
         os.environ["SCRIMP_MUMPS_RESET_POLICY"] = "never"
@@ -116,6 +142,10 @@ def csr_checks():
 
 
 if __name__ == "__main__":
+    brick_linearity_checks()
     policy_checks()
     csr_checks()
-    print("PASS: MUMPS on_change default, overrides, and exact CSR checks")
+    print(
+        "PASS: MUMPS automatic never for all-linear bricks, "
+        "on_change for nonlinear bricks, explicit overrides and exact CSR"
+    )
