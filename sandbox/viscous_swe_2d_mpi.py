@@ -21,7 +21,9 @@ import argparse
 import json
 import os
 from pathlib import Path
+import time
 
+from mpi4py import MPI
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -588,6 +590,16 @@ def main():
         "--petsc-monitor", action="store_true",
         help="Enable PETSc TSAdapt/SNES/KSP convergence logging",
     )
+    parser.add_argument(
+        "--profile", action="store_true",
+        help="Record MPI-aggregated SCRIMP phase timings, per-rank wall "
+             "times and PETSc TS metadata in output-dir/profile.json",
+    )
+    parser.add_argument(
+        "--petsc-log", action="store_true",
+        help="Record and print PETSc native event counts/timings "
+             "(MatLUFactorSym/Num, MatSolve and assembly)",
+    )
     parser.add_argument("--ramp-start", type=float, default=75.0)
     parser.add_argument("--ramp-end", type=float, default=200.0)
     parser.add_argument(
@@ -648,6 +660,14 @@ def main():
             "and requires --case open --initial-profile rigid"
         )
     gamma = 0.0 if args.case == "open" else 0.25
+    if args.profile:
+        # TimingProfiler reads this when the DPHS is created.
+        os.environ["SCRIMP_PROFILE"] = "1"
+    if args.petsc_log:
+        # SCRIMP clears/replaces the PETSc options database during
+        # DPHS construction. Start native event logging explicitly,
+        # as done in sandbox/bench_acoustic_2d.py. Collective.
+        PETSc.Log.begin()
     out = args.output_dir or (
         Path(__file__).resolve().parent / "outputs" / "viscous_swe_2d"
         / args.case
@@ -705,7 +725,43 @@ def main():
             "snes_converged_reason", "ksp_converged_reason",
         ):
             options.setValue(key, None)
+    mpi = comm.tompi4py()
+    if args.profile:
+        mpi.Barrier()
+        solve_started = time.perf_counter()
     swe.solve()
+    if args.profile:
+        mpi.Barrier()
+        solve_wall = mpi.allreduce(
+            time.perf_counter() - solve_started, op=MPI.MAX
+        )
+        # Collective across ALL ranks, only after the solve completes.
+        scrimp_timers = swe.get_profile()
+        if rank == 0:
+            report = {
+                "mpi_ranks": comm.getSize(),
+                "degrees_of_freedom": int(swe.gf_model.nbdof()),
+                "mesh_h": args.mesh,
+                "height_order": args.height_order,
+                "rotation": args.rotation,
+                "time_step": args.max_step,
+                "final_time": args.final_time,
+                "solve_wall_seconds_max": float(solve_wall),
+                "ts_converged_reason": int(
+                    getattr(swe, "last_ts_converged_reason", 0)
+                ),
+                "ts_steps": int(getattr(swe, "last_ts_steps", -1)),
+                "ts_rejections": int(
+                    getattr(swe, "last_ts_rejections", -1)
+                ),
+                "ts_snes_failures": int(
+                    getattr(swe, "last_ts_snes_failures", -1)
+                ),
+                "scrimp_timers": scrimp_timers,
+            }
+            (out / "parallel_profile.json").write_text(
+                json.dumps(report, indent=2) + "\n"
+            )
     # SCRIMP currently allows its TS event handler to stop on minimum
     # timestep without raising.  Exit code 0 must not be interpreted as a
     # successful PDE simulation if t_f was never reached (observed: only
@@ -736,6 +792,10 @@ def main():
         with_powers=True, save_figure=True,
         filename=f"viscous_swe_{args.case}_Hamiltonian.png",
     )
+    if args.petsc_log:
+        # Collective; report includes the factorization event counts
+        # needed to assess PC reset cost and symbolic LU reuse.
+        PETSc.Log.view()
     if rank == 0:
         print(json.dumps({
             "case": args.case,
