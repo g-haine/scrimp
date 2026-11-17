@@ -26,7 +26,10 @@ from pathlib import Path
 import numpy as np
 from mpi4py import MPI
 
-from sandbox.viscous_swe_2d_mpi import build_system, diagnostics
+# Invoked as `python sandbox/verify_async_swe.py`: Python puts
+# /workspace/scrimp/sandbox (not its parent) first on sys.path.
+# Import the adjacent module, as the acoustic sandbox driver does.
+from viscous_swe_2d_mpi import build_system, diagnostics
 from scrimp.utils.async_binary_trajectory import LazyTrajectory
 
 
