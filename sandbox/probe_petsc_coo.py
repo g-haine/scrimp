@@ -108,13 +108,24 @@ def _run_method(system, tangent, n, method):
                     mat.setSizes((n, n))
                     mat.setType(PETSc.Mat.Type.AIJ)
                 with profiler.measure("probe.coo.prepare"):
-                    lo, hi = mat.getOwnershipRange()
+                    # Matrix ownership is not necessarily initialized
+                    # before PETSc COO preallocation. Use the default
+                    # PETSc Vec layout on the same communicator.
+                    layout = PETSc.Vec().createMPI(n, comm=PETSC_COMM)
+                    try:
+                        lo, hi = layout.getOwnershipRange()
+                    finally:
+                        layout.destroy()
                     ptr, cols, vals = _csr_from_getfem(tangent, n)
                     row, col, val = _coo_from_csr(
                         ptr, cols, vals, n, lo, hi
                     )
                 with profiler.measure("probe.coo.preallocate"):
                     mat.setPreallocationCOO(row, col)
+                if mat.getOwnershipRange() != (lo, hi):
+                    raise RuntimeError(
+                        "PETSc matrix and vector row layouts differ"
+                    )
                 with profiler.measure("probe.coo.set_values"):
                     # PETSc COO sums duplicate and off-process entries.
                     # INSERT replaces all values, like zeroEntries+ADD.
