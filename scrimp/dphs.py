@@ -1944,6 +1944,21 @@ class DPHS:
         """
         self.profiler.reset()
         self._profile_phase = "setup"
+        matrix_mode = os.environ.get(
+            "SCRIMP_MATRIX_MEMORY_MODE", "legacy"
+        ).strip().lower()
+        if matrix_mode not in ("legacy", "compact"):
+            raise ValueError(
+                "SCRIMP_MATRIX_MEMORY_MODE must be legacy or compact"
+            )
+        self._matrix_memory_mode = matrix_mode
+        # Workspaces belong to this solve, not to an old TS/KSP. Avoid
+        # stale references or retaining matrices from previous solves.
+        self._mass_hessian_fd_matrix = None
+        self._mass_hessian_fd_probe = None
+        self._mass_hessian_fd_probe_allocations = 0
+        self._mass_hessian_fd_matrix_allocations = 0
+        self._mass_hessian_fd_matrix_reuses = 0
         backend = os.environ.get(
             "SCRIMP_TRAJECTORY_BACKEND", "memory"
         ).strip().lower()
@@ -1990,11 +2005,13 @@ class DPHS:
             f"MUMPS reset policy={self._mumps_reset_policy} "
             f"(all_bricks_linear={self._all_bricks_linear})"
         )
-        policies = comm.tompi4py().allgather(self._mumps_reset_policy)
+        policies = comm.tompi4py().allgather(
+            (self._mumps_reset_policy, self._matrix_memory_mode)
+        )
         if any(value != policies[0] for value in policies):
             raise RuntimeError(
-                "SCRIMP_MUMPS_RESET_POLICY must resolve identically "
-                "on all MPI ranks: " + repr(policies)
+                "MUMPS policy and SCRIMP_MATRIX_MEMORY_MODE must resolve "
+                "identically on all MPI ranks: " + repr(policies)
             )
         with self.profiler.measure("solve.total"):
             return self._solve_impl()
