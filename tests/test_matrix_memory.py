@@ -86,6 +86,9 @@ class _Owner:
         self.assembly_count = 0
         self._mass_hessian_fd_probe = None
         self._mass_hessian_fd_matrix = None
+        self._mass_hessian_fd_matrix_allocations = 0
+        self._mass_hessian_fd_probe_allocations = 0
+        self._mass_hessian_fd_matrix_reuses = 0
 
     def _sync_lumped_trial_state(self, t, state):
         self.current = state.values.copy()
