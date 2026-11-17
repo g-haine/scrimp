@@ -58,6 +58,25 @@ fi
 echo "SCRIMP memory audit | commit=$sha | h=$mesh | dt=$dt | t_f=$final | MPI=$ranks | cpus=$cpus"
 echo "Distributed GetFEM + default COO; MUMPS never; results: $out"
 
+echo "PREFLIGHT: test memory-report analysis before costly simulations"
+if ! sudo docker run --rm \
+    --user "$(id -u):$(id -g)" \
+    -e HOME=/tmp \
+    -e MPLBACKEND=Agg \
+    --cpuset-cpus="0,2" \
+    -v "$root/scrimp:/workspace/scrimp/scrimp:ro" \
+    -v "$root/sandbox:/workspace/scrimp/sandbox:ro" \
+    -v "$root/tests:/workspace/scrimp/tests:ro" \
+    -v "$out:/artifacts" \
+    scrimp-mpi:local \
+    python -m unittest -v tests.test_acoustic_memory_analysis \
+    >"$out/preflight.log" 2>&1; then
+    echo "FAILED report-analyzer preflight; inspect $out/preflight.log" >&2
+    tail -n 80 "$out/preflight.log" >&2
+    exit 1
+fi
+echo "  PASS: synthetic report analyzer checks"
+
 for mode in sparse dense; do
     logfile="$out/${mode}.log"
     echo "RUN: $mode saved-state frequency"
