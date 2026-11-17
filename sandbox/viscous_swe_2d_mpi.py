@@ -406,6 +406,27 @@ def diagnostics(swe, gamma):
     # dH/dt = P_normal + P_viscous - D_grad - D_div.
     balance = H - H[0] + dissipated - supplied
     relative_balance = balance / max(abs(float(H[0])), 1e-14)
+    # A tiny error relative to the large background potential energy
+    # can hide a large error relative to the actual energy exchange.
+    exchanged_scale = max(
+        float(np.max(np.abs(H - H[0]))),
+        float(np.max(np.abs(supplied))),
+        float(np.max(np.abs(dissipated))),
+        1e-14,
+    )
+    relative_balance_exchange = balance / exchanged_scale
+    # An independent conservation law for the impermeable open case:
+    # d/dt int_Omega h = -int_Gamma h U_n.
+    volume = np.asarray(swe.get_quantity("h"), dtype=float)
+    normal_volume_outflow = np.asarray(
+        swe.get_quantity("h*U_n", CN=True, region=REGION_WALL),
+        dtype=float,
+    )
+    cumulative_outflow = integrate_midpoint(t, normal_volume_outflow)
+    volume_balance = volume - volume[0] + cumulative_outflow
+    relative_volume_balance = volume_balance / max(
+        abs(float(volume[0])), 1e-14
+    )
     lyapunov = np.asarray(
         swe.get_quantity(
             f"0.5*h*(p.p)/rho + 0.5*rho*g*(h-{H_TARGET})*(h-{H_TARGET})"
@@ -427,6 +448,11 @@ def save_outputs(swe, result, out):
         power_normal=d["p_normal"], power_viscous=d["p_viscous"],
         supplied=d["supplied"], dissipated=d["dissipated"],
         balance=d["balance"], relative_balance=d["relative_balance"],
+        relative_balance_exchange=d["relative_balance_exchange"],
+        volume=d["volume"], normal_volume_outflow=d["normal_volume_outflow"],
+        cumulative_outflow=d["cumulative_outflow"],
+        volume_balance=d["volume_balance"],
+        relative_volume_balance=d["relative_volume_balance"],
         lyapunov=d["lyapunov"],
     )
     metrics = {
@@ -442,6 +468,20 @@ def save_outputs(swe, result, out):
         "final_absolute_relative_power_balance_error": float(
             abs(d["relative_balance"][-1])
         ),
+        "maximum_absolute_balance_error_over_actual_exchange": float(
+            np.max(np.abs(d["relative_balance_exchange"]))
+        ),
+        "maximum_absolute_volume_balance_error": float(
+            np.max(np.abs(d["volume_balance"]))
+        ),
+        "maximum_absolute_relative_volume_balance_error": float(
+            np.max(np.abs(d["relative_volume_balance"]))
+        ),
+        "initial_volume": float(d["volume"][0]),
+        "final_volume": float(d["volume"][-1]),
+        "final_hamiltonian_change": float(d["H"][-1]-d["H"][0]),
+        "integrated_boundary_work": float(d["supplied"][-1]),
+        "integrated_viscous_dissipation": float(d["dissipated"][-1]),
     }
     (out / "metrics.json").write_text(json.dumps(metrics, indent=2) + "\n")
     fig, axs = plt.subplots(3, 1, figsize=(10, 9), sharex=True)
@@ -702,6 +742,14 @@ def main():
             "output_dir": str(out),
             "maximum_relative_balance_error":
                 float(np.max(np.abs(result["relative_balance"]))),
+            "maximum_balance_error_over_actual_exchange":
+                float(np.max(np.abs(
+                    result["relative_balance_exchange"]
+                ))),
+            "maximum_relative_volume_balance_error":
+                float(np.max(np.abs(
+                    result["relative_volume_balance"]
+                ))),
         }, indent=2))
 
 
