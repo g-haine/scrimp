@@ -87,6 +87,11 @@ def main():
     parser.add_argument("--final-time", type=float, default=0.02)
     parser.add_argument("--dt", type=float, default=0.001)
     parser.add_argument("--save-dt", type=float, default=0.01)
+    parser.add_argument(
+        "--series", choices=("auto", "always"), default=None,
+        help="Optional label for comparing reset policies in the existing "
+             "acoustic scaling analyzer; omit for previous report format.",
+    )
     parser.add_argument("--output", type=Path, default=None,
                         help="Write JSON report from MPI rank 0")
     parser.add_argument(
@@ -154,6 +159,7 @@ def main():
     t_saved = float(system.solution["t"][-1])
     report = {
         "benchmark": "examples/wave.py:wave_eq() (2D acoustic waves)",
+        **({"series": args.series} if args.series else {}),
         "mpi_size": p,
         "degrees_of_freedom": int(dofs),
         "rectangle_mesh_h": args.mesh,
