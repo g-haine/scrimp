@@ -1451,6 +1451,17 @@ class DPHS:
             )
         )
 
+        if self._matrix_memory_mode == "compact":
+            # One reusable PETSc Mat and Vec across IJacobian calls.
+            # The - perturbation remains in tangent_mass; no extra
+            # copy or correction Mat is necessary.
+            add_mass_hessian_fd_reused(
+                self, t, z, zd, P, eta,
+                PETSc.Mat.Structure.DIFFERENT_NONZERO_PATTERN,
+            )
+            return
+
+        # Original allocation-heavy path retained for A/B parity.
         z_plus, z_minus = z.copy(), z.copy()
         mass_plus = mass_minus = correction = None
         try:
@@ -1769,11 +1780,24 @@ class DPHS:
         self.mass.bindToCPU(True)
         self.init_matrix(self.mass)
         self.init_matrix(self.nl_mass)
-        self.init_matrix(self.tangent_mass)
+        if self._matrix_memory_mode == "compact" and self.linear_mass:
+            # No state-dependent dt brick. Keep the same PETSc Mat
+            # rather than allocating a separate full tangent copy.
+            # Do this BEFORE J/TS/KSP takes references to any Mat.
+            self.tangent_mass = alias_readonly_linear_tangent(
+                self.mass, self.tangent_mass
+            )
+        else:
+            self.init_matrix(self.tangent_mass)
         self.stiffness.bindToCPU(True)
         self.init_matrix(self.stiffness)
         self.init_matrix(self.nl_stiffness)
-        self.init_matrix(self.tangent_stiffness)
+        if self._matrix_memory_mode == "compact" and self.linear_stiffness:
+            self.tangent_stiffness = alias_readonly_linear_tangent(
+                self.stiffness, self.tangent_stiffness
+            )
+        else:
+            self.init_matrix(self.tangent_stiffness)
 
         self.rhs = self.nl_stiffness.createVecRight()
         self.F = self.nl_stiffness.createVecRight()
@@ -2022,12 +2046,15 @@ class DPHS:
         self.gf_model.set_time(float(self.time_scheme["t_0"]))
         self.gf_model.first_iter()
 
-        # Assembly
+        # Assembly. In compact mode a purely linear tangent aliases
+        # its assembled base matrix and must not be reassembled/overwritten.
         self.assemble_mass()
-        self.assemble_nl_mass()
+        if not (self._matrix_memory_mode == "compact" and self.linear_mass):
+            self.assemble_nl_mass()
 
         self.assemble_stiffness()
-        self.assemble_nl_stiffness()
+        if not (self._matrix_memory_mode == "compact" and self.linear_stiffness):
+            self.assemble_nl_stiffness()
 
         self.assemble_rhs()
 
