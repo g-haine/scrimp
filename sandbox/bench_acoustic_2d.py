@@ -88,9 +88,10 @@ def main():
     parser.add_argument("--dt", type=float, default=0.001)
     parser.add_argument("--save-dt", type=float, default=0.01)
     parser.add_argument(
-        "--series", choices=("auto", "always"), default=None,
-        help="Optional label for comparing reset policies in the existing "
-             "acoustic scaling analyzer; omit for previous report format.",
+        "--series", choices=("auto", "never", "on_change", "always"),
+        default=None,
+        help="MUMPS reset-policy comparison label. 'auto' is preserved "
+             "for historical reports (automatic never on linear acoustics).",
     )
     parser.add_argument("--output", type=Path, default=None,
                         help="Write JSON report from MPI rank 0")
@@ -124,6 +125,25 @@ def main():
         # PETSc.Log.begin and PETSc.Log.view are MPI-collective.
         PETSc.Log.begin()
 
+    # Record the matrix bridge independently from the reset policy.
+    # CSR is the existing IJV/ADD_VALUES transfer, not a historical
+    # source revision or a different model.
+    bridge_setting = os.environ.get(
+        "SCRIMP_GETFEM_BRIDGE_DISTRIBUTED", "ijv"
+    ).strip().lower()
+    if bridge_setting not in ("ijv", "csr", "coo"):
+        raise ValueError(
+            "SCRIMP_GETFEM_BRIDGE_DISTRIBUTED must be csr, coo or ijv"
+        )
+    bridge_method = "coo" if bridge_setting == "coo" else "csr"
+    matrix_mode = os.environ.get(
+        "SCRIMP_GETFEM_MATRIX_MODE", "replicated"
+    ).strip().lower()
+    if bridge_method == "coo" and matrix_mode != "distributed":
+        raise ValueError(
+            "COO benchmark requires SCRIMP_GETFEM_MATRIX_MODE=distributed"
+        )
+
     mpi.Barrier()
     start = time.perf_counter()
     system = _build_wave(args.mesh)
@@ -147,7 +167,7 @@ def main():
     system.solve()
     effective_policy = getattr(system, "_mumps_reset_policy", None)
     if args.series in ("auto", "always"):
-        expected = "never" if args.series == "auto" else "always"
+        expected = "never" if args.series == "auto" else args.series
         if effective_policy != expected:
             raise RuntimeError(
                 f"Acoustic series={args.series} expected MUMPS reset "
@@ -171,6 +191,12 @@ def main():
         "benchmark": "examples/wave.py:wave_eq() (2D acoustic waves)",
         **({"series": args.series} if args.series else {}),
         "mpi_size": p,
+        "bridge_method": bridge_method,
+        "bridge_backend": bridge_setting,
+        "getfem_matrix_mode": matrix_mode,
+        "benchmark_source_commit": os.environ.get(
+            "SCRIMP_BENCH_GIT_SHA", ""
+        ),
         "degrees_of_freedom": int(dofs),
         "rectangle_mesh_h": args.mesh,
         "ts_type": "cn",
