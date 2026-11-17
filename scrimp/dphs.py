@@ -1488,15 +1488,27 @@ class DPHS:
             P.copy(A, structure=structure)
 
         if policy == "on_change":
-            # All ranks participate, even if their local PC setup differs:
-            # otherwise a mismatched configuration could deadlock on the
-            # collective CSR-change decision or PC.reset().
+            # Check the MPI solver configuration only once per TS phase:
+            # initial and main have separate KSP/PC lifecycles. Repeating
+            # this rank-wide allreduce at every Jacobian adds needless
+            # latency, especially on small systems.
             mpi = comm.tompi4py()
-            n_mumps = mpi.allreduce(int(is_mumps), op=MPI.SUM)
-            if n_mumps not in (0, max_rank):
+            phase = self._profile_phase
+            checked = getattr(self, "_mumps_phase_enabled", None)
+            if checked is None:
+                checked = self._mumps_phase_enabled = {}
+            if phase not in checked:
+                n_mumps = mpi.allreduce(int(is_mumps), op=MPI.SUM)
+                if n_mumps not in (0, max_rank):
+                    raise RuntimeError(
+                        "MUMPS LU must be configured on every MPI rank "
+                        "for collective on_change symbolic-factor reuse"
+                    )
+                checked[phase] = (n_mumps == max_rank)
+            if is_mumps != checked[phase]:
                 raise RuntimeError(
-                    "MUMPS LU must be configured on every MPI rank "
-                    "for collective on_change symbolic-factor reuse"
+                    "MUMPS solver type changed within the same TS phase; "
+                    "this invalidates the collective reset-policy cache"
                 )
             if is_mumps:
                 with self.profiler.measure(
@@ -1767,6 +1779,7 @@ class DPHS:
         # A new solve creates fresh initial/main TS/KSP/PC lifecycles:
         # never inherit the CSR graph of a previously destroyed LU factor.
         self._mumps_csr_patterns = {}
+        self._mumps_phase_enabled = {}
         # Do not rely only on the mass/stiffness shortcut flags: those
         # omit some explicit/source forms. The user's requirement is that
         # EVERY registered brick must be declared linear.
