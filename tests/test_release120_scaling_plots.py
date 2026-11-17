@@ -100,6 +100,49 @@ class Release120ComparisonPlotTests(unittest.TestCase):
                 (self.dir / (name + ".svg")).stat().st_size, 3000
             )
 
+    def test_current_only_salvages_scaling_after_v120_state_mismatch(self):
+        # Reproduce the observed failure: release v1.2.0 states do NOT
+        # match current even before the first CN step. The valid current
+        # MPI series still merits 3 figures, with NO release speedup.
+        baseline_state = (
+            self.dir /
+            "release_120_release_native_1r_rep1_state.npz"
+        )
+        with np.load(baseline_state, allow_pickle=False) as file:
+            reference_initial = file["initial"]
+            reference_final = file["final"]
+        np.savez_compressed(
+            baseline_state,
+            initial=reference_initial + .4,
+            final=reference_final + 2.0,
+        )
+        with self.assertRaisesRegex(ValueError, "PARITY FAILED"):
+            PLOT.plot(self.dir, 2)
+        result = PLOT.plot(self.dir, 2, current_only=True)
+        self.assertFalse(result["release_comparison_accepted"])
+        self.assertEqual(result["provenance"]["baseline_tag"], None)
+        self.assertIsNone(result["baseline_median_s"])
+        self.assertFalse(
+            (self.dir / "01_version120_vs_coo_serial.png").exists()
+        )
+        for stem in (
+            "02_strong_scaling_coo", "03_speedup_coo",
+            "04_efficiency_coo",
+        ):
+            self.assertGreater(
+                (self.dir / (stem + ".png")).stat().st_size, 3000
+            )
+
+    def test_current_only_still_rejects_rank_dependent_state_drift(self):
+        file = self.dir / "current_never_4r_rep2_state.npz"
+        with np.load(file, allow_pickle=False) as data:
+            initial, final = data["initial"], data["final"]
+        np.savez_compressed(
+            file, initial=initial, final=final + 0.3
+        )
+        with self.assertRaisesRegex(ValueError, "PARITY FAILED"):
+            PLOT.plot(self.dir, 2, current_only=True)
+
     def test_missing_MPI_measurements_cannot_be_fabricated(self):
         target = self.dir / "current_on_change_6r_rep2.json"
         target.unlink()
