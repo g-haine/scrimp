@@ -13,11 +13,14 @@ and examples/wave.py from the selected /workspace/scrimp mount. For
 historical v1.2.0 it never changes the solver, Jacobian, time
 integration, or PETSc/MUMPS reset behavior.
 
-Only full run wall times (from immediately before set_time_scheme/solve
-until after solve) are compared. All ranks participate. We capture
-the true t_final and its complete distributed PETSc Vec *once* in the
-standard TS.monitor callback, so the historical final saved-snapshot
-ULP/filtering behavior cannot silently change the comparison.
+Full run wall times (from just before set_time_scheme/solve until
+after solve) and individual accepted CN-step times are measured.
+For a step n>0, we time from AFTER monitor(n-1) to BEFORE monitor(n),
+excluding result-writing/monitor overhead. This separates first-step
+factorization from steady iterations. All rank-local times are reduced
+AFTER solve; no MPI timing collectives occur inside PETSc callbacks.
+The true t_final and complete distributed PETSc Vec are collected
+once at the beginning and end for numerical parity.
 """
 import argparse
 import hashlib
@@ -79,6 +82,11 @@ def main():
     target_steps = int(round(args.final_time / args.dt))
     if abs(target_steps * args.dt - args.final_time) > 1e-12:
         parser.error("T must be an integer number of fixed CN steps")
+    if target_steps < 5:
+        parser.error(
+            "At least five fixed CN steps are required to separate "
+            "startup from meaningful early/late steady-step windows"
+        )
     if args.variant == "release_120":
         if ranks != 1 or args.policy != "release_native":
             parser.error("v1.2.0 is ONLY benchmarked on 1 MPI rank")
@@ -112,8 +120,28 @@ def main():
                     "rejected": None, "snes_failures": None,
                     "last_callback_time": None}
     original_monitor = system.monitor
+    # Each rank records intervals locally. The previous monitor exit
+    # and the next monitor entry bracket only PETSc step work, not
+    # archival, output or the user's monitor callback itself.
+    step_clock = {
+        "previous_monitor_exit_ns": None,
+        "indices": [], "times": [], "durations_s": [],
+        "monitor_durations_s": [],
+    }
 
     def measured_monitor(TS, i, t, z, *a, **kw):
+        begin_ns = time.perf_counter_ns()
+        is_main = not kw.get("initial_step", False) and i >= 0
+        if is_main and i > 0:
+            previous_end = step_clock["previous_monitor_exit_ns"]
+            if previous_end is None:
+                raise RuntimeError(
+                    "Main TS step monitor lacks its step-zero boundary"
+                )
+            elapsed = (begin_ns - previous_end) * 1e-9
+            step_clock["indices"].append(int(i))
+            step_clock["times"].append(float(t))
+            step_clock["durations_s"].append(float(elapsed))
         # The initial-consistency TS uses `initial_step=True` in both
         # versions. Do not count that pseudostep as a physical CN step.
         if not kw.get("initial_step", False) and i >= 0:
@@ -134,7 +162,15 @@ def main():
                     observations["initial"] = local
                 if abs(float(t) - args.final_time) <= 1e-10:
                     observations["final"] = local
-        return original_monitor(TS, i, t, z, *a, **kw)
+        try:
+            return original_monitor(TS, i, t, z, *a, **kw)
+        finally:
+            if is_main:
+                end_ns = time.perf_counter_ns()
+                step_clock["monitor_durations_s"].append(
+                    (end_ns - begin_ns) * 1e-9
+                )
+                step_clock["previous_monitor_exit_ns"] = end_ns
 
     system.monitor = measured_monitor
     # PETSc TS sees precisely the same fixed CN grid in both releases.
@@ -177,6 +213,36 @@ def main():
                 != args.policy):
             raise RuntimeError("Current PETSc convergence/policy gate failed")
 
+    # All accepted steps, across ALL ranks, must have a measured time
+    # interval. Validate before gathering. Never use Tsolve/N as an
+    # approximation for true post-startup per-step solve time.
+    local_ok = (
+        step_clock["indices"] == list(range(1, target_steps + 1))
+        and len(step_clock["durations_s"]) == target_steps
+        and len(step_clock["monitor_durations_s"]) == target_steps + 1
+        and all(
+            np.isfinite(step) and step > 0
+            for step in step_clock["durations_s"]
+        )
+        and all(
+            abs(float(t) - i * args.dt) <= 1e-9
+            for i, t in zip(
+                step_clock["indices"], step_clock["times"]
+            )
+        )
+    )
+    if not all(mpi.allgather(bool(local_ok))):
+        raise RuntimeError(
+            "Incomplete or inconsistent main-TS per-step timing: "
+            + repr(step_clock)
+        )
+    rank_step_times = mpi.gather(
+        step_clock["durations_s"], root=0
+    )
+    rank_monitor_times = mpi.gather(
+        step_clock["monitor_durations_s"], root=0
+    )
+
     initial = _gather_global(observations["initial"], n_global, mpi)
     final = _gather_global(observations["final"], n_global, mpi)
     build_wall = mpi.allreduce(
@@ -188,6 +254,20 @@ def main():
         op=MPI.MAX,
     )
     if rank == 0:
+        rank_step_matrix = np.asarray(
+            rank_step_times, dtype=np.float64
+        )
+        if rank_step_matrix.shape != (ranks, target_steps):
+            raise RuntimeError("Incomplete per-rank accepted-step timings")
+        # A distributed timestep completes only when the slowest rank
+        # is ready; each step's wall is therefore max over ranks.
+        step_wall = np.max(rank_step_matrix, axis=0)
+        if not np.all(np.isfinite(step_wall)) or np.any(step_wall <= 0):
+            raise RuntimeError("Invalid global PETSc step time")
+        steady = step_wall[1:]  # exclude first factorization/warmup
+        half = len(steady) // 2
+        early = steady[:half]
+        late = steady[-half:]
         args.out.parent.mkdir(parents=True, exist_ok=True)
         if not np.all(np.isfinite(initial)) or not np.all(np.isfinite(final)):
             raise RuntimeError("Nonfinite initial/final state")
@@ -227,6 +307,24 @@ def main():
             "wall_build_s": float(build_wall),
             "wall_solve_s": float(solve_wall),
             "wall_total_s": float(build_wall + solve_wall),
+            "step_timing_method": (
+                "pre-monitor(n) minus post-monitor(n-1), in monotonic "
+                "wall time per rank; maximum over MPI ranks per step; "
+                "excludes both adjacent monitor callbacks"
+            ),
+            "step_warmup_excluded": 1,
+            "step_indices": list(range(1, target_steps + 1)),
+            "step_physical_times": step_clock["times"],
+            "step_times_max_rank_s": step_wall.tolist(),
+            "step_times_by_rank_s": rank_step_times,
+            "monitor_times_by_rank_s": rank_monitor_times,
+            "first_step_wall_s": float(step_wall[0]),
+            "steady_step_count": int(steady.size),
+            "steady_step_mean_s": float(np.mean(steady)),
+            "steady_step_median_s": float(np.median(steady)),
+            "steady_step_early_mean_s": float(np.mean(early)),
+            "steady_step_late_mean_s": float(np.mean(late)),
+            "steady_step_window_size": half,
             "max_rank_hwm_kib": int(max_rss),
             "initial_sha256": hashlib.sha256(
                 initial.tobytes()
@@ -251,7 +349,10 @@ def main():
         print(
             f"PASS {args.variant}/{args.policy}/{ranks}r "
             f"DOFs={n_global}, steps={target_steps}, "
-            f"solve={solve_wall:.3f}s, RSS={max_rss/1024:.1f}MiB",
+            f"solve={solve_wall:.3f}s, "
+            f"first_step={step_wall[0]:.4f}s, "
+            f"steady_step={np.mean(steady):.4f}s, "
+            f"RSS={max_rss/1024:.1f}MiB",
             flush=True,
         )
 
