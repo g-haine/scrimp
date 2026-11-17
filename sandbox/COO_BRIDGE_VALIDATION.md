@@ -147,6 +147,60 @@ problem/configuration, NOT a proof that all matrix patterns or
 nonlinear models are identical. No reduction in memory is claimed:
 peak RSS increased by ~3.92 MiB per rank in this run.
 
+## Native in-place COO tests on 4 and 6 ranks (2026-11-17)
+
+The user ran inside `scrimp-mpi:local` the in-place COO-vs-IJV
+PETSc-Mat regression and the distributed contribution regression
+at **4 and 6 ranks**. Each test passed on every rank. All algebraic
+native-MPI tests have now passed at ranks **1, 2, 4 and 6**.
+
+These are targeted tests, not complete PDE / MUMPS / energy-balance
+validation at 4/6 ranks.
+
+## Transparent joint strong-scaling campaign (new)
+
+The scaling runner now crosses two **independent** axes:
+
+- Distributed GetFEM bridge: `SCRIMP_GETFEM_BRIDGE_DISTRIBUTED=csr`
+  (historical CSR/IJV + `Mat.assemble()`, `ijv` remains a legacy
+  alias), and `coo` (new native COO path on initial linear matrices).
+  The **default remains `ijv`**, i.e. historical CSR transfer.
+- MUMPS symbolic reset: `never`, `on_change`, `always` as the
+  existing `SCRIMP_MUMPS_RESET_POLICY` values. Optional `auto` remains
+  the benchmark alias for automatic policy selection (`never` for this
+  linear wave case); `auto` must NEVER be assigned to the environment
+  variable.
+
+All methods use the same source commit, fixed mesh, fixed CN
+parameters, and Docker GetFEM 5.5. New reports record the bridge,
+effective MUMPS policy and commit explicitly; older results stay in
+`scaling-mumps-h*`, unmodified. The analyzer **rejects** missing
+`bridge_method`, mixed source commits, incomplete method/policy/rank
+grids, unbalanced repetitions, nonconvergence or discrepant field
+norms. Reports and plots identify `T_CSR(p)`, `T_COO(p)`,
+`S(p)=T(1)/T(p)` independently per configuration, and
+`T_CSR(p)/T_COO(p)` at equal rank and MUMPS policy.
+
+```bash
+# Only four runs: 1 and 6 ranks, one repetition, never policy
+bash sandbox/run_acoustic_mumps_scaling.sh 0.04 pilot both never
+
+# Explicit full comparison: 4 ranks × 5 reps × 2 bridges × 2 policies
+# = 80 runs; pilot may be reused for the matching (never, 1/6) runs
+bash sandbox/run_acoustic_mumps_scaling.sh 0.04 full both never,always
+
+# Also include MUMPS 'on_change' (120 total configurations)
+bash sandbox/run_acoustic_mumps_scaling.sh 0.04 full both never,on_change,always
+```
+
+The runner uses Docker for **both simulations and plotting**.
+A plain Python 3 interpreter on the host only checks JSON metadata.
+Run chart validation unit tests inside Docker via
+`python -m unittest -v tests.test_acoustic_bridge_scaling`.
+Chart outputs: `comparaison_bridge_speedup.png`,
+`comparaison_bridge_times.png`, `comparaison_bridge_coo_gain.png`,
+and `comparaison_bridge_summary.csv`.
+
 ## Validation gates before considering default activation
 
 1. Native GetFEM 5.5 / complex PETSc 3.26 tests in Docker:
