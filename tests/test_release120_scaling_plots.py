@@ -54,9 +54,12 @@ class Release120ComparisonPlotTests(unittest.TestCase):
                              for j in range(nsteps - 1)]
                         )
                         rank_steps = [
-                            (step_profile * .95).tolist(),
-                            step_profile.tolist(),
-                        ] if rank > 1 else [step_profile.tolist()]
+                            (step_profile * (
+                                1. if rank == 1 else
+                                .95 + .05 * r / (rank - 1)
+                            )).tolist()
+                            for r in range(rank)
+                        ]
                         monitor_costs = [
                             [0.0005] * (nsteps + 1)
                             for _ in range(rank)
