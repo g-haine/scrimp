@@ -369,7 +369,8 @@ class TestMPIAlgebra(unittest.TestCase):
         by SCRIMP.init_matrix(), which inserts structural diagonal zeros
         before the GetFEM bridge. Repeated transfers must preserve the
         PETSc handle and exact stored CSR structure; the distributed
-        IJV path remains the default for ineligible nonlinear assemblies.
+        IJV path remains in use for ineligible nonlinear assemblies.
+        An environment-free distributed eligible call must pick COO.
         """
         gf = linalg.gf
         if int(gf.util_mpi_parallelism_level()) != 2:
@@ -386,9 +387,11 @@ class TestMPIAlgebra(unittest.TestCase):
         system.gf_model = model
         reference = PETSc.Mat().create(comm=COMM)
         candidate = PETSc.Mat().create(comm=COMM)
+        default_candidate = PETSc.Mat().create(comm=COMM)
         try:
             system.init_matrix(reference)
             system.init_matrix(candidate)
+            system.init_matrix(default_candidate)
             original_candidate = candidate
             for _ in range(2):
                 model.assembly(option="build_matrix")
@@ -406,6 +409,28 @@ class TestMPIAlgebra(unittest.TestCase):
                         profile_label="test.bridge",
                         distributed_coo_eligible=True,
                     )
+                # Exercise the TRUE default: no assembly-method
+                # override in the process environment.
+                with patch.dict(os.environ, {
+                    "SCRIMP_GETFEM_MATRIX_MODE": "distributed",
+                }, clear=True):
+                    default_profiler = TimingProfiler(enabled=True)
+                    linalg.convert_gmm_to_petsc(
+                        tangent, default_candidate,
+                        profiler=default_profiler,
+                        profile_label="test.default",
+                        distributed_coo_eligible=True,
+                    )
+                self.assertEqual(
+                    default_profiler._calls[
+                        "test.default.petsc.coo.preallocate"
+                    ], 1
+                )
+                self.assertEqual(
+                    default_profiler._calls[
+                        "test.default.petsc.coo.set_values"
+                    ], 1
+                )
                 self.assertIs(candidate, original_candidate)
                 self.assertEqual(
                     profiler._calls["test.bridge.petsc.coo.preallocate"], 1
@@ -415,11 +440,13 @@ class TestMPIAlgebra(unittest.TestCase):
                 )
                 expected = reference.getValuesCSR()
                 actual = candidate.getValuesCSR()
-                np.testing.assert_array_equal(actual[0], expected[0])
-                np.testing.assert_array_equal(actual[1], expected[1])
-                np.testing.assert_allclose(
-                    actual[2], expected[2], rtol=1e-12, atol=1e-12
-                )
+                default_values = default_candidate.getValuesCSR()
+                for current in (actual, default_values):
+                    np.testing.assert_array_equal(current[0], expected[0])
+                    np.testing.assert_array_equal(current[1], expected[1])
+                    np.testing.assert_allclose(
+                        current[2], expected[2], rtol=1e-12, atol=1e-12
+                    )
                 x = candidate.createVecRight()
                 y = candidate.createVecLeft()
                 try:
@@ -432,6 +459,7 @@ class TestMPIAlgebra(unittest.TestCase):
                     x.destroy()
                     y.destroy()
         finally:
+            default_candidate.destroy()
             candidate.destroy()
             reference.destroy()
 
