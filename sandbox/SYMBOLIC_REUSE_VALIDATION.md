@@ -291,6 +291,46 @@ Keep the state-amplification guard on, and do not
 interpret failed BDF2 starts as a valid nonlinear
 physical simulation.
 
+**Mesh-refinement diagnostic (2026-11-17):** at
+`init_dt=1e-8`, `rotation=0.02`, rigid initial profile,
+the final startup traction block was:
+
+| Nominal mesh h | `||Y||` (coefficient 2-norm) | `max|Y|` | `init_dt * max|Y|` |
+| --- | ---: | ---: | ---: |
+| 0.20 | ~599,804 | ~89,351.9 | ~8.93519e-4 |
+| 0.15 | 556,404 | 81,939.2 | 8.19392e-4 |
+| 0.10 | 450,722 | 54,893.9 | 5.48939e-4 |
+
+The h=0.20 row is extrapolated from the prior h=0.20,
+`init_dt=1e-9` value using the verified inverse-step scaling;
+it was not a new h=0.20, 1e-8 solve. Both additional startups
+are rejected by SCRIMP's existing state-amplification guard;
+height stays exactly 5. From nominal h=0.20 to h=0.10,
+the maximum traction coefficient is ~39% lower, consistent
+with a reduced geometric mismatch but not yet proof of
+its causality or an identifiable mesh-convergence order.
+Coefficient norms are not mesh-independent physical traction
+norms.
+
+**Direct geometric-discrepancy probe added:**
+`sandbox/check_swe_initial_boundary_mismatch.py` generates the
+same SCRIMP/Gmsh Disk meshes without solving the PDE and uses
+GetFEM boundary quadrature with `X` and `Normal`
+to compute L2/RMS norms of the mismatch between
+`omega*Rot*X` (rigid initial velocity) and
+`omega*Rot*Normal` (imposed wall velocity at `t=0`),
+plus the normal velocity violation
+`omega*(X(2)*Normal(1)-X(1)*Normal(2))`.
+The diagnostic verifies the normal/tangential orthogonal
+decomposition. It is not yet run on the target Docker
+environment. A falling geometric mismatch would be useful
+independent evidence; a quantitative link to Y still needs
+careful analysis of the mixed boundary discretization.
+```sh
+python sandbox/check_swe_initial_boundary_mismatch.py \\
+    --meshes 0.2 0.15 0.1 --rotation 0.02
+```
+
 Never disable the state-amplification guard merely to
 force the main simulation forward.
 
