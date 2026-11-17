@@ -66,13 +66,28 @@ are constant. A useful preconditioner should be based on
 **without requiring repeated global MUMPS numeric LU**.
 
 If, **and only if**, `E` is invertible on the relevant constrained
-subspace, constitutive condensation gives
+subspace, reorder the **same** two block equations by rows and
+columns into constitutive/dynamic rows and `(e,z)` columns:
+
+```text
+                [   -E           C     ]
+A_(e,z)(sigma) = [                       ].
+                [  R-J        sigma F  ]
+```
+
+The Schur complement with respect to the `-E` block is
 
 ```text
 e = E^{-1} C z
 
-A_reduced(sigma) = sigma F + (R-J) E^{-1} C.
+S_z(sigma) = sigma F + (R-J) E^{-1} C.
 ```
+
+This is an *exact algebraic identity when E is invertible*.
+A scalable `PCFIELDSPLIT` implementation would replace
+the hard global inverse of `E` by a suitable approximation
+*within the preconditioner* and keep the true mixed
+Jacobian as the Krylov operator.
 
 This is a derived *special case*, not the assumed input
 formulation. In particular, `E^{-1}` may be nonlocal; an
