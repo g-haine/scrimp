@@ -35,6 +35,7 @@ import subprocess
 import sys
 import threading
 import time
+import zlib
 
 import numpy as np
 
@@ -189,6 +190,7 @@ class _Handler(socketserver.BaseRequestHandler):
             partial = server.output_dir / (stem + ".partial")
             final = server.output_dir / stem
             samples = []
+            checksums = []
             last_step = None
             buf = bytearray(nbytes)
             with partial.open("wb") as output:
@@ -211,15 +213,28 @@ class _Handler(socketserver.BaseRequestHandler):
                         buf[:] = _recv_exact(self.request, nbytes)
                     output.write(FRAME.pack(kind, step, t))
                     output.write(buf)
+                    # The checksum is computed in the WRITER process,
+                    # never by PETSc/TS. No extra MPI traffic, copies or
+                    # global state are necessary.
+                    checksums.append(zlib.crc32(buf))
                     samples.append((step, t))
                 output.flush()
                 os.fsync(output.fileno())
             os.replace(partial, final)
+            crc_stem = f"trajectory_rank{rank:04d}.crc32"
+            crc_path = server.output_dir / (crc_stem + ".partial")
+            with crc_path.open("wb") as checksum_out:
+                for checksum in checksums:
+                    checksum_out.write(struct.pack("<I", checksum))
+                checksum_out.flush()
+                os.fsync(checksum_out.fileno())
+            os.replace(crc_path, server.output_dir / crc_stem)
             with server.lock:
                 server.done[rank] = {
                     "rank": rank, "global_size": n_global, "lo": lo,
                     "hi": hi, "dtype_code": dtype_code,
-                    "filename": stem, "samples": samples,
+                    "filename": stem, "checksum_file": crc_stem,
+                    "samples": samples,
                 }
         except BaseException as exc:
             with server.lock:
@@ -286,7 +301,7 @@ def serve(socket_path, output_dir, ranks, timeout=60.):
         raise ValueError("Rank ownership does not cover full state")
 
     manifest = {
-        "format": "scrimp-rank-binary-v1",
+        "format": "scrimp-rank-binary-v2",
         "ranks": ranks,
         "global_size": first["global_size"],
         "scalar_type": DTYPES[first["dtype_code"]].name,
@@ -294,7 +309,9 @@ def serve(socket_path, output_dir, ranks, timeout=60.):
         "steps": [step for step, t in reference_samples],
         "times": [t for step, t in reference_samples],
         "partitions": [
-            {key: part[key] for key in ("rank", "lo", "hi", "filename")}
+            {key: part[key] for key in (
+                "rank", "lo", "hi", "filename", "checksum_file"
+            )}
             for part in parts
         ],
     }
