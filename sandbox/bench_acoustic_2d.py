@@ -128,17 +128,18 @@ def main():
     # Record the matrix bridge independently from the reset policy.
     # CSR is the existing IJV/ADD_VALUES transfer, not a historical
     # source revision or a different model.
+    matrix_mode = os.environ.get(
+        "SCRIMP_GETFEM_MATRIX_MODE", "replicated"
+    ).strip().lower()
     bridge_setting = os.environ.get(
-        "SCRIMP_GETFEM_BRIDGE_DISTRIBUTED", "ijv"
+        "SCRIMP_GETFEM_BRIDGE_DISTRIBUTED",
+        "coo" if matrix_mode == "distributed" else "ijv",
     ).strip().lower()
     if bridge_setting not in ("ijv", "csr", "coo"):
         raise ValueError(
             "SCRIMP_GETFEM_BRIDGE_DISTRIBUTED must be csr, coo or ijv"
         )
     bridge_method = "coo" if bridge_setting == "coo" else "csr"
-    matrix_mode = os.environ.get(
-        "SCRIMP_GETFEM_MATRIX_MODE", "replicated"
-    ).strip().lower()
     if bridge_method == "coo" and matrix_mode != "distributed":
         raise ValueError(
             "COO benchmark requires SCRIMP_GETFEM_MATRIX_MODE=distributed"
