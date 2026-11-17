@@ -152,14 +152,17 @@ def plot_policy_comparison(paths, prefix, rtol, atol):
                 label=labels[series])
         for rank, value in zip(ranks, speedups[series]):
             ax.annotate(f"{value:.2f}×", (rank, value),
-                        xytext=(0, -16 if series == "always" else 9),
+                        xytext=((-20, -18) if series == "always" and rank == 1
+                                else (18, 11) if series == "auto" and rank == 1
+                                else (0, -16) if series == "always"
+                                else (0, 9)),
                         textcoords="offset points", ha="center",
                         fontsize=10)
     ax.set(
         xlabel="Nombre de rangs MPI (P-cores distincts)",
         ylabel="Accélération S(p) = T(1) / T(p)",
         title=(
-            "SCRIMP — Scalabilité forte des ondes acoustiques 2D\\n"
+            "SCRIMP — Scalabilité forte des ondes acoustiques 2D\n"
             f"{signature_ref[0]:,} DDL · "
             f"{signature_ref[5]} pas de Crank–Nicolson · "
             f"{n_reps} répétitions".replace(",", " ")
@@ -180,15 +183,20 @@ def plot_policy_comparison(paths, prefix, rtol, atol):
                 markersize=7, color=colors[series],
                 label=labels[series])
         for rank, value in zip(ranks, values):
-            dy = -16 if series == "always" else 9
+            offset = (
+                (-20, 14) if series == "always" and rank == 1
+                else (20, -16) if series == "auto" and rank == 1
+                else (0, 12) if series == "always"
+                else (0, -16)
+            )
             ax.annotate(f"{value:.3f} s", (rank, value),
-                        xytext=(0, dy), textcoords="offset points",
+                        xytext=offset, textcoords="offset points",
                         ha="center", fontsize=10)
     ax.set(
         xlabel="Nombre de rangs MPI (P-cores distincts)",
         ylabel="Temps médian de DPHS.solve() (s)",
         title=(
-            "SCRIMP — Coût réel des politiques MUMPS\\n"
+            "SCRIMP — Coût réel des politiques MUMPS\n"
             f"{signature_ref[0]:,} DDL · {n_reps} répétitions".replace(",", " ")
         ),
     )
