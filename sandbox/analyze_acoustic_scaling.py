@@ -25,13 +25,202 @@ import statistics
 import numpy as np
 
 
+def plot_policy_comparison(paths, prefix, rtol, atol):
+    """Plot existing benchmark reports without changing their profiling API.
+
+    Each tagged JSON report contains a series='auto' or 'always' field.
+    Physically inconsistent or incomplete MPI campaigns are rejected.
+    Median solve wall times, not individual noisy repetitions, are used
+    for the speedup and time comparisons.
+    """
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    groups = defaultdict(list)
+    signature_ref = None
+    field_ref = None
+    for path in paths:
+        run = json.loads(path.read_text(encoding="utf-8"))
+        series = run.get("series")
+        if series not in ("auto", "always"):
+            raise SystemExit(
+                f"{path}: comparison requires --series auto/always "
+                "in each benchmark report"
+            )
+        if (run["ts_converged_reason"] <= 0 or
+                run["ts_snes_failures"] != 0 or
+                run["ts_rejected_steps"] != 0):
+            raise SystemExit(f"{path}: solver failed the convergence gate")
+        signature = (
+            int(run["degrees_of_freedom"]),
+            float(run["rectangle_mesh_h"]),
+            float(run["requested_final_time"]),
+            float(run["last_saved_time"]),
+            float(run["actual_final_time"]),
+            int(run["ts_steps"]),
+            str(run["ts_type"]),
+            str(run["ts_adapt_type"]),
+        )
+        if signature_ref is None:
+            signature_ref = signature
+            field_ref = run["final_variable_norms"]
+        elif signature != signature_ref:
+            raise SystemExit(
+                f"{path}: mismatched fixed-mesh benchmark: "
+                f"{signature} vs {signature_ref}"
+            )
+        for name, expected in field_ref.items():
+            measured = run["final_variable_norms"].get(name)
+            if measured is None or not np.isclose(
+                    float(measured), float(expected), rtol=rtol, atol=atol):
+                raise SystemExit(
+                    f"{path}: physical mismatch in {name}: "
+                    f"{measured} vs reference {expected}"
+                )
+        groups[series, int(run["mpi_size"])].append(
+            float(run["wall_solve_seconds_max"])
+        )
+
+    ranks_by_series = {
+        series: {rank for label, rank in groups if label == series}
+        for series in ("auto", "always")
+    }
+    if ranks_by_series["auto"] != ranks_by_series["always"]:
+        raise SystemExit(
+            f"Compare requires the same MPI ranks in both series: "
+            f"{ranks_by_series}"
+        )
+    ranks = sorted(ranks_by_series["auto"])
+    if len(ranks) < 2 or 1 not in ranks:
+        raise SystemExit("Comparison requires rank 1 and >=1 parallel rank")
+    medians = {
+        series: {
+            rank: statistics.median(groups[series, rank])
+            for rank in ranks
+        }
+        for series in ("auto", "always")
+    }
+    # Missing or unequal repetitions would bias a comparison of medians.
+    repetitions = {len(group) for group in groups.values()}
+    if len(repetitions) != 1:
+        raise SystemExit(
+            "Each rank/policy combination needs the same number "
+            f"of repetitions, found counts {sorted(repetitions)}"
+        )
+    n_reps = repetitions.pop()
+    speedups = {
+        series: [
+            medians[series][1] / medians[series][rank]
+            for rank in ranks
+        ]
+        for series in ("auto", "always")
+    }
+    prefix.parent.mkdir(parents=True, exist_ok=True)
+    print(
+        f"Validated policy comparison: {signature_ref[0]} DOFs, "
+        f"mesh={signature_ref[1]}, t_f={signature_ref[2]}, "
+        f"{n_reps} repetitions per point"
+    )
+    print(
+        "| MPI | always, s | auto, s | reduction, % "
+        "| S(always) | S(auto) |"
+    )
+    print("|---:|---:|---:|---:|---:|---:|")
+    for idx, rank in enumerate(ranks):
+        baseline = medians["always"][rank]
+        automatic = medians["auto"][rank]
+        saved = 100.0 * (1.0 - automatic / baseline)
+        print(
+            f"| {rank} | {baseline:.5g} | {automatic:.5g} "
+            f"| {saved:+.2f} | {speedups['always'][idx]:.3f} "
+            f"| {speedups['auto'][idx]:.3f} |"
+        )
+
+    colors = {"auto": "tab:orange", "always": "tab:green"}
+    labels = {
+        "auto": "Politique automatique (never si linéaire)",
+        "always": "Réinitialisation systématique (always)",
+    }
+
+    fig, ax = plt.subplots(figsize=(11.0, 6.7))
+    ax.plot(ranks, ranks, linestyle="--", linewidth=2,
+            color="tab:blue", label="Accélération idéale")
+    for series in ("always", "auto"):
+        ax.plot(ranks, speedups[series], "o-", linewidth=2.5,
+                markersize=7, color=colors[series],
+                label=labels[series])
+        for rank, value in zip(ranks, speedups[series]):
+            ax.annotate(f"{value:.2f}×", (rank, value),
+                        xytext=(0, -16 if series == "always" else 9),
+                        textcoords="offset points", ha="center",
+                        fontsize=10)
+    ax.set(
+        xlabel="Nombre de rangs MPI (P-cores distincts)",
+        ylabel="Accélération S(p) = T(1) / T(p)",
+        title=(
+            "SCRIMP — Scalabilité forte des ondes acoustiques 2D\\n"
+            f"{signature_ref[0]:,} DDL · "
+            f"{signature_ref[5]} pas de Crank–Nicolson · "
+            f"{n_reps} répétitions".replace(",", " ")
+        ),
+    )
+    ax.set_xticks(ranks)
+    ax.grid(alpha=0.3)
+    ax.legend(loc="upper left")
+    fig.tight_layout()
+    speed_file = Path(str(prefix) + "_speedup.png")
+    fig.savefig(speed_file, dpi=160)
+    plt.close(fig)
+
+    fig, ax = plt.subplots(figsize=(11.0, 6.7))
+    for series in ("always", "auto"):
+        values = [medians[series][rank] for rank in ranks]
+        ax.plot(ranks, values, "o-", linewidth=2.5,
+                markersize=7, color=colors[series],
+                label=labels[series])
+        for rank, value in zip(ranks, values):
+            dy = -16 if series == "always" else 9
+            ax.annotate(f"{value:.3f} s", (rank, value),
+                        xytext=(0, dy), textcoords="offset points",
+                        ha="center", fontsize=10)
+    ax.set(
+        xlabel="Nombre de rangs MPI (P-cores distincts)",
+        ylabel="Temps médian de DPHS.solve() (s)",
+        title=(
+            "SCRIMP — Coût réel des politiques MUMPS\\n"
+            f"{signature_ref[0]:,} DDL · {n_reps} répétitions".replace(",", " ")
+        ),
+    )
+    ax.set_xticks(ranks)
+    ax.grid(alpha=0.3)
+    ax.legend(loc="upper right")
+    fig.tight_layout()
+    times_file = Path(str(prefix) + "_times.png")
+    fig.savefig(times_file, dpi=160)
+    plt.close(fig)
+    print(f"Saved speedup comparison: {speed_file}")
+    print(f"Saved solve-time comparison: {times_file}")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("files", nargs="+", type=Path)
     parser.add_argument("--rtol", type=float, default=1e-5,
                         help="Allowed relative difference in field norms")
     parser.add_argument("--atol", type=float, default=1e-9)
+    parser.add_argument(
+        "--plot-comparison", type=Path, metavar="PREFIX",
+        help="Compare JSON series auto/always, validate their physical "
+             "states, and save PREFIX_speedup.png and PREFIX_times.png. "
+             "Normal single-campaign analysis is unchanged.",
+    )
     args = parser.parse_args()
+    if args.plot_comparison is not None:
+        plot_policy_comparison(
+            args.files, args.plot_comparison, args.rtol, args.atol
+        )
+        return
 
     grouped = defaultdict(list)
     reference = None
