@@ -29,7 +29,8 @@ comm = PETSc.COMM_WORLD
 import scipy.sparse as sp
 
 def convert_gmm_to_petsc(
-    M, B, comm=comm, *, profiler=None, profile_label=None
+    M, B, comm=comm, *, profiler=None, profile_label=None,
+    distributed_coo_eligible=False,
 ):
     """Transfer GetFEM's globally numbered matrix into distributed PETSc.
 
@@ -39,7 +40,14 @@ def convert_gmm_to_petsc(
 
     SCRIMP_GETFEM_BRIDGE_REPLICATED controls only extraction in
     replicated mode: 'full' (default) or experimental 'owned_rows'.
-    The distributed path must retain contributions on off-rank rows.
+
+    For distributed mode, SCRIMP_GETFEM_BRIDGE_DISTRIBUTED=coo enables
+    native PETSc COO assembly only at call sites that explicitly declare
+    distributed_coo_eligible=True (currently the initial LINEAR mass and
+    stiffness matrices). Other calls retain the IJV/ADD_VALUES path,
+    including state-dependent Jacobians and dynamic sparsity.
+    This is an opt-in experimental path requiring MPI physical validation;
+    it preserves the PETSc Mat handle and explicit diagonal slots.
 
     Optional profiler/profile_label use SCRIMP's existing TimingProfiler
     for bridge subphases. No MPI collectives or matrix changes are added.
@@ -64,6 +72,18 @@ def convert_gmm_to_petsc(
         raise ValueError(
             "SCRIMP_GETFEM_BRIDGE_REPLICATED must be full or owned_rows"
         )
+
+    distributed_method = os.environ.get(
+        "SCRIMP_GETFEM_BRIDGE_DISTRIBUTED", "ijv"
+    ).strip().lower()
+    if distributed_method not in ("ijv", "coo"):
+        raise ValueError(
+            "SCRIMP_GETFEM_BRIDGE_DISTRIBUTED must be ijv or coo"
+        )
+    use_coo = (
+        mode == "distributed" and distributed_method == "coo"
+        and distributed_coo_eligible
+    )
 
     nrows, ncols = B.getSize()
     lo, hi = B.getOwnershipRange()
@@ -130,6 +150,44 @@ def convert_gmm_to_petsc(
             f"mode={mode}, extraction={extraction}",
             file=sys.stderr, flush=True,
         )
+
+    if use_coo:
+        # PETSc COO accepts off-process global rows and duplicate
+        # coordinates. It sums GetFEM contributions with the same
+        # semantics as the distributed IJV ADD_VALUES transfer.
+        #
+        # SCRIMP.init_matrix() initially creates structural diagonal
+        # slots even when absent in GetFEM. Preserve those entries in
+        # the COO pattern to keep exact stored CSR and MUMPS semantics.
+        # This replaces the graph in the SAME PETSc Mat object.
+        with measure("petsc.coo.prepare"):
+            counts = np.diff(row_ptr).astype(np.intp, copy=False)
+            rows = np.repeat(
+                np.arange(nrows, dtype=PETSc.IntType), counts
+            )
+            diagonal = np.arange(lo, hi, dtype=PETSc.IntType)
+            coo_i = np.ascontiguousarray(
+                np.concatenate((rows, diagonal))
+            )
+            coo_j = np.ascontiguousarray(
+                np.concatenate((col_idx, diagonal))
+            )
+            coo_v = np.ascontiguousarray(
+                np.concatenate((
+                    values,
+                    np.zeros(hi - lo, dtype=PETSc.ScalarType),
+                ))
+            )
+        with measure("petsc.coo.preallocate"):
+            B.setPreallocationCOO(coo_i, coo_j)
+        with measure("petsc.coo.set_values"):
+            # INSERT overwrites all previous entries. Repeated COO
+            # coordinates are still summed, even with INSERT_VALUES.
+            # PETSc performs its own final assembly here.
+            B.setValuesCOO(
+                coo_v, addv=PETSc.InsertMode.INSERT_VALUES
+            )
+        return
 
     # Old values must not accumulate across Newton reassemblies.
     with measure("petsc.zero_entries"):
