@@ -34,7 +34,7 @@ prototype started with newly created PETSc matrices, so it did **not**
 establish safety or performance of COO on SCRIMP's already initialized
 matrix handles. That is the next required gate.
 
-## Opt-in production integration (unvalidated in native MPI)
+## Opt-in production integration (native MPI validation documented below)
 
 - Default: `SCRIMP_GETFEM_BRIDGE_DISTRIBUTED=ijv` (unchanged).
 - Experimental: `SCRIMP_GETFEM_BRIDGE_DISTRIBUTED=coo`.
@@ -59,8 +59,8 @@ together with the distributed-contribution regression inside
 `scrimp-mpi:local`, on the actual GitHub branch mounted read-only.
 Both tests passed at 1 and 2 MPI ranks, on **every rank**. PETSc Mat
 identity, repeated in-place transfers and stored-CSR equality therefore
-have targeted native evidence for these ranks. This is not yet a
-full-PDE or scaling result. Tests at 4 and 6 ranks remain outstanding.
+have targeted native evidence for these ranks. Additional tests at
+4 and 6 ranks are documented below.
 
 Run the paired Docker-only acoustic benchmark and complete complex
 trajectory parity on the **same commit** via:
@@ -204,6 +204,60 @@ Run chart validation unit tests inside Docker via
 Chart outputs: `comparaison_bridge_speedup.png`,
 `comparaison_bridge_times.png`, `comparaison_bridge_coo_gain.png`,
 and `comparaison_bridge_summary.csv`.
+
+## Completed 48-run acoustic CSR/COO × MUMPS scaling (2026-11-17)
+
+The user completed a **48-run campaign** on `scrimp-mpi:local`, source
+commit `16c63557`, fixed `h=0.03`, **85,726 DoFs**, Crank–Nicolson
+20 steps, ranks **1/2/4/6**, bridges **CSR historical / COO**, policies
+**never / always**, **3 repetitions per configuration**. The analyzer
+successfully checked convergence, aligned fixed-mesh signatures,
+physical-variable norms, equal repetition counts and one Git commit,
+then generated these outputs under
+`sandbox/outputs/scaling-bridge-h0p03-16c63557/`:
+
+- `comparaison_bridge_speedup.png`
+- `comparaison_bridge_times.png`
+- `comparaison_bridge_coo_gain.png`
+- `comparaison_bridge_summary.csv`
+
+Median `DPHS.solve()` times (seconds) and same-rank CSR/COO gain:
+
+| MUMPS | MPI | CSR (s) | COO (s) | CSR/COO |
+|---|---:|---:|---:|---:|
+| always | 1 | 227.04518 | 15.29657 | 14.843× |
+| always | 2 | 132.35323 | 16.28948 | 8.125× |
+| always | 4 | 51.79524 | 18.64260 | 2.778× |
+| always | 6 | 34.45105 | 21.62978 | 1.593× |
+| never | 1 | 203.60035 | 5.95309 | 34.201× |
+| never | 2 | 122.69708 | 5.45091 | 22.509× |
+| never | 4 | 38.14796 | 5.17661 | 7.369× |
+| never | 6 | 13.93443 | 3.74175 | 3.724× |
+
+For `never`, independently normalized rank-one speedups
+`S_CSR(6)=14.611` and `S_COO(6)=1.591`. This does **not** mean CSR
+is the faster method at any MPI size; CSR's disproportionately costly
+one-rank baseline produces an apparent superlinear speedup. COO is
+faster at **every** measured rank and policy. For `always`, COO
+wall times rise from 15.30 s (one rank) to 21.63 s (six ranks),
+indicating poor scaling when MUMPS is repeatedly reset. Isolating
+native MUMPS phases requires subsequent PETSc logging.
+
+**Why no `on_change` series here?** This benchmark's declared-linear
+Jacobians have a fixed sparsity graph: `on_change` detects no graph
+transition, hence performs no structural-triggered PC resets beyond
+`never`. It **does**, however, perform extra CSR inspections and
+MPI collective checks. Thus it is not literally zero-overhead or
+guaranteed to give the exact `never` timing; it simply adds no
+distinct useful factorization strategy for this particular linear
+scaling comparison. The relevant axes are therefore CSR/COO and
+`never`/`always`, giving **4 × 2 × 2 × 3 = 48** runs. `on_change`
+must remain available for nonlinear PDEs with changing graphs.
+
+These are the **reported median values from the completed analyzer**
+(not a claim to have independently re-read all raw JSONs here).
+No measured memory reduction or nonlinear/complex physical equivalence
+is claimed.
 
 ## Validation gates before considering default activation
 
