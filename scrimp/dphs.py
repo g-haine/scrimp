@@ -30,6 +30,7 @@ import matplotlib.pyplot as plt
 import matplotlib.pylab as pl
 import numpy as np
 import os
+import re
 from mpi4py import MPI
 
 import petsc4py
@@ -202,21 +203,50 @@ def _get_mumps_reset_policy(all_bricks_linear=False):
     return policy
 
 
+# Known GWFL time, geometric symbols and elementary functions only.
+# Any unknown identifier is deliberately classified as potentially
+# state-dependent: custom macros may hide references to GetFEM variables.
+# Do NOT infer that all "source" bricks are independent of the state.
+_PRESCRIBED_CONTROL_SYMBOLS = frozenset({
+    "t", "x", "y", "z", "X", "Normal", "Tangent", "pi", "Pi",
+    "sin", "cos", "tan", "asin", "acos", "atan", "atan2",
+    "sinh", "cosh", "tanh", "exp", "log", "sqrt", "pow",
+    "min", "max", "abs", "sign", "floor", "ceil",
+    "Norm", "Trace", "Grad", "Div", "Det", "Id", "Sym",
+})
+
+
+def _control_expression_is_prescribed(expression, model_variables):
+    """Certify a simple open-loop GWFL control by its lexical symbols.
+
+    All model unknowns take precedence over the safe symbol allowlist.
+    Unknown functions/macros/data yield False (conservative nonlinear
+    feedback path). This deliberately does NOT attempt to parse or
+    expand arbitrary GetFEM user-defined macros.
+    """
+    if not isinstance(expression, str) or not expression.strip():
+        return False
+    symbols = set(re.findall(r"\b[A-Za-z_][A-Za-z0-9_]*\b", expression))
+    # Match complete identifiers, so Y and Y_n cannot be confused.
+    unknowns = symbols.difference(_PRESCRIBED_CONTROL_SYMBOLS)
+    return not symbols.intersection(model_variables) and not unknowns
+
+
 def _all_bricks_are_linear(bricks):
-    """Determine whether all *Jacobian-contributing* bricks are linear.
+    """Only skip CSR checks for provably affine, fixed-graph systems.
 
-    SCRIMP.set_control() creates a prescribed RHS source brick with
-    linear=False to route it through GetFEM's source assembly, even if
-    the prescribed control is independent of the state. Such bricks
-    contribute to the residual but not to the Jacobian or its sparsity;
-    treating them as nonlinear would unnecessarily select on_change
-    even for the linear acoustic wave example.
-
-    All other bricks (including boundary and explicit bricks) must be
-    declared linear. An empty model is never classified as linear.
+    A GetFEM source brick has no nonlinear Jacobian contribution,
+    but we only trust sources *created by set_control* and certified
+    to be state-independent. User-supplied or unknown source bricks
+    remain conservative. Feedback controls are ordinary nonlinear
+    variational bricks and have proper GetFEM tangents.
     """
     return bool(bricks) and all(
-        brick.get_position() == "source" or brick.get_linear()
+        brick.get_linear()
+        or (
+            brick.get_position() == "source"
+            and getattr(brick, "_scrimp_prescribed_control_source", False)
+        )
         for brick in bricks.values()
     )
 
@@ -786,11 +816,16 @@ class DPHS:
         self.add_port(control_port)
 
     def set_control(self, name, expression):
-        """This function applies a source term `expression` to the control port `name`
+        """Set a prescribed open-loop input or an implicit feedback law.
+
+        State-independent GWFL expressions use an RHS-only GetFEM source.
+        Expressions referencing model variables (or unknown macros)
+        use a nonlinear variational brick so Newton assembles the
+        feedback derivative, not just the control residual.
 
         Args:
-            name (str): the name of the port
-            expression (str): the expression of the source term
+            name (str): the name of the control port
+            expression (str): GWFL scalar/vector/tensor expression
         """
 
         kind = self.controls[name].get_kind()
@@ -820,9 +855,30 @@ class DPHS:
             )
         )
 
-        # Add the source brick
-        self.add_brick(
-            Brick(
+        # A prescribed control (only t, geometry, known mathematical
+        # functions) belongs to the efficient RHS-only source brick.
+        #
+        # A feedback law can depend on another port variable, e.g.
+        # set_control("Interface Heat", "Y_w"). A GetFEM source brick
+        # ignores its Jacobian by design; using it for feedback yields
+        # an inconsistent Newton tangent. Instead, represent a
+        # non-prescribed control as a nonlinear variational term:
+        #       -M_u * u + expression = 0
+        # GetFEM differentiates this term with respect to all model
+        # unknowns. Unrecognized user macros are deliberately treated
+        # as potentially state-dependent; a false positive here costs
+        # assembly time but cannot silently drop a feedback derivative.
+        model_variables = {
+            variable
+            for port in self.ports.values()
+            for variable in (port.get_flow(), port.get_effort())
+            if variable
+        }
+        prescribed = _control_expression_is_prescribed(
+            expression, model_variables
+        )
+        if prescribed:
+            source = Brick(
                 u + "_source",
                 expression,
                 [self.controls[name].get_region()],
@@ -831,7 +887,22 @@ class DPHS:
                 position="source",
                 mesh_id=self.controls[name].get_mesh_id(),
             )
-        )
+            # A source generated here is certified state-independent.
+            # This tag cannot be inferred from position="source" alone.
+            source._scrimp_prescribed_control_source = True
+            self.add_brick(source)
+        else:
+            self.add_brick(
+                Brick(
+                    u + "_feedback",
+                    f"({expression}){times}Test_{u}",
+                    [self.controls[name].get_region()],
+                    linear=False,
+                    dt=False,
+                    position="constitutive",
+                    mesh_id=self.controls[name].get_mesh_id(),
+                )
+            )
 
         self.controls[name].get_isSet()
         if rank == 0:
@@ -1355,10 +1426,11 @@ class DPHS:
     def set_linear_flags(self):
         """Flag state-dependent mass/stiffness terms for reassembly.
 
-        GetFEM source bricks are prescribed forcing (RHS only), created
-        with linear=False for their special assembly route. They do not
-        cause a nonlinear tangent and must not force stiffness matrix
-        reassembly or PETSc Newton trial-state synchronization.
+        GetFEM source bricks contribute only to the RHS, even when
+        declared linear=False for their special assembly route.
+        Feedback controls created by set_control() are *not* source
+        bricks: they are nonlinear constitutive terms whose tangent
+        must be reassembled at each Newton iteration.
         """
         self.linear_mass = True
         self.linear_stiffness = True
@@ -1795,8 +1867,8 @@ class DPHS:
         self._mumps_csr_patterns = {}
         self._mumps_phase_enabled = {}
         # All Jacobian-contributing bricks must be declared linear.
-        # Prescribed GetFEM source bricks are RHS-only and use
-        # linear=False solely to route their separate assembly.
+        # Only certified open-loop source bricks from set_control()
+        # may be ignored; unknown source/feedback laws stay conservative.
         self._all_bricks_linear = _all_bricks_are_linear(self.bricks)
         self._mumps_reset_policy = _get_mumps_reset_policy(
             all_bricks_linear=self._all_bricks_linear
