@@ -15,6 +15,9 @@
 
 from scrimp.utils.linalg import convert_gmm_to_petsc, extract_gmm_to_scipy
 from scrimp.utils.profiling import TimingProfiler
+from scrimp.utils.async_binary_trajectory import (
+    RankSender, LazyTrajectory, wait_for_manifest,
+)
 from scrimp.hamiltonian import Hamiltonian
 from scrimp.brick import Brick
 from scrimp.control import Control_Port
@@ -60,6 +63,19 @@ def _set_main_ts_default_exact_final_time(ts):
     ts.setExactFinalTime(PETSc.TS.ExactFinalTime.MATCHSTEP)
 
 
+def _select_saved_time_indices_through_final_time(times, t_final):
+    """Select time metadata and archive indices without stacking states."""
+    t = np.asarray(times, dtype=float)
+    if not np.isfinite(t_final):
+        raise ValueError("Final time must be finite")
+    ulps = 32.0 * abs(np.spacing(t_final if t_final else 1.0))
+    order = np.argsort(t)
+    kept = order[t[order] <= t_final + ulps]
+    selected = t[kept].copy()
+    selected[np.abs(selected - t_final) <= ulps] = t_final
+    return selected, kept
+
+
 def _select_saved_solution_through_final_time(times, states, t_final):
     """Keep accepted solution snapshots up to t_f with ULP tolerance.
 
@@ -71,18 +87,8 @@ def _select_saved_solution_through_final_time(times, states, t_final):
     than an absolute 1e-12 that could be too coarse for tiny horizons.
     Truly STEPOVER steps beyond the requested horizon remain excluded.
     """
-    t = np.asarray(times, dtype=float)
-    if not np.isfinite(t_final):
-        raise ValueError("Final time must be finite")
-    ulps = 32.0 * abs(np.spacing(t_final if t_final else 1.0))
-    order = np.argsort(t)
-    # Filter integer INDICES before materializing a single state array.
-    # Previously, np.asarray(states) stacked every saved state, then
-    # two successive advanced-index copies were made (sort + filter).
-    # For long simulations this produced avoidable O(Ndofs * Nsaves)
-    # temporary peaks *after* PETSc TS had completed.
-    kept = order[t[order] <= t_final + ulps]
-    t = t[kept]
+    # Filter time indices before materializing any state array.
+    t, kept = _select_saved_time_indices_through_final_time(times, t_final)
     if isinstance(states, np.ndarray):
         z = states[kept]  # One indexed copy, same output dtype/shape.
     elif len(kept):
@@ -94,9 +100,6 @@ def _select_saved_solution_through_final_time(times, states, t_final):
         z = np.empty((0,) + sample.shape, dtype=sample.dtype)
     else:
         z = np.asarray(states)
-    # Replace round-off-only endpoint differences, not true STEPOVER.
-    at_end = np.abs(t - t_final) <= ulps
-    t[at_end] = t_final
     return t, z
 
 
@@ -362,6 +365,10 @@ class DPHS:
         self.solution["t"] = list()
         #: Solution z at time t
         self.solution["z"] = list()
+        #: Only ARCHIVED states change backend; PETSc/TS/Newton state does not.
+        self._trajectory_backend = "memory"
+        self._trajectory_sender = None
+        self._trajectory_directory = None
         #: To check if the system has been solved
         self.solve_done = False
         #: To stop TS integration by keeping already computed timesteps if one step fails
@@ -1893,6 +1900,37 @@ class DPHS:
         """
         self.profiler.reset()
         self._profile_phase = "setup"
+        backend = os.environ.get(
+            "SCRIMP_TRAJECTORY_BACKEND", "memory"
+        ).strip().lower()
+        if backend not in ("memory", "async_binary"):
+            raise ValueError(
+                "SCRIMP_TRAJECTORY_BACKEND must be memory or async_binary"
+            )
+        self._trajectory_backend = backend
+        self._trajectory_sender = None
+        self._trajectory_directory = None
+        if backend == "async_binary":
+            from pathlib import Path
+            directory = os.environ.get("SCRIMP_TRAJECTORY_DIR", "").strip()
+            socket_name = os.environ.get(
+                "SCRIMP_TRAJECTORY_SOCKET", ""
+            ).strip()
+            if not directory or not socket_name:
+                raise ValueError(
+                    "async_binary requires SCRIMP_TRAJECTORY_DIR "
+                    "and SCRIMP_TRAJECTORY_SOCKET; start the independent "
+                    "writer BEFORE mpiexec (never fork a live MPI rank)"
+                )
+            if self.solution["t"] or len(self.solution["z"]):
+                raise RuntimeError(
+                    "async_binary requires an empty output trajectory"
+                )
+            self._trajectory_directory = Path(directory).resolve()
+            if (self._trajectory_directory / "trajectory_manifest.json").exists():
+                raise FileExistsError(
+                    "Refusing to reuse an already committed trajectory"
+                )
         # A new solve creates fresh initial/main TS/KSP/PC lifecycles:
         # never inherit the CSR graph of a previously destroyed LU factor.
         self._mumps_csr_patterns = {}
@@ -1993,6 +2031,21 @@ class DPHS:
                 self.init_step()
             _mpi_trace("solve: after initial consistency step")
         self._profile_phase = "main"
+
+        if self._trajectory_backend == "async_binary":
+            # Each producer owns its PETSc rows; no global output gather.
+            local_lo, local_hi = self.F.getOwnershipRange()
+            queued = int(os.environ.get(
+                "SCRIMP_TRAJECTORY_MAX_QUEUED", "4"
+            ))
+            self._trajectory_sender = RankSender(
+                os.environ["SCRIMP_TRAJECTORY_SOCKET"],
+                rank=rank, ranks=max_rank,
+                global_size=int(self.gf_model.nbdof()),
+                lo=local_lo, hi=local_hi,
+                # Match the historical monitor's real float64 archive.
+                dtype=np.float64, max_queued=queued,
+            )
 
         # TS
         TS = PETSc.TS().create(comm=comm)
