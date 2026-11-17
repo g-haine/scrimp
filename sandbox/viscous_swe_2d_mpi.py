@@ -108,7 +108,8 @@ def build_system(gamma, mesh, final_time, save_dt, max_step,
                  init_dt=1e-9, rotation=ROTATION,
                  initial_profile="tangent",
                  wall_velocity_profile="facet_tangent",
-                 algebraic_initial_guess="zero"):
+                 algebraic_initial_guess="zero",
+                 start_from_rest_duration=0.0):
     if gamma not in (0.0, 0.25):
         raise ValueError("gamma must be 0.0 (open) or 0.25 (closed)")
     if not np.isfinite(rotation):
@@ -117,6 +118,18 @@ def build_system(gamma, mesh, final_time, save_dt, max_step,
         raise ValueError("unknown initial momentum profile")
     if wall_velocity_profile not in ("facet_tangent", "rigid_trace"):
         raise ValueError("unknown wall velocity profile")
+    if not np.isfinite(start_from_rest_duration) or start_from_rest_duration < 0:
+        raise ValueError("start_from_rest_duration must be finite and nonnegative")
+    if start_from_rest_duration > 0 and (
+        gamma != 0.0 or initial_profile != "rigid"
+        or wall_velocity_profile != "facet_tangent"
+        or algebraic_initial_guess != "zero"
+    ):
+        raise ValueError(
+            "start_from_rest_duration is diagnostic-only and requires "
+            "the open case, rigid initial profile, physical facet_tangent "
+            "wall and zero algebraic initial guesses"
+        )
     if algebraic_initial_guess not in ("zero", "ep", "ep_wall"):
         raise ValueError("unknown algebraic initial guess")
     if algebraic_initial_guess != "zero" and initial_profile != "rigid":
@@ -215,6 +228,19 @@ def build_system(gamma, mesh, final_time, save_dt, max_step,
         swe.add_brick(brick)
 
     f = ramp_expression(ramp_start, ramp_end)
+    if start_from_rest_duration > 0:
+        # DIAGNOSTIC ONLY. Instead of initializing a nonzero rotating
+        # dynamic state and an already moving wall, start from the
+        # validated stationary state. Then smoothly drive the *physical*
+        # facet-tangential wall to the requested rotation. The decreasing
+        # long-time ramp is retained by multiplying both envelopes.
+        # At t=0 the rising envelope and its derivative both vanish.
+        # This changes the initial-value/forcing experiment but NOT the
+        # SCRIMP formulations, KSP/MUMPS options or BDF2 consistency gate.
+        tau = start_from_rest_duration
+        q = f"(min(1., max(0., t/{tau})))"
+        rising = f"(3.*({q})*({q}) - 2.*({q})*({q})*({q}))"
+        f = f"({f})*({rising})"
     if gamma == 0.0:
         swe.set_control(control_normal.get_name(), "0.")
     else:
@@ -263,7 +289,7 @@ def build_system(gamma, mesh, final_time, save_dt, max_step,
     # polygonal face normals is not exactly a smooth rigid-rotation trace.
     radius = "np.sqrt(x*x+y*y)"
     eps = 1e-6
-    amplitude = RHO * rotation
+    amplitude = RHO * (0.0 if start_from_rest_duration > 0 else rotation)
     if initial_profile == "tangent":
         # Approximately constant tangential speed; regularized
         # center, and approximate normals on the polygonal boundary.
@@ -502,7 +528,31 @@ def main():
     )
     parser.add_argument("--ramp-start", type=float, default=75.0)
     parser.add_argument("--ramp-end", type=float, default=200.0)
+    parser.add_argument(
+        "--start-from-rest-duration", type=float, default=0.0,
+        help="DIAGNOSTIC ONLY: initialize rigid momentum at zero and "
+             "multiply the physical facet-tangential wall rotation by "
+             "a C1 smoothstep rising from 0 at t=0 to 1 at the stated "
+             "positive duration. The original long-time decaying ramp "
+             "is retained. Requires --case open --initial-profile rigid "
+             "--wall-velocity-profile facet_tangent and default zero "
+             "algebraic guesses. Disabled by default.",
+    )
     args = parser.parse_args()
+    if args.start_from_rest_duration < 0 or not np.isfinite(
+        args.start_from_rest_duration
+    ):
+        parser.error("--start-from-rest-duration must be finite and >= 0")
+    if args.start_from_rest_duration > 0 and (
+        args.case != "open" or args.initial_profile != "rigid"
+        or args.wall_velocity_profile != "facet_tangent"
+        or args.algebraic_initial_guess != "zero"
+    ):
+        parser.error(
+            "--start-from-rest-duration requires --case open "
+            "--initial-profile rigid --wall-velocity-profile "
+            "facet_tangent --algebraic-initial-guess zero"
+        )
     if args.algebraic_initial_guess != "zero" and (
         args.initial_profile != "rigid"
     ):
@@ -542,6 +592,7 @@ def main():
             f"initial_profile={args.initial_profile}, "
             f"wall_velocity_profile={args.wall_velocity_profile}, "
             f"algebraic_initial_guess={args.algebraic_initial_guess}, "
+            f"start_from_rest_duration={args.start_from_rest_duration}, "
             f"ramp_start={args.ramp_start}, ramp_end={args.ramp_end}",
             flush=True,
         )
@@ -555,7 +606,8 @@ def main():
                        rotation=args.rotation,
                        initial_profile=args.initial_profile,
                        wall_velocity_profile=args.wall_velocity_profile,
-                       algebraic_initial_guess=args.algebraic_initial_guess)
+                       algebraic_initial_guess=args.algebraic_initial_guess,
+                       start_from_rest_duration=args.start_from_rest_duration)
     if args.petsc_monitor:
         # PETSc's -ts_monitor/-ts_adapt_monitor are VIEWER-valued
         # command-line flags, not Boolean-valued TS settings.
