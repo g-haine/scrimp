@@ -34,7 +34,7 @@ jobs:
         run: |
           python -m pip install 'matplotlib>=3.7,<4'
           python -m py_compile sandbox/bench_wave_release_scaling.py sandbox/plot_release120_coo_scaling.py sandbox/diagnose_release120_states.py tests/test_release120_scaling_plots.py
-          bash -n sandbox/run_release120_coo_scaling.sh sandbox/analyze_existing_release120_scaling.sh
+          bash -n sandbox/run_release120_coo_scaling.sh sandbox/analyze_existing_release120_scaling.sh sandbox/run_coo_factorization_probe.sh
           python -m unittest -v tests.test_release120_scaling_plots
       - name: Validate SCRIMP source headers
         run: |
