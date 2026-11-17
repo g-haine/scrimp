@@ -11,7 +11,7 @@
 #   historical tag v1.2.0, 1 rank, original code (no retrofitted COO);
 #   current source, distributed PETSc COO + MUMPS never/on_change,
 #   1,2,4,6 ranks, exactly the same 2D acoustic example.
-# No long physical simulations: 20 fixed Crank-Nicolson steps per run.
+# No long physical simulations: 10 fixed Crank-Nicolson steps per run.
 # Examples:
 #   bash sandbox/run_release120_coo_scaling.sh 0.08 3
 #   bash sandbox/run_release120_coo_scaling.sh 0.04 3 --mpi-only
@@ -24,12 +24,13 @@ Usage: bash sandbox/run_release120_coo_scaling.sh [--mpi-only] [mesh_h=0.08] [re
 
   --mpi-only  Only CURRENT SCRIMP, COO + MUMPS never/on_change, at
               1/2/4/6 MPI ranks. No v1.2.0 tag, worktree, run or
-              cross-version speedup claim. Three PNG + SVG figures.
+              cross-version speedup claim. Seven PNG + SVG figures
+              (total solve + measured cost per step, startup excluded).
   -h, --help  Show this message.
 
 Default (without --mpi-only): additionally benchmark original v1.2.0
 on one process and require cross-version full-state parity before
-producing the four comparison figures.
+producing eight figures, including per-step strong scaling.
 USAGE
 }
 
@@ -133,10 +134,17 @@ try:
     assert r["mumps_policy"] == policy
     assert r["mpi_ranks"] == ranks
     assert r["source_sha"] == commit
-    assert r["steps"] == 20
+    assert r["steps"] == 10
     assert r["rejections"] == 0 and r["snes_failures"] == 0
-    assert abs(r["time_final_monitor"] - 0.04) <= 1e-10
+    assert abs(r["time_final_monitor"] - 0.02) <= 1e-10
     assert math.isfinite(r["wall_solve_s"]) and r["wall_solve_s"] > 0
+    assert r["step_warmup_excluded"] == 1
+    assert r["steady_step_count"] == 9
+    assert len(r["step_times_max_rank_s"]) == 10
+    assert len(r["step_times_by_rank_s"]) == ranks
+    assert all(len(times) == 10 for times in r["step_times_by_rank_s"])
+    assert math.isfinite(r["first_step_wall_s"]) and r["first_step_wall_s"] > 0
+    assert math.isfinite(r["steady_step_mean_s"]) and r["steady_step_mean_s"] > 0
 except (AssertionError, OSError, ValueError, KeyError, TypeError):
     sys.exit(1)
 PY
@@ -183,7 +191,7 @@ run_one() {
             "${extras[@]}" \
         "${launcher[@]}" sandbox/bench_wave_release_scaling.py \
             --variant "$variant" --policy "$policy" \
-            --mesh "$mesh" --dt 0.002 --final-time 0.04 \
+            --mesh "$mesh" --dt 0.002 --final-time 0.02 \
             --save-dt 0.01 --source-sha "$sha" \
             --source-tag "$( [[ "$variant" == release_120 ]] && echo v1.2.0 )" \
             --repetition "$rep" \
@@ -202,8 +210,9 @@ run_one() {
     /usr/bin/python3 - "$report" <<'PY'
 import json,sys
 a=json.load(open(sys.argv[1],encoding="utf-8"))
-print("  PASS: %s DoFs, 20 steps, solve %.3fs, HWM %.1f MiB"
-      %(a["dofs"],a["wall_solve_s"],a["max_rank_hwm_kib"]/1024.))
+print("  PASS: %s DoFs, 10 steps, solve %.3fs, first %.4fs, steady %.4fs, HWM %.1f MiB"
+      %(a["dofs"],a["wall_solve_s"],a["first_step_wall_s"],
+        a["steady_step_mean_s"],a["max_rank_hwm_kib"]/1024.))
 PY
 }
 
@@ -243,9 +252,9 @@ sudo docker run --rm \
         "${plot_flags[@]}"
 
 if (( mpi_only )); then
-    echo "SUCCESS. Three COO/MPI-only PNG + SVG figures, CSV and full data:"
+    echo "SUCCESS. Seven COO/MPI-only PNG + SVG figures, CSV and full data:"
 else
-    echo "SUCCESS. Four PNG + SVG figures, CSV and full data:"
+    echo "SUCCESS. Eight PNG + SVG figures, CSV and full data:"
 fi
 ls -lh "$out"/png/*.png "$out"/svg/*.svg "$out"/*.csv "$out"/*.json | tail -n 26
 echo "PNG figures: $out/png/"
