@@ -28,12 +28,18 @@ sudo docker run --rm \
     --user "$(id -u):$(id -g)" \
     -e HOME=/tmp \
     --cpuset-cpus="0,2" \
+    -v "$root/scrimp:/workspace/scrimp/scrimp:ro" \
     -v "$root/sandbox:/workspace/scrimp/sandbox:ro" \
     -v "$root/tests:/workspace/scrimp/tests:ro" \
     -v "$out:/artifacts" \
     scrimp-mpi:local \
     bash -c '
         set -euo pipefail
+        echo "PREFLIGHT: verify mounted production I/O implementation"
+        test -r /workspace/scrimp/scrimp/utils/async_binary_trajectory.py || {
+            echo "ERROR: missing mounted SCRIMP production I/O module" >&2
+            exit 1
+        }
         echo "PREFLIGHT: subprocess binary format, finite queue, parity tests"
         python -m unittest -v tests.test_async_binary_trajectory
 
