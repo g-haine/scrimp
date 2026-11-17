@@ -72,14 +72,28 @@ def _select_saved_solution_through_final_time(times, states, t_final):
     Truly STEPOVER steps beyond the requested horizon remain excluded.
     """
     t = np.asarray(times, dtype=float)
-    z = np.asarray(states)
     if not np.isfinite(t_final):
         raise ValueError("Final time must be finite")
     ulps = 32.0 * abs(np.spacing(t_final if t_final else 1.0))
     order = np.argsort(t)
-    t, z = t[order], z[order]
-    keep = t <= t_final + ulps
-    t, z = t[keep], z[keep]
+    # Filter integer INDICES before materializing a single state array.
+    # Previously, np.asarray(states) stacked every saved state, then
+    # two successive advanced-index copies were made (sort + filter).
+    # For long simulations this produced avoidable O(Ndofs * Nsaves)
+    # temporary peaks *after* PETSc TS had completed.
+    kept = order[t[order] <= t_final + ulps]
+    t = t[kept]
+    if isinstance(states, np.ndarray):
+        z = states[kept]  # One indexed copy, same output dtype/shape.
+    elif len(kept):
+        # Exactly one stacked allocation; do not stack rejected states.
+        z = np.stack([states[int(i)] for i in kept], axis=0)
+    elif len(states):
+        # Match historical (0, ...) shape even if every state is rejected.
+        sample = np.asarray(states[0])
+        z = np.empty((0,) + sample.shape, dtype=sample.dtype)
+    else:
+        z = np.asarray(states)
     # Replace round-off-only endpoint differences, not true STEPOVER.
     at_end = np.abs(t - t_final) <= ulps
     t[at_end] = t_final
