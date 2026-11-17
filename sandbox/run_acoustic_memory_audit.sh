@@ -70,8 +70,7 @@ if ! sudo docker run --rm \
     -v "$out:/workspace/scrimp/outputs" \
     -v "$out:/artifacts" \
     scrimp-mpi:local \
-    bash -c 'python -c "import scrimp" && \
-        python -m unittest -v tests.test_acoustic_memory_analysis' \
+    bash -c 'python -c "import scrimp" && python -m unittest -v tests.test_acoustic_memory_analysis' \
     >"$out/preflight.log" 2>&1; then
     echo "FAILED report-analyzer preflight; inspect $out/preflight.log" >&2
     tail -n 80 "$out/preflight.log" >&2
