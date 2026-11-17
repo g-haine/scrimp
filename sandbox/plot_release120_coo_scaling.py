@@ -761,10 +761,7 @@ def plot(directory, repetitions, *, current_only=False):
             print(
                 "Steady step strong scaling " + policy + ": "
                 + ", ".join(
-                    f"{r}r {_stats(
-                        runs[('current',policy,r)],
-                        key='steady_step_mean_s',
-                    )[0]*1000.:.3f}ms"
+                    f"{r}r {1000. * _stats(runs[('current', policy, r)], key='steady_step_mean_s')[0]:.3f}ms"
                     for r in RANKS
                 )
             )
