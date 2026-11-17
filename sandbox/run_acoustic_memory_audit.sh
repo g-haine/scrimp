@@ -58,7 +58,7 @@ fi
 echo "SCRIMP memory audit | commit=$sha | h=$mesh | dt=$dt | t_f=$final | MPI=$ranks | cpus=$cpus"
 echo "Distributed GetFEM + default COO; MUMPS never; results: $out"
 
-echo "PREFLIGHT: test memory-report analysis before costly simulations"
+echo "PREFLIGHT: check SCRIMP import/write permissions and report analyzer"
 if ! sudo docker run --rm \
     --user "$(id -u):$(id -g)" \
     -e HOME=/tmp \
@@ -70,13 +70,14 @@ if ! sudo docker run --rm \
     -v "$out:/workspace/scrimp/outputs" \
     -v "$out:/artifacts" \
     scrimp-mpi:local \
-    python -m unittest -v tests.test_acoustic_memory_analysis \
+    bash -c 'python -c "import scrimp" && \
+        python -m unittest -v tests.test_acoustic_memory_analysis' \
     >"$out/preflight.log" 2>&1; then
     echo "FAILED report-analyzer preflight; inspect $out/preflight.log" >&2
     tail -n 80 "$out/preflight.log" >&2
     exit 1
 fi
-echo "  PASS: synthetic report analyzer checks"
+echo "  PASS: SCRIMP import + writable output directory + analyzer checks"
 
 for mode in sparse dense; do
     logfile="$out/${mode}.log"
