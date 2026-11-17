@@ -149,7 +149,7 @@ Results are saved under
    writer throughput and process peak RSS, and complete failure-path
    validation before changing the default.
 
-## Short physical parity validation (not yet run natively)
+## Short physical parity validation: acoustic PASS (2026-11-17)
 
 The tiny PETSc native smoke test (17 DoFs, 4 frames, 2 ranks) has
 **passed** on the user's Docker image (`29fbf9fd`); the user supplied
@@ -160,7 +160,29 @@ Production integration is now in `scrimp/utils/async_binary_trajectory.py`
 and `scrimp/dphs.py`. The sandbox launcher preserves the old
 `sandbox/async_binary_trajectory.py` CLI via a thin proxy.
 
-For the next validation (6 CN steps, **not** 250/2000 steps):
+The user **completed** the six-step native physical test on source
+commit `44b487be`, and supplied
+`async-acoustic-parity-44b487be-he1O1w.zip`.
+The archive was independently inspected:
+
+- **12,682 DoFs, 2 MPI ranks, 6 accepted CN steps**, 7 saved
+  states, no rejections or nonlinear failures.
+- The two binary files carry exactly global ownership
+  `[0, 6341)` and `[6341, 12682)`, 7 frames each.
+- Direct decoding of raw binary frames reconstructs the streamed
+  `async_binary_physical.npz` trajectory **bit for bit**.
+- Both saved-time arrays are exactly equal, and full state arrays
+  agree to **1.665334537e−16 max absolute error**,
+  **1.524407066e−17 relative L2** between independent physical
+  simulations (numerical roundoff only).
+- The Hamiltonian and **all four boundary-power trajectories
+  match exactly** between memory and asynchronous backends.
+- The archive manifest and process-level frame checks validate
+  that no global NumPy trajectory was written in the producer ranks.
+  The test driver materialized the very short full trajectory only
+  for parity comparison.
+
+Reproduction command for the PASSED acoustic experiment:
 
 ```bash
 cd ~/Simulations/scrimp
@@ -179,6 +201,44 @@ production. It writes a source-SHA-segregated report under
 `sandbox/outputs/async-acoustic-parity-<sha>-<unique>/`.
 The GitHub CI checks source syntax and the Python writer protocol but
 **cannot** establish native GetFEM/PETSc physics parity on its own.
+
+## Next: three-step nonlinear dissipative Saint-Venant spin-up
+
+The next **short** native comparison is prepared, with no long run:
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+bash -n sandbox/run_async_swe_parity.sh
+bash sandbox/run_async_swe_parity.sh
+```
+
+This runs **two** physically identical very short (three-step)
+tests using `sandbox/viscous_swe_2d_mpi.py:build_system` and its
+unmodified `diagnostics()`:
+
+- Open 2D viscous Saint-Venant, **nonlinear mass and stiffness**,
+  `h_mesh=0.35`, two MPI ranks, Crank–Nicolson fixed
+  `dt=0.001`, `t_f=0.003`, three steps and four archived states.
+- Initial rigid profile at **rest**, with a smooth, nonzero
+  facet-tangent wall-velocity spin-up over `0.03` time units;
+  `gamma=0`, physical `facet_tangent` wall.
+- Existing BDF2 initial consistency step and nonlinear GetFEM
+  synchronization are preserved; `PC=LU/MUMPS`, reset
+  policy `on_change`.
+- Compare complete state snapshots, mechanical Hamiltonian,
+  kinetic/potential energy, both external boundary-power
+  contributions, both viscous dissipation terms, integrated
+  input/dissipation, full energy and volume balance histories,
+  plus Lyapunov samples, with explicit numeric gates.
+- Reject incomplete manifests, mismatched simulation
+  metadata, nonconvergence, nonfinite fields and negative
+  water depth. The script reports balance defects; a PASS means
+  **storage-backend equivalence**, not independent proof of
+  published Saint-Venant physical accuracy.
+
+This is a **new test definition**. No native Saint-Venant
+results are claimed until the Docker script runs successfully.
 
 The non-streaming default and existing model behavior are preserved.
 Do not enable this backend automatically for all SCRIMP users until
