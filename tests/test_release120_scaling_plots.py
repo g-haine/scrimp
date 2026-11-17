@@ -224,6 +224,49 @@ class Release120ComparisonPlotTests(unittest.TestCase):
         )
         self.assertEqual(syntax.returncode, 0, syntax.stderr)
 
+    def test_tampered_mpi_step_maximum_is_rejected(self):
+        target = self.dir / "current_never_4r_rep1.json"
+        data = json.loads(target.read_text(encoding="utf-8"))
+        data["step_times_max_rank_s"][3] *= 0.5
+        target.write_text(json.dumps(data), encoding="utf-8")
+        with self.assertRaisesRegex(
+            ValueError, "incorrect MPI-max step wall times"
+        ):
+            PLOT.plot(self.dir, 2, current_only=True)
+
+    def test_tampered_steady_step_mean_is_rejected(self):
+        target = self.dir / "current_on_change_2r_rep2.json"
+        data = json.loads(target.read_text(encoding="utf-8"))
+        data["steady_step_mean_s"] *= 2.
+        target.write_text(json.dumps(data), encoding="utf-8")
+        with self.assertRaisesRegex(
+            ValueError, "inconsistent steady_step_mean_s"
+        ):
+            PLOT.plot(self.dir, 2, current_only=True)
+
+    def test_old_campaign_keeps_total_plots_without_faked_steps(self):
+        # Older JSON has no clocked accepted steps. Tsolve/N must never
+        # masquerade as an observed post-startup step cost.
+        prefixes = (
+            "step_", "steady_step_", "first_step_", "monitor_times_"
+        )
+        for path in self.dir.glob("*.json"):
+            data = json.loads(path.read_text(encoding="utf-8"))
+            data = {
+                key: val for key, val in data.items()
+                if not key.startswith(prefixes)
+            }
+            path.write_text(json.dumps(data), encoding="utf-8")
+        result = PLOT.plot(self.dir, 2, current_only=True)
+        self.assertFalse(result["direct_step_timing_available"])
+        self.assertIsNone(result["step_timing"])
+        self.assertTrue(
+            (self.dir / "png" / "03_speedup_coo.png").exists()
+        )
+        self.assertFalse(
+            (self.dir / "png" / "06_steady_step_speedup_coo.png").exists()
+        )
+
     def test_missing_MPI_measurements_cannot_be_fabricated(self):
         target = self.dir / "current_on_change_6r_rep2.json"
         target.unlink()
