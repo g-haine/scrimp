@@ -121,6 +121,37 @@ class AcousticMemoryAnalysisTests(unittest.TestCase):
                 suffix,
             )
 
+    def test_roundoff_level_final_difference_is_reported(self):
+        """Do not mistake tiny global endpoint roundoff for divergence.
+
+        PETSc's end-of-TS state can differ from the last TS.monitor
+        sample when the save cadence changes. The archived 250-step
+        campaign has relative L2 3.18e-11 and scaled Linf 2.60e-11.
+        Accept and REPORT this under the independent 1e-10 gates.
+        """
+        stem = self.path / "memory_sparse_rank1_state.npz"
+        # Match across *both* MPI ranks: only save schedule may differ.
+        for rank in (0, 1):
+            dest = self.path / f"memory_sparse_rank{rank}_state.npz"
+            np.savez_compressed(
+                dest, initial=np.array([0., 1., 2.]),
+                final=np.array([3. + 2e-10, 4., 5.]),
+                first_saved_time=0.,
+                final_time=0.01,
+            )
+        # For this small vector 2e-10 / ||state|| ~= 3e-11.
+        summary = ANALYZER.analyze(self.path)
+        self.assertAlmostEqual(
+            summary["max_initial_final_state_abs_difference"],
+            2e-10, delta=1e-14,
+        )
+        self.assertGreater(
+            summary["max_initial_final_state_relative_l2"], 0.
+        )
+        self.assertLess(
+            summary["max_initial_final_state_relative_l2"], 1e-10
+        )
+
     def test_saved_state_mismatch_rejected(self):
         stem = self.path / "memory_dense_rank1_state.npz"
         np.savez_compressed(
