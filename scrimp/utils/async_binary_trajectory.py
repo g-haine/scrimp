@@ -328,47 +328,116 @@ class LazyTrajectory:
     def __init__(self, manifest_path, *, indices=None):
         manifest_path = Path(manifest_path)
         data = json.loads(manifest_path.read_text(encoding="utf-8"))
-        if data["format"] != "scrimp-rank-binary-v1":
-            raise ValueError("Unsupported trajectory format")
-        self.global_size = data["global_size"]
-        self.times = np.asarray(data["times"], dtype=np.float64)
-        self.steps = np.asarray(data["steps"], dtype=np.int64)
-        self.dtype = np.dtype(data["scalar_type"])
-        self._indices = (
-            np.arange(len(self.times), dtype=np.int64)
-            if indices is None else np.asarray(indices, dtype=np.int64)
-        )
-        if self._indices.ndim != 1 or np.any(self._indices < 0) or (
-            np.any(self._indices >= len(self.times))
+        version = data.get("format")
+        if version not in (
+            "scrimp-rank-binary-v1", "scrimp-rank-binary-v2"
         ):
-            raise ValueError("Invalid saved-state index selection")
-        self.times = self.times[self._indices]
-        self.steps = self.steps[self._indices]
+            raise ValueError("Unsupported trajectory format")
+        self.global_size = int(data["global_size"])
+        ranks = int(data["ranks"])
+        n_saved = int(data["number_of_states"])
+        partitions = data["partitions"]
+        if (self.global_size <= 0 or ranks < 1 or n_saved < 1
+                or len(partitions) != ranks):
+            raise ValueError("Invalid binary trajectory dimensions")
+        all_times = np.asarray(data["times"], dtype=np.float64)
+        all_steps = np.asarray(data["steps"], dtype=np.int64)
+        if (all_times.shape != (n_saved,)
+                or all_steps.shape != (n_saved,)
+                or not np.all(np.isfinite(all_times))):
+            raise ValueError("Invalid binary trajectory time metadata")
+        self.dtype = np.dtype(data["scalar_type"])
         if self.dtype not in CODE:
             raise ValueError("Unsupported stored dtype")
+        self._indices = (
+            np.arange(n_saved, dtype=np.int64)
+            if indices is None else np.asarray(indices, dtype=np.int64)
+        )
+        if (self._indices.ndim != 1
+                or np.any(self._indices < 0)
+                or np.any(self._indices >= n_saved)):
+            raise ValueError("Invalid saved-state index selection")
+        self.times = all_times[self._indices]
+        self.steps = all_steps[self._indices]
+        self._all_times = all_times
+        self._all_steps = all_steps
         self._parts = []
-        for part in data["partitions"]:
-            nlocal = part["hi"] - part["lo"]
+        seen_ranks = set()
+        expected_lo = 0
+
+        def local_path(filename):
+            path = Path(filename)
+            if (path.name != str(filename) or path.is_absolute()
+                    or path.name in (".", "..")):
+                raise ValueError("Invalid rank-local binary filename")
+            return manifest_path.parent / path
+
+        # Validate all files/header sizes/ownership before any global
+        # state is reconstructed. This reads only constant-size metadata
+        # and memory-maps payloads: it NEVER loads the full trajectory.
+        for part in sorted(partitions, key=lambda item: item["lo"]):
+            r = int(part["rank"])
+            lo, hi = int(part["lo"]), int(part["hi"])
+            if (r < 0 or r >= ranks or r in seen_ranks
+                    or lo != expected_lo or hi < lo
+                    or hi > self.global_size):
+                raise ValueError(
+                    "Rank ownership is incomplete, duplicated or overlapping"
+                )
+            seen_ranks.add(r)
+            expected_lo = hi
+            nlocal = hi - lo
+            filename = local_path(part["filename"])
             record_dtype = np.dtype([
                 ("frame", "u1"), ("step", "<i8"),
                 ("time", "<f8"), ("values", self.dtype, (nlocal,)),
             ], align=False)
-            file = manifest_path.parent / part["filename"]
-            # Framing on disk is FRAME size: one uint8 + int64 + float64.
-            if record_dtype.itemsize != FRAME.size + nlocal * self.dtype.itemsize:
+            bytes_per_frame = FRAME.size + nlocal * self.dtype.itemsize
+            if record_dtype.itemsize != bytes_per_frame:
                 raise AssertionError("Invalid binary record layout")
+            expected_file_size = HEADER.size + n_saved * bytes_per_frame
+            if filename.stat().st_size != expected_file_size:
+                raise ValueError(
+                    f"Truncated or oversized rank trajectory: {filename}"
+                )
+            with filename.open("rb") as handle:
+                raw_header = handle.read(HEADER.size)
+            if len(raw_header) != HEADER.size or HEADER.unpack(
+                raw_header
+            ) != (
+                MAGIC, r, ranks, self.global_size, lo, hi,
+                CODE[self.dtype],
+            ):
+                raise ValueError(f"Invalid rank binary header: {filename}")
             mm = np.memmap(
-                file, mode="r", dtype=record_dtype, offset=HEADER.size,
-                shape=(int(data["number_of_states"]),),
+                filename, mode="r", dtype=record_dtype,
+                offset=HEADER.size, shape=(n_saved,),
             )
-            self._parts.append((part["lo"], part["hi"], mm))
+            if version == "scrimp-rank-binary-v2":
+                sidecar = local_path(part["checksum_file"])
+                if sidecar.stat().st_size != 4 * n_saved:
+                    raise ValueError(
+                        f"Invalid CRC32 sidecar size: {sidecar}"
+                    )
+                checksums = np.memmap(
+                    sidecar, mode="r", dtype="<u4", shape=(n_saved,)
+                )
+            else:
+                # Preserve access to already-produced v1 archives; only
+                # v2 has per-frame payload integrity checking.
+                checksums = None
+            self._parts.append((lo, hi, mm, checksums))
+        if expected_lo != self.global_size or len(seen_ranks) != ranks:
+            raise ValueError("Rank ownership does not cover global state")
 
     def __len__(self):
         return len(self.times)
 
     def __getitem__(self, index):
         if isinstance(index, slice):
-            return np.stack([self[i] for i in range(*index.indices(len(self)))])
+            return np.stack([
+                self[i] for i in range(*index.indices(len(self)))
+            ])
         index = int(index)
         if index < 0:
             index += len(self)
@@ -376,10 +445,25 @@ class LazyTrajectory:
             raise IndexError(index)
         out = np.empty(self.global_size, dtype=self.dtype)
         stored_index = int(self._indices[index])
-        for lo, hi, array in self._parts:
-            out[lo:hi] = array["values"][stored_index]
+        for lo, hi, array, checksums in self._parts:
+            record = array[stored_index]
+            if (int(record["frame"]) != DATA
+                    or int(record["step"])
+                    != int(self._all_steps[stored_index])
+                    or float(record["time"])
+                    != float(self._all_times[stored_index])):
+                raise ValueError(
+                    "Archived rank frame metadata is corrupt"
+                )
+            values = record["values"]
+            if checksums is not None and zlib.crc32(
+                values
+            ) != int(checksums[stored_index]):
+                raise ValueError(
+                    "Archived rank payload failed CRC32 validation"
+                )
+            out[lo:hi] = values
         return out
-
 
 def wait_for_manifest(manifest_path, *, timeout=30.):
     """Await atomic commit AFTER all producers have drained and closed.
