@@ -2053,6 +2053,24 @@ class DPHS:
             )
         InitVec.assemble()
         initial_state_norm = float(InitVec.norm())
+        # Optional diagnostics: distinguish an algebraic consistency solve
+        # from pseudo-time relaxation that changes the physical h and p.
+        # Compare the actual PETSc final state, not the last Newton trial
+        # held by GetFEM. Copies are only allocated for this opt-in audit.
+        audit_dynamic = os.environ.get(
+            "SCRIMP_INIT_DYNAMIC_STATE_AUDIT", "0"
+        ) == "1"
+        if audit_dynamic:
+            initial_dynamics = {}
+            initial_all = np.asarray(
+                self.gf_model.from_variables()
+            ).real.copy()
+            for name in self.states:
+                start, width = self.gf_model.interval_of_variable(name)
+                start, width = int(start), int(width)
+                initial_dynamics[name] = initial_all[
+                    start:start + width
+                ].copy()
         comm.barrier()
 
         _mpi_trace("init_step: before consistency TS.solve")
@@ -2080,6 +2098,31 @@ class DPHS:
                 )
             raise
         final_state_norm = float(InitVec.norm())
+        if audit_dynamic:
+            # Collective VecScatter; the GetFEM trial state may not be
+            # synchronized to the accepted TS solution at this point.
+            self.Scatter[0].scatter(InitVec, self.GlobalVec)
+            final_all = np.asarray(
+                self.GlobalVec.getArray(readonly=True)
+            ).real
+            if rank == 0:
+                for name, initial_values in initial_dynamics.items():
+                    start, width = self.gf_model.interval_of_variable(name)
+                    final_values = final_all[
+                        int(start):int(start + width)
+                    ]
+                    delta = float(np.linalg.norm(
+                        final_values - initial_values
+                    ))
+                    baseline = float(np.linalg.norm(initial_values))
+                    print(
+                        f"[SCRIMP initial dynamic audit] {name}: "
+                        f"initial_norm={baseline:.9g}, "
+                        f"final_norm={np.linalg.norm(final_values):.9g}, "
+                        f"absolute_change={delta:.9g}, "
+                        f"relative_change={delta / max(baseline, 1e-14):.9g}",
+                        file=sys.stderr, flush=True,
+                    )
         _mpi_trace(
             "init_step: consistency TS completed: reason={}, "
             "t={:.12g}, steps={}, rejected={}, SNES_failures={}, "
