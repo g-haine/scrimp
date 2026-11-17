@@ -109,7 +109,8 @@ def build_system(gamma, mesh, final_time, save_dt, max_step,
                  initial_profile="tangent",
                  wall_velocity_profile="facet_tangent",
                  algebraic_initial_guess="zero",
-                 start_from_rest_duration=0.0):
+                 start_from_rest_duration=0.0,
+                 init_method="bdf", init_pseudo_steps=1):
     if gamma not in (0.0, 0.25):
         raise ValueError("gamma must be 0.0 (open) or 0.25 (closed)")
     if not np.isfinite(rotation):
@@ -132,6 +133,10 @@ def build_system(gamma, mesh, final_time, save_dt, max_step,
         )
     if algebraic_initial_guess not in ("zero", "ep", "ep_wall"):
         raise ValueError("unknown algebraic initial guess")
+    if init_method not in ("bdf", "pseudo"):
+        raise ValueError("unknown initialization method")
+    if init_pseudo_steps < 1:
+        raise ValueError("init_pseudo_steps must be >= 1")
     if algebraic_initial_guess != "zero" and initial_profile != "rigid":
         raise ValueError("algebraic initial guess requires rigid profile")
     if algebraic_initial_guess == "ep_wall" and (
@@ -331,11 +336,14 @@ def build_system(gamma, mesh, final_time, save_dt, max_step,
         # from -1e-9 to t=0 to initialize the algebraic variables.
         # PETSc BDF2 bootstraps with an internal half-step.
         # This replaces the historical pseudo-TS *for this model*.
-        init_step=init_step, init_step_nb_iter=1,
-        init_step_ts_type="bdf", init_step_bdf_order=2,
-        init_step_dt=init_dt, init_step_from_negative_time=True,
-        # Stop rather than silently accept the ~1e24 initial-state
-        # blow-up previously observed in pseudo-TS.
+        init_step=init_step,
+        init_step_nb_iter=init_pseudo_steps if init_method == "pseudo" else 1,
+        init_step_ts_type=init_method, init_step_bdf_order=2,
+        init_step_dt=init_dt,
+        init_step_from_negative_time=(init_method == "bdf"),
+        # This guard is now checked for both BDF2 and pseudo by
+        # DPHS.init_step() when explicitly configured, preventing
+        # a misleading "success" from earlier ~1e24 pseudo-TS blowups.
         init_step_max_norm_amplification=100.0,
     )
     if ts_type == "arkimex":
@@ -529,6 +537,18 @@ def main():
     parser.add_argument("--ramp-start", type=float, default=75.0)
     parser.add_argument("--ramp-end", type=float, default=200.0)
     parser.add_argument(
+        "--init-method", choices=("bdf", "pseudo"), default="bdf",
+        help="DIAGNOSTIC initialization integrator, bdf (default, "
+             "one step from t=-init_dt to zero) or PETSc pseudo (steady-"
+             "state pseudo time, NOT a DAE-consistency projection). "
+             "The physical simulation time integrator is unchanged.",
+    )
+    parser.add_argument(
+        "--init-pseudo-steps", type=int, default=1,
+        help="Maximum PETSc pseudo initialization steps (default 1). "
+             "Only used with --init-method pseudo.",
+    )
+    parser.add_argument(
         "--start-from-rest-duration", type=float, default=0.0,
         help="DIAGNOSTIC ONLY: initialize rigid momentum at zero and "
              "multiply the physical facet-tangential wall rotation by "
@@ -539,6 +559,8 @@ def main():
              "algebraic guesses. Disabled by default.",
     )
     args = parser.parse_args()
+    if args.init_pseudo_steps < 1:
+        parser.error("--init-pseudo-steps must be >= 1")
     if args.start_from_rest_duration < 0 or not np.isfinite(
         args.start_from_rest_duration
     ):
@@ -588,7 +610,9 @@ def main():
             f"TS={args.ts_type}, TSAdapt={args.adapt_type}, "
             f"pseudo_init={not args.no_init_step}, "
             f"dt={args.max_step}, t_f={args.final_time}, "
-            f"init_dt={args.init_dt}, rotation={args.rotation}, "
+            f"init_dt={args.init_dt}, init_method={args.init_method}, "
+            f"init_pseudo_steps={args.init_pseudo_steps}, "
+            f"rotation={args.rotation}, "
             f"initial_profile={args.initial_profile}, "
             f"wall_velocity_profile={args.wall_velocity_profile}, "
             f"algebraic_initial_guess={args.algebraic_initial_guess}, "
@@ -607,7 +631,9 @@ def main():
                        initial_profile=args.initial_profile,
                        wall_velocity_profile=args.wall_velocity_profile,
                        algebraic_initial_guess=args.algebraic_initial_guess,
-                       start_from_rest_duration=args.start_from_rest_duration)
+                       start_from_rest_duration=args.start_from_rest_duration,
+                       init_method=args.init_method,
+                       init_pseudo_steps=args.init_pseudo_steps)
     if args.petsc_monitor:
         # PETSc's -ts_monitor/-ts_adapt_monitor are VIEWER-valued
         # command-line flags, not Boolean-valued TS settings.
