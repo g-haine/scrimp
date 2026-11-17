@@ -938,6 +938,8 @@ class DPHS:
             convert_gmm_to_petsc(
                 self.gf_model.tangent_matrix(),
                 self.mass,
+                profiler=self.profiler,
+                profile_label=f"{self._profile_phase}.bridge.mass",
             )
         _mpi_trace("mass: PETSc matrix assembled")
 
@@ -969,6 +971,8 @@ class DPHS:
             convert_gmm_to_petsc(
                 self.gf_model.tangent_matrix(),
                 self.stiffness,
+                profiler=self.profiler,
+                profile_label=f"{self._profile_phase}.bridge.stiffness",
             )
         _mpi_trace("stiffness: PETSc matrix assembled")
 
@@ -1092,6 +1096,8 @@ class DPHS:
             convert_gmm_to_petsc(
                 self.gf_model.tangent_matrix(),
                 self.nl_mass,
+                profiler=self.profiler,
+                profile_label=f"{self._profile_phase}.bridge.nl_mass",
             )
         _mpi_trace("nl_mass: PETSc matrix assembled")
         _mpi_trace("nl_mass: before PETSc copy/AXPY")
@@ -1142,6 +1148,8 @@ class DPHS:
             convert_gmm_to_petsc(
                 self.gf_model.tangent_matrix(),
                 self.nl_stiffness,
+                profiler=self.profiler,
+                profile_label=f"{self._profile_phase}.bridge.nl_stiffness",
             )
         _mpi_trace("nl_stiffness: PETSc matrix assembled")
         _mpi_trace("nl_stiffness: before PETSc copy/AXPY")
