@@ -446,7 +446,43 @@ for guess in ep ep_wall; do
       --adapt-type none --newton-block-trace
 done
 ```
-These runs were not yet executed in the target container.
+**Warm-started pseudo test actually failed (2026-11-17):** the
+open, rigid, `rigid_trace`, `ep_wall` configuration with
+`init_method=pseudo`, one pseudo step of `1e-8`,
+`mesh=0.2`, and `rotation=0.02` exited 1 under the
+norm-amplification safeguard. Initial e_p and U guesses
+were correctly installed (norms 0.326363837 and
+0.110561624). The final `||Y||` remained ~603,189
+and the total state norm was 603188.655 from an
+initial 110.001024. The dynamic audit (using the *accepted
+PETSc TS Vec*, not an intermediate GetFEM iterate) found:
+`h`: absolute change 3.70929095e-8, relative
+3.37208268e-10; `p`: absolute change 0.334753159,
+relative **1.02570543** (norm from 0.326363837 to
+0.329912882). Thus one very short pseudo step
+substantially alters the rotating dynamic state while
+still producing the same huge multiplier. The
+warm-started pseudo strategy cannot be considered a
+valid DAE-consistency projection. This does not prove a
+bug in TSPSEUDO, nor that every possible choice of pseudo
+parameters fails: only the stated configuration is tested.
+
+**Recommended next controlled experiment:** test the previously
+implemented **start-from-rest smooth spin-up** at
+`--start-from-rest-duration 0.02`, `--mesh 0.2`,
+`--rotation 0.02`, `--init-dt 1e-8`, `--max-step
+0.002`, `--final-time 0.01`, open case, physical
+`facet_tangent` wall, unchanged BDF initial TS and
+guard. Start at p=0, so the zero-rotation control is
+a meaningful reference initial state, and increase
+the actual physical wall drive smoothly after t=0.
+This is a *different initial-value problem*, not a fix
+for rotating p at t=0. Inspect startup acceptance,
+nonzero h/p evolution, power supply/dissipation, TS
+endpoint and the energy balance. If it works, next
+investigate DAE-constrained projection for the original
+rotating field rather than ever disabling the guard.
+
 Keep the standard BDF2 physical baseline unchanged.
 
 **Separate alternate initial-value experiment:** The sandbox
