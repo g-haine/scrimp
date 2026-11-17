@@ -159,7 +159,7 @@ def analyze(directory, prefix=None, *, rtol=1e-10, atol=1e-11):
                 "post_solve_rss_anon_mib":
                     end.get("RssAnon_kib", 0) / 1024,
                 "solve_wall_seconds": report["solve_wall_seconds_rank"],
-                "petcs_mat_memory_local_mib": sum(
+                "petsc_mat_memory_local_mib": sum(
                     float(info.get("memory", 0.))
                     for info in report["mat_info_after_solve_local"].values()
                 ) / 2**20,
