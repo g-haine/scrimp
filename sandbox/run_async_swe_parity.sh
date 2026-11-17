@@ -39,6 +39,15 @@ sudo docker run --rm \
         echo "PREFLIGHT: independent binary writer protocol tests"
         python -m unittest -q tests.test_async_binary_trajectory
 
+        echo "PREFLIGHT: load complete Saint-Venant driver before mpiexec"
+        if ! python -u sandbox/verify_async_swe.py --help \
+            > /artifacts/driver_import_preflight.log 2>&1; then
+            echo "FAILED: Saint-Venant driver import; no MPI started"
+            cat /artifacts/driver_import_preflight.log
+            exit 1
+        fi
+        echo "  PASS: Saint-Venant model and diagnostics imports"
+
         echo "REFERENCE: PETSc + in-RAM snapshots"
         env SCRIMP_GETFEM_MATRIX_MODE=distributed \
             SCRIMP_MUMPS_RESET_POLICY=on_change \
