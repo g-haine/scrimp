@@ -56,12 +56,59 @@ def ramp_expression(start=75.0, end=200.0):
     return f"(1. - 3.*({s})*({s}) + 2.*({s})*({s})*({s}))"
 
 
+def _set_diagnostic_initial_guess(swe, name, expression):
+    """Set an ALGEBRAIC GetFEM variable's starting value, not the PDE state.
+
+    SCRIMP.set_initial_value() intentionally accepts only dynamic
+    states. For this diagnostic, use the existing port FEM to evaluate
+    a given field, restrict boundary DOFs exactly as set_initial_value
+    does, and verify the GetFEM variable interval. This is not a
+    generally DAE-consistent initialization or a production option.
+    """
+    candidates = [
+        port for port in swe.ports.values()
+        if name in (port.get_flow(), port.get_effort())
+    ]
+    if len(candidates) != 1:
+        raise RuntimeError(
+            f"Expected one SCRIMP port for algebraic variable {name}"
+        )
+    port = candidates[0]
+    fem = port.get_fem()
+    values = np.asarray(fem.eval(expression, globals(), locals())).reshape(-1)
+    if port.get_region() is not None:
+        dofs = fem.basic_dof_on_region(port.get_region())
+        values = values[dofs]
+    start, count = swe.gf_model.interval_of_variable(name)
+    if values.size != int(count):
+        raise RuntimeError(
+            f"Initial guess for {name}: got {values.size} coefficients; "
+            f"GetFEM expects {count}"
+        )
+    if not np.all(np.isfinite(values)):
+        raise RuntimeError(f"Nonfinite initial guess for {name}")
+    swe.gf_model.set_variable(name, values)
+    actual = np.asarray(swe.gf_model.from_variables())[
+        int(start):int(start + count)
+    ]
+    if not np.allclose(actual, values, rtol=1e-12, atol=1e-14):
+        raise RuntimeError(f"GetFEM did not retain the {name} initial guess")
+    if rank == 0:
+        print(
+            f"[SCRIMP algebraic guess] {name}: "
+            f"norm={np.linalg.norm(actual):.9g}, "
+            f"maxabs={np.max(np.abs(actual)):.9g}",
+            flush=True,
+        )
+
+
 def build_system(gamma, mesh, final_time, save_dt, max_step,
                  ramp_start=75.0, ramp_end=200.0, init_step=True,
                  ts_type="arkimex", adapt_type="basic",
                  init_dt=1e-9, rotation=ROTATION,
                  initial_profile="tangent",
-                 wall_velocity_profile="facet_tangent"):
+                 wall_velocity_profile="facet_tangent",
+                 algebraic_initial_guess="zero"):
     if gamma not in (0.0, 0.25):
         raise ValueError("gamma must be 0.0 (open) or 0.25 (closed)")
     if not np.isfinite(rotation):
@@ -70,6 +117,17 @@ def build_system(gamma, mesh, final_time, save_dt, max_step,
         raise ValueError("unknown initial momentum profile")
     if wall_velocity_profile not in ("facet_tangent", "rigid_trace"):
         raise ValueError("unknown wall velocity profile")
+    if algebraic_initial_guess not in ("zero", "ep", "ep_wall"):
+        raise ValueError("unknown algebraic initial guess")
+    if algebraic_initial_guess != "zero" and initial_profile != "rigid":
+        raise ValueError("algebraic initial guess requires rigid profile")
+    if algebraic_initial_guess == "ep_wall" and (
+        gamma != 0.0 or wall_velocity_profile != "rigid_trace"
+    ):
+        raise ValueError(
+            "ep_wall initial guess requires open case and rigid_trace "
+            "diagnostic wall velocity to make both traces identical"
+        )
     if wall_velocity_profile == "rigid_trace" and (
         gamma != 0.0 or initial_profile != "rigid"
     ):
@@ -221,6 +279,17 @@ def build_system(gamma, mesh, final_time, save_dt, max_step,
         p_x = f"-({amplitude})*y/({radius}+{eps})"
         p_y = f"({amplitude})*x/({radius}+{eps})"
     swe.set_initial_value("p", f"[{p_x}, {p_y}]")
+
+    if algebraic_initial_guess != "zero":
+        # The dynamic state p is already initialized but the algebraic
+        # e_p and U default to zero. Test whether warm-starting these
+        # variables removes the 1/init_dt startup impulse in Y.
+        # This is a targeted initial-GUESS experiment, not a computed
+        # consistent DAE initial condition.
+        initial_velocity = f"[({rotation})*y, -({rotation})*x]"
+        _set_diagnostic_initial_guess(swe, "e_p", initial_velocity)
+        if algebraic_initial_guess == "ep_wall":
+            _set_diagnostic_initial_guess(swe, "U", initial_velocity)
 
     # Keep the paper-inspired ARKIMEX-A2 setting as the baseline.
     # Distinguish truncation-error rejections from a truly failed
@@ -398,6 +467,16 @@ def main():
              "be treated as a physically valid no-penetration model",
     )
     parser.add_argument(
+        "--algebraic-initial-guess",
+        choices=("zero", "ep", "ep_wall"),
+        default="zero",
+        help="DIAGNOSTIC ONLY: zero keeps historical algebraic initial "
+             "guesses; ep initializes e_p to p/rho; ep_wall additionally "
+             "initializes U to the matching rigid trace. ep_wall "
+             "requires open case, rigid profile and rigid_trace wall. "
+             "No production DAE initializer is changed.",
+    )
+    parser.add_argument(
         "--init-dt", type=float, default=1e-9,
         help="Tiny BDF2 initialization step, from -init-dt to t=0; "
              "default 1e-9",
@@ -424,6 +503,17 @@ def main():
     parser.add_argument("--ramp-start", type=float, default=75.0)
     parser.add_argument("--ramp-end", type=float, default=200.0)
     args = parser.parse_args()
+    if args.algebraic_initial_guess != "zero" and (
+        args.initial_profile != "rigid"
+    ):
+        parser.error("nonzero algebraic guess requires --initial-profile rigid")
+    if args.algebraic_initial_guess == "ep_wall" and (
+        args.case != "open" or args.wall_velocity_profile != "rigid_trace"
+    ):
+        parser.error(
+            "ep_wall guess requires --case open --wall-velocity-profile "
+            "rigid_trace"
+        )
     if args.wall_velocity_profile == "rigid_trace" and (
         args.case != "open" or args.initial_profile != "rigid"
     ):
@@ -451,6 +541,7 @@ def main():
             f"init_dt={args.init_dt}, rotation={args.rotation}, "
             f"initial_profile={args.initial_profile}, "
             f"wall_velocity_profile={args.wall_velocity_profile}, "
+            f"algebraic_initial_guess={args.algebraic_initial_guess}, "
             f"ramp_start={args.ramp_start}, ramp_end={args.ramp_end}",
             flush=True,
         )
@@ -463,7 +554,8 @@ def main():
                        init_dt=args.init_dt,
                        rotation=args.rotation,
                        initial_profile=args.initial_profile,
-                       wall_velocity_profile=args.wall_velocity_profile)
+                       wall_velocity_profile=args.wall_velocity_profile,
+                       algebraic_initial_guess=args.algebraic_initial_guess)
     if args.petsc_monitor:
         # PETSc's -ts_monitor/-ts_adapt_monitor are VIEWER-valued
         # command-line flags, not Boolean-valued TS settings.
