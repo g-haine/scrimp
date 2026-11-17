@@ -400,6 +400,68 @@ python sandbox/check_swe_initial_boundary_mismatch.py \\
     --meshes 0.2 0.15 0.1 --rotation 0.02
 ```
 
+**Algebraic-guess A/B tests rejected the initial-guess explanation
+(2026-11-17):** with the open `rigid_trace` case,
+rotation=0.02, mesh=0.2, and BDF2 `init_dt=1e-8`,
+the baseline zero algebraic guess, the `ep` warm start
+(prefilled ||e_p||=0.326363837), and the `ep_wall`
+warm start (also prefilled ||U||=0.110561624) all
+reached the same rejected BDF2 state
+`||Y||≈603,189` (`max|Y|=90,606.2`).
+The final total norm reported by the guard was
+603188.64 in both warm-start runs. Initial guesses
+alone do not remove the observed startup impulse.
+
+**Pseudo-TS versus BDF2, controlled diagnostic (2026-11-17):**
+The sandbox now exposes `--init-method {bdf,pseudo}`
+(default bdf) and `--init-pseudo-steps N` (default 1),
+using the existing `DPHS.init_step_ts_type` and
+`init_step_nb_iter` API. The previous Saint-Venant
+pseudo initialization had produced an enormous
+(~1e24) state norm, so the opt-in
+`init_step_max_norm_amplification=100` safety check is
+now applied to **all** initial TS schemes rather than
+only negative-start BDF2. Diagnostic environment
+`SCRIMP_INIT_DYNAMIC_STATE_AUDIT=1` prints actual
+changes in the differential states h and p after the
+initial solve. This is essential because PETSc
+`TSPSEUDO` targets `F(z,0)=0` (steady state):
+it does **not** guarantee a projection preserving the
+prescribed initial dynamic state or a physically valid
+DAE-consistent state. Do not treat reaching the maximum
+pseudo-step count as proof of steady-state convergence.
+
+Suggested isolated comparison at one rank (guard enabled):
+```sh
+for guess in ep ep_wall; do
+  SCRIMP_INIT_DYNAMIC_STATE_AUDIT=1 \\
+  SCRIMP_MUMPS_RESET_PC_ON_JACOBIAN=1 \\
+    python sandbox/viscous_swe_2d_mpi.py \\
+      --case open --mesh 0.2 --rotation 0.02 \\
+      --initial-profile rigid --wall-velocity-profile rigid_trace \\
+      --algebraic-initial-guess "$guess" \\
+      --init-method pseudo --init-pseudo-steps 1 \\
+      --init-dt 1e-8 --final-time 0.01 \\
+      --max-step 0.005 --save-dt 0.005 \\
+      --adapt-type none --newton-block-trace
+done
+```
+These runs were not yet executed in the target container.
+Keep the standard BDF2 physical baseline unchanged.
+
+**Separate alternate initial-value experiment:** The sandbox
+also accepts `--start-from-rest-duration 0.01`, restricted
+to the open case with rigid profile and physical
+`facet_tangent` wall. This starts h=5, p=0 and
+smoothly increases wall rotation from 0 at t=0 to
+the target rotation at 0.01 s, preserving the original
+long-time decaying ramp. It avoids prescribing an
+initially rotating dynamic state and is useful for
+testing transient dynamics and Hamiltonian/port balance;
+it intentionally solves a *different physical initial-
+value problem* and does not repair consistency of the
+original rotating state. The guard remains enabled.
+
 Never disable the state-amplification guard merely to
 force the main simulation forward.
 
