@@ -162,9 +162,12 @@ def build_system(gamma, mesh, final_time, save_dt, max_step,
                               [REGION_WALL], linear=False))
 
     # Full boundary velocity: U = U_n*n + rotation*f(t)*Rot*n.
-    # Rot=[[0,1],[-1,0]] is CLOCKWISE. The initial p must
-    # use this SAME orientation. The old p had the opposite sign,
-    # enforcing an abrupt change and a huge traction multiplier Y.
+    # The ramp is DECREASING: f(0)=1 for the default start=75 s.
+    # Rot=[[0,1],[-1,0]] is CLOCKWISE. Match the initial p sign,
+    # but beware: on a faceted disk, the imposed Rot*Normal is not
+    # exactly the trace of rigid-body p/rho=rotation*(y,-x).
+    # A small geometric mismatch can create an extremely large
+    # traction multiplier Y during a tiny BDF2 initialization step.
     vector_law = f"(-U + U_n*Normal + ({rotation})*({f})*Tangent).Test_U"
     swe.add_brick(S.Brick("Tangential wall actuation", vector_law,
                           [REGION_WALL], linear=False))
@@ -174,6 +177,8 @@ def build_system(gamma, mesh, final_time, save_dt, max_step,
     # Tangent=(y,-x). With e_p=p/rho the boundary condition needs
     # p/rho to point in this SAME direction; the old (-y,+x)
     # initialization was opposite to the imposed wall velocity.
+    # Even with this corrected sign, the prescribed tangent based on
+    # polygonal face normals is not exactly a smooth rigid-rotation trace.
     radius = "np.sqrt(x*x+y*y)"
     eps = 1e-6
     amplitude = RHO * rotation
@@ -184,7 +189,8 @@ def build_system(gamma, mesh, final_time, save_dt, max_step,
         p_y = f"-({amplitude})*x/({radius}+{eps})"
     elif initial_profile == "rigid":
         # Smooth rigid-body rotation, speed |rotation| at r=1,
-        # zero at the center; useful boundary-compatibility probe.
+        # zero at the center. This matches an ideal circular boundary,
+        # not the finite-element disk's facetwise Rot*Normal exactly.
         p_x = f"({amplitude})*y"
         p_y = f"-({amplitude})*x"
     else:  # legacy_opposite for diagnosing the prior sign error
@@ -352,9 +358,10 @@ def main():
         "--initial-profile",
         choices=("tangent", "rigid", "legacy_opposite"),
         default="tangent",
-        help="Initial momentum profile: tangent matches wall Rot*Normal "
-             "(default); rigid is smooth; legacy_opposite reproduces "
-             "the historical sign mistake",
+        help="Initial momentum profile: tangent approximates circular "
+             "wall velocity (default); rigid matches an ideal circle but "
+             "not polygonal facet normals exactly; legacy_opposite "
+             "reproduces the historical sign mistake",
     )
     parser.add_argument(
         "--init-dt", type=float, default=1e-9,
@@ -401,7 +408,8 @@ def main():
             f"pseudo_init={not args.no_init_step}, "
             f"dt={args.max_step}, t_f={args.final_time}, "
             f"init_dt={args.init_dt}, rotation={args.rotation}, "
-            f"initial_profile={args.initial_profile}",
+            f"initial_profile={args.initial_profile}, "
+            f"ramp_start={args.ramp_start}, ramp_end={args.ramp_end}",
             flush=True,
         )
     swe = build_system(gamma, args.mesh, args.final_time,
