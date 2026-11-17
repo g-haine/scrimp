@@ -85,7 +85,10 @@ if [[ "$mode" == pilot ]]; then
     ranks=(1 6)
     repetitions=1
 elif [[ "$mode" == sweep ]]; then
-    ranks=(1 2 4 6)
+    # Run the finer-mesh pilot from most to least parallel first.
+    # The 1-rank historical CSR case can be the slowest / memory-heavy.
+    # This does not affect the rank labels or the scaling analysis.
+    ranks=(6 4 2 1)
     repetitions=1
 else
     ranks=(1 2 4 6)
