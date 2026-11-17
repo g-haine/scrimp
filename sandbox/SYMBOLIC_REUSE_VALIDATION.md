@@ -352,14 +352,49 @@ The new mode is restricted to the open case with rigid
 initial momentum. It is **diagnostic only**: `Rot*X`
 has a nonzero normal component on polygonal facets and does
 not implement a physically admissible impermeable wall.
-Use the same BDF2 `init_dt=1e-8`, mesh=0.2, rotation=0.02
-and intact initial norm guard and compare the startup
-Y with the existing `facet_tangent` result. If Y drops
-by orders of magnitude, the discrete velocity-trace
-mismatch is a direct cause of the startup multiplier blow-up;
-if not, inspect additional algebraic constraints and scaling
-before making a claim. Do not treat a complete run under this
-altered boundary condition as physical validation.
+**Matched-vector-trace A/B test rejected the simple geometric
+explanation (2026-11-17):** at mesh=0.2, rotation=0.02,
+rigid initial profile and BDF2 `init_dt=1e-8`, the original
+`facet_tangent` wall yielded final `||Y||≈599,804`.
+The diagnostic `rigid_trace` wall, which exactly matches the
+initial rigid velocity *vector* along the polygon boundary,
+instead yielded `||Y||=603,188.64` with
+`max|Y|=90,606.2`; the corresponding original
+`max|Y|` was ~89,351.9. Both startups are rejected by the
+unchanged safety guard. Changing the wall-vector profile
+does **not** decrease Y; therefore the measured geometric
+vector mismatch cannot be presented as its dominant
+cause. In addition, `rigid_trace` violates the separate
+normal no-flux condition on facets, so this A/B is not
+a complete DAE-consistency test.
+
+**New targeted DAE-guess diagnostic:** SCRIMP's standard
+`set_initial_value()` only initializes dynamic states h,p;
+GetFEM's algebraic e_h,e_p,U_n,Y_n,U,Y start at zero.
+The initially nonzero p therefore disagrees with the
+constitutive relation e_p=p/rho and the velocity
+control U=omega*Rot*Normal (or omega*Rot*X in the
+altered-wall experiment). The sandbox now accepts
+`--algebraic-initial-guess ep` to prefill e_p=p/rho and
+`--algebraic-initial-guess ep_wall` to prefill both
+e_p and U with the exact rigid vector trace in the
+open-case rigid_trace experiment. Both are *initial
+guess* interventions and neither constructs guaranteed
+consistent DAE initial data. The normal no-flux and
+remaining algebraic constraints still require checking.
+The script validates each GetFEM variable's length
+and prints its initial norm, failing early on mismatch.
+
+Compare three separate short runs at the same mesh=0.2,
+rotation=0.02 and init_dt=1e-8:
+`rigid_trace`+zero guess (already failed, Y≈603,189),
+`rigid_trace`+ep, and `rigid_trace`+ep_wall.
+Keep the strict state-amplification guard and safe MUMPS
+reset enabled. An unchanged Y would suggest the impulse
+is not merely caused by zero algebraic initial guesses,
+and would motivate a proper DAE-consistent initialization
+or a discrete boundary inf-sup/constraint audit.
+Do not treat any one passed startup as physical validation.
 ```sh
 python sandbox/check_swe_initial_boundary_mismatch.py \\
     --meshes 0.2 0.15 0.1 --rotation 0.02
