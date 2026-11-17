@@ -100,6 +100,73 @@ Use `SCRIMP_MEMORY_TIMEOUT_S=1800` for a longer explicit per-run
 timeout. This prevents indefinite computation but is **not** a RAM
 limit.
 
+## First native result: 250-step baseline, archived 2026-11-17
+
+**Original benchmark source commit:** `c6b8a06e`.
+The user supplied the full run archive, including JSON and full initial/final
+NPZ arrays from both ranks and both saving policies. Both solves accepted
+**250 CN steps** without rejections or SNES failures, reaching `t_f=0.5`.
+
+| Metric per rank | Sparse save | Dense save |
+|---|---:|---:|
+| Saved states | 2 | 250 |
+| NumPy states payload | 0.732 MiB | 91.442 MiB |
+| Max rank RSS at the final TS.monitor | 521.309 MiB | 610.172 MiB |
+| Max rank resident-memory high-water mark (full solve) | 521.496 MiB | 792.992 MiB |
+| Max rank RSS after full solve | 521.496 MiB | 701.867 MiB |
+
+The **extra ~90.7 MiB** of retained samples corresponds closely
+to the dense-minus-sparse RSS gap at the end of time integration.
+But after the integration, the dense run also reaches a transient
+HWM **~182.8 MiB above** its final monitor RSS, close to **twice**
+the 91.4-MiB trajectory payload. Inspection of
+`_select_saved_solution_through_final_time()` reveals a full
+`np.asarray(states)` stack followed by *two* advanced-index copies
+(sort and final-time filter). The hypothesis is therefore **avoidable
+full-trajectory temporaries during final consolidation**, not an
+established MUMPS memory leak.
+
+Numerical comparison from the archived full NPZ coefficient vectors:
+
+- Initial state is **bitwise equal** in both saving policies and ranks.
+- Final state is **bitwise equal across ranks**, separately for each
+  saving policy.
+- Dense vs sparse final state: max absolute error **3.182885e-10**,
+  relative L2 **3.178072e-11**, relative scaled Linf **2.604048e-11**.
+- Both logs show exactly 250 CN steps and 250 linear iterations.
+- The dense final snapshot was saved within the TS monitor, while the
+  sparse endpoint was captured by the **post-TS forced monitor** at
+  step `-1`. These different capture paths may account for tiny
+  floating-point differences, but no causality has yet been proved.
+- Separately, `set_time_scheme()` defaults `ts_adapt_dt_max` from
+  `dt_save`, an unfortunate coupling that did not visibly affect
+  this fixed-step `ts_adapt_type=none` experiment.
+
+The initial analyzer's componentwise `np.allclose(rtol=1e-10,
+atol=1e-11)` failed on a few components near zero despite the global
+small errors. The revised analyzer requires **both** global relative
+L2 and scaled Linf to be no more than `1e-10`; it records the exact
+max absolute and relative differences. This is **numerical agreement**,
+not bitwise equality and not proof of complete trajectory parity.
+
+## First targeted memory improvement
+
+Commit `0af04d7` rewrites the final-time trajectory selector in
+`scrimp/dphs.py` to **select timestamps/indices first and stack
+the retained state vectors only once**, rather than stacking and
+making multiple full-array filtered copies. The same timestamps,
+ordering, ULP correction and stored values are preserved by targeted
+regression tests; it does not change GetFEM/PETSc, the time scheme,
+MUMPS or the physical model.
+
+The **prediction** is a lower post-solve peak with the dense storage
+policy, possibly on the order of one or two 91.4-MiB full-array
+temporaries. A quantitative saving claim requires a second native
+Docker run at the same `h`, `dt`, `T` and MPI rank count.
+Compare the original `c6b8a06e` directory with the updated output
+directory; do not mix raw reports from distinct source commits within
+one per-run analysis.
+
 ## Decision process after collecting the traces
 
 1. If the dense/sparse RSS gap tracks retained saved-array bytes
