@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
+#
+# Copyright (C) 2015-2026 ISAE-SUPAERO -- GNU GPLv3
+# 
+# See the LICENSE file for license information.
+#
+# github: https://github.com/g-haine/scrimp
+#
+# ANALYSIS ONLY: reuse completed native runs after a historical-state
+# parity failure. No new PDE solves, no mpiexec, no fabricated baseline
+# gains. Output only three physically validated CURRENT MPI figures.
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 1
+root="$PWD"
+
+if (( $# > 1 )); then
+    echo "Usage: bash sandbox/analyze_existing_release120_scaling.sh [output_directory]" >&2
+    exit 2
+fi
+if (( $# == 1 )); then
+    out="$(realpath "$1")"
+else
+    # Select the newest completed report bundle, irrespective of the
+    # current Git commit (which changes as we update the plotting code).
+    out=""
+    shopt -s nullglob
+    dirs=( "$root"/sandbox/outputs/release120-coo-* )
+    shopt -u nullglob
+    if (( ${#dirs[@]} == 0 )); then
+        echo "No release120-coo output directories found" >&2
+        exit 2
+    fi
+    while IFS= read -r candidate; do
+        if [[ -s "$candidate/current_never_1r_rep1.json" &&
+              -s "$candidate/release_120_release_native_1r_rep1.json" ]]; then
+            out="$candidate"
+            break
+        fi
+    done < <(ls -dt "${dirs[@]}")
+fi
+if [[ ! -d "$out" || -z "$out" ]]; then
+    echo "No complete native benchmarking directory found" >&2
+    exit 2
+fi
+if [[ ! -s "$out/current_on_change_6r_rep1.json" ]]; then
+    echo "Missing complete MPI 6-rank COO results: $out" >&2
+    exit 1
+fi
+shopt -s nullglob
+files=( "$out"/current_never_1r_rep*.json )
+shopt -u nullglob
+reps="${#files[@]}"
+if (( reps < 1 || reps > 10 )); then
+    echo "Invalid 1..10 repetitions in $out" >&2
+    exit 2
+fi
+echo "SCRIMP existing-data analysis ONLY; NO new physical simulation."
+echo "Source results: $out"
+echo "Number of repetitions: $reps"
+sudo docker run --rm \
+    --user "$(id -u):$(id -g)" \
+    -e HOME=/tmp -e MPLBACKEND=Agg \
+    --cpuset-cpus="0,2" \
+    -v "$root/sandbox:/workspace/scrimp/sandbox:ro" \
+    -v "$out:/artifacts" \
+    scrimp-mpi:local \
+    bash -c '
+        set -euo pipefail
+        echo "DIAGNOSE: v1.2.0 vs current raw/sorted full state"
+        python -u sandbox/diagnose_release120_states.py \
+            --directory /artifacts
+        echo "VERIFY+PLOT: current COO/MPI 1/2/4/6 and never/on_change"
+        python -u sandbox/plot_release120_coo_scaling.py \
+            --directory /artifacts --repetitions "$1" --current-only
+    ' _ "$reps"
+echo "PASS: 3 current-version COO/MPI scaling figures."
+echo "NOTE: no valid v1.2.0 gain figure; release state parity failed."
+echo "Outputs: $out/{02_strong_scaling_coo,03_speedup_coo,04_efficiency_coo}.{png,svg}"
+echo "Reports: $out/{release_state_diagnostic,performance_summary}.json"
