@@ -198,9 +198,13 @@ def main():
     snap("after_solve", -1, float(system.last_ts_time))
 
     times = np.asarray(system.solution["t"], dtype=np.float64)
-    states = np.asarray(system.solution["z"])
+    # DO NOT use np.asarray(system.solution["z"]): when it is a list,
+    # stacking all saved states creates an extra O(n_dofs*n_saves) array,
+    # distorting the very memory usage we are trying to measure.
+    saved_states = system.solution["z"]
     dofs = int(system.gf_model.nbdof())
-    final_state = np.array(states[-1], copy=True)
+    first_state = np.array(saved_states[0], copy=True)
+    final_state = np.array(saved_states[-1], copy=True)
     convergence = {
         "reason": int(system.last_ts_converged_reason),
         "steps": int(system.last_ts_steps),
@@ -219,7 +223,10 @@ def main():
             or not np.isclose(
                 times[-1], args.final_time, atol=1e-12, rtol=0
             )
-            or states.ndim != 2 or states.shape[1] != dofs
+            or len(saved_states) != len(times)
+            or first_state.shape != (dofs,)
+            or final_state.shape != (dofs,)
+            or not np.all(np.isfinite(first_state))
             or not np.all(np.isfinite(final_state))):
         raise RuntimeError(
             "Invalid acoustic solve/endpoint/trajectory: "
@@ -271,7 +278,7 @@ def main():
     )
     np.savez_compressed(
         args.output_dir / (stem + "_state.npz"),
-        initial=np.asarray(states[0]),
+        initial=first_state,
         final=final_state,
         first_saved_time=float(times[0]),
         final_time=float(times[-1]),
