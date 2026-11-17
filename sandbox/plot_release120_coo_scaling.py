@@ -355,7 +355,7 @@ def plot(directory, repetitions, *, current_only=False):
         },
         "baseline_median_s": baseline,
         "physical_parity_scope": (
-            "current_CO0_never_on_change_MPI_only"
+            "current_COO_never_on_change_MPI_only"
             if current_only else "current_and_release_v1.2.0"
         ),
         "release_comparison_accepted": not current_only,
