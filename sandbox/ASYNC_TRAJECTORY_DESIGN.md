@@ -297,6 +297,68 @@ backpressure signaling, and incomplete-manifest behavior. The next
 tests should be *fast binary-I/O subprocess tests* with no PDE
 integration.
 
+## Defensive binary archive v2 (2026-11-17)
+
+After the successful native linear and nonlinear physical parity gates,
+the I/O protocol was hardened **without touching the physical solver**.
+
+The independent writer now creates `scrimp-rank-binary-v2` archives
+with one CRC32 checksum per **rank-owned snapshot** in a companion
+`trajectory_rank####.crc32` file. The checksum is computed only in the
+separate writer process. The manifest is published atomically **after**
+all rank-specific data and checksum files have been completed.
+
+`LazyTrajectory` now validates, before exposing the archive:
+
+- total DoFs, rank count, sample count, finite times and index selection;
+- complete ownership range coverage, without gaps/overlaps/duplicates;
+- each binary file's exact size and rank-specific binary header;
+- each checksum file's expected size.
+
+**On each lazy state read** it checks the stored step/time/frame
+metadata, then computes and compares CRC32 for the requested local
+payload on each rank. Bad data raise an error rather than returning
+an apparently valid numerical state. This does **not** read all
+historical states into RAM; it verifies only the sample being accessed.
+
+**Backward compatibility:** The reader continues to accept existing
+`scrimp-rank-binary-v1` manifests from the user's already-validated
+acoustic/Saint-Venant experiments. The v1 archives lack CRC32 data,
+so they retain their original, more limited integrity guarantees.
+CRC32 detects common accidental corruption; it is **not** a
+cryptographic signature and does not protect against malicious
+modification by a party able to rewrite checksums.
+
+Pure-Python subprocess tests exercise both real/complex round trips,
+v1 compatibility, corrupted payload/header/frame/checksum and
+truncated files. GitHub source CI runs these tests with NumPy, without
+PETSc/GetFEM. The *native* v2 check is intentionally microscopic
+(**17 DoFs, 4 frames, 2 MPI ranks, no PDE**):
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+bash sandbox/run_async_binary_smoke.sh
+```
+
+The native readback requires the v2 manifest and verifies CRC32 while
+reconstructing all 17 coefficients of all four distributed snapshots.
+A successful **new native** run is still required to establish that
+the v2 protocol functions on the user's Docker PETSc image.
+
+### Remaining robustness work
+
+- Explicit writer death/disconnect test during active producer queues,
+  including prompt bounded termination rather than deadlock.
+- Failure-policy decision for sustained output backpressure (current
+  policy: fail fast instead of silently dropping states).
+- File-system full, unavailable/slow storage and interrupted-run tests.
+- Evaluate memory footprint and CPU cost of the reader after many
+  saved snapshots, without a new long physical PDE simulation.
+
+The normal SCRIMP `memory` backend remains the default while these
+fault-handling gates are open.
+
 ### MPI/multinode caveat
 
 The first writer uses Unix-domain sockets and a **shared local
