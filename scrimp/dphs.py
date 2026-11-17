@@ -940,6 +940,7 @@ class DPHS:
                 self.mass,
                 profiler=self.profiler,
                 profile_label=f"{self._profile_phase}.bridge.mass",
+                distributed_coo_eligible=True,
             )
         _mpi_trace("mass: PETSc matrix assembled")
 
@@ -973,6 +974,7 @@ class DPHS:
                 self.stiffness,
                 profiler=self.profiler,
                 profile_label=f"{self._profile_phase}.bridge.stiffness",
+                distributed_coo_eligible=True,
             )
         _mpi_trace("stiffness: PETSc matrix assembled")
 
