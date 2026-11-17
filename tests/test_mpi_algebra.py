@@ -142,6 +142,53 @@ class TestMPIAlgebra(unittest.TestCase):
         )
         self.assertEqual(saved_t[-1], 0.0003)
 
+    def test_final_solution_filter_avoids_multiple_copies_with_exact_values(self):
+        """Optimized trajectory consolidation must match the legacy output.
+
+        The legacy implementation stacked every state and then copied it
+        again for argsort and the final-time mask. These cases include
+        unsorted timestamps, ULP-roundoff, true STEPOVER, complex states,
+        NumPy pre-stacked input and all-rejected/empty trajectories.
+        """
+        from scrimp.dphs import _select_saved_solution_through_final_time
+
+        def legacy_filter(times, states, final):
+            t = np.asarray(times, dtype=float)
+            z = np.asarray(states)
+            ulps = 32.0 * abs(np.spacing(final if final else 1.0))
+            order = np.argsort(t)
+            t, z = t[order], z[order]
+            keep = t <= final + ulps
+            t, z = t[keep], z[keep]
+            t[np.abs(t - final) <= ulps] = final
+            return t, z
+
+        t = [0.00031, 0.00030000000000000003, 0.0001, 0.0]
+        for dtype in (np.float64, np.complex128):
+            rows = np.arange(4 * 7, dtype=np.float64).reshape((4, 7))
+            if dtype is np.complex128:
+                rows = rows + 1j * (rows + 0.125)
+            rows = rows.astype(dtype)
+            for input_states in (rows, list(rows)):
+                for final in (0.0003, -0.0001):
+                    expected_t, expected_z = legacy_filter(
+                        t, input_states, final
+                    )
+                    actual_t, actual_z = (
+                        _select_saved_solution_through_final_time(
+                            t, input_states, final
+                        )
+                    )
+                    np.testing.assert_array_equal(actual_t, expected_t)
+                    np.testing.assert_array_equal(actual_z, expected_z)
+                    self.assertEqual(actual_z.dtype, expected_z.dtype)
+                    self.assertEqual(actual_z.shape, expected_z.shape)
+        actual_t, actual_z = (
+            _select_saved_solution_through_final_time([], [], 0.1)
+        )
+        self.assertEqual(actual_t.shape, (0,))
+        self.assertEqual(actual_z.shape, (0,))
+
     def test_direct_ifunction_keeps_source_sign_separate_from_nonlinear_rhs(self):
         """MCSS2024 controls: GetFEM rhs=-N(z)+S, but F includes +N+S.
 
