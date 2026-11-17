@@ -49,6 +49,7 @@ sudo docker run --rm \
                     SCRIMP_TRAJECTORY_BACKEND=memory \
                     SCRIMP_GETFEM_MATRIX_MODE=distributed \
                     SCRIMP_MUMPS_RESET_POLICY=never \
+                    SCRIMP_MEMORY_PHASE_AUDIT_DIR="$dest" \
                     SCRIMP_BENCH_GIT_SHA="'"$sha"'" \
                     timeout -k 5s 180s mpiexec --bind-to none -n 2 \
                         python -u sandbox/verify_async_acoustic.py \
@@ -65,6 +66,7 @@ sudo docker run --rm \
                     SCRIMP_TRAJECTORY_BACKEND=memory \
                     SCRIMP_GETFEM_MATRIX_MODE=distributed \
                     SCRIMP_MUMPS_RESET_POLICY=on_change \
+                    SCRIMP_MEMORY_PHASE_AUDIT_DIR="$dest" \
                     SCRIMP_BENCH_GIT_SHA="'"$sha"'" \
                     timeout -k 5s 240s mpiexec --bind-to none -n 2 \
                         python -u sandbox/verify_async_swe.py \
@@ -91,6 +93,9 @@ sudo docker run --rm \
 
         echo "COMPARE: all coefficients, Hamiltonian, power and volume balances"
         python -u sandbox/compare_compact_matrix.py \
+            --directory /artifacts
+        echo "ATTRIBUTE: phase-resolved rank RSS during GetFEM/PETSc/MUMPS"
+        python -u sandbox/analyze_phase_memory.py \
             --directory /artifacts
     ' || {
         echo "FAILED: inspect solve logs in $out/{acoustic,swe}/{legacy,compact}" >&2
