@@ -27,9 +27,9 @@ jobs:
           python -m unittest -v tests.test_async_binary_trajectory tests.test_async_swe_comparison
       - name: Validate compact matrix algebra and A/B gates (no PETSc)
         run: |
-          python -m py_compile scrimp/utils/matrix_memory.py sandbox/matrix_memory_metrics.py sandbox/compare_compact_matrix.py tests/test_matrix_memory.py tests/test_compact_matrix_comparison.py
+          python -m py_compile scrimp/utils/matrix_memory.py scrimp/utils/phase_memory_audit.py sandbox/matrix_memory_metrics.py sandbox/compare_compact_matrix.py sandbox/analyze_phase_memory.py tests/test_matrix_memory.py tests/test_compact_matrix_comparison.py tests/test_phase_memory_audit.py
           bash -n sandbox/run_compact_matrix_parity.sh
-          python -m unittest -v tests.test_matrix_memory tests.test_compact_matrix_comparison
+          python -m unittest -v tests.test_matrix_memory tests.test_compact_matrix_comparison tests.test_phase_memory_audit
       - name: Validate SCRIMP source headers
         run: |
           python -m unittest -v tests.test_python_headers
