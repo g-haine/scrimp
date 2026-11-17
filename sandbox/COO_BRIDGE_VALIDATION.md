@@ -292,6 +292,23 @@ tests and the 48-run campaign establish the rationale for this
 default, but do **not** constitute separate validation for nonlinear
 Saint-Venant physics or systems using replicated GetFEM matrices.
 
+## Default COO native regression after activation (2026-11-17)
+
+Following the default switch on this branch, the user ran
+`tests.test_mpi_algebra.TestMPIAlgebra.test_real_getfem_distributed_coo_matches_existing_petsc_mat`
+under `scrimp-mpi:local`, **2 MPI ranks**, without explicitly setting the
+bridge method. **PASS on both ranks** (1 test/rank; 0 failures). This
+checks default COO selection on an eligible initialized PETSc matrix,
+repeat assembly and CSR structure/value parity with the original IJV
+transfer. The `-info` unused PETSc option warning is unrelated to COO
+and was not a test failure.
+
+COO is the default **assembly route** for initial distributed linear
+mass/stiffness. PETSc sparse **storage** remains AIJ/CSR; ineligible
+nonlinear matrices still use IJV and have not been switched by this
+change. An explicit `SCRIMP_GETFEM_BRIDGE_DISTRIBUTED=csr` retains the
+historical baseline.
+
 ## Validation gates before considering default activation
 
 1. Native GetFEM 5.5 / complex PETSc 3.26 tests in Docker:
