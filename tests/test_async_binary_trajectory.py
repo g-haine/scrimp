@@ -120,7 +120,7 @@ class AsyncBinaryTrajectoryTests(unittest.TestCase):
         path = self.directory / "trajectory_rank0000.bin"
         with path.open("r+b") as handle:
             handle.seek(IO.HEADER.size)
-            handle.write(b"\\x04")
+            handle.write(bytes([4]))
         with self.assertRaisesRegex(ValueError, "frame metadata"):
             reader[0]
 
