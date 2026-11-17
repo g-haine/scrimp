@@ -107,7 +107,11 @@ run_one() {
     printf 'RUN %s source=%s cpus=%s\n' "$label" "${sha:0:8}" "$cpus"
 
     local extras=()
+    # The historical control is a genuinely SEQUENTIAL Python process,
+    # not a one-rank MPI launcher. PETSc itself may be MPI-linked.
+    local launcher=(python -u)
     if [[ "$variant" == current ]]; then
+        launcher=(mpiexec --bind-to none -n "$n" python -u)
         extras=(
             SCRIMP_GETFEM_MATRIX_MODE=distributed
             SCRIMP_GETFEM_BRIDGE_DISTRIBUTED=coo
@@ -132,8 +136,7 @@ run_one() {
             -u SCRIMP_GETFEM_BRIDGE_DISTRIBUTED \
             -u SCRIMP_MATRIX_MEMORY_MODE \
             "${extras[@]}" \
-        mpiexec --bind-to none -n "$n" \
-        python -u sandbox/bench_wave_release_scaling.py \
+        "${launcher[@]}" sandbox/bench_wave_release_scaling.py \
             --variant "$variant" --policy "$policy" \
             --mesh "$mesh" --dt 0.002 --final-time 0.04 \
             --save-dt 0.01 --source-sha "$sha" \
