@@ -1,7 +1,7 @@
 # SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
 #
 # Copyright (C) 2015-2026 ISAE-SUPAERO -- GNU GPLv3
-#
+# 
 # See the LICENSE file for license information.
 #
 # github: https://github.com/g-haine/scrimp
@@ -52,9 +52,9 @@ def _model_matrix(system, block):
         if brick.get_linear() and bool(brick.get_dt()) == (block == "mass"):
             brick.enable_id_bricks(system.gf_model)
     system.gf_model.assembly(option="build_matrix")
-    result = system.gf_model.tangent_matrix()
-    system.disable_all_bricks()
-    return result
+    # Keep assembled GetFEM brick state until PETSc transfer completes,
+    # mirroring DPHS.assemble_mass()/assemble_stiffness().
+    return system.gf_model.tangent_matrix()
 
 
 def _raw_statistics(matrix, lo, hi):
@@ -211,6 +211,7 @@ def main():
             raise RuntimeError(
                 f"{block}: PETSc stored CSR differs after preallocation"
             )
+        system.disable_all_bricks()
 
     report = {
         "model": "examples/wave.py wave_eq (unchanged linear bricks)",
