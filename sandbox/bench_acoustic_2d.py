@@ -145,6 +145,16 @@ def main():
         pc_factor_mat_solver_type="mumps",
     )
     system.solve()
+    effective_policy = getattr(system, "_mumps_reset_policy", None)
+    if args.series in ("auto", "always"):
+        expected = "never" if args.series == "auto" else "always"
+        if effective_policy != expected:
+            raise RuntimeError(
+                f"Acoustic series={args.series} expected MUMPS reset "
+                f"policy {expected!r}, got {effective_policy!r}; "
+                "check SCRIMP_MUMPS_RESET_POLICY and the legacy "
+                "SCRIMP_MUMPS_RESET_PC_ON_JACOBIAN"
+            )
     mpi.Barrier()
     finished = time.perf_counter()
 
@@ -165,6 +175,7 @@ def main():
         "rectangle_mesh_h": args.mesh,
         "ts_type": "cn",
         "ts_adapt_type": "none",
+        "effective_mumps_reset_policy": effective_policy,
         "requested_final_time": args.final_time,
         "actual_final_time": t_petsc,
         "last_saved_time": t_saved,
