@@ -146,15 +146,24 @@ class RankSender:
                 "Increase max_queued, slow save cadence or use faster storage."
             ) from exc
 
-    def close(self):
-        """Drain all pending saves; waiting here is allowed after TS.solve."""
+    def close(self, *, timeout=60.):
+        """Bounded drain AFTER TS.solve; never hang forever on a dead writer."""
         if self._closed:
             return
         self._closed = True
         if self._error is not None:
             raise RuntimeError("Writer transport failed") from self._error
-        self._pending.put(None)
-        self._thread.join()
+        try:
+            self._pending.put(None, timeout=timeout)
+        except queue.Full as exc:
+            raise TimeoutError(
+                "Writer queue failed to drain during shutdown"
+            ) from exc
+        self._thread.join(timeout=timeout)
+        if self._thread.is_alive():
+            raise TimeoutError(
+                "Binary writer transport thread did not finish"
+            )
         if self._error is not None:
             raise RuntimeError("Writer transport failed") from self._error
 
