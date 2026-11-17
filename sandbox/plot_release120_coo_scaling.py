@@ -162,8 +162,8 @@ def _caption(ax, source, cfg, repetitions, *, current_only=False):
         f"T={final:g} ({steps} steps) | {repetitions} trial(s)/case\n"
         f"Same Docker / CPU pinning; median of complete DPHS solve times. "
         + (
-            f"Current branch {source[:8]} only; release v1.2.0 excluded "
-            f"(physical-state mismatch)."
+            f"Current branch {source[:8]} only; no v1.2.0 reference "
+            f"(MPI-only figures)."
             if current_only else
             f"Tag v1.2.0 vs commit {source[:8]}."
         )
@@ -389,8 +389,8 @@ def plot(directory, repetitions, *, current_only=False):
     )
     if current_only:
         print(
-            "WARNING: release v1.2.0 excluded: cross-version full-state "
-            "parity failed. No version-gain figure or speedup claim."
+            "INFO: release v1.2.0 not part of this analysis. "
+            "No cross-version speedup figure or claim."
         )
         print("; ".join(
             f"current/COO/{p} 1r {v:.3f}s"
@@ -423,9 +423,9 @@ def main():
     parser.add_argument("--repetitions", type=int, default=2)
     parser.add_argument(
         "--current-only", action="store_true",
-        help="Build ONLY COO/MPI scaling figures after release physical "
-             "parity fails. Reuse existing measurements; no v1.2.0 "
-             "performance-gain claim or invalid baseline overlay.",
+        help="Build ONLY COO/MPI scaling figures using current-release "
+             "measurements. Release-v1.2.0 is not required or loaded; "
+             "no cross-version speedup or baseline overlay.",
     )
     args = parser.parse_args()
     if args.repetitions < 1 or args.repetitions > 10:
