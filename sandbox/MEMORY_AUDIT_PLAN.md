@@ -167,6 +167,91 @@ Compare the original `c6b8a06e` directory with the updated output
 directory; do not mix raw reports from distinct source commits within
 one per-run analysis.
 
+## Validated after optimization: native 250-step rerun (2026-11-17)
+
+The user ran the exact paired 250-step protocol on the updated
+`3b5c287c` commit and provided the complete archive:
+`acoustic-memory-h0p04-dt0p002-T0p5-2r-3b5c287c.zip`.
+Both ranks, both save modes finished with 250 accepted CN steps,
+no rejections and no SNES failures, on the same 47,942-DoF mesh.
+
+The result has been independently compared with the user's archived
+`c6b8a06e` run using the **four per-rank JSONs and four NPZ endpoint
+vectors from each archive**:
+
+| Metric (per-rank maximum unless noted) | Before c6b8a06e | After 3b5c287c | Difference |
+|---|---:|---:|---:|
+| Dense saved states/rank | 250 | 250 | 0 |
+| Dense retained NumPy payload/rank | 91.442 MiB | 91.442 MiB | 0 |
+| **Dense maximum RSS high-water mark/rank** | **792.992 MiB** | **701.211 MiB** | **−91.781 MiB (−11.57%)** |
+| Sparse maximum RSS high-water mark/rank | 521.496 MiB | 519.613 MiB | −1.883 MiB |
+| Dense final TS.monitor RSS, max rank | 610.172 MiB | 609.836 MiB | −0.336 MiB |
+| Sparse final TS.monitor RSS, max rank | 521.309 MiB | 519.359 MiB | −1.950 MiB |
+| Dense solve wall, max MPI rank | 20.534 s | 21.047 s | +0.513 s |
+| Sparse solve wall, max MPI rank | 22.209 s | 20.213 s | −1.997 s |
+
+**Interpretation:** The dense-run memory high-water-mark improvement
+(~91.8 MiB) is essentially **one full saved trajectory array**
+(~91.4 MiB). The final in-TS RSS remains similar before and after;
+the optimization specifically avoids a post-integration temporary
+full-array allocation. This is measured, **not** a claimed native
+MUMPS/AIJ storage reduction.
+
+Time changes are from **one trial per condition**, so their signs
+must not be interpreted as meaningful speedups or regressions.
+
+### Memory growth during integration
+
+From the rank-0 snapshots of the new run:
+
+- Sparse save: RSS rises on first factorization/setup, reaches about
+  **519 MiB at step 50**, and remains around **519 MiB** through step
+  250 (not evidence of a per-step leak in this window).
+- Dense save: RSS rises from ~536 MiB (step 50) to ~610 MiB
+  (step 250), approximately **36.9 MiB per 100 steps** after initial
+  warm-up, consistent with the **~0.366 MiB full NumPy state per step**.
+- The dense and sparse runs share the same physical model and accepted
+  time steps; this isolates the extra RSS from storing trajectories
+  more convincingly than any single end-of-run peak can.
+
+### Numerical gates
+
+Initial states are byte-for-byte equal across runs, save modes and
+MPI ranks. Within the optimized rerun, dense vs sparse has:
+
+- max coefficient absolute difference **3.118110214e−10**;
+- global relative L2 **2.701016770e−11**;
+- scaled relative Linf **2.551053081e−11**.
+
+All pass the two independent relative `1e-10` gates. Comparing
+the **baseline vs optimized** full final states at the same save
+policy gives relative L2 approximately **6.78e−12** (sparse) and
+**8.39e−12** (dense), respectively. This is a confirmation of
+numerical equivalence to the observed tolerance, not bitwise parity.
+
+### Next measured bottleneck, not yet optimized
+
+`DPHS.monitor()` still gathers the **complete global state onto
+every MPI rank** and retains its NumPy copy at every save time.
+For 250 states, this requires ~91.44 MiB **per rank**, plus one
+further allocation to construct the final contiguous array.
+
+Potential next approaches require preserving the behavior of
+`compute_Hamiltonian()`, power evaluations, exports and
+`solution["z"]` consumers:
+
+1. Optional **disk-backed trajectory** (with bounded buffering) or
+   a memory-mapped result store, rather than retaining all snapshots
+   in every process.
+2. A genuinely collective/distributed save path that does not
+   gather the full state to every rank when the output is large.
+3. Separate, opt-in memory sampling of PETSc/MUMPS to attribute the
+   ~519-MiB baseline rather than treating `Mat.getInfo().memory=0`
+   as a valid estimate of native factor memory.
+
+No change to physical state storage API or factorization strategy is
+committed merely from these observations.
+
 ## Decision process after collecting the traces
 
 1. If the dense/sparse RSS gap tracks retained saved-array bytes
