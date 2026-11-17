@@ -30,53 +30,99 @@ import scipy.sparse as sp
 def convert_gmm_to_petsc(M, B, comm=comm):
     """Transfer GetFEM's globally numbered matrix into distributed PETSc.
 
-    For gf.Model.tangent_matrix() in the tested GetFEM Python MPI-2
-    builds, the returned sparse matrix is already globally assembled
-    and available on every rank. It must be inserted only once, using
-    the rows owned by each PETSc rank (the default 'replicated' mode).
+    SCRIMP_GETFEM_MATRIX_MODE controls ASSEMBLY SEMANTICS:
+    - replicated: each rank has the assembled global GetFEM matrix;
+      only PETSc-owned rows are inserted (INSERT_VALUES).
+    - distributed: each rank has partial contributions; all global
+      rows are added (ADD_VALUES) and PETSc performs the summation.
 
-    Other callers can explicitly select 'distributed' for partial
-    GetFEM contributions by setting SCRIMP_GETFEM_MATRIX_MODE.
-    Never automatically switch the assembly semantic from Newton step
-    to Newton step based on exact hashes of floating-point entries:
-    the prior heuristic caused unstable replicated/distributed mode
-    changes in a 2D nonlinear shallow-water solve.
+    The independent SCRIMP_GETFEM_BRIDGE_REPLICATED option controls
+    *extraction* in replicated mode:
+    - full (default): established whole-matrix CSR extraction.
+    - owned_rows (experimental): use GetFEM's documented Spmat('copy',
+      M, rows, columns) to extract only PETSc-owned rows before CSR
+      conversion. It preserves ALL global columns, including off-rank
+      couplings. Validate against 'full' on the target GetFEM build
+      before selecting it for production.
 
+    The distributed path deliberately remains unchanged: extracting
+    owned rows there would silently discard off-rank contributions.
     Every rank must enter this method; do not add external barriers.
     """
-    A = gf.Spmat("copy", M)
-    # GetFEM exposes CSC of the transpose; this yields CSR of M.
-    A.transpose()
-    row_ptr, col_idx = A.csc_ind()
-    values = A.csc_val()
-
-    row_ptr = np.asarray(row_ptr)
-    col_idx = np.asarray(col_idx)
-    values = np.asarray(values)
-    nrows, ncols = B.getSize()
-    if len(row_ptr) != nrows + 1:
-        raise ValueError(
-            f"GetFEM/PETSc row count mismatch on rank {comm.getRank()}: "
-            f"{len(row_ptr)-1} vs PETSc {nrows}"
-        )
-    if len(col_idx) != len(values) or int(row_ptr[-1]) != len(values):
-        raise ValueError("Invalid GetFEM CSR data (column/value count)")
-    if len(col_idx) and (min(col_idx) < 0 or max(col_idx) >= ncols):
-        raise ValueError("GetFEM CSR has columns outside the PETSc matrix")
-
-    mode = os.environ.get("SCRIMP_GETFEM_MATRIX_MODE", "replicated").lower()
+    mode = os.environ.get(
+        "SCRIMP_GETFEM_MATRIX_MODE", "replicated"
+    ).strip().lower()
     if mode not in ("replicated", "distributed"):
         raise ValueError(
             "SCRIMP_GETFEM_MATRIX_MODE must be replicated or distributed"
         )
+    extraction = os.environ.get(
+        "SCRIMP_GETFEM_BRIDGE_REPLICATED", "full"
+    ).strip().lower()
+    if extraction not in ("full", "owned_rows"):
+        raise ValueError(
+            "SCRIMP_GETFEM_BRIDGE_REPLICATED must be full or owned_rows"
+        )
+
+    nrows, ncols = B.getSize()
+    lo, hi = B.getOwnershipRange()
+    local_extraction = mode == "replicated" and extraction == "owned_rows"
+    if local_extraction:
+        # The GetFEM API accepts explicit row AND column lists. Passing
+        # only rows would select the same indices for columns, losing
+        # off-process couplings. Python range avoids building a huge
+        # NumPy index array; GetFEM may still allocate indices internally.
+        gf_shape = tuple(int(d) for d in M.size())
+        if gf_shape != (nrows, ncols):
+            raise ValueError(
+                f"GetFEM/PETSc shape mismatch on rank {comm.getRank()}: "
+                f"{gf_shape} vs {(nrows, ncols)}"
+            )
+        if hi > lo:
+            A = gf.Spmat("copy", M, range(lo, hi), range(ncols))
+            A.transpose()  # CSC of the transpose = CSR of local rows
+            row_ptr, col_idx = A.csc_ind()
+            values = A.csc_val()
+        else:
+            # Avoid depending on how GetFEM treats empty submatrices.
+            row_ptr = np.zeros(1, dtype=PETSc.IntType)
+            col_idx = np.empty(0, dtype=PETSc.IntType)
+            values = np.empty(0, dtype=PETSc.ScalarType)
+        extracted_rows = hi - lo
+    else:
+        # Stable reference and the mandatory distributed-contribution
+        # path: extract the entire globally numbered CSR matrix.
+        A = gf.Spmat("copy", M)
+        A.transpose()
+        row_ptr, col_idx = A.csc_ind()
+        values = A.csc_val()
+        extracted_rows = nrows
+
+    row_ptr = np.asarray(row_ptr)
+    col_idx = np.asarray(col_idx)
+    values = np.asarray(values)
+    if len(row_ptr) != extracted_rows + 1:
+        raise ValueError(
+            f"GetFEM/PETSc row count mismatch on rank {comm.getRank()}: "
+            f"{len(row_ptr)-1} vs expected {extracted_rows}"
+        )
+    if (not len(row_ptr) or int(row_ptr[0]) != 0
+            or len(col_idx) != len(values)
+            or int(row_ptr[-1]) != len(values)):
+        raise ValueError("Invalid GetFEM CSR data (row pointer/count)")
+    if len(col_idx) and (min(col_idx) < 0 or max(col_idx) >= ncols):
+        raise ValueError("GetFEM CSR has columns outside the PETSc matrix")
 
     trace = os.environ.get("SCRIMP_MPI_TRACE") == "1"
     if trace:
         print(
             f"[MPI {comm.getRank()}/{comm.getSize()}] "
-            f"GetFEM -> PETSc: rows={nrows}, nnz_stored={len(values)}, "
-            f"nnz_nonzero={np.count_nonzero(values)}, "
-            f"abs_sum={np.sum(np.abs(values)):.9g}, mode={mode}",
+            f"GetFEM -> PETSc: global_rows={nrows}, "
+            f"extracted_rows={extracted_rows}, "
+            f"nnz_stored_extracted={len(values)}, "
+            f"nnz_nonzero_extracted={np.count_nonzero(values)}, "
+            f"abs_sum_extracted={np.sum(np.abs(values)):.9g}, "
+            f"mode={mode}, extraction={extraction}",
             file=sys.stderr, flush=True,
         )
 
@@ -84,22 +130,24 @@ def convert_gmm_to_petsc(M, B, comm=comm):
     B.zeroEntries()
     B.setOption(PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR, False)
     try:
-        if mode == "replicated":
-            # Every rank holds the *whole* matrix; retain only PETSc-owned
-            # rows on that rank to avoid inserting the same entry P times.
-            lo, hi = B.getOwnershipRange()
-            if hi > lo:
-                begin, end = int(row_ptr[lo]), int(row_ptr[hi])
-                B.setValuesIJV(
-                    row_ptr[lo:hi + 1] - begin,
-                    col_idx[begin:end],
-                    values[begin:end],
-                    addv=PETSc.InsertMode.INSERT_VALUES,
-                    rowmap=np.arange(lo, hi, dtype=PETSc.IntType),
+        if mode == "replicated" and hi > lo:
+            if local_extraction:
+                local_ptr, local_cols, local_values = (
+                    row_ptr, col_idx, values
                 )
-        elif len(values):
-            # True distributed GetFEM contributions can include overlaps
-            # and off-process rows: sum by GLOBAL index in PETSc.
+            else:
+                begin, end = int(row_ptr[lo]), int(row_ptr[hi])
+                local_ptr = row_ptr[lo:hi + 1] - begin
+                local_cols = col_idx[begin:end]
+                local_values = values[begin:end]
+            B.setValuesIJV(
+                local_ptr, local_cols, local_values,
+                addv=PETSc.InsertMode.INSERT_VALUES,
+                rowmap=np.arange(lo, hi, dtype=PETSc.IntType),
+            )
+        elif mode == "distributed" and len(values):
+            # Distributed GetFEM data may contain overlaps and rows
+            # owned by OTHER PETSc ranks. Never discard those entries.
             B.setValuesIJV(
                 row_ptr, col_idx, values,
                 addv=PETSc.InsertMode.ADD_VALUES,
