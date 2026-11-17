@@ -211,6 +211,10 @@ if [[ "$bridge_arg" == both ]]; then
     echo "Analyzing and plotting the CSR/COO x MUMPS comparison in Docker..."
     shopt -s nullglob
     all_reports=("$out"/wave_*ranks_*.json)
+    container_reports=()
+    for report in "${all_reports[@]}"; do
+        container_reports+=("/artifacts/${report##*/}")
+    done
     if ! sudo docker run --rm \
         --user "$(id -u):$(id -g)" \
         -e HOME=/tmp \
@@ -222,8 +226,9 @@ if [[ "$bridge_arg" == both ]]; then
         -v "$out:/artifacts" \
         scrimp-mpi:local \
         python -u sandbox/analyze_acoustic_scaling.py \
-            /artifacts/wave_*ranks_*.json \
-            --plot-bridge-comparison /artifacts/comparaison_bridge; then
+            "${container_reports[@]}" \
+            --plot-bridge-comparison /artifacts/comparaison_bridge \
+            --bridge-policies "$policies_arg"; then
         echo "FAILED chart/report validation; raw JSON left intact" >&2
         exit 1
     fi
