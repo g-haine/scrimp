@@ -301,8 +301,12 @@ class TestMPIAlgebra(unittest.TestCase):
         mat.setUp()
         fake = FakeGetFEMDistributedMatrix()
         try:
-            with patch.dict(os.environ, {"SCRIMP_GETFEM_MATRIX_MODE": "distributed"}), \
-                    patch.object(linalg.gf, "Spmat", return_value=fake):
+            with patch.dict(os.environ, {
+                    "SCRIMP_GETFEM_MATRIX_MODE": "distributed",
+                    # Must have NO effect in distributed mode: incoming
+                    # contributions may target remote PETSc-owned rows.
+                    "SCRIMP_GETFEM_BRIDGE_REPLICATED": "owned_rows",
+                }), patch.object(linalg.gf, "Spmat", return_value=fake):
                 for _ in range(2):
                     # Reassembly must REPLACE old entries, not double the
                     # operator across Newton iterations.
@@ -354,6 +358,88 @@ class TestMPIAlgebra(unittest.TestCase):
                         y.destroy()
         finally:
             mat.destroy()
+
+    def test_replicated_owned_rows_matches_full_real_getfem(self):
+        """Experimental local extraction must preserve stored CSR AND values.
+
+        This checks native linear and state-dependent nonlinear tangents,
+        including GetFEM's explicit stored-zero slots on MPI builds.
+        A physical integral alone would NOT detect sparsity differences
+        that change MUMPS symbolic-factorization reuse.
+        Run at 1/2/4/6 ranks; PETSc owns different global rows on each.
+        """
+        gf = linalg.gf
+        mesh = gf.Mesh("cartesian", np.linspace(0.0, 1.0, 17))
+        mf = gf.MeshFem(mesh, 1)
+        mf.set_fem(gf.Fem("FEM_PK(1,1)"))
+        mim = gf.MeshIm(mesh, gf.Integ("IM_GAUSS1D(5)"))
+        # Keep the C++ GetFEM model dependencies alive until both PETSc
+        # matrices have been fully tested and destroyed.
+        _dependencies = (mesh, mf, mim)
+
+        for nonlinear in (False, True):
+            model = gf.Model("real")
+            model.add_fem_variable("u", mf)
+            if nonlinear:
+                model.add_nonlinear_term(mim, "u*u*Test_u")
+            else:
+                model.add_linear_term(mim, "u*Test_u")
+            n = int(model.nbdof())
+            full = PETSc.Mat().createAIJ(size=(n, n), comm=COMM)
+            local = PETSc.Mat().createAIJ(size=(n, n), comm=COMM)
+            full.setUp()
+            local.setUp()
+            try:
+                for c in (1.0, 2.0):
+                    model.set_variable("u", np.full(n, c))
+                    model.assembly(option="build_matrix")
+                    tangent = model.tangent_matrix()
+                    with patch.dict(os.environ, {
+                        "SCRIMP_GETFEM_MATRIX_MODE": "replicated",
+                        "SCRIMP_GETFEM_BRIDGE_REPLICATED": "full",
+                    }):
+                        linalg.convert_gmm_to_petsc(tangent, full)
+                    with patch.dict(os.environ, {
+                        "SCRIMP_GETFEM_MATRIX_MODE": "replicated",
+                        "SCRIMP_GETFEM_BRIDGE_REPLICATED": "owned_rows",
+                    }):
+                        linalg.convert_gmm_to_petsc(tangent, local)
+
+                    full_csr = full.getValuesCSR()
+                    local_csr = local.getValuesCSR()
+                    np.testing.assert_array_equal(
+                        local_csr[0], full_csr[0],
+                        err_msg="Owned-row extraction changed CSR row pointers",
+                    )
+                    np.testing.assert_array_equal(
+                        local_csr[1], full_csr[1],
+                        err_msg="Owned-row extraction changed stored columns",
+                    )
+                    np.testing.assert_allclose(
+                        local_csr[2], full_csr[2],
+                        rtol=1e-13, atol=1e-13,
+                        err_msg="Owned-row extraction changed matrix values",
+                    )
+
+                    x = full.createVecRight()
+                    y_full = full.createVecLeft()
+                    y_local = local.createVecLeft()
+                    try:
+                        x.set(1.0)
+                        full.mult(x, y_full)
+                        local.mult(x, y_local)
+                        np.testing.assert_allclose(
+                            y_local.getArray(readonly=True),
+                            y_full.getArray(readonly=True),
+                            rtol=1e-13, atol=1e-13,
+                        )
+                    finally:
+                        y_local.destroy()
+                        y_full.destroy()
+                        x.destroy()
+            finally:
+                local.destroy()
+                full.destroy()
 
     def test_real_getfem_mpi2_mass_matrix_is_rank_independent(self):
         """A real GetFEM model must integrate the constant 1 on [0,1].
