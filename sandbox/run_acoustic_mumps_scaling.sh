@@ -10,13 +10,13 @@
 # Strong scaling, fixed 2D acoustic mesh, historical CSR vs PETSc COO,
 # crossed independently with explicit MUMPS reset policies.
 #
-#   bash sandbox/run_acoustic_mumps_scaling.sh 0.02 sweep both never
+#   bash sandbox/run_acoustic_mumps_scaling.sh 0.02 sweep both never 3
 #   bash sandbox/run_acoustic_mumps_scaling.sh 0.04 pilot both never
 #   bash sandbox/run_acoustic_mumps_scaling.sh 0.04 full both never,always
 #   bash sandbox/run_acoustic_mumps_scaling.sh 0.04 full both never,on_change,always
 #
 # pilot = ranks 1,6 (1 repetition per variant);
-# sweep = ranks 1,2,4,6 (1 repetition per variant);
+# sweep = ranks 1,2,4,6 (default 1 repetition, override as arg 5);
 # full  = ranks 1,2,4,6 (5 repetitions per variant; reuses valid pilot/sweep).
 # Default policy set: never,always; on_change is opt-in for linear acoustics.
 # All SIMULATIONS and PLOTTING run inside scrimp-mpi:local (NOT host Conda).
@@ -30,11 +30,18 @@ mesh="${1:-0.04}"
 mode="${2:-pilot}"
 bridge_arg="${3:-both}"
 policies_arg="${4:-never,always}"
+sweep_repetitions="${5:-1}"
+
+if [[ ! "$sweep_repetitions" =~ ^[1-9][0-9]*$ ]] ||
+   (( sweep_repetitions > 10 )); then
+    echo "Repetition count must be an integer between 1 and 10" >&2
+    exit 2
+fi
 
 if [[ ! "$mesh" =~ ^0\.[0-9]+$ ]] ||
    [[ "$mode" != pilot && "$mode" != sweep && "$mode" != full ]] ||
    [[ "$bridge_arg" != csr && "$bridge_arg" != coo && "$bridge_arg" != both ]]; then
-    echo "Usage: bash sandbox/run_acoustic_mumps_scaling.sh 0.04 [pilot|sweep|full] [csr|coo|both] [never,always|never,on_change,always|...]" >&2
+    echo "Usage: bash sandbox/run_acoustic_mumps_scaling.sh 0.04 [pilot|sweep|full] [csr|coo|both] [never,always|never,on_change,always|...] [sweep_repetitions=1]" >&2
     exit 2
 fi
 case "$bridge_arg" in
@@ -89,7 +96,7 @@ elif [[ "$mode" == sweep ]]; then
     # The 1-rank historical CSR case can be the slowest / memory-heavy.
     # This does not affect the rank labels or the scaling analysis.
     ranks=(6 4 2 1)
-    repetitions=1
+    repetitions="$sweep_repetitions"
 else
     ranks=(1 2 4 6)
     repetitions=5
