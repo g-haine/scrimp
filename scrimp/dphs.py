@@ -230,10 +230,10 @@ def _control_expression_is_prescribed(expression, model_variables):
     # for a model symbol named 'e' or 'E'. Remove numeric literals
     # before extracting GWFL identifiers, without evaluating code.
     without_exponents = re.sub(
-        r"(?<![\\w.])(?:\\d+(?:\\.\\d*)?|\\.\\d+)[eE][+-]?\\d+\\b",
+        r"(?<![\w.])(?:\d+(?:\.\d*)?|\.\d+)[eE][+-]?\d+\b",
         "0", expression,
     )
-    symbols = set(re.findall(r"\\b[A-Za-z_][A-Za-z0-9_]*\\b", without_exponents))
+    symbols = set(re.findall(r"\b[A-Za-z_][A-Za-z0-9_]*\b", without_exponents))
     # Match complete identifiers, so Y and Y_n cannot be confused.
     unknowns = symbols.difference(_PRESCRIBED_CONTROL_SYMBOLS)
     return not symbols.intersection(model_variables) and not unknowns
