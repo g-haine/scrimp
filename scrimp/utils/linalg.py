@@ -41,7 +41,9 @@ def convert_gmm_to_petsc(
     SCRIMP_GETFEM_BRIDGE_REPLICATED controls only extraction in
     replicated mode: 'full' (default) or experimental 'owned_rows'.
 
-    For distributed mode, SCRIMP_GETFEM_BRIDGE_DISTRIBUTED=coo enables
+    For distributed mode, SCRIMP_GETFEM_BRIDGE_DISTRIBUTED=csr
+    selects the historical IJV/ADD_VALUES path (also called ijv).
+    SCRIMP_GETFEM_BRIDGE_DISTRIBUTED=coo enables
     native PETSc COO assembly only at call sites that explicitly declare
     distributed_coo_eligible=True (currently the initial LINEAR mass and
     stiffness matrices). Other calls retain the IJV/ADD_VALUES path,
@@ -76,9 +78,10 @@ def convert_gmm_to_petsc(
     distributed_method = os.environ.get(
         "SCRIMP_GETFEM_BRIDGE_DISTRIBUTED", "ijv"
     ).strip().lower()
-    if distributed_method not in ("ijv", "coo"):
+    if distributed_method not in ("ijv", "csr", "coo"):
         raise ValueError(
-            "SCRIMP_GETFEM_BRIDGE_DISTRIBUTED must be ijv or coo"
+            "SCRIMP_GETFEM_BRIDGE_DISTRIBUTED must be csr, coo or ijv "
+            "(legacy alias for csr)"
         )
     use_coo = (
         mode == "distributed" and distributed_method == "coo"
