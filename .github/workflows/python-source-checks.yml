@@ -30,6 +30,12 @@ jobs:
           python -m py_compile scrimp/utils/matrix_memory.py scrimp/utils/phase_memory_audit.py sandbox/matrix_memory_metrics.py sandbox/compare_compact_matrix.py sandbox/analyze_phase_memory.py tests/test_matrix_memory.py tests/test_compact_matrix_comparison.py tests/test_phase_memory_audit.py
           bash -n sandbox/run_compact_matrix_parity.sh
           python -m unittest -v tests.test_matrix_memory tests.test_compact_matrix_comparison tests.test_phase_memory_audit
+      - name: Validate v1.2.0 versus COO/MPI benchmark figures
+        run: |
+          python -m pip install 'matplotlib>=3.7,<4'
+          python -m py_compile sandbox/bench_wave_release_scaling.py sandbox/plot_release120_coo_scaling.py tests/test_release120_scaling_plots.py
+          bash -n sandbox/run_release120_coo_scaling.sh
+          python -m unittest -v tests.test_release120_scaling_plots
       - name: Validate SCRIMP source headers
         run: |
           python -m unittest -v tests.test_python_headers
