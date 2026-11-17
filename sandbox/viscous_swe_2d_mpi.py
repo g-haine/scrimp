@@ -60,13 +60,23 @@ def build_system(gamma, mesh, final_time, save_dt, max_step,
                  ramp_start=75.0, ramp_end=200.0, init_step=True,
                  ts_type="arkimex", adapt_type="basic",
                  init_dt=1e-9, rotation=ROTATION,
-                 initial_profile="tangent"):
+                 initial_profile="tangent",
+                 wall_velocity_profile="facet_tangent"):
     if gamma not in (0.0, 0.25):
         raise ValueError("gamma must be 0.0 (open) or 0.25 (closed)")
     if not np.isfinite(rotation):
         raise ValueError("rotation must be finite")
     if initial_profile not in ("tangent", "rigid", "legacy_opposite"):
         raise ValueError("unknown initial momentum profile")
+    if wall_velocity_profile not in ("facet_tangent", "rigid_trace"):
+        raise ValueError("unknown wall velocity profile")
+    if wall_velocity_profile == "rigid_trace" and (
+        gamma != 0.0 or initial_profile != "rigid"
+    ):
+        raise ValueError(
+            "rigid_trace is a diagnostic restricted to the open case "
+            "with rigid initial momentum"
+        )
     if (mesh <= 0 or final_time <= 0 or save_dt <= 0
             or max_step <= 0 or not np.isfinite(init_dt) or init_dt <= 0):
         raise ValueError("mesh and time parameters must be positive")
@@ -168,7 +178,21 @@ def build_system(gamma, mesh, final_time, save_dt, max_step,
     # exactly the trace of rigid-body p/rho=rotation*(y,-x).
     # A small geometric mismatch can create an extremely large
     # traction multiplier Y during a tiny BDF2 initialization step.
-    vector_law = f"(-U + U_n*Normal + ({rotation})*({f})*Tangent).Test_U"
+    #
+    # DIAGNOSTIC-ONLY 'rigid_trace': match the initial rigid p/rho
+    # exactly on the polygonal mesh, using omega*Rot*X instead of
+    # omega*Rot*Normal at t=0 (the decreasing ramp f(0)=1).
+    # This is deliberately NOT a physically admissible no-penetration
+    # condition on a faceted circle: Rot*X has a normal component.
+    # It isolates the proposed geometric incompatibility without
+    # changing GetFEM assembly, PETSc, or the BDF2 initializer.
+    wall_vector = (
+        "Tangent" if wall_velocity_profile == "facet_tangent"
+        else "(Rot*X)"
+    )
+    vector_law = (
+        f"(-U + U_n*Normal + ({rotation})*({f})*{wall_vector}).Test_U"
+    )
     swe.add_brick(S.Brick("Tangential wall actuation", vector_law,
                           [REGION_WALL], linear=False))
 
@@ -364,6 +388,16 @@ def main():
              "reproduces the historical sign mistake",
     )
     parser.add_argument(
+        "--wall-velocity-profile",
+        choices=("facet_tangent", "rigid_trace"),
+        default="facet_tangent",
+        help="Boundary tangential actuator: facet_tangent=Rot*Normal "
+             "(physical default); rigid_trace=Rot*X is a diagnostic "
+             "matching rigid initial p/rho at t=0, but has nonzero "
+             "normal velocity on a polygonal boundary and MUST NOT "
+             "be treated as a physically valid no-penetration model",
+    )
+    parser.add_argument(
         "--init-dt", type=float, default=1e-9,
         help="Tiny BDF2 initialization step, from -init-dt to t=0; "
              "default 1e-9",
@@ -390,6 +424,13 @@ def main():
     parser.add_argument("--ramp-start", type=float, default=75.0)
     parser.add_argument("--ramp-end", type=float, default=200.0)
     args = parser.parse_args()
+    if args.wall_velocity_profile == "rigid_trace" and (
+        args.case != "open" or args.initial_profile != "rigid"
+    ):
+        parser.error(
+            "--wall-velocity-profile rigid_trace is diagnostic-only "
+            "and requires --case open --initial-profile rigid"
+        )
     gamma = 0.0 if args.case == "open" else 0.25
     out = args.output_dir or (
         Path(__file__).resolve().parent / "outputs" / "viscous_swe_2d"
@@ -409,6 +450,7 @@ def main():
             f"dt={args.max_step}, t_f={args.final_time}, "
             f"init_dt={args.init_dt}, rotation={args.rotation}, "
             f"initial_profile={args.initial_profile}, "
+            f"wall_velocity_profile={args.wall_velocity_profile}, "
             f"ramp_start={args.ramp_start}, ramp_end={args.ramp_end}",
             flush=True,
         )
@@ -420,7 +462,8 @@ def main():
                        adapt_type=args.adapt_type,
                        init_dt=args.init_dt,
                        rotation=args.rotation,
-                       initial_profile=args.initial_profile)
+                       initial_profile=args.initial_profile,
+                       wall_velocity_profile=args.wall_velocity_profile)
     if args.petsc_monitor:
         # PETSc's -ts_monitor/-ts_adapt_monitor are VIEWER-valued
         # command-line flags, not Boolean-valued TS settings.
