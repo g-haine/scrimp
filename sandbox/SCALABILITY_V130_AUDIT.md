@@ -1,5 +1,31 @@
 # SCRIMP v1.3.0 — audit de scalabilité MPI, 17 novembre 2026
 
+> **Mise à jour scientifique (17 novembre 2026).** La relation
+> constitutive générale est **`M_c z = Q_c e`**, avec les coénergies
+> `e` comme inconnues algébriques indépendantes. La formule
+> `e=Qz` utilisée dans certaines analyses anciennes est uniquement
+> un cas réduit, non la formulation générale des DAE de SCRIMP.
+> Le préconditionneur doit agir sur le **système mixte non condensé**
+> et sur ses contraintes de port, avec un décalage
+> `sigma` pouvant varier à chaque pas adaptatif.
+> Voir **`sandbox/PH_STRUCTURE_PRECONDITIONING_V130.md`** pour
+> les blocs exacts à identifier et la construction Schur proposée.
+>
+> **Décision de conception :** pas d'optimisation de production
+> consistant à figer une LU numérique à décalage constant. Le
+> prototype à pas fixe a été retiré. Les résultats du profilage
+> PETSc (six factorisations numériques : initialisation + cinq
+> pas CN) restent un constat valable, mais orientent désormais
+> le travail vers une méthode Krylov/Schur compatible pas adaptatifs.
+> Le critère `E_6 >= 0.5` vise **uniquement les systèmes entièrement
+> linéaires à coefficients constants en temps**, mesurés sur
+> des maillages suffisamment grands.
+>
+> **Topologie CPU :** contrôle déjà effectué sur la machine utilisateur :
+> CPU logiques `0,2,4,6,8,10` = six cœurs physiques distincts,
+> même socket et même nœud NUMA. Ne pas redemander ce diagnostic ;
+> l'affinité effective des processus reste un paramètre testable.
+
 ## Résumé décisionnel
 
 **La cible de 50 % d'efficacité à 4 et 6 rangs n'est pas atteinte**
@@ -277,16 +303,15 @@ passante mémoire/NUMA.
    `MatLUFactorSymbolic`, `MatSolve`, `PCSetUp`,
    `MatAssemblyEnd`, collectives.
    Contrôle matériel des cœurs physiques.
-2. **Gate 1 (quick win possible).** Prototype opt-in
-   `constant_jacobian_factor_reuse` :
-   `KSP.setReusePreconditioner(True)` et/ou
-   `SNES` lagging persistant validés sur une
-   Jacobienne certifiée constante, afin d'éviter
-   les refactorisations MUMPS à chaque pas.
-   Comparer séparément LU numérique et MatSolve,
-   puis trajectoires complètes/Hamiltonien/puissances.
-   Les matrices non linéaires et les pas adaptatifs
-   restent sur le chemin sûr actuel.
+2. **Gate 1 (adaptive-compatible).** Identifier les blocs
+   différentiels `F`, constitutifs `M_c,Q_c`,
+   interconnexion `J`, dissipation `R` et ports
+   effectivement présents dans la DAE GetFEM/PETSc,
+   puis prototyper `FGMRES + PCFIELDSPLIT` / Schur.
+   La mise à jour du préconditionneur suit le shift
+   `sigma` du TS adaptatif, sans conserver une LU
+   numérique devenue incorrecte. Vérifier contraintes,
+   résidus, trajectoires et bilans port-hamiltoniens.
 3. **Gate 2.** Optimiser la projection initiale
    des contraintes DAE : éviter l'excès de
    factorisation globale sans modifier l'état
