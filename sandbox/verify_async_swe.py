@@ -31,6 +31,7 @@ from mpi4py import MPI
 # Import the adjacent module, as the acoustic sandbox driver does.
 from viscous_swe_2d_mpi import build_system, diagnostics
 from scrimp.utils.async_binary_trajectory import LazyTrajectory
+from matrix_memory_metrics import snapshot as matrix_memory_snapshot
 
 
 _DIAGNOSTICS = (
@@ -80,6 +81,7 @@ def main():
         init_method="bdf", height_order=2,
     )
     swe.solve()
+    memory_by_rank = mpi.allgather(matrix_memory_snapshot(swe, rank))
     is_disk = isinstance(swe.solution["z"], LazyTrajectory)
     if is_disk != (args.mode == "async_binary"):
         raise RuntimeError("Incorrect trajectory backend after PETSc solve")
@@ -157,6 +159,10 @@ def main():
             "ts_adapt_type": "none",
             "mumps_reset_policy": "on_change",
             "state_sha256": signature,
+            "matrix_memory_mode": os.environ.get(
+                "SCRIMP_MATRIX_MEMORY_MODE", "legacy"
+            ).strip().lower(),
+            "matrix_memory_per_rank": memory_by_rank,
             "minimum_water_height": float(np.min(height)),
             "energy_balance_defect_final":
                 float(arrays["balance"][-1]),
