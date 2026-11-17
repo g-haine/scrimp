@@ -74,6 +74,45 @@ The helper uses the actual `scrimp-mpi:local` image, the historical
 and `check_acoustic_state_parity.py` for every saved coefficient.
 Host Python reads JSON reports only; it never simulates.
 
+## Native end-to-end 2-rank acoustic validation (2026-11-17)
+
+User-confirmed full Docker A/B with `bash sandbox/run_acoustic_bridge_pair.sh
+0.08 2` on the *same* source commit `49bf3d59`, GetFEM 5.5,
+`h=0.08`, 12,682 DoFs, 20 fixed-step CN steps, `t_f=0.04`,
+`SCRIMP_GETFEM_MATRIX_MODE=distributed`, and automatically chosen MUMPS
+reset policy `never`:
+
+| Metric | Historical IJV | Experimental COO |
+|---|---:|---:|
+| `setup.bridge.mass` | 0.725561 s | 0.005618 s |
+| `setup.bridge.stiffness` | 0.785340 s | 0.018183 s |
+| Sum of those two setup bridge events | 1.510901 s | 0.023801 s |
+| `DPHS.solve()` max rank wall | 2.159889 s | 0.658418 s |
+| `main.petsc.ts_solve` | 0.509458 s | 0.494820 s |
+| Max per-rank peak RSS | 409.9 MiB | 411.9 MiB |
+
+Observed end-to-end speedup **3.2804×** (69.52% less wall time);
+the two measured bridge transfers accelerated **~63.5×** in aggregate.
+This is a **single paired trial**, not a statistically robust median;
+the timing gain must be checked over more ranks/meshes before release.
+
+The saved trajectories `state_ijv.npz` and `state_coo.npz` were independently
+re-inspected from the user's archived run, not merely inferred from the
+script's PASS status. Both have 20 timestamps and 20×12,682 coefficients
+(dtype `float64`; the validator also supports complex arrays, but this
+particular example is real). Timestamps are bitwise equal. Maximum
+absolute coefficient difference: **6.372680161348399e-14**; relative
+trajectory L2 difference: **7.476624355814846e-15**. Within each run,
+the MPI rank-to-rank coefficient difference is zero. All 20 steps were
+accepted; zero rejected steps and zero nonlinear solver failures; PETSc
+and final saved time are both 0.04. Physical variable norms match within
+round-off. No simulation errors occurred in the archived logs.
+
+**No memory saving claim**: COO had +~2 MiB peak per-rank RSS in this
+single run. No claim is made for nonconstant graph nonlinear Jacobians,
+complex-valued states, other MPI sizes, dissipative Saint-Venant or
+closed-loop heat-wave dynamics.
+
 ## Validation gates before considering default activation
 
 1. Native GetFEM 5.5 / complex PETSc 3.26 tests in Docker:
