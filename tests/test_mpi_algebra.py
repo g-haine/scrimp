@@ -359,6 +359,79 @@ class TestMPIAlgebra(unittest.TestCase):
         finally:
             mat.destroy()
 
+    def test_real_getfem_distributed_coo_matches_existing_petsc_mat(self):
+        """In-place COO must preserve the pre-initialized Mat and CSR.
+
+        Unlike the standalone sandbox probe, both matrices are created
+        by SCRIMP.init_matrix(), which inserts structural diagonal zeros
+        before the GetFEM bridge. Repeated transfers must preserve the
+        PETSc handle and exact stored CSR structure; the distributed
+        IJV path remains the default for ineligible nonlinear assemblies.
+        """
+        gf = linalg.gf
+        if int(gf.util_mpi_parallelism_level()) != 2:
+            self.skipTest("requires GetFEM MPI level 2")
+        mesh = gf.Mesh("cartesian", np.linspace(0., 1., 17))
+        mf = gf.MeshFem(mesh, 1)
+        mf.set_fem(gf.Fem("FEM_PK(1,1)"))
+        mim = gf.MeshIm(mesh, gf.Integ("IM_GAUSS1D(5)"))
+        model = gf.Model("real")
+        model.add_fem_variable("u", mf)
+        model.add_linear_term(mim, "u*Test_u")
+        n = model.nbdof()
+        system = _partial_dphs()
+        system.gf_model = model
+        reference = PETSc.Mat().create(comm=COMM)
+        candidate = PETSc.Mat().create(comm=COMM)
+        try:
+            system.init_matrix(reference)
+            system.init_matrix(candidate)
+            original_candidate = candidate
+            for _ in range(2):
+                model.assembly(option="build_matrix")
+                tangent = model.tangent_matrix()
+                with patch.dict(os.environ, {
+                    "SCRIMP_GETFEM_MATRIX_MODE": "distributed",
+                    "SCRIMP_GETFEM_BRIDGE_DISTRIBUTED": "coo",
+                }):
+                    # Eligibility must be opt-in at the CALL SITE,
+                    # not inferred from an environment variable alone.
+                    linalg.convert_gmm_to_petsc(tangent, reference)
+                    profiler = TimingProfiler(enabled=True)
+                    linalg.convert_gmm_to_petsc(
+                        tangent, candidate, profiler=profiler,
+                        profile_label="test.bridge",
+                        distributed_coo_eligible=True,
+                    )
+                self.assertIs(candidate, original_candidate)
+                self.assertEqual(
+                    profiler._calls["test.bridge.petsc.coo.preallocate"], 1
+                )
+                self.assertEqual(
+                    profiler._calls["test.bridge.petsc.coo.set_values"], 1
+                )
+                expected = reference.getValuesCSR()
+                actual = candidate.getValuesCSR()
+                np.testing.assert_array_equal(actual[0], expected[0])
+                np.testing.assert_array_equal(actual[1], expected[1])
+                np.testing.assert_allclose(
+                    actual[2], expected[2], rtol=1e-12, atol=1e-12
+                )
+                x = candidate.createVecRight()
+                y = candidate.createVecLeft()
+                try:
+                    x.set(1.)
+                    candidate.mult(x, y)
+                    self.assertAlmostEqual(
+                        float(np.real(x.dot(y))), 1., places=9
+                    )
+                finally:
+                    x.destroy()
+                    y.destroy()
+        finally:
+            candidate.destroy()
+            reference.destroy()
+
     def test_bridge_subphase_profile_uses_existing_profiler(self):
         """Bridge timings must be local-only, not new MPI collectives.
 
