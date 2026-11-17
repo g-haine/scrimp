@@ -134,7 +134,21 @@ and insufficient independent invariants require tests.
    In the closed loop, test the shifted storage and
    integrated closed-loop supply, not only H.
    Validate on 1 and 4 ranks separately before trusting
-   MPI scaling/performance measurements.
+   MPI scaling/performance measurements. The model
+   explicitly declares `TS.EquationType.DAE_IMPLICIT_INDEX2`;
+   that declaration is not a proof of the actual DAE index
+   nor a substitute for constraint-residual diagnostics.
+   `IJacobian` includes an opt-in/default finite-difference
+   correction for the state-dependent mass-matrix Hessian:
+   verify the fully assembled `IJacobian` against
+   independent residual finite differences for both
+   `zd=0` (stationary continuation) and nonzero `zd`.
+   The startup logs also show a `ComplexWarning`
+   when a PETSc vector is converted to real in
+   `DPHS._sync_lumped_trial_state`; identify and log
+   the imaginary component norm before assuming the
+   conversion is harmless. None of these warnings alone
+   demonstrates an error in the physical PDE.
 7. **Parameters and target**: `RHO=1`, `GRAVITY=0.1`,
    `VISCOSITY=1e-3`, `H_INITIAL=5`,
    `H_TARGET=4`, `ROTATION=0.2` (script default),
