@@ -30,16 +30,17 @@ COLOR = {"never": "#1266A7", "on_change": "#D26D32"}
 ROOT_COLOR = "#575C67"
 
 
-def _load_reports(directory, repetitions):
+def _load_reports(directory, repetitions, *, current_only=False):
     all_runs = {}
     cfg = None
     commits = {}
     reference_initial = reference_final = None
     numerical_errors = []
-    for label, ranks, policies in [
+    series = [("current", RANKS, POLICIES)] if current_only else [
         ("release_120", (1,), ("release_native",)),
         ("current", RANKS, POLICIES),
-    ]:
+    ]
+    for label, ranks, policies in series:
         for policy in policies:
             for rank in ranks:
                 values = []
@@ -136,8 +137,10 @@ def _load_reports(directory, repetitions):
                     })
                     values.append(data)
                 all_runs[(label, policy, rank)] = values
-    if len(set(commits.values())) != 2:
+    if not current_only and len(set(commits.values())) != 2:
         raise ValueError("Baseline and current source SHAs must differ")
+    if current_only and set(commits) != {"current"}:
+        raise ValueError("Current-only plot must not load release measurements")
     return all_runs, cfg, commits, numerical_errors
 
 
@@ -152,13 +155,18 @@ def _save(fig, base):
     plt.close(fig)
 
 
-def _caption(ax, source, cfg, repetitions):
+def _caption(ax, source, cfg, repetitions, *, current_only=False):
     _, h, ndof, _, dt, final, _, steps, _ = cfg
     caption = (
         f"Acoustic 2D | {ndof:,} DoFs | h={h:g} | CN dt={dt:g}, "
         f"T={final:g} ({steps} steps) | {repetitions} trial(s)/case\n"
         f"Same Docker / CPU pinning; median of complete DPHS solve times. "
-        f"Tag v1.2.0 vs commit {source[:8]}."
+        + (
+            f"Current branch {source[:8]} only; release v1.2.0 excluded "
+            f"(physical-state mismatch)."
+            if current_only else
+            f"Tag v1.2.0 vs commit {source[:8]}."
+        )
     )
     ax.figure.text(
         .09, .035, caption, fontsize=8.4, va="bottom",
@@ -166,48 +174,57 @@ def _caption(ax, source, cfg, repetitions):
     )
 
 
-def plot(directory, repetitions):
+def plot(directory, repetitions, *, current_only=False):
     directory = Path(directory)
-    runs, cfg, commits, errors = _load_reports(directory, repetitions)
+    runs, cfg, commits, errors = _load_reports(
+        directory, repetitions, current_only=current_only
+    )
     current_sha = commits["current"]
-    baseline = _stats(runs[("release_120", "release_native", 1)])[0]
+    baseline = (
+        None if current_only else
+        _stats(runs[("release_120", "release_native", 1)])[0]
+    )
     current_1 = {
         policy: _stats(runs[("current", policy, 1)])[0]
         for policy in POLICIES
     }
-    fig, ax = plt.subplots(figsize=(10.8, 6.0))
-    labels = ["SCRIMP v1.2.0\n1 processus", "Actuel + COO\n1 rang, never",
-              "Actuel + COO\n1 rang, on_change"]
-    values = [baseline, current_1["never"], current_1["on_change"]]
-    cols = [ROOT_COLOR, COLOR["never"], COLOR["on_change"]]
-    bars = ax.bar(labels, values, color=cols, width=.62)
-    for i, bar in enumerate(bars):
-        h = bar.get_height()
-        text = (f"{h:.2f} s" if i == 0 else
-                f"{h:.2f} s\n×{baseline/h:.1f} vs v1.2.0")
-        ax.annotate(
-            text, (bar.get_x() + bar.get_width()/2, h),
-            xytext=(0, 7), textcoords="offset points",
-            ha="center", va="bottom", fontsize=10, fontweight="bold",
+    # The release gain figure is ONLY legitimate when complete
+    # initial/final state parity with v1.2.0 has been demonstrated.
+    if not current_only:
+        fig, ax = plt.subplots(figsize=(10.8, 6.0))
+        labels = ["SCRIMP v1.2.0\n1 processus", "Actuel + COO\n1 rang, never",
+                  "Actuel + COO\n1 rang, on_change"]
+        values = [baseline, current_1["never"], current_1["on_change"]]
+        cols = [ROOT_COLOR, COLOR["never"], COLOR["on_change"]]
+        bars = ax.bar(labels, values, color=cols, width=.62)
+        for i, bar in enumerate(bars):
+            h = bar.get_height()
+            text = (f"{h:.2f} s" if i == 0 else
+                    f"{h:.2f} s\n×{baseline/h:.1f} vs v1.2.0")
+            ax.annotate(
+                text, (bar.get_x() + bar.get_width()/2, h),
+                xytext=(0, 7), textcoords="offset points",
+                ha="center", va="bottom", fontsize=10, fontweight="bold",
+            )
+        ax.set_ylim(0, max(values) * 1.26)
+        ax.set_ylabel("Temps de résolution (s) — médiane")
+        ax.set_title(
+            "Gain algorithmique : v1.2.0 vs SCRIMP actuel (1 seul rang)",
+            fontsize=14, weight="bold", loc="left", pad=18,
         )
-    ax.set_ylim(0, max(values) * 1.26)
-    ax.set_ylabel("Temps de résolution (s) — médiane")
-    ax.set_title(
-        "Gain algorithmique : v1.2.0 vs SCRIMP actuel (1 seul rang)",
-        fontsize=14, weight="bold", loc="left", pad=18,
-    )
-    ax.spines[["top","right"]].set_visible(False)
-    ax.grid(axis="y", alpha=.22)
-    ax.set_axisbelow(True)
-    _caption(ax, current_sha, cfg, repetitions)
-    fig.subplots_adjust(bottom=.21, left=.11, top=.88)
-    _save(fig, directory / "01_version120_vs_coo_serial")
+        ax.spines[["top","right"]].set_visible(False)
+        ax.grid(axis="y", alpha=.22)
+        ax.set_axisbelow(True)
+        _caption(ax, current_sha, cfg, repetitions)
+        fig.subplots_adjust(bottom=.21, left=.11, top=.88)
+        _save(fig, directory / "01_version120_vs_coo_serial")
 
     fig, ax = plt.subplots(figsize=(10.8, 6.0))
-    ax.axhline(
-        baseline, color=ROOT_COLOR, lw=1.7, ls="--",
-        label=f"v1.2.0 séquentielle ({baseline:.2f} s)"
-    )
+    if not current_only:
+        ax.axhline(
+            baseline, color=ROOT_COLOR, lw=1.7, ls="--",
+            label=f"v1.2.0 séquentielle ({baseline:.2f} s)"
+        )
     for policy in POLICIES:
         summary = [_stats(runs[("current", policy, n)]) for n in RANKS]
         meds = np.array([x[0] for x in summary])
@@ -234,7 +251,7 @@ def plot(directory, repetitions):
     ax.spines[["top","right"]].set_visible(False)
     ax.grid(alpha=.20)
     ax.legend(frameon=False, loc="upper right", fontsize=9.5)
-    _caption(ax, current_sha, cfg, repetitions)
+    _caption(ax, current_sha, cfg, repetitions, current_only=current_only)
     fig.subplots_adjust(bottom=.19, left=.11, top=.89)
     _save(fig, directory / "02_strong_scaling_coo")
 
@@ -266,7 +283,7 @@ def plot(directory, repetitions):
     ax.grid(alpha=.20)
     ax.spines[["top","right"]].set_visible(False)
     ax.legend(frameon=False, loc="upper left")
-    _caption(ax, current_sha, cfg, repetitions)
+    _caption(ax, current_sha, cfg, repetitions, current_only=current_only)
     fig.subplots_adjust(bottom=.19, left=.11, top=.89)
     _save(fig, directory / "03_speedup_coo")
 
@@ -297,7 +314,7 @@ def plot(directory, repetitions):
     ax.grid(alpha=.20)
     ax.spines[["top","right"]].set_visible(False)
     ax.legend(frameon=False)
-    _caption(ax, current_sha, cfg, repetitions)
+    _caption(ax, current_sha, cfg, repetitions, current_only=current_only)
     fig.subplots_adjust(bottom=.19, left=.11, top=.89)
     _save(fig, directory / "04_efficiency_coo")
 
@@ -319,12 +336,14 @@ def plot(directory, repetitions):
                 eff = 1.
             writer.writerow([
                 variant, policy, ranks, commits[variant], med, lo, hi,
-                baseline/med, strong, eff,
+                baseline/med if baseline is not None else "", strong, eff,
             ])
     report = {
         "provenance": {
-            "baseline_tag": "v1.2.0",
-            "baseline_commit": commits["release_120"],
+            "baseline_tag": (
+                None if current_only else "v1.2.0"
+            ),
+            "baseline_commit": commits.get("release_120"),
             "current_commit": current_sha,
             "benchmark_configuration": {
                 "example": cfg[0], "mesh_h": cfg[1], "dofs": cfg[2],
@@ -335,6 +354,11 @@ def plot(directory, repetitions):
             "repetitions": repetitions,
         },
         "baseline_median_s": baseline,
+        "physical_parity_scope": (
+            "current_CO0_never_on_change_MPI_only"
+            if current_only else "current_and_release_v1.2.0"
+        ),
+        "release_comparison_accepted": not current_only,
         "current_1rank_median_s": current_1,
         "initial_and_final_full_state_parity": {
             "max_final_relative_l2": max(e["final_rel_l2"] for e in errors),
@@ -344,6 +368,9 @@ def plot(directory, repetitions):
         },
         "notes": [
             "No COO or MUMPS never/on_change options retrofitted to v1.2.0.",
+            "No v1.2.0 performance gain may be asserted if current_only.",
+            "Current-only rank/policy comparisons are still checked for "
+            "complete initial and final state parity.",
             "Same wave.py source, same Docker image and same fixed-step CN.",
             "One rank for old release: this is a serial algorithm comparison.",
             "Strong scaling uses current 1-rank T1 for each MUMPS policy.",
@@ -357,16 +384,27 @@ def plot(directory, repetitions):
     )
     print(
         f"PASS: validated full initial/final states across all "
-        f"{len(errors)} runs; 4 PNG+SVG charts created."
+        f"{len(errors)} runs; "
+        f"{3 if current_only else 4} PNG+SVG charts created."
     )
-    print(
-        f"v1.2.0 median {baseline:.3f}s; "
-        + "; ".join(
-            f"current/COO/{p} 1r {v:.3f}s "
-            f"(×{baseline/v:.2f} vs release)"
-            for p, v in current_1.items()
+    if current_only:
+        print(
+            "WARNING: release v1.2.0 excluded: cross-version full-state "
+            "parity failed. No version-gain figure or speedup claim."
         )
-    )
+        print("; ".join(
+            f"current/COO/{p} 1r {v:.3f}s"
+            for p, v in current_1.items()
+        ))
+    else:
+        print(
+            f"v1.2.0 median {baseline:.3f}s; "
+            + "; ".join(
+                f"current/COO/{p} 1r {v:.3f}s "
+                f"(×{baseline/v:.2f} vs release)"
+                for p, v in current_1.items()
+            )
+        )
     for policy in POLICIES:
         print(
             "Current strong scaling " + policy + ": "
@@ -383,10 +421,16 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--directory", type=Path, required=True)
     parser.add_argument("--repetitions", type=int, default=2)
+    parser.add_argument(
+        "--current-only", action="store_true",
+        help="Build ONLY COO/MPI scaling figures after release physical "
+             "parity fails. Reuse existing measurements; no v1.2.0 "
+             "performance-gain claim or invalid baseline overlay.",
+    )
     args = parser.parse_args()
     if args.repetitions < 1 or args.repetitions > 10:
         parser.error("repetitions must be 1..10")
-    plot(args.directory, args.repetitions)
+    plot(args.directory, args.repetitions, current_only=args.current_only)
 
 
 if __name__ == "__main__":
