@@ -211,6 +211,293 @@ def plot_policy_comparison(paths, prefix, rtol, atol):
     print(f"Saved solve-time comparison: {times_file}")
 
 
+
+def plot_bridge_comparison(paths, prefix, rtol, atol, selected_policies):
+    """Plot honest CSR/COO x MUMPS comparisons on identical problem setups.
+
+    All reports must explicitly identify bridge_method, matrix mode and
+    source commit. A complete Cartesian grid of ranks, policies and
+    bridge methods with identical repetition counts is mandatory.
+    Legacy unlabelled reports are NOT silently assumed to mean CSR.
+    """
+    import csv
+    import math
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    allowed_policies = {"never", "on_change", "always", "auto"}
+    if selected_policies is not None:
+        selected = selected_policies.split(",")
+        if (not selected or len(set(selected)) != len(selected)
+                or any(x not in allowed_policies for x in selected)):
+            raise SystemExit("Invalid --bridge-policies selection")
+    else:
+        selected = None
+
+    groups = defaultdict(list)
+    reference_signature = None
+    reference_fields = None
+    commit_ref = None
+    for path in paths:
+        run = json.loads(path.read_text(encoding="utf-8"))
+        policy = run.get("series")
+        if selected is not None and policy not in selected:
+            continue
+        bridge = run.get("bridge_method")
+        if policy not in allowed_policies or bridge not in ("csr", "coo"):
+            raise SystemExit(
+                f"{path}: require explicit series=never/on_change/always "
+                "and bridge_method=csr/coo (old unlabelled JSON "
+                "cannot be mixed into this comparison)"
+            )
+        if run.get("getfem_matrix_mode") != "distributed":
+            raise SystemExit(f"{path}: expected distributed GetFEM matrix mode")
+        source_commit = run.get("benchmark_source_commit")
+        if not source_commit:
+            raise SystemExit(f"{path}: missing Git source commit metadata")
+        if commit_ref is None:
+            commit_ref = source_commit
+        elif source_commit != commit_ref:
+            raise SystemExit(
+                f"{path}: compared runs must use same Git commit "
+                f"({source_commit} vs {commit_ref})"
+            )
+        effective = "never" if policy == "auto" else policy
+        if run.get("effective_mumps_reset_policy") != effective:
+            raise SystemExit(
+                f"{path}: MUMPS reset policy is not {effective}"
+            )
+        if (run.get("ts_converged_reason", 0) <= 0
+                or run.get("ts_rejected_steps", 1) != 0
+                or run.get("ts_snes_failures", 1) != 0):
+            raise SystemExit(f"{path}: failed solver/convergence gate")
+        signature = (
+            int(run["degrees_of_freedom"]),
+            float(run["rectangle_mesh_h"]),
+            float(run["requested_final_time"]),
+            float(run["last_saved_time"]),
+            float(run["actual_final_time"]),
+            int(run["ts_steps"]),
+            str(run["ts_type"]),
+            str(run["ts_adapt_type"]),
+        )
+        if reference_signature is None:
+            reference_signature = signature
+            reference_fields = run["final_variable_norms"]
+        elif signature != reference_signature:
+            raise SystemExit(
+                f"{path}: different physical benchmark signature: "
+                f"{signature} vs {reference_signature}"
+            )
+        norms = run["final_variable_norms"]
+        if set(norms) != set(reference_fields):
+            raise SystemExit(f"{path}: different named physical fields")
+        for name, expected in reference_fields.items():
+            if not np.isclose(
+                float(norms[name]), float(expected), rtol=rtol, atol=atol
+            ):
+                raise SystemExit(
+                    f"{path}: physical mismatch in {name}: "
+                    f"{norms[name]} vs {expected}"
+                )
+        wall = float(run["wall_solve_seconds_max"])
+        if not math.isfinite(wall) or wall <= 0:
+            raise SystemExit(f"{path}: invalid solve time")
+        groups[policy, bridge, int(run["mpi_size"])].append(run)
+
+    if not groups:
+        raise SystemExit("No matching benchmark reports")
+
+    policies = sorted({p for p, b, n in groups})
+    if selected is not None and set(policies) != set(selected):
+        raise SystemExit(
+            f"Requested policies {selected} not all present: {policies}"
+        )
+    ranks = sorted({n for p, b, n in groups})
+    if 1 not in ranks or len(ranks) < 2:
+        raise SystemExit("Require MPI rank 1 and at least another rank")
+    expected_grid = {
+        (policy, bridge, rank)
+        for policy in policies for bridge in ("csr", "coo")
+        for rank in ranks
+    }
+    if set(groups) != expected_grid:
+        missing = sorted(expected_grid - set(groups))
+        raise SystemExit(
+            "Incomplete CSR/COO x MUMPS x MPI grid; "
+            f"missing {missing[:20]}"
+        )
+    counts = {len(group) for group in groups.values()}
+    if len(counts) != 1:
+        raise SystemExit(
+            "Unequal repetition counts across series: "
+            f"{sorted(counts)}"
+        )
+    nreps = counts.pop()
+    medians = {
+        key: statistics.median(
+            float(run["wall_solve_seconds_max"]) for run in records
+        )
+        for key, records in groups.items()
+    }
+
+    def color(policy):
+        return {
+            "never": "tab:blue",
+            "auto": "tab:blue",
+            "on_change": "tab:orange",
+            "always": "tab:red",
+        }[policy]
+
+    def label(policy, bridge):
+        policy_label = "auto→never" if policy == "auto" else policy
+        return f"{bridge.upper()} · MUMPS {policy_label}"
+
+    title_extra = (
+        f"{reference_signature[0]:,} DDL · "
+        f"{reference_signature[5]} pas CN · "
+        f"{nreps} répétition(s)/point · commit {commit_ref}"
+    ).replace(",", " ")
+
+    print(
+        f"Validated CSR/COO x MUMPS comparison: {title_extra}; "
+        f"ranks={ranks}"
+    )
+    print(
+        "| MUMPS | MPI | CSR (s) | COO (s) | CSR/COO (×) | "
+        "S_CSR(p) | S_COO(p) |"
+    )
+    print("|---|---:|---:|---:|---:|---:|---:|")
+    rows = []
+    for policy in policies:
+        for n in ranks:
+            old = medians[policy, "csr", n]
+            new = medians[policy, "coo", n]
+            s_old = medians[policy, "csr", 1] / old
+            s_new = medians[policy, "coo", 1] / new
+            print(
+                f"| {policy} | {n} | {old:.5f} | {new:.5f} | "
+                f"{old/new:.3f} | {s_old:.3f} | {s_new:.3f} |"
+            )
+            rows.append({
+                "source_commit": commit_ref,
+                "mumps_policy": policy,
+                "mpi_ranks": n,
+                "repetitions": nreps,
+                "csr_median_s": old,
+                "coo_median_s": new,
+                "coo_acceleration": old / new,
+                "csr_parallel_speedup": s_old,
+                "coo_parallel_speedup": s_new,
+                "csr_peak_rank_rss_mib": max(
+                    x["peak_rank_rss_kib"]
+                    for x in groups[policy, "csr", n]
+                ) / 1024,
+                "coo_peak_rank_rss_mib": max(
+                    x["peak_rank_rss_kib"]
+                    for x in groups[policy, "coo", n]
+                ) / 1024,
+            })
+
+    prefix.parent.mkdir(parents=True, exist_ok=True)
+    csv_file = Path(str(prefix) + "_summary.csv")
+    with csv_file.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=list(rows[0]))
+        writer.writeheader()
+        writer.writerows(rows)
+
+    # S(p) is ALWAYS relative to the rank-1 baseline of THAT
+    # policy/bridge. This is the actual parallel strong-scaling metric.
+    fig, ax = plt.subplots(figsize=(11.5, 7))
+    ax.plot(
+        ranks, ranks, "k--", linewidth=1.7,
+        label="Scalabilité idéale",
+    )
+    for policy in policies:
+        for bridge in ("csr", "coo"):
+            values = [
+                medians[policy, bridge, 1] / medians[policy, bridge, p]
+                for p in ranks
+            ]
+            ax.plot(
+                ranks, values, marker="o" if bridge == "csr" else "s",
+                linestyle="--" if bridge == "csr" else "-",
+                linewidth=2, markersize=6, color=color(policy),
+                label=label(policy, bridge),
+            )
+    ax.set(
+        xlabel="Nombre de rangs MPI (cœurs physiques distincts)",
+        ylabel="Accélération parallèle S(p) = T(1) / T(p)",
+        title="SCRIMP — Scalabilité forte CSR / COO\n" + title_extra,
+    )
+    ax.set_xticks(ranks)
+    ax.grid(alpha=0.3)
+    ax.legend(loc="best")
+    fig.tight_layout()
+    speed_file = Path(str(prefix) + "_speedup.png")
+    fig.savefig(speed_file, dpi=160)
+    plt.close(fig)
+
+    fig, ax = plt.subplots(figsize=(11.5, 7))
+    for policy in policies:
+        for bridge in ("csr", "coo"):
+            ax.plot(
+                ranks, [medians[policy, bridge, p] for p in ranks],
+                marker="o" if bridge == "csr" else "s",
+                linestyle="--" if bridge == "csr" else "-",
+                linewidth=2, markersize=6, color=color(policy),
+                label=label(policy, bridge),
+            )
+    ax.set(
+        xlabel="Nombre de rangs MPI (cœurs physiques distincts)",
+        ylabel="Temps médian DPHS.solve() (s)",
+        title="SCRIMP — Temps réels CSR / COO\n" + title_extra,
+    )
+    ax.set_xticks(ranks)
+    ax.grid(alpha=0.3)
+    ax.legend(loc="best")
+    fig.tight_layout()
+    times_file = Path(str(prefix) + "_times.png")
+    fig.savefig(times_file, dpi=160)
+    plt.close(fig)
+
+    fig, ax = plt.subplots(figsize=(11.5, 7))
+    for policy in policies:
+        ax.plot(
+            ranks,
+            [
+                medians[policy, "csr", p] / medians[policy, "coo", p]
+                for p in ranks
+            ],
+            "o-", linewidth=2, color=color(policy),
+            label=f"MUMPS {policy}",
+        )
+    ax.axhline(1, linestyle="--", color="black", alpha=0.5)
+    ax.set(
+        xlabel="Nombre de rangs MPI (cœurs physiques distincts)",
+        ylabel="Gain COO / CSR = T_CSR(p) / T_COO(p)",
+        title="SCRIMP — Gain du transfert COO à rang égal\n"
+        + title_extra,
+    )
+    ax.set_xticks(ranks)
+    ax.grid(alpha=0.3)
+    ax.legend(loc="best")
+    fig.tight_layout()
+    gain_file = Path(str(prefix) + "_coo_gain.png")
+    fig.savefig(gain_file, dpi=160)
+    plt.close(fig)
+
+    print(f"Saved: {speed_file}, {times_file}, {gain_file}")
+    print(f"Summary: {csv_file}")
+    print(
+        "S(p) uses an independent rank-1 baseline for each CSR/COO and "
+        "MUMPS combination. COO gain compares the SAME rank and policy. "
+        "All times are median full DPHS.solve() wall times; this does "
+        "not isolate MUMPS kernels or claim memory savings."
+    )
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("files", nargs="+", type=Path)
@@ -223,7 +510,25 @@ def main():
              "states, and save PREFIX_speedup.png and PREFIX_times.png. "
              "Normal single-campaign analysis is unchanged.",
     )
+    parser.add_argument(
+        "--plot-bridge-comparison", type=Path, metavar="PREFIX",
+        help="Compare explicit CSR/COO x MUMPS reports on the same "
+             "commit, plot speedup/times/COO gain, write summary CSV.",
+    )
+    parser.add_argument(
+        "--bridge-policies", type=str,
+        help="Comma-separated MUMPS series to include (e.g. "
+             "never,always or never,on_change,always).",
+    )
     args = parser.parse_args()
+    if args.plot_comparison is not None and args.plot_bridge_comparison is not None:
+        parser.error("Choose only one comparison plot mode")
+    if args.plot_bridge_comparison is not None:
+        plot_bridge_comparison(
+            args.files, args.plot_bridge_comparison,
+            args.rtol, args.atol, args.bridge_policies,
+        )
+        return
     if args.plot_comparison is not None:
         plot_policy_comparison(
             args.files, args.plot_comparison, args.rtol, args.atol
