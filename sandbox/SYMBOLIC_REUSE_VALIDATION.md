@@ -322,10 +322,44 @@ to compute L2/RMS norms of the mismatch between
 plus the normal velocity violation
 `omega*(X(2)*Normal(1)-X(1)*Normal(2))`.
 The diagnostic verifies the normal/tangential orthogonal
-decomposition. It is not yet run on the target Docker
-environment. A falling geometric mismatch would be useful
-independent evidence; a quantitative link to Y still needs
-careful analysis of the mixed boundary discretization.
+decomposition. **The geometric test passed on the target Docker
+environment (2026-11-17)** and returned the following independent
+boundary integrals for `rotation=0.02`:
+
+| Mesh h | Boundary length | Full trace mismatch L2 | Normal mismatch L2 | Tangential mismatch L2 | Full mismatch RMS |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 0.20 | 6.2736988581 | 0.002758570977 | 0.002749229120 | 0.000226832706 | 0.001101342322 |
+| 0.15 | 6.2773278613 | 0.002166518726 | 0.002161983129 | 0.000140115465 | 0.000864719079 |
+| 0.10 | 6.2805815932 | 0.001443787865 | 0.001442442853 | 0.000062305815 | 0.000576107403 |
+
+From nominal h=0.20 to 0.10, the integrated L2 trace mismatch
+drops ~47.7%; the mismatch is dominated by the **normal**
+component (roughly 99.3% to 99.8% of squared L2 mismatch).
+This independent geometric measurement supports the faceted-trace
+hypothesis and is consistent with the drop in observed `max|Y|`,
+but does NOT establish an equality between a velocity-trace norm
+and the nonphysical-sized coefficient vector of the boundary
+traction multiplier. The `-info` PETSc option warning in this
+geometry-only test is nonfatal; the exit code is zero.
+
+**Controlled causal test added:** the Saint-Venant sandbox now
+accepts `--wall-velocity-profile rigid_trace`, which replaces the
+default `Rot*Normal` wall actuation by `Rot*X` while keeping the
+original rigid initial momentum. Because `ramp(0)=1`, this
+makes the imposed vector U coincide **exactly** with the initial
+`e_p=p/rho` on the mesh at t=0; no other equation is altered.
+The new mode is restricted to the open case with rigid
+initial momentum. It is **diagnostic only**: `Rot*X`
+has a nonzero normal component on polygonal facets and does
+not implement a physically admissible impermeable wall.
+Use the same BDF2 `init_dt=1e-8`, mesh=0.2, rotation=0.02
+and intact initial norm guard and compare the startup
+Y with the existing `facet_tangent` result. If Y drops
+by orders of magnitude, the discrete velocity-trace
+mismatch is a direct cause of the startup multiplier blow-up;
+if not, inspect additional algebraic constraints and scaling
+before making a claim. Do not treat a complete run under this
+altered boundary condition as physical validation.
 ```sh
 python sandbox/check_swe_initial_boundary_mismatch.py \\
     --meshes 0.2 0.15 0.1 --rotation 0.02
