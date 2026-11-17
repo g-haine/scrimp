@@ -13,58 +13,103 @@
 #   1,2,4,6 ranks, exactly the same 2D acoustic example.
 # No long physical simulations: 20 fixed Crank-Nicolson steps per run.
 # Examples:
-#   bash sandbox/run_release120_coo_scaling.sh 0.08 1
 #   bash sandbox/run_release120_coo_scaling.sh 0.08 3
-#   bash sandbox/run_release120_coo_scaling.sh 0.04 2
+#   bash sandbox/run_release120_coo_scaling.sh 0.04 3 --mpi-only
+#   bash sandbox/run_release120_coo_scaling.sh --mpi-only 0.025 2
 set -euo pipefail
 
-mesh="${1:-0.08}"
-repetitions="${2:-2}"
+usage() {
+    cat <<'USAGE'
+Usage: bash sandbox/run_release120_coo_scaling.sh [--mpi-only] [mesh_h=0.08] [repetitions=2]
+
+  --mpi-only  Only CURRENT SCRIMP, COO + MUMPS never/on_change, at
+              1/2/4/6 MPI ranks. No v1.2.0 tag, worktree, run or
+              cross-version speedup claim. Three PNG + SVG figures.
+  -h, --help  Show this message.
+
+Default (without --mpi-only): additionally benchmark original v1.2.0
+on one process and require cross-version full-state parity before
+producing the four comparison figures.
+USAGE
+}
+
+mpi_only=0
+positional=()
+for arg in "$@"; do
+    case "$arg" in
+        --mpi-only) mpi_only=1 ;;
+        -h|--help) usage; exit 0 ;;
+        --*) echo "Unknown option: $arg" >&2; usage >&2; exit 2 ;;
+        *) positional+=("$arg") ;;
+    esac
+done
+if (( ${#positional[@]} > 2 )); then
+    usage >&2
+    exit 2
+fi
+mesh="${positional[0]:-0.08}"
+repetitions="${positional[1]:-2}"
 if [[ ! "$mesh" =~ ^0\.[0-9]+$ ]] ||
    [[ ! "$repetitions" =~ ^[1-9][0-9]*$ ]] ||
    (( repetitions > 10 )); then
-    echo "Usage: bash sandbox/run_release120_coo_scaling.sh [mesh_h=0.08] [repetitions=2, 1..10]" >&2
+    usage >&2
     exit 2
 fi
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 1
 root="$PWD"
 current_sha="$(git rev-parse HEAD)"
-git rev-parse -q --verify "refs/tags/v1.2.0^{commit}" >/dev/null ||
-    git fetch --tags origin
-release_sha="$(git rev-parse "refs/tags/v1.2.0^{commit}")"
-if [[ "$release_sha" == "$current_sha" ]]; then
-    echo "Current HEAD is the original tag; cannot compare identical sources" >&2
-    exit 2
-fi
 mkdir -p "$root/sandbox/outputs"
-out="$(mktemp -d "$root/sandbox/outputs/release120-coo-h${mesh//./p}-${current_sha:0:8}-XXXXXX")"
-baseline_src="$(mktemp -d "$root/sandbox/outputs/.bench-v120-source-XXXXXX")"
-# git worktree add requires a non-existent destination.
-rmdir "$baseline_src"
-cleanup() {
-    if [[ -d "$baseline_src/.git" || -f "$baseline_src/.git" ]]; then
-        git worktree remove --force "$baseline_src" >/dev/null 2>&1 || true
-    fi
-    [[ ! -d "$baseline_src" ]] || rm -rf "$baseline_src"
-}
-trap cleanup EXIT
 
-git worktree add --detach "$baseline_src" v1.2.0 >/dev/null
-if ! cmp -s "$baseline_src/examples/wave.py" "$root/examples/wave.py"; then
-    echo "STOP: wave.py differs between v1.2.0 and current source!" >&2
-    exit 1
+baseline_src=""
+release_sha=""
+if (( mpi_only )); then
+    out="$(mktemp -d "$root/sandbox/outputs/mpi-coo-h${mesh//./p}-${current_sha:0:8}-XXXXXX")"
+else
+    # The historical release is ONLY checked out for cross-version
+    # comparisons. --mpi-only never looks up the tag or creates a worktree.
+    git rev-parse -q --verify "refs/tags/v1.2.0^{commit}" >/dev/null ||
+        git fetch --tags origin
+    release_sha="$(git rev-parse "refs/tags/v1.2.0^{commit}")"
+    if [[ "$release_sha" == "$current_sha" ]]; then
+        echo "Current HEAD is the original tag; cannot compare identical sources" >&2
+        exit 2
+    fi
+    out="$(mktemp -d "$root/sandbox/outputs/release120-coo-h${mesh//./p}-${current_sha:0:8}-XXXXXX")"
+    baseline_src="$(mktemp -d "$root/sandbox/outputs/.bench-v120-source-XXXXXX")"
+    # git worktree add requires a non-existent destination.
+    rmdir "$baseline_src"
+    cleanup() {
+        if [[ -f "$baseline_src/.git" || -d "$baseline_src/.git" ]]; then
+            git worktree remove --force "$baseline_src" >/dev/null 2>&1 || true
+        fi
+        [[ ! -d "$baseline_src" ]] || rm -rf "$baseline_src"
+    }
+    trap cleanup EXIT
+    git worktree add --detach "$baseline_src" v1.2.0 >/dev/null
+    if ! cmp -s "$baseline_src/examples/wave.py" "$root/examples/wave.py"; then
+        echo "STOP: wave.py differs between v1.2.0 and current source!" >&2
+        exit 1
+    fi
 fi
 if ! sudo -v; then
     echo "sudo authentication failed" >&2
     exit 1
 fi
 
-printf 'SCRIMP original v1.2.0 vs COO MPI scaling | h=%s | reps=%s\n' \
-    "$mesh" "$repetitions"
-printf 'Baseline tag %s | Current commit %s\n' \
-    "${release_sha:0:10}" "${current_sha:0:10}"
-printf 'Example file: identical at BOTH revisions\n'
+if (( mpi_only )); then
+    printf 'SCRIMP CURRENT COO+MUMPS MPI ONLY | h=%s | reps=%s\n' \
+        "$mesh" "$repetitions"
+    printf 'Current commit: %s | policies: never, on_change | ranks: 1,2,4,6\n' \
+        "${current_sha:0:10}"
+    echo 'No v1.2.0 worktree or release run.'
+else
+    printf 'SCRIMP original v1.2.0 vs COO MPI scaling | h=%s | reps=%s\n' \
+        "$mesh" "$repetitions"
+    printf 'Baseline tag %s | Current commit %s\n' \
+        "${release_sha:0:10}" "${current_sha:0:10}"
+    echo 'Example file: identical at BOTH revisions.'
+fi
 printf 'Output: %s\n' "$out"
 pcores=(0 2 4 6 8 10)
 ranks=(1 2 4 6)
@@ -165,7 +210,9 @@ PY
 for rep in $(seq 1 "$repetitions"); do
     # The RELEASE control is run in its original source worktree,
     # always sequentially; never mislabel COO/on_change as v1.2.0.
-    run_one "$baseline_src" release_120 release_native 1 "$rep" "$release_sha"
+    if (( !mpi_only )); then
+        run_one "$baseline_src" release_120 release_native 1 "$rep" "$release_sha"
+    fi
     for n in "${ranks[@]}"; do
         # Rotate policy order to reduce cache/thermal bias.
         if (( rep % 2 == 0 )); then
@@ -180,6 +227,10 @@ for rep in $(seq 1 "$repetitions"); do
 done
 
 echo "VALIDATE + PLOT: all initial/final coefficients and all rank cases"
+plot_flags=()
+if (( mpi_only )); then
+    plot_flags+=(--current-only)
+fi
 sudo docker run --rm \
     --user "$(id -u):$(id -g)" \
     -e HOME=/tmp -e MPLBACKEND=Agg \
@@ -188,8 +239,13 @@ sudo docker run --rm \
     -v "$out:/artifacts" \
     scrimp-mpi:local \
     python -u sandbox/plot_release120_coo_scaling.py \
-        --directory /artifacts --repetitions "$repetitions"
+        --directory /artifacts --repetitions "$repetitions" \
+        "${plot_flags[@]}"
 
-echo "SUCCESS. Four PNG + SVG figures, CSV and full data:"
+if (( mpi_only )); then
+    echo "SUCCESS. Three COO/MPI-only PNG + SVG figures, CSV and full data:"
+else
+    echo "SUCCESS. Four PNG + SVG figures, CSV and full data:"
+fi
 ls -lh "$out"/*.png "$out"/*.svg "$out"/*.csv "$out"/*.json | tail -n 26
 echo "Results: $out"
