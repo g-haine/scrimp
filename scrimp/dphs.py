@@ -226,7 +226,14 @@ def _control_expression_is_prescribed(expression, model_variables):
     """
     if not isinstance(expression, str) or not expression.strip():
         return False
-    symbols = set(re.findall(r"\b[A-Za-z_][A-Za-z0-9_]*\b", expression))
+    # Scientific notation (e.g. 1e-8, 2.5E+4) must not be mistaken
+    # for a model symbol named 'e' or 'E'. Remove numeric literals
+    # before extracting GWFL identifiers, without evaluating code.
+    without_exponents = re.sub(
+        r"(?<![\\w.])(?:\\d+(?:\\.\\d*)?|\\.\\d+)[eE][+-]?\\d+\\b",
+        "0", expression,
+    )
+    symbols = set(re.findall(r"\\b[A-Za-z_][A-Za-z0-9_]*\\b", without_exponents))
     # Match complete identifiers, so Y and Y_n cannot be confused.
     unknowns = symbols.difference(_PRESCRIBED_CONTROL_SYMBOLS)
     return not symbols.intersection(model_variables) and not unknowns
