@@ -1,6 +1,7 @@
 # SCRIMP: asynchronous distributed binary trajectories
 
-Status: **standalone prototype**, NOT wired to `DPHS.solve()`.
+Status: **opt-in production integration implemented; short native PDE
+validation still required**. The default remains `memory`.
 
 Date: 2026-11-17. Branch: `feature/getfem55-mpi-container-scalability`.
 
@@ -111,35 +112,78 @@ No GetFEM/PDE integration or physical long run is involved.
 Results are saved under
 `sandbox/outputs/async-binary-smoke-<source-commit>/`.
 
-## Necessary gates before changing production SCRIMP
+## Integration status, safety gates and next short native check
 
 1. Pass the native fast smoke test above. Inspect the writer log,
    file headers, all rank coverage, and exact full-vector readback.
-2. Add an explicit **opt-in** backend, e.g.
-   `SCRIMP_TRAJECTORY_BACKEND=async_binary`, default `memory`
-   until validated. Do **not** change `SCRIMP_GETFEM_BRIDGE_DISTRIBUTED`.
-3. Integrate at the **save decision in `DPHS.monitor`** only:
-   copy `z.getArray(readonly=True)` into the bounded producer queue
-   when the existing save condition is true. Preserve its initial,
-   stop and final-lumped snapshot semantics, time updates and
-   `gf_model.next_iter()`. In nonlinear cases retain the
-   `_sync_lumped_trial_state` and nonlinear scatter paths.
-4. A streaming run keeps `solution["t"]` and small metadata
-   but never appends global vectors to `solution["z"]`.
-   After TS completes, close transports, verify sidecar
-   completion/manifest and substitute a lazy `solution["z"]`
-   object. Only then mark `solve_done=True`.
-5. Post-processing must read individual full snapshots lazily
-   (Hamiltonian, powers and half-step CN interpolation) and match
-   an equivalent memory-backend run. A failed I/O writer must not
-   produce a solved-success marker or incomplete but plausible
-   trajectory.
-6. Validate on a **short** fixed-step linear acoustic case, then
-   short nonlinear dissipative Saint-Venant 2D with spin-up, including
-   exact/near-roundoff state parity and power, Hamiltonian, mass
-   balances. No long benchmark is required to validate correctness.
-7. Measure bounded transport queue, producer-copy cost, writer
-   throughput, end-to-end peak RSS, and I/O error behavior.
+2. **Implemented (opt-in):** `SCRIMP_TRAJECTORY_BACKEND=async_binary`
+   (default remains `memory`). It requires a writer started **before**
+   `mpiexec` and `SCRIMP_TRAJECTORY_DIR` and
+   `SCRIMP_TRAJECTORY_SOCKET`. Optional bounded configuration:
+   `SCRIMP_TRAJECTORY_MAX_QUEUED=4` and
+   `SCRIMP_TRAJECTORY_COMMIT_TIMEOUT_S=30`.
+   PETSc's matrix bridge setting is unchanged.
+3. **Implemented:** at `DPHS.monitor()`'s original save decision,
+   send just `z.getArray(readonly=True).real` with the PETSc
+   ownership interval. The historical trajectory used real float64,
+   so the opt-in backend deliberately preserves its output dtype.
+   No full global gather occurs **for linear output**.
+4. **Preserved:** nonlinear GetFEM trial-state synchronization
+   (`_sync_lumped_trial_state`) and main monitor's nonlinear
+   global scatter + `to_variables`. Initial-consistency pseudo TS
+   still uses its original monitor behavior. PETSc TS/SNES/KSP/MUMPS
+   memory and time-stepping history are untouched.
+5. **Implemented:** `solution["t"]` accumulates timestamps only;
+   `solution["z"]` remains an empty list during the integration.
+   On successful completion, all sender threads drain, the external
+   writer must atomically publish a verified manifest, and
+   `solution["z"]` becomes a `LazyTrajectory` object. Index
+   filtering preserves SCRIMP's ULP final-time logic.
+   A writer timeout/failure prevents `solve_done=True`.
+6. **Next gate:** validate the **short** fixed-step linear acoustic
+   case (below), comparing every saved coefficient, Hamiltonian
+   and port powers against the default memory mode. Then
+   validate short nonlinear dissipative Saint-Venant 2D with
+   spin-up, including power and mass balances. **No long run required.**
+7. **Later:** measure bounded queue behavior, producer-copy cost,
+   writer throughput and process peak RSS, and complete failure-path
+   validation before changing the default.
+
+## Short physical parity validation (not yet run natively)
+
+The tiny PETSc native smoke test (17 DoFs, 4 frames, 2 ranks) has
+**passed** on the user's Docker image (`29fbf9fd`); the user supplied
+the binary archive. Manifest: `complex128` PETSc data, full
+ownership `[0,9)` and `[9,17)`, exact reconstructed states.
+
+Production integration is now in `scrimp/utils/async_binary_trajectory.py`
+and `scrimp/dphs.py`. The sandbox launcher preserves the old
+`sandbox/async_binary_trajectory.py` CLI via a thin proxy.
+
+For the next validation (6 CN steps, **not** 250/2000 steps):
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+bash -n sandbox/run_async_acoustic_parity.sh
+bash sandbox/run_async_acoustic_parity.sh
+```
+
+This starts one external writer before PETSc MPI, compares both modes
+on the same `examples/wave.py` model (`h=0.08`, `dt=0.001`,
+`T=0.006`, 2 ranks, COO/MUMPS `never`), checks the complete
+trajectory, Hamiltonian and computed port powers, and requires a
+committed `trajectory_manifest.json`. The short driver
+**materializes the tiny trajectory only for validation**, not in
+production. It writes a source-SHA-segregated report under
+`sandbox/outputs/async-acoustic-parity-<sha>-<unique>/`.
+The GitHub CI checks source syntax and the Python writer protocol but
+**cannot** establish native GetFEM/PETSc physics parity on its own.
+
+The non-streaming default and existing model behavior are preserved.
+Do not enable this backend automatically for all SCRIMP users until
+the native physics tests, nonlinear Jacobian tests, writer failure
+tests and physical power balances have passed.
 
 ### MPI/multinode caveat
 
