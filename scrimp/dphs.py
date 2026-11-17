@@ -202,6 +202,18 @@ def _get_mumps_reset_policy(all_bricks_linear=False):
     return policy
 
 
+def _all_bricks_are_linear(bricks):
+    """Require every registered brick to be declared linear.
+
+    An empty model is not a validated linear problem. Inspect all bricks,
+    including explicit, source and boundary forms, not only the flags
+    used to speed up PDE mass/stiffness assembly.
+    """
+    return bool(bricks) and all(
+        brick.get_linear() for brick in bricks.values()
+    )
+
+
 def _local_stored_csr_pattern(matrix):
     """Snapshot exact stored row pointers/columns of the owned PETSc rows.
 
@@ -1389,9 +1401,7 @@ class DPHS:
         policy = getattr(self, "_mumps_reset_policy", None)
         if policy is None:
             policy = _get_mumps_reset_policy(
-                all_bricks_linear=bool(self.bricks) and all(
-                    brick.get_linear() for brick in self.bricks.values()
-                )
+                all_bricks_linear=_all_bricks_are_linear(self.bricks)
             )
         ksp = TS.getSNES().getKSP()
         pc = ksp.getPC()
@@ -1760,9 +1770,7 @@ class DPHS:
         # Do not rely only on the mass/stiffness shortcut flags: those
         # omit some explicit/source forms. The user's requirement is that
         # EVERY registered brick must be declared linear.
-        self._all_bricks_linear = bool(self.bricks) and all(
-            brick.get_linear() for brick in self.bricks.values()
-        )
+        self._all_bricks_linear = _all_bricks_are_linear(self.bricks)
         self._mumps_reset_policy = _get_mumps_reset_policy(
             all_bricks_linear=self._all_bricks_linear
         )
