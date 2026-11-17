@@ -413,7 +413,13 @@ class TestMPIAlgebra(unittest.TestCase):
                 # override in the process environment.
                 with patch.dict(os.environ, {
                     "SCRIMP_GETFEM_MATRIX_MODE": "distributed",
-                }, clear=True):
+                }):
+                    # Remove only the bridge override. Clearing ALL
+                    # environment variables in an MPI rank could remove
+                    # PMIx/OpenMPI runtime configuration unexpectedly.
+                    os.environ.pop(
+                        "SCRIMP_GETFEM_BRIDGE_DISTRIBUTED", None
+                    )
                     default_profiler = TimingProfiler(enabled=True)
                     linalg.convert_gmm_to_petsc(
                         tangent, default_candidate,
