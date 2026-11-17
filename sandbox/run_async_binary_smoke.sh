@@ -15,8 +15,10 @@ set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 1
 root="$PWD"
 sha="$(git rev-parse --short=8 HEAD)"
-out="$root/sandbox/outputs/async-binary-smoke-$sha"
-mkdir -p "$out"
+# Every trial gets a fresh directory, so stale partial output or a
+# previously published manifest can NEVER make a failed run look valid.
+mkdir -p "$root/sandbox/outputs"
+out="$(mktemp -d "$root/sandbox/outputs/async-binary-smoke-$sha-XXXXXX")"
 
 bash -n sandbox/run_async_binary_smoke.sh
 echo "SCRIMP asynchronous binary I/O smoke | commit=$sha | MPI=2 | four exact snapshots"
