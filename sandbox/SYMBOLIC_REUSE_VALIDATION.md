@@ -78,17 +78,52 @@ not a demonstrated new end-to-end runtime speedup.
 
 | Registered SCRIMP bricks | No environment override | CSR check in IJacobian? |
 | --- | --- | --- |
-| Every brick marked `linear=True` | `never` | No |
-| At least one brick marked `linear=False` | `on_change` | Yes, for MUMPS LU |
+| All Jacobian bricks marked `linear=True`; controls certified prescribed | `never` | No |
+| Any state-dependent feedback or other nonlinear brick | `on_change` | Yes, for MUMPS LU |
+| Source brick not certified state-independent | `on_change` | Yes, for MUMPS LU |
 | Empty model | `on_change` | Yes, if assembled with MUMPS |
 
 Both the `initial` and `main` TS use their own CSR snapshots,
 since their KSP/PC instances have independent factor lifecycles.
-The static linear-brick test includes source, control and explicit
-bricks; it does not rely only on the mass and stiffness shortcut
-flags. **A brick wrongly declared linear defeats this optimization.**
-The automatic fast path assumes a fixed stored sparsity graph for an
-all-linear model.
+
+**Closed-loop clarification (2026-11-17):** an acoustic smoke run
+failed its benchmark policy gate after *successfully completing*
+20 CN steps because `set_control()` always created a source brick
+with `linear=False`, misleading the former all-brick predicate
+into `on_change`. Simply excluding **all** source bricks would
+be unsafe: `examples/heat_wave.py` calls
+`set_control("Interface Heat", "Y_w")` and
+`set_control("Interface Wave", "-Y_T")` to interconnect
+two subsystems. The GetFEM `add_source_term_brick` is intended
+for prescribed RHS, not a differentiable feedback law:
+https://getfem.org/userdoc/model_source_term.html .
+
+The fixed `DPHS.set_control()` now distinguishes:
+- **Certified prescribed** expression using known time, geometry
+  and mathematical functions: unchanged GetFEM RHS source, tagged
+  `_scrimp_prescribed_control_source=True`; does not force
+  nonlinear stiffness, and qualifies for `never` if other
+  Jacobian bricks are linear.
+- **State-dependent expression**, including references to other
+  port variables such as `Y_w`, `Y_T`, `e_p`:
+  generated as a `linear=False` GetFEM *nonlinear variational
+  constitutive term* `(expression).Test_U` (using appropriate
+  scalar/vector/tensor contraction), so GetFEM contributes
+  the correct feedback derivative to the Newton Jacobian.
+  It selects `on_change` automatically.
+- **Unknown custom macros/data or user source bricks**: never
+  silently certified state-independent. Unknown expressions are
+  conservatively routed through the variational nonlinear branch
+  (and `on_change`), at the possible cost of extra assembly.
+  This identifier-level detector is deliberately NOT a general
+  GetFEM macro expansion or a proof of state-independence for
+  arbitrary user-defined macro definitions.
+
+The automatic fast path still assumes that any brick declared
+`linear=True` has a stable stored sparsity graph. The feedback
+route and its sign/Jacobian must be runtime-checked on the actual
+interconnected heat/wave example before claiming full closed-loop
+regression coverage.
 
 The explicit environment override `SCRIMP_MUMPS_RESET_POLICY`
 accepts `on_change`, `always`, or `never` and **always wins**
