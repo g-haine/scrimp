@@ -30,6 +30,7 @@ import matplotlib.pyplot as plt
 import matplotlib.pylab as pl
 import numpy as np
 import os
+from mpi4py import MPI
 
 import petsc4py
 import sys
@@ -170,6 +171,56 @@ def _getfem_source_rhs_mode():
             "SCRIMP_GETFEM_SOURCE_RHS_MODE must be match_generic or raw"
         )
     return mode
+
+
+def _get_mumps_reset_policy():
+    """Select the MUMPS symbolic-factor policy (default: on_change).
+
+    The legacy boolean environment option remains accepted for older
+    benchmarks. An explicitly set new policy takes precedence, so a
+    stale legacy flag cannot silently override an explicit choice.
+    """
+    policy = os.environ.get("SCRIMP_MUMPS_RESET_POLICY")
+    if policy is None:
+        legacy = os.environ.get("SCRIMP_MUMPS_RESET_PC_ON_JACOBIAN")
+        if legacy is None:
+            return "on_change"
+        if legacy == "1":
+            return "always"
+        if legacy == "0":
+            return "never"
+        raise ValueError(
+            "SCRIMP_MUMPS_RESET_PC_ON_JACOBIAN must be 0 or 1"
+        )
+    policy = policy.strip().lower()
+    if policy not in ("on_change", "always", "never"):
+        raise ValueError(
+            "SCRIMP_MUMPS_RESET_POLICY must be on_change, always or never"
+        )
+    return policy
+
+
+def _local_stored_csr_pattern(matrix):
+    """Snapshot exact stored row pointers/columns of the owned PETSc rows.
+
+    This is the same comparison as the validated standalone PETSc
+    on_change probes. The owned-row interval is also recorded, so a
+    repartition can never masquerade as unchanged local CSR.
+    """
+    rowptr, columns, _values = matrix.getValuesCSR()
+    return (
+        tuple(int(x) for x in matrix.getOwnershipRange()),
+        np.array(rowptr, copy=True),
+        np.array(columns, copy=True),
+    )
+
+
+def _local_csr_pattern_changed(before, after):
+    return (
+        before[0] != after[0]
+        or not np.array_equal(before[1], after[1])
+        or not np.array_equal(before[2], after[2])
+    )
 
 
 import scrimp.utils.config
@@ -1321,28 +1372,29 @@ class DPHS:
         # explicitly unsafe in PETSc (and can crash). Likewise MatAXPY
         # must not assume that M(z) has the same nonzeros as K(z).
         structure = PETSc.Mat.Structure.DIFFERENT_NONZERO_PATTERN
-        # Opt-in workaround for MUMPS: the symbolic LU factor from a
-        # previous Newton iteration may be incompatible with the next
-        # Jacobian's sparsity pattern, even when MatCopy is explicitly
-        # marked DIFFERENT_NONZERO_PATTERN. Reset the *PC* before
-        # modifying the existing operator Mat; do not reset the KSP or
-        # change any solver defaults. Resetting on every Jacobian is
-        # deliberately conservative until a collective, reliable
-        # global sparsity-change detector is validated under MPI.
-        #
-        # PC.reset() is collective: all MPI ranks must use the same
-        # opt-in setting and solver. This also applies to the initial
-        # consistency TS, which is typically SuperLU in the MCSS probe.
-        if os.environ.get("SCRIMP_MUMPS_RESET_PC_ON_JACOBIAN") == "1":
-            pc = TS.getSNES().getKSP().getPC()
-            if (pc.getType() == "lu"
-                    and pc.getFactorSolverType() == "mumps"):
-                _mpi_trace("IJacobian: before opt-in MUMPS PC.reset")
-                with self.profiler.measure(
-                    f"{self._profile_phase}.petsc.pc_reset"
-                ):
-                    pc.reset()
-                _mpi_trace("IJacobian: after opt-in MUMPS PC.reset")
+        # The default MUMPS policy is on_change: reuse the symbolic LU
+        # while the exact, STORED PETSc CSR graph is unchanged. A structure
+        # change requires collective PC.reset(), not a KSP teardown.
+        # The historical always-reset behavior remains an explicit fallback.
+        # With always, reset *before* modifying the matrix, as before.
+        # on_change checks only after the FULL assembled Jacobian exists
+        # (including the state-dependent mass Hessian).
+        policy = getattr(
+            self, "_mumps_reset_policy", _get_mumps_reset_policy()
+        )
+        ksp = TS.getSNES().getKSP()
+        pc = ksp.getPC()
+        is_mumps = (
+            pc.getType() == "lu"
+            and pc.getFactorSolverType() == "mumps"
+        )
+        if policy == "always" and is_mumps:
+            _mpi_trace("IJacobian: always policy before MUMPS PC.reset")
+            with self.profiler.measure(
+                f"{self._profile_phase}.petsc.pc_reset"
+            ):
+                pc.reset()
+            _mpi_trace("IJacobian: always policy after MUMPS PC.reset")
 
         _mpi_trace("IJacobian: before tangent -> preconditioner copy")
         self.tangent_stiffness.copy(P, structure=structure)
@@ -1413,6 +1465,69 @@ class DPHS:
             # an untouched A would leave the linear solver with stale data.
             _mpi_trace("IJacobian: copy preconditioner into distinct operator")
             P.copy(A, structure=structure)
+
+        if policy == "on_change":
+            # All ranks participate, even if their local PC setup differs:
+            # otherwise a mismatched configuration could deadlock on the
+            # collective CSR-change decision or PC.reset().
+            mpi = comm.tompi4py()
+            n_mumps = mpi.allreduce(int(is_mumps), op=MPI.SUM)
+            if n_mumps not in (0, max_rank):
+                raise RuntimeError(
+                    "MUMPS LU must be configured on every MPI rank "
+                    "for collective on_change symbolic-factor reuse"
+                )
+            if is_mumps:
+                with self.profiler.measure(
+                    f"{self._profile_phase}.petsc.csr_pattern_check"
+                ):
+                    try:
+                        current = _local_stored_csr_pattern(P)
+                        csr_error = None
+                    except (PETSc.Error, AttributeError,
+                            NotImplementedError, TypeError) as exc:
+                        current = None
+                        csr_error = exc
+                    if mpi.allreduce(
+                        int(csr_error is not None), op=MPI.SUM
+                    ):
+                        raise RuntimeError(
+                            "Cannot inspect the full stored PETSc CSR "
+                            "pattern on every rank; set "
+                            "SCRIMP_MUMPS_RESET_POLICY=always for an "
+                            "unconditionally safe MUMPS fallback"
+                        ) from csr_error
+                    phase = self._profile_phase
+                    patterns = getattr(self, "_mumps_csr_patterns", None)
+                    if patterns is None:
+                        patterns = self._mumps_csr_patterns = {}
+                    previous = patterns.get(phase)
+                    changed_local = (
+                        previous is not None
+                        and _local_csr_pattern_changed(previous, current)
+                    )
+                    changed = bool(
+                        mpi.allreduce(changed_local, op=MPI.LOR)
+                    )
+                    # Store a full copy only on a structural transition;
+                    # numeric values change at every Newton step.
+                    if previous is None or changed:
+                        patterns[phase] = current
+                if changed:
+                    _mpi_trace(
+                        "IJacobian: CSR changed globally; resetting MUMPS PC"
+                    )
+                    with self.profiler.measure(
+                        f"{self._profile_phase}.petsc.pc_reset"
+                    ):
+                        pc.reset()
+                        # Rebind the existing operator/preconditioner after
+                        # reset, matching the validated persistent-KSP
+                        # on_change probes and retaining the Mat handles.
+                        ksp.setOperators(A, P)
+                    _mpi_trace(
+                        "IJacobian: MUMPS PC.reset and KSP rebind completed"
+                    )
 
         # Opt-in native diagnostic: dump selected actual SWE Jacobians
         # before PETSc/MUMPS factorization. Binary MatView is collective,
@@ -1628,6 +1743,16 @@ class DPHS:
         """
         self.profiler.reset()
         self._profile_phase = "setup"
+        # A new solve creates fresh initial/main TS/KSP/PC lifecycles:
+        # never inherit the CSR graph of a previously destroyed LU factor.
+        self._mumps_csr_patterns = {}
+        self._mumps_reset_policy = _get_mumps_reset_policy()
+        policies = comm.tompi4py().allgather(self._mumps_reset_policy)
+        if any(value != policies[0] for value in policies):
+            raise RuntimeError(
+                "SCRIMP_MUMPS_RESET_POLICY must resolve identically "
+                "on all MPI ranks: " + repr(policies)
+            )
         with self.profiler.measure("solve.total"):
             return self._solve_impl()
 
