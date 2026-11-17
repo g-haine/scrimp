@@ -22,6 +22,7 @@ from pathlib import Path
 
 import numpy as np
 from mpi4py import MPI
+from petsc4py import PETSc
 
 from bench_acoustic_2d import _build_wave
 from scrimp.utils.async_binary_trajectory import LazyTrajectory
@@ -44,6 +45,9 @@ def main():
     os.environ["SCRIMP_GETFEM_MATRIX_MODE"] = "distributed"
     os.environ["SCRIMP_MUMPS_RESET_POLICY"] = "never"
     os.environ.setdefault("SCRIMP_INIT_FACTOR_SOLVER_TYPE", "mumps")
+    petsc_log = os.environ.get("SCRIMP_BENCH_PETSC_LOG") == "1"
+    if petsc_log:
+        PETSc.Log.begin()
 
     system = _build_wave(args.mesh)
     system.set_time_scheme(
@@ -122,12 +126,23 @@ def main():
             "matrix_memory_mode": os.environ.get(
                 "SCRIMP_MATRIX_MEMORY_MODE", "legacy"
             ).strip().lower(),
+            "constant_jacobian_lu_reuse": bool(
+                getattr(system, "_constant_jacobian_lu_reuse_requested", False)
+            ),
+            "constant_jacobian_lu_reuse_info": getattr(
+                system, "_constant_jacobian_lu_reuse_info", None
+            ),
             "matrix_memory_per_rank": memory_by_rank,
         }
         (args.output_dir / f"{args.mode}_physical.json").write_text(
             json.dumps(report, indent=2) + "\n", encoding="utf-8"
         )
         print(json.dumps(report, indent=2), flush=True)
+
+    if petsc_log:
+        # Collective PETSc profiling after all physical checks have
+        # completed, with the full TS initialization/main event history.
+        PETSc.Log.view()
 
 
 if __name__ == "__main__":
