@@ -126,12 +126,6 @@ def main():
             "matrix_memory_mode": os.environ.get(
                 "SCRIMP_MATRIX_MEMORY_MODE", "legacy"
             ).strip().lower(),
-            "constant_jacobian_lu_reuse": bool(
-                getattr(system, "_constant_jacobian_lu_reuse_requested", False)
-            ),
-            "constant_jacobian_lu_reuse_info": getattr(
-                system, "_constant_jacobian_lu_reuse_info", None
-            ),
             "matrix_memory_per_rank": memory_by_rank,
         }
         (args.output_dir / f"{args.mode}_physical.json").write_text(
