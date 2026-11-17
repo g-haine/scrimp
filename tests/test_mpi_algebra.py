@@ -303,6 +303,9 @@ class TestMPIAlgebra(unittest.TestCase):
         try:
             with patch.dict(os.environ, {
                     "SCRIMP_GETFEM_MATRIX_MODE": "distributed",
+                    # The user-facing CSR alias must follow exactly the
+                    # established distributed IJV/ADD_VALUES semantics.
+                    "SCRIMP_GETFEM_BRIDGE_DISTRIBUTED": "csr",
                     # Must have NO effect in distributed mode: incoming
                     # contributions may target remote PETSc-owned rows.
                     "SCRIMP_GETFEM_BRIDGE_REPLICATED": "owned_rows",
