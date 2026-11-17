@@ -2100,19 +2100,33 @@ class DPHS:
                     f"t0={t0:.12g}: reached {TS.getTime()}, "
                     f"reason={TS.getConvergedReason()}"
                 )
-            # This is a *diagnostic safeguard*, not a mathematical
-            # guarantee of DAE-consistent initial data. It prevents
-            # silently accepting the massive blow-up (~1e24 norm)
-            # previously observed with pseudo-TS for Saint-Venant.
-            norm_limit = float(self.time_scheme.getString(
-                "init_step_max_norm_amplification", "inf"
-            ))
+        # The norm guard is opt-in through init_step_max_norm_amplification.
+        # Apply it to *any* initial TS type when set: previously it only
+        # protected negative-start BDF2 and could silently accept the
+        # disastrous ~1e24 pseudo-TS result in the SWE diagnostic.
+        # Passing this guard does NOT prove DAE consistency or that
+        # the original dynamical initial states have been preserved.
+        if self.time_scheme.hasName("init_step_max_norm_amplification"):
+            norm_limit = float(self.time_scheme[
+                "init_step_max_norm_amplification"
+            ])
+            if np.isnan(norm_limit) or norm_limit <= 0:
+                raise ValueError(
+                    "init_step_max_norm_amplification must be positive"
+                )
+            if int(TS.getConvergedReason()) <= 0:
+                raise RuntimeError(
+                    f"Initial {init_type} TS failed: "
+                    f"reason={int(TS.getConvergedReason())}, "
+                    f"steps={TS.getStepNumber()}"
+                )
             if not np.isfinite(final_state_norm) or (
                 final_state_norm
                 > norm_limit * max(initial_state_norm, 1.0)
             ):
+                label = "BDF2" if negative_bdf_start else init_type.upper()
                 raise RuntimeError(
-                    "Initial BDF2 state diverged: "
+                    f"Initial {label} state diverged: "
                     f"||z_initial||={initial_state_norm:.9g}, "
                     f"||z_final||={final_state_norm:.9g}, "
                     f"maximum factor={norm_limit:.9g}"
