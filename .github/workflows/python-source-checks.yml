@@ -22,9 +22,9 @@ jobs:
       - name: Validate asynchronous binary I/O protocol (no MPI/PETSc)
         run: |
           python -m pip install 'numpy>=1.24,<3'
-          python -m py_compile scrimp/utils/async_binary_trajectory.py sandbox/async_binary_trajectory.py sandbox/check_async_binary_mpi.py sandbox/probe_async_binary_mpi.py sandbox/verify_async_acoustic.py sandbox/compare_async_acoustic.py tests/test_async_binary_trajectory.py
-          bash -n sandbox/run_async_binary_smoke.sh sandbox/run_async_acoustic_parity.sh
-          python -m unittest -v tests.test_async_binary_trajectory
+          python -m py_compile scrimp/utils/async_binary_trajectory.py sandbox/async_binary_trajectory.py sandbox/check_async_binary_mpi.py sandbox/probe_async_binary_mpi.py sandbox/verify_async_acoustic.py sandbox/compare_async_acoustic.py sandbox/verify_async_swe.py sandbox/compare_async_swe.py tests/test_async_binary_trajectory.py tests/test_async_swe_comparison.py
+          bash -n sandbox/run_async_binary_smoke.sh sandbox/run_async_acoustic_parity.sh sandbox/run_async_swe_parity.sh
+          python -m unittest -v tests.test_async_binary_trajectory tests.test_async_swe_comparison
       - name: Validate SCRIMP source headers
         run: |
           python -m unittest -v tests.test_python_headers
