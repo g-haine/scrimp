@@ -7,9 +7,9 @@
 #
 # github: https://github.com/g-haine/scrimp
 #
-# ANALYSIS ONLY: reuse completed native runs after a historical-state
-# parity failure. No new PDE solves, no mpiexec, no fabricated baseline
-# gains. Output only three physically validated CURRENT MPI figures.
+# ANALYSIS ONLY: reuse completed native runs from --mpi-only or a
+# historical-state mismatch. No new PDE solves, no mpiexec, no
+# fabricated release gains. Output only current MPI figures.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 1
 root="$PWD"
@@ -25,7 +25,10 @@ else
     # current Git commit (which changes as we update the plotting code).
     out=""
     shopt -s nullglob
-    dirs=( "$root"/sandbox/outputs/release120-coo-* )
+    dirs=(
+        "$root"/sandbox/outputs/release120-coo-*
+        "$root"/sandbox/outputs/mpi-coo-*
+    )
     shopt -u nullglob
     if (( ${#dirs[@]} == 0 )); then
         echo "No release120-coo output directories found" >&2
@@ -33,7 +36,7 @@ else
     fi
     while IFS= read -r candidate; do
         if [[ -s "$candidate/current_never_1r_rep1.json" &&
-              -s "$candidate/release_120_release_native_1r_rep1.json" ]]; then
+              -s "$candidate/current_on_change_6r_rep1.json" ]]; then
             out="$candidate"
             break
         fi
@@ -67,14 +70,19 @@ sudo docker run --rm \
     scrimp-mpi:local \
     bash -c '
         set -euo pipefail
-        echo "DIAGNOSE: v1.2.0 vs current raw/sorted full state"
-        python -u sandbox/diagnose_release120_states.py \
-            --directory /artifacts
+        if [[ -s /artifacts/release_120_release_native_1r_rep1.json ]]; then
+            echo "DIAGNOSE: v1.2.0 vs current raw/sorted full state"
+            python -u sandbox/diagnose_release120_states.py \
+                --directory /artifacts
+        else
+            echo "MPI-ONLY: no v1.2.0 data; historical diagnostics skipped"
+        fi
         echo "VERIFY+PLOT: current COO/MPI 1/2/4/6 and never/on_change"
         python -u sandbox/plot_release120_coo_scaling.py \
             --directory /artifacts --repetitions "$1" --current-only
     ' _ "$reps"
 echo "PASS: 3 current-version COO/MPI scaling figures."
-echo "NOTE: no valid v1.2.0 gain figure; release state parity failed."
-echo "Outputs: $out/{02_strong_scaling_coo,03_speedup_coo,04_efficiency_coo}.{png,svg}"
-echo "Reports: $out/{release_state_diagnostic,performance_summary}.json"
+echo "NOTE: no cross-version gain is asserted in current-only figures."
+echo "PNG figures: $out/png/"
+echo "SVG figures: $out/svg/"
+echo "Reports: $out/performance_summary.json (and optional release_state_diagnostic.json)"
