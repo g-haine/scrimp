@@ -113,6 +113,40 @@ single run. No claim is made for nonconstant graph nonlinear Jacobians,
 complex-valued states, other MPI sizes, dissipative Saint-Venant or
 closed-loop heat-wave dynamics.
 
+## Native end-to-end 2-rank acoustic, h=0.04 (2026-11-17)
+
+User executed `bash sandbox/run_acoustic_bridge_pair.sh 0.04 2` on
+source commit `c08b02c9` inside `scrimp-mpi:local`, GetFEM 5.5.
+**47,942 DoFs**, 2 MPI ranks, 20 accepted fixed Crank–Nicolson steps,
+`dt=0.002`, `t_f=0.04`, MUMPS policy `never`:
+
+| Metric | Historical IJV | Experimental COO |
+|---|---:|---:|
+| `setup.bridge.mass` | 10.428504 s | 0.021403 s |
+| `setup.bridge.stiffness` | 15.020396 s | 0.074983 s |
+| Two setup bridges combined | 25.448900 s | 0.096386 s |
+| `main.petsc.ts_solve` | 1.809227 s | 1.824937 s |
+| `DPHS.solve()` max rank wall | 27.722780 s | 2.401666 s |
+| Max rank peak RSS | 511.648 MiB | 515.570 MiB |
+
+**End-to-end speedup 11.543×** (91.337% shorter solve),
+setup-bridge speedup **264.03×**. One run per method, therefore no
+median, confidence interval or broad scaling claim.
+
+The user's archived run `bridge-pair-h0p04-2r-c08b02c9.zip` has
+been independently inspected: both saved trajectories have
+`times.shape == (20,)` and `states.shape == (20, 47942)`, real
+`float64` coefficients. Timestamps are exactly equal.
+**Max absolute coefficient difference = 0.0; relative L2 difference
+= 0.0** across all 958,840 saved coefficients. Per-rank parity is
+also exact; 20 accepted steps, zero rejected, zero Newton failures,
+same final-time 0.04 and matching physical variable norms.
+
+This is an unexpectedly strong result for this particular
+problem/configuration, NOT a proof that all matrix patterns or
+nonlinear models are identical. No reduction in memory is claimed:
+peak RSS increased by ~3.92 MiB per rank in this run.
+
 ## Validation gates before considering default activation
 
 1. Native GetFEM 5.5 / complex PETSc 3.26 tests in Docker:
