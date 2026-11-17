@@ -48,6 +48,14 @@ class FakeKSP:
         self.calls.append(bool(enabled))
 
 
+class FakeAdapt:
+    def __init__(self, parent):
+        self.parent = parent
+
+    def getType(self):
+        return self.parent.adapt
+
+
 class FakeTS:
     def __init__(self):
         self.ts_type = "cn"
@@ -59,7 +67,7 @@ class FakeTS:
         return self.ts_type
 
     def getAdapt(self):
-        return self
+        return FakeAdapt(self)
 
     def getTimeStep(self):
         return self.dt
