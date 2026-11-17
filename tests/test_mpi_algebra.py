@@ -359,6 +359,51 @@ class TestMPIAlgebra(unittest.TestCase):
         finally:
             mat.destroy()
 
+    def test_bridge_subphase_profile_uses_existing_profiler(self):
+        """Bridge timings must be local-only, not new MPI collectives.
+
+        The synthetic globally numbered distributed contributions exercise
+        the ADD_VALUES path. Profiling must not alter its PETSc result.
+        """
+        mat = PETSc.Mat().createAIJ(size=(N, N), comm=COMM)
+        mat.setUp()
+        profiler = TimingProfiler(enabled=True)
+        fake = FakeGetFEMDistributedMatrix()
+        try:
+            with patch.dict(os.environ, {
+                "SCRIMP_GETFEM_MATRIX_MODE": "distributed",
+            }), patch.object(linalg.gf, "Spmat", return_value=fake):
+                linalg.convert_gmm_to_petsc(
+                    object(), mat, profiler=profiler,
+                    profile_label="test.bridge",
+                )
+            for step in (
+                "getfem.copy",
+                "getfem.transpose",
+                "getfem.csr_extract",
+                "csr_validate",
+                "petsc.zero_entries",
+                "petsc.insert",
+                "petsc.assemble",
+            ):
+                self.assertEqual(
+                    profiler._calls[f"test.bridge.{step}"], 1,
+                    f"Missing existing-profiler bridge event: {step}",
+                )
+            x, y = mat.createVecRight(), mat.createVecLeft()
+            try:
+                x.set(1.0)
+                mat.mult(x, y)
+                np.testing.assert_allclose(
+                    y.getArray(readonly=True),
+                    1.0, atol=1e-11, rtol=1e-11,
+                )
+            finally:
+                y.destroy()
+                x.destroy()
+        finally:
+            mat.destroy()
+
     def test_replicated_owned_rows_matches_full_real_getfem(self):
         """Experimental local extraction must preserve stored CSR AND values.
 
