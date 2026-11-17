@@ -52,6 +52,28 @@ matrix handles. That is the next required gate.
 - The original PETSc.Mat handle is reused; no assignment of new
   PETSc matrices or TS/SNES/KSP alterations.
 
+## Native in-place COO test results (2026-11-17)
+
+The user ran `test_real_getfem_distributed_coo_matches_existing_petsc_mat`
+together with the distributed-contribution regression inside
+`scrimp-mpi:local`, on the actual GitHub branch mounted read-only.
+Both tests passed at 1 and 2 MPI ranks, on **every rank**. PETSc Mat
+identity, repeated in-place transfers and stored-CSR equality therefore
+have targeted native evidence for these ranks. This is not yet a
+full-PDE or scaling result. Tests at 4 and 6 ranks remain outstanding.
+
+Run the paired Docker-only acoustic benchmark and complete complex
+trajectory parity on the **same commit** via:
+
+```bash
+bash sandbox/run_acoustic_bridge_pair.sh 0.08 2
+```
+
+The helper uses the actual `scrimp-mpi:local` image, the historical
+`ijv` default and explicit `coo` opt-in, fixed 20-step CN parameters,
+and `check_acoustic_state_parity.py` for every saved coefficient.
+Host Python reads JSON reports only; it never simulates.
+
 ## Validation gates before considering default activation
 
 1. Native GetFEM 5.5 / complex PETSc 3.26 tests in Docker:
