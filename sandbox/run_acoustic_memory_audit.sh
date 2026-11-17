@@ -67,6 +67,7 @@ if ! sudo docker run --rm \
     -v "$root/scrimp:/workspace/scrimp/scrimp:ro" \
     -v "$root/sandbox:/workspace/scrimp/sandbox:ro" \
     -v "$root/tests:/workspace/scrimp/tests:ro" \
+    -v "$out:/workspace/scrimp/outputs" \
     -v "$out:/artifacts" \
     scrimp-mpi:local \
     python -m unittest -v tests.test_acoustic_memory_analysis \
@@ -88,6 +89,7 @@ for mode in sparse dense; do
         -v "$root/scrimp:/workspace/scrimp/scrimp:ro" \
         -v "$root/sandbox:/workspace/scrimp/sandbox:ro" \
         -v "$root/examples:/workspace/scrimp/examples:ro" \
+        -v "$out:/workspace/scrimp/outputs" \
         -v "$out:/artifacts" \
         scrimp-mpi:local \
         timeout -k 10s "${timeout_s}s" \
@@ -125,6 +127,7 @@ if ! sudo docker run --rm \
     -e MPLBACKEND=Agg \
     --cpuset-cpus="0,2" \
     -v "$root/sandbox:/workspace/scrimp/sandbox:ro" \
+    -v "$out:/workspace/scrimp/outputs" \
     -v "$out:/artifacts" \
     scrimp-mpi:local \
     python -u sandbox/analyze_acoustic_memory.py \
