@@ -173,18 +173,20 @@ def _getfem_source_rhs_mode():
     return mode
 
 
-def _get_mumps_reset_policy():
-    """Select the MUMPS symbolic-factor policy (default: on_change).
+def _get_mumps_reset_policy(all_bricks_linear=False):
+    """Select the MUMPS reset policy, honoring explicit user overrides.
 
-    The legacy boolean environment option remains accepted for older
-    benchmarks. An explicitly set new policy takes precedence, so a
-    stale legacy flag cannot silently override an explicit choice.
+    With no override: all bricks declared linear -> never (no CSR
+    snapshots, comparisons or collective checks during IJacobian);
+    otherwise -> on_change (exact CSR checks on every Jacobian).
+    The legacy boolean flag is still accepted for old benchmarks.
+    An explicit policy ALWAYS wins over automatic linearity detection.
     """
     policy = os.environ.get("SCRIMP_MUMPS_RESET_POLICY")
     if policy is None:
         legacy = os.environ.get("SCRIMP_MUMPS_RESET_PC_ON_JACOBIAN")
         if legacy is None:
-            return "on_change"
+            return "never" if all_bricks_linear else "on_change"
         if legacy == "1":
             return "always"
         if legacy == "0":
@@ -1372,16 +1374,25 @@ class DPHS:
         # explicitly unsafe in PETSc (and can crash). Likewise MatAXPY
         # must not assume that M(z) has the same nonzeros as K(z).
         structure = PETSc.Mat.Structure.DIFFERENT_NONZERO_PATTERN
-        # The default MUMPS policy is on_change: reuse the symbolic LU
+        # Automatic MUMPS policy: 'never' when ALL bricks are declared
+        # linear, 'on_change' otherwise. An explicit environment override
+        # takes precedence. The linear path skips ALL CSR inspections and
+        # per-Jacobian MPI change collectives; it assumes the user correctly
+        # marks every linear brick and the assembled graph stays constant.
+        # The nonlinear on_change path reuses the symbolic LU
         # while the exact, STORED PETSc CSR graph is unchanged. A structure
         # change requires collective PC.reset(), not a KSP teardown.
         # The historical always-reset behavior remains an explicit fallback.
         # With always, reset *before* modifying the matrix, as before.
         # on_change checks only after the FULL assembled Jacobian exists
         # (including the state-dependent mass Hessian).
-        policy = getattr(
-            self, "_mumps_reset_policy", _get_mumps_reset_policy()
-        )
+        policy = getattr(self, "_mumps_reset_policy", None)
+        if policy is None:
+            policy = _get_mumps_reset_policy(
+                all_bricks_linear=bool(self.bricks) and all(
+                    brick.get_linear() for brick in self.bricks.values()
+                )
+            )
         ksp = TS.getSNES().getKSP()
         pc = ksp.getPC()
         is_mumps = (
@@ -1746,7 +1757,19 @@ class DPHS:
         # A new solve creates fresh initial/main TS/KSP/PC lifecycles:
         # never inherit the CSR graph of a previously destroyed LU factor.
         self._mumps_csr_patterns = {}
-        self._mumps_reset_policy = _get_mumps_reset_policy()
+        # Do not rely only on the mass/stiffness shortcut flags: those
+        # omit some explicit/source forms. The user's requirement is that
+        # EVERY registered brick must be declared linear.
+        self._all_bricks_linear = bool(self.bricks) and all(
+            brick.get_linear() for brick in self.bricks.values()
+        )
+        self._mumps_reset_policy = _get_mumps_reset_policy(
+            all_bricks_linear=self._all_bricks_linear
+        )
+        _mpi_trace(
+            f"MUMPS reset policy={self._mumps_reset_policy} "
+            f"(all_bricks_linear={self._all_bricks_linear})"
+        )
         policies = comm.tompi4py().allgather(self._mumps_reset_policy)
         if any(value != policies[0] for value in policies):
             raise RuntimeError(
