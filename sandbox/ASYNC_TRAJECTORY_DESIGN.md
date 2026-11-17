@@ -245,6 +245,58 @@ Do not enable this backend automatically for all SCRIMP users until
 the native physics tests, nonlinear Jacobian tests, writer failure
 tests and physical power balances have passed.
 
+## Nonlinear native parity: 3 CN steps (2026-11-17)
+
+The user ran `sandbox/run_async_swe_parity.sh` on commit
+`4a0c11bb` and supplied the complete archive
+`async-swe-parity-4a0c11bb-cxJ9Ic.zip`. The source was the real
+nonlinear, viscous 2D Saint-Venant model with a smooth open-loop
+spin-up, including the existing BDF2 consistent-initialization
+step. This is a **storage-backend parity** test, not a separate
+validation of a long-time physical solution.
+
+| Check | Actual result |
+|---|---:|
+| Global DoFs / MPI ranks | 1,170 / 2 |
+| Main CN steps / saved states | 3 / 4 |
+| Rejections / nonlinear failures | 0 / 0 |
+| PETSc end-time | 0.003 (both modes) |
+| Maximum full-state coefficient difference | 1.0042144314e-13 |
+| Full-state relative L2 difference | 3.2249989502e-15 |
+| Hamiltonian maximum difference | exactly zero |
+| Supplied work maximum difference | 8.4703294725e-22 |
+| Dissipated work maximum difference | 2.0679515314e-25 |
+| Energy-balance history maximum difference | 8.4703294725e-22 |
+| Volume and volume-balance maximum difference | exactly zero |
+| Final physical energy-balance defect (both) | 4.1586570105e-13 |
+| Final physical volume-balance defect (both) | 8.8817841970e-15 |
+| Final exchange-scaled power defect (both) | 2.8412837976e-08 |
+
+The input-data archive was inspected **independently of the script
+PASS output**. The rank-0 binary stores coefficients `[0,585)`;
+rank 1 stores `[585,1170)`. The four `float64` frames were decoded
+directly from their binary headers and frame payloads, including the
+exact expected steps and times `0,0.001,0.002,0.003`.
+The reconstruction is **bitwise equal** to the independently archived
+`async_binary_swe.npz` full state array (max difference exactly zero).
+
+The apparent relative error around `2.03e-9` for the *energy-balance
+defect* compares differences `8.47e-22` against a reference defect
+of only `4.16e-13`; it is a near-zero scaling artifact. Absolute
+agreement of the full defect history is more informative here.
+
+### Status
+
+**Native physical storage parity: PASS for linear acoustics and for
+the short nonlinear viscous Saint-Venant spin-up.** No long simulation
+is needed to establish these two equivalence gates.
+
+The default remains `memory` until we validate the last failure
+modes: truncated/corrupted archive rejection, writer termination,
+backpressure signaling, and incomplete-manifest behavior. The next
+tests should be *fast binary-I/O subprocess tests* with no PDE
+integration.
+
 ### MPI/multinode caveat
 
 The first writer uses Unix-domain sockets and a **shared local
