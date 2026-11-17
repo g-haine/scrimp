@@ -2196,16 +2196,40 @@ class DPHS:
             TS.destroy()
             gc.collect()
 
-        # Keep the true endpoint even when PETSc accumulates an
-        # extra floating-point ULP beyond the Python literal t_f.
-        # This is required for endpoint Hamiltonian/power accounting.
-        self.solution["t"], self.solution["z"] = (
-            _select_saved_solution_through_final_time(
-                self.solution["t"], self.solution["z"],
-                float(self.time_scheme["t_f"]),
+        # Preserve the real end time and publish the trajectory only
+        # after all local transport threads have drained. A committed
+        # manifest is mandatory; no incomplete output can look solved.
+        if self._trajectory_backend == "async_binary":
+            self._trajectory_sender.close()
+            self._trajectory_sender = None
+            manifest = wait_for_manifest(
+                self._trajectory_directory / "trajectory_manifest.json",
+                timeout=float(os.environ.get(
+                    "SCRIMP_TRAJECTORY_COMMIT_TIMEOUT_S", "30"
+                )),
             )
-        )
-        
+            saved_t, indices = (
+                _select_saved_time_indices_through_final_time(
+                    self.solution["t"], float(self.time_scheme["t_f"])
+                )
+            )
+            archived = LazyTrajectory(manifest, indices=indices)
+            raw_t = np.asarray(self.solution["t"], dtype=float)
+            if (len(archived) != len(saved_t)
+                    or not np.array_equal(archived.times, raw_t[indices])):
+                raise RuntimeError(
+                    "Binary archive metadata differs from PETSc monitor"
+                )
+            self.solution["t"] = saved_t
+            self.solution["z"] = archived
+        else:
+            self.solution["t"], self.solution["z"] = (
+                _select_saved_solution_through_final_time(
+                    self.solution["t"], self.solution["z"],
+                    float(self.time_scheme["t_f"]),
+                )
+            )
+
         self.enable_all_bricks()
         self.solve_done = True
 
@@ -2554,8 +2578,16 @@ class DPHS:
             initial_step (bool): `True` if this is the initial consistency step (default=`False`)
         """
 
-        # self.GlobalVec.zeroEntries()
-        self.Scatter[0].scatter(z, self.GlobalVec)
+        # Do not gather full state on all ranks merely for archival.
+        # The nonlinear GetFEM model STILL needs its global transient
+        # state; PETSc's Newton trial-state path is unchanged.
+        needs_global_state = (
+            initial_step
+            or getattr(self, "_trajectory_backend", "memory") != "async_binary"
+            or not self.linear_mass or not self.linear_stiffness
+        )
+        if needs_global_state:
+            self.Scatter[0].scatter(z, self.GlobalVec)
 
         if not initial_step:
             if self.solution["t"]:
@@ -2584,13 +2616,21 @@ class DPHS:
                         f"\ri={i:8d} t={t:8g} * ({int(spent_time)}s)   dt={current_dt:8g}   ETE={int(remaining_time)}s   ({progress}%)        \n"
                     )
                     sys.stdout.flush()
-                self.solution["t"].append(t)
-                self.solution["z"].append(
-                    np.array(
-                        self.GlobalVec.getArray(readonly=True).real,
-                        dtype=np.float64, copy=True,
+                if getattr(self, "_trajectory_backend", "memory") == "async_binary":
+                    # Short rank-local copy only. Disk/socket waits happen
+                    # in the I/O thread, never in this TS callback.
+                    self._trajectory_sender.enqueue(
+                        i, t, z.getArray(readonly=True).real
                     )
-                )
+                    self.solution["t"].append(t)
+                else:
+                    self.solution["t"].append(t)
+                    self.solution["z"].append(
+                        np.array(
+                            self.GlobalVec.getArray(readonly=True).real,
+                            dtype=np.float64, copy=True,
+                        )
+                    )
             else:
                 if rank == 0:
                     sys.stdout.write(
