@@ -99,6 +99,82 @@ tangent copies and repeated sparse factor-related allocations.
 tool's rejection of nonlinear balance drift, improper matrix sharing
 and failure to reuse the Hessian workspace.
 
+## Native outcome: compact matrix A/B PASSED (2026-11-17)
+
+The user ran the native four-case 3-step MPI experiment from
+`17e38b4c` and supplied `compact-matrix-17e38b4c-lXSRAS.zip`.
+The archive was read directly, including all per-rank JSON and
+the complete NPZ trajectories.
+
+| Model (2 MPI ranks) | Legacy max-rank VmHWM | Compact max-rank VmHWM | Change |
+|---|---:|---:|---:|
+| Acoustic 2D, 47,942 DDL | 508.949 MiB | 505.375 MiB | **−3.574 MiB** |
+| Dissipative nonlinear SWE, 1,170 DDL | 386.238 MiB | 386.625 MiB | **+0.387 MiB** |
+
+Both models passed the strict **full coefficient-by-coefficient**
+parity test (not only endpoint state or norms). The maximum
+state coefficient error was 1.110223e−16 for acoustics and
+2.775558e−16 for SWE. The Hamiltonians were **exactly equal**;
+SWE energy balance differed at most 4.235165e−22 and the
+volume-balance histories matched exactly. Both SWE runs completed
+3 CN steps with no rejects or nonlinear failures.
+
+In the compact SWE run, **each rank created only one Hessian
+matrix and one perturbation vector**, and reused the same matrix
+**four times** across Jacobian evaluations. Legacy still allocated
+temporary matrices repeatedly. The correct workspace behavior is
+therefore independently verified on real PETSc/MPI.
+
+**Interpretation:** On the 47k-DoF linear case, removing populated
+tangent copies produces a measurable but relatively small
+whole-process memory reduction (~0.7%). On the much smaller SWE
+system, `+0.39 MiB` is NOT evidence of a meaningful memory
+regression; the independent 1170-DoF copies are small relative to
+library/native allocation overhead, and one-run VmHWM is sensitive
+to allocator layout. Correctness and allocation-count goals PASS,
+but nonlinear peak RSS savings are not demonstrated.
+
+For acoustic compact, rank 1 contains approximately **327 MiB
+RssAnon** and **190 MiB RssFile**. The original 47k-DoF
+memory-mode process retains >500 MiB even after duplicate
+operator removal. More small NumPy optimizations will not remove
+the native solver/process baseline.
+
+## Next diagnostic: isolate the dominant phase, no long run
+
+Before tuning MUMPS or changing GetFEM matrix representation, identify
+**where** memory actually increases. `scrimp/utils/phase_memory_audit.py`
+and `DPHS._memory_phase` now provide *opt-in local-only* samples,
+with no new MPI collectives, no forced GC and no solver changes.
+Pass `SCRIMP_MEMORY_PHASE_AUDIT_DIR` per MPI-run output directory.
+
+The probes cover the PETSc allocation stage, GetFEM mass/stiffness
+and RHS assembly, creation of TS Jacobian/vectors, optional
+BDF2 initialization, the main TS entry, the first monitor callbacks,
+the final accepted solution, and TS cleanup. The **first accepted
+main monitor step** occurs after the first linear factorization;
+an RSS increment across this phase may implicate TS/KSP/MUMPS
+workspace, but cannot alone prove ownership of individual bytes.
+
+Run the **same short three-step** A/B command:
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+bash sandbox/run_compact_matrix_parity.sh
+```
+
+In addition to the physical comparisons it now creates
+`matrix_phase_memory_summary.json`,
+`matrix_phase_memory_timeseries.csv` and
+`{acoustic,swe}/{legacy,compact}/memory_phase_rank000{0,1}.json`.
+Both rank-local `VmRSS` and `VmHWM` are recorded.
+
+RSS measurements include Python, GetFEM, MPI, PETSc, MUMPS and
+the OS allocator; memory deltas between phases do **not** precisely
+assign bytes to any library. The previous native archive remains
+the unchanged pre-instrumentation numerical reference.
+
 ## Short native MPI physical parity (to run next)
 
 ```bash
