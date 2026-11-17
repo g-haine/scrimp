@@ -150,8 +150,17 @@ def _stats(reports, key="wall_solve_s"):
 
 
 def _save(fig, base):
-    fig.savefig(base.with_suffix(".png"), dpi=240)
-    fig.savefig(base.with_suffix(".svg"))
+    """Save only figures under the run's png/ and svg/ directories.
+
+    All JSON/NPZ/CSV measurement files stay in the run root. This
+    layout also applies when plotting an existing campaign again.
+    """
+    png = base.parent / "png" / (base.name + ".png")
+    svg = base.parent / "svg" / (base.name + ".svg")
+    png.parent.mkdir(parents=True, exist_ok=True)
+    svg.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(png, dpi=240)
+    fig.savefig(svg)
     plt.close(fig)
 
 
