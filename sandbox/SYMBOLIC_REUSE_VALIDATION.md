@@ -2,6 +2,58 @@
 
 Status: **experimental tests; no production solver-policy change yet**.
 
+## Measured refined-mesh acoustic scaling (2026-11-17)
+
+The complete repeated acoustic-wave campaign is preserved outside the
+repository in `sandbox/outputs/scaling-mumps-h0p04/` on the user's
+machine. It uses `h=0.04`, exactly **47,942 DoFs**, fixed
+Crank–Nicolson `dt=0.002` to `t_f=0.04` (20 accepted steps),
+5 repetitions for each of 1/2/4/6 MPI ranks and both reset policies.
+Each MPI configuration is pinned to distinct physical cores
+(`0,2,4,6,8,10`). The automatic policy resolves to **`never`**,
+because this is a linear system with certified prescribed controls.
+Every run converged; final field norms agree across all 40 runs to
+floating-point precision.
+
+**MPI-rank maximum `DPHS.solve()` times, median of five (s):**
+
+| Ranks | Always | Automatic never | Time reduction | Speedup always | Speedup auto |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | 77.786 | 72.808 | 6.40% | 1.000 | 1.000 |
+| 2 | 35.041 | 28.304 | 19.23% | 2.220 | 2.572 |
+| 4 | 18.556 | 11.226 | 39.51% | 4.192 | 6.486 |
+| 6 | 14.736 | 6.210 | 57.86% | 5.279 | 11.724 |
+
+The automatic policy is 2.37 times as fast at six ranks (comparing
+same-rank median total solve times), saving about 8.53 seconds.
+The six-rank first repetition was lower than the others for BOTH
+policies (`auto` 4.165 vs 6.125–6.250 s; `always` 9.745 vs
+14.595–14.788 s); the median is intentionally preferred.
+
+**Do not interpret 11.724x as MUMPS kernel speedup.** It is the ratio
+of complete `DPHS.solve()` times for 1 and 6 ranks. The latter
+contains GetFEM assembly, the GetFEM→PETSc bridge, initialization and
+time stepping, not just the MUMPS factorization. Example `auto`
+run 3 had inclusive mass+stiffness setup of 14.94+55.05 s at
+one rank, against 0.881+2.452 s at six; the main integration
+timings were 2.755 and 2.680 s. The native GetFEM assembly messages
+in the log are much shorter than the inclusive setup timing, pointing
+to the **already-identified GetFEM→PETSc bridge** as a critical
+second bottleneck. Existing `--profile` timings
+`setup.getfem.mass`, `setup.bridge.mass`,
+`setup.getfem.stiffness` and `setup.bridge.stiffness`
+should be used to isolate the split before changing the transfer
+algorithm. These 40 JSON reports **do not contain** the optional
+`profile` object; bridge-only percentages must not be inferred
+from the inclusive setup durations.
+
+As a follow-up, profile a small number of runs at the same mesh
+(1, 4 and 6 ranks, automatic policy) using the existing
+`sandbox/bench_acoustic_2d.py --profile`, then optimize the
+transfer in `scrimp/utils/linalg.py:convert_gmm_to_petsc` only
+with strict MPI physical-equivalence and memory checks. No new
+profiling mechanism is necessary.
+
 ## End-to-end MPI on_change/always nonlinear parity (2026-11-17)
 
 The user reran the already-validated P3/P2 physical Saint-Venant
