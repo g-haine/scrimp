@@ -257,15 +257,39 @@ mixed FEM inf-sup behavior and conditioning. The original
 comment suggesting the initial p matches facet normals
 exactly was misleading and has been corrected.
 
-**Next noninvasive diagnostic:** with `rotation=0.02`,
-rigid initial profile and the existing state-amplification
-safeguard, compare `--init-dt 1e-8` and `1e-7` against
-the recorded `1e-9` case. Inspect the final BDF2
-`||Y||` and product `init_dt*||Y||` for approximately
-inverse-dt scaling, and distinguish this from mere
-large-norm conditioning. Do not promote a passing
-startup to physical validation until the boundary
-conditions are checked against the initial discrete trace.
+**BDF2 inverse-step-size scaling confirmed (2026-11-17):**
+for `rotation=0.02` and the same rigid initial profile
+and mesh=0.2, the final startup `||Y||` was
+`5,998,040` at `init_dt=1e-9`, `599,804` at `1e-8`,
+and `59,980.4` at `1e-7`. Each gives
+`init_dt * ||Y|| = 0.00599804` to the precision shown.
+Both new startups exit 1 under the existing safe
+norm-amplification guard. This is strong evidence for a
+discrete constraint reaction scaling as `1/init_dt`
+rather than nonlinear Newton or MUMPS divergence.
+It does **not** by itself establish that the mismatch
+is exclusively due to faceted geometry.
+
+**Important brick-sign inspection:** `DPHS.add_brick`
+negates all `position="flow"` forms. The two boundary
+bricks `M_b[h]: h*U.Test_Y` (flow) and
+`B_mu[h]^T: h*e_p.Test_Y` (effort) therefore assemble
+the weak constraint `h*(e_p-U).Test_Y`, not
+`h*(e_p+U).Test_Y`. The sign is consistent with
+`e_p=U` on the wall, so do **not** flip a brick
+sign based only on the printed original expressions.
+
+**Next discriminating check:** vary the disk mesh size,
+holding `rotation=0.02`, rigid profile, startup
+`dt=1e-8` and conservative MUMPS reset fixed. Compare
+`init_dt * max|Y|` and `init_dt * ||Y||` across
+mesh sizes, noting that an unweighted discrete 2-norm
+is mesh-dependent. Directly evaluating the
+initial boundary-trace discrepancy `p/rho-U`
+(including the imposed `U_n=0`) would be even stronger.
+Keep the state-amplification guard on, and do not
+interpret failed BDF2 starts as a valid nonlinear
+physical simulation.
 
 Never disable the state-amplification guard merely to
 force the main simulation forward.
