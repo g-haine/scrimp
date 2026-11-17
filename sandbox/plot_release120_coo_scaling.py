@@ -580,6 +580,10 @@ def plot(directory, repetitions, *, current_only=False):
             "variant", "policy", "ranks", "source_sha",
             "median_solve_s", "min_solve_s", "max_solve_s",
             "speedup_vs_v1.2.0", "strong_speedup", "mpi_efficiency",
+            "first_step_median_s", "steady_step_median_run_mean_s",
+            "steady_step_min_run_mean_s", "steady_step_max_run_mean_s",
+            "steady_step_speedup", "steady_step_efficiency",
+            "early_vs_late_steady_rel_diff",
         ])
         for (variant, policy, ranks), records in sorted(runs.items()):
             med, lo, hi = _stats(records)
@@ -589,9 +593,36 @@ def plot(directory, repetitions, *, current_only=False):
             else:
                 strong = 1.
                 eff = 1.
+            first = steady = ""
+            steady_low = steady_high = ""
+            step_speedup = step_efficiency = drift = ""
+            if has_step_times:
+                first = _stats(records, key="first_step_wall_s")[0]
+                steady, steady_low, steady_high = _stats(
+                    records, key="steady_step_mean_s"
+                )
+                early = _stats(
+                    records, key="steady_step_early_mean_s"
+                )[0]
+                late = _stats(
+                    records, key="steady_step_late_mean_s"
+                )[0]
+                drift = abs(early-late)/max(
+                    early, late, np.finfo(float).tiny
+                )
+                if variant == "current":
+                    step_speedup = (
+                        _stats(
+                            runs[("current", policy, 1)],
+                            key="steady_step_mean_s"
+                        )[0] / steady
+                    )
+                    step_efficiency = step_speedup / ranks
             writer.writerow([
                 variant, policy, ranks, commits[variant], med, lo, hi,
                 baseline/med if baseline is not None else "", strong, eff,
+                first, steady, steady_low, steady_high,
+                step_speedup, step_efficiency, drift,
             ])
     report = {
         "provenance": {
@@ -609,6 +640,54 @@ def plot(directory, repetitions, *, current_only=False):
             "repetitions": repetitions,
         },
         "baseline_median_s": baseline,
+        "direct_step_timing_available": bool(has_step_times),
+        "step_timing": (
+            {
+                "method": (
+                    "Between post-monitor of accepted CN step n-1 and "
+                    "pre-monitor of accepted CN step n; MPI maximum "
+                    "of rank-local measurements, without additional "
+                    "collectives in callbacks."
+                ),
+                "first_step_excluded": True,
+                "warmup_steps": 1,
+                "steady_steps": cfg[7] - 1,
+                "per_policy": {
+                    policy: {
+                        str(rank): {
+                            "first_step_median_s": _stats(
+                                runs[("current", policy, rank)],
+                                key="first_step_wall_s",
+                            )[0],
+                            "mean_step_median_s": _stats(
+                                runs[("current", policy, rank)],
+                                key="steady_step_mean_s",
+                            )[0],
+                            "early_window_median_s": _stats(
+                                runs[("current", policy, rank)],
+                                key="steady_step_early_mean_s",
+                            )[0],
+                            "late_window_median_s": _stats(
+                                runs[("current", policy, rank)],
+                                key="steady_step_late_mean_s",
+                            )[0],
+                            "speedup": (
+                                _stats(
+                                    runs[("current", policy, 1)],
+                                    key="steady_step_mean_s",
+                                )[0] / _stats(
+                                    runs[("current", policy, rank)],
+                                    key="steady_step_mean_s",
+                                )[0]
+                            ),
+                        }
+                        for rank in RANKS
+                    }
+                    for policy in POLICIES
+                },
+            }
+            if has_step_times else None
+        ),
         "physical_parity_scope": (
             "current_COO_never_on_change_MPI_only"
             if current_only else "current_and_release_v1.2.0"
@@ -632,15 +711,25 @@ def plot(directory, repetitions, *, current_only=False):
             "Speedup vs release is separate and may combine algorithm "
             "improvement with MPI parallelization.",
             "No statistical error bars if only one repetition was run.",
+            "Per-step scaling is computed from directly clocked "
+            "accepted steps 2..N; not from Tsolve/N.",
+            "MPI step cost is max of measured per-rank step intervals.",
+            "Initial symbolic/numeric factorization is a separate "
+            "first-step benchmark, not part of steady-step speedup.",
+            "Early/late steady windows help identify time-dependent "
+            "step costs; no strict independence from final time is claimed.",
         ],
     }
     (directory / "performance_summary.json").write_text(
         json.dumps(report, indent=2) + "\n", encoding="utf-8"
     )
+    n_figures = (3 if current_only else 4) + (
+        4 if has_step_times else 0
+    )
     print(
         f"PASS: validated full initial/final states across all "
         f"{len(errors)} runs; "
-        f"{3 if current_only else 4} PNG+SVG charts created."
+        f"{n_figures} PNG+SVG charts created."
     )
     if current_only:
         print(
@@ -668,6 +757,17 @@ def plot(directory, repetitions, *, current_only=False):
                 for r in RANKS
             )
         )
+        if has_step_times:
+            print(
+                "Steady step strong scaling " + policy + ": "
+                + ", ".join(
+                    f"{r}r {_stats(
+                        runs[('current',policy,r)],
+                        key='steady_step_mean_s',
+                    )[0]*1000.:.3f}ms"
+                    for r in RANKS
+                )
+            )
     print("Saved:", directory / "performance_summary.json")
     return report
 
