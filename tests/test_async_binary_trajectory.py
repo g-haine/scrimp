@@ -72,6 +72,24 @@ class AsyncBinaryTrajectoryTests(unittest.TestCase):
             trajectory[1:3], np.stack((initial + 1, initial + 3))
         )
 
+    def test_lazy_subset_does_not_load_other_frames(self):
+        trajectory, initial = self._write_pair(np.float64)
+        from_disk = IO.LazyTrajectory(
+            self.directory / "trajectory_manifest.json",
+            indices=np.array([0, 3], dtype=np.int64),
+        )
+        self.assertEqual(len(from_disk), 2)
+        np.testing.assert_array_equal(from_disk.steps, [0, 7])
+        np.testing.assert_array_equal(from_disk[0], initial)
+        np.testing.assert_array_equal(from_disk[-1], initial + 7)
+        self.assertEqual(from_disk[1].shape, (11,))
+        self.assertEqual(len(trajectory), 4)
+        with self.assertRaisesRegex(ValueError, "Invalid saved-state"):
+            IO.LazyTrajectory(
+                self.directory / "trajectory_manifest.json",
+                indices=np.array([0, 99]),
+            )
+
     def test_binary_writer_round_trip_complex(self):
         trajectory, initial = self._write_pair(np.complex128)
         for i, step in enumerate((0, 1, 3, 7)):
