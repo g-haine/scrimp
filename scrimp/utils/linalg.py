@@ -41,15 +41,21 @@ def convert_gmm_to_petsc(
     SCRIMP_GETFEM_BRIDGE_REPLICATED controls only extraction in
     replicated mode: 'full' (default) or experimental 'owned_rows'.
 
-    For distributed mode, SCRIMP_GETFEM_BRIDGE_DISTRIBUTED=csr
-    selects the historical IJV/ADD_VALUES path (also called ijv).
-    SCRIMP_GETFEM_BRIDGE_DISTRIBUTED=coo enables
-    native PETSc COO assembly only at call sites that explicitly declare
-    distributed_coo_eligible=True (currently the initial LINEAR mass and
-    stiffness matrices). Other calls retain the IJV/ADD_VALUES path,
-    including state-dependent Jacobians and dynamic sparsity.
-    This is an opt-in experimental path requiring MPI physical validation;
-    it preserves the PETSc Mat handle and explicit diagonal slots.
+    For distributed mode, SCRIMP_GETFEM_BRIDGE_DISTRIBUTED=coo
+    (DEFAULT) selects PETSc's native COO preallocation/assembly, only
+    at call sites explicitly marked distributed_coo_eligible=True:
+    currently DPHS's initial LINEAR mass and stiffness matrices.
+    SCRIMP_GETFEM_BRIDGE_DISTRIBUTED=csr selects the historical
+    IJV/ADD_VALUES path; 'ijv' is retained as its legacy alias.
+    Nonlinear Jacobians and dynamic sparsity retain historical IJV
+    even when the default is COO. Replicated GetFEM mode is unchanged.
+    The resulting PETSc matrix still stores sparse coefficients as AIJ
+    (CSR-like); COO is the assembly API, not the storage format.
+
+    The native-MPI benchmark and complete acoustic trajectory tests
+    cover 1/2/4/6 ranks and three-repeat runs for linear operators.
+    Preservation of the PETSc Mat handle and explicit diagonal slots
+    is required. Nonlinear COO is NOT enabled without separate tests.
 
     Optional profiler/profile_label use SCRIMP's existing TimingProfiler
     for bridge subphases. No MPI collectives or matrix changes are added.
@@ -76,7 +82,7 @@ def convert_gmm_to_petsc(
         )
 
     distributed_method = os.environ.get(
-        "SCRIMP_GETFEM_BRIDGE_DISTRIBUTED", "ijv"
+        "SCRIMP_GETFEM_BRIDGE_DISTRIBUTED", "coo"
     ).strip().lower()
     if distributed_method not in ("ijv", "csr", "coo"):
         raise ValueError(
