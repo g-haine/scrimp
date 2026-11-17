@@ -2,6 +2,87 @@
 
 Status: **experimental tests; no production solver-policy change yet**.
 
+## Production DPHS reset policy: automatic linear fast path (2026-11-17)
+
+**Implemented in `scrimp/dphs.py` on this PR; awaiting local runtime
+validation.** The exact CSR `on_change` logic, already validated in
+standalone and real-Jacobian PETSc tests, is now connected directly
+to `DPHS.IJacobian()`. Each new `DPHS.solve()` resolves one reset policy
+collectively and clears its initial/main TS-specific CSR histories.
+After full implicit Jacobian assembly (including the optional
+state-dependent mass-Hessian correction), `on_change` compares
+detached copies of local PETSc stored CSR row pointers, columns and
+ownership ranges, then uses a collective MPI logical OR. If the
+global graph changes, it resets the MUMPS PC and rebinds the existing
+KSP operators before the next factorization; numerical-value-only
+changes do not reset MUMPS. This is an experimental integration,
+not a demonstrated new end-to-end runtime speedup.
+
+**Final default policy, including linearity optimization:**
+
+| Registered SCRIMP bricks | No environment override | CSR check in IJacobian? |
+| --- | --- | --- |
+| Every brick marked `linear=True` | `never` | No |
+| At least one brick marked `linear=False` | `on_change` | Yes, for MUMPS LU |
+| Empty model | `on_change` | Yes, if assembled with MUMPS |
+
+Both the `initial` and `main` TS use their own CSR snapshots,
+since their KSP/PC instances have independent factor lifecycles.
+The static linear-brick test includes source, control and explicit
+bricks; it does not rely only on the mass and stiffness shortcut
+flags. **A brick wrongly declared linear defeats this optimization.**
+The automatic fast path assumes a fixed stored sparsity graph for an
+all-linear model.
+
+The explicit environment override `SCRIMP_MUMPS_RESET_POLICY`
+accepts `on_change`, `always`, or `never` and **always wins**
+over automatic linearity detection. Legacy
+`SCRIMP_MUMPS_RESET_PC_ON_JACOBIAN=1` means `always` and
+`=0` means `never`, but is only read when the new variable
+is absent. For `always`, `PC.reset()` is performed on each
+Jacobian as the conservative fallback. For `never`,
+no repeated CSR snapshot/comparison or MPI change collective
+is performed.
+
+**Minimum local validation before acceptance of the optimization:**
+
+```sh
+conda activate scrimp
+python -u sandbox/check_mumps_reset_policy_unit.py
+
+# Linear system: should select never automatically, and agree with
+# explicit always and on_change. Use the existing acoustic profiler.
+# Unset the old flag to actually exercise the automatic choice:
+env -u SCRIMP_MUMPS_RESET_POLICY \\
+    -u SCRIMP_MUMPS_RESET_PC_ON_JACOBIAN \\
+    python -u sandbox/bench_acoustic_2d.py \\
+    --mesh 0.08 --dt 0.002 --final-time 0.04 \\
+    --save-dt 0.01 --profile --petsc-log
+
+# Nonlinear PDE: the following is the already-working P3/P2 open
+# physical spin-up. Repeat at MPI 1/2/4, compare against
+# SCRIMP_MUMPS_RESET_POLICY=always for state invariants and
+# MatLUFactorSym/Num counts. Use the existing power/volume reports.
+env -u SCRIMP_MUMPS_RESET_POLICY \\
+    -u SCRIMP_MUMPS_RESET_PC_ON_JACOBIAN \\
+    mpiexec -n 2 python -u sandbox/viscous_swe_2d_mpi.py \\
+    --case open --mesh 0.2 --height-order 3 --rotation 0.02 \\
+    --initial-profile rigid --wall-velocity-profile facet_tangent \\
+    --start-from-rest-duration 0.02 --init-method bdf \\
+    --init-dt 1e-8 --final-time 0.02 --max-step 0.002 \\
+    --save-dt 0.002 --adapt-type none \\
+    --output-dir sandbox/outputs/symbolic-reuse/swe_on_change_mpi2
+```
+
+Required gates: no nonlinear or linear solver failures, exact
+physical endpoint, reference-close full state/invariants and power
+balance, no factor corruption on 1/2/4 ranks, and fewer symbolic
+factorizations than `always` when the stored CSR graph is
+unchanged. Validate repeat-solve/teardown, and only then report
+speedups from the already-existing SCRIMP/PETSc profiler. Avoid
+claiming the new integration was executed in the user's container
+until corresponding logs have been inspected.
+
 ## Reproduced changing-sparsity failure (2026-11-16)
 
 In the standalone PETSc 3.26.1 complex-scalar MUMPS probe, cycles 0-2
