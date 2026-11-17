@@ -14,95 +14,134 @@ withdrawn. The observations of six PETSc numeric factorizations in
 one DAE-initialization + five-CN-step run remain valid and useful,
 but **not** a reason to build a fixed-step-only production feature.
 
-## 1. Structural model and its time-discrete Jacobian
+## 1. General pH-DAE model: constitutive relations are implicit
 
-Consider the linear pH formulation
-
-```text
-M dz/dt = (J-R) Q z + B u
-M_y y  = -B^T Q z
-
-J^T = -J,   R^T = R >= 0.
-```
-
-For the full physical energy to be a quadratic form, one additionally
-needs the actual discrete energy pairing: for example, with constant
-matrices and `W = Q^T M = M^T Q >= 0`,
+**Correction of an earlier oversimplification.** In SCRIMP the
+state/co-energy relation is generally an **algebraic variational
+relation**, not the explicit pointwise map `e=Qz`. Abstractly,
 
 ```text
-H(z) = 0.5 z^T W z.
+F dz/dt = (J-R)e + B u
+C z     = E e
+M_y y   = -B^T e
+
+J^T=-J,  R=R^T >= 0.
 ```
 
-This is a **separate assumption**, not implied by skewness of J and
-positivity of R. M may be singular in a pH DAE and Q may only be
-defined via finite-element mass/constitutive operators rather than a
-standalone invertible assembled matrix.
+We use distinct symbols to avoid overloading the original `M`:
 
-PETSc's *implicit TS Jacobian* for the residual F(t,z,zdot) is
+- `F`: dynamic/flow mass or descriptor operator;
+- `C` and `E`: the *two* assembled constitutive operators,
+  corresponding to the user's generalized law **M z = Q e**
+  (here `C=M`, `E=Q` in that law);
+- `e`: independent co-energy unknowns, not automatically `Qz`;
+- `J` and `R`: interconnection and dissipation operators **in
+  power-conjugate effort/flow coordinates**;
+- `B, M_y`: input/output-port operators, with the stated sign
+  convention. SCRIMP's mixed controlled boundary formulation can
+  introduce extra saddle-point rows and unknowns.
+
+We **never assume** that `C`, `E` or `F` are invertible, nor
+that `C` or `E` equal an identity matrix, nor that the
+finite-element algebraic rows can be discarded. Here `F`
+is often singular on the whole augmented DAE state due to
+zero-time-derivative co-energy and boundary variables.
+
+For PETSc implicit TS, let `sigma = d(zdot)/d(z)` as provided
+by `IJacobian`. Ignoring prescribed `u` and separate output
+rows, the **uncondensed** operator on independent `(z,e)`
+unknowns is
 
 ```text
-A(sigma) = sigma M - (J-R)Q
-         = sigma M + (R-J)Q,
+             [ sigma F     R-J  ]
+A(sigma)  =   [                   ].
+             [    C         -E   ]
 ```
 
-where sigma is supplied by TS and varies with the timestep and
-integration method. In a fixed-step CN picture, multiplying the
-midpoint equation by dt gives the equivalent operator
+Additional boundary/control rows are retained for the actual
+acoustic benchmark. The shift `sigma` changes under adaptive
+timestepping, even if all physical coefficients `F,C,E,J,R,B`
+are constant. A useful preconditioner should be based on
+`A(sigma)`, updating or approximating its shift-dependent parts
+**without requiring repeated global MUMPS numeric LU**.
+
+If, **and only if**, `E` is invertible on the relevant constrained
+subspace, constitutive condensation gives
 
 ```text
-M + (dt/2)(R-J)Q.
+e = E^{-1} C z
+
+A_reduced(sigma) = sigma F + (R-J) E^{-1} C.
 ```
 
-The goal is **not** to reuse numeric LU when sigma changes; it is
-to exploit the block structure and update a cheap preconditioner
-when sigma changes.
+This is a derived *special case*, not the assumed input
+formulation. In particular, `E^{-1}` may be nonlocal; an
+approximate solve with `E` may be suitable INSIDE a
+preconditioner, but the full DAE must remain the physical
+operator used by PETSc.
 
-If Q is invertible and the above energy pairing is symmetric, the
-effort variable `e=Qz` leads to
+The skew-adjoint `J` and symmetric positive semidefinite
+`R` properties guide the **signs, adjoints and choice of
+approximate Schur factors**, but they do not by themselves
+make the assembled uncondensed DAE, its Schur complement
+or its symmetric part SPD.
+
+## 2. Dissipation, ports and the physically meaningful residual
+
+Assume the actual discrete co-energy variables are power
+conjugate to the dynamic flow; in particular, for the
+quadratic Hamiltonian of a compatible linear discretization,
 
 ```text
-A_e(sigma) = sigma M Q^{-1} + R - J
-           = H_sigma - J,  H_sigma= sigma M Q^{-1}+R.
+dH/dt = e^T F dz/dt.
 ```
 
-`M Q^{-1}` is symmetric positive semidefinite **only under the
-quadratic-energy condition** `Q^T M=(Q^T M)^T>=0`. If H_sigma is
-positive definite on the actual (possibly reduced) unknown space,
-it may be used as an SPD preconditioner and the transformed
-operator has symmetric positive part plus skew part.
-This *does not guarantee* bounded condition number or mesh-independent
-GMRES convergence: the skew contribution can become increasingly
-stiff under mesh refinement. More importantly, **the full SCRIMP
-wave DAE contains zero-mass algebraic rows**: a global SPD
-H_sigma must NOT be presumed.
+This identity is a **separate compatibility condition** to
+verify on the concrete FE spaces and constitutive relation
+`C z=E e`; neither the algebraic equality alone nor
+`J^T=-J` implies it.
 
-## 2. Derived passivity-based numerical acceptance test
-
-For Crank-Nicolson applied to this constant-coefficient model,
-`z_m = (z_{n+1}+z_n)/2`, `e_m=Q z_m` and
-`r_m = M(z_{n+1}-z_n)/dt - (J-R)e_m - B u_m`.
-If the energy pairing and boundary conventions above hold,
+Then the pH equations yield
 
 ```text
- (H_{n+1} - H_n)/dt
-   = - e_m^T R e_m - u_m^T M_y y_m + e_m^T r_m.
+dH/dt = - e^T R e + e^T B u
+      = - e^T R e - u^T M_y y.
 ```
 
-The last term is the *discrete power defect caused by the
-algebraic linear-system residual*. It directly connects the Krylov
-stopping criteria to the port-Hamiltonian energy accuracy.
+For a *quadratic* Hamiltonian and a CN midpoint step,
+with `z_m=(z_{n+1}+z_n)/2` and an admissible
+`e_m=(e_{n+1}+e_n)/2` satisfying the midpoint
+constitutive law, define separate dynamic and
+algebraic residuals
 
-For other time schemes and non-constant coefficients, derive the
-appropriate discrete balance; DO NOT claim CN's exact discrete
-identity for an arbitrary adaptive BDF integration. Variable-step
-CN can retain the midpoint quadratic-energy identity on each
-accepted step when the model and stage values satisfy its
-hypotheses. Boundary flow/control sign conventions matter.
+```text
+r_f = F (z_{n+1}-z_n)/dt - (J-R)e_m - B u_m
+r_c = C z_m - E e_m
+r_y = M_y y_m + B^T e_m.
+```
 
-Physical validation must include the **full state vector**,
-algebraic constraints, output/port power and the energy balance.
-Monitor the KSP *true residual* as well as the reported
-preconditioned residual, and the power defect |e_m^T r_m|.
+If constitutive and port equations are satisfied to their
+required tolerances and the midpoint energy pairing holds,
+
+```text
+(H_{n+1}-H_n)/dt
+   = -e_m^T R e_m - u_m^T M_y y_m + e_m^T r_f.
+```
+
+An inexact Krylov solve can also leave **nonzero `r_c`
+and `r_y`**, which may cause additional energy/port
+defects: `e_m^T r_f` alone does *not* certify the
+full DAE solution. Record all three residuals and
+the physically computed Hamiltonian/powers. For
+variable-step CN, this midpoint identity can still
+hold **step by step** under the same hypotheses; do
+not assume it holds for arbitrary adaptive BDF
+or nonlinear systems.
+
+Consequently, use the port-Hamiltonian power balance
+as a **solver-accuracy test**, alongside full-vector
+comparison and all algebraic/port constraints, rather
+than as a substitute for residual accuracy.
 
 ## 3. Priority prototype: fieldsplit / Schur / AMG
 
@@ -114,6 +153,14 @@ The concrete `examples/wave.py` model uses:
 - `-M_e_p e_p + C_p p=0` (momentum constitutive law);
 - mixed boundary control, including a Dirichlet-type
   Lagrange-multiplier output on the left boundary.
+
+The uncondensed blocks above must first be checked against the
+actual GetFEM stencil and test-function orientation: in particular,
+SCRIMP's `-M_e_q e_q + C_q q=0` and
+`-M_e_p e_p + C_p p=0` are **not** the identity
+map `e=Qz`. PETSc can build a split from the actual variable
+index sets and can apply approximate local/AMG solvers to
+constitutive blocks without changing the physical residual.
 
 The DG mass for `e_q` admits **element-local** inverses.
 The consistent CG mass for `e_p` is generally global:
@@ -179,15 +226,18 @@ PETSc references:
 
 1. **Extract exact block sizes and signs** from the production
    `GF_MODEL.interval_of_variable` and PETSc `J`,
-   including ownership ranges, co-energy laws and ports.
-   Verify all relevant discrete transpose/adjoint identities
-   under the actual FEM mass pairings. Do NOT assume that
-   the continuum J skewness transfers automatically to
-   the assembled Euclidean matrix after variable elimination.
-2. **Independent block operator check** on 1 then 2 ranks.
-   Verify `||J+J^T||`, `||R-R^T||`, quadratic
-   energy positivity on the admissible subspace (when
-   appropriate), and correspondence to original residual.
+   including ownership ranges, the separate flow (`F`) and
+   constitutive (`C,E`) mass/operators, and every port
+   constraint. Do not conflate PETSc's Jacobian object
+   `self.J` with the **Dirac interconnection** matrix `J`.
+   Verify the actual FE power-duality and discrete adjoints.
+2. **Independent uncondensed block check**, first on 1 then
+   2 MPI ranks. Inspect `F,C,E,J,R` and boundary blocks,
+   verify their actual adjoint/symmetry conditions under
+   discrete dualities, test constitutive and dynamic residuals,
+   and check energy positivity on the admissible subspace
+   where appropriate. The complete PETSc Jacobian is neither
+   expected to be skew nor SPD.
 3. **Small fixed mesh, variable steps and shift** (at least
    two distinct accepted dt values) using the same operator
    coefficients, compared against the full MUMPS reference:
