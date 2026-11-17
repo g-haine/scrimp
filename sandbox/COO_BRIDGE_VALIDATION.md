@@ -1,4 +1,4 @@
-# Experimental PETSc COO bridge — validation log
+# PETSc COO bridge — validation and default policy
 
 Branch: `feature/getfem55-mpi-container-scalability` (PR #24).
 
@@ -34,10 +34,18 @@ prototype started with newly created PETSc matrices, so it did **not**
 establish safety or performance of COO on SCRIMP's already initialized
 matrix handles. That is the next required gate.
 
-## Opt-in production integration (native MPI validation documented below)
+## Default production bridge for GetFEM distributed linear operators
 
-- Default: `SCRIMP_GETFEM_BRIDGE_DISTRIBUTED=ijv` (unchanged).
-- Experimental: `SCRIMP_GETFEM_BRIDGE_DISTRIBUTED=coo`.
+- **Default since commit `911d65d`:**
+  `SCRIMP_GETFEM_BRIDGE_DISTRIBUTED=coo` for the eligible
+  **initial linear mass/stiffness matrices**, when
+  `SCRIMP_GETFEM_MATRIX_MODE=distributed`.
+- **Explicit reference/fallback:** `SCRIMP_GETFEM_BRIDGE_DISTRIBUTED=csr`
+  (or legacy synonym `ijv`) selects the historical IJV/ADD_VALUES
+  path. Existing benchmarks set both methods explicitly, so changing
+  the default does not contaminate historical measurements.
+- `SCRIMP_GETFEM_MATRIX_MODE=replicated` remains unchanged: changing
+  the GetFEM assembly semantics globally was not part of this change.
 - The COO path is called **only** from `DPHS.assemble_mass` and
   `DPHS.assemble_stiffness`, the initial linear setup operators.
 - Nonlinear tangent matrices, potential structural changes during Newton,
@@ -164,7 +172,8 @@ The scaling runner now crosses two **independent** axes:
 - Distributed GetFEM bridge: `SCRIMP_GETFEM_BRIDGE_DISTRIBUTED=csr`
   (historical CSR/IJV + `Mat.assemble()`, `ijv` remains a legacy
   alias), and `coo` (new native COO path on initial linear matrices).
-  The **default remains `ijv`**, i.e. historical CSR transfer.
+  The **default is now `coo` for eligible distributed linear
+  matrices**, with explicit `csr` (or `ijv`) fallback.
 - MUMPS symbolic reset: `never`, `on_change`, `always` as the
   existing `SCRIMP_MUMPS_RESET_POLICY` values. Optional `auto` remains
   the benchmark alias for automatic policy selection (`never` for this
@@ -258,6 +267,30 @@ These are the **reported median values from the completed analyzer**
 (not a claim to have independently re-read all raw JSONs here).
 No measured memory reduction or nonlinear/complex physical equivalence
 is claimed.
+
+### Default selection after the successful acoustic campaign
+
+The benchmarked native PETSc COO **assembly method** is now the
+production default for `DPHS.assemble_mass()` and
+`DPHS.assemble_stiffness()` **in distributed GetFEM mode**.
+It does not change the final sparse storage type:
+PETSc still uses `Mat.Type.AIJ` (CSR-family storage), not persistent
+COO triplets. The initial linear operators are eligible because their
+contribution pattern is rebuilt safely with `setPreallocationCOO`.
+Nonlinear and potentially changing graph Jacobians continue using
+historical `setValuesIJV(..., ADD_VALUES)` until separately validated.
+
+For reproducible CSR-vs-COO comparisons, explicitly select both:
+```bash
+SCRIMP_GETFEM_MATRIX_MODE=distributed SCRIMP_GETFEM_BRIDGE_DISTRIBUTED=csr
+SCRIMP_GETFEM_MATRIX_MODE=distributed SCRIMP_GETFEM_BRIDGE_DISTRIBUTED=coo
+```
+A native MPI regression now also verifies that omitting the bridge
+variable selects COO for eligible distributed operators; a fallback
+call without eligibility still takes IJV. The existing full-trajectory
+tests and the 48-run campaign establish the rationale for this
+default, but do **not** constitute separate validation for nonlinear
+Saint-Venant physics or systems using replicated GetFEM matrices.
 
 ## Validation gates before considering default activation
 
