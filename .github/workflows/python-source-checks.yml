@@ -25,10 +25,11 @@ jobs:
           python -m py_compile scrimp/utils/async_binary_trajectory.py sandbox/async_binary_trajectory.py sandbox/check_async_binary_mpi.py sandbox/probe_async_binary_mpi.py sandbox/verify_async_acoustic.py sandbox/compare_async_acoustic.py sandbox/verify_async_swe.py sandbox/compare_async_swe.py tests/test_async_binary_trajectory.py tests/test_async_swe_comparison.py
           bash -n sandbox/run_async_binary_smoke.sh sandbox/run_async_acoustic_parity.sh sandbox/run_async_swe_parity.sh
           python -m unittest -v tests.test_async_binary_trajectory tests.test_async_swe_comparison
-      - name: Validate compact matrix-workspace algebra (no PETSc)
+      - name: Validate compact matrix algebra and A/B gates (no PETSc)
         run: |
-          python -m py_compile scrimp/utils/matrix_memory.py tests/test_matrix_memory.py
-          python -m unittest -v tests.test_matrix_memory
+          python -m py_compile scrimp/utils/matrix_memory.py sandbox/matrix_memory_metrics.py sandbox/compare_compact_matrix.py tests/test_matrix_memory.py tests/test_compact_matrix_comparison.py
+          bash -n sandbox/run_compact_matrix_parity.sh
+          python -m unittest -v tests.test_matrix_memory tests.test_compact_matrix_comparison
       - name: Validate SCRIMP source headers
         run: |
           python -m unittest -v tests.test_python_headers
