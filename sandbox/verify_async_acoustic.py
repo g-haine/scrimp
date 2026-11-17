@@ -25,6 +25,7 @@ from mpi4py import MPI
 
 from bench_acoustic_2d import _build_wave
 from scrimp.utils.async_binary_trajectory import LazyTrajectory
+from matrix_memory_metrics import snapshot as matrix_memory_snapshot
 
 
 def main():
@@ -55,6 +56,8 @@ def main():
         pc_factor_mat_solver_type="mumps",
     )
     system.solve()
+    # The only added MPI collective happens OUTSIDE TS callbacks.
+    memory_by_rank = mpi.allgather(matrix_memory_snapshot(system, rank))
     if bool(isinstance(system.solution["z"], LazyTrajectory)) != (
         args.mode == "async_binary"
     ):
@@ -116,6 +119,10 @@ def main():
             "power_names": power_names,
             "hamiltonian_shape": list(hamiltonian.shape),
             "snapshot_dtype": str(states.dtype),
+            "matrix_memory_mode": os.environ.get(
+                "SCRIMP_MATRIX_MEMORY_MODE", "legacy"
+            ).strip().lower(),
+            "matrix_memory_per_rank": memory_by_rank,
         }
         (args.output_dir / f"{args.mode}_physical.json").write_text(
             json.dumps(report, indent=2) + "\n", encoding="utf-8"
