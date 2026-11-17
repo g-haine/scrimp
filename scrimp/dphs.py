@@ -18,6 +18,7 @@ from scrimp.utils.profiling import TimingProfiler
 from scrimp.utils.matrix_memory import (
     alias_readonly_linear_tangent, add_mass_hessian_fd_reused,
 )
+from scrimp.utils.phase_memory_audit import PhaseMemoryAudit
 from scrimp.utils.async_binary_trajectory import (
     RankSender, LazyTrajectory, wait_for_manifest,
 )
@@ -1936,6 +1937,12 @@ class DPHS:
                 f"dt reached the limit {float(self.time_scheme['ts_adapt_dt_min']):8g}.\n"
             )
 
+    def _memory_phase(self, phase, **metadata):
+        """Collect a local per-rank memory sample only when enabled."""
+        trace = getattr(self, "_phase_memory_trace", None)
+        if trace is not None:
+            trace.sample(phase, **metadata)
+
     def solve(self):
         """Solve the DPHS; optionally record inclusive solve timings.
 
@@ -1959,6 +1966,18 @@ class DPHS:
         self._mass_hessian_fd_probe_allocations = 0
         self._mass_hessian_fd_matrix_allocations = 0
         self._mass_hessian_fd_matrix_reuses = 0
+        audit_dir = os.environ.get(
+            "SCRIMP_MEMORY_PHASE_AUDIT_DIR", ""
+        ).strip()
+        self._phase_memory_trace = (
+            PhaseMemoryAudit(
+                audit_dir, rank=rank, ranks=max_rank,
+                source_commit=os.environ.get("SCRIMP_BENCH_GIT_SHA", ""),
+                mode=matrix_mode,
+            )
+            if audit_dir else None
+        )
+        self._memory_phase("solve_entry")
         backend = os.environ.get(
             "SCRIMP_TRAJECTORY_BACKEND", "memory"
         ).strip().lower()
@@ -2014,7 +2033,12 @@ class DPHS:
                 "identically on all MPI ranks: " + repr(policies)
             )
         with self.profiler.measure("solve.total"):
-            return self._solve_impl()
+            try:
+                return self._solve_impl()
+            finally:
+                self._memory_phase("solve_exit")
+                if self._phase_memory_trace is not None:
+                    self._phase_memory_trace.write()
 
     def _solve_impl(self):
         """Perform the time-resolution of the dphs thanks to PETSc TS.
@@ -2055,8 +2079,10 @@ class DPHS:
 
         # Load time scheme options to PETSc
         self.time_scheme = PETSc.Options()
+        self._memory_phase("before_petsc_allocate_memory")
         with self.profiler.measure("setup.petsc.allocate_memory"):
             self.allocate_memory()
+        self._memory_phase("after_petsc_allocate_memory")
 
         # Initialization
         self.disable_all_bricks()  # enabling is done in assembly accurately
@@ -2065,15 +2091,19 @@ class DPHS:
 
         # Assembly. In compact mode a purely linear tangent aliases
         # its assembled base matrix and must not be reassembled/overwritten.
+        self._memory_phase("before_getfem_assembly")
         self.assemble_mass()
         if not (self._matrix_memory_mode == "compact" and self.linear_mass):
             self.assemble_nl_mass()
+        self._memory_phase("after_mass_assembly")
 
         self.assemble_stiffness()
         if not (self._matrix_memory_mode == "compact" and self.linear_stiffness):
             self.assemble_nl_stiffness()
+        self._memory_phase("after_stiffness_assembly")
 
         self.assemble_rhs()
+        self._memory_phase("after_rhs_assembly")
 
         # PETSc TS Jacobian and residual
         self.J = self.tangent_stiffness.duplicate()
@@ -2084,6 +2114,7 @@ class DPHS:
 
         self.buffer = self.rhs.duplicate()
         self.buffer.assemble()
+        self._memory_phase("after_jacobian_and_vector_duplicates")
 
         self.ts_start = time.perf_counter()
         if (
@@ -2094,6 +2125,7 @@ class DPHS:
             with self.profiler.measure("initial.consistency_total"):
                 self.init_step()
             _mpi_trace("solve: after initial consistency step")
+        self._memory_phase("after_initial_consistency_ts_cleanup")
         self._profile_phase = "main"
 
         if self._trajectory_backend == "async_binary":
@@ -2156,6 +2188,7 @@ class DPHS:
         
         comm.barrier()
         
+        self._memory_phase("before_main_ts_solve")
         _mpi_trace("solve: before main TS.solve")
         try:
             with self.profiler.measure("main.petsc.ts_solve"):
@@ -2200,6 +2233,7 @@ class DPHS:
                         f"{diagnostic_error!r}"
                     )
             raise
+        self._memory_phase("after_main_ts_solve")
         # The stored solution samples depend on dt_save and the monitor.
         # Their last timestamp need NOT equal the actual PETSc TS end
         # time (e.g. steps at 0.0001, 0.0003 with dt_save=0.0001).
@@ -2259,6 +2293,7 @@ class DPHS:
             TS.reset()
             TS.destroy()
             gc.collect()
+        self._memory_phase("after_main_ts_cleanup")
 
         # Preserve the real end time and publish the trajectory only
         # after all local transport threads have drained. A committed
@@ -2647,6 +2682,14 @@ class DPHS:
             t_0 (float): the initial time
             initial_step (bool): `True` if this is the initial consistency step (default=`False`)
         """
+
+        # Step 0 precedes the main factorization; step 1 follows it.
+        # Sampling is local-only; it never introduces MPI collectives.
+        if not initial_step and i in (0, 1):
+            self._memory_phase(
+                "main_monitor_step_" + str(i),
+                step=int(i), time=float(t),
+            )
 
         # Do not gather full state on all ranks merely for archival.
         # The nonlinear GetFEM model STILL needs its global transient
