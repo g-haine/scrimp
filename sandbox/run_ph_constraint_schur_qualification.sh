@@ -26,7 +26,7 @@ host_workspace="$(realpath "$host_workspace")"
     exit 2
 }
 out="$(mktemp -d "$root/sandbox/outputs/ph-constraint-schur-h${mesh//./p}-$sha-XXXXXX")"
-timeout_s="${SCRIMP_PH_GRAPH_TIMEOUT_S:-240}"
+timeout_s="${SCRIMP_PH_CONSTRAINT_TIMEOUT_S:-240}"
 if [[ ! "$timeout_s" =~ ^[0-9]+$ ]] || (( timeout_s < 30 || timeout_s > 1800 )); then
     echo "SCRIMP_PH_GRAPH_TIMEOUT_S must be 30..1800" >&2
     exit 2
@@ -79,4 +79,4 @@ if (( fail )); then
     echo "Constraint Schur qualification failed on at least one MPI rank count" >&2
     exit 1
 fi
-echo "PASS: candidate Schur algebraic qualification completed on 1 and 2 ranks"\n
+echo "PASS: candidate Schur algebraic qualification completed on 1 and 2 ranks"
