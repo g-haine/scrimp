@@ -73,6 +73,17 @@ The report includes:
 * MPI speedup and efficiency and exact full initial/final vector
   comparisons with the release reference.
 
+Human-readable graphics are written under
+``sandbox/outputs/<run>/png/``, alongside editable vector versions in
+``svg/``. Current-version visualizations include complete solve/total
+time, speedup, parallel efficiency, first versus steady CN steps,
+SCRIMP phase costs and native PETSc/MUMPS symbolic/numeric/solve times.
+The cross-release sequential bar chart is generated only when full
+state parity with v1.2.0 passes. The short current-only numeric reuse
+smoke (``sandbox/run_v130_numeric_reuse_smoke.sh 0.04 1,2``) additionally
+creates ``png/01_smoke_numeric_factor_reuse.png`` and
+``png/02_smoke_solve_time.png`` after all factor and state gates pass.
+
 The runner fails when accepted steps are missing, current MPI
 initial/final states disagree, or the production main CN stage
 refactorizes numerically more than once. If current and native v1.2.0
