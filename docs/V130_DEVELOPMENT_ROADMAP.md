@@ -1,5 +1,7 @@
 # SCRIMP v1.3.0 — scope, limits, and further work
 
+**Release plan (workstreams 0–9 and acceptance gates):** [V130_RELEASE_PLAN.md](V130_RELEASE_PLAN.md). The present file records the prior technical investigations and measured results; the release plan governs current scope and priorities.
+
 Status: **development branch, not yet a qualified release** (18 Nov 2026).
 Branch: feature/getfem55-mpi-container-scalability.
 
