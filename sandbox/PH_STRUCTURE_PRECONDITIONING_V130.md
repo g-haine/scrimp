@@ -675,12 +675,73 @@ The feedback test must be run on a clean source worktree
 before the model is used for strong-scaling and power
 preservation claims.
 
-**Scientific next gate:** use the normal geometry, verify
-the exact derivative of boundary feedback, then compare
-1-/2-rank trajectories, constitutive and port residuals,
-Hamiltonian, and discrete power defect. Only then start
-the physics-informed coenergy block-preconditioner
-design. Keep MUMPS global as reference.
+**Final native source-committed matrix gate (commit `33996977`,
+user-provided ZIP `ph-block-audit-wave_coenergy-h0p12-33996977-Xp0Afk`):**
+geometry uses the permanent fix with 5,724 DoFs
+(`U=108,Y=108,e_r=669,p=1251,q=3588`).
+Both native ranks used identical Gmsh SHA256.
+An independent SciPy CSR difference of the full 5,724x5,724
+PETSc matrices confirmed:
+
+| Operator | Relative 2r vs 1r Fro error | Value mismatches |
+|---|---:|---:|
+| Mass `M` | 5.0873087e-18 | 8 floating roundoff |
+| Linear `K` | 0 | 0 |
+| Complete TS Jacobian `J` | 5.0196435e-18 | 7 floating roundoff |
+
+The report `native_getfem_vs_petsc_bridge.json` also
+records `feedback_validation=passed`. For both rank
+counts `J[U,Y]=-0.5*K[U,U]`, `J[U,U]=K[U,U]`
+have **zero coefficientwise difference**, and
+`J[U,Y]` matches between one and two ranks.
+This confirms the boundary-feedback tangent is correct.
+
+**Next gate: actual trajectory and physical power parity.**
+The scripts
+`sandbox/verify_coenergy_power_mpi.py`,
+`sandbox/compare_coenergy_power_mpi.py` and
+`sandbox/run_coenergy_power_mpi.sh` perform a short
+5-step CN test with full-system MUMPS unchanged.
+They compare complete saved vectors `q,p,e_r,U,Y` and
+two independent Hamiltonian calculations:
+`H=.5*z^T*M*z` and GetFEM's original
+`0.5*q.Tinv.q+0.5*p*p*rho` volume integrals.
+
+They also check the exact implicit midpoint residual,
+all algebraic rows, and the discrete energy balance
+including **both** dissipative ports:
+
+```text
+P_r = e_r^T K[e_r,e_r] e_r
+P_boundary = U^T (-K[U,U]) Y
+H_(n+1) - H_n + dt*(P_r(mid) + P_boundary(mid)) = 0
+```
+
+This follows the sign convention of the actual assembled
+weak form, with `K=system.tangent_stiffness` including
+the feedback tangent. Because `e_r` is substituted,
+SCRIMP's generic `compute_powers()` does not automatically
+account for its dissipative power. The diagnostic explicitly
+includes it instead of assuming `plot_Hamiltonian` alone
+certifies the balance. We expect two independent model
+constraints: `K[U,:]z_mid=0`,
+`K[Y,:]z_mid=0`, and the damping constitutive row
+`K[e_r,:]z_mid=0`.
+
+Run on the cleaned, committed worktree:
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+bash sandbox/run_coenergy_power_mpi.sh 0.12
+```
+
+The method checks only five **fixed CN steps** at this
+stage. A pass does NOT establish correctness under actual
+TS adaptivity or any speedup; those are subsequent gates.
+Only after confirming the physical parity should a
+pH-structured coenergy preconditioner be enabled.
+Keep MUMPS global as baseline and fallback.
 
 ### Code and native diagnostic
 
