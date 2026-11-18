@@ -288,6 +288,11 @@ def run(args):
             "fieldsplit_seconds_max": trial_seconds,
         }
         results.append(item)
+        if rank == 0 and "actual_schur_selfp_diagonal_by_field" in diagnostics:
+            print("SCHUR-SELF-P FIELDS:", json.dumps(
+                diagnostics["actual_schur_selfp_diagonal_by_field"],
+                sort_keys=True,
+            ), flush=True)
         if rank == 0 and not success:
             print('DIAGNOSTIC:', json.dumps({'sigma': sigma, 'split': diagnostics, 'e': item['coenergy_diagonal'], 'x': item['complement_diagonal']}, sort_keys=True), flush=True)
         if rank == 0:
