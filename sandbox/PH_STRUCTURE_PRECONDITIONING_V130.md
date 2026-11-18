@@ -237,7 +237,80 @@ PETSc references:
 - https://petsc.org/release/manualpages/PC/PCGAMG/
 - https://petsc.org/release/manualpages/KSP/KSPFGMRES/
 
-## 4. Required first gates before an invasive solver change
+## 4. First implementation step — 18 November 2026
+
+The **read-only native block inspector** is now available. It does
+not change the numerical time integrator, MUMPS, the Jacobian, or
+any of the physical DAE equations.
+
+Run:
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+bash sandbox/run_ph_block_audit.sh 0.08
+```
+
+The launcher performs **two fixed CN steps only to assemble and
+retain PETSc matrices** with the existing reference MUMPS solver
+for 1 and 2 MPI ranks. It is a *structural audit*, **not**
+a prototype that depends on fixed steps. A later Schur PC must
+handle arbitrary positive TS shifts `sigma`.
+
+The inspector uses the actual
+`GetFEM Model.interval_of_variable()` values for every
+registered dynamic state, co-energy and boundary variable.
+It rejects missing DoF intervals and overlaps, rather than
+assuming `(z,e)` are contiguous global index ranges. On
+each rank it inspects **owned PETSc CSR rows** of the
+assembled `mass`, `stiffness` and last TS Jacobian.
+It aggregates globally only the small **block norm and
+nonzero-count arrays**; it never gathers a full PETSc matrix.
+
+Result directory:
+
+```text
+sandbox/outputs/ph-block-audit-h0p08-<commit>-<id>/
+├── blocks_1r.json
+├── blocks_2r.json
+├── blocks_1r.log
+├── blocks_2r.log
+└── ph_block_parity.json
+```
+
+The 1-/2-rank comparator checks complete field coverage,
+partition ownership, agreement of **all block Frobenius
+norms**, dynamic/co-energy couplings and the **zero
+time-derivative mass rows** on co-energy and boundary
+variables for this specific acoustic model.
+
+**Critical distinction:** Frobenius norms do not establish
+entry-by-entry operator parity, skew-adjointness or a
+spectral equivalence bound for the preconditioner. The
+existing trajectory+Hamiltonian parity tests remain required;
+the next gate will check adjoint signs and actually solve
+`A(sigma)x=b` for two distinct values of `sigma`,
+compared to the exact direct MUMPS reference.
+
+**Initial proposed split** (subject to native measurements):
+
+- block 0: independent co-energy unknowns `e_q, e_p`,
+  representing the constitutive `-Q_c` rows;
+- block 1: dynamic `q,p` **plus all boundary-control/
+  multiplier unknowns**. These form a potentially
+  indefinite saddle-point Schur block.
+
+This split is a *hypothesis*, not an automatic solver
+configuration: the actual port and boundary couplings
+must be checked before attempting an AMG preconditioner.
+
+Read-only helper: `scrimp/utils/ph_block_layout.py`.
+Native audit: `sandbox/audit_ph_blocks.py`.
+One/two-rank gate: `sandbox/compare_ph_block_audits.py`.
+Regression tests: `tests/test_ph_block_layout.py`
+and `tests/test_ph_block_comparison.py`.
+
+## 5. Required first gates before an invasive solver change
 
 1. **Extract exact block sizes and signs** from the production
    `GF_MODEL.interval_of_variable` and PETSc `J`,
