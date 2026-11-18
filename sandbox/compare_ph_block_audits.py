@@ -44,6 +44,12 @@ def compare(directory):
     # Continue to support reanalysing these reference campaigns.
     if a.get("formulation") != b.get("formulation"):
         raise ValueError("Mismatch in formulation between 1/2 MPI ranks")
+    if a.get("scrimp_mesh_source_sha256") != b.get(
+        "scrimp_mesh_source_sha256"
+    ):
+        raise ValueError(
+            "Different SCRIMP mesh.py source files across MPI runs"
+        )
     if a["mumps_policy"] != b["mumps_policy"]:
         raise ValueError("Different MUMPS policy between 1/2 ranks")
     # A single number of mesh DoFs or matching sparsity graph is NOT
