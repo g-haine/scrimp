@@ -310,7 +310,90 @@ One/two-rank gate: `sandbox/compare_ph_block_audits.py`.
 Regression tests: `tests/test_ph_block_layout.py`
 and `tests/test_ph_block_comparison.py`.
 
-## 5. Required first gates before an invasive solver change
+## 5. Next native gate: MUMPS on constitutive Q and Schur action
+
+Following the successful h=0.08 1-/2-rank audit (12,682 DoFs:
+6,189 dynamic, 6,189 coenergies and 304 boundary unknowns),
+we can now probe **an actual time-independent constituent block**.
+
+The baseline acoustic `K=system.stiffness`, `M=system.mass`
+and the full implicit linear operator `A(sigma)=K+sigma M`
+are assembled by the *existing MUMPS-based SCRIMP solve*.
+On the actual coenergy-DoF set `e`, test
+
+```text
+A_ee(sigma) == K_ee == -Q_c
+```
+
+at **two distinct PETSc shifts** (1000, 2000). There is NO
+assumption that the physical time step is fixed: the two shifts
+are explicitly varied after the reference run.
+
+On the complementary set `x` of dynamic **and every boundary
+port/multiplier** unknown, extract the blocks
+
+```text
+        [ -Q_c   C(sigma) ]
+A    =  [                 ]
+        [  D       G(sigma)]
+```
+
+and verify, for deterministic distributed test vectors,
+
+```text
+e=Q_c^{-1} C x
+S(sigma) x = G(sigma)x + D Q_c^{-1} C(sigma)x
+
+A(sigma)[e;x] = [0; S(sigma)x].
+```
+
+The **same PETSc KSPPREONLY/PCLU/MUMPS operator** is created for
+`Q_c` and then solved for multiple right-hand sides and shifts,
+with no `KSP.setOperators`/PC reset in between. Numeric factor
+reuse must be **confirmed in the PETSc event log**; identical
+operator configuration is not a measured factor count.
+
+The gate also checks the sign, symmetry and positive diagonal
+of `Q_c` for this acoustic case and verifies a manufactured
+`Q_c e=b` solve. Symmetry + positive diagonal **do not prove SPD**,
+nor does the Schur identity guarantee that a cheap scalable
+preconditioner exists. Any failure is reported without modifying
+the production solver.
+
+Native command (one/two ranks, h=0.08, 2 CN reference steps):
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+bash sandbox/run_constitutive_mumps_schur.sh 0.08
+```
+
+Output:
+
+```text
+sandbox/outputs/ph-constitutive-schur-h0p08-<commit>-<id>/
+├── schur_1r.json
+├── schur_2r.json
+├── schur_1r.log
+├── schur_2r.log
+└── constitutive_schur_parity.json
+```
+
+Read-only numerical probe:
+`sandbox/probe_constitutive_mumps_schur.py`. MPI gate:
+`sandbox/compare_constitutive_mumps_schur.py`. The pure
+NumPy unit test checks the Schur sign with an independent small
+matrix: `tests/test_constitutive_schur.py`.
+
+**Next step if native gate passes:** construct a configurable
+FGMRES/PCFIELDSPLIT prototype with `-Q_c` solved by MUMPS
+and a *shift-dependent approximate Schur block*, keeping
+the original full MUMPS route as reference. Then check
+full state, constitutive residuals, boundary powers and
+Hamiltonians with two genuinely accepted adaptive TS
+steps of different sizes before any speed claim.
+
+## 6. Required first gates before an invasive solver change
 
 1. **Extract exact block sizes and signs** from the production
    `GF_MODEL.interval_of_variable` and PETSc `J`,
