@@ -80,18 +80,58 @@ class WaveV130PlotTests(unittest.TestCase):
             1000,
         )
 
+    def test_factor_counts_must_equal_actual_operator_updates(self):
+        example = {"mumps_reuse_stats": {"main": {
+            "ijacobian_calls": 10,
+            "numeric_updates": 2,
+            "symbolic_updates": 1,
+            "reused_operators": 8,
+        }}}
+        self.assertEqual(PLOT._expected_lu_updates(example), (2, 1))
+        stage_log = self.directory / "matrix_updates.log"
+        stage_log.write_text(
+            "Event Stage 1: WAVE_INITIAL_CONSISTENCY\n"
+            "MatLUFactorNum 1 1.0 .01 extra\n"
+            "Event Stage 2: WAVE_MAIN_CN\n"
+            "MatLUFactorSym 1 1.0 .02 extra\n"
+            "MatLUFactorNum 2 1.0 .03 extra\n"
+            "MatSolve 10 1.0 .01 extra\n",
+            encoding="utf-8",
+        )
+        PLOT._petsc_events(stage_log, expected_numeric=2, expected_symbolic=1)
+        with self.assertRaisesRegex(RuntimeError, "FAIL MUMPS"):
+            PLOT._petsc_events(
+                stage_log, expected_numeric=1, expected_symbolic=1,
+            )
+        with self.assertRaisesRegex(RuntimeError, "on_change accounting"):
+            PLOT._expected_lu_updates({"mumps_reuse_stats": {"main": {
+                "ijacobian_calls": 10,
+                "numeric_updates": 2,
+                "symbolic_updates": 1,
+                "reused_operators": 7,
+            }}})
+
     def test_short_numeric_reuse_smoke_has_two_readable_figures(self):
         for n in (1, 2):
             name = f"current_on_change_{n}r"
+            updates = 2 if n == 1 else 1
             (self.directory / (name + ".json")).write_text(
-                json.dumps({"wall_solve_s": 1.3 / n}), encoding="utf-8",
+                json.dumps({
+                    "wall_solve_s": 1.3 / n,
+                    "mumps_reuse_stats": {"main": {
+                        "ijacobian_calls": 10,
+                        "numeric_updates": updates,
+                        "symbolic_updates": 1,
+                        "reused_operators": 10 - updates,
+                    }},
+                }), encoding="utf-8",
             )
             (self.directory / (name + ".log")).write_text(
                 "Event Stage 1: WAVE_INITIAL_CONSISTENCY\n"
                 "MatLUFactorNum 1 1.0 .01 extra\n"
                 "Event Stage 2: WAVE_MAIN_CN\n"
                 "MatLUFactorSym 1 1.0 .02 extra\n"
-                "MatLUFactorNum 1 1.0 .03 extra\n"
+                f"MatLUFactorNum {updates} 1.0 .03 extra\n"
                 "MatSolve 10 1.0 .01 extra\n",
                 encoding="utf-8",
             )
