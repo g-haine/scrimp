@@ -84,7 +84,10 @@ import json, sys
 from pathlib import Path
 import numpy as np
 sys.path.insert(0, "/workspace/scrimp/sandbox")
-from analyze_v130_wave_benchmark import _petsc_events, _state_distance, publish_smoke_figures
+from analyze_v130_wave_benchmark import (
+    _petsc_events, _expected_lu_updates, _state_distance,
+    publish_smoke_figures,
+)
 root = Path("/artifacts")
 ref = None
 for n in [int(x) for x in sys.argv[1].split(",")]:
@@ -95,7 +98,12 @@ for n in [int(x) for x in sys.argv[1].split(",")]:
             or data["mumps_policy"] != "on_change"
             or data["main_cn_mumps_icntl28"] != (2 if n>1 else 1)):
         raise SystemExit(f"FAIL {label}: invalid solver settings / TS steps")
-    native = _petsc_events(root / f"{label}.log")
+    expected_numeric, expected_symbolic = _expected_lu_updates(data)
+    native = _petsc_events(
+        root / f"{label}.log",
+        expected_numeric=expected_numeric,
+        expected_symbolic=expected_symbolic,
+    )
     state = np.load(root / f"{label}_state.npz")
     initial, final = state["initial"], state["final"]
     if ref is None:
@@ -108,7 +116,8 @@ for n in [int(x) for x in sys.argv[1].split(",")]:
           f"symbolic={native['main.MatLUFactorSym']['calls']}, "
           f"MatSolve={native['main.MatSolve']['calls']}, "
           f"solve={data['wall_solve_s']:.5f}s")
-print("PASS production on_change exact numeric reuse and complete MPI state parity")
+print("PASS production on_change: PETSc factor events match exact "
+      "operator-update decisions; complete MPI state parity")
 plots = publish_smoke_figures(root, [int(x) for x in sys.argv[1].split(",")])
 print("PNG figures:", ", ".join("png/" + name + ".png" for name in plots))
 PY
