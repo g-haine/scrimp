@@ -102,6 +102,11 @@ def main():
     parser.add_argument("--output", type=Path, default=None,
                         help="Write JSON report from MPI rank 0")
     parser.add_argument(
+        "--final-state-output", type=Path, default=None,
+        help="Optional raw little-endian float64 full final state vector "
+             "for A/B numerical validation, written only on rank 0",
+    )
+    parser.add_argument(
         "--profile", action="store_true",
         help="Record SCRIMP GetFEM, bridge and PETSc phase timings in JSON",
     )
@@ -354,6 +359,19 @@ def main():
         # inside PETSc callbacks use no MPI collectives.
         report["profile"] = system.get_profile()
     if rank == 0:
+        if args.final_state_output is not None:
+            full_state = np.asarray(system.solution["z"][-1]).ravel()
+            if (np.iscomplexobj(full_state)
+                    or full_state.size != dofs
+                    or not np.all(np.isfinite(full_state))):
+                raise RuntimeError(
+                    "A/B state dump requires finite, real full wave state "
+                    "with exactly the model's degrees of freedom"
+                )
+            args.final_state_output.parent.mkdir(parents=True, exist_ok=True)
+            np.asarray(full_state, dtype="<f8").tofile(args.final_state_output)
+            print(f"FINAL-STATE saved={args.final_state_output} "
+                  f"components={full_state.size}", flush=True)
         print(f"FACTOR-REUSE requested={args.factor_reuse} main_options={applied}", flush=True)
         print(f"MAIN-TS-MUMPS ordering={args.ordering} effective_ICNTL28={expected28} "
               f"steps_checked={len(observed)} solve={solve_wall:.6g}s", flush=True)
