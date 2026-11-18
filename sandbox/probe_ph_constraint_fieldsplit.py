@@ -33,7 +33,7 @@ from ph_schur_path2 import build_path2_schur
 from scrimp.utils.ph_block_layout import discover_layout
 
 
-def trial(A, rhs, iz, il, rtol, max_it, schur_pre, inner_restart_cap):
+def trial(A, rhs, iz, il, rtol, max_it, schur_pre, inner_restart_cap, repeat_rhs):
     ksp = PETSc.KSP().create(comm=PETSc.COMM_WORLD)
     ksp.setOptionsPrefix("ph_constraint_")
     ksp.setType("fgmres")
@@ -94,7 +94,9 @@ def trial(A, rhs, iz, il, rtol, max_it, schur_pre, inner_restart_cap):
         # Instrument the nested KSPs *before* solving. Count inner
         # iterations across all Schur applications, not only the last
         # inner solve, and report the number of subsolver invocations.
+        setup_start = perf_counter()
         ksp.setUp()
+        setup_seconds = MPI.COMM_WORLD.allreduce(perf_counter()-setup_start, op=MPI.MAX)
         sub_stats = {
             name: {"solve_calls": 0, "iterations_total": 0,
                    "max_iterations_per_solve": 0}
@@ -113,12 +115,77 @@ def trial(A, rhs, iz, il, rtol, max_it, schur_pre, inner_restart_cap):
                         stats["max_iterations_per_solve"], int(it)
                     )
             sub.setMonitor(monitor)
-        start = perf_counter()
-        ksp.solve(rhs, result)
-        elapsed = MPI.COMM_WORLD.allreduce(
-            perf_counter()-start, op=MPI.MAX
-        )
+        # Same assembled Jacobian, same KSP and PC, independent
+        # manufactured RHS on subsequent solves. Reuse is intentional.
+        # PETSc may defer numerical factorization to the first solve:
+        # report warm and cold timings separately, not as pure solve cost.
+        repetitions = []
+        elapsed = None
+        for repetition in range(repeat_rhs):
+            manufactured = None
+            this_rhs = rhs
+            if repetition:
+                manufactured = _filled_right(A, seed=101+repetition)
+                this_rhs = A.createVecLeft()
+                A.mult(manufactured, this_rhs)
+            before = {
+                name: dict(stat) for name, stat in sub_stats.items()
+            }
+            result.set(0.0)
+            start = perf_counter()
+            ksp.solve(this_rhs, result)
+            seconds = MPI.COMM_WORLD.allreduce(
+                perf_counter()-start, op=MPI.MAX
+            )
+            if elapsed is None:
+                elapsed = seconds
+                first_result = result.copy()
+            sub_solvers = list(pc.getFieldSplitSubKSP())
+            nested_ok = (
+                len(sub_solvers) == 2
+                and all(
+                    int(sub.getConvergedReason()) > 0
+                    and str(sub.getPC().getFailedReason()) == "0"
+                    for sub in sub_solvers
+                )
+            )
+            true_res = relative_residual(A, this_rhs, result)
+            state_error = None
+            if manufactured is not None:
+                diff = result.copy()
+                diff.axpy(-1.0, manufactured)
+                state_error = (
+                    float(diff.norm())
+                    / max(float(manufactured.norm()), 1e-300)
+                )
+                diff.destroy()
+            repetitions.append({
+                "index": repetition,
+                "seconds_max": seconds,
+                "outer_reason": int(ksp.getConvergedReason()),
+                "outer_iterations": int(ksp.getIterationNumber()),
+                "nested_converged": nested_ok,
+                "true_relative_residual": true_res,
+                "manufactured_relative_state_error": state_error,
+                "subsolver_calls_delta": {
+                    name: sub_stats[name]["solve_calls"]
+                          - before[name]["solve_calls"]
+                    for name in sub_stats
+                },
+                "subsolver_iterations_delta": {
+                    name: sub_stats[name]["iterations_total"]
+                          - before[name]["iterations_total"]
+                    for name in sub_stats
+                },
+            })
+            if manufactured is not None:
+                manufactured.destroy()
+                this_rhs.destroy()
+        result.destroy()
+        result = first_result
         diagnostics = {
+            "explicit_ksp_setup_seconds_max": setup_seconds,
+            "repeated_rhs": repetitions,
             "outer_converged_reason": int(ksp.getConvergedReason()),
             "iterations": int(ksp.getIterationNumber()),
             "pc_failed_reason": str(pc.getFailedReason()),
@@ -154,6 +221,8 @@ def trial(A, rhs, iz, il, rtol, max_it, schur_pre, inner_restart_cap):
 
 def run(args):
     mpi = MPI.COMM_WORLD
+    if args.repeat_rhs < 1 or args.repeat_rhs > 20:
+        raise ValueError("Require 1..20 manufactured RHS repetitions")
     if args.inner_restart_cap < 2:
         raise ValueError("Inner restart cap must be at least 2")
     if not (args.mesh > 0 and args.dt > 0 and
@@ -211,7 +280,7 @@ def run(args):
             ref, ref_t = solve_reference(A, rhs)
             computed, trial_t, details = trial(
                 A, rhs, iz, il, args.rtol, args.max_it, args.schur_pre,
-                args.inner_restart_cap
+                args.inner_restart_cap, args.repeat_rhs
             )
             error = computed.copy()
             error.axpy(-1.0, ref)
@@ -223,7 +292,16 @@ def run(args):
                 and all(sub["reason"] > 0 and sub["pc_failed_reason"] == "0"
                         for sub in sub_solvers)
             )
-            passed = (details["outer_converged_reason"] > 0
+            all_repeated_ok = all(
+                entry["outer_reason"] > 0
+                and entry["nested_converged"]
+                and entry["true_relative_residual"] < args.accept_residual
+                and (entry["manufactured_relative_state_error"] is None
+                     or entry["manufactured_relative_state_error"] < args.accept_error)
+                for entry in details["repeated_rhs"]
+            )
+            passed = (all_repeated_ok
+                      and details["outer_converged_reason"] > 0
                       and inner_converged
                       and delta < args.accept_error
                       and residual < args.accept_residual)
@@ -236,6 +314,7 @@ def run(args):
                     mpi.allreduce(len(local_z), op=MPI.SUM)),
                 "pass": bool(passed),
                 "all_nested_ksp_converged": bool(inner_converged),
+                "all_repeated_rhs_pass": bool(all_repeated_ok),
                 "relative_state_error_vs_full_mumps": delta,
                 "true_relative_residual": residual,
                 "trial_seconds_max": trial_t,
@@ -272,6 +351,7 @@ def run(args):
         "mesh": args.mesh,
         "dofs": int(sys.gf_model.nbdof()),
         "fgmres_rtol": args.rtol,
+        "repeat_rhs": args.repeat_rhs,
         "schur_preconditioner": args.schur_pre,
         "results": results,
         "all_pass": bool(all_pass),
@@ -301,6 +381,8 @@ def main():
     p.add_argument("--shift2", type=float, default=2000)
     p.add_argument("--rtol", type=float, default=1e-12)
     p.add_argument("--max-it", type=int, default=400)
+    p.add_argument("--repeat-rhs", type=int, default=1,
+                   help="Number of independent manufactured solves reusing the same KSP/PC")
     p.add_argument("--inner-restart-cap", type=int, default=256,
                    help="Cap for dimension-aware GMRES Schur restart; diagnostic only")
     p.add_argument("--schur-pre", choices=("self", "path2", "full", "selfp"), default="self",
