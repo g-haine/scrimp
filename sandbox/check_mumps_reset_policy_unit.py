@@ -305,8 +305,9 @@ if __name__ == "__main__":
     control_checks()
     policy_checks()
     csr_checks()
+    numeric_reuse_checks()
     print(
-        "PASS: MUMPS automatic never for all-linear bricks, "
-        "on_change for feedback/nonlinear bricks, closed-loop GetFEM "
-        "tangents, explicit overrides and exact CSR"
+        "PASS: MUMPS default on_change for all bricks, "
+        "closed-loop GetFEM tangents, explicit overrides, "
+        "and exact stored CSR graph + coefficient comparisons"
     )
