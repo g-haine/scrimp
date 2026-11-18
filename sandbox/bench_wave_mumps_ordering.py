@@ -168,35 +168,35 @@ def main():
         **({"mat_mumps_icntl_28": 2, "mat_mumps_icntl_29": 0}
            if args.ordering == "parallel" else {}),
     )
-    # Install an audit monitor on the MAIN CN TS, not the preliminary
-    # pseudo TS. Run on every rank without collectives in callbacks.
-    # No changes to SCRIMP equations, time scheme or solver lifecycle.
+    # Instrument the EXISTING SCRIMP monitor instead of installing a
+    # second PETSc TS monitor: preserve all physics/output bookkeeping.
+    # The pseudo-initialization monitor is explicitly excluded.
     observed = []
-    original_lte = system.exclude_algebraic_var_from_lte
+    original_monitor = system.monitor
 
-    def audit_main_ts(ts):
-        original_lte(ts)
-        def check_factor(ts_obj, step, t, state):
-            if step < 1:
-                return
-            try:
-                pc = ts_obj.getSNES().getKSP().getPC()
-                if pc.getType() != "lu" or pc.getFactorSolverType() != "mumps":
-                    observed.append({"step": int(step), "error": "not LU/MUMPS"})
-                    return
-                factor = pc.getFactorMatrix()
-                observed.append({
-                    "step": int(step),
-                    "icntl28": int(factor.getMumpsIcntl(28)),
-                    "icntl29": int(factor.getMumpsIcntl(29)),
-                    "ordering_infog7": int(factor.getMumpsInfog(7)),
-                    "ksp_prefix": ts_obj.getSNES().getKSP().getOptionsPrefix(),
-                })
-            except (PETSc.Error, RuntimeError, AttributeError) as exc:
-                observed.append({"step": int(step), "error": repr(exc)})
-        ts.setMonitor(check_factor)
+    def audit_monitor(ts, step, t, state, *call_args, **call_kwargs):
+        # Always run SCRIMP's original monitor, including any saved states.
+        value = original_monitor(ts, step, t, state, *call_args, **call_kwargs)
+        if call_kwargs.get("initial_step", False) or step < 1:
+            return value
+        try:
+            pc = ts.getSNES().getKSP().getPC()
+            if pc.getType() != "lu" or pc.getFactorSolverType() != "mumps":
+                observed.append({"step": int(step), "error": "not LU/MUMPS"})
+                return value
+            factor = pc.getFactorMatrix()
+            observed.append({
+                "step": int(step),
+                "icntl28": int(factor.getMumpsIcntl(28)),
+                "icntl29": int(factor.getMumpsIcntl(29)),
+                "ordering_infog7": int(factor.getMumpsInfog(7)),
+                "ksp_prefix": ts.getSNES().getKSP().getOptionsPrefix(),
+            })
+        except (PETSc.Error, RuntimeError, AttributeError) as exc:
+            observed.append({"step": int(step), "error": repr(exc)})
+        return value
 
-    system.exclude_algebraic_var_from_lte = audit_main_ts
+    system.monitor = audit_monitor
     system.solve()
     expected28 = 2 if args.ordering == "parallel" else 1
     local_checked = bool(observed) and all(
