@@ -132,6 +132,175 @@ def _phase_max(report, event):
     return float(entry["seconds_rank_max"]) if entry is not None else None
 
 
+
+def _publish_figure(fig, directory, stem):
+    """Publish one readable PNG and one scalable SVG under separate folders."""
+    png_dir = directory / "png"
+    svg_dir = directory / "svg"
+    png_dir.mkdir(parents=True, exist_ok=True)
+    svg_dir.mkdir(parents=True, exist_ok=True)
+    fig.tight_layout()
+    fig.savefig(png_dir / (stem + ".png"), dpi=200, bbox_inches="tight")
+    fig.savefig(svg_dir / (stem + ".svg"), bbox_inches="tight")
+    plt.close(fig)
+
+
+def _base_axes(title, ylabel, ranks):
+    fig, ax = plt.subplots(figsize=(9, 5.4))
+    ax.set_title(title)
+    ax.set_xlabel("MPI ranks")
+    ax.set_ylabel(ylabel)
+    ax.set_xticks(ranks)
+    ax.grid(axis="y", alpha=0.25)
+    return fig, ax
+
+
+def publish_wave_figures(directory, rows, serial_release,
+                         serial_current, release_parity_accepted):
+    """Human-readable version and scaling figures from VERIFIED records.
+
+    Do not plot cross-version speedup if whole-state parity is absent.
+    Timers are inclusive; stage curves are NEVER stacked or added.
+    """
+    ranks = np.asarray([r["ranks"] for r in rows], dtype=int)
+    solve = np.asarray([r["solve_s_median"] for r in rows])
+    total = np.asarray([r["total_s_median"] for r in rows])
+    created = []
+    if release_parity_accepted:
+        fig, ax = plt.subplots(figsize=(8.5, 5.4))
+        bars = ax.bar(
+            ["v1.2.0 native (1 rank)", "v1.3.0 candidate (1 rank)"],
+            [serial_release, serial_current],
+        )
+        ax.bar_label(bars, fmt="%.3f s", padding=4)
+        ax.set_title("Wave.py — validated sequential release comparison")
+        ax.set_ylabel("Full solve time (s), median")
+        ax.grid(axis="y", alpha=.25)
+        ax.set_ylim(0, 1.15 * max(serial_release, serial_current))
+        _publish_figure(fig, directory, "01_sequential_v120_vs_v130")
+        created.append("01_sequential_v120_vs_v130")
+    fig, ax = _base_axes(
+        "Wave.py — strong scaling: full solve and total time",
+        "Wall time (s), median", ranks,
+    )
+    ax.plot(ranks, total, "o-", label="Build + solve")
+    ax.plot(ranks, solve, "s-", label="Solve")
+    ax.plot(ranks, serial_current / ranks, "--",
+            label="Ideal solve, relative to 1 rank")
+    ax.legend()
+    _publish_figure(fig, directory, "02_strong_scaling")
+    created.append("02_strong_scaling")
+
+    fig, ax = _base_axes(
+        "Wave.py — strong-scaling speedup (current version)",
+        "Speedup vs current single rank", ranks,
+    )
+    speedup = np.asarray([r["speedup_from_current_1r"] for r in rows])
+    ax.plot(ranks, speedup, "o-", label="Measured")
+    ax.plot(ranks, ranks, "--", label="Ideal")
+    ax.legend()
+    _publish_figure(fig, directory, "03_speedup")
+    created.append("03_speedup")
+
+    fig, ax = _base_axes(
+        "Wave.py — parallel efficiency (current version)",
+        "Efficiency (%)", ranks,
+    )
+    efficiencies = np.asarray([100. * r["parallel_efficiency"] for r in rows])
+    ax.plot(ranks, efficiencies, "o-", label="Measured")
+    ax.axhline(100., linestyle="--", label="Ideal (100%)")
+    ax.set_ylim(0, max(110., 1.12 * efficiencies.max()))
+    ax.legend()
+    _publish_figure(fig, directory, "04_parallel_efficiency")
+    created.append("04_parallel_efficiency")
+
+    fig, ax = _base_axes(
+        "Wave.py — first Crank–Nicolson step vs steady steps",
+        "Observed time per CN step (s), median", ranks,
+    )
+    width = .36
+    xx = np.arange(len(ranks))
+    first = np.asarray([r["first_CN_step_s_median"] for r in rows])
+    warm = np.asarray([r["warm_CN_step_s_median"] for r in rows])
+    ax.bar(xx - width / 2, first, width, label="First step")
+    ax.bar(xx + width / 2, warm, width, label="Average steps 2–10")
+    ax.set_xticks(xx, ranks)
+    ax.legend()
+    _publish_figure(fig, directory, "05_cn_first_vs_warm_steps")
+    created.append("05_cn_first_vs_warm_steps")
+
+    phases = [
+        ("initial.consistency_total", "Initial consistency"),
+        ("main.petsc.ts_solve", "Main TS (includes callbacks)"),
+        ("main.petsc.callback.ijacobian", "Main IJacobian callbacks"),
+        ("main.petsc.callback.ifunction", "Main IFunction callbacks"),
+        ("main.petsc.csr_pattern_check", "On-change CSR comparisons"),
+    ]
+    fig, ax = _base_axes(
+        "Wave.py — SCRIMP phase costs (inclusive timings)",
+        "Max-rank phase time (s), median", ranks,
+    )
+    for field, label in phases:
+        values = [r.get(field) for r in rows]
+        if all(v is not None for v in values):
+            ax.plot(ranks, values, "o-", label=label)
+    ax.legend(loc="best", fontsize=9)
+    ax.text(.01, -.18, "Phases overlap: do not sum their durations.",
+            transform=ax.transAxes, fontsize=9)
+    _publish_figure(fig, directory, "06_scrimp_phases")
+    created.append("06_scrimp_phases")
+
+    events = [
+        ("main.MatLUFactorSym.seconds_median", "Symbolic analysis"),
+        ("main.MatLUFactorNum.seconds_median", "Numeric LU"),
+        ("main.MatSolve.seconds_median", "Triangular solves"),
+    ]
+    fig, ax = _base_axes(
+        "Wave.py — native PETSc/MUMPS main-CN events",
+        "PETSc native event time (s), median", ranks,
+    )
+    for field, label in events:
+        ax.plot(ranks, [r[field] for r in rows], "o-", label=label)
+    ax.legend()
+    _publish_figure(fig, directory, "07_mumps_factorization_breakdown")
+    created.append("07_mumps_factorization_breakdown")
+    return created
+
+
+def publish_smoke_figures(directory, ranks):
+    """Plot a PASSED current-only numeric-LU reuse smoke as qualification.
+
+    The caller must validate step counts, complete MPI vectors and all
+    native event counts before invoking this function.
+    """
+    ranks = [int(n) for n in ranks]
+    factor_counts, solve_times = [], []
+    for n in ranks:
+        label = "current_on_change_" + str(n) + "r"
+        data = _read_json(directory / (label + ".json"))
+        events = _petsc_events(directory / (label + ".log"))
+        factor_counts.append(events["main.MatLUFactorNum"]["calls"])
+        solve_times.append(float(data["wall_solve_s"]))
+    fig, ax = plt.subplots(figsize=(8.5, 5.0))
+    bars = ax.bar([str(n) + " MPI" for n in ranks], factor_counts)
+    ax.bar_label(bars, fmt="%d", padding=4)
+    ax.axhline(1, linestyle="--", label="Expected: 1 numeric LU")
+    ax.set_title("Production on_change — 10 CN steps, numeric factor reuse")
+    ax.set_ylabel("Main-CN MatLUFactorNum calls")
+    ax.set_ylim(0, max(2, max(factor_counts) * 1.5))
+    ax.legend()
+    ax.grid(axis="y", alpha=.2)
+    _publish_figure(fig, directory, "01_smoke_numeric_factor_reuse")
+    fig, ax = plt.subplots(figsize=(8.5, 5.0))
+    bars = ax.bar([str(n) + " MPI" for n in ranks], solve_times)
+    ax.bar_label(bars, fmt="%.3f s", padding=4)
+    ax.set_title("Production on_change — full wave solve time")
+    ax.set_ylabel("Wall time (s)")
+    ax.set_ylim(0, 1.2 * max(solve_times))
+    ax.grid(axis="y", alpha=.2)
+    _publish_figure(fig, directory, "02_smoke_solve_time")
+    return ["01_smoke_numeric_factor_reuse", "02_smoke_solve_time"]
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--directory", type=Path, required=True)
@@ -300,6 +469,15 @@ def main():
         "linear wave case, not all time-varying/nonlinear port-Hamiltonian models.",
         "",
     ]
+    lines += [
+        "## Human-readable performance figures",
+        "",
+        "PNG plots live in the `png/` subdirectory (and vector SVGs in `svg/`).",
+        "The sequential v1.2.0 comparison figure appears ONLY after passing",
+        "full-state cross-release parity. Other figures show current-version",
+        "MPI scaling, per-step timings and PETSc/MUMPS phase costs.",
+        "",
+    ]
     (directory / "v130_wave_performance.md").write_text(
         "\n".join(lines), encoding="utf-8"
     )
@@ -323,22 +501,11 @@ def main():
             "current_mpi_state_parity_passed": True,
         }, indent=2) + "\n", encoding="utf-8"
     )
-    fig, ax = plt.subplots(figsize=(8, 5))
-    x = np.asarray([r["ranks"] for r in rows])
-    y = np.asarray([r["solve_s_median"] for r in rows])
-    ax.plot(x, y, "o-", label="v1.3.0 on_change")
-    ax.plot(x, serial_current/x, "--", label="Ideal scaling from current 1r")
-    if release_parity_accepted:
-        ax.axhline(serial_release, linestyle=":",
-                   label="Equivalent native v1.2.0 1r")
-    ax.set_xlabel("MPI ranks")
-    ax.set_ylabel("SCRIMP solve time (s), median")
-    ax.set_xticks(x)
-    ax.grid(alpha=.25)
-    ax.legend()
-    fig.tight_layout()
-    fig.savefig(directory / "v130_wave_scaling.png", dpi=170)
-    plt.close(fig)
+    figures = publish_wave_figures(
+        directory, rows, serial_release, serial_current, release_parity_accepted
+    )
+    print("Human-readable figures:", directory / "png")
+    print("PNG figure names:", ", ".join(figures))
     print("\n".join(lines[:25]))
     if release_parity_accepted:
         print(f"PASS: full-state parity including original release; reports: {directory}")
