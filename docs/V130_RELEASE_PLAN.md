@@ -24,21 +24,57 @@ at 1/2/4/6 ranks, respectively; efficiency at six ranks is
 The 1/2-rank native factor-reuse smoke passes with 1 symbolic,
 2 numeric and 10 triangular solve operations over 10 CN steps.
 
-**Blocking discrepancy:** The native, untouched v1.2.0 serial
-benchmark measured **71.689 s median** on the same wave.py source
-and mesh, but *is not scientifically equivalent to the current run*:
+**Resolved cross-version discrepancy (18 November 2026).** The
+previous unqualified three-repeat campaign on the branch before the
+initialization fix found scaled L2 state differences 0.376/0.397.
+The cause was missing GetFEM synchronization of the accepted pseudo-TS
+state after correctly excluding prescribed source bricks from
+nonlinear Jacobian assembly (see diagnostic below).
 
-- initial full-state scaled L2 difference: **0.3756323**;
-- final full-state relative L2 difference: **0.3969046**;
-- first 17,640 initial components: v1.2.0 L2 norm **5.82345**,
-  current norm **0**. Verify this interval's GF/PETSc variable
-  identity; do not assume a component name from offset alone;
-- v1.2.0 logs record **~14.8 s mass + ~55.3 s stiffness**
-  assembly/transfer stages. Almost all of its ~71.7 s elapsed
-  time is *not* the ten CN steps.
+**Native v1.2.0 → corrected current release comparison PASSED** on
+commit `24e70e92f3db357121e6eb41b1e0e38dc6c94913`, with the
+original tagged v1.2.0 commit
+`88e2c1442d6aca3c7971c856e049c26d9d1caf0a`.
+The user supplied the complete native Docker archive for direct
+independent inspection. Fixed wave.py, h=0.04, **47,942 DOFs**,
+CN dt=0.002, t_f=0.02, 10 accepted steps:
 
-Therefore the raw **47.8x ratio is descriptive only**, and **must
-not be published as a physically validated version speedup**.
+| Same-model sequential comparison | v1.2.0 native | Corrected candidate |
+|---|---:|---:|
+| Full wall solve including assembly | 73.267577 s | 1.512175 s |
+| Setup (benchmark wrapper) | 0.095716 s | 0.096254 s |
+| Mass assembly + PETSc transfer (logged) | 15.15 s | 0.0452 s |
+| Stiffness assembly + PETSc transfer (logged) | 56.08 s | 0.1693 s |
+| First accepted CN step | 0.39369 s | 0.38129 s |
+| Mean CN steps 2–10 | 0.13113 s | 0.05357 s |
+| Peak single-process RSS | 592.2 MiB | 582.6 MiB |
+
+**One-run, state-qualified end-to-end ratio: 48.45x**. Most of
+this gain is faster linear assembly/GetFEM-to-PETSc transfer, *not*
+a 48x faster MUMPS solve; mean steady-CN step is ~2.45x faster.
+Do not present the one-run ratio as a 3-repetition median or
+extrapolate to nonlinear systems.
+
+Independent full-vector comparison of archived NumPy snapshots:
+the complete initial PETSc states are **bit-for-bit identical**;
+final state L2 difference is **6.2150211e-30** (relative L2
+**3.923971e-31**, maximum absolute component delta
+**1.2809612e-30**). Current PETSc main CN records exactly
+**1 symbolic LU, 2 numeric LU, 10 triangular solves**, matching
+10 Jacobian callbacks with 2 exact numeric updates and 8 reuses.
+
+Reference archive created by
+`SCRIMP_V130_BENCH_RANKS=1 bash sandbox/run_v130_wave_benchmark.sh 0.04 1`,
+in local `sandbox/outputs/v130-wave-h0p04-24e70e92-F8rBHU/`
+(the output directory is deliberately ignored by Git). Both
+sequential versions were rerun once from original source tags;
+neither program was altered during the timed run.
+
+**Scientific scope:** matching full endpoints validates the numerical
+regression, **not yet** the continuous-in-time power/Hamiltonian
+balance or fidelity of pseudo-TS initialization to the physically
+prescribed `q(0)=0`. The corrected branch's MPI scaling at
+1/2/4/6 ranks and full trajectories still need requalification.
 
 **Focused source-level diagnosis (pending native confirmation).**
 In v1.2.0, `set_control()` declares prescribed input source bricks
@@ -102,17 +138,18 @@ the correctly classified prescribed source bricks and MUMPS reuse.
 A direct unit regression tests that both linear and nonlinear flag
 configurations transfer the accepted state, without aliasing memory.
 
-**Native qualification pending:** one current-version solve only
-against the archived v1.2.0 state, with full-vector parity and
-native PETSc MUMPS factor-count gates. No old release rerun:
+**Native production qualification PASSED:** the corrected
+current source and untouched original v1.2.0 source were both run
+once, with equal full initial/final states (numeric details above).
+The optional standalone regression
+`sandbox/run_wave_initial_state_regression.sh` remains useful
+when both reference JSON and NPZ are available; the full clean-run
+benchmark above is the authoritative regenerated reference.
+The cross-release PNG/SVG comparison was generated and the 
+original diagnostic mismatch is resolved.
 
-~~~bash
-bash sandbox/run_wave_initial_state_regression.sh
-~~~
-
-This generates a human-readable PNG/SVG full-state parity plot.
-After it passes, repeat the minimum necessary physical power
-diagnostics, then update the v1.3.0 performance figures.
+Next: native current 1/2/4/6-rank full-vector parity after the fix,
+then an independent scientific DAE/port-power check.
 
 Exit gates:
 
@@ -120,10 +157,12 @@ Exit gates:
   initial pseudo-TS state was not propagated to GetFEM after fixing
   the source/nonlinearity classification. Both experimental replays
   reproduce the native v1.2.0 complete trajectory endpoints.
-- [ ] Verify the production pseudo-state sync patch by one native
-  current-only run against archived full vectors and MUMPS counters;
-  determine whether the pseudo-time perturbation of q(0)=0 respects
-  the intended physical initial condition / DAE constraints.
+- [x] Verify the production pseudo-state sync patch with a
+  fresh native v1.2.0 and corrected-current sequential comparison;
+  complete initial states bitwise identical and final states agree
+  to ~4e-31 scaled L2; exact native MUMPS reuse audit PASS.
+- [ ] Verify physical DAE consistency and whether pseudo-time
+  advancement respects the intended prescribed initial q(0)=0.
 - [ ] Correct any regression exposed; keep both versions' numerical
   outputs and the build/solve timing categories distinct.
 - [ ] Compare full *time trajectories*, not just initial/final
@@ -131,9 +170,12 @@ Exit gates:
   dissipative contribution when applicable.
 - [x] Current 1/2/4/6 rank full-state and exact LU-reuse
   performance gate at h=0.04, three repetitions.
-- [ ] Re-run only the necessary cross-release comparison after the
-  discrepancy is addressed, then qualify larger h=0.01 wave
-  runs or describe remaining size-dependent MPI scaling limits.
+- [x] Re-run a fresh original-source cross-release sequential
+  comparison after the initial-state synchronization fix (one
+  repetition, fully matched initial/final states, ×48.45 measured).
+- [ ] Verify corrected source at 1/2/4/6 MPI ranks and repeat
+  qualified sequential performance before presenting a robust median;
+  then qualify larger h=0.01 wave runs or document remaining limits.
 - [ ] Document the additional independent candidate Jacobian's
   memory cost on a larger mesh and during long integrations.
 - [ ] Inspect remaining native MUMPS/TS performance without
