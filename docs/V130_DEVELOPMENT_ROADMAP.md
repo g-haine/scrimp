@@ -29,6 +29,41 @@ Branch: feature/getfem55-mpi-container-scalability.
   suitable as a universal default because it freezes the operator
   without testing whether coefficients or the TS shift have changed.
 
+## First production on_change qualification: diagnosed and corrected
+
+On 18 Nov 2026, the first complete wave h=0.04 qualification passed
+native v1.2.0 1-rank (78.117 s) and current 1/2-rank time stepping
+(2.033 s / 1.552 s), but the **native PETSc** audit correctly refused
+to certify numeric LU reuse: the 1-rank main TS still performed
+MatLUFactorNum 10 times for 10 accepted steps. No validated release
+performance claim can be made from this failed gate.
+
+Root cause: PETSc SNESComputeJacobian overwrites the KSP
+reuse-preconditioner setting *after* the user IJacobian callback.
+Calling PC.setReusePreconditioner(True) from IJacobian was ineffective.
+The production fix now assembles into a separate reusable candidate
+Mat, compares its complete stored CSR with the previous operator on
+all ranks, and **does not touch the factored PETSc Mat at all if
+nothing changed**. PCSetUp then observes an unchanged PETSc MatState.
+For a real graph or coefficient change the candidate is copied into
+the operator and PETSc re-factorizes normally; a graph change forces
+a symbolic reset. The candidate and previous CSR snapshots are freed
+after solve().
+
+The revised mechanism is **not yet native qualified**. Its added
+workspace memory must also be measured on refined meshes. Before
+repeating the 78-second original release control, use only current
+1/2-rank native smoke:
+
+~~~bash
+bash sandbox/run_v130_numeric_reuse_smoke.sh 0.04 1,2
+~~~
+
+The smoke enforces main-stage MatLUFactorNum=1, MatLUFactorSym=1,
+MatSolve=10, correct TS convergence, and full current MPI
+initial/final state parity. If the smoke fails, do not proceed to
+cross-release performance tests.
+
 ## v1.3.0 implementation and release gates
 
 - [x] Switch default MUMPS policy to on_change rather than inferring
