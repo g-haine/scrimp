@@ -30,6 +30,7 @@ from unittest.mock import patch
 
 from mpi4py import MPI
 import numpy as np
+from petsc4py import PETSc
 
 from bench_acoustic_2d import _build_wave
 import scrimp as S
@@ -195,7 +196,7 @@ def audit(args):
         # represent the full distributed matrix. If this agrees but
         # the block map changes, suspect column index semantics or
         # variable ordering before blaming GetFEM assembly.
-        petsc_fro = float(mat.norm())
+        petsc_fro = float(mat.norm(PETSc.NormType.FROBENIUS))
         extracted_fro = float(np.sqrt(np.sum(global_fro2)))
         if not np.isclose(
             petsc_fro, extracted_fro, rtol=1e-11, atol=1e-12
