@@ -70,7 +70,7 @@ for n in "${ranks[@]}"; do
         exit 1
     fi
 done
-sudo docker run --rm \
+sudo docker run --rm -i \
     --user "$(id -u):$(id -g)" -e HOME=/tmp -e MPLBACKEND=Agg \
     -v "$root/sandbox:/workspace/scrimp/sandbox:ro" \
     -v "$out:/artifacts" \
