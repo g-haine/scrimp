@@ -175,10 +175,22 @@ def analyze(folder):
     # feedback: compare the final TS Jacobian with its analytic
     # weak-form tangent; do not infer correctness from block norms.
     feedback = {}
+    jacobian_captures = {
+        ranks: (
+            folder / f"petsc_jacobian_{ranks}r_rank0.npz"
+        ).exists()
+        for ranks in (1, 2)
+    }
+    if any(jacobian_captures.values()) and not all(
+        jacobian_captures.values()
+    ):
+        raise ValueError(
+            "Incomplete 1/2-rank full TS Jacobian snapshot for "
+            "feedback parity analysis"
+        )
     for ranks in (1, 2):
-        jpath = folder / f"petsc_jacobian_{ranks}r_rank0.npz"
-        if not jpath.exists():
-            continue  # Backward compatibility with older archives.
+        if not jacobian_captures[ranks]:
+            continue  # Older snapshots did not capture full J.
         k = load_owned(folder, "stiffness", ranks)
         j = load_owned(folder, "jacobian", ranks)
         feedback[str(ranks)] = feedback_block_metrics(k, j, fields)
@@ -193,7 +205,9 @@ def analyze(folder):
                 flush=True,
             )
     result["feedback_coefficientwise_by_ranks"] = feedback
-    if len(feedback) == 2:
+    if len(feedback) == 2 and all(
+        item is not None for item in feedback.values()
+    ):
         j1 = load_owned(folder, "jacobian", 1)
         j2 = load_owned(folder, "jacobian", 2)
         u, y = (
@@ -205,6 +219,37 @@ def analyze(folder):
         result["feedback_2r_vs_1r"] = metrics(
             j2[sr, sc], j1[sr, sc]
         )
+    feedback_errors = []
+    if feedback and all(v is not None for v in feedback.values()):
+        for ranks, data in feedback.items():
+            if data["K_UU_frobenius_norm"] < 1e-14:
+                feedback_errors.append(
+                    f"U control block absent in {ranks}r"
+                )
+            for key in (
+                "feedback_full_J_UY_vs_minus_half_K_UU",
+                "control_full_J_UU_vs_linear_K_UU",
+            ):
+                if data[key]["relative_fro_error"] > 1e-10:
+                    feedback_errors.append(
+                        f"{ranks}r {key} relative error "
+                        f"{data[key]['relative_fro_error']:g}"
+                    )
+        if result.get("feedback_2r_vs_1r", {}).get(
+            "relative_fro_error", 0.0
+        ) > 1e-10:
+            feedback_errors.append(
+                "U<-Y feedback Jacobian differs between MPI ranks"
+            )
+    result["feedback_validation"] = (
+        "not_captured" if not feedback
+        else "not_applicable" if all(
+            v is None for v in feedback.values()
+        )
+        else "failed" if feedback_errors
+        else "passed"
+    )
+    result["feedback_errors"] = feedback_errors
     for label in ("mass", "stiffness"):
         native_1 = load_raw(
             folder / f"raw_getfem_{label}_1r_rank0.npz"
@@ -274,6 +319,11 @@ def analyze(folder):
         json.dumps(result, indent=2) + "\n", encoding="utf-8"
     )
     print(f"Saved: {path}", flush=True)
+    if feedback_errors:
+        raise ValueError(
+            "Analytic coenergy U=0.5*Y Jacobian gate failed: "
+            + "; ".join(feedback_errors)
+        )
     return result
 
 
