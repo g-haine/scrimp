@@ -2104,6 +2104,14 @@ class DPHS:
             try:
                 return self._solve_impl()
             finally:
+                # The candidate Jacobian is only needed during callbacks.
+                # Keep its allocations out of subsequent solves and do not
+                # retain one extra full MPI sparse matrix after TS finishes.
+                candidate = getattr(self, "_mumps_jacobian_candidate", None)
+                if candidate is not None:
+                    candidate.destroy()
+                    self._mumps_jacobian_candidate = None
+                self._mumps_csr_snapshots = {}
                 self._memory_phase("solve_exit")
                 if self._phase_memory_trace is not None:
                     self._phase_memory_trace.write()
