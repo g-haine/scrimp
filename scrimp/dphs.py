@@ -198,9 +198,10 @@ def _getfem_source_rhs_mode():
 def _get_mumps_reset_policy(all_bricks_linear=False):
     """Select the MUMPS reset policy, honoring explicit user overrides.
 
-    With no override: all bricks declared linear -> never (no CSR
-    snapshots, comparisons or collective checks during IJacobian);
-    otherwise -> on_change (exact CSR checks on every Jacobian).
+    With no override: on_change for ALL models (including nominally
+    linear ones). Exact CSR sparsity and coefficient comparisons are
+    necessary because linear does not imply time-invariant, and TS shift
+    can change under variable-step integration.
     The legacy boolean flag is still accepted for old benchmarks.
     An explicit policy ALWAYS wins over automatic linearity detection.
     """
@@ -208,7 +209,7 @@ def _get_mumps_reset_policy(all_bricks_linear=False):
     if policy is None:
         legacy = os.environ.get("SCRIMP_MUMPS_RESET_PC_ON_JACOBIAN")
         if legacy is None:
-            return "never" if all_bricks_linear else "on_change"
+            return "on_change"
         if legacy == "1":
             return "always"
         if legacy == "0":
@@ -300,6 +301,38 @@ def _local_csr_pattern_changed(before, after):
         or not np.array_equal(before[1], after[1])
         or not np.array_equal(before[2], after[2])
     )
+
+
+def _local_stored_csr_snapshot(matrix):
+    """Exact CSR graph AND numeric values for owned PETSc rows.
+
+    Do not use fingerprints or mathematical linearity assumptions:
+    a changed coefficient or TS shift requires a fresh numeric LU.
+    The snapshot is per rank and includes ownership to catch repartition.
+    """
+    rowptr, columns, values = matrix.getValuesCSR()
+    return (
+        tuple(int(x) for x in matrix.getOwnershipRange()),
+        np.array(rowptr, copy=True),
+        np.array(columns, copy=True),
+        np.array(values, copy=True),
+    )
+
+
+def _local_csr_change_flags(before, after):
+    """Bit 0: graph changed; bit 1: numeric values changed.
+
+    A changed graph necessarily implies a changed operator. Exact
+    comparisons deliberately treat NaN as changed, never as reusable.
+    """
+    if before is None:
+        return 3
+    pattern_changed = _local_csr_pattern_changed(before, after)
+    numeric_changed = (
+        pattern_changed
+        or not np.array_equal(before[3], after[3])
+    )
+    return int(pattern_changed) | (int(numeric_changed) << 1)
 
 
 import scrimp.utils.config
@@ -1542,18 +1575,13 @@ class DPHS:
         # explicitly unsafe in PETSc (and can crash). Likewise MatAXPY
         # must not assume that M(z) has the same nonzeros as K(z).
         structure = PETSc.Mat.Structure.DIFFERENT_NONZERO_PATTERN
-        # Automatic MUMPS policy: 'never' when ALL bricks are declared
-        # linear, 'on_change' otherwise. An explicit environment override
-        # takes precedence. The linear path skips ALL CSR inspections and
-        # per-Jacobian MPI change collectives; it assumes the user correctly
-        # marks every linear brick and the assembled graph stays constant.
-        # The nonlinear on_change path reuses the symbolic LU
-        # while the exact, STORED PETSc CSR graph is unchanged. A structure
-        # change requires collective PC.reset(), not a KSP teardown.
-        # The historical always-reset behavior remains an explicit fallback.
-        # With always, reset *before* modifying the matrix, as before.
-        # on_change checks only after the FULL assembled Jacobian exists
-        # (including the state-dependent mass Hessian).
+        # v1.3.0 default: on_change tracks the ACTUAL assembled PETSc
+        # operator, not model linearity. Reuse the symbolic LU when its
+        # exact stored graph is unchanged, and the numeric LU only when
+        # all stored coefficients are identical across all MPI ranks.
+        # This handles nonlinear tangents and changing TS shift correctly.
+        # Explicit never/always policies remain supported as overrides.
+        # Checks happen after ALL Jacobian contributions are assembled.
         policy = getattr(self, "_mumps_reset_policy", None)
         if policy is None:
             policy = _get_mumps_reset_policy(
@@ -1644,10 +1672,9 @@ class DPHS:
             P.copy(A, structure=structure)
 
         if policy == "on_change":
-            # Check the MPI solver configuration only once per TS phase:
-            # initial and main have separate KSP/PC lifecycles. Repeating
-            # this rank-wide allreduce at every Jacobian adds needless
-            # latency, especially on small systems.
+            # Initial and main TS own distinct KSP/PC/MUMPS factors.
+            # Check solver uniformity once for each phase, then do one
+            # collective bitmask per Jacobian (1=graph, 2=coefficients).
             mpi = comm.tompi4py()
             phase = self._profile_phase
             checked = getattr(self, "_mumps_phase_enabled", None)
@@ -1658,20 +1685,20 @@ class DPHS:
                 if n_mumps not in (0, max_rank):
                     raise RuntimeError(
                         "MUMPS LU must be configured on every MPI rank "
-                        "for collective on_change symbolic-factor reuse"
+                        "for collective on_change symbolic/numeric reuse"
                     )
-                checked[phase] = (n_mumps == max_rank)
+                checked[phase] = n_mumps == max_rank
             if is_mumps != checked[phase]:
                 raise RuntimeError(
                     "MUMPS solver type changed within the same TS phase; "
-                    "this invalidates the collective reset-policy cache"
+                    "this invalidates the collective reuse cache"
                 )
             if is_mumps:
                 with self.profiler.measure(
                     f"{self._profile_phase}.petsc.csr_pattern_check"
                 ):
                     try:
-                        current = _local_stored_csr_pattern(P)
+                        current = _local_stored_csr_snapshot(P)
                         csr_error = None
                     except (PETSc.Error, AttributeError,
                             NotImplementedError, TypeError) as exc:
@@ -1681,42 +1708,40 @@ class DPHS:
                         int(csr_error is not None), op=MPI.SUM
                     ):
                         raise RuntimeError(
-                            "Cannot inspect the full stored PETSc CSR "
-                            "pattern on every rank; set "
-                            "SCRIMP_MUMPS_RESET_POLICY=always for an "
-                            "unconditionally safe MUMPS fallback"
+                            "Cannot inspect full stored PETSc CSR on "
+                            "every rank; automatic symbolic/numeric "
+                            "reuse cannot be validated"
                         ) from csr_error
-                    phase = self._profile_phase
-                    patterns = getattr(self, "_mumps_csr_patterns", None)
-                    if patterns is None:
-                        patterns = self._mumps_csr_patterns = {}
-                    previous = patterns.get(phase)
-                    changed_local = (
-                        previous is not None
-                        and _local_csr_pattern_changed(previous, current)
+                    snapshots = getattr(self, "_mumps_csr_snapshots", None)
+                    if snapshots is None:
+                        snapshots = self._mumps_csr_snapshots = {}
+                    previous = snapshots.get(phase)
+                    local_change = _local_csr_change_flags(previous, current)
+                    # MPI BOR broadcasts each kind of change to ALL ranks.
+                    global_change = int(
+                        mpi.allreduce(local_change, op=MPI.BOR)
                     )
-                    changed = bool(
-                        mpi.allreduce(changed_local, op=MPI.LOR)
-                    )
-                    # Store a full copy only on a structural transition;
-                    # numeric values change at every Newton step.
-                    if previous is None or changed:
-                        patterns[phase] = current
-                if changed:
+                    graph_changed = bool(global_change & 1)
+                    values_changed = bool(global_change & 2)
+                    if previous is None or values_changed:
+                        snapshots[phase] = current
+                # PETSc's 'reuse preconditioner' flag controls whether
+                # PCSetUp refactorizes numerically after IJacobian
+                # updates the matrix. Never keep a factor if its numeric
+                # values changed, even when its graph did not.
+                pc.setReusePreconditioner(
+                    previous is not None and not values_changed
+                )
+                if previous is not None and graph_changed:
                     _mpi_trace(
-                        "IJacobian: CSR changed globally; resetting MUMPS PC"
+                        "IJacobian: stored CSR graph changed globally; "
+                        "resetting MUMPS symbolic factor"
                     )
                     with self.profiler.measure(
                         f"{self._profile_phase}.petsc.pc_reset"
                     ):
                         pc.reset()
-                        # Rebind the existing operator/preconditioner after
-                        # reset, matching the validated persistent-KSP
-                        # on_change probes and retaining the Mat handles.
                         ksp.setOperators(A, P)
-                    _mpi_trace(
-                        "IJacobian: MUMPS PC.reset and KSP rebind completed"
-                    )
 
         # Opt-in native diagnostic: dump selected actual SWE Jacobians
         # before PETSc/MUMPS factorization. Binary MatView is collective,
@@ -2010,18 +2035,18 @@ class DPHS:
                     "Refusing to reuse an already committed trajectory"
                 )
         # A new solve creates fresh initial/main TS/KSP/PC lifecycles:
-        # never inherit the CSR graph of a previously destroyed LU factor.
+        # never inherit numeric or symbolic snapshots from old factors.
         self._mumps_csr_patterns = {}
+        self._mumps_csr_snapshots = {}
         self._mumps_phase_enabled = {}
-        # All Jacobian-contributing bricks must be declared linear.
-        # Only certified open-loop source bricks from set_control()
-        # may be ignored; unknown source/feedback laws stay conservative.
+        # Bricks linearity is diagnostic only; on_change now validates
+        # the actual Jacobian values, including time/step dependence.
         self._all_bricks_linear = _all_bricks_are_linear(self.bricks)
         self._mumps_reset_policy = _get_mumps_reset_policy(
             all_bricks_linear=self._all_bricks_linear
         )
         _mpi_trace(
-            f"MUMPS reset policy={self._mumps_reset_policy} "
+            f"MUMPS reuse policy={self._mumps_reset_policy} "
             f"(all_bricks_linear={self._all_bricks_linear})"
         )
         policies = comm.tompi4py().allgather(
