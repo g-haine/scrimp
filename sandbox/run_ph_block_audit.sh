@@ -17,25 +17,28 @@
 # or postprocessing and does NOT benchmark scalability.
 #
 #   bash sandbox/run_ph_block_audit.sh 0.08
+#   bash sandbox/run_ph_block_audit.sh 0.12 wave_coenergy
 set -euo pipefail
 
 mesh="${1:-0.08}"
-if [[ $# -gt 1 || ! "$mesh" =~ ^0\.[0-9]+$ ]]; then
-    echo "Usage: bash sandbox/run_ph_block_audit.sh [mesh_h=0.08]" >&2
+model="${2:-wave}"
+if [[ $# -gt 2 || ! "$mesh" =~ ^0\.[0-9]+$ ||
+      ( "$model" != "wave" && "$model" != "wave_coenergy" ) ]]; then
+    echo "Usage: bash sandbox/run_ph_block_audit.sh [mesh_h=0.08] [wave|wave_coenergy]" >&2
     exit 2
 fi
 cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 1
 root="$PWD"
 sha="$(git rev-parse --short=8 HEAD)"
 mkdir -p sandbox/outputs
-out="$(mktemp -d "$root/sandbox/outputs/ph-block-audit-h${mesh//./p}-$sha-XXXXXX")"
+out="$(mktemp -d "$root/sandbox/outputs/ph-block-audit-${model}-h${mesh//./p}-$sha-XXXXXX")"
 timeout_s="${SCRIMP_PH_BLOCK_AUDIT_TIMEOUT_S:-180}"
 if [[ ! "$timeout_s" =~ ^[0-9]+$ ]] ||
    (( timeout_s < 30 || timeout_s > 1800 )); then
     echo "SCRIMP_PH_BLOCK_AUDIT_TIMEOUT_S must be 30..1800 seconds" >&2
     exit 2
 fi
-echo "SCRIMP pH-DAE field-block audit | source $sha | mesh h=$mesh"
+echo "SCRIMP pH-DAE field-block audit | source $sha | model=$model | mesh h=$mesh"
 echo "2 accepted CN steps, 1 and 2 MPI ranks, reference MUMPS unchanged"
 echo "Output: $out"
 sudo -v
@@ -62,7 +65,7 @@ for ranks in 1 2; do
         timeout -k 5s "${timeout_s}s" \
         mpiexec --bind-to none -n "$ranks" \
         python -u sandbox/audit_ph_blocks.py \
-            --mesh "$mesh" --dt 0.002 --steps 2 \
+            --model "$model" --mesh "$mesh" --dt 0.002 --steps 2 \
             --output "/artifacts/blocks_${ranks}r.json" \
         > "$out/blocks_${ranks}r.log" 2>&1 || {
             echo "FAILED: $ranks rank(s)" >&2
