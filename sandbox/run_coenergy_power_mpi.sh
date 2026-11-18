@@ -19,6 +19,11 @@
 #   bash sandbox/run_coenergy_power_mpi.sh 0.12
 set -euo pipefail
 mesh="${1:-0.12}"
+policy="${SCRIMP_COENERGY_MUMPS_POLICY:-never}"
+if [[ "$policy" != "never" && "$policy" != "on_change" ]]; then
+    echo "SCRIMP_COENERGY_MUMPS_POLICY must be never or on_change" >&2
+    exit 2
+fi
 if [[ $# -gt 1 || ! "$mesh" =~ ^0\.[0-9]+$ ]]; then
     echo "Usage: bash sandbox/run_coenergy_power_mpi.sh [mesh_h=0.12]" >&2
     exit 2
@@ -47,7 +52,7 @@ if ! git diff --quiet HEAD -- scrimp/utils/mesh.py; then
     git status --short -- scrimp/utils/mesh.py
 fi
 echo "SCRIMP coenergy CN physical-power gate | commit=$sha | h=$mesh"
-echo "5 fixed CN steps, same mesh, global PETSc MUMPS, 1/2 MPI ranks"
+echo "5 fixed CN steps, same mesh, global PETSc MUMPS policy=$policy, 1/2 MPI ranks"
 echo "Output: $out"
 sudo -v
 for ranks in 1 2; do
@@ -63,7 +68,8 @@ for ranks in 1 2; do
         -e SCRIMP_GETFEM_MATRIX_MODE=distributed \
         -e SCRIMP_GETFEM_BRIDGE_DISTRIBUTED=coo \
         -e SCRIMP_MATRIX_MEMORY_MODE=compact \
-        -e SCRIMP_MUMPS_RESET_POLICY=never \
+        -e SCRIMP_MUMPS_RESET_POLICY="$policy" \
+        -e SCRIMP_BENCH_EXPECT_MUMPS_POLICY="$policy" \
         -e SCRIMP_TRAJECTORY_BACKEND=memory \
         -e SCRIMP_BENCH_GIT_SHA="$sha" \
         --cpuset-cpus="$cpus" \
