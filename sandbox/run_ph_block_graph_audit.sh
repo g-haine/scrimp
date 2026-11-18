@@ -26,9 +26,9 @@ host_workspace="$(realpath "$host_workspace")"
     exit 2
 }
 out="$(mktemp -d "$root/sandbox/outputs/ph-block-graph-h${mesh//./p}-$sha-XXXXXX")"
-timeout_s="${SCRIMP_PH_FIELDSPLIT_TIMEOUT_S:-240}"
+timeout_s="${SCRIMP_PH_GRAPH_TIMEOUT_S:-240}"
 if [[ ! "$timeout_s" =~ ^[0-9]+$ ]] || (( timeout_s < 30 || timeout_s > 1800 )); then
-    echo "SCRIMP_PH_FIELDSPLIT_TIMEOUT_S must be 30..1800" >&2
+    echo "SCRIMP_PH_GRAPH_TIMEOUT_S must be 30..1800" >&2
     exit 2
 fi
 echo "SCRIMP distributed pH variable-block graph audit"
@@ -64,19 +64,19 @@ for ranks in 1 2; do
         scrimp-mpi:local \
         timeout -k 5s "${timeout_s}s" \
         mpiexec --bind-to none -n "$ranks" \
-        python -u /workspace/scrimp/sandbox/probe_ph_fieldsplit_baseline.py \
+        python -u /workspace/scrimp/sandbox/audit_ph_block_graph.py \
           --mesh "$mesh" --output "/artifacts/block_graph_${ranks}r.json" \
-        > "$out/fieldsplit_${ranks}r.log" 2>&1; then
-        grep -aE '^(AUDIT sigma=|Saved:)' "$out/fieldsplit_${ranks}r.log" || true
+        > "$out/block_graph_${ranks}r.log" 2>&1; then
+        grep -aE '^(AUDIT sigma=|Saved:)' "$out/block_graph_${ranks}r.log" || true
     else
-        echo "NON-PASS: $ranks MPI ranks; inspect $out/fieldsplit_${ranks}r.log" >&2
-        tail -n 45 "$out/fieldsplit_${ranks}r.log" >&2
+        echo "NON-PASS: $ranks MPI ranks; inspect $out/block_graph_${ranks}r.log" >&2
+        tail -n 45 "$out/block_graph_${ranks}r.log" >&2
         fail=1
     fi
 done
 echo "Reports: $out"
 if (( fail )); then
-    echo "Experiment did not pass all MPI/accuracy gates" >&2
+    echo "Block graph audit failed on at least one MPI rank count" >&2
     exit 1
 fi
-echo "PASS: MPI variable-block audits completed; compare JSON across ranks"
+echo "PASS: read-only block graph audits completed for 1 and 2 MPI ranks"
