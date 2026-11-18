@@ -191,9 +191,24 @@ def audit(args):
         global_role_fro2 = aggregate_role_pairs(
             fields, global_fro2
         )
+        # Independent PETSc norm verifies that the owned-CSR values
+        # represent the full distributed matrix. If this agrees but
+        # the block map changes, suspect column index semantics or
+        # variable ordering before blaming GetFEM assembly.
+        petsc_fro = float(mat.norm())
+        extracted_fro = float(np.sqrt(np.sum(global_fro2)))
+        if not np.isclose(
+            petsc_fro, extracted_fro, rtol=1e-11, atol=1e-12
+        ):
+            raise ValueError(
+                f"{label}: owned PETSc CSR Frobenius {extracted_fro} "
+                f"differs from native Mat.norm {petsc_fro}"
+            )
         by_matrix[label] = {
             "nnz_stored": int(np.sum(global_stored)),
             "nnz_effective": int(np.sum(global_effective)),
+            "petsc_frobenius_norm": petsc_fro,
+            "owned_csr_frobenius_norm": extracted_fro,
             "variable_order": [f["name"] for f in fields],
             "block_stored_nnz": global_stored.tolist(),
             "block_effective_nnz": global_effective.tolist(),
