@@ -32,7 +32,7 @@ jobs:
           python -m unittest -v tests.test_matrix_memory tests.test_compact_matrix_comparison tests.test_phase_memory_audit
       - name: Validate pH-DAE block ordering and MPI sparse audit (no PETSc)
         run: |
-          python -m py_compile scrimp/utils/ph_block_layout.py sandbox/audit_ph_blocks.py sandbox/compare_ph_block_audits.py tests/test_ph_block_layout.py tests/test_ph_block_comparison.py
+          python -m py_compile scrimp/utils/ph_block_layout.py sandbox/audit_ph_blocks.py sandbox/compare_ph_block_audits.py sandbox/diagnose_ph_block_parity.py tests/test_ph_block_layout.py tests/test_ph_block_comparison.py
           bash -n sandbox/run_ph_block_audit.sh
           python -m unittest -v tests.test_ph_block_layout tests.test_ph_block_comparison
       - name: Validate native constitutive MUMPS/Schur probe gates (no PETSc)
