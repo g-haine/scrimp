@@ -6,6 +6,8 @@
 #
 # github: https://github.com/g-haine/scrimp
 
+"""Validate and summarize native v1.2.0 vs v1.3 wave performance reports.
+
 Scientific gates:
  - same wave.py, same DOFs and ten accepted fixed CN steps,
  - complete initial and final PETSc vectors across ALL MPI ranks,
