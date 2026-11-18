@@ -9,10 +9,11 @@ set -euo pipefail
 mesh="${1:-0.05}"
 ranks_csv="${2:-1,2}"
 repeat_rhs="${3:-2}"
-if [[ ! "$mesh" =~ ^0\.[0-9]+$ ||
+schur_ksp="${4:-preonly}"
+if [[ $# -gt 4 || ! "$schur_ksp" =~ ^(preonly|gmres)$ || ! "$mesh" =~ ^0\.[0-9]+$ ||
       ! "$ranks_csv" =~ ^[1-9][0-9]*(,[1-9][0-9]*)*$ ||
       ! "$repeat_rhs" =~ ^[1-9][0-9]*$ || "$repeat_rhs" -gt 20 ]]; then
-    echo "Usage: bash sandbox/run_ph_distributed_dae.sh [mesh=0.05] [ranks=1,2] [repeat_rhs=2..20]" >&2
+    echo "Usage: bash sandbox/run_ph_distributed_dae.sh [mesh=0.05] [ranks=1,2] [repeat_rhs=1..20] [schur_ksp=preonly|gmres]" >&2
     exit 2
 fi
 cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 1
@@ -21,7 +22,7 @@ sha="$(git rev-parse --short=8 HEAD)"
 host_workspace="${SCRIMP_DOCKER_WORKSPACE:-$HOME/Simulations/workspace}"
 mkdir -p "$host_workspace" sandbox/outputs
 host_workspace="$(realpath "$host_workspace")"
-out="$(mktemp -d "$root/sandbox/outputs/ph-distributed-dae-h${mesh//./p}-$sha-XXXXXX")"
+out="$(mktemp -d "$root/sandbox/outputs/ph-distributed-dae-${schur_ksp}-h${mesh//./p}-$sha-XXXXXX")"
 timeout_s="${SCRIMP_DISTRIBUTED_DAE_TIMEOUT_S:-480}"
 if [[ ! "$timeout_s" =~ ^[0-9]+$ || "$timeout_s" -lt 30 || "$timeout_s" -gt 3600 ]]; then
     echo "SCRIMP_DISTRIBUTED_DAE_TIMEOUT_S must be 30..3600" >&2
@@ -31,7 +32,7 @@ cpu_csv="${SCRIMP_SCALING_CPUS:-0,2,4,6,8,10}"
 IFS=, read -r -a cpus <<< "$cpu_csv"
 IFS=, read -r -a ranks <<< "$ranks_csv"
 echo "SCRIMP full manufactured pH-DAE distributed Schur+ASM qualification"
-echo "Source commit: $sha; mesh=$mesh; ranks=$ranks_csv; repeat_rhs=$repeat_rhs"
+echo "Source commit: $sha; mesh=$mesh; ranks=$ranks_csv; repeat_rhs=$repeat_rhs; schur_ksp=$schur_ksp"
 echo "CPU pool: $cpu_csv; output: $out"
 echo "No production solver change. Full MUMPS remains reference only."
 sudo -v
@@ -65,7 +66,7 @@ for n in "${ranks[@]}"; do
         timeout -k 5s "${timeout_s}s" \
         mpiexec --bind-to none -n "$n" \
         python -u /workspace/scrimp/sandbox/probe_ph_distributed_dae.py \
-        --mesh "$mesh" --schur-pre path2 --h-pc asm \
+        --mesh "$mesh" --schur-pre path2 --h-pc asm --schur-ksp "$schur_ksp" \
         --h-rtol "${SCRIMP_DISTRIBUTED_H_RTOL:-1e-10}" \
         --h-max-it "${SCRIMP_DISTRIBUTED_H_MAX_IT:-350}" \
         --repeat-rhs "$repeat_rhs" \
