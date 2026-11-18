@@ -1,6 +1,9 @@
 # SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
 # Copyright (C) 2015-2026 ISAE-SUPAERO -- GNU GPLv3
-# See LICENSE for license information.
+# 
+# See the LICENSE file for license information.
+#
+# github: https://github.com/g-haine/scrimp
 """Validate and summarize native v1.2.0 vs v1.3 wave performance reports.
 
 Scientific gates:
