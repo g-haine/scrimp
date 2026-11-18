@@ -153,6 +153,37 @@ def main():
     built = time.perf_counter()
     dofs = system.gf_model.nbdof()
 
+    # PETSc native events provide MatLUFactorSym / MatLUFactorNum /
+    # MatSolve timing. Keep INITIAL and MAIN stages separate, but do not
+    # replace SCRIMP's equations or PETSc callbacks.
+    if args.petsc_log:
+        initial_stage = PETSc.Log.Stage("WAVE_INITIAL_CONSISTENCY")
+        main_stage = PETSc.Log.Stage("WAVE_MAIN_CN")
+        original_init_step = system.init_step
+        original_memory_phase = system._memory_phase
+        main_stage_active = [False]
+
+        def logged_init_step(*positional, **keyword):
+            initial_stage.push()
+            try:
+                return original_init_step(*positional, **keyword)
+            finally:
+                initial_stage.pop()
+
+        def logged_memory_phase(name, *positional, **keyword):
+            if name == "before_main_ts_solve":
+                main_stage.push()
+                main_stage_active[0] = True
+            try:
+                return original_memory_phase(name, *positional, **keyword)
+            finally:
+                if name == "after_main_ts_solve" and main_stage_active[0]:
+                    main_stage.pop()
+                    main_stage_active[0] = False
+
+        system.init_step = logged_init_step
+        system._memory_phase = logged_memory_phase
+
     # Fixed-step Crank-Nicolson. Petsc LU/MUMPS settings are the
     # same for all ranks, so speedups are not time-adapt artifacts.
     system.set_time_scheme(
@@ -234,8 +265,14 @@ def main():
     rss_peak_rank_kib = mpi.allreduce(rss_rank_kib, op=MPI.MAX)
     t_petsc = float(system.last_ts_time)
     t_saved = float(system.solution["t"][-1])
+    allowed_cpus = sorted(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else []
+    local_affinity = {
+        "rank": int(rank), "allowed_logical_cpus": allowed_cpus,
+    }
+    affinity_by_rank = mpi.gather(local_affinity, root=0)
     report = {
         "benchmark": "examples/wave.py:wave_eq() (2D acoustic waves)",
+        "mpi_affinity_by_rank": affinity_by_rank if rank == 0 else None,
         "mumps_ordering_requested": args.ordering,
         "mumps_icntl28_verified": bool(all_checked),
         "mumps_icntl28_effective": expected28,
