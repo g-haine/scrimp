@@ -322,6 +322,14 @@ def audit(args):
             ),
             "mesh_sha256": mesh_digest,
             "mesh_file_size_bytes": mesh_size,
+            # The HEAD hash alone does not identify a user-modified
+            # mesh.py mounted read-only into the Docker image.
+            "scrimp_mesh_source_sha256": hashlib.sha256(
+                (
+                    Path(__file__).resolve().parents[1]
+                    / "scrimp" / "utils" / "mesh.py"
+                ).read_bytes()
+            ).hexdigest(),
             "formulation": formulation,
             "capture_matrices": bool(args.capture_matrices),
             "getfem_module_path": str(gf.__file__),
