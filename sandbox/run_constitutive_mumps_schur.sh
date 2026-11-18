@@ -21,6 +21,16 @@ if [[ $# -gt 1 || ! "$mesh" =~ ^0\.[0-9]+$ ]]; then
 fi
 cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 1
 root="$PWD"
+# The package creates outputs/{log,png,mesh,pv} relative to cwd
+# at import time. Run inside a user-owned HOST workspace, instead
+# of the image-owned /workspace/scrimp tree. The source stays RO.
+host_workspace="${SCRIMP_DOCKER_WORKSPACE:-$HOME/Simulations/workspace}"
+mkdir -p "$host_workspace"
+host_workspace="$(realpath "$host_workspace")"
+if [[ ! -d "$host_workspace" || ! -w "$host_workspace" ]]; then
+    echo "Docker host work directory is not writable: $host_workspace" >&2
+    exit 2
+fi
 sha="$(git rev-parse --short=8 HEAD)"
 mkdir -p sandbox/outputs
 out="$(mktemp -d "$root/sandbox/outputs/ph-constitutive-schur-h${mesh//./p}-$sha-XXXXXX")"
@@ -33,7 +43,9 @@ fi
 echo "SCRIMP: constant-coefficient constitutive MUMPS and exact Schur audit"
 echo "Mesh h=$mesh; 2 reference CN steps; PETSc shifts=1000/2000"
 echo "Reference full-system MUMPS remains unchanged. No solver modification."
-echo "Result: $out"
+echo "User-owned host workdir: $host_workspace (container: /scrimp-work)"
+echo "SCRIMP's own auxiliary outputs: $host_workspace/outputs/"
+echo "Campaign reports and PETSc logs: $out"
 sudo -v
 for ranks in 1 2; do
     cpus="0"
@@ -41,7 +53,9 @@ for ranks in 1 2; do
     echo "RUN $ranks MPI ranks / cpus=$cpus"
     sudo docker run --rm \
         --user "$(id -u):$(id -g)" \
+        --workdir /scrimp-work \
         -e HOME=/tmp -e MPLBACKEND=Agg \
+        -e PYTHONPATH=/workspace/scrimp \
         -e OMP_NUM_THREADS=1 -e OPENBLAS_NUM_THREADS=1 \
         -e SCRIMP_GETFEM_MATRIX_MODE=distributed \
         -e SCRIMP_GETFEM_BRIDGE_DISTRIBUTED=coo \
@@ -52,12 +66,12 @@ for ranks in 1 2; do
         -v "$root/scrimp:/workspace/scrimp/scrimp:ro" \
         -v "$root/sandbox:/workspace/scrimp/sandbox:ro" \
         -v "$root/examples:/workspace/scrimp/examples:ro" \
-        -v "$out:/workspace/scrimp/outputs" \
+        -v "$host_workspace:/scrimp-work" \
         -v "$out:/artifacts" \
         scrimp-mpi:local \
         timeout -k 5s "${timeout_s}s" \
         mpiexec --bind-to none -n "$ranks" \
-        python -u sandbox/probe_constitutive_mumps_schur.py \
+        python -u /workspace/scrimp/sandbox/probe_constitutive_mumps_schur.py \
             --mesh "$mesh" --dt 0.002 \
             --shift1 1000 --shift2 2000 \
             --output "/artifacts/schur_${ranks}r.json" \
@@ -76,12 +90,14 @@ done
 echo "CHECK: full uncondensed DAE Schur identity and inverse-Q parity"
 sudo docker run --rm \
     --user "$(id -u):$(id -g)" \
+    --workdir /scrimp-work \
     -e HOME=/tmp -e MPLBACKEND=Agg \
     --cpuset-cpus="0,2" \
     -v "$root/sandbox:/workspace/scrimp/sandbox:ro" \
+    -v "$host_workspace:/scrimp-work" \
     -v "$out:/artifacts" \
     scrimp-mpi:local \
-    python -u sandbox/compare_constitutive_mumps_schur.py \
+    python -u /workspace/scrimp/sandbox/compare_constitutive_mumps_schur.py \
         --directory /artifacts
 echo "SUCCESS: native 1/2-MPI MUMPS/constitutive Schur identity gates."
 echo "Output: $out"
