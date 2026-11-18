@@ -322,6 +322,13 @@ def run(args):
                 "ksp": details,
             }
             sigma_runs.append(item)
+            if mpi.rank == 0 and args.repeat_rhs > 1:
+                print(
+                    f"REUSE sigma={sigma:g} candidate={candidate}: "
+                    f"{json.dumps(details['repeated_rhs'], sort_keys=True)} "
+                    f"setup={details['explicit_ksp_setup_seconds_max']:.6g}s",
+                    flush=True,
+                )
             if mpi.rank == 0:
                 print(
                     f"NESTED sigma={sigma:g} candidate={candidate}: "
