@@ -50,7 +50,7 @@ def solve_reference(A, rhs):
     return result, elapsed
 
 
-def block_trial(A, rhs, is_e, is_x, rtol, max_it, x_pc, e_pc, schur_pc):
+def block_trial(A, rhs, is_e, is_x, rtol, max_it, x_pc, e_pc, schur_pc, fields, local_x):
     ksp = PETSc.KSP().create(comm=PETSc.COMM_WORLD)
     ksp.setOptionsPrefix("ph_trial_")
     ksp.setType("fgmres")
@@ -139,6 +139,39 @@ def block_trial(A, rhs, is_e, is_x, rtol, max_it, x_pc, e_pc, schur_pc):
                 except (AttributeError, RuntimeError, ValueError) as exc:
                     entry["pc_failed_reason"] = f"unavailable: {exc}"
                 diagnostics["sub_ksp"].append(entry)
+                if name == "x" and x_pc == "schur-selfp" and schur_pc == "lu":
+                    # Inspect the ACTUAL PETSc SELF-P preconditioning matrix,
+                    # not the raw G=A[x,x] saddle block.
+                    _, pmat = sub.getOperators()
+                    diag = pmat.getDiagonal()
+                    values = np.asarray(diag.getArray(readonly=True)).copy()
+                    diag.destroy()
+                    if values.size != len(local_x):
+                        raise RuntimeError(
+                            "Schur PC local ordering does not match GetFEM "
+                            "complement index set; refuse field attribution"
+                        )
+                    mpi = MPI.COMM_WORLD
+                    details = {}
+                    for field in fields:
+                        if field["group"] == "coenergy":
+                            continue
+                        mask = ((local_x >= field["start"])
+                                & (local_x < field["stop"]))
+                        d = np.abs(values[mask])
+                        details[field["name"]] = {
+                            "dofs": mpi.allreduce(int(d.size), op=MPI.SUM),
+                            "near_zero_diagonal": mpi.allreduce(
+                                int(np.count_nonzero(d < 1e-14)),
+                                op=MPI.SUM,
+                            ),
+                            "min_abs_diagonal": mpi.allreduce(
+                                float(d.min()) if d.size else float("inf"),
+                                op=MPI.MIN,
+                            ),
+                        }
+                    diagnostics["actual_schur_selfp_diagonal_by_field"] = details
+
         except (AttributeError, RuntimeError, ValueError) as exc:
             diagnostics["sub_ksp_error"] = str(exc)
         return result, elapsed, reason, its, diagnostics
@@ -229,7 +262,7 @@ def run(args):
         ref, ref_seconds = solve_reference(A, rhs)
         ref_residual = relative_residual(A, rhs, ref)
         trial, trial_seconds, reason, its, diagnostics = block_trial(
-            A, rhs, is_e, is_x, args.rtol, args.max_it, args.x_pc, args.e_pc, args.schur_pc
+            A, rhs, is_e, is_x, args.rtol, args.max_it, args.x_pc, args.e_pc, args.schur_pc, fields, local_x
         )
         trial_residual = relative_residual(A, rhs, trial)
         difference = trial.copy()
