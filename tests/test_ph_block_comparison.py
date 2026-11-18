@@ -157,6 +157,17 @@ class PhBlockComparisonTests(unittest.TestCase):
         ):
             COMPARE.compare(self.directory)
 
+    def test_different_mesh_sha256_is_rejected_before_coefficients(self):
+        # Identical DoF count / block sparsity cannot rule out
+        # different Gmsh geometry, connectivity or numbering.
+        self.records[1]["mesh_sha256"] = "aaa"
+        self.records[2]["mesh_sha256"] = "bbb"
+        self.flush()
+        with self.assertRaisesRegex(
+            ValueError, "reference Gmsh mesh files differ"
+        ):
+            COMPARE.compare(self.directory)
+
     def test_wrong_fem_interval_rejected(self):
         self.records[2]["fields"][1]["start"] = 3
         self.flush()
