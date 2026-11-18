@@ -239,6 +239,7 @@ def audit(args):
         for label, mat in (
             ("mass", system.mass),
             ("stiffness", system.stiffness),
+            ("jacobian", system.J),
         ):
             _dump_owned_petsc_csr(
                 mat,
