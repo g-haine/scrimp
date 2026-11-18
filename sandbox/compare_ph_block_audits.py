@@ -31,13 +31,13 @@ def compare(directory):
                 or data["mpi_ranks"] != p
                 or data["ts_type"] != "cn"
                 or data["steps"] != 2
-                or not data["linear_mass"]
-                or not data["linear_stiffness"]):
+                or not data["linear_mass"]):
             raise ValueError(f"{path}: incorrect block audit provenance")
         reports[p] = data
     a, b = reports[1], reports[2]
     for name in ("source_commit", "physical_model", "mesh", "dofs",
-                 "dt", "steps", "final_time", "fields"):
+                 "dt", "steps", "final_time", "fields",
+                 "formulation", "linear_stiffness"):
         if a[name] != b[name]:
             raise ValueError(f"Mismatch in {name} between 1/2 MPI ranks")
     if a["mumps_policy"] != b["mumps_policy"]:
@@ -101,18 +101,44 @@ def compare(directory):
     ]
     roles = mass["roles"]
     mass_norms = np.asarray(mass["role_frobenius_norm"])
-    for role in ("coenergy", "boundary"):
+    for role in ("coenergy", "boundary", "algebraic"):
         if not np.all(mass_norms[roles.index(role)] < 1e-10):
             raise ValueError(
                 f"Acoustic reference: unexpected mass on {role} rows"
             )
     stiffness = a["assembled_matrices"]["linear_stiffness_all_bricks"]
     stiff_norms = np.asarray(stiffness["role_frobenius_norm"])
-    for row, col in (
-        ("coenergy", "coenergy"),
-        ("coenergy", "dynamic"),
-        ("dynamic", "coenergy"),
-    ):
+    formulation = a.get("formulation", {}).get(
+        "formulation", "implicit_constitutive"
+    )
+    if formulation == "implicit_constitutive":
+        required = (
+            ("coenergy", "coenergy"),
+            ("coenergy", "dynamic"),
+            ("dynamic", "coenergy"),
+        )
+    elif formulation == "substituted_coenergy":
+        if any(f["group"] == "coenergy" for f in a["fields"]):
+            raise ValueError(
+                "Substituted coenergy example contains coenergy DoFs"
+            )
+        required = (
+            ("dynamic", "dynamic"),
+            ("dynamic", "algebraic"),
+            ("algebraic", "dynamic"),
+            ("dynamic", "boundary"),
+            ("boundary", "dynamic"),
+        )
+        if a["linear_stiffness"]:
+            raise ValueError(
+                "The example's U=0.5*Y feedback is assembled "
+                "through a nonlinear GetFEM tangent; flag changed"
+            )
+    else:
+        raise ValueError(
+            f"Unsupported native block audit formulation {formulation}"
+        )
+    for row, col in required:
         if stiff_norms[roles.index(row), roles.index(col)] <= 1e-10:
             raise ValueError(f"Required pH coupling {row}<-{col} absent")
     report = {
@@ -120,12 +146,18 @@ def compare(directory):
         "mesh": a["mesh"], "dofs": a["dofs"],
         "ranks_compared": [1, 2],
         "fields": a["fields"],
+        "formulation": a.get("formulation", {}),
         "matrix_block_parity": details,
         "validated_properties": [
             "Complete GetFEM variable classification.",
             "MPI row ownership covers the global system.",
-            "Mass on acoustic coenergy/boundary rows is zero.",
-            "Constitutive and dynamic/coenergy couplings are nonzero.",
+            "Mass on acoustic coenergy/boundary/algebraic rows is zero.",
+            (
+                "Constitutive and dynamic/coenergy couplings are nonzero."
+                if formulation == "implicit_constitutive"
+                else "Substituted model has no coenergy DoFs and "
+                     "dynamic/port/dissipative couplings are nonzero."
+            ),
             "1/2-rank matrix block Frobenius norms agree.",
         ],
         "limits": [
