@@ -188,7 +188,10 @@ def main():
             if "current" not in sources:
                 sources["current"] = (initial, final)
             else:
-                _state_distance(sources["current"][1], final, label + " vs current-1r")
+                _state_distance(sources["current"][0], initial,
+                                label + " initial vs current-1r")
+                _state_distance(sources["current"][1], final,
+                                label + " final vs current-1r")
             petsc[label] = _petsc_events(directory / (label + ".log"))
 
     release_parity_accepted = not release_parity_failures
@@ -323,7 +326,9 @@ def main():
     y = np.asarray([r["solve_s_median"] for r in rows])
     ax.plot(x, y, "o-", label="v1.3.0 on_change")
     ax.plot(x, serial_current/x, "--", label="Ideal scaling from current 1r")
-    ax.axhline(serial_release, linestyle=":", label="Native v1.2.0 1r")
+    if release_parity_accepted:
+        ax.axhline(serial_release, linestyle=":",
+                   label="Equivalent native v1.2.0 1r")
     ax.set_xlabel("MPI ranks")
     ax.set_ylabel("SCRIMP solve time (s), median")
     ax.set_xticks(x)
