@@ -44,6 +44,7 @@ for n in "${ranks[@]}"; do
         -e SCRIMP_GETFEM_MATRIX_MODE=distributed \
         -e SCRIMP_GETFEM_BRIDGE_DISTRIBUTED=coo \
         -e SCRIMP_MATRIX_MEMORY_MODE=compact \
+        -e SCRIMP_MUMPS_REUSE_DIAG=1 \
         -v "$root/scrimp:/workspace/scrimp/scrimp:ro" \
         -v "$root/examples:/workspace/scrimp/examples:ro" \
         -v "$root/sandbox:/workspace/scrimp/sandbox:ro" \
@@ -65,6 +66,8 @@ for n in "${ranks[@]}"; do
         exit 1
     fi
     grep -aE '^PASS current/' "$out/${label}.log" || true
+    echo "  Production on_change decisions (MAIN CN):"
+    grep -a '^MUMPS-REUSE-AUDIT phase=main ' "$out/${label}.log" || true
     if ! grep -aq '^MatLUFactorNum' "$out/${label}.log"; then
         echo "NON-PASS: missing PETSc numeric LU events ($label)" >&2
         exit 1
