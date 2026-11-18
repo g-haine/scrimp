@@ -40,6 +40,13 @@ if [[ ! -d "$host_workspace" || ! -w "$host_workspace" ]]; then
     exit 2
 fi
 sha="$(git rev-parse --short=8 HEAD)"
+# The source is bind-mounted from the LIVE host worktree, so a clean
+# commit SHA is insufficient provenance when mesh.py is uncommitted.
+if ! git diff --quiet HEAD -- scrimp/utils/mesh.py; then
+    echo "WARNING: local scrimp/utils/mesh.py differs from HEAD $sha."
+    echo "The native audit JSON records its actual SHA256 fingerprint."
+    git status --short -- scrimp/utils/mesh.py
+fi
 mkdir -p sandbox/outputs
 out="$(mktemp -d "$root/sandbox/outputs/ph-block-audit-${model}-h${mesh//./p}-$sha-XXXXXX")"
 timeout_s="${SCRIMP_PH_BLOCK_AUDIT_TIMEOUT_S:-180}"
