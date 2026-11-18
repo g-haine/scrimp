@@ -62,7 +62,7 @@ def compare(folder):
     for key in (
         "source_commit", "mesh", "dofs", "steps", "dt",
         "t_final", "full_state_snapshots", "formulation",
-        "power_sign_convention",
+        "effective_mumps_policy", "power_sign_convention",
     ):
         if a[key] != b[key]:
             raise ValueError(f"1/2 MPI physics mismatch: {key}")
