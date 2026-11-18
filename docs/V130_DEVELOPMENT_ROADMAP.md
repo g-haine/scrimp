@@ -59,10 +59,41 @@ repeating the 78-second original release control, use only current
 bash sandbox/run_v130_numeric_reuse_smoke.sh 0.04 1,2
 ~~~
 
-The smoke enforces main-stage MatLUFactorNum=1, MatLUFactorSym=1,
-MatSolve=10, correct TS convergence, and full current MPI
-initial/final state parity. If the smoke fails, do not proceed to
+The smoke enforces equality between main-stage MatLUFactorNum and
+exact collective operator changes, and between MatLUFactorSym and
+graph changes, plus MatSolve=10, TS convergence and full current MPI
+initial/final parity. If the smoke fails, do not proceed to
 cross-release performance tests.
+
+## Exact final-step CN shift: two numeric LU factorizations justified
+
+The diagnostic smoke on 18 Nov 2026 (h=0.04, 47,942 DOFs,
+one MPI rank, 10 accepted CN steps) showed **two** native
+main-TS `MatLUFactorNum` calls. Detailed trace:
+
+- Steps 1--9: PETSc CN shift exactly `1000`; unchanged stored
+  CSR values on every step; a single numeric factor is reused.
+- Step 10: CN shift becomes `1000.0000000000008` owing to
+  floating-point final-time alignment (MATCHSTEP);
+  121,141 stored coefficients change, with maximal absolute
+  coefficient delta `2.7755575615628914e-16`.
+- Native PETSc numeric LU count stays 1 through step 9, then
+  increases to 2 at step 10. Symbolic analysis stays at 1.
+
+This is **not** an unnecessary factorization under the specified
+exact `on_change` semantics. Do not introduce a hidden numeric
+tolerance or freeze the Jacobian in order to force a 10-to-1 result:
+the coefficient change is small but real, and other models may
+exhibit physically meaningful coefficient changes.
+
+The v1.3.0 acceptance gate now checks that the actual native PETSc
+numeric/symbolic LU counts match the **collectively determined**
+operator-value/graph updates, while preserving full-vector parity.
+For the measured run the expected main TS counts are two numeric LU,
+one symbolic LU, and ten triangular solves. Other meshes, ranks or
+time grids may legitimately yield different counts, but must satisfy
+the same exact update/event relationship. Numeric and symbolic
+update counters are retained after solve without storing CSR data.
 
 ## v1.3.0 implementation and release gates
 
@@ -79,7 +110,9 @@ cross-release performance tests.
   staged 1/2/4/6-rank MPI scaling benchmark with per-step timings.
 - [ ] **Run** the new production on_change wave h=0.04 qualification
   (10 CN steps, 3 repeats, full initial/final state comparison).
-  The main TS must show exactly one native MatLUFactorNum call.
+  The main TS must show native MatLUFactorNum calls equal to
+  exact collective operator updates (two for the observed final-step
+  rounding case), and MatLUFactorSym equal graph changes.
 - [ ] Verify the **numeric transition case** on a changing Jacobian:
   one fresh numeric LU for every actual numeric change, but no
   unnecessary symbolic reanalysis for an unchanged graph.
