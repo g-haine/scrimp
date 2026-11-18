@@ -11,7 +11,7 @@
 Select every zero-self-block candidate from a distributed variable graph.
 For each candidate, run FGMRES with PETSc full Schur factorization in the
 (original) (principal, candidate) field partition. MUMPS on the principal
-block and on PETSc SELF-P are controls, not a scalable implementation.
+block and on PETSc FULL or SELF-P are controls, not a scalable implementation.
 No production solver change, no name-specific rule and no dense gather.
 Compare the true residual and complete state with full-system MUMPS.
 """
@@ -32,7 +32,7 @@ from qualify_ph_constraint_schur import locally_owned_indices
 from scrimp.utils.ph_block_layout import discover_layout
 
 
-def trial(A, rhs, iz, il, rtol, max_it):
+def trial(A, rhs, iz, il, rtol, max_it, schur_pre):
     ksp = PETSc.KSP().create(comm=PETSc.COMM_WORLD)
     ksp.setOptionsPrefix("ph_constraint_")
     ksp.setType("fgmres")
@@ -43,7 +43,11 @@ def trial(A, rhs, iz, il, rtol, max_it):
     pc.setType("fieldsplit")
     pc.setFieldSplitType(PETSc.PC.CompositeType.SCHUR)
     pc.setFieldSplitSchurFactType(PETSc.PC.FieldSplitSchurFactType.FULL)
-    pc.setFieldSplitSchurPreType(PETSc.PC.FieldSplitSchurPreType.SELFP)
+    pc.setFieldSplitSchurPreType(
+        PETSc.PC.FieldSplitSchurPreType.FULL
+        if schur_pre == "full"
+        else PETSc.PC.FieldSplitSchurPreType.SELFP
+    )
     pc.setFieldSplitIS(("principal", iz), ("constraint", il))
     opts = PETSc.Options()
     options = {
@@ -150,7 +154,7 @@ def run(args):
             A.mult(truth, rhs)
             ref, ref_t = solve_reference(A, rhs)
             computed, trial_t, details = trial(
-                A, rhs, iz, il, args.rtol, args.max_it
+                A, rhs, iz, il, args.rtol, args.max_it, args.schur_pre
             )
             error = computed.copy()
             error.axpy(-1.0, ref)
@@ -161,6 +165,7 @@ def run(args):
                       and residual < args.accept_residual)
             item = {
                 "candidate": candidate,
+                "schur_preconditioner": args.schur_pre,
                 "constraint_dofs": int(
                     mpi.allreduce(len(local_l), op=MPI.SUM)),
                 "principal_dofs": int(
@@ -194,12 +199,14 @@ def run(args):
         "mesh": args.mesh,
         "dofs": int(sys.gf_model.nbdof()),
         "fgmres_rtol": args.rtol,
+        "schur_preconditioner": args.schur_pre,
         "results": results,
         "all_pass": bool(all_pass),
         "limitations": [
             "Full original Jacobian solved on manufactured RHS only.",
             "All candidate blocks detected from graph; no name-specific rule.",
-            "MUMPS used on principal H and on approximate Schur SELF-P.",
+            "MUMPS used on principal H and on PETSc Schur preconditioning matrix.",
+            "FULL Schur preconditioner is explicitly assembled, expensive, diagnostic only.",
             "No production or time-trajectory FGMRES changes.",
             "No performance/scalability or physics claims from this probe.",
         ],
@@ -220,6 +227,8 @@ def main():
     p.add_argument("--shift2", type=float, default=2000)
     p.add_argument("--rtol", type=float, default=1e-12)
     p.add_argument("--max-it", type=int, default=400)
+    p.add_argument("--schur-pre", choices=("full", "selfp"), default="full",
+                   help="FULL explicit Schur reference (default), or failing SELFP control")
     p.add_argument("--accept-error", type=float, default=5e-8)
     p.add_argument("--accept-residual", type=float, default=5e-8)
     p.add_argument("--output", type=Path, required=True)
