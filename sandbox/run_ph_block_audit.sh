@@ -87,7 +87,9 @@ for ranks in 1 2; do
         }
     tail -n 24 "$out/blocks_${ranks}r.log"
 done
-echo "CHECK: all field/block coefficients identical between 1 and 2 ranks"
+echo "DIAGNOSE: per-variable block norm differences (offline; no extra solves)"
+python3 sandbox/diagnose_ph_block_parity.py "$out"
+echo "CHECK: 1/2-rank block Frobenius-norm parity (NOT entrywise equality)"
 sudo docker run --rm \
     --user "$(id -u):$(id -g)" \
     --workdir /scrimp-work \
@@ -99,6 +101,6 @@ sudo docker run --rm \
     scrimp-mpi:local \
     python -u /workspace/scrimp/sandbox/compare_ph_block_audits.py \
         --directory /artifacts
-echo "PASS: actual GetFEM/PETSc pH blocks classified consistently on 1/2 MPI ranks."
+echo "PASS: GetFEM/PETSc pH block norm maps agree on 1/2 MPI ranks (not an entrywise operator proof)."
 echo "JSON: $out/blocks_{1r,2r}.json"
 echo "Output: $out"
