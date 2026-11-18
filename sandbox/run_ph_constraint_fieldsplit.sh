@@ -12,8 +12,8 @@
 set -euo pipefail
 mesh="${1:-0.08}"
 schur_pre="${2:-self}"
-if [[ $# -gt 2 || ! "$mesh" =~ ^0\.[0-9]+$ || ! "$schur_pre" =~ ^(self|full|selfp)$ ]]; then
-    echo "Usage: bash sandbox/run_ph_constraint_fieldsplit.sh [mesh_h=0.08] [schur_pre=self|full|selfp]" >&2
+if [[ $# -gt 2 || ! "$mesh" =~ ^0\.[0-9]+$ || ! "$schur_pre" =~ ^(self|path2|full|selfp)$ ]]; then
+    echo "Usage: bash sandbox/run_ph_constraint_fieldsplit.sh [mesh_h=0.08] [schur_pre=self|path2|full|selfp]" >&2
     exit 2
 fi
 cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 1
