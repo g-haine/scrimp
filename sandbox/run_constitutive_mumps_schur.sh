@@ -52,6 +52,7 @@ for ranks in 1 2; do
         -v "$root/scrimp:/workspace/scrimp/scrimp:ro" \
         -v "$root/sandbox:/workspace/scrimp/sandbox:ro" \
         -v "$root/examples:/workspace/scrimp/examples:ro" \
+        -v "$out:/workspace/scrimp/outputs" \
         -v "$out:/artifacts" \
         scrimp-mpi:local \
         timeout -k 5s "${timeout_s}s" \
