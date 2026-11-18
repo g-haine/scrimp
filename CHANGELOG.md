@@ -3,6 +3,34 @@
 Changes to SCRIMP are recorded here. See also the
 [GitHub releases](https://github.com/g-haine/scrimp/releases).
 
+## 1.3.0 — in development (not released)
+
+### Performance and MPI
+- Use exact `on_change` MUMPS factor reuse by default. Reuse the
+  symbolic factor when the assembled PETSc CSR graph is unchanged and
+  the numerical factor when the stored coefficients are identical on
+  every MPI rank. Changes to the time-scheme shift or nonlinear
+  tangents invalidate numerical reuse automatically.
+- Prefer MUMPS parallel analysis `ICNTL(28)=2` for multi-rank LU/MUMPS
+  runs, respecting user-provided PETSc options.
+- Preserve the legacy `never`/`always` overrides and the physical
+  model/discretization. No unconditional Jacobian freeze is introduced.
+- Maintain the previously developed distributed GetFEM-to-PETSc COO
+  bridge and compact-matrix-memory path.
+- Add a release-to-current wave benchmark with native v1.2.0 serial
+  reference, staged current PETSc profiling, complete state-vector
+  comparisons and 1/2/4/6-rank strong scaling.
+- Record the deferred MPI scalability, nonlinear-physics and
+  experimental Schur results in `docs/V130_DEVELOPMENT_ROADMAP.md`.
+
+### Release qualification outstanding
+- Confirm one numerical LU (rather than ten) on the actual production
+  `on_change` CN wave run; qualify invalidation when coefficients change.
+- Execute the v1.2.0-vs-current serial and current MPI benchmark locally,
+  validate complete states and discrete Hamiltonian/port-power balance,
+  rerun the full test suite and build Sphinx HTML/LaTeX.
+- Only then bump packaged/documentation versions and create a release tag.
+
 ## 1.2.0 — 2026-11-12
 
 ### Added
