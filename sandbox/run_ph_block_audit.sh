@@ -18,6 +18,8 @@
 #
 #   bash sandbox/run_ph_block_audit.sh 0.08
 #   bash sandbox/run_ph_block_audit.sh 0.12 wave_coenergy
+#   SCRIMP_PH_VOLUME_ONLY_REGIONS=1 SCRIMP_PH_CAPTURE_MATRICES=1 \\
+#       bash sandbox/run_ph_block_audit.sh 0.12 wave_coenergy
 set -euo pipefail
 
 mesh="${1:-0.08}"
@@ -41,7 +43,20 @@ if [[ ! -d "$host_workspace" || ! -w "$host_workspace" ]]; then
 fi
 sha="$(git rev-parse --short=8 HEAD)"
 mkdir -p sandbox/outputs
-out="$(mktemp -d "$root/sandbox/outputs/ph-block-audit-${model}-h${mesh//./p}-$sha-XXXXXX")"
+# Sandbox-only A/B on the SAME Gmsh file and same port physics:
+# remove interface 10 from regions 1/2, not from the mesh itself.
+volume_only="${SCRIMP_PH_VOLUME_ONLY_REGIONS:-0}"
+if [[ "$volume_only" != "0" && "$volume_only" != "1" ]]; then
+    echo "SCRIMP_PH_VOLUME_ONLY_REGIONS must be 0 or 1" >&2
+    exit 2
+fi
+if [[ "$volume_only" == "1" && "$model" != "wave_coenergy" ]]; then
+    echo "SCRIMP_PH_VOLUME_ONLY_REGIONS=1 is only for wave_coenergy" >&2
+    exit 2
+fi
+suffix=""
+[[ "$volume_only" == "1" ]] && suffix="-volume-only"
+out="$(mktemp -d "$root/sandbox/outputs/ph-block-audit-${model}-h${mesh//./p}$suffix-$sha-XXXXXX")"
 timeout_s="${SCRIMP_PH_BLOCK_AUDIT_TIMEOUT_S:-180}"
 if [[ ! "$timeout_s" =~ ^[0-9]+$ ]] ||
    (( timeout_s < 30 || timeout_s > 1800 )); then
@@ -61,6 +76,11 @@ if [[ "$capture" != "0" && "$capture" != "1" ]]; then
     exit 2
 fi
 capture_args=()
+if [[ "$volume_only" == "1" ]]; then
+    capture_args+=(--volume-only-regions)
+    echo "DIAGNOSTIC ONLY: subtract interface 10 from volume regions 1/2."
+    echo "Production Concentric geometry and SCRIMP solver are UNCHANGED."
+fi
 if [[ "$capture" == "1" ]]; then
     capture_args+=(--capture-matrices)
     echo "Raw GetFEM + PETSc sparse matrix capture enabled."
