@@ -6,6 +6,8 @@
 #
 # github: https://github.com/g-haine/scrimp
 
+"""Regression coverage for v1.3.0 MUMPS numeric + symbolic on_change.
+
 Actual LU reuse counts and state parity are verified separately by the
 full CN wave benchmark under the native MPI/MUMPS container.
 """
