@@ -216,9 +216,9 @@ def main():
     lines = [
         "# SCRIMP v1.3.0 — wave.py performance qualification",
         "",
-        f"- Source v1.2.0: \`{manifest['release_sha']}\`",
-        f"- Current source: \`{manifest['current_sha']}\`",
-        f"- Mesh \`h={manifest['mesh']}\`; {rows[0]['dofs']:,} DOFs; ten accepted CN steps.",
+        f"- Source v1.2.0: `{manifest['release_sha']}`",
+        f"- Current source: `{manifest['current_sha']}`",
+        f"- Mesh `h={manifest['mesh']}`; {rows[0]['dofs']:,} DOFs; ten accepted CN steps.",
         f"- Repetitions: {args.repetitions}. Native Docker environment shared.",
         "- All original and current full initial/final states agree within scaled 5e-8.",
         "- Current MUMPS: default on_change plus MPI ordering, exact one numeric LU per ten CN steps.",
@@ -257,7 +257,7 @@ def main():
                  "initial.MatLUFactorNum.seconds_median"]
     for event in all_keys:
         lines.append(
-            "| \`" + event + "\` | " +
+            "| `" + event + "` | " +
             " | ".join(f"{row[event]:.5f}" if event in row else "—"
                        for row in rows) + " |"
         )
