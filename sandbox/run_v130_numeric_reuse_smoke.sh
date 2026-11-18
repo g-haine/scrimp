@@ -58,7 +58,7 @@ for n in "${ranks[@]}"; do
             --variant current --policy on_change --mesh "$mesh" \
             --dt 0.002 --final-time 0.02 --save-dt 0.01 \
             --source-sha "$sha" --repetition 1 \
-            --profile --petsc-log \
+            --profile --petsc-log --factor-events-per-step \
             --out "/artifacts/${label}.json" \
         > "$out/${label}.log" 2>&1; then
         echo "NON-PASS: $label" >&2
@@ -68,6 +68,8 @@ for n in "${ranks[@]}"; do
     grep -aE '^PASS current/' "$out/${label}.log" || true
     echo "  Production on_change decisions (MAIN CN):"
     grep -a '^MUMPS-REUSE-AUDIT phase=main ' "$out/${label}.log" || true
+    echo "  Native MUMPS cumulative numerical LU count after each accepted step:"
+    grep -a '^MUMPS-LU-STEP ' "$out/${label}.log" || true
     if ! grep -aq '^MatLUFactorNum' "$out/${label}.log"; then
         echo "NON-PASS: missing PETSc numeric LU events ($label)" >&2
         exit 1
