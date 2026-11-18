@@ -282,6 +282,16 @@ def main():
         # clears the PETSc Options object when constructing DPHS.
         PETSc.Log.view()
     tol = 32.0 * abs(np.spacing(args.final_time))
+    expected_steps = round(args.final_time / args.dt)
+    if (abs(expected_steps * args.dt - args.final_time) > tol
+            or report["ts_steps"] != expected_steps
+            or report["ts_rejected_steps"] != 0
+            or report["ts_snes_failures"] != 0):
+        raise RuntimeError(
+            f"CN step/convergence gate failed: expected={expected_steps} "
+            f"observed={report['ts_steps']} rejected={report['ts_rejected_steps']} "
+            f"snes_failures={report['ts_snes_failures']}"
+        )
     if (report["ts_converged_reason"] <= 0
             or abs(t_petsc - args.final_time) > tol
             or abs(t_saved - args.final_time) > tol):
