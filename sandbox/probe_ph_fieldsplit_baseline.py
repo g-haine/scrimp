@@ -50,7 +50,7 @@ def solve_reference(A, rhs):
     return result, elapsed
 
 
-def block_trial(A, rhs, is_e, is_x, rtol, max_it, x_pc):
+def block_trial(A, rhs, is_e, is_x, rtol, max_it, x_pc, e_pc):
     ksp = PETSc.KSP().create(comm=PETSc.COMM_WORLD)
     ksp.setOptionsPrefix("ph_trial_")
     ksp.setType("fgmres")
@@ -73,11 +73,19 @@ def block_trial(A, rhs, is_e, is_x, rtol, max_it, x_pc):
     opts = PETSc.Options()
     settings = {
         "ph_trial_fieldsplit_e_ksp_type": "preonly",
-        "ph_trial_fieldsplit_e_pc_type": "lu",
-        "ph_trial_fieldsplit_e_pc_factor_mat_solver_type": "mumps",
+        "ph_trial_fieldsplit_e_pc_type": e_pc,
         "ph_trial_fieldsplit_x_ksp_type": "preonly",
         "ph_trial_fieldsplit_x_pc_type": x_pc,
     }
+    if e_pc == "lu":
+        settings["ph_trial_fieldsplit_e_pc_factor_mat_solver_type"] = "mumps"
+    elif e_pc == "bjacobi":
+        settings.update({
+            "ph_trial_fieldsplit_e_sub_ksp_type": "preonly",
+            "ph_trial_fieldsplit_e_sub_pc_type": "ilu",
+        })
+    else:
+        raise ValueError("Unsupported coenergy preconditioner")
     if x_pc == "bjacobi":
         settings.update({
             "ph_trial_fieldsplit_x_sub_ksp_type": "preonly",
@@ -210,7 +218,7 @@ def run(args):
         ref, ref_seconds = solve_reference(A, rhs)
         ref_residual = relative_residual(A, rhs, ref)
         trial, trial_seconds, reason, its, diagnostics = block_trial(
-            A, rhs, is_e, is_x, args.rtol, args.max_it, args.x_pc
+            A, rhs, is_e, is_x, args.rtol, args.max_it, args.x_pc, args.e_pc
         )
         trial_residual = relative_residual(A, rhs, trial)
         difference = trial.copy()
@@ -224,6 +232,7 @@ def run(args):
             "sigma": sigma, "converged": bool(success),
             "fgmres_reason": reason, "fgmres_iterations": its,
             "complement_pc": args.x_pc,
+            "coenergy_pc": args.e_pc,
             "diagnostics": diagnostics,
             "coenergy_diagonal": block_diagonal_diagnostics(A, is_e, mpi),
             "complement_diagonal": block_diagonal_diagnostics(A, is_x, mpi),
@@ -254,7 +263,7 @@ def run(args):
         "dofs": int(system.gf_model.nbdof()),
         "fields": fields,
         "formulation": classification["formulation"],
-        "solver": (f"FGMRES/PCFIELDSPLIT ({'schur full, SELF-P' if args.x_pc == 'schur-selfp' else 'multiplicative'}); e: MUMPS; x: {args.x_pc}"),
+        "solver": (f"FGMRES/PCFIELDSPLIT ({'schur full, SELF-P' if args.x_pc == 'schur-selfp' else 'multiplicative'}); e: {args.e_pc}; x: {args.x_pc}"),
         "reference": "full PETSc MUMPS on identical A(sigma) and RHS",
         "requested_fgmres_rtol": args.rtol,
         "accept_residual": args.accept_residual,
@@ -264,7 +273,7 @@ def run(args):
         "limitations": [
             "Algebraic manufactured linear-solve comparison, not adaptive TS",
             "Triangular BJACOBI/ILU and LU-on-G are diagnostic baselines only",
-            "Schur SELF-P uses MUMPS for both constitutive and approximate Schur factors",
+            "Schur SELF-P uses MUMPS on approximate Schur, with configurable coenergy PC",
             "Timings include PC setup; no scaling or memory claims",
             "No Schur approximation/AMG configured; no production solver modified",
         ],
@@ -287,6 +296,8 @@ def main():
     p.add_argument("--shift2", type=float, default=2000)
     p.add_argument("--rtol", type=float, default=1e-12)
     p.add_argument("--max-it", type=int, default=400)
+    p.add_argument("--e-pc", choices=("lu", "bjacobi"), default="lu",
+                   help="Coenergy block PC: MUMPS LU or BJACOBI/ILU")
     p.add_argument("--x-pc", choices=("bjacobi", "lu", "schur-selfp"), default="bjacobi",
                    help="Complement PC: BJACOBI/ILU, LU on G, or Schur SELF-P + LU")
     p.add_argument("--accept-residual", type=float, default=5e-8)
