@@ -49,10 +49,10 @@ jobs:
       - name: Validate v1.2.0 versus COO/MPI benchmark figures
         run: |
           python -m pip install 'matplotlib>=3.7,<4'
-          python -m py_compile sandbox/bench_wave_release_scaling.py sandbox/analyze_v130_wave_benchmark.py sandbox/plot_release120_coo_scaling.py sandbox/diagnose_release120_states.py tests/test_release120_scaling_plots.py tests/test_mumps_numeric_reuse.py tests/test_v130_wave_figures.py
-          bash -n sandbox/run_release120_coo_scaling.sh sandbox/run_v130_wave_benchmark.sh sandbox/run_v130_numeric_reuse_smoke.sh sandbox/run_wave_initial_sync_probe.sh sandbox/run_coo_factorization_probe.sh
+          python -m py_compile sandbox/bench_wave_release_scaling.py sandbox/analyze_v130_wave_benchmark.py sandbox/plot_release120_coo_scaling.py sandbox/diagnose_release120_states.py tests/test_release120_scaling_plots.py tests/test_mumps_numeric_reuse.py tests/test_v130_wave_figures.py tests/test_initial_consistency_sync.py
+          bash -n sandbox/run_release120_coo_scaling.sh sandbox/run_v130_wave_benchmark.sh sandbox/run_v130_numeric_reuse_smoke.sh sandbox/run_wave_initial_sync_probe.sh sandbox/run_wave_initial_state_regression.sh sandbox/run_coo_factorization_probe.sh
           python -m py_compile sandbox/analyze_v130_wave_benchmark.py tests/test_mumps_numeric_reuse.py
-          python -m unittest -v tests.test_release120_scaling_plots tests.test_v130_wave_figures
+          python -m unittest -v tests.test_release120_scaling_plots tests.test_v130_wave_figures tests.test_initial_consistency_sync
       - name: Validate SCRIMP source headers
         run: |
           python -m unittest -v tests.test_python_headers
