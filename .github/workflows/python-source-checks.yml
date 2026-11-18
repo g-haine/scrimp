@@ -35,6 +35,11 @@ jobs:
           python -m py_compile scrimp/utils/ph_block_layout.py sandbox/audit_ph_blocks.py sandbox/compare_ph_block_audits.py tests/test_ph_block_layout.py tests/test_ph_block_comparison.py
           bash -n sandbox/run_ph_block_audit.sh
           python -m unittest -v tests.test_ph_block_layout tests.test_ph_block_comparison
+      - name: Validate native constitutive MUMPS/Schur probe gates (no PETSc)
+        run: |
+          python -m py_compile sandbox/probe_constitutive_mumps_schur.py sandbox/compare_constitutive_mumps_schur.py tests/test_constitutive_schur.py
+          bash -n sandbox/run_constitutive_mumps_schur.sh
+          python -m unittest -v tests.test_constitutive_schur
       - name: Validate v1.2.0 versus COO/MPI benchmark figures
         run: |
           python -m pip install 'matplotlib>=3.7,<4'
