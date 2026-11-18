@@ -38,6 +38,14 @@ class _FakePort:
         return self.algebraic
 
 
+class _FakeCoState:
+    def __init__(self, *, substituted=False):
+        self.substituted = substituted
+
+    def get_substituted(self):
+        return self.substituted
+
+
 class _FakeGetFEM:
     def __init__(self):
         # Deliberately interleaved state/coenergy and boundary indices.
@@ -108,6 +116,98 @@ class PhBlockLayoutTests(unittest.TestCase):
         self.kwargs["costates"]["q"] = object()
         with self.assertRaisesRegex(ValueError, "multiple pH roles"):
             self.fields()
+
+    def test_implicit_wave_selects_constitutive_schur_candidate(self):
+        fields = self.fields()
+        plan = PH.classify_ph_formulation(
+            fields, costates=self.kwargs["costates"]
+        )
+        self.assertEqual(plan["formulation"], "implicit_constitutive")
+        self.assertEqual(
+            plan["solver_candidate"], "coenergy_schur_mumps"
+        )
+
+    def test_substituted_wave_has_no_independent_coenergy_block(self):
+        # As in examples/wave_coenergy.py: q,p are the
+        # coenergy variables; e_q/e_p are substituted *away*
+        # and appear only through their constitutive mass bricks.
+        self.model.intervals = {
+            "q": (0, 2),
+            "p": (2, 3),
+            "e_r": (5, 1),
+            "U": (6, 1),
+            "Y": (7, 1),
+        }
+        self.model.nbdof = lambda: 8
+        self.kwargs["costates"] = {
+            "e_q": _FakeCoState(substituted=True),
+            "e_p": _FakeCoState(substituted=True),
+        }
+        self.kwargs["ports"] = {
+            "q": _FakePort("q", "e_q", False),
+            "p": _FakePort("p", "e_p", False),
+            "Damping": _FakePort("e_r", "e_r", True),
+            "Boundary": _FakePort("U", "Y", True),
+        }
+        self.kwargs["controls"] = {
+            "Boundary": _FakePort("U", "Y", True),
+        }
+        fields = self.fields()
+        self.assertFalse(
+            any(f["group"] == "coenergy" for f in fields)
+        )
+        self.assertEqual(
+            {f["name"] for f in fields},
+            {"q", "p", "e_r", "U", "Y"}
+        )
+        self.assertEqual(
+            [f["group"] for f in fields],
+            ["dynamic", "dynamic", "algebraic",
+             "boundary", "boundary"],
+        )
+        plan = PH.classify_ph_formulation(
+            fields, costates=self.kwargs["costates"]
+        )
+        self.assertEqual(plan["formulation"], "substituted_coenergy")
+        self.assertEqual(
+            plan["solver_candidate"], "mass_dirac_port_block"
+        )
+
+    def test_falsely_declared_substituted_costate_is_rejected(self):
+        self.kwargs["costates"] = {
+            "e_q": _FakeCoState(substituted=True),
+            "e_p": _FakeCoState(substituted=True),
+        }
+        with self.assertRaisesRegex(
+            ValueError, "Substituted effort.*independent"
+        ):
+            self.fields()
+
+    def test_non_substituted_missing_coenergy_is_rejected(self):
+        del self.model.intervals["e_q"]
+        with self.assertRaisesRegex(
+            ValueError, "Declared non-substituted"
+        ):
+            self.fields()
+
+    def test_partially_substituted_formulation_is_not_assumed_explicit(self):
+        del self.model.intervals["e_p"]
+        self.model.intervals["p"] = (5, 1)
+        self.model.nbdof = lambda: 6
+        self.kwargs["costates"] = {
+            "e_q": _FakeCoState(substituted=False),
+            "e_p": _FakeCoState(substituted=True),
+        }
+        fields = self.fields()
+        plan = PH.classify_ph_formulation(
+            fields, costates=self.kwargs["costates"]
+        )
+        self.assertEqual(
+            plan["formulation"], "partially_substituted"
+        )
+        self.assertEqual(
+            plan["solver_candidate"], "mixed_block_decomposition"
+        )
 
     def test_owned_sparse_blocks_equal_full_dense_reference(self):
         fields = self.fields()
