@@ -21,6 +21,7 @@ numerical blocks that must be identified and signed before designing
 a field-split preconditioner.
 """
 import argparse
+import hashlib
 import importlib.util
 import json
 import os
@@ -129,6 +130,30 @@ def audit(args):
             "Mixed wave benchmark unexpectedly lacks independent coenergies"
         )
 
+    # Compare the EXACT Gmsh .msh bytes between independent 1- and
+    # 2-rank runs. Same 5790 DoFs do NOT prove identical geometry,
+    # cell connectivity, numbering or physical-region assignments.
+    # Domain("Concentric") regenerates the file for every run.
+    mesh_file = (
+        Path.cwd() / "outputs" / "mesh" /
+        ("Concentric.msh" if args.model == "wave_coenergy"
+         else "Rectangle.msh")
+    )
+    if rank == 0:
+        if not mesh_file.is_file():
+            raise FileNotFoundError(
+                f"Gmsh reference mesh missing at {mesh_file}"
+            )
+        mesh_digest = hashlib.sha256(
+            mesh_file.read_bytes()
+        ).hexdigest()
+        mesh_size = mesh_file.stat().st_size
+    else:
+        mesh_digest = None
+        mesh_size = None
+    mesh_digest = mpi.bcast(mesh_digest, root=0)
+    mesh_size = mpi.bcast(mesh_size, root=0)
+
     n = int(system.gf_model.nbdof())
     matrices = {
         "flow_mass_F_and_algebraic_zero_rows": system.mass,
@@ -194,6 +219,8 @@ def audit(args):
                 if args.model == "wave_coenergy"
                 else "examples/wave.py:wave_eq"
             ),
+            "mesh_sha256": mesh_digest,
+            "mesh_file_size_bytes": mesh_size,
             "formulation": formulation,
             "ts_type": "cn", "dt": args.dt, "steps": args.steps,
             "final_time": float(system.last_ts_time),
@@ -243,6 +270,10 @@ def audit(args):
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(
             json.dumps(outcome, indent=2) + "\n", encoding="utf-8"
+        )
+        print(
+            f"Gmsh input mesh: SHA256={mesh_digest}, "
+            f"size={mesh_size} bytes"
         )
         print(
             f"PASS pH blocks: {ranks} MPI ranks, {n} DoFs, "
