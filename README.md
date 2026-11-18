@@ -46,4 +46,6 @@ bash sandbox/run_v130_wave_benchmark.sh 0.04 3
 ```
 
 See [solver reuse and benchmark methodology](docs/source/performance.rst)
-and [v1.3.0 release gates and open questions](docs/V130_DEVELOPMENT_ROADMAP.md).
+and [v1.3.0 release plan and acceptance gates](docs/V130_RELEASE_PLAN.md),
+with technical investigations and known limitations in the
+[development history](docs/V130_DEVELOPMENT_ROADMAP.md).
