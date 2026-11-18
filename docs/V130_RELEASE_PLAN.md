@@ -40,6 +40,42 @@ and mesh, but *is not scientifically equivalent to the current run*:
 Therefore the raw **47.8x ratio is descriptive only**, and **must
 not be published as a physically validated version speedup**.
 
+**Focused source-level diagnosis (pending native confirmation).**
+In v1.2.0, `set_control()` declares prescribed input source bricks
+with `linear=False`. The old `DPHS.set_linear_flags()` therefore
+marked the entire stiffness as nonlinear and `DPHS.monitor()`
+copied every accepted pseudo-TS state back into GetFEM variables.
+The current implementation correctly excludes RHS-only source bricks
+when classifying Jacobian nonlinearity, so that *implicit* state
+synchronization no longer occurs in the linear acoustic example.
+This is a plausible explanation for the 17,640-component initial-state
+difference, **not yet proof** that restoring the legacy synchronization
+is physically correct.
+
+A second change affects the residual: the current default is
+`SCRIMP_NONLINEAR_RESIDUAL_FORM=direct_getfem` rather than v1.2.0's
+legacy reconstruction from the tangent matrix. A quick A/B probe
+is available, using the already archived v1.2.0 vectors; it runs only
+two short **current-version** simulations and does not touch the
+production solver:
+
+~~~bash
+bash sandbox/run_wave_initial_sync_probe.sh
+~~~
+
+It reports named GetFEM variable ranges, the pseudo-TS accepted
+state, full initial/final vector differences against archived v1.2.0,
+and `png/wave_initial_named_blocks.png`:
+
+- current with accepted pseudo-step synchronization, direct residual;
+- current with the same synchronization and legacy residual.
+
+**Decision gate:** identify whether v1.2.0 agreement arises from
+an undocumented pseudo-initialization side effect, changed residual
+semantics, or both; then check initial conditions and DAE constraints
+mathematically. **Do not change the production model to match an
+unvalidated legacy numerical artifact.**
+
 Exit gates:
 
 - [ ] Explain the full v1.2.0/current initial-state mismatch using
