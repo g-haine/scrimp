@@ -22,8 +22,8 @@ introduced into production code.
 
 The energy balance uses the *midpoint* powers
 
-    H = 0.5 z^T M z,
-    P_r = e_r^T K[e_r,e_r] e_r,
+    H = -0.5 z^T M z,
+    P_r = -e_r^T K[e_r,e_r] e_r,
     P_boundary = U^T (-K[U,U]) Y,
 
     H[n+1]-H[n] + dt*(P_r+P_boundary) == 0.
@@ -89,7 +89,10 @@ def _midpoint_port_powers(k, lo, hi, mid, indices, mpi):
     local_b = 0.
     if eri < erj:
         r = slice(eri-lo, erj-lo)
-        local_r = float(np.vdot(
+        # SCRIMP puts flow bricks on the NEGATIVE residual side.
+        # The e_r/nu term is K_ee=-M_r. Physical dissipated
+        # power is +e_r^T M_r e_r = -e_r^T K_ee e_r.
+        local_r = -float(np.vdot(
             mid[eri:erj],
             k[r, e].dot(mid[e]),
         ).real)
@@ -173,8 +176,11 @@ def verify(args):
         raise ValueError("Mass/K row ownership differs")
     lo, hi = lm, hm
 
+    # SCRIMP's flow mass bricks have a minus sign in its residual:
+    # M_qq = - M_q(positive), M_pp = - M_p(positive).
+    # Consequently H = -1/2 z^T M z is the positive Hamiltonian.
     energy = np.array([
-        0.5*_quadratic(m, lo, hi, state, mpi)
+        -0.5*_quadratic(m, lo, hi, state, mpi)
         for state in states
     ], dtype=float)
     if not np.all(np.isfinite(energy)) or np.min(energy) <= 0:
@@ -182,7 +188,7 @@ def verify(args):
 
     # These terms are defined AFTER solve() in the published example.
     # They are the independent GetFEM finite-element H reference,
-    # not reconstructed from PETSc's mass matrix.
+    # not reconstructed from PETSc's NEGATIVE flow mass matrix.
     system.hamiltonian.add_term(
         S.Term("Potential energy", "0.5*q.Tinv.q", [1, 2])
     )
@@ -197,7 +203,7 @@ def verify(args):
     )
     if fe_energy.shape != energy.shape or fe_energy_rel > 5e-9:
         raise RuntimeError(
-            "GetFEM physical H does not equal 0.5 z^T M z: "
+            "GetFEM physical H does not equal -0.5 z^T M z: "
             f"{fe_energy_rel:.6g}"
         )
 
@@ -289,8 +295,9 @@ def verify(args):
             ),
             "formulation": formulation["formulation"],
             "power_sign_convention": (
-                "P_damping=+er^T K_erer er; "
-                "P_boundary=U^T (-K_UU)Y; "
+                "H=-0.5*z^T M z; "
+                "P_damping=-er^T K_erer er; "
+                "P_boundary=-U^T K_UU Y; "
                 "H[n+1]-H[n]+dt*(P_damping+P_boundary)=0"
             ),
             "maxima": maxima,
