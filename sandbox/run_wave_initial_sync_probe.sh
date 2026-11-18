@@ -34,6 +34,7 @@ out="$(mktemp -d "$root/sandbox/outputs/wave-initial-sync-diagnosis-h0p04-${sha:
 echo "SCRIMP wave initial pseudo-TS sync diagnosis"
 echo "Current=$sha old/current reference=$historical"
 echo "Original v1.2.0 binaries are read-only; ONLY current SCRIMP is run"
+echo "Writable SCRIMP outputs: $out (mounted at /workspace/scrimp/outputs)"
 echo "Output: $out"
 sudo -v
 for residual in direct_getfem legacy; do
@@ -51,6 +52,7 @@ for residual in direct_getfem legacy; do
         -v "$root/scrimp:/workspace/scrimp/scrimp:ro" \
         -v "$root/examples:/workspace/scrimp/examples:ro" \
         -v "$root/sandbox:/workspace/scrimp/sandbox:ro" \
+        -v "$out:/workspace/scrimp/outputs" \
         -v "$out:/artifacts" \
         scrimp-mpi:local timeout -k 10s 180s \
         env -u SCRIMP_MUMPS_RESET_POLICY \
