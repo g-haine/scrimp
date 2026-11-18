@@ -93,11 +93,50 @@ def block_trial(A, rhs, is_e, is_x, rtol, max_it, x_pc):
         )
         reason = int(ksp.getConvergedReason())
         its = int(ksp.getIterationNumber())
-        return result, elapsed, reason, its
+
+        diagnostics = {"outer_pc_failed_reason": None, "sub_ksp": []}
+        try:
+            diagnostics["outer_pc_failed_reason"] = str(pc.getFailedReason())
+        except (AttributeError, RuntimeError, ValueError) as exc:
+            diagnostics["outer_pc_failed_reason"] = f"unavailable: {exc}"
+        try:
+            for name, sub in zip(("e", "x"), pc.getFieldSplitSubKSP()):
+                entry = {
+                    "field": name,
+                    "ksp_type": sub.getType(),
+                    "pc_type": sub.getPC().getType(),
+                    "converged_reason": int(sub.getConvergedReason()),
+                }
+                try:
+                    entry["pc_failed_reason"] = str(sub.getPC().getFailedReason())
+                except (AttributeError, RuntimeError, ValueError) as exc:
+                    entry["pc_failed_reason"] = f"unavailable: {exc}"
+                diagnostics["sub_ksp"].append(entry)
+        except (AttributeError, RuntimeError, ValueError) as exc:
+            diagnostics["sub_ksp_error"] = str(exc)
+        return result, elapsed, reason, its, diagnostics
     finally:
         ksp.destroy()
         for key in settings:
             del opts[key]
+
+
+
+def block_diagonal_diagnostics(A, index_set, mpi):
+    block = A.createSubMatrix(index_set, index_set)
+    try:
+        diagonal = block.getDiagonal()
+        values = np.asarray(diagonal.getArray(readonly=True))
+        local_zero = int(np.count_nonzero(np.abs(values) < 1e-14))
+        local_size = int(values.size)
+        diagonal.destroy()
+        return {
+            "size": int(mpi.allreduce(local_size, op=MPI.SUM)),
+            "near_zero_diagonal": int(mpi.allreduce(local_zero, op=MPI.SUM)),
+            "frobenius_norm": float(block.norm(PETSc.NormType.FROBENIUS)),
+        }
+    finally:
+        block.destroy()
 
 
 def relative_residual(A, rhs, x):
@@ -162,7 +201,7 @@ def run(args):
         A.mult(true_x, rhs)
         ref, ref_seconds = solve_reference(A, rhs)
         ref_residual = relative_residual(A, rhs, ref)
-        trial, trial_seconds, reason, its = block_trial(
+        trial, trial_seconds, reason, its, diagnostics = block_trial(
             A, rhs, is_e, is_x, args.rtol, args.max_it, args.x_pc
         )
         trial_residual = relative_residual(A, rhs, trial)
@@ -177,6 +216,9 @@ def run(args):
             "sigma": sigma, "converged": bool(success),
             "fgmres_reason": reason, "fgmres_iterations": its,
             "complement_pc": args.x_pc,
+            "diagnostics": diagnostics,
+            "coenergy_diagonal": block_diagonal_diagnostics(A, is_e, mpi),
+            "complement_diagonal": block_diagonal_diagnostics(A, is_x, mpi),
             "mumps_reference_residual": ref_residual,
             "fgmres_true_relative_residual": trial_residual,
             "relative_state_error_vs_mumps": rel_error,
@@ -184,6 +226,8 @@ def run(args):
             "fieldsplit_seconds_max": trial_seconds,
         }
         results.append(item)
+        if rank == 0 and not success:
+            print('DIAGNOSTIC:', json.dumps({'sigma': sigma, 'split': diagnostics, 'e': item['coenergy_diagonal'], 'x': item['complement_diagonal']}, sort_keys=True), flush=True)
         if rank == 0:
             print(
                 f"{'PASS' if success else 'FAIL'} sigma={sigma:g}: "
