@@ -81,6 +81,38 @@ def metrics(test, reference):
     }
 
 
+def feedback_block_metrics(stiffness, jacobian, fields):
+    """Check dR_U/dY = +0.5 M_U from U=0.5*Y, coefficientwise.
+
+    The linear SCRIMP control row is -M_U U. The GetFEM
+    nonlinear tangent should therefore satisfy J_UY = -0.5*K_UU
+    (and J_UU=K_UU) for this particular example, assuming the
+    same boundary FE for U/Y. This is a model-specific audit,
+    not a universal rule for user-defined feedback laws.
+    """
+    fields = {f["name"]: f for f in fields}
+    if "U" not in fields or "Y" not in fields:
+        return None
+    u, y = fields["U"], fields["Y"]
+    su = slice(int(u["start"]), int(u["stop"]))
+    sy = slice(int(y["start"]), int(y["stop"]))
+    if u["ndofs"] != y["ndofs"]:
+        raise ValueError("Feedback U/Y must have equal size in this example")
+    kuu = stiffness[su, su]
+    juu = jacobian[su, su]
+    juy = jacobian[su, sy]
+    return {
+        "feedback_full_J_UY_vs_minus_half_K_UU": metrics(
+            juy, -0.5*kuu
+        ),
+        "control_full_J_UU_vs_linear_K_UU": metrics(
+            juu, kuu
+        ),
+        "K_UU_frobenius_norm": float(sp.linalg.norm(kuu)),
+        "J_UY_frobenius_norm": float(sp.linalg.norm(juy)),
+    }
+
+
 def analyze(folder):
     folder = Path(folder)
     reports = {
@@ -139,6 +171,40 @@ def analyze(folder):
         f"{a['dofs']} DoFs, mesh SHA256 same={same_mesh}",
         flush=True,
     )
+    # Additional *independent* check of the physical U=0.5 Y
+    # feedback: compare the final TS Jacobian with its analytic
+    # weak-form tangent; do not infer correctness from block norms.
+    feedback = {}
+    for ranks in (1, 2):
+        jpath = folder / f"petsc_jacobian_{ranks}r_rank0.npz"
+        if not jpath.exists():
+            continue  # Backward compatibility with older archives.
+        k = load_owned(folder, "stiffness", ranks)
+        j = load_owned(folder, "jacobian", ranks)
+        feedback[str(ranks)] = feedback_block_metrics(k, j, fields)
+        if feedback[str(ranks)] is not None:
+            error = feedback[str(ranks)][
+                "feedback_full_J_UY_vs_minus_half_K_UU"
+            ]["relative_fro_error"]
+            print(
+                f"  Feedback U=0.5*Y, {ranks}r: "
+                f"exact coefficientwise tangent relative error "
+                f"{error:.5g}",
+                flush=True,
+            )
+    result["feedback_coefficientwise_by_ranks"] = feedback
+    if len(feedback) == 2:
+        j1 = load_owned(folder, "jacobian", 1)
+        j2 = load_owned(folder, "jacobian", 2)
+        u, y = (
+            next(f for f in fields if f["name"] == name)
+            for name in ("U", "Y")
+        )
+        sr = slice(int(u["start"]), int(u["stop"]))
+        sc = slice(int(y["start"]), int(y["stop"]))
+        result["feedback_2r_vs_1r"] = metrics(
+            j2[sr, sc], j1[sr, sc]
+        )
     for label in ("mass", "stiffness"):
         native_1 = load_raw(
             folder / f"raw_getfem_{label}_1r_rank0.npz"
