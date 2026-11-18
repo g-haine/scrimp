@@ -210,7 +210,7 @@ def main():
             f"observed={observed[:5]}"
         )
     effective_policy = getattr(system, "_mumps_reset_policy", None)
-    if args.series in ("auto", "always"):
+    if args.series in ("auto", "never", "always"):
         expected = "never" if args.series == "auto" else args.series
         if effective_policy != expected:
             raise RuntimeError(
