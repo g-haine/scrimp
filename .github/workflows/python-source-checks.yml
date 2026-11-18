@@ -32,9 +32,10 @@ jobs:
           python -m unittest -v tests.test_matrix_memory tests.test_compact_matrix_comparison tests.test_phase_memory_audit
       - name: Validate pH-DAE block ordering and MPI sparse audit (no PETSc)
         run: |
-          python -m py_compile scrimp/utils/ph_block_layout.py sandbox/audit_ph_blocks.py sandbox/compare_ph_block_audits.py sandbox/diagnose_ph_block_parity.py tests/test_ph_block_layout.py tests/test_ph_block_comparison.py
+          python -m pip install 'scipy>=1.10,<2'
+          python -m py_compile scrimp/utils/ph_block_layout.py sandbox/audit_ph_blocks.py sandbox/compare_ph_block_audits.py sandbox/diagnose_ph_block_parity.py sandbox/compare_raw_getfem_petsc.py tests/test_ph_block_layout.py tests/test_ph_block_comparison.py tests/test_getfem_bridge_localization.py
           bash -n sandbox/run_ph_block_audit.sh
-          python -m unittest -v tests.test_ph_block_layout tests.test_ph_block_comparison
+          python -m unittest -v tests.test_ph_block_layout tests.test_ph_block_comparison tests.test_getfem_bridge_localization
       - name: Validate native constitutive MUMPS/Schur probe gates (no PETSc)
         run: |
           python -m py_compile sandbox/probe_constitutive_mumps_schur.py sandbox/compare_constitutive_mumps_schur.py tests/test_constitutive_schur.py
