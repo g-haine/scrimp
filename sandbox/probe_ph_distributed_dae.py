@@ -33,7 +33,7 @@ from ph_schur_path2 import build_path2_schur
 from scrimp.utils.ph_block_layout import discover_layout
 
 
-def trial(A, rhs, iz, il, rtol, max_it, schur_pre, inner_restart_cap, repeat_rhs, h_pc, h_rtol, h_max_it):
+def trial(A, rhs, iz, il, rtol, max_it, schur_pre, inner_restart_cap, repeat_rhs, h_pc, h_rtol, h_max_it, schur_ksp):
     ksp = PETSc.KSP().create(comm=PETSc.COMM_WORLD)
     ksp.setOptionsPrefix("ph_constraint_")
     ksp.setType("fgmres")
@@ -72,7 +72,7 @@ def trial(A, rhs, iz, il, rtol, max_it, schur_pre, inner_restart_cap, repeat_rhs
             "lu" if h_pc == "mumps" else "asm"
         ),
         "ph_constraint_fieldsplit_constraint_ksp_type": (
-            "gmres" if schur_pre in ("self", "path2") else "preonly"
+            schur_ksp if schur_pre == "path2" else "gmres"
         ),
         "ph_constraint_fieldsplit_constraint_pc_type": (
             "none" if schur_pre == "self" else "lu"
@@ -91,7 +91,7 @@ def trial(A, rhs, iz, il, rtol, max_it, schur_pre, inner_restart_cap, repeat_rhs
             "ph_constraint_fieldsplit_principal_sub_pc_type": "ilu",
         })
     inner_restart = min(int(il.getSize()) + 5, inner_restart_cap)
-    if schur_pre in ("self", "path2"):
+    if schur_ksp == "gmres":
         options["ph_constraint_fieldsplit_constraint_ksp_gmres_restart"] = str(inner_restart)
         options["ph_constraint_fieldsplit_constraint_ksp_rtol"] = "1e-12"
         options["ph_constraint_fieldsplit_constraint_ksp_atol"] = "1e-14"
@@ -121,6 +121,8 @@ def trial(A, rhs, iz, il, rtol, max_it, schur_pre, inner_restart_cap, repeat_rhs
             raise RuntimeError(
                 f"Principal PC unexpected: {principal.getPC().getType()}"
             )
+        if sub_ksp[1].getType() != schur_ksp:
+            raise RuntimeError("Effective constraint KSP differs from requested mode")
         sub_stats = {
             name: {"solve_calls": 0, "iterations_total": 0,
                    "max_iterations_per_solve": 0}
@@ -218,6 +220,7 @@ def trial(A, rhs, iz, il, rtol, max_it, schur_pre, inner_restart_cap, repeat_rhs
             "sparse_path2_preconditioner": path2_report,
             "principal_preconditioner": h_pc,
             "principal_ksp_rtol": h_rtol if h_pc == "asm" else None,
+            "constraint_ksp_mode": schur_ksp,
             "effective_principal_ksp_type": principal.getType(),
             "effective_principal_pc_type": principal.getPC().getType(),
         }
@@ -359,7 +362,7 @@ def run(args):
             computed, trial_t, details = trial(
                 A, rhs, iz, il, args.rtol, args.max_it, args.schur_pre,
                 args.inner_restart_cap, args.repeat_rhs,
-                args.h_pc, args.h_rtol, args.h_max_it
+                args.h_pc, args.h_rtol, args.h_max_it, args.schur_ksp
             )
             full_reuse = repeated_full_mumps(
                 A, first_seed=j+21, repeat_rhs=args.repeat_rhs,
@@ -395,6 +398,7 @@ def run(args):
                 "schur_preconditioner": args.schur_pre,
         "principal_preconditioner": args.h_pc,
         "principal_ksp_rtol": args.h_rtol,
+        "schur_ksp_mode": args.schur_ksp,
                 "constraint_dofs": int(
                     mpi.allreduce(len(local_l), op=MPI.SUM)),
                 "principal_dofs": int(
@@ -459,6 +463,7 @@ def run(args):
             "Full original Jacobian solved on manufactured RHS only.",
             "All candidate blocks detected from graph; no name-specific rule.",
             "H uses either MUMPS or ASM/ILU (MPI local), never full-system MUMPS within trial.",
+            "With PREONLY PATH2, no inner Schur Krylov: outer FGMRES corrects the full residual.",
             "Inexact H solves inside Schur matmult may make the Schur action nonstationary.",
             "Outer FGMRES and manufactured true-residual gates do not prove stability.",
             "PETSc full-system MUMPS used ONLY as reference.",
@@ -486,6 +491,8 @@ def main():
     p.add_argument("--rtol", type=float, default=1e-12)
     p.add_argument("--max-it", type=int, default=400)
     p.add_argument("--h-pc", choices=("asm", "mumps"), default="asm")
+    p.add_argument("--schur-ksp", choices=("preonly", "gmres"), default="preonly",
+                   help="PREONLY applies the PATH2 Schur Pmat directly; GMRES is control")
     p.add_argument("--h-rtol", type=float, default=1e-10)
     p.add_argument("--h-max-it", type=int, default=350)
     p.add_argument("--repeat-rhs", type=int, default=1,
