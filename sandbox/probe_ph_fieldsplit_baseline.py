@@ -50,7 +50,7 @@ def solve_reference(A, rhs):
     return result, elapsed
 
 
-def block_trial(A, rhs, is_e, is_x, rtol, max_it):
+def block_trial(A, rhs, is_e, is_x, rtol, max_it, x_pc):
     ksp = PETSc.KSP().create(comm=PETSc.COMM_WORLD)
     ksp.setOptionsPrefix("ph_trial_")
     ksp.setType("fgmres")
@@ -69,10 +69,17 @@ def block_trial(A, rhs, is_e, is_x, rtol, max_it):
         "ph_trial_fieldsplit_e_pc_type": "lu",
         "ph_trial_fieldsplit_e_pc_factor_mat_solver_type": "mumps",
         "ph_trial_fieldsplit_x_ksp_type": "preonly",
-        "ph_trial_fieldsplit_x_pc_type": "bjacobi",
-        "ph_trial_fieldsplit_x_sub_ksp_type": "preonly",
-        "ph_trial_fieldsplit_x_sub_pc_type": "ilu",
+        "ph_trial_fieldsplit_x_pc_type": x_pc,
     }
+    if x_pc == "bjacobi":
+        settings.update({
+            "ph_trial_fieldsplit_x_sub_ksp_type": "preonly",
+            "ph_trial_fieldsplit_x_sub_pc_type": "ilu",
+        })
+    elif x_pc == "lu":
+        settings["ph_trial_fieldsplit_x_pc_factor_mat_solver_type"] = "mumps"
+    else:
+        raise ValueError("Unsupported complement block preconditioner")
     try:
         for key, val in settings.items():
             opts[key] = val
@@ -156,7 +163,7 @@ def run(args):
         ref, ref_seconds = solve_reference(A, rhs)
         ref_residual = relative_residual(A, rhs, ref)
         trial, trial_seconds, reason, its = block_trial(
-            A, rhs, is_e, is_x, args.rtol, args.max_it
+            A, rhs, is_e, is_x, args.rtol, args.max_it, args.x_pc
         )
         trial_residual = relative_residual(A, rhs, trial)
         difference = trial.copy()
@@ -169,6 +176,7 @@ def run(args):
         item = {
             "sigma": sigma, "converged": bool(success),
             "fgmres_reason": reason, "fgmres_iterations": its,
+            "complement_pc": args.x_pc,
             "mumps_reference_residual": ref_residual,
             "fgmres_true_relative_residual": trial_residual,
             "relative_state_error_vs_mumps": rel_error,
@@ -194,7 +202,7 @@ def run(args):
         "dofs": int(system.gf_model.nbdof()),
         "fields": fields,
         "formulation": classification["formulation"],
-        "solver": "FGMRES / multiplicative PCFIELDSPLIT; e: MUMPS; x: rank-local BJACOBI/ILU",
+        "solver": f"FGMRES / multiplicative PCFIELDSPLIT; e: MUMPS; x: {args.x_pc}",
         "reference": "full PETSc MUMPS on identical A(sigma) and RHS",
         "trials": results,
         "all_converged": all(x["converged"] for x in results),
@@ -223,6 +231,8 @@ def main():
     p.add_argument("--shift2", type=float, default=2000)
     p.add_argument("--rtol", type=float, default=1e-10)
     p.add_argument("--max-it", type=int, default=400)
+    p.add_argument("--x-pc", choices=("bjacobi", "lu"), default="bjacobi",
+                   help="Complement PC: BJACOBI/ILU or diagnostic MUMPS LU")
     p.add_argument("--accept-residual", type=float, default=5e-8)
     p.add_argument("--accept-error", type=float, default=5e-8)
     p.add_argument("--output", type=Path, required=True)
