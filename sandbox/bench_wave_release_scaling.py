@@ -31,6 +31,7 @@ import resource
 import time
 
 from mpi4py import MPI
+from petsc4py import PETSc
 import numpy as np
 import scrimp as S
 
@@ -71,9 +72,19 @@ def main():
     parser.add_argument("--source-sha", required=True)
     parser.add_argument("--source-tag", default="")
     parser.add_argument("--repetition", type=int, default=1)
+    parser.add_argument("--profile", action="store_true",
+                        help="Current revision: SCRIMP phase timings")
+    parser.add_argument("--petsc-log", action="store_true",
+                        help="Current revision: native PETSc staged log")
     args = parser.parse_args()
     mpi = MPI.COMM_WORLD
     rank, ranks = mpi.Get_rank(), mpi.Get_size()
+    if args.variant == "release_120" and (args.profile or args.petsc_log):
+        parser.error("legacy release v1.2.0 uses only neutral per-step timings")
+    if args.profile:
+        os.environ["SCRIMP_PROFILE"] = "1"
+    if args.petsc_log:
+        PETSc.Log.begin()
 
     if not all(x > 0 for x in (
         args.mesh, args.dt, args.final_time, args.save_dt
@@ -173,6 +184,35 @@ def main():
                 step_clock["previous_monitor_exit_ns"] = end_ns
 
     system.monitor = measured_monitor
+    if args.petsc_log:
+        # PETSc events separated by initial consistency and CN main TS.
+        initial_stage = PETSc.Log.Stage("WAVE_INITIAL_CONSISTENCY")
+        main_stage = PETSc.Log.Stage("WAVE_MAIN_CN")
+        original_init_step = system.init_step
+        original_memory_phase = system._memory_phase
+        in_main = [False]
+
+        def timed_init(*a, **kw):
+            initial_stage.push()
+            try:
+                return original_init_step(*a, **kw)
+            finally:
+                initial_stage.pop()
+
+        def timed_memory_phase(name, *a, **kw):
+            if name == "before_main_ts_solve":
+                main_stage.push()
+                in_main[0] = True
+            try:
+                return original_memory_phase(name, *a, **kw)
+            finally:
+                if name == "after_main_ts_solve" and in_main[0]:
+                    main_stage.pop()
+                    in_main[0] = False
+
+        system.init_step = timed_init
+        system._memory_phase = timed_memory_phase
+
     # PETSc TS sees precisely the same fixed CN grid in both releases.
     mpi.Barrier()
     start = time.perf_counter()
@@ -188,6 +228,7 @@ def main():
     system.solve()
     mpi.Barrier()
     end = time.perf_counter()
+    phase_profile = system.get_profile() if args.profile else None
 
     # Legacy SCRIMP v1.2.0 has no `last_ts_*` metadata; use the actual
     # standard PETSc TS.monitor as evidence, not a fictitious reason code.
@@ -304,6 +345,7 @@ def main():
                 if args.variant == "current" else "release_native"
             ),
             "trajectory_backend": "memory",
+            "profile": phase_profile,
             "wall_build_s": float(build_wall),
             "wall_solve_s": float(solve_wall),
             "wall_total_s": float(build_wall + solve_wall),
@@ -355,6 +397,9 @@ def main():
             f"RSS={max_rss/1024:.1f}MiB",
             flush=True,
         )
+
+    if args.petsc_log:
+        PETSc.Log.view()
 
 
 if __name__ == "__main__":
