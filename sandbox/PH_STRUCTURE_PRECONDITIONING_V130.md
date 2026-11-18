@@ -425,7 +425,117 @@ full state, constitutive residuals, boundary powers and
 Hamiltonians with two genuinely accepted adaptive TS
 steps of different sizes before any speed claim.
 
-## 6. Required first gates before an invasive solver change
+## 6. Important: the co-energy/substituted formulation
+
+The other published example is
+`examples/wave_coenergy.py` (underscore, not
+`wave-coenergy.py`). This **is not the same numerical benchmark**
+as `examples/wave.py`: it uses the Concentric domain with two
+subdomains, a dissipative algebraic port `e_r`, and a
+boundary feedback `U = 0.5*Y`. Direct performance/physics
+comparisons across the two examples would therefore be invalid.
+
+It declares:
+
+```python
+S.CoState("e_q", "Stress", states[0], substituted=True)
+S.CoState("e_p", "Velocity", states[1], substituted=True)
+```
+
+There are **no independent GetFEM DoFs** for `e_q` or `e_p`.
+The dynamic unknowns `q`, `p` already represent physical
+coenergies (stress, velocity). The constitutive material
+laws are incorporated into their **time-derivative mass
+bricks**, e.g. `q.Tinv.Test_q`, `p*rho*Test_p`.
+
+**A separate constitutive `-Q_c` cannot be extracted**
+from this reduced system. The MUMPS-`Q_c` Schur path
+developed for `wave.py` is **not applicable as written**.
+It must not silently treat the absent `e_q/e_p` as zero
+rows, artificially create duplicate DoFs, or form
+`Q_c^{-1}`.
+
+The reduced/co-energy formulation instead has the
+uncondensed Jacobian
+
+```text
+A_reduced(sigma) = sigma M_coenergy + K_Dirac
+                   + K_dissipation + K_boundary/feedback
+```
+
+where the feedback term may be assembled via the
+*nonlinear GetFEM tangent mechanism* even when the
+prescribed expression `0.5*Y` is mathematically
+linear with constant coefficients. In particular,
+`system.linear_stiffness=False` **does not prove that
+this example is a nonlinear physical model**.
+At the same time, a solver must not infer matrix
+constancy purely from a formal linear expression:
+runtime dependence must be checked on assembled
+Jacobians, including any boundary feedback.
+
+For this variant, investigate a *different* block
+preconditioner using the `q,p` dynamic mass/Dirac
+couplings, dissipative `e_r` and boundary `U,Y`.
+The DG mass block for `q` may permit element-local
+solves, while the CG pressure/velocity block and
+boundary saddle couplings require more care.
+**MUMPS remains the robust global reference** and may
+also be used on suitable constant subblocks.
+
+The same guiding principle covers mixed systems
+where some co-states have `substituted=True`
+and others remain independent. Such cases are
+classified distinctly; no unverified Schur solver
+is enabled automatically.
+
+### Code and native diagnostic
+
+`scrimp/utils/ph_block_layout.py` now exposes
+`classify_ph_formulation()` and permits **zero
+independent coenergy DoFs only if all registered
+co-states are explicitly substituted**. Missing
+non-substituted variables, duplicate/overlapping
+GetFEM intervals and invented effort DoFs are
+errors. Plans include:
+
+| Classification | Mathematically valid candidate | Production today |
+|---|---|---|
+| `implicit_constitutive` | extract and factor `Q_c` with MUMPS, Schur complement | unchanged global MUMPS |
+| `substituted_coenergy` | dynamic mass/Dirac + damping/boundary blocks | unchanged global MUMPS |
+| `partially_substituted` | hybrid block structure, no blanket `Q_c` assumption | unchanged global MUMPS |
+| `other_or_no_costates` | require structure examination | unchanged global MUMPS |
+
+The read-only MPI audit supports both `examples/wave.py`
+and `examples/wave_coenergy.py`:
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+bash sandbox/run_ph_block_audit.sh 0.12 wave_coenergy
+```
+
+It uses the same short two-step native MUMPS solve,
+GetFEM variable intervals and PETSc local CSR block
+norm/parity checks on 1 and 2 MPI ranks, but
+**changes the expected block-coupling gates according
+to the actual formulation**. Reports include
+`formulation` and `solver_candidate`; this is
+a design diagnostic, not a solver switch or
+performance benchmark. The original
+`bash sandbox/run_ph_block_audit.sh 0.08 wave`
+is unchanged.
+
+**Acceptance to begin a reduced-form Schur prototype:**
+native evidence of the actual mass/Dirac,
+dissipation and port blocks, plus successful
+1/2-rank parity. Then check two distinct TS shifts,
+full DAE constraints and physical power/energy
+balance before performance claims. Do not demand
+the existence of a constitutive `Q_c` block in
+a substituted formulation.
+
+## 7. Required first gates before an invasive solver change
 
 1. **Extract exact block sizes and signs** from the production
    `GF_MODEL.interval_of_variable` and PETSc `J`,
