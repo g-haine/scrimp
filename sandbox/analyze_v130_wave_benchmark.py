@@ -146,6 +146,7 @@ def main():
     sources = {}
     reports = {}
     petsc = {}
+    release_parity_failures = []
     for repetition in range(1, args.repetitions + 1):
         rel_label = f"release_120_release_native_1r_rep{repetition}"
         rel = _read_json(directory / (rel_label + ".json"))
@@ -173,14 +174,24 @@ def main():
                 raise RuntimeError(f"Invalid current v1.3 report {label}")
             reports.setdefault(("current", p), []).append(cur)
             initial, final = _state(directory / (label + "_state.npz"))
-            _state_distance(rel_initial, initial, label + " initial vs v1.2")
-            _state_distance(rel_final, final, label + " final vs v1.2")
+            # A release-to-current mismatch invalidates *cross-version*
+            # speedup claims, but must NOT hide valid current-only MPI
+            # scaling. The original v1.2.0 native implementation has
+            # already shown version-dependent state differences.
+            try:
+                _state_distance(rel_initial, initial,
+                                label + " initial vs v1.2")
+                _state_distance(rel_final, final,
+                                label + " final vs v1.2")
+            except RuntimeError as exc:
+                release_parity_failures.append(str(exc))
             if "current" not in sources:
                 sources["current"] = (initial, final)
             else:
                 _state_distance(sources["current"][1], final, label + " vs current-1r")
             petsc[label] = _petsc_events(directory / (label + ".log"))
 
+    release_parity_accepted = not release_parity_failures
     serial_release = _median(reports[("release_120", 1)], "wall_solve_s")
     serial_current = _median(reports[("current", 1)], "wall_solve_s")
     rows = []
@@ -223,14 +234,24 @@ def main():
         f"- Current source: `{manifest['current_sha']}`",
         f"- Mesh `h={manifest['mesh']}`; {rows[0]['dofs']:,} DOFs; ten accepted CN steps.",
         f"- Repetitions: {args.repetitions}. Native Docker environment shared.",
-        "- All original and current full initial/final states agree within scaled 5e-8.",
+        "- All current MPI full initial/final states agree within scaled 5e-8.",
+        ("- Cross-release state parity: PASS (same full vectors)."
+         if release_parity_accepted else
+         "- Cross-release state parity: **NOT VERIFIED / MISMATCH**. "
+         "Comparing elapsed times is descriptive only; no version "
+         "speedup is accepted."),
         "- Current MUMPS: default on_change plus MPI ordering, exact one numeric LU per ten CN steps.",
         "",
         "## Sequential comparison",
         "",
         f"- v1.2.0 native sequential solve: **{serial_release:.6f} s** (median).",
         f"- v1.3.0 current sequential solve: **{serial_current:.6f} s** (median).",
-        f"- Speedup: **×{serial_release/serial_current:.3f}**.",
+        (f"- Accepted release-to-current speedup: "
+         f"**×{serial_release/serial_current:.3f}**."
+         if release_parity_accepted else
+         "- **No valid cross-release speedup** because the complete "
+         "states differ; investigate assembly/initial conditions "
+         "before claiming a faster equivalent physical simulation."),
         "",
         "## Strong scaling (current v1.3.0)",
         "",
@@ -285,10 +306,16 @@ def main():
             "repetitions": args.repetitions,
             "v120_serial_s": serial_release,
             "current_serial_s": serial_current,
-            "serial_speedup": serial_release/serial_current,
+            "cross_release_state_parity": release_parity_accepted,
+            "cross_release_mismatch_samples": release_parity_failures[:4],
+            "serial_speedup": (
+                serial_release/serial_current if release_parity_accepted
+                else None
+            ),
             "rows": rows,
             "petsc_counts_checked": True,
             "full_state_parity_checked": True,
+            "current_mpi_state_parity_passed": True,
         }, indent=2) + "\n", encoding="utf-8"
     )
     fig, ax = plt.subplots(figsize=(8, 5))
@@ -306,7 +333,13 @@ def main():
     fig.savefig(directory / "v130_wave_scaling.png", dpi=170)
     plt.close(fig)
     print("\n".join(lines[:25]))
-    print(f"PASS: full-state and factor-reuse gates; reports: {directory}")
+    if release_parity_accepted:
+        print(f"PASS: full-state parity including original release; reports: {directory}")
+    else:
+        print("PARTIAL: current MPI parity + MUMPS reuse PASS; "
+              "v1.2.0 physical equivalence FAIL, no version speedup claim")
+        print("First cross-version mismatch:", release_parity_failures[0])
+        print("Reports:", directory)
 
 
 if __name__ == "__main__":
