@@ -112,6 +112,15 @@ def trial(A, rhs, iz, il, rtol, max_it, schur_pre, inner_restart_cap, repeat_rhs
         setup_start = perf_counter()
         ksp.setUp()
         setup_seconds = MPI.COMM_WORLD.allreduce(perf_counter()-setup_start, op=MPI.MAX)
+        sub_ksp = list(pc.getFieldSplitSubKSP())
+        if len(sub_ksp) != 2:
+            raise RuntimeError("Expected exactly two Schur field split KSPs")
+        principal = sub_ksp[0]
+        if (principal.getPC().getType()
+                != ("asm" if h_pc == "asm" else "lu")):
+            raise RuntimeError(
+                f"Principal PC unexpected: {principal.getPC().getType()}"
+            )
         sub_stats = {
             name: {"solve_calls": 0, "iterations_total": 0,
                    "max_iterations_per_solve": 0}
@@ -209,6 +218,8 @@ def trial(A, rhs, iz, il, rtol, max_it, schur_pre, inner_restart_cap, repeat_rhs
             "sparse_path2_preconditioner": path2_report,
             "principal_preconditioner": h_pc,
             "principal_ksp_rtol": h_rtol if h_pc == "asm" else None,
+            "effective_principal_ksp_type": principal.getType(),
+            "effective_principal_pc_type": principal.getPC().getType(),
         }
         try:
             diagnostics["sub_solvers"] = [
