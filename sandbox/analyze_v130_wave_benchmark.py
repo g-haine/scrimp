@@ -318,19 +318,31 @@ def publish_smoke_figures(directory, ranks):
     native event counts before invoking this function.
     """
     ranks = [int(n) for n in ranks]
-    factor_counts, solve_times = [], []
+    factor_counts, expected_counts, solve_times = [], [], []
     for n in ranks:
         label = "current_on_change_" + str(n) + "r"
         data = _read_json(directory / (label + ".json"))
-        events = _petsc_events(directory / (label + ".log"))
+        expected_numeric, expected_symbolic = _expected_lu_updates(data)
+        events = _petsc_events(
+            directory / (label + ".log"),
+            expected_numeric=expected_numeric,
+            expected_symbolic=expected_symbolic,
+        )
         factor_counts.append(events["main.MatLUFactorNum"]["calls"])
+        expected_counts.append(expected_numeric)
         solve_times.append(float(data["wall_solve_s"]))
     fig, ax = plt.subplots(figsize=(8.5, 5.0))
-    bars = ax.bar([str(n) + " MPI" for n in ranks], factor_counts)
-    ax.bar_label(bars, fmt="%d", padding=4)
-    ax.axhline(1, linestyle="--", label="Expected: 1 numeric LU")
-    ax.set_title("Production on_change — 10 CN steps, numeric factor reuse")
-    ax.set_ylabel("Main-CN MatLUFactorNum calls")
+    xx = np.arange(len(ranks))
+    width = 0.35
+    actual_bars = ax.bar(xx - width / 2, factor_counts, width,
+                         label="Native PETSc numeric LU")
+    decision_bars = ax.bar(xx + width / 2, expected_counts, width,
+                           label="Exact on_change matrix updates")
+    ax.bar_label(actual_bars, fmt="%d", padding=4)
+    ax.bar_label(decision_bars, fmt="%d", padding=4)
+    ax.set_xticks(xx, [str(n) + " MPI" for n in ranks])
+    ax.set_title("Production on_change — 10 CN steps, verified LU reuse")
+    ax.set_ylabel("Full main-CN operator updates / numeric LU calls")
     ax.set_ylim(0, max(2, max(factor_counts) * 1.5))
     ax.legend()
     ax.grid(axis="y", alpha=.2)
