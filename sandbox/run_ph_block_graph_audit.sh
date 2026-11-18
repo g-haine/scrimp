@@ -79,4 +79,7 @@ if (( fail )); then
     echo "Block graph audit failed on at least one MPI rank count" >&2
     exit 1
 fi
-echo "PASS: read-only block graph audits completed for 1 and 2 MPI ranks"
+python3 sandbox/compare_ph_block_graph_reports.py \
+    "$out/block_graph_1r.json" "$out/block_graph_2r.json" \
+    --output "$out/block_graph_comparison.json"
+echo "PASS: read-only block graph audits and MPI parity comparison completed"
