@@ -522,6 +522,67 @@ User's h=0.12 `wave_coenergy` run at commit `8f498e0b`:
   PETSc CSR rows. This distinguishes a matrix-wide
   difference from a possible indexing/block-read error.
 
+**Update after inspecting the actual Docker environment and old
+archive:** `scrimp-mpi:local` uses Python 3.12 from
+`/opt/conda/envs/scrimp/bin/python`, GetFEM MPI level **2**,
+and PETSc **3.26.1**. The source commit for the failed
+coenergy audit was `8f498e0b`, provided by the host's
+read-only SCRIMP source mount. The image uses the SAME
+GetFEM executable/binary in the one- and two-rank runs,
+so an alleged local-vs-Docker version difference cannot
+directly explain a **within-image** MPI rank discrepancy.
+Neither `gf.__file__` nor MPI level 2 identifies the
+native GetFEM C++ build revision.
+
+The original ZIP (`ph-block-audit-wave_coenergy-h0p12-8f498e0b-vHjj3O`)
+contains only JSON reports and logs, not raw per-rank
+GetFEM tangents or both original mesh files. Per-block
+Frobenius ratios of ~0.505–0.507 (mass and q/p
+couplings) and ~0.7071 (damping-related blocks) justify
+investigating **multiple assembly semantics**, but
+do NOT prove an RHS bug: the discrepant quantities are
+matrices, not the GetFEM RHS vector. The calibrated
+`SCRIMP_GETFEM_RHS_MODE` does not modify matrix values.
+
+**Decisive native experiment, now instrumented:**
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+SCRIMP_PH_CAPTURE_MATRICES=1 \
+  bash sandbox/run_ph_block_audit.sh 0.12 wave_coenergy
+```
+
+This leaves production SCRIMP untouched, reruns the same
+short 2-step full-MUMPS reference on 1/2 MPI ranks and
+captures each rank's **raw GetFEM global CSR tangent**
+BEFORE `convert_gmm_to_petsc()`, plus the final PETSc
+**owned-row** CSR AFTER the transfer. This is enabled
+only when `SCRIMP_PH_CAPTURE_MATRICES=1`.
+The driver then compares the **exact sparse coefficients**
+using `sandbox/compare_raw_getfem_petsc.py` and writes
+`native_getfem_vs_petsc_bridge.json`, before running
+the existing (intentionally strict) 1/2-rank parity gate.
+
+Its four central metrics for both `mass` and
+`stiffness` are:
+
+1. `native_sum_2r_vs_native_1r`: numerical MPI difference
+   present **before PETSc**? If large, examine GetFEM
+   assembly, partitioning and mesh/DoF numbering.
+2. `petsc_2r_vs_native_sum_2r`: difference created by
+   the distributed COO bridge in the two-rank run?
+3. `petsc_1r_vs_native_1r`: serial GetFEM-to-PETSc
+   value preservation?
+4. `petsc_2r_vs_petsc_1r`: end-to-end 1/2-rank
+   physical matrix equality?
+
+Gmsh input mesh SHA256 is recorded; if the mesh files
+differ, **do not** draw coefficient-parity conclusions.
+The script does **not** compensate the results by
+an unjustified factor two. A failed final parity gate
+is EXPECTED until the root cause is resolved.
+
 **No expensive rerun is required as the next step.**
 First inspect existing reports with the standard-library
 offline tool:
