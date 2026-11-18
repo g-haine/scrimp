@@ -24,8 +24,11 @@ Changes to SCRIMP are recorded here. See also the
   experimental Schur results in `docs/V130_DEVELOPMENT_ROADMAP.md`.
 
 ### Release qualification outstanding
-- Confirm one numerical LU (rather than ten) on the actual production
-  `on_change` CN wave run; qualify invalidation when coefficients change.
+- Confirm native numeric and symbolic LU call counts agree with the
+  exact operator coefficient/graph changes detected collectively by
+  `on_change`; qualify invalidation when coefficients change. The
+  final fixed-CN MATCHSTEP may legitimately change the shift by
+  floating-point roundoff (2 numeric LU for 10 steps observed).
 - Execute the v1.2.0-vs-current serial and current MPI benchmark locally,
   validate complete states and discrete Hamiltonian/port-power balance,
   rerun the full test suite and build Sphinx HTML/LaTeX.
