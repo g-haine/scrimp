@@ -265,6 +265,11 @@ def main():
     mpi.Barrier()
     end = time.perf_counter()
     phase_profile = system.get_profile() if args.profile else None
+    reuse_stats_local = (
+        getattr(system, "_mumps_reuse_stats", {})
+        if args.variant == "current" else None
+    )
+    reuse_stats_by_rank = mpi.gather(reuse_stats_local, root=0)
 
     # Legacy SCRIMP v1.2.0 has no `last_ts_*` metadata; use the actual
     # standard PETSc TS.monitor as evidence, not a fictitious reason code.
@@ -338,6 +343,30 @@ def main():
         op=MPI.MAX,
     )
     if rank == 0:
+        if args.variant == "current" and any(
+            counts != reuse_stats_by_rank[0]
+            for counts in reuse_stats_by_rank
+        ):
+            raise RuntimeError(
+                "Different collective MUMPS on_change decisions across "
+                f"MPI ranks: {reuse_stats_by_rank}"
+            )
+        if args.variant == "current" and args.policy == "on_change":
+            main_counts = reuse_stats_by_rank[0].get("main", {})
+            if (
+                main_counts.get("ijacobian_calls") != target_steps
+                or main_counts.get("numeric_updates", 0) < 1
+                or main_counts.get("symbolic_updates", 0) < 1
+                or (main_counts.get("numeric_updates", 0)
+                    + main_counts.get("reused_operators", 0))
+                    != target_steps
+                or main_counts.get("symbolic_updates", 0)
+                    > main_counts.get("numeric_updates", 0)
+            ):
+                raise RuntimeError(
+                    "Invalid main CN on_change operator-update accounting: "
+                    + repr(main_counts)
+                )
         rank_step_matrix = np.asarray(
             rank_step_times, dtype=np.float64
         )
@@ -390,6 +419,10 @@ def main():
             "trajectory_backend": "memory",
             "profile": phase_profile,
             "main_cn_mumps_icntl28": observations["main_mumps_icntl28"],
+            "mumps_reuse_stats": (
+                reuse_stats_by_rank[0]
+                if args.variant == "current" else None
+            ),
             "wall_build_s": float(build_wall),
             "wall_solve_s": float(solve_wall),
             "wall_total_s": float(build_wall + solve_wall),
