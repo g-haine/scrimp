@@ -225,22 +225,26 @@ def main():
                 if abs(float(t) - args.final_time) <= 1e-10:
                     observations["final"] = local
         try:
-            result = original_monitor(TS, i, t, z, *a, **kw)
             if args.probe_pseudo_state_sync and kw.get("initial_step", False):
-                # Original DPHS.monitor has just scattered the accepted
-                # TS state into GlobalVec. In the v1.2.0 wave case
-                # all prescribed source bricks were called nonlinear,
-                # so this model->variables update happened indirectly.
-                # Current SCRIMP correctly calls them RHS-only and
-                # leaves linear_stiffness=True; this probe replays only
-                # that single *side effect*, without changing flags,
-                # factors, bricks, mass, or stiffness.
-                global_vector = np.asarray(
-                    system.GlobalVec.getArray(readonly=True).real,
-                    dtype=np.float64,
-                ).copy()
+                # Reproduce the EXACT legacy monitor side effect/order:
+                # the v1.2.0 source bricks marked linear_stiffness=False,
+                # causing to_variables(accepted state) BEFORE GetFEM's
+                # next_iter(). Toggle only for this monitor invocation,
+                # NEVER for PETSc assembly, SNES or IJacobian.
                 old_values = np.asarray(
                     system.gf_model.from_variables().real,
+                    dtype=np.float64,
+                ).copy()
+                previous_linear_stiffness = system.linear_stiffness
+                system.linear_stiffness = False
+                try:
+                    result = original_monitor(TS, i, t, z, *a, **kw)
+                finally:
+                    system.linear_stiffness = previous_linear_stiffness
+                # The original monitor already scattered the accepted
+                # PETSc state and synchronized GetFEM with correct order.
+                global_vector = np.asarray(
+                    system.GlobalVec.getArray(readonly=True).real,
                     dtype=np.float64,
                 ).copy()
                 if old_values.shape != global_vector.shape:
@@ -264,7 +268,6 @@ def main():
                             )
                         ),
                     }
-                system.gf_model.to_variables(global_vector)
                 initial_sync_probe["accepted_step_events"].append({
                     "step": int(i), "t": float(t),
                     "variables": per_variable,
@@ -280,6 +283,8 @@ def main():
                         ),
                         flush=True,
                     )
+            else:
+                result = original_monitor(TS, i, t, z, *a, **kw)
             return result
         finally:
             if is_main:
