@@ -49,8 +49,9 @@ jobs:
       - name: Validate v1.2.0 versus COO/MPI benchmark figures
         run: |
           python -m pip install 'matplotlib>=3.7,<4'
-          python -m py_compile sandbox/bench_wave_release_scaling.py sandbox/plot_release120_coo_scaling.py sandbox/diagnose_release120_states.py tests/test_release120_scaling_plots.py
-          bash -n sandbox/run_release120_coo_scaling.sh sandbox/analyze_existing_release120_scaling.sh sandbox/run_coo_factorization_probe.sh
+          python -m py_compile sandbox/bench_wave_release_scaling.py sandbox/analyze_v130_wave_benchmark.py sandbox/plot_release120_coo_scaling.py sandbox/diagnose_release120_states.py tests/test_release120_scaling_plots.py tests/test_mumps_numeric_reuse.py
+          bash -n sandbox/run_release120_coo_scaling.sh sandbox/run_v130_wave_benchmark.sh sandbox/run_coo_factorization_probe.sh
+          python -m py_compile sandbox/analyze_v130_wave_benchmark.py tests/test_mumps_numeric_reuse.py
           python -m unittest -v tests.test_release120_scaling_plots
       - name: Validate SCRIMP source headers
         run: |
