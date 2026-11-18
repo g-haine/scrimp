@@ -73,11 +73,14 @@ The report includes:
 * MPI speedup and efficiency and exact full initial/final vector
   comparisons with the release reference.
 
-The runner fails rather than reporting an invalid improvement when
-an accepted step is missing, a full state differs beyond the stated
-tolerance, or the production main CN stage refactorizes numerically
-more than once. Results are stored under ignored ``sandbox/outputs/``:
-a Markdown report, CSV, JSON and PNG.
+The runner fails when accepted steps are missing, current MPI
+initial/final states disagree, or the production main CN stage
+refactorizes numerically more than once. If current and native v1.2.0
+states disagree, the current MPI scaling report is still valid,
+but **no cross-version speedup claim is accepted** and the
+release timing is excluded from the common scaling graph. Results
+are stored under ignored ``sandbox/outputs/``: Markdown, CSV, JSON
+and PNG.
 
 **Caution:** SCRIMP phase timers are inclusive; nested phase totals
 must not be added together. In particular, the TS time minus its
