@@ -52,6 +52,19 @@ echo "SCRIMP pH-DAE field-block audit | source $sha | model=$model | mesh h=$mes
 echo "2 accepted CN steps, 1 and 2 MPI ranks, reference MUMPS unchanged"
 echo "User-owned host workdir: $host_workspace (container: /scrimp-work)"
 echo "Output: $out"
+# With this opt-in flag, snapshot the TRUE GetFEM matrix on each
+# rank before it is transferred, plus final PETSc owned-row CSR.
+# Distinguish a rank-dependent native assembly from a bridge error.
+capture="${SCRIMP_PH_CAPTURE_MATRICES:-0}"
+if [[ "$capture" != "0" && "$capture" != "1" ]]; then
+    echo "SCRIMP_PH_CAPTURE_MATRICES must be 0 or 1" >&2
+    exit 2
+fi
+capture_args=()
+if [[ "$capture" == "1" ]]; then
+    capture_args+=(--capture-matrices)
+    echo "Raw GetFEM + PETSc sparse matrix capture enabled."
+fi
 sudo -v
 for ranks in 1 2; do
     cpus="0"
@@ -80,6 +93,7 @@ for ranks in 1 2; do
         python -u /workspace/scrimp/sandbox/audit_ph_blocks.py \
             --model "$model" --mesh "$mesh" --dt 0.002 --steps 2 \
             --output "/artifacts/blocks_${ranks}r.json" \
+            "${capture_args[@]}" \
         > "$out/blocks_${ranks}r.log" 2>&1 || {
             echo "FAILED: $ranks rank(s)" >&2
             tail -n 90 "$out/blocks_${ranks}r.log" >&2
@@ -87,6 +101,20 @@ for ranks in 1 2; do
         }
     tail -n 24 "$out/blocks_${ranks}r.log"
 done
+if [[ "$capture" == "1" ]]; then
+    echo "LOCALIZE: compare raw GetFEM matrices with final PETSc COO values"
+    sudo docker run --rm \
+        --user "$(id -u):$(id -g)" \
+        --workdir /scrimp-work \
+        -e HOME=/tmp -e MPLBACKEND=Agg \
+        --cpuset-cpus="0,2" \
+        -v "$root/sandbox:/workspace/scrimp/sandbox:ro" \
+        -v "$host_workspace:/scrimp-work" \
+        -v "$out:/artifacts" \
+        scrimp-mpi:local \
+        python -u /workspace/scrimp/sandbox/compare_raw_getfem_petsc.py \
+            /artifacts
+fi
 echo "DIAGNOSE: per-variable block norm differences (offline; no extra solves)"
 python3 sandbox/diagnose_ph_block_parity.py "$out"
 echo "CHECK: 1/2-rank block Frobenius-norm parity (NOT entrywise equality)"
