@@ -91,11 +91,13 @@ class PhBlockLayoutTests(unittest.TestCase):
             'SCRIMP_DOCKER_WORKSPACE:-$HOME/Simulations/workspace',
             script,
         )
+        # Main runs, optional raw-matrix comparison, and final
+        # block-parity comparison each run in the owned workspace.
         self.assertEqual(
-            script.count("--workdir /scrimp-work"), 2
+            script.count("--workdir /scrimp-work"), 3
         )
         self.assertEqual(
-            script.count('-v "$host_workspace:/scrimp-work"'), 2
+            script.count('-v "$host_workspace:/scrimp-work"'), 3
         )
         self.assertIn('-e PYTHONPATH=/workspace/scrimp', script)
         self.assertIn('model="${2:-wave}"', script)
