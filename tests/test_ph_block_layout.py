@@ -107,6 +107,36 @@ class PhBlockLayoutTests(unittest.TestCase):
             script,
         )
 
+    def test_concentric_region_exclusion_is_sandbox_only(self):
+        # The problematic Gmsh interface is preserved; the opt-in
+        # diagnostic subtracts its region from the two volume regions.
+        # No defaults or production geometry generator are modified.
+        source = (
+            ROOT / "sandbox" / "audit_ph_blocks.py"
+        ).read_text(encoding="utf-8")
+        runner = (
+            ROOT / "sandbox" / "run_ph_block_audit.sh"
+        ).read_text(encoding="utf-8")
+        self.assertIn(
+            "native_mesh.region_subtract(1, 10)", source
+        )
+        self.assertIn(
+            "native_mesh.region_subtract(2, 10)", source
+        )
+        self.assertIn(
+            'args.volume_only_regions', source
+        )
+        self.assertIn(
+            'SCRIMP_PH_VOLUME_ONLY_REGIONS:-0', runner
+        )
+        self.assertIn(
+            'capture_args+=(--volume-only-regions)', runner
+        )
+        self.assertIn(
+            '--volume-only-regions only supports wave_coenergy',
+            source,
+        )
+
     def test_exact_global_coverage_and_noncontiguous_groups(self):
         fields = self.fields()
         self.assertEqual(
