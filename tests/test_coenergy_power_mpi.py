@@ -45,6 +45,7 @@ class CoenergyPowerMpiTests(unittest.TestCase):
             "full_state_snapshots": self.steps+1,
             "TS_converged_reason": 2,
             "formulation": "substituted_coenergy",
+            "effective_mumps_policy": "on_change",
             "power_sign_convention": "synthetic CN balance",
             "maxima": {
                 "cn_relative_residual": 1e-14,
@@ -145,6 +146,12 @@ class CoenergyPowerMpiTests(unittest.TestCase):
             report["metrics"]["states"]["relative_l2_difference"],
             0.,
         )
+
+    def test_different_mumps_policy_is_rejected(self):
+        self.reports[2]["effective_mumps_policy"] = "never"
+        self.flush()
+        with self.assertRaisesRegex(ValueError, "effective_mumps_policy"):
+            CHECK.compare(self.directory)
 
     def test_state_drift_fails(self):
         self.data[2]["states"][2, 2] += .05
