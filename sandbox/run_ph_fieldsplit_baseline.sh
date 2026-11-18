@@ -13,8 +13,9 @@ set -euo pipefail
 mesh="${1:-0.08}"
 x_pc="${2:-bjacobi}"
 e_pc="${3:-lu}"
-if [[ $# -gt 3 || ! "$mesh" =~ ^0\.[0-9]+$ || ! "$x_pc" =~ ^(bjacobi|lu|schur-selfp)$ || ! "$e_pc" =~ ^(lu|bjacobi)$ ]]; then
-    echo "Usage: bash sandbox/run_ph_fieldsplit_baseline.sh [mesh_h=0.08] [x_pc=bjacobi|lu|schur-selfp] [e_pc=lu|bjacobi]" >&2
+schur_pc="${4:-lu}"
+if [[ $# -gt 4 || ! "$mesh" =~ ^0\.[0-9]+$ || ! "$x_pc" =~ ^(bjacobi|lu|schur-selfp)$ || ! "$e_pc" =~ ^(lu|bjacobi)$ || ! "$schur_pc" =~ ^(lu|bjacobi)$ ]]; then
+    echo "Usage: bash sandbox/run_ph_fieldsplit_baseline.sh [mesh_h=0.08] [x_pc=bjacobi|lu|schur-selfp] [e_pc=lu|bjacobi] [schur_pc=lu|bjacobi]" >&2
     exit 2
 fi
 cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 1
@@ -27,14 +28,14 @@ host_workspace="$(realpath "$host_workspace")"
     echo "Not writable: $host_workspace" >&2
     exit 2
 }
-out="$(mktemp -d "$root/sandbox/outputs/ph-fieldsplit-${x_pc}-e${e_pc}-h${mesh//./p}-$sha-XXXXXX")"
+out="$(mktemp -d "$root/sandbox/outputs/ph-fieldsplit-${x_pc}-e${e_pc}-s${schur_pc}-h${mesh//./p}-$sha-XXXXXX")"
 timeout_s="${SCRIMP_PH_FIELDSPLIT_TIMEOUT_S:-240}"
 if [[ ! "$timeout_s" =~ ^[0-9]+$ ]] || (( timeout_s < 30 || timeout_s > 1800 )); then
     echo "SCRIMP_PH_FIELDSPLIT_TIMEOUT_S must be 30..1800" >&2
     exit 2
 fi
 echo "SCRIMP experimental FGMRES/PCFIELDSPLIT vs full MUMPS"
-echo "Source commit: $sha; mesh h=$mesh; shifts=1000,2000; x_pc=$x_pc; e_pc=$e_pc"
+echo "Source commit: $sha; mesh h=$mesh; shifts=1000,2000; x_pc=$x_pc; e_pc=$e_pc; schur_pc=$schur_pc"
 echo "No production solver changes; output: $out"
 if ! git diff --quiet HEAD -- scrimp sandbox/probe_ph_fieldsplit_baseline.py; then
     echo "WARNING: source differs from HEAD; provenance is not clean."
@@ -67,7 +68,7 @@ for ranks in 1 2; do
         timeout -k 5s "${timeout_s}s" \
         mpiexec --bind-to none -n "$ranks" \
         python -u /workspace/scrimp/sandbox/probe_ph_fieldsplit_baseline.py \
-          --mesh "$mesh" --x-pc "$x_pc" --e-pc "$e_pc" --output "/artifacts/fieldsplit_${ranks}r.json" \
+          --mesh "$mesh" --x-pc "$x_pc" --e-pc "$e_pc" --schur-pc "$schur_pc" --output "/artifacts/fieldsplit_${ranks}r.json" \
         > "$out/fieldsplit_${ranks}r.log" 2>&1; then
         grep -aE '^(PASS|FAIL) sigma=|^Saved:' "$out/fieldsplit_${ranks}r.log" || true
     else
