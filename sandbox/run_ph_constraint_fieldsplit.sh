@@ -69,7 +69,7 @@ for ranks in 1 2; do
         python -u /workspace/scrimp/sandbox/probe_ph_constraint_fieldsplit.py \
           --mesh "$mesh" --schur-pre "$schur_pre" --repeat-rhs "$repeat_rhs" --output "/artifacts/constraint_fieldsplit_${ranks}r.json" \
         > "$out/constraint_fieldsplit_${ranks}r.log" 2>&1; then
-        grep -aE '^(PASS|FAIL|REJECT|NESTED) sigma=|^PATH2 built:|^Saved:' "$out/constraint_fieldsplit_${ranks}r.log" || true
+        grep -aE '^(PASS|FAIL|REJECT|NESTED|REUSE) sigma=|^PATH2 built:|^Saved:' "$out/constraint_fieldsplit_${ranks}r.log" || true
     else
         echo "NON-PASS: $ranks MPI ranks; inspect $out/constraint_fieldsplit_${ranks}r.log" >&2
         tail -n 45 "$out/constraint_fieldsplit_${ranks}r.log" >&2
