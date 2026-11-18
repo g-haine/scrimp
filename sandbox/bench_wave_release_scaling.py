@@ -76,15 +76,28 @@ def main():
                         help="Current revision: SCRIMP phase timings")
     parser.add_argument("--petsc-log", action="store_true",
                         help="Current revision: native PETSc staged log")
+    parser.add_argument(
+        "--factor-events-per-step", action="store_true",
+        help="Diagnostic only: report cumulative native MatLUFactorNum "
+             "event count after each accepted CN step",
+    )
     args = parser.parse_args()
     mpi = MPI.COMM_WORLD
     rank, ranks = mpi.Get_rank(), mpi.Get_size()
-    if args.variant == "release_120" and (args.profile or args.petsc_log):
+    if args.variant == "release_120" and (
+        args.profile or args.petsc_log or args.factor_events_per_step
+    ):
         parser.error("legacy release v1.2.0 uses only neutral per-step timings")
+    if args.factor_events_per_step and not args.petsc_log:
+        parser.error("--factor-events-per-step requires --petsc-log")
     if args.profile:
         os.environ["SCRIMP_PROFILE"] = "1"
     if args.petsc_log:
         PETSc.Log.begin()
+    lu_numeric_event = (
+        PETSc.Log.Event("MatLUFactorNum")
+        if args.factor_events_per_step else None
+    )
 
     if not all(x > 0 for x in (
         args.mesh, args.dt, args.final_time, args.save_dt
@@ -147,6 +160,18 @@ def main():
         begin_ns = time.perf_counter_ns()
         is_main = not kw.get("initial_step", False) and i >= 0
         if is_main and i > 0:
+            if lu_numeric_event is not None and rank == 0:
+                try:
+                    info = lu_numeric_event.getPerfInfo(int(main_stage))
+                    numeric_count = int(info["count"])
+                except (PETSc.Error, RuntimeError, KeyError,
+                        AttributeError, TypeError, ValueError) as exc:
+                    numeric_count = f"unknown({type(exc).__name__}: {exc})"
+                print(
+                    f"MUMPS-LU-STEP step={i} time={t:.17g} "
+                    f"numeric_count={numeric_count}",
+                    flush=True,
+                )
             previous_end = step_clock["previous_monitor_exit_ns"]
             if previous_end is None:
                 raise RuntimeError(
