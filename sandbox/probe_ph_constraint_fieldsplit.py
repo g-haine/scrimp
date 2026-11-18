@@ -130,6 +130,8 @@ def run(args):
         A.assemble()
         graph = audit_blocks(A, fields)
         candidates = [v["name"] for v in graph["zero_self_block_candidates"]]
+        if not candidates:
+            raise RuntimeError("No qualified graph candidate; do not report vacuous PASS")
         sigma_runs = []
         for candidate in candidates:
             lo, hi = A.getOwnershipRange()
