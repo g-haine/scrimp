@@ -150,6 +150,7 @@ def main():
             "Process RSS high-water includes wave setup, not isolated factor allocations.",
             "Full-system manufactured solves, not a time-integration speedup claim.",
             "Parallel ordering availability depends on container MUMPS build.",
+            "Unhonored ICNTL(28) request is NON-PASS despite accurate solves.",
         ],
     }
     try:
@@ -163,6 +164,20 @@ def main():
             stage_factor.pop()
         factor = pc.getFactorMatrix()
         report["mumps_after_setup"] = stats(factor)
+        actual28 = report["mumps_after_setup"].get("icntl", {}).get("28")
+        expected28 = {"sequential": 1, "parallel": 2}.get(args.ordering)
+        report["requested_icntl_28"] = expected28
+        report["effective_icntl_28"] = actual28
+        report["ordering_request_honored"] = (
+            expected28 is None or actual28 == expected28
+        )
+        if comm.rank == 0:
+            print(
+                f"ORDERING-CHECK requested={args.ordering} "
+                f"ICNTL28={actual28} expected={expected28} "
+                f"honored={report['ordering_request_honored']}",
+                flush=True,
+            )
         stage_solve = PETSc.Log.Stage("MUMPS_AUDIT_SOLVES")
         stage_solve.push()
         for rep in range(args.repeat):
@@ -191,7 +206,10 @@ def main():
                 obj.destroy()
         stage_solve.pop()
         report["peak_rss_after_solves"] = rss()
-        report["all_pass"] = all(row["pass"] for row in report["solves"])
+        report["all_pass"] = (
+            all(row["pass"] for row in report["solves"])
+            and report["ordering_request_honored"]
+        )
     finally:
         ksp.destroy()
         matrix.destroy()
@@ -214,7 +232,7 @@ def main():
     # within the tagged audit stages. Captured by the Docker run .log.
     PETSc.Log.view()
     if not report["all_pass"]:
-        raise RuntimeError("MUMPS factorization did not meet numerical gates")
+        raise RuntimeError("MUMPS accuracy gate failed or requested ordering was not honored")
 
 
 if __name__ == "__main__":
