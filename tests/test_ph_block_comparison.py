@@ -8,6 +8,7 @@
 
 """Synthetic provenance and numerical-gate tests for native block audit."""
 import importlib.util
+import copy
 import json
 from pathlib import Path
 import tempfile
@@ -82,13 +83,13 @@ class PhBlockComparisonTests(unittest.TestCase):
                 "linear_mass": True,
                 "linear_stiffness": True,
                 "mumps_policy": "never",
-                "fields": fields,
+                "fields": copy.deepcopy(fields),
                 "owned_ranges_by_rank": [
                     {"rank": i, "lo": start, "hi": stop,
                      "role_owned_ranges": {}}
                     for i, (start, stop) in enumerate(segments)
                 ],
-                "assembled_matrices": matrices,
+                "assembled_matrices": copy.deepcopy(matrices),
             }
         self.flush()
 
