@@ -166,6 +166,18 @@ class PhBlockComparisonTests(unittest.TestCase):
         ):
             COMPARE.compare(self.directory)
 
+    def test_different_local_geometry_source_is_rejected(self):
+        # Same Git HEAD can mount different uncommitted mesh.py
+        # sources in independent Docker runs. The source bytes
+        # must agree before an MPI parity result is meaningful.
+        self.records[1]["scrimp_mesh_source_sha256"] = "abc"
+        self.records[2]["scrimp_mesh_source_sha256"] = "def"
+        self.flush()
+        with self.assertRaisesRegex(
+            ValueError, "Different SCRIMP mesh.py source"
+        ):
+            COMPARE.compare(self.directory)
+
     def test_different_mesh_sha256_is_rejected_before_coefficients(self):
         # Identical DoF count / block sparsity cannot rule out
         # different Gmsh geometry, connectivity or numbering.
