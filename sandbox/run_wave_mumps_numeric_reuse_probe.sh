@@ -89,7 +89,6 @@ if any(not math.isfinite(v) or v > 5e-8 for v in reldiff.values()):
     raise SystemExit("FAIL: state norm gate (full vector/power budget not yet compared)")
 print("  baseline solve:", base["wall_solve_seconds_max"], "seconds")
 print("  static_cn solve:", static["wall_solve_seconds_max"], "seconds")
-import re
 def main_numeric_count(log):
     stage = None
     found = []
@@ -97,14 +96,11 @@ def main_numeric_count(log):
         if "Event Stage" in line and ("WAVE_MAIN_CN" in line
                                       or "WAVE_INITIAL_CONSISTENCY" in line
                                       or "Main Stage" in line):
-            if "WAVE_MAIN_CN" in line:
-                stage = "main"
-            else:
-                stage = "other"
+            stage = "main" if "WAVE_MAIN_CN" in line else "other"
             continue
-        match = re.match(r"^\\s*MatLUFactorNum\\s+(\\d+)\\s+", line)
-        if match and stage == "main":
-            found.append(int(match.group(1)))
+        parts = line.strip().split()
+        if len(parts) > 1 and parts[0] == "MatLUFactorNum" and stage == "main":
+            found.append(int(parts[1]))
     if len(found) != 1:
         raise SystemExit(
             f"FAIL: expected exactly one MAIN CN MatLUFactorNum event "
