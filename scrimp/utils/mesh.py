@@ -367,10 +367,10 @@ def Concentric(parameters={"R": 1.0, "r": 0.6, "h": 0.1}, refine=0, terminal=1):
     mesh.region_merge(20, 22)
     mesh.delete_region([21, 22])
     
-    # Ensure interface belongs to both domain 
-    mesh.region_merge(1, 10)
-    mesh.region_merge(2, 10)
-
+    # The 2D volume regions 1/2 must not include the 1D interface.
+    # Keep the interface in region 10: adding it to volume regions
+    # produces extra lower-dimensional FEM DoFs and invalid MPI
+    # assembly of bulk and dissipative terms (nu vanishes at r=0.6).
     return [
         mesh,
         dim,
