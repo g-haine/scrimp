@@ -2475,6 +2475,28 @@ class DPHS:
         self.enable_all_bricks()
         self.solve_done = True
 
+    def _sync_accepted_pseudo_initial_state(self, init_vec):
+        """Publish the accepted PETSc pseudo-TS state to GetFEM on all ranks.
+
+        A DAE pseudo-initialization can change both algebraic and
+        differential unknowns. The following physical TS reconstructs
+        its initial Vec from gf_model.from_variables(), so merely
+        solving the pseudo-TS does NOT propagate its accepted state.
+
+        In v1.2.0 the monitor performed this synchronization only as
+        a side effect of linear_stiffness=False; prescribed source
+        bricks happened to set that flag. The correct classification
+        of RHS-only sources must not suppress consistent initialization.
+        """
+        with self.profiler.measure("initial.petsc.accepted_state_sync"):
+            self.Scatter[0].scatter(init_vec, self.GlobalVec)
+            self.gf_model.to_variables(
+                np.asarray(
+                    self.GlobalVec.getArray(readonly=True).real,
+                    dtype=np.float64,
+                ).copy()
+            )
+
     def init_step(self):
         """Construct DAE-consistent initial data with a tiny TS solve.
 
@@ -2716,14 +2738,7 @@ class DPHS:
         # InitVec is reconstructed from gf_model.from_variables().
         # This collective scatter populates GlobalVec on every rank.
         if int(TS.getConvergedReason()) > 0 and TS.getStepNumber() > 0:
-            with self.profiler.measure("initial.petsc.accepted_state_sync"):
-                self.Scatter[0].scatter(InitVec, self.GlobalVec)
-                self.gf_model.to_variables(
-                    np.asarray(
-                        self.GlobalVec.getArray(readonly=True).real,
-                        dtype=np.float64,
-                    ).copy()
-                )
+            self._sync_accepted_pseudo_initial_state(InitVec)
         if audit_dynamic:
             # Compare the exact accepted pseudo-TS state, now also
             # synchronized to GetFEM for the following main solve.
