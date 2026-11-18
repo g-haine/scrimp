@@ -104,6 +104,7 @@ def main():
     parser.add_argument("--tol", type=float, default=5e-8)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
+    PETSc.Log.begin()
     comm = MPI.COMM_WORLD
     if args.mesh <= 0 or args.repeat < 2 or args.repeat > 12:
         raise ValueError("mesh > 0 and repeat in [2,12] required")
@@ -137,7 +138,7 @@ def main():
         "mesh": args.mesh, "matrix_source": origin,
         "ordering_requested": args.ordering,
         "matrix_size": list(matrix.getSize()),
-        "matrix_nnz_used": int(matrix.getInfo()["nz_used"]),
+        "matrix_nnz_used_sum": int(comm.allreduce(int(matrix.getInfo()["nz_used"]), op=MPI.SUM)),
         "wave_preparation_seconds_max": build_s,
         "peak_rss_before_factor": before_factor,
         "factor_setup_seconds_max": None,
@@ -152,11 +153,18 @@ def main():
         ],
     }
     try:
+        stage_factor = PETSc.Log.Stage("MUMPS_AUDIT_FACTOR")
+        stage_factor.push()
         start = perf_counter()
-        ksp.setUp()
-        report["factor_setup_seconds_max"] = interval(start)
+        try:
+            ksp.setUp()
+            report["factor_setup_seconds_max"] = interval(start)
+        finally:
+            stage_factor.pop()
         factor = pc.getFactorMatrix()
         report["mumps_after_setup"] = stats(factor)
+        stage_solve = PETSc.Log.Stage("MUMPS_AUDIT_SOLVES")
+        stage_solve.push()
         for rep in range(args.repeat):
             truth = _filled_right(matrix, seed=501+rep)
             rhs = matrix.createVecLeft()
@@ -181,6 +189,7 @@ def main():
             })
             for obj in (truth, rhs, solution, residual_vec, delta):
                 obj.destroy()
+        stage_solve.pop()
         report["peak_rss_after_solves"] = rss()
         report["all_pass"] = all(row["pass"] for row in report["solves"])
     finally:
@@ -201,6 +210,9 @@ def main():
             ), flush=True,
         )
         print("Saved:", args.output, flush=True)
+    # Built-in PETSc log separates symbolic/numeric LU and MatSolve events
+    # within the tagged audit stages. Captured by the Docker run .log.
+    PETSc.Log.view()
     if not report["all_pass"]:
         raise RuntimeError("MUMPS factorization did not meet numerical gates")
 
