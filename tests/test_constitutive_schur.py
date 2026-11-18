@@ -80,6 +80,19 @@ class ConstitutiveSchurTests(unittest.TestCase):
                 json.dumps(doc), encoding="utf-8"
             )
 
+    def test_docker_mounts_scrimp_writable_default_outputs(self):
+        # SCRIMP's import-time config.set_paths() creates
+        # outputs/{log,png,mesh,pv} below the container workdir.
+        # A /artifacts-only mount is not sufficient as the source
+        # package/example/sandbox mounts are intentionally readonly.
+        runner = (
+            ROOT / "sandbox" / "run_constitutive_mumps_schur.sh"
+        ).read_text(encoding="utf-8")
+        self.assertIn(
+            '-v "$out:/workspace/scrimp/outputs"', runner
+        )
+        self.assertIn('-v "$out:/artifacts"', runner)
+
     def test_block_schur_sign_and_uncondensed_residual(self):
         # Two *different* physical TS shifts. Original equations
         # with constitutive row -Q e + Cx=0, not e=Qz.
