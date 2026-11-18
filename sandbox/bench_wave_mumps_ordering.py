@@ -83,6 +83,11 @@ def _norms(system):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--ordering", choices=("default", "parallel"), default="default")
+    parser.add_argument(
+        "--factor-reuse", choices=("baseline", "static_cn"), default="baseline",
+        help="Experimental: lag MAIN CN SNES Jacobian and PC across timesteps; "
+             "only justified for a linear time-independent fixed-dt Jacobian.",
+    )
     parser.add_argument("--mesh", type=float, default=0.08,
                         help="Fixed 2D Rectangle mesh spacing for strong scaling")
     parser.add_argument("--final-time", type=float, default=0.02)
@@ -108,6 +113,8 @@ def main():
     # PETSc options, including -log_view, have already been parsed by
     # petsc4py before this parser. Leave their argv entries intact.
     args, _petsc_options = parser.parse_known_args()
+    if args.factor_reuse == "static_cn" and args.series != "never":
+        parser.error("static_cn requires --series never")
     if min(args.mesh, args.final_time, args.dt, args.save_dt) <= 0:
         parser.error("mesh/final-time/dt/save-dt must all be positive")
 
@@ -199,6 +206,35 @@ def main():
         **({"mat_mumps_icntl_28": 2, "mat_mumps_icntl_29": 0}
            if args.ordering == "parallel" else {}),
     )
+    # The original SCRIMP 'never' policy skips PC.reset but PETSc still
+    # refactorizes numerically on each SNES/TS step. In this opt-in test,
+    # install PETSc's lagging options ONLY AFTER the pseudo-initialization
+    # solve: it uses a distinct shift and must not share the main CN LU.
+    # Crucially, -2 means "compute at next opportunity, then reuse",
+    # whereas -1 before the first factorization can be invalid.
+    if args.factor_reuse == "static_cn":
+        if not (system.linear_mass and system.linear_stiffness):
+            raise RuntimeError("static_cn is only valid for linear FE operators")
+        original_initial = system.init_step
+        applied = []
+
+        def set_main_only_reuse(*initial_args, **initial_kwargs):
+            result = original_initial(*initial_args, **initial_kwargs)
+            main_options = {
+                "snes_lag_jacobian": "-2",
+                "snes_lag_jacobian_persists": "true",
+                "snes_lag_preconditioner": "-2",
+                "snes_lag_preconditioner_persists": "true",
+            }
+            for name, value in main_options.items():
+                system.time_scheme[name] = value
+            applied.append(dict(main_options))
+            return result
+
+        system.init_step = set_main_only_reuse
+    else:
+        applied = []
+
     # Instrument the EXISTING SCRIMP monitor instead of installing a
     # second PETSc TS monitor: preserve all physics/output bookkeeping.
     # The pseudo-initialization monitor is explicitly excluded.
@@ -274,6 +310,8 @@ def main():
         "benchmark": "examples/wave.py:wave_eq() (2D acoustic waves)",
         "mpi_affinity_by_rank": affinity_by_rank if rank == 0 else None,
         "mumps_ordering_requested": args.ordering,
+        "numeric_factor_reuse_requested": args.factor_reuse,
+        "numeric_factor_reuse_main_ts_options": applied,
         "mumps_icntl28_verified": bool(all_checked),
         "mumps_icntl28_effective": expected28,
         "mumps_main_ts_factor_observations_rank0": observed,
@@ -310,6 +348,7 @@ def main():
         # inside PETSc callbacks use no MPI collectives.
         report["profile"] = system.get_profile()
     if rank == 0:
+        print(f"FACTOR-REUSE requested={args.factor_reuse} main_options={applied}", flush=True)
         print(f"MAIN-TS-MUMPS ordering={args.ordering} effective_ICNTL28={expected28} "
               f"steps_checked={len(observed)} solve={solve_wall:.6g}s", flush=True)
         print(f"INITIAL-TS-MUMPS ordering={args.ordering} observations={initial_observed}",
