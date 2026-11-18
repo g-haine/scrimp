@@ -220,6 +220,12 @@ def main():
 
         def set_main_only_reuse(*initial_args, **initial_kwargs):
             result = original_initial(*initial_args, **initial_kwargs)
+            if not (system.linear_mass and system.linear_stiffness
+                    and not system.lumped_variables):
+                raise RuntimeError(
+                    "static_cn requires assembled linear time-independent "
+                    "mass/stiffness, with no lumped-variable dynamics"
+                )
             main_options = {
                 "snes_lag_jacobian": "-2",
                 "snes_lag_jacobian_persists": "true",
