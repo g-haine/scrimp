@@ -65,7 +65,7 @@ class TestPseudoStateSynchronization(unittest.TestCase):
                 scatter = MockScatter()
                 global_vec = MockVector(np.zeros(4))
                 gf_model = MockGetfem([0.0, 14.3679, 0.0, 0.0])
-                pseudo_solution = MockVector(target)
+                pseudo_solution = MockVector(target.copy())
                 # This data transfer has no input or dependency on
                 # linear_stiffness, regardless of the model flag value.
                 _ = linear_stiffness
