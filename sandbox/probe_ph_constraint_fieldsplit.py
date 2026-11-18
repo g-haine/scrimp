@@ -210,6 +210,12 @@ def run(args):
                 "ksp": details,
             }
             sigma_runs.append(item)
+            if mpi.rank == 0:
+                print(
+                    f"NESTED sigma={sigma:g} candidate={candidate}: "
+                    f"{json.dumps(details['subsolver_cumulative_monitor'], sort_keys=True)}",
+                    flush=True,
+                )
             all_pass = all_pass and passed
             if mpi.rank == 0:
                 print(
