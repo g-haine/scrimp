@@ -70,7 +70,7 @@ for mode in baseline static_cn; do
 done
 /usr/bin/python3 - "$out/baseline.json" "$out/static_cn.json" "$out/baseline.log" "$out/static_cn.log" <<'PY'
 import json, math, sys
-base, static = (json.load(open(p, encoding="utf-8")) for p in sys.argv[1:])
+base, static = (json.load(open(p, encoding="utf-8")) for p in sys.argv[1:3])
 for report in (base, static):
     if (report["effective_mumps_reset_policy"] != "never"
             or report["ts_steps"] != 10
