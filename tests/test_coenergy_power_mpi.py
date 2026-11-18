@@ -107,6 +107,37 @@ class CoenergyPowerMpiTests(unittest.TestCase):
             np.zeros(3), atol=1e-13,
         )
 
+    def test_mixed_dae_signed_damping_and_feedback_balance(self):
+        # Synthetic pH DAE in order [U,Y,e_r,p], reproducing
+        # the source example's signs: M_p<0, K_ee<0,
+        # K_UU<0; U=.5Y, e_r=p, Y=p.
+        M = np.diag([0., 0., 0., -2.])
+        K = np.array([
+            [-1., .5, 0., 0.],
+            [0., -1., 0., 1.],
+            [0., 0., -1., 1.],
+            [-1., 0., -1., 0.],
+        ])
+        dt = .04
+        p0 = 2.
+        p1 = ((2.-.75*dt)/(2.+.75*dt))*p0
+        x0 = np.array([.5*p0, p0, p0, p0])
+        x1 = np.array([.5*p1, p1, p1, p1])
+        mid = .5*(x0+x1)
+        h0 = -.5*x0@M@x0
+        h1 = -.5*x1@M@x1
+        pr = -mid[2]*K[2, 2]*mid[2]
+        pb = -mid[0]*K[0, 0]*mid[1]
+        self.assertGreater(pr, 0.)
+        self.assertGreater(pb, 0.)
+        self.assertAlmostEqual(
+            h1-h0+dt*(pr+pb), 0., places=13
+        )
+        np.testing.assert_allclose(
+            M@((x1-x0)/dt)+K@mid,
+            np.zeros(4), atol=1e-13,
+        )
+
     def test_complete_state_and_power_parity(self):
         report = CHECK.compare(self.directory)
         self.assertEqual(report["mpi_ranks"], [1, 2])
