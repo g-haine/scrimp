@@ -12,8 +12,9 @@
 set -euo pipefail
 mesh="${1:-0.08}"
 schur_pre="${2:-self}"
-if [[ $# -gt 2 || ! "$mesh" =~ ^0\.[0-9]+$ || ! "$schur_pre" =~ ^(self|path2|full|selfp)$ ]]; then
-    echo "Usage: bash sandbox/run_ph_constraint_fieldsplit.sh [mesh_h=0.08] [schur_pre=self|path2|full|selfp]" >&2
+repeat_rhs="${3:-1}"
+if [[ $# -gt 3 || ! "$mesh" =~ ^0\.[0-9]+$ || ! "$schur_pre" =~ ^(self|path2|full|selfp)$ || ! "$repeat_rhs" =~ ^[0-9]+$ || "$repeat_rhs" -lt 1 || "$repeat_rhs" -gt 20 ]]; then
+    echo "Usage: bash sandbox/run_ph_constraint_fieldsplit.sh [mesh_h=0.08] [schur_pre=self|path2|full|selfp] [repeat_rhs=1..20]" >&2
     exit 2
 fi
 cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 1
@@ -26,14 +27,14 @@ host_workspace="$(realpath "$host_workspace")"
     echo "Not writable: $host_workspace" >&2
     exit 2
 }
-out="$(mktemp -d "$root/sandbox/outputs/ph-constraint-fieldsplit-${schur_pre}-h${mesh//./p}-$sha-XXXXXX")"
+out="$(mktemp -d "$root/sandbox/outputs/ph-constraint-fieldsplit-${schur_pre}-r${repeat_rhs}-h${mesh//./p}-$sha-XXXXXX")"
 timeout_s="${SCRIMP_PH_FIELDSPLIT_TIMEOUT_S:-240}"
 if [[ ! "$timeout_s" =~ ^[0-9]+$ ]] || (( timeout_s < 30 || timeout_s > 1800 )); then
     echo "SCRIMP_PH_GRAPH_TIMEOUT_S must be 30..1800" >&2
     exit 2
 fi
 echo "SCRIMP graph-selected constraint Schur FGMRES vs full MUMPS"
-echo "Source commit: $sha; mesh h=$mesh; shifts=1000,2000; schur_pre=$schur_pre"
+echo "Source commit: $sha; mesh h=$mesh; shifts=1000,2000; schur_pre=$schur_pre; repeat_rhs=$repeat_rhs"
 echo "No production solver changes; output: $out"
 if ! git diff --quiet HEAD -- scrimp sandbox/probe_ph_constraint_fieldsplit.py; then
     echo "WARNING: source differs from HEAD; provenance is not clean."
@@ -66,7 +67,7 @@ for ranks in 1 2; do
         timeout -k 5s "${timeout_s}s" \
         mpiexec --bind-to none -n "$ranks" \
         python -u /workspace/scrimp/sandbox/probe_ph_constraint_fieldsplit.py \
-          --mesh "$mesh" --schur-pre "$schur_pre" --output "/artifacts/constraint_fieldsplit_${ranks}r.json" \
+          --mesh "$mesh" --schur-pre "$schur_pre" --repeat-rhs "$repeat_rhs" --output "/artifacts/constraint_fieldsplit_${ranks}r.json" \
         > "$out/constraint_fieldsplit_${ranks}r.log" 2>&1; then
         grep -aE '^(PASS|FAIL|REJECT|NESTED) sigma=|^PATH2 built:|^Saved:' "$out/constraint_fieldsplit_${ranks}r.log" || true
     else
