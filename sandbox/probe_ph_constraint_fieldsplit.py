@@ -32,7 +32,7 @@ from qualify_ph_constraint_schur import locally_owned_indices
 from scrimp.utils.ph_block_layout import discover_layout
 
 
-def trial(A, rhs, iz, il, rtol, max_it, schur_pre):
+def trial(A, rhs, iz, il, rtol, max_it, schur_pre, inner_restart_cap):
     ksp = PETSc.KSP().create(comm=PETSc.COMM_WORLD)
     ksp.setOptionsPrefix("ph_constraint_")
     ksp.setType("fgmres")
@@ -61,10 +61,12 @@ def trial(A, rhs, iz, il, rtol, max_it, schur_pre):
             "none" if schur_pre == "self" else "lu"
         ),
     }
+    inner_restart = min(int(il.getSize()) + 5, inner_restart_cap)
     if schur_pre == "self":
+        options["ph_constraint_fieldsplit_constraint_ksp_gmres_restart"] = str(inner_restart)
         options["ph_constraint_fieldsplit_constraint_ksp_rtol"] = "1e-12"
         options["ph_constraint_fieldsplit_constraint_ksp_atol"] = "1e-14"
-        options["ph_constraint_fieldsplit_constraint_ksp_max_it"] = "100"
+        options["ph_constraint_fieldsplit_constraint_ksp_max_it"] = str(max(100, 2 * inner_restart))
     else:
         options["ph_constraint_fieldsplit_constraint_pc_factor_mat_solver_type"] = "mumps"
     result = A.createVecRight()
@@ -105,6 +107,7 @@ def trial(A, rhs, iz, il, rtol, max_it, schur_pre):
             "iterations": int(ksp.getIterationNumber()),
             "pc_failed_reason": str(pc.getFailedReason()),
             "subsolver_cumulative_monitor": sub_stats,
+            "inner_gmres_restart_configured": inner_restart if schur_pre == "self" else None,
         }
         try:
             diagnostics["sub_solvers"] = [
@@ -132,6 +135,8 @@ def trial(A, rhs, iz, il, rtol, max_it, schur_pre):
 
 def run(args):
     mpi = MPI.COMM_WORLD
+    if args.inner_restart_cap < 2:
+        raise ValueError("Inner restart cap must be at least 2")
     if not (args.mesh > 0 and args.dt > 0 and
             args.shift1 > 0 and args.shift2 > 0 and
             args.shift1 != args.shift2 and args.rtol > 0):
@@ -186,13 +191,21 @@ def run(args):
             A.mult(truth, rhs)
             ref, ref_t = solve_reference(A, rhs)
             computed, trial_t, details = trial(
-                A, rhs, iz, il, args.rtol, args.max_it, args.schur_pre
+                A, rhs, iz, il, args.rtol, args.max_it, args.schur_pre,
+                args.inner_restart_cap
             )
             error = computed.copy()
             error.axpy(-1.0, ref)
             delta = float(error.norm())/max(float(ref.norm()), 1e-300)
             residual = relative_residual(A, rhs, computed)
+            sub_solvers = details.get("sub_solvers", [])
+            inner_converged = (
+                len(sub_solvers) == 2
+                and all(sub["reason"] > 0 and sub["pc_failed_reason"] == "0"
+                        for sub in sub_solvers)
+            )
             passed = (details["outer_converged_reason"] > 0
+                      and inner_converged
                       and delta < args.accept_error
                       and residual < args.accept_residual)
             item = {
@@ -203,6 +216,7 @@ def run(args):
                 "principal_dofs": int(
                     mpi.allreduce(len(local_z), op=MPI.SUM)),
                 "pass": bool(passed),
+                "all_nested_ksp_converged": bool(inner_converged),
                 "relative_state_error_vs_full_mumps": delta,
                 "true_relative_residual": residual,
                 "trial_seconds_max": trial_t,
@@ -266,8 +280,10 @@ def main():
     p.add_argument("--shift2", type=float, default=2000)
     p.add_argument("--rtol", type=float, default=1e-12)
     p.add_argument("--max-it", type=int, default=400)
+    p.add_argument("--inner-restart-cap", type=int, default=256,
+                   help="Cap for dimension-aware GMRES Schur restart; diagnostic only")
     p.add_argument("--schur-pre", choices=("self", "full", "selfp"), default="self",
-                   help="FULL explicit Schur reference (default), or failing SELFP control")
+                   help="SELF implicit Schur GMRES (default), FULL explicit, SELFP control")
     p.add_argument("--accept-error", type=float, default=5e-8)
     p.add_argument("--accept-residual", type=float, default=5e-8)
     p.add_argument("--output", type=Path, required=True)
