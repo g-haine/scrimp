@@ -83,6 +83,24 @@ class PhBlockLayoutTests(unittest.TestCase):
     def fields(self):
         return PH.discover_layout(self.model, **self.kwargs)
 
+    def test_native_audit_uses_user_owned_docker_workspace(self):
+        script = (
+            ROOT / "sandbox" / "run_ph_block_audit.sh"
+        ).read_text(encoding="utf-8")
+        self.assertIn(
+            'SCRIMP_DOCKER_WORKSPACE:-$HOME/Simulations/workspace',
+            script,
+        )
+        self.assertEqual(
+            script.count("--workdir /scrimp-work"), 2
+        )
+        self.assertEqual(
+            script.count('-v "$host_workspace:/scrimp-work"'), 2
+        )
+        self.assertIn('-e PYTHONPATH=/workspace/scrimp', script)
+        self.assertIn('model="${2:-wave}"', script)
+        self.assertIn('--model "$model"', script)
+
     def test_exact_global_coverage_and_noncontiguous_groups(self):
         fields = self.fields()
         self.assertEqual(
