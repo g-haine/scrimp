@@ -48,6 +48,11 @@ def trial(A, rhs, iz, il, rtol, max_it, schur_pre, inner_restart_cap):
     path2_report = None
     if schur_pre == "path2":
         path2, path2_report = build_path2_schur(A, iz, il)
+        if MPI.COMM_WORLD.rank == 0:
+            print(
+                f"PATH2 built: {json.dumps(path2_report, sort_keys=True)}",
+                flush=True,
+            )
         pc.setFieldSplitSchurPreType(
             PETSc.PC.FieldSplitSchurPreType.USER, path2
         )
