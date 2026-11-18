@@ -116,5 +116,5 @@ sudo docker run --rm \
     -v "$out:/artifacts" \
     scrimp-mpi:local python -u sandbox/analyze_v130_wave_benchmark.py \
         --directory /artifacts --repetitions "$repetitions" --ranks "$ranks_csv"
-echo "PASS: v1.3.0 wave benchmark, full-state checks and stage report"
+echo "DONE: current MPI full-state/factor gates verified; cross-release comparison status is in v130_wave_performance.md"
 echo "Reports: $out"
