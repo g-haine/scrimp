@@ -165,8 +165,8 @@ def probe(args):
             "treat it as the constitutive mass matrix Q"
         )
     diagonal = Q.getDiagonal()
-    with diagonal.getArray(readonly=True) as diag:
-        local_diag_min = float(np.min(diag)) if len(diag) else np.inf
+    diag = diagonal.getArray(readonly=True)
+    local_diag_min = float(np.min(diag)) if len(diag) else np.inf
     min_diag = float(mpi.allreduce(local_diag_min, op=MPI.MIN))
     diagonal.destroy()
     if min_diag <= 0:
@@ -262,12 +262,8 @@ def probe(args):
             reduced.getArray(readonly=True),
             full_x_result, mpi=mpi,
         )
-        algebraic_residual = _difference_rel(
-            full_e_residual,
-            np.zeros_like(full_e_residual), mpi=mpi,
-        )
-        # For homogeneous algebraic target this needs scaling by the
-        # forcing Cx; use a GLOBAL norm for an interpretable defect.
+        # For the homogeneous algebraic equation normalize the
+        # global residual by ||Cx||, not by zero.
         alg_local_sq = float(np.vdot(
             full_e_residual, full_e_residual
         ).real)
