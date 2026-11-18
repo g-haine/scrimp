@@ -91,6 +91,45 @@ class GetfemBridgeLocalizationTests(unittest.TestCase):
                 label, 2, petsc_2_scale * self.matrix
             )
 
+    def test_linear_feedback_jacobian_matches_analytic_tangent(self):
+        # U=0.5Y is assembled as a nonlinear *GetFEM* brick but
+        # is mathematically linear: -M_U U + 0.5 M_U Y = 0.
+        m = sp.csr_matrix([[2.0, 0.25], [0.25, 3.0]])
+        k = sp.lil_matrix((4, 4))
+        k[:2, :2] = -m
+        j = k.copy()
+        j[:2, 2:4] = 0.5 * m
+        fields = [
+            {"name": "U", "start": 0, "stop": 2, "ndofs": 2},
+            {"name": "Y", "start": 2, "stop": 4, "ndofs": 2},
+        ]
+        report = LOCALIZER.feedback_block_metrics(
+            k.tocsr(), j.tocsr(), fields
+        )
+        self.assertEqual(
+            report["feedback_full_J_UY_vs_minus_half_K_UU"][
+                "relative_fro_error"
+            ],
+            0.,
+        )
+        self.assertEqual(
+            report["control_full_J_UU_vs_linear_K_UU"][
+                "relative_fro_error"
+            ],
+            0.,
+        )
+        # Missing feedback must be detected, not mistaken for a
+        # correct constant MUMPS operator because the sparse
+        # control diagonal -M_U is still nonzero.
+        missing = LOCALIZER.feedback_block_metrics(
+            k.tocsr(), k.tocsr(), fields
+        )
+        self.assertGreater(
+            missing["feedback_full_J_UY_vs_minus_half_K_UU"][
+                "relative_fro_error"
+            ], 0.99
+        )
+
     def test_native_getfem_wrong_but_coo_preserves_sum(self):
         self.make_reports(raw_2_sum_scale=.5, petsc_2_scale=.5)
         data = LOCALIZER.analyze(self.folder)
