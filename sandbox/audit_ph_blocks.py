@@ -90,8 +90,16 @@ class _StopBeforeExampleSolve(Exception):
         self.system = system
 
 
-def _build_coenergy_wave(mesh):
-    """Build examples/wave_coenergy.py without its published long run."""
+def _build_coenergy_wave(mesh, *, volume_only_regions=False):
+    """Build the published coenergy example without its long run.
+
+    When requested, run a SANDBOX-ONLY experiment removing interface
+    region 10 from volume regions 1/2 AFTER building Concentric.
+    This leaves SCRIMP's production mesh generator, sources, FEMs,
+    integrator and MUMPS completely untouched. Diagnostic variant
+    may change DoF count and must NOT be substituted for the normal
+    reference without independent physical validation.
+    """
     source = (
         Path(__file__).resolve().parents[1]
         / "examples" / "wave_coenergy.py"
@@ -107,7 +115,49 @@ def _build_coenergy_wave(mesh):
         updated = dict(params)
         if kind == "Concentric":
             updated["h"] = mesh
-        return original_domain(kind, updated, *a, **kw)
+        domain = original_domain(kind, updated, *a, **kw)
+        if kind == "Concentric" and volume_only_regions:
+            native_mesh = domain.get_mesh()[0]
+
+            def region_counts(region_id):
+                entries = np.asarray(
+                    native_mesh.region(region_id),
+                    dtype=np.int64,
+                )
+                if entries.ndim != 2 or entries.shape[0] != 2:
+                    raise ValueError(
+                        "Unexpected GetFEM Mesh.region format for "
+                        f"region {region_id}: {entries.shape}"
+                    )
+                return {
+                    "entries": int(entries.shape[1]),
+                    "whole_convexes": int(np.count_nonzero(
+                        entries[1] == -1
+                    )),
+                    "convex_faces": int(np.count_nonzero(
+                        entries[1] >= 0
+                    )),
+                }
+
+            before = {str(k): region_counts(k) for k in (1, 2, 10)}
+            native_mesh.region_subtract(1, 10)
+            native_mesh.region_subtract(2, 10)
+            after = {str(k): region_counts(k) for k in (1, 2, 10)}
+            if before["10"] != after["10"]:
+                raise RuntimeError(
+                    "Diagnostic changed interface region 10 itself"
+                )
+            if all(before[str(k)] == after[str(k)] for k in (1, 2)):
+                raise RuntimeError(
+                    "Diagnostic region_subtract removed no interface "
+                    "entries from volume regions; test is inconclusive"
+                )
+            print(
+                "DIAGNOSTIC ONLY: excluded region 10 from volume "
+                f"regions 1/2; before={before} after={after}",
+                flush=True,
+            )
+        return domain
 
     def stop_before_solve(system):
         raise _StopBeforeExampleSolve(system)
@@ -133,9 +183,15 @@ def audit(args):
         raise ValueError("Native block audit requires distributed GetFEM")
     if os.environ.get("SCRIMP_GETFEM_BRIDGE_DISTRIBUTED") != "coo":
         raise ValueError("Native block audit requires PETSc COO bridge")
+    if args.volume_only_regions and args.model != "wave_coenergy":
+        raise ValueError(
+            "--volume-only-regions only supports wave_coenergy"
+        )
 
     system = (
-        _build_coenergy_wave(args.mesh)
+        _build_coenergy_wave(
+            args.mesh, volume_only_regions=args.volume_only_regions
+        )
         if args.model == "wave_coenergy"
         else _build_wave(args.mesh)
     )
@@ -325,6 +381,9 @@ def audit(args):
             ),
             "mesh_sha256": mesh_digest,
             "mesh_file_size_bytes": mesh_size,
+            "volume_only_regions_diagnostic": bool(
+                args.volume_only_regions
+            ),
             "formulation": formulation,
             "capture_matrices": bool(args.capture_matrices),
             "getfem_module_path": str(gf.__file__),
@@ -413,6 +472,14 @@ def main():
         help="Original full wave DAE or substituted-coenergy wave",
     )
     parser.add_argument("--mesh", type=float, default=0.08)
+    parser.add_argument(
+        "--volume-only-regions", action="store_true",
+        help=(
+            "SANDBOX-ONLY for Concentric: remove interface 10 from "
+            "volume regions 1 and 2 after loading the mesh; "
+            "does not change SCRIMP's production mesh.py"
+        ),
+    )
     parser.add_argument("--dt", type=float, default=0.002)
     parser.add_argument("--steps", type=int, default=2)
     parser.add_argument("--output", type=Path, required=True)
