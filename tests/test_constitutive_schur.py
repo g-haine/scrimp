@@ -80,18 +80,33 @@ class ConstitutiveSchurTests(unittest.TestCase):
                 json.dumps(doc), encoding="utf-8"
             )
 
-    def test_docker_mounts_scrimp_writable_default_outputs(self):
-        # SCRIMP's import-time config.set_paths() creates
-        # outputs/{log,png,mesh,pv} below the container workdir.
-        # A /artifacts-only mount is not sufficient as the source
-        # package/example/sandbox mounts are intentionally readonly.
+    def test_docker_runs_in_user_owned_host_workspace(self):
+        # SCRIMP creates output directories relative to cwd when
+        # its package is imported. Docker's source tree is readonly.
+        # Running with a user-owned host mount avoids implicit
+        # writes to /workspace/scrimp, an image-owned directory.
         runner = (
             ROOT / "sandbox" / "run_constitutive_mumps_schur.sh"
         ).read_text(encoding="utf-8")
         self.assertIn(
+            'SCRIMP_DOCKER_WORKSPACE:-$HOME/Simulations/workspace',
+            runner,
+        )
+        self.assertEqual(
+            runner.count('--workdir /scrimp-work'), 2
+        )
+        self.assertEqual(
+            runner.count('-v "$host_workspace:/scrimp-work"'), 2
+        )
+        self.assertIn('-e PYTHONPATH=/workspace/scrimp', runner)
+        self.assertIn('-v "$out:/artifacts"', runner)
+        self.assertIn(
+            "python -u /workspace/scrimp/sandbox/probe_constitutive_mumps_schur.py",
+            runner,
+        )
+        self.assertNotIn(
             '-v "$out:/workspace/scrimp/outputs"', runner
         )
-        self.assertIn('-v "$out:/artifacts"', runner)
 
     def test_block_schur_sign_and_uncondensed_residual(self):
         # Two *different* physical TS shifts. Original equations
