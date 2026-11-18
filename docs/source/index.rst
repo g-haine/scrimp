@@ -111,6 +111,7 @@ User's guide
     
     install
     started
+    performance
     examples
     lumped
     notebooks
