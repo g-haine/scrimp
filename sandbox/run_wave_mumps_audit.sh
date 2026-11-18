@@ -11,8 +11,12 @@ repeat="${4:-4}"
 if [[ ! "$mesh" =~ ^0\.[0-9]+$ ||
       ! "$ranks_csv" =~ ^[1-9][0-9]*(,[1-9][0-9]*)*$ ||
       ! "$orderings_csv" =~ ^(default|sequential|parallel)(,(default|sequential|parallel))*$ ||
-      ! "$repeat" =~ ^[2-9][0-9]*$|^[2-9]$ || "$repeat" -gt 12 ]]; then
+      ! "$repeat" =~ ^[0-9]+$ ]]; then
     echo "Usage: bash sandbox/run_wave_mumps_audit.sh [h=0.025] [ranks=1,2,4,6] [orderings=default,sequential,parallel] [repeat=4]" >&2
+    exit 2
+fi
+if (( repeat < 2 || repeat > 12 )); then
+    echo "repeat must be 2..12" >&2
     exit 2
 fi
 cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 1
