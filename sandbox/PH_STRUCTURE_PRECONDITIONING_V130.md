@@ -704,7 +704,7 @@ The scripts
 5-step CN test with full-system MUMPS unchanged.
 They compare complete saved vectors `q,p,e_r,U,Y` and
 two independent Hamiltonian calculations:
-`H=.5*z^T*M*z` and GetFEM's original
+`H=-.5*z^T*M*z` and GetFEM's original
 `0.5*q.Tinv.q+0.5*p*p*rho` volume integrals.
 
 They also check the exact implicit midpoint residual,
@@ -712,14 +712,21 @@ all algebraic rows, and the discrete energy balance
 including **both** dissipative ports:
 
 ```text
-P_r = e_r^T K[e_r,e_r] e_r
-P_boundary = U^T (-K[U,U]) Y
+P_r = -e_r^T K[e_r,e_r] e_r
+P_boundary = -U^T K[U,U] Y
 H_(n+1) - H_n + dt*(P_r(mid) + P_boundary(mid)) = 0
 ```
 
 This follows the sign convention of the actual assembled
-weak form, with `K=system.tangent_stiffness` including
-the feedback tangent. Because `e_r` is substituted,
+weak form: SCRIMP's `position="flow"` mass and damping
+bricks enter the residual with **negative** signs,
+so `M` is negative on the acoustic dynamic subspace
+and `K[e_r,e_r]` is negative on the dissipative effort
+subspace. In contrast, `-M` and `-K[e_r,e_r]`
+give positive physical energy and dissipation.
+Using the naive `+.5*z^T M z` would misrepresent the
+Hamiltonian as negative. `K=system.tangent_stiffness`
+includes the feedback tangent. Because `e_r` is substituted,
 SCRIMP's generic `compute_powers()` does not automatically
 account for its dissipative power. The diagnostic explicitly
 includes it instead of assuming `plot_Hamiltonian` alone
