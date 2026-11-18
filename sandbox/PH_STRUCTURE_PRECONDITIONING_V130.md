@@ -489,6 +489,61 @@ and others remain independent. Such cases are
 classified distinctly; no unverified Schur solver
 is enabled automatically.
 
+### First native co-energy MPI result — INCOMPLETE parity (18 Nov 2026)
+
+User's h=0.12 `wave_coenergy` run at commit `8f498e0b`:
+
+- 1 rank and 2 ranks each converge after two CN steps, with
+  5,790 DoFs and the same five registered fields:
+  `U` 108, `Y` 108, `e_r` 735, `p` 1,251,
+  `q` 3,588. The substituted `e_q/e_p` have no DoFs.
+- Both runs report the same **counts** of nonzero
+  stiffness couplings between those physical roles.
+- The *independent block norm comparison FAILED*:
+  `flow_mass_F_and_algebraic_zero_rows/block_frobenius_norm`
+  differed by up to **2.64246**, so physical MPI matrix
+  parity has NOT been established and the prototype
+  must not be enabled.
+- Counting nonzero entries does **not** prove identical
+  coefficients. This result does not establish whether the
+  source is mesh geometry, GetFEM assembly, the COO bridge,
+  or our CSR block attribution.
+- The `logic_error exception caught` messages (two
+  per rank) were consistent with querying GetFEM for
+  the deliberately substituted co-states; the diagnostic
+  now skips those known-absent interval lookups.
+- The `Concentric` Gmsh mesh was *regenerated for each*
+  1-/2-rank run; the old JSON did not record file
+  identity. The audit now records SHA-256 of its original
+  `Concentric.msh` in each rank report, and compares it
+  before assessing matrix block norms.
+- The next audit cross-checks native PETSc
+  `Mat.norm()` with the norms derived from owned
+  PETSc CSR rows. This distinguishes a matrix-wide
+  difference from a possible indexing/block-read error.
+
+**No expensive rerun is required as the next step.**
+First inspect existing reports with the standard-library
+offline tool:
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+python3 sandbox/diagnose_ph_block_parity.py \
+  sandbox/outputs/ph-block-audit-wave_coenergy-h0p12-8f498e0b-vHjj3O
+```
+
+It writes `ph_block_discrepancy.json` in that directory
+and prints sorted per-variable norm differences. If the
+problem is localized to `q<-q` or `p<-p`, check the
+corresponding physical mass brick and mesh; if all
+blocks scale together, investigate MPI duplication or
+data transfer. These are hypotheses, not established
+causes. After the original JSONs have been examined,
+rerun the short native audit once to obtain mesh
+fingerprints, and if needed do an exact sparse
+entrywise matrix comparison.
+
 ### Code and native diagnostic
 
 `scrimp/utils/ph_block_layout.py` now exposes
