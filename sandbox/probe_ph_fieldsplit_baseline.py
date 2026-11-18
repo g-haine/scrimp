@@ -50,7 +50,7 @@ def solve_reference(A, rhs):
     return result, elapsed
 
 
-def block_trial(A, rhs, is_e, is_x, rtol, max_it, x_pc, e_pc):
+def block_trial(A, rhs, is_e, is_x, rtol, max_it, x_pc, e_pc, schur_pc):
     ksp = PETSc.KSP().create(comm=PETSc.COMM_WORLD)
     ksp.setOptionsPrefix("ph_trial_")
     ksp.setType("fgmres")
@@ -91,9 +91,20 @@ def block_trial(A, rhs, is_e, is_x, rtol, max_it, x_pc, e_pc):
             "ph_trial_fieldsplit_x_sub_ksp_type": "preonly",
             "ph_trial_fieldsplit_x_sub_pc_type": "ilu",
         })
-    elif x_pc in ("lu", "schur-selfp"):
+    elif x_pc == "lu":
         settings["ph_trial_fieldsplit_x_pc_type"] = "lu"
         settings["ph_trial_fieldsplit_x_pc_factor_mat_solver_type"] = "mumps"
+    elif x_pc == "schur-selfp":
+        settings["ph_trial_fieldsplit_x_pc_type"] = schur_pc
+        if schur_pc == "lu":
+            settings["ph_trial_fieldsplit_x_pc_factor_mat_solver_type"] = "mumps"
+        elif schur_pc == "bjacobi":
+            settings.update({
+                "ph_trial_fieldsplit_x_sub_ksp_type": "preonly",
+                "ph_trial_fieldsplit_x_sub_pc_type": "ilu",
+            })
+        else:
+            raise ValueError("Unsupported Schur approximation PC")
     else:
         raise ValueError("Unsupported complement block preconditioner")
     try:
@@ -218,7 +229,7 @@ def run(args):
         ref, ref_seconds = solve_reference(A, rhs)
         ref_residual = relative_residual(A, rhs, ref)
         trial, trial_seconds, reason, its, diagnostics = block_trial(
-            A, rhs, is_e, is_x, args.rtol, args.max_it, args.x_pc, args.e_pc
+            A, rhs, is_e, is_x, args.rtol, args.max_it, args.x_pc, args.e_pc, args.schur_pc
         )
         trial_residual = relative_residual(A, rhs, trial)
         difference = trial.copy()
@@ -233,6 +244,7 @@ def run(args):
             "fgmres_reason": reason, "fgmres_iterations": its,
             "complement_pc": args.x_pc,
             "coenergy_pc": args.e_pc,
+            "schur_approx_pc": args.schur_pc,
             "diagnostics": diagnostics,
             "coenergy_diagonal": block_diagonal_diagnostics(A, is_e, mpi),
             "complement_diagonal": block_diagonal_diagnostics(A, is_x, mpi),
@@ -266,6 +278,7 @@ def run(args):
         "solver": (f"FGMRES/PCFIELDSPLIT ({'schur full, SELF-P' if args.x_pc == 'schur-selfp' else 'multiplicative'}); e: {args.e_pc}; x: {args.x_pc}"),
         "reference": "full PETSc MUMPS on identical A(sigma) and RHS",
         "requested_fgmres_rtol": args.rtol,
+        "schur_approx_pc": args.schur_pc,
         "accept_residual": args.accept_residual,
         "accept_error": args.accept_error,
         "trials": results,
@@ -296,6 +309,8 @@ def main():
     p.add_argument("--shift2", type=float, default=2000)
     p.add_argument("--rtol", type=float, default=1e-12)
     p.add_argument("--max-it", type=int, default=400)
+    p.add_argument("--schur-pc", choices=("lu", "bjacobi"), default="lu",
+                   help="PC for SELF-P Schur approximation: MUMPS LU or local BJACOBI/ILU")
     p.add_argument("--e-pc", choices=("lu", "bjacobi"), default="lu",
                    help="Coenergy block PC: MUMPS LU or BJACOBI/ILU")
     p.add_argument("--x-pc", choices=("bjacobi", "lu", "schur-selfp"), default="bjacobi",
