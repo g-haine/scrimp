@@ -29,6 +29,16 @@ if [[ $# -gt 2 || ! "$mesh" =~ ^0\.[0-9]+$ ||
 fi
 cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 1
 root="$PWD"
+# SCRIMP creates auxiliary outputs under the Python cwd at import.
+# Use the host user's own workspace as container cwd, not the
+# image-owned source tree. Sources stay mounted read-only.
+host_workspace="${SCRIMP_DOCKER_WORKSPACE:-$HOME/Simulations/workspace}"
+mkdir -p "$host_workspace"
+host_workspace="$(realpath "$host_workspace")"
+if [[ ! -d "$host_workspace" || ! -w "$host_workspace" ]]; then
+    echo "Docker host work directory is not writable: $host_workspace" >&2
+    exit 2
+fi
 sha="$(git rev-parse --short=8 HEAD)"
 mkdir -p sandbox/outputs
 out="$(mktemp -d "$root/sandbox/outputs/ph-block-audit-${model}-h${mesh//./p}-$sha-XXXXXX")"
@@ -40,6 +50,7 @@ if [[ ! "$timeout_s" =~ ^[0-9]+$ ]] ||
 fi
 echo "SCRIMP pH-DAE field-block audit | source $sha | model=$model | mesh h=$mesh"
 echo "2 accepted CN steps, 1 and 2 MPI ranks, reference MUMPS unchanged"
+echo "User-owned host workdir: $host_workspace (container: /scrimp-work)"
 echo "Output: $out"
 sudo -v
 for ranks in 1 2; do
@@ -48,7 +59,9 @@ for ranks in 1 2; do
     echo "RUN rank=$ranks, cpus=$cpus"
     sudo docker run --rm \
         --user "$(id -u):$(id -g)" \
+        --workdir /scrimp-work \
         -e HOME=/tmp -e MPLBACKEND=Agg \
+        -e PYTHONPATH=/workspace/scrimp \
         -e OPENBLAS_NUM_THREADS=1 -e OMP_NUM_THREADS=1 \
         -e SCRIMP_GETFEM_MATRIX_MODE=distributed \
         -e SCRIMP_GETFEM_BRIDGE_DISTRIBUTED=coo \
@@ -59,12 +72,12 @@ for ranks in 1 2; do
         -v "$root/scrimp:/workspace/scrimp/scrimp:ro" \
         -v "$root/sandbox:/workspace/scrimp/sandbox:ro" \
         -v "$root/examples:/workspace/scrimp/examples:ro" \
-        -v "$out:/workspace/scrimp/outputs" \
+        -v "$host_workspace:/scrimp-work" \
         -v "$out:/artifacts" \
         scrimp-mpi:local \
         timeout -k 5s "${timeout_s}s" \
         mpiexec --bind-to none -n "$ranks" \
-        python -u sandbox/audit_ph_blocks.py \
+        python -u /workspace/scrimp/sandbox/audit_ph_blocks.py \
             --model "$model" --mesh "$mesh" --dt 0.002 --steps 2 \
             --output "/artifacts/blocks_${ranks}r.json" \
         > "$out/blocks_${ranks}r.log" 2>&1 || {
@@ -77,12 +90,14 @@ done
 echo "CHECK: all field/block coefficients identical between 1 and 2 ranks"
 sudo docker run --rm \
     --user "$(id -u):$(id -g)" \
+    --workdir /scrimp-work \
     -e HOME=/tmp -e MPLBACKEND=Agg \
     --cpuset-cpus="0,2" \
     -v "$root/sandbox:/workspace/scrimp/sandbox:ro" \
+    -v "$host_workspace:/scrimp-work" \
     -v "$out:/artifacts" \
     scrimp-mpi:local \
-    python -u sandbox/compare_ph_block_audits.py \
+    python -u /workspace/scrimp/sandbox/compare_ph_block_audits.py \
         --directory /artifacts
 echo "PASS: actual GetFEM/PETSc pH blocks classified consistently on 1/2 MPI ranks."
 echo "JSON: $out/blocks_{1r,2r}.json"
