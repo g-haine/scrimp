@@ -237,7 +237,9 @@ def run(args):
                     f"candidate={candidate}: its={details['iterations']} "
                     f"reason={details['outer_converged_reason']} "
                     f"residual={residual:.3e} diff={delta:.3e} "
-                    f"trial={trial_t:.3g}s ref={ref_t:.3g}s",
+                    f"trial={trial_t:.3g}s ref={ref_t:.3g}s "
+                    f"inner_restart={details['inner_gmres_restart_configured']} "
+                    f"inner_reasons={[v['reason'] for v in sub_solvers]}",
                     flush=True,
                 )
             for obj in (iz, il, truth, rhs, ref, computed, error):
