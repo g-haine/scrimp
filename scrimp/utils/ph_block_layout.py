@@ -48,6 +48,20 @@ def discover_layout(model, *, states, costates, ports, controls):
             )
         roles[name] = role
 
+    # Substituted co-states remain part of the *physical model* but
+    # are NOT independent GetFEM variables. In wave_coenergy.py,
+    # e_q and e_p are substituted into the dynamic mass blocks.
+    # Do not infer a fake -Q_c block from their names.
+    substituted = {
+        name for name, obj in costates.items()
+        if getattr(obj, "get_substituted", lambda: False)()
+    }
+    for port in ports.values():
+        if getattr(port, "get_substituted", lambda: False)():
+            effort = port.get_effort()
+            if effort != port.get_flow():
+                substituted.add(effort)
+
     for state in states:
         register(state, "dynamic")
     for costate in costates:
@@ -67,11 +81,22 @@ def discover_layout(model, *, states, costates, ports, controls):
     for name, group in roles.items():
         try:
             start, count = model.interval_of_variable(name)
-        except (KeyError, RuntimeError, ValueError):
-            # E.g. substituted co-energy variable: it is not a DoF.
-            # The exhaustive model-DoF coverage check below still
-            # rejects genuinely missing registered variables.
-            continue
+        except (KeyError, RuntimeError, ValueError) as exc:
+            # A genuinely substituted effort has no independent
+            # GetFEM variable. Missing ANY non-substituted unknown
+            # is an error, even if the remaining fields cover
+            # a seemingly valid contiguous subset of the vector.
+            if name in substituted:
+                continue
+            raise ValueError(
+                f"Declared non-substituted variable {name!r} is "
+                "missing from the GetFEM unknown vector"
+            ) from exc
+        if name in substituted:
+            raise ValueError(
+                f"Substituted effort {name!r} unexpectedly exists as "
+                "an independent GetFEM unknown"
+            )
         start, count = int(start), int(count)
         if start < 0 or count <= 0:
             raise ValueError(f"Invalid GetFEM range for {name}: {start}+{count}")
@@ -97,10 +122,70 @@ def discover_layout(model, *, states, costates, ports, controls):
             "A missing flow, coenergy or port constraint must be "
             "classified before attempting block preconditioning."
         )
-    for required in ("dynamic", "coenergy"):
-        if not any(f["group"] == required for f in fields):
-            raise ValueError(f"Missing pH {required} variable block")
+    if not any(f["group"] == "dynamic" for f in fields):
+        raise ValueError("Missing pH dynamic variable block")
+    # No coenergy DoFs is entirely valid when all co-states are
+    # substituted, e.g. the co-energy wave formulation.
+    if (not any(f["group"] == "coenergy" for f in fields)
+            and any(name not in substituted for name in costates)):
+        raise ValueError(
+            "Non-substituted co-states declared, but no independent "
+            "coenergy DoFs were found"
+        )
     return fields
+
+
+def classify_ph_formulation(fields, *, costates):
+    """Determine which candidate block strategy is structurally legal.
+
+    Only a classification: NOT an authorization to enable any new
+    linear solver. In particular, a substituted co-energy model
+    has no independent constitutive -Q_c block, and an explicit-
+    constitutive Schur solver must NEVER be attempted on it.
+    """
+    independent = {
+        f["name"] for f in fields if f["group"] == "coenergy"
+    }
+    all_costates = set(costates)
+    substituted = {
+        name for name, costate in costates.items()
+        if getattr(costate, "get_substituted", lambda: False)()
+    }
+    if not all_costates:
+        return {
+            "formulation": "other_or_no_costates",
+            "solver_candidate": "global_mumps_reference",
+            "reason": "No registered co-states: inspect full DAE manually",
+        }
+    if independent and not substituted:
+        if independent != all_costates:
+            raise ValueError(
+                "Explicit constitutive partition omits some co-states"
+            )
+        return {
+            "formulation": "implicit_constitutive",
+            "solver_candidate": "coenergy_schur_mumps",
+            "reason": "All coenergies exist as independent GetFEM unknowns",
+        }
+    if not independent and substituted == all_costates:
+        return {
+            "formulation": "substituted_coenergy",
+            "solver_candidate": "mass_dirac_port_block",
+            "reason": (
+                "Constitutive laws are substituted into dynamic "
+                "mass/stiffness; no independent -Q_c block exists"
+            ),
+        }
+    if independent == all_costates - substituted:
+        return {
+            "formulation": "partially_substituted",
+            "solver_candidate": "mixed_block_decomposition",
+            "reason": (
+                "Some constitutive relations are explicit and "
+                "some already substituted; generic block audit needed"
+            ),
+        }
+    raise ValueError("Registered co-state GetFEM blocks are inconsistent")
 
 
 def owned_group_ranges(fields, lo, hi):
