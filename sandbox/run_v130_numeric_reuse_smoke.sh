@@ -79,7 +79,7 @@ import json, sys
 from pathlib import Path
 import numpy as np
 sys.path.insert(0, "/workspace/scrimp/sandbox")
-from analyze_v130_wave_benchmark import _petsc_events, _state_distance
+from analyze_v130_wave_benchmark import _petsc_events, _state_distance, publish_smoke_figures
 root = Path("/artifacts")
 ref = None
 for n in [int(x) for x in sys.argv[1].split(",")]:
@@ -104,5 +104,8 @@ for n in [int(x) for x in sys.argv[1].split(",")]:
           f"MatSolve={native['main.MatSolve']['calls']}, "
           f"solve={data['wall_solve_s']:.5f}s")
 print("PASS production on_change exact numeric reuse and complete MPI state parity")
+plots = publish_smoke_figures(root, [int(x) for x in sys.argv[1].split(",")])
+print("PNG figures:", ", ".join("png/" + name + ".png" for name in plots))
 PY
+echo "Human-readable figures: $out/png (SVG: $out/svg)"
 echo "Reports: $out"
