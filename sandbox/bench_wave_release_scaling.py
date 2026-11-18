@@ -77,6 +77,12 @@ def main():
     parser.add_argument("--petsc-log", action="store_true",
                         help="Current revision: native PETSc staged log")
     parser.add_argument(
+        "--probe-pseudo-state-sync", action="store_true",
+        help="DIAGNOSTIC CURRENT ONLY: after each pseudo-TS monitor, copy "
+             "accepted PETSc state back to GetFEM, as the legacy "
+             "nonlinear-flag monitor did. Not a production setting.",
+    )
+    parser.add_argument(
         "--factor-events-per-step", action="store_true",
         help="Diagnostic only: report cumulative native MatLUFactorNum "
              "event count after each accepted CN step",
@@ -86,6 +92,7 @@ def main():
     rank, ranks = mpi.Get_rank(), mpi.Get_size()
     if args.variant == "release_120" and (
         args.profile or args.petsc_log or args.factor_events_per_step
+        or args.probe_pseudo_state_sync
     ):
         parser.error("legacy release v1.2.0 uses only neutral per-step timings")
     if args.factor_events_per_step and not args.petsc_log:
@@ -147,6 +154,14 @@ def main():
                     "rejected": None, "snes_failures": None,
                     "last_callback_time": None, "main_mumps_icntl28": None}
     original_monitor = system.monitor
+    initial_sync_probe = {
+        "enabled": args.probe_pseudo_state_sync,
+        "legacy_source_flags": [
+            name for name, brick in system.bricks.items()
+            if brick.get_position() == "source" and not brick.get_linear()
+        ],
+        "accepted_step_events": [],
+    }
     # Each rank records intervals locally. The previous monitor exit
     # and the next monitor entry bracket only PETSc step work, not
     # archival, output or the user's monitor callback itself.
@@ -210,7 +225,62 @@ def main():
                 if abs(float(t) - args.final_time) <= 1e-10:
                     observations["final"] = local
         try:
-            return original_monitor(TS, i, t, z, *a, **kw)
+            result = original_monitor(TS, i, t, z, *a, **kw)
+            if args.probe_pseudo_state_sync and kw.get("initial_step", False):
+                # Original DPHS.monitor has just scattered the accepted
+                # TS state into GlobalVec. In the v1.2.0 wave case
+                # all prescribed source bricks were called nonlinear,
+                # so this model->variables update happened indirectly.
+                # Current SCRIMP correctly calls them RHS-only and
+                # leaves linear_stiffness=True; this probe replays only
+                # that single *side effect*, without changing flags,
+                # factors, bricks, mass, or stiffness.
+                global_vector = np.asarray(
+                    system.GlobalVec.getArray(readonly=True).real,
+                    dtype=np.float64,
+                ).copy()
+                old_values = np.asarray(
+                    system.gf_model.from_variables().real,
+                    dtype=np.float64,
+                ).copy()
+                if old_values.shape != global_vector.shape:
+                    raise RuntimeError("GetFEM/PETSc pseudo-TS vectors differ in dimension")
+                per_variable = {}
+                for name in ("q", "p", "e_q", "e_p"):
+                    st, wd = system.gf_model.interval_of_variable(name)
+                    st, wd = int(st), int(wd)
+                    per_variable[name] = {
+                        "range": [st, st + wd],
+                        "getfem_before_norm": float(
+                            np.linalg.norm(old_values[st:st+wd])
+                        ),
+                        "petsc_accepted_norm": float(
+                            np.linalg.norm(global_vector[st:st+wd])
+                        ),
+                        "delta_norm": float(
+                            np.linalg.norm(
+                                old_values[st:st+wd] -
+                                global_vector[st:st+wd]
+                            )
+                        ),
+                    }
+                system.gf_model.to_variables(global_vector)
+                initial_sync_probe["accepted_step_events"].append({
+                    "step": int(i), "t": float(t),
+                    "variables": per_variable,
+                })
+                if rank == 0:
+                    print(
+                        "WAVE-PSEUDO-SYNC "
+                        f"step={i} t={t:.12g} "
+                        + " ".join(
+                            f"{name}={per_variable[name]['getfem_before_norm']:.6g}"
+                            f"->{per_variable[name]['petsc_accepted_norm']:.6g}"
+                            for name in ("q", "p", "e_q", "e_p")
+                        ),
+                        flush=True,
+                    )
+            return result
         finally:
             if is_main:
                 end_ns = time.perf_counter_ns()
@@ -422,6 +492,9 @@ def main():
             "mumps_reuse_stats": (
                 reuse_stats_by_rank[0]
                 if args.variant == "current" else None
+            ),
+            "initial_sync_probe": (
+                initial_sync_probe if args.variant == "current" else None
             ),
             "wall_build_s": float(build_wall),
             "wall_solve_s": float(solve_wall),
