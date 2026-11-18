@@ -172,20 +172,23 @@ def main():
     # second PETSc TS monitor: preserve all physics/output bookkeeping.
     # The pseudo-initialization monitor is explicitly excluded.
     observed = []
+    initial_observed = []
     original_monitor = system.monitor
 
     def audit_monitor(ts, step, t, state, *call_args, **call_kwargs):
         # Always run SCRIMP's original monitor, including any saved states.
         value = original_monitor(ts, step, t, state, *call_args, **call_kwargs)
-        if call_kwargs.get("initial_step", False) or step < 1:
+        if step < 1:
             return value
+        target = (initial_observed if call_kwargs.get("initial_step", False)
+                  else observed)
         try:
             pc = ts.getSNES().getKSP().getPC()
             if pc.getType() != "lu" or pc.getFactorSolverType() != "mumps":
-                observed.append({"step": int(step), "error": "not LU/MUMPS"})
+                target.append({"step": int(step), "error": "not LU/MUMPS"})
                 return value
             factor = pc.getFactorMatrix()
-            observed.append({
+            target.append({
                 "step": int(step),
                 "icntl28": int(factor.getMumpsIcntl(28)),
                 "icntl29": int(factor.getMumpsIcntl(29)),
@@ -193,7 +196,7 @@ def main():
                 "ksp_prefix": ts.getSNES().getKSP().getOptionsPrefix(),
             })
         except (PETSc.Error, RuntimeError, AttributeError) as exc:
-            observed.append({"step": int(step), "error": repr(exc)})
+            target.append({"step": int(step), "error": repr(exc)})
         return value
 
     system.monitor = audit_monitor
@@ -237,6 +240,7 @@ def main():
         "mumps_icntl28_verified": bool(all_checked),
         "mumps_icntl28_effective": expected28,
         "mumps_main_ts_factor_observations_rank0": observed,
+        "mumps_initial_ts_factor_observations_rank0": initial_observed,
         **({"series": args.series} if args.series else {}),
         "mpi_size": p,
         "bridge_method": bridge_method,
@@ -271,6 +275,8 @@ def main():
     if rank == 0:
         print(f"MAIN-TS-MUMPS ordering={args.ordering} effective_ICNTL28={expected28} "
               f"steps_checked={len(observed)} solve={solve_wall:.6g}s", flush=True)
+        print(f"INITIAL-TS-MUMPS ordering={args.ordering} observations={initial_observed}",
+              flush=True)
         text = json.dumps(report, indent=2)
         print(text, flush=True)
         if args.output is not None:
