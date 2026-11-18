@@ -76,6 +76,7 @@ def run_method(H, method, *, repeat, rtol, max_it, tol):
         opts["h_scaling_sub_pc_type"] = "ilu"
     try:
         ksp.setOperators(H)
+        ksp.setFromOptions()
         start = perf_counter()
         ksp.setUp()
         report["setup_seconds_max"] = max_seconds(start, comm)
@@ -120,7 +121,7 @@ def run_method(H, method, *, repeat, rtol, max_it, tol):
                     "pass": bool(passed), "exception": error_message,
                 })
                 # Avoid repeated failures with an unusable local PC.
-                if error_message is not None or reason < 0:
+                if error_message is not None or reason <= 0:
                     break
             finally:
                 truth.destroy()
