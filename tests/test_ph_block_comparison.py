@@ -106,6 +106,57 @@ class PhBlockComparisonTests(unittest.TestCase):
             (self.directory/"ph_block_parity.json").is_file()
         )
 
+    def test_substituted_coenergy_model_without_e_unknowns_passes(self):
+        # The coenergy formulation has independent q,p and port
+        # variables but NO e_q/e_p GetFEM unknowns. A nonzero
+        # physical feedback 0.5*Y is registered as a nonlinear
+        # GetFEM tangent, so linear_stiffness=False is expected.
+        for p in (1, 2):
+            data = self.records[p]
+            data["physical_model"] = (
+                "examples/wave_coenergy.py:wave_coenergy_eq"
+            )
+            data["linear_stiffness"] = False
+            data["formulation"] = {
+                "formulation": "substituted_coenergy",
+                "solver_candidate": "mass_dirac_port_block",
+            }
+            data["fields"] = [
+                {"name": "q", "group": "dynamic",
+                 "start": 0, "stop": 2, "ndofs": 2},
+                {"name": "e_r", "group": "algebraic",
+                 "start": 2, "stop": 4, "ndofs": 2},
+                {"name": "U", "group": "boundary",
+                 "start": 4, "stop": 6, "ndofs": 2},
+            ]
+            for matrix in data["assembled_matrices"].values():
+                matrix["variable_order"] = ["q", "e_r", "U"]
+            stiffness = data["assembled_matrices"][
+                "linear_stiffness_all_bricks"
+            ]
+            stiffness["role_frobenius_norm"] = [
+                [3., 0., 2., 1.],
+                [0., 0., 0., 0.],
+                [2., 0., 0., 0.],
+                [1., 0., 0., 1.],
+            ]
+        self.flush()
+        report = COMPARE.compare(self.directory)
+        self.assertEqual(
+            report["formulation"]["formulation"],
+            "substituted_coenergy",
+        )
+
+    def test_substituted_coenergy_with_fictitious_e_block_fails(self):
+        self.test_substituted_coenergy_model_without_e_unknowns_passes()
+        for p in (1, 2):
+            self.records[p]["fields"][0]["group"] = "coenergy"
+        self.flush()
+        with self.assertRaisesRegex(
+            ValueError, "contains coenergy DoFs"
+        ):
+            COMPARE.compare(self.directory)
+
     def test_wrong_fem_interval_rejected(self):
         self.records[2]["fields"][1]["start"] = 3
         self.flush()
