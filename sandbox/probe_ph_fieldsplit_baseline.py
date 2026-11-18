@@ -256,11 +256,15 @@ def run(args):
         "formulation": classification["formulation"],
         "solver": (f"FGMRES/PCFIELDSPLIT ({'schur full, SELF-P' if args.x_pc == 'schur-selfp' else 'multiplicative'}); e: MUMPS; x: {args.x_pc}"),
         "reference": "full PETSc MUMPS on identical A(sigma) and RHS",
+        "requested_fgmres_rtol": args.rtol,
+        "accept_residual": args.accept_residual,
+        "accept_error": args.accept_error,
         "trials": results,
         "all_converged": all(x["converged"] for x in results),
         "limitations": [
             "Algebraic manufactured linear-solve comparison, not adaptive TS",
-            "Rank-local ILU on the boundary saddle block is an exploratory baseline",
+            "Triangular BJACOBI/ILU and LU-on-G are diagnostic baselines only",
+            "Schur SELF-P uses MUMPS for both constitutive and approximate Schur factors",
             "Timings include PC setup; no scaling or memory claims",
             "No Schur approximation/AMG configured; no production solver modified",
         ],
@@ -281,7 +285,7 @@ def main():
     p.add_argument("--dt", type=float, default=.002)
     p.add_argument("--shift1", type=float, default=1000)
     p.add_argument("--shift2", type=float, default=2000)
-    p.add_argument("--rtol", type=float, default=1e-10)
+    p.add_argument("--rtol", type=float, default=1e-12)
     p.add_argument("--max-it", type=int, default=400)
     p.add_argument("--x-pc", choices=("bjacobi", "lu", "schur-selfp"), default="bjacobi",
                    help="Complement PC: BJACOBI/ILU, LU on G, or Schur SELF-P + LU")
