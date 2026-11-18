@@ -26,6 +26,8 @@ from scrimp.dphs import (
     _get_mumps_reset_policy,
     _local_stored_csr_pattern,
     _local_csr_pattern_changed,
+    _local_stored_csr_snapshot,
+    _local_csr_change_flags,
 )
 
 
@@ -199,7 +201,7 @@ def policy_checks():
             os.environ.pop(key, None)
         assert _get_mumps_reset_policy() == "on_change"
         assert _get_mumps_reset_policy(all_bricks_linear=False) == "on_change"
-        assert _get_mumps_reset_policy(all_bricks_linear=True) == "never"
+        assert _get_mumps_reset_policy(all_bricks_linear=True) == "on_change"
         os.environ["SCRIMP_MUMPS_RESET_PC_ON_JACOBIAN"] = "1"
         assert _get_mumps_reset_policy() == "always"
         assert _get_mumps_reset_policy(all_bricks_linear=True) == "always"
@@ -234,6 +236,40 @@ def policy_checks():
                 os.environ.pop(key, None)
             else:
                 os.environ[key] = value
+
+
+def numeric_reuse_checks():
+    # The snapshot includes the PETSc-owned rows, stored CSR graph,
+    # and numeric values. On-change factor reuse must be exact, rank
+    # local first, then merged collectively at runtime.
+    mat = Matrix([0, 2, 4], [0, 1, 0, 1], values=[2., 1., -1., 3.])
+    first = _local_stored_csr_snapshot(mat)
+    assert _local_csr_change_flags(None, first) == 3
+    assert _local_csr_change_flags(first, _local_stored_csr_snapshot(mat)) == 0
+    mat.values[1] = 1.5
+    numeric = _local_stored_csr_snapshot(mat)
+    assert _local_csr_change_flags(first, numeric) == 2
+    assert _local_csr_change_flags(numeric, _local_stored_csr_snapshot(mat)) == 0
+    mat.columns[0] = 1
+    structural = _local_stored_csr_snapshot(mat)
+    assert _local_csr_change_flags(numeric, structural) == 3
+    mat.ownership = (2, 4)
+    assert _local_csr_change_flags(
+        structural, _local_stored_csr_snapshot(mat)
+    ) == 3
+    mat.values[0] = float("nan")
+    # Even a repeat of NaN is never considered a reusable numeric factor.
+    nan = _local_stored_csr_snapshot(mat)
+    assert _local_csr_change_flags(nan, _local_stored_csr_snapshot(mat)) == 2
+    mat.values = np.array([1.+2j, 4.-1j, 0., 5.])
+    complex_before = _local_stored_csr_snapshot(mat)
+    assert _local_csr_change_flags(
+        complex_before, _local_stored_csr_snapshot(mat)
+    ) == 0
+    mat.values[2] = 1j
+    assert _local_csr_change_flags(
+        complex_before, _local_stored_csr_snapshot(mat)
+    ) == 2
 
 
 def csr_checks():
