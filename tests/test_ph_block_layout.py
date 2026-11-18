@@ -100,6 +100,10 @@ class PhBlockLayoutTests(unittest.TestCase):
         self.assertIn('-e PYTHONPATH=/workspace/scrimp', script)
         self.assertIn('model="${2:-wave}"', script)
         self.assertIn('--model "$model"', script)
+        self.assertIn(
+            'python3 sandbox/diagnose_ph_block_parity.py "$out"',
+            script,
+        )
 
     def test_exact_global_coverage_and_noncontiguous_groups(self):
         fields = self.fields()
