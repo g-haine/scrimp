@@ -1871,6 +1871,21 @@ class DPHS:
         if not self.time_scheme.hasName("pc_factor_mat_solver_type"):
             self.time_scheme["pc_factor_mat_solver_type"] = "mumps"
 
+        # The MPI MUMPS analysis mode is the qualified v1.3 default:
+        # ICNTL(28)=2 uses distributed symbolic ordering on multiple
+        # ranks. Never override user-supplied options or non-MUMPS PCs.
+        if (
+            max_rank > 1
+            and self.time_scheme.getString("pc_type", "").lower() == "lu"
+            and self.time_scheme.getString(
+                "pc_factor_mat_solver_type", ""
+            ).lower() == "mumps"
+        ):
+            if not self.time_scheme.hasName("mat_mumps_icntl_28"):
+                self.time_scheme["mat_mumps_icntl_28"] = 2
+            if not self.time_scheme.hasName("mat_mumps_icntl_29"):
+                self.time_scheme["mat_mumps_icntl_29"] = 0
+
         if not self.time_scheme.hasName("t_0"):
             self.time_scheme["t_0"] = 0.0
 
