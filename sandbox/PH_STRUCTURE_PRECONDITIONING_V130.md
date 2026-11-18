@@ -368,6 +368,38 @@ git pull --ff-only
 bash sandbox/run_constitutive_mumps_schur.sh 0.08
 ```
 
+**Docker ownership (revised after successful first native gate):**
+the original `/workspace/scrimp` is a path **inside Docker**,
+not the host root. Running as the host UID does not make its
+image-owned parent writable. The launcher now explicitly mounts
+the user's `~/Simulations/workspace` as **`/scrimp-work`**
+and sets `--workdir /scrimp-work`. This is where SCRIMP's
+import-time `outputs/{log,png,mesh,pv}` are created. The
+production source mounts remain **read-only**, and reports and
+PETSc logs still go to the unique
+`sandbox/outputs/ph-constitutive-schur-*/` campaign folder.
+Override the host working directory, if needed, with
+`SCRIMP_DOCKER_WORKSPACE=/another/owned/path`.
+The launcher sets `PYTHONPATH=/workspace/scrimp` so changing
+the working directory does not accidentally load an installed
+different version of SCRIMP.
+
+**First native evidence (h=0.08, 12,682 DDL, 1/2 MPI ranks):**
+both shifts `sigma=1000,2000` gave
+`||Aee + Q||/||Q||=0`, `Q` solve residual ~1.1e-16,
+Schur relative action error ~1.1e-16 (one rank)
+and 1.5e-16 (two ranks), with all algebraic residuals
+~1.4–1.5e-16. PETSc aggregated counters showed
+`MatLUFactorSym=3`, `MatLUFactorNum=4`, `MatSolve=6`
+on each run: consistent with one Q factorization and
+three subsequent applications of the factors, in addition
+to the untouched reference TS operations. This does not
+yet show a scalable outer preconditioner, or actual
+adaptive-TS trajectories. Source: user's native
+`ph-constitutive-schur-h0p08-1a808652-iYqIFC` archive.
+
+
+
 Output:
 
 ```text
