@@ -1744,6 +1744,26 @@ class DPHS:
                     values_changed = bool(global_change & 2)
                     if previous is None or values_changed:
                         snapshots[phase] = current
+                # Lightweight per-phase accounting for reproducible
+                # qualification. These are collective decisions derived
+                # from global_change, not rank-local guesses. Retain
+                # only counters after solve, not any CSR data.
+                counters = getattr(self, "_mumps_reuse_stats", None)
+                if counters is None:
+                    counters = self._mumps_reuse_stats = {}
+                counts = counters.setdefault(phase, {
+                    "ijacobian_calls": 0,
+                    "numeric_updates": 0,
+                    "symbolic_updates": 0,
+                    "reused_operators": 0,
+                })
+                counts["ijacobian_calls"] += 1
+                if previous is None or values_changed:
+                    counts["numeric_updates"] += 1
+                    if previous is None or graph_changed:
+                        counts["symbolic_updates"] += 1
+                else:
+                    counts["reused_operators"] += 1
                 if os.environ.get("SCRIMP_MUMPS_REUSE_DIAG") == "1":
                     # Diagnostic ONLY: no tolerance-based reuse decision.
                     # PETSc CN can change its shift, including on the
@@ -2118,6 +2138,7 @@ class DPHS:
         # never inherit numeric or symbolic snapshots from old factors.
         self._mumps_csr_patterns = {}
         self._mumps_csr_snapshots = {}
+        self._mumps_reuse_stats = {}
         old_candidate = getattr(self, "_mumps_jacobian_candidate", None)
         if old_candidate is not None:
             old_candidate.destroy()
