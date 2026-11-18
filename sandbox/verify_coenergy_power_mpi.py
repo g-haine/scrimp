@@ -127,6 +127,13 @@ def verify(args):
         pc_factor_mat_solver_type="mumps",
     )
     system.solve()
+    expected_policy = os.environ.get("SCRIMP_BENCH_EXPECT_MUMPS_POLICY")
+    actual_policy = getattr(system, "_mumps_reset_policy", None)
+    if expected_policy and actual_policy != expected_policy:
+        raise RuntimeError(
+            f"Coenergy MUMPS policy mismatch: expected {expected_policy!r}, "
+            f"actual {actual_policy!r}"
+        )
     if (
         system.last_ts_converged_reason <= 0
         or system.last_ts_steps != args.steps
