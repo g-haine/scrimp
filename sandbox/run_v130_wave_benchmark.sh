@@ -66,8 +66,7 @@ run_case() {
         launcher=(mpiexec --bind-to none -n "$p" python -u)
         config=(SCRIMP_GETFEM_MATRIX_MODE=distributed
                 SCRIMP_GETFEM_BRIDGE_DISTRIBUTED=coo
-                SCRIMP_MATRIX_MEMORY_MODE=compact
-                SCRIMP_MUMPS_RESET_POLICY=on_change)
+                SCRIMP_MATRIX_MEMORY_MODE=compact)
         switches=(--profile --petsc-log)
     fi
     if ! sudo docker run --rm \
