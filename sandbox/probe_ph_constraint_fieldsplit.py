@@ -219,6 +219,54 @@ def trial(A, rhs, iz, il, rtol, max_it, schur_pre, inner_restart_cap, repeat_rhs
             del opts[key]
 
 
+def repeated_full_mumps(A, *, first_seed, repeat_rhs, accept_error, accept_residual):
+    """Cold/warm MUMPS reference with fixed A, KSP and PC across all RHS.
+
+    PETSc can defer the numeric factorization until KSPSolve, so the
+    first solve is timed separately. Never reset the operator in loop.
+    """
+    mpi = MPI.COMM_WORLD
+    ksp = PETSc.KSP().create(comm=PETSc.COMM_WORLD)
+    ksp.setType("preonly")
+    pc = ksp.getPC()
+    pc.setType("lu")
+    pc.setFactorSolverType("mumps")
+    ksp.setOperators(A)
+    setup_start = perf_counter()
+    ksp.setUp()
+    setup_seconds = mpi.allreduce(perf_counter()-setup_start, op=MPI.MAX)
+    series = []
+    try:
+        for repetition in range(repeat_rhs):
+            seed = first_seed if repetition == 0 else 101+repetition
+            manufactured = _filled_right(A, seed=seed)
+            rhs = A.createVecLeft()
+            A.mult(manufactured, rhs)
+            solution = A.createVecRight()
+            start = perf_counter()
+            ksp.solve(rhs, solution)
+            elapsed = mpi.allreduce(perf_counter()-start, op=MPI.MAX)
+            diff = solution.copy()
+            diff.axpy(-1.0, manufactured)
+            state_error = float(diff.norm()) / max(float(manufactured.norm()), 1e-300)
+            residual = relative_residual(A, rhs, solution)
+            reason = int(ksp.getConvergedReason())
+            passed = (reason > 0 and state_error < accept_error
+                      and residual < accept_residual)
+            series.append({
+                "index": repetition, "seconds_max": elapsed,
+                "converged_reason": reason,
+                "true_relative_residual": residual,
+                "manufactured_relative_state_error": state_error,
+                "pass": bool(passed),
+            })
+            for obj in (manufactured, rhs, solution, diff):
+                obj.destroy()
+    finally:
+        ksp.destroy()
+    return {"explicit_ksp_setup_seconds_max": setup_seconds,
+            "repeated_rhs": series, "all_pass": all(x["pass"] for x in series)}
+
 def run(args):
     mpi = MPI.COMM_WORLD
     if args.repeat_rhs < 1 or args.repeat_rhs > 20:
@@ -282,6 +330,11 @@ def run(args):
                 A, rhs, iz, il, args.rtol, args.max_it, args.schur_pre,
                 args.inner_restart_cap, args.repeat_rhs
             )
+            full_reuse = repeated_full_mumps(
+                A, first_seed=j+21, repeat_rhs=args.repeat_rhs,
+                accept_error=args.accept_error,
+                accept_residual=args.accept_residual,
+            ) if args.repeat_rhs > 1 else None
             error = computed.copy()
             error.axpy(-1.0, ref)
             delta = float(error.norm())/max(float(ref.norm()), 1e-300)
@@ -300,7 +353,8 @@ def run(args):
                      or entry["manufactured_relative_state_error"] < args.accept_error)
                 for entry in details["repeated_rhs"]
             )
-            passed = (all_repeated_ok
+            passed = ((full_reuse is None or full_reuse["all_pass"])
+                      and all_repeated_ok
                       and details["outer_converged_reason"] > 0
                       and inner_converged
                       and delta < args.accept_error
@@ -315,6 +369,7 @@ def run(args):
                 "pass": bool(passed),
                 "all_nested_ksp_converged": bool(inner_converged),
                 "all_repeated_rhs_pass": bool(all_repeated_ok),
+                "reused_full_mumps_reference": full_reuse,
                 "relative_state_error_vs_full_mumps": delta,
                 "true_relative_residual": residual,
                 "trial_seconds_max": trial_t,
@@ -323,6 +378,11 @@ def run(args):
             }
             sigma_runs.append(item)
             if mpi.rank == 0 and args.repeat_rhs > 1:
+                print(
+                    f"MUMPS-REUSE sigma={sigma:g} candidate={candidate}: "
+                    f"{json.dumps(full_reuse, sort_keys=True)}",
+                    flush=True,
+                )
                 print(
                     f"REUSE sigma={sigma:g} candidate={candidate}: "
                     f"{json.dumps(details['repeated_rhs'], sort_keys=True)} "
