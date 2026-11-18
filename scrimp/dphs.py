@@ -1601,11 +1601,32 @@ class DPHS:
                 pc.reset()
             _mpi_trace("IJacobian: always policy after MUMPS PC.reset")
 
-        _mpi_trace("IJacobian: before tangent -> preconditioner copy")
-        self.tangent_stiffness.copy(P, structure=structure)
-        _mpi_trace("IJacobian: after tangent -> preconditioner copy")
+        # SNESComputeJacobian() overwrites KSP's reuse-preconditioner
+        # flag AFTER this callback returns (PETSc 3.26). Merely calling
+        # pc.setReusePreconditioner(True) here is therefore ineffective.
+        # Instead, assemble into a reusable *independent* workspace.
+        # If the full CSR operator is unchanged, do NOT touch PETSc's
+        # factorized P (or A): its MatState remains unchanged, allowing
+        # PCSetUp() to skip numerical LU without any SNES lagging.
+        # In particular, this also works if the TS shift or nonlinear
+        # tangent changes: a changed operator is copied back.
+        compare_on_change = policy == "on_change" and is_mumps
+        if compare_on_change:
+            candidate = getattr(self, "_mumps_jacobian_candidate", None)
+            if candidate is None:
+                # No SHARED_NONZERO_PATTERN: nonlinear operators may gain
+                # or lose entries and must remain independently mutable.
+                candidate = self.tangent_stiffness.duplicate(copy=True)
+                self._mumps_jacobian_candidate = candidate
+            target = candidate
+        else:
+            target = P
+
+        _mpi_trace("IJacobian: before tangent -> Jacobian work matrix")
+        self.tangent_stiffness.copy(target, structure=structure)
+        _mpi_trace("IJacobian: after tangent -> Jacobian work matrix")
         _mpi_trace("IJacobian: before shift*mass AXPY")
-        P.axpy(sig, self.tangent_mass, structure=structure)
+        target.axpy(sig, self.tangent_mass, structure=structure)
 
         mass_mode = os.environ.get(
             "SCRIMP_NONLINEAR_MASS_JACOBIAN", "finite_difference"
@@ -1624,7 +1645,7 @@ class DPHS:
                     "SCRIMP_NONLINEAR_RESIDUAL_FORM=direct_getfem"
                 )
             _mpi_trace("IJacobian: before nonlinear mass Hessian FD")
-            self._add_nonlinear_mass_hessian_fd(t, z, zd, P)
+            self._add_nonlinear_mass_hessian_fd(t, z, zd, target)
             _mpi_trace("IJacobian: after nonlinear mass Hessian FD")
 
         _mpi_trace("IJacobian: preconditioner assembled")
@@ -1633,16 +1654,16 @@ class DPHS:
             # Local-only diagnostics, with no extra MPI collectives.
             # This catches singular/non-finite operators before PETSc's
             # native KSP/PC factorization path is entered.
-            rp, ci, vals = P.getValuesCSR()
+            rp, ci, vals = target.getValuesCSR()
             bad = int(np.count_nonzero(~np.isfinite(vals)))
-            diagonal = P.getDiagonal()
+            diagonal = target.getDiagonal()
             d = np.asarray(diagonal.getArray(readonly=True))
             diag_zeros = int(np.count_nonzero(d == 0))
             diag_bad = int(np.count_nonzero(~np.isfinite(d)))
             # Zero diagonals may be expected in mixed saddle-point DAEs.
             # Entirely zero numerical rows, however, indicate an absent
             # equation. Detect the latter separately (trace mode only).
-            first_row = P.getOwnershipRange()[0]
+            first_row = target.getOwnershipRange()[0]
             numerical_zero_rows = np.asarray([
                 not np.any(vals[rp[i]:rp[i + 1]])
                 for i in range(len(rp) - 1)
@@ -1652,8 +1673,8 @@ class DPHS:
             )
             zero_diagonal_global = np.flatnonzero(d == 0) + first_row
             _mpi_trace(
-                f"IJacobian: operator shape={P.getSize()}, "
-                f"ownership={P.getOwnershipRange()}, "
+                f"IJacobian: operator shape={target.getSize()}, "
+                f"ownership={target.getOwnershipRange()}, "
                 f"nnz_owned={len(vals)}, nonfinite={bad}, "
                 f"diagonal_zeros={diag_zeros}, diagonal_nonfinite={diag_bad}, "
                 f"zero_numerical_rows={len(zero_rows_global)}; "
@@ -1664,10 +1685,8 @@ class DPHS:
             if bad or diag_bad:
                 raise FloatingPointError("Non-finite PETSc Jacobian entries")
 
-        if A != P:
-            # PETSc TS/SNES may use separate operator and preconditioner
-            # matrices. Both must contain the actual Jacobian; assembling
-            # an untouched A would leave the linear solver with stale data.
+        if not compare_on_change and A != P:
+            # Preserve the original behavior for non-MUMPS/always/never.
             _mpi_trace("IJacobian: copy preconditioner into distinct operator")
             P.copy(A, structure=structure)
 
@@ -1698,7 +1717,7 @@ class DPHS:
                     f"{self._profile_phase}.petsc.csr_pattern_check"
                 ):
                     try:
-                        current = _local_stored_csr_snapshot(P)
+                        current = _local_stored_csr_snapshot(target)
                         csr_error = None
                     except (PETSc.Error, AttributeError,
                             NotImplementedError, TypeError) as exc:
@@ -1725,23 +1744,28 @@ class DPHS:
                     values_changed = bool(global_change & 2)
                     if previous is None or values_changed:
                         snapshots[phase] = current
-                # PETSc's 'reuse preconditioner' flag controls whether
-                # PCSetUp refactorizes numerically after IJacobian
-                # updates the matrix. Never keep a factor if its numeric
-                # values changed, even when its graph did not.
-                pc.setReusePreconditioner(
-                    previous is not None and not values_changed
-                )
-                if previous is not None and graph_changed:
-                    _mpi_trace(
-                        "IJacobian: stored CSR graph changed globally; "
-                        "resetting MUMPS symbolic factor"
-                    )
-                    with self.profiler.measure(
-                        f"{self._profile_phase}.petsc.pc_reset"
-                    ):
-                        pc.reset()
+                if previous is None or values_changed:
+                    # Only a genuinely changed operator may increment the
+                    # MatState of P/A. PETSc tests MatState in PCSetUp()
+                    # and retains the LU if it has not changed.
+                    if previous is not None and graph_changed:
+                        _mpi_trace(
+                            "IJacobian: stored CSR graph changed globally; "
+                            "resetting MUMPS symbolic factor"
+                        )
+                        with self.profiler.measure(
+                            f"{self._profile_phase}.petsc.pc_reset"
+                        ):
+                            pc.reset()
+                    target.copy(P, structure=structure)
+                    if A != P:
+                        P.copy(A, structure=structure)
+                    if previous is not None and graph_changed:
                         ksp.setOperators(A, P)
+                # Otherwise DO NOTHING to A or P, including no assembly,
+                # no MatCopy, no MatAXPY, no forced PC flag. SNES may
+                # explicitly set reuse_preconditioner=False and PCSetUp
+                # still skips setup for an identical MatState.
 
         # Opt-in native diagnostic: dump selected actual SWE Jacobians
         # before PETSc/MUMPS factorization. Binary MatView is collective,
@@ -2053,6 +2077,10 @@ class DPHS:
         # never inherit numeric or symbolic snapshots from old factors.
         self._mumps_csr_patterns = {}
         self._mumps_csr_snapshots = {}
+        old_candidate = getattr(self, "_mumps_jacobian_candidate", None)
+        if old_candidate is not None:
+            old_candidate.destroy()
+        self._mumps_jacobian_candidate = None
         self._mumps_phase_enabled = {}
         # Bricks linearity is diagnostic only; on_change now validates
         # the actual Jacobian values, including time/step dependence.
