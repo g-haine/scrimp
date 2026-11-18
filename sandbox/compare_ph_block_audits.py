@@ -46,6 +46,17 @@ def compare(directory):
         raise ValueError("Mismatch in formulation between 1/2 MPI ranks")
     if a["mumps_policy"] != b["mumps_policy"]:
         raise ValueError("Different MUMPS policy between 1/2 ranks")
+    # A single number of mesh DoFs or matching sparsity graph is NOT
+    # sufficient to compare coefficient-by-coefficient assembly.
+    # The two runs generate their Gmsh files separately, and the
+    # coenergy two-subdomain geometry can potentially vary.
+    ma, mb = a.get("mesh_sha256"), b.get("mesh_sha256")
+    if ma is not None and mb is not None and ma != mb:
+        raise ValueError(
+            "The 1/2-rank reference Gmsh mesh files differ "
+            f"(SHA256 {ma} vs {mb}). Reproduce identical input "
+            "meshes before diagnosing PETSc/GetFEM coefficient parity."
+        )
     for p, data in reports.items():
         spans = data["owned_ranges_by_rank"]
         if len(spans) != p:
