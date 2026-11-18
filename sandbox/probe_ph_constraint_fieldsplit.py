@@ -73,6 +73,28 @@ def trial(A, rhs, iz, il, rtol, max_it, schur_pre):
             opts[key] = val
         ksp.setOperators(A)
         ksp.setFromOptions()
+        # Instrument the nested KSPs *before* solving. Count inner
+        # iterations across all Schur applications, not only the last
+        # inner solve, and report the number of subsolver invocations.
+        ksp.setUp()
+        sub_stats = {
+            name: {"solve_calls": 0, "iterations_total": 0,
+                   "max_iterations_per_solve": 0}
+            for name in ("principal", "constraint")
+        }
+        for name, sub in zip(
+            ("principal", "constraint"), pc.getFieldSplitSubKSP()
+        ):
+            def monitor(subksp, it, rnorm, name=name):
+                stats = sub_stats[name]
+                if it == 0:
+                    stats["solve_calls"] += 1
+                else:
+                    stats["iterations_total"] += 1
+                    stats["max_iterations_per_solve"] = max(
+                        stats["max_iterations_per_solve"], int(it)
+                    )
+            sub.setMonitor(monitor)
         start = perf_counter()
         ksp.solve(rhs, result)
         elapsed = MPI.COMM_WORLD.allreduce(
@@ -82,6 +104,7 @@ def trial(A, rhs, iz, il, rtol, max_it, schur_pre):
             "outer_converged_reason": int(ksp.getConvergedReason()),
             "iterations": int(ksp.getIterationNumber()),
             "pc_failed_reason": str(pc.getFailedReason()),
+            "subsolver_cumulative_monitor": sub_stats,
         }
         try:
             diagnostics["sub_solvers"] = [
@@ -214,8 +237,9 @@ def run(args):
         "limitations": [
             "Full original Jacobian solved on manufactured RHS only.",
             "All candidate blocks detected from graph; no name-specific rule.",
-            "MUMPS used on principal H and on PETSc Schur preconditioning matrix.",
-            "FULL Schur preconditioner is explicitly assembled, expensive, diagnostic only.",
+            "MUMPS on principal H; in SELF mode Schur is implicit with GMRES.",
+            "FULL explicit Schur construction is diagnostic and previously errored in MUMPS.",
+            "Nested monitor counts exclude setup and are per rank; report compares solve wall times.",
             "No production or time-trajectory FGMRES changes.",
             "No performance/scalability or physics claims from this probe.",
         ],
