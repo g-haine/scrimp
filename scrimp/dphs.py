@@ -1744,6 +1744,47 @@ class DPHS:
                     values_changed = bool(global_change & 2)
                     if previous is None or values_changed:
                         snapshots[phase] = current
+                if os.environ.get("SCRIMP_MUMPS_REUSE_DIAG") == "1":
+                    # Diagnostic ONLY: no tolerance-based reuse decision.
+                    # PETSc CN can change its shift, including on the
+                    # final MATCHSTEP interval. We need to distinguish
+                    # a genuine matrix change from a redundant PC setup.
+                    # One extra collective is only active for this
+                    # short opt-in qualification.
+                    if (previous is not None
+                            and not (local_change & 1)
+                            and current[3].shape == previous[3].shape):
+                        delta = np.abs(current[3] - previous[3])
+                        local_max_diff = (
+                            float(np.max(delta)) if delta.size else 0.0
+                        )
+                        local_different = int(np.count_nonzero(
+                            current[3] != previous[3]
+                        ))
+                    else:
+                        local_max_diff = -1.0
+                        local_different = -1
+                    global_max_diff = float(
+                        mpi.allreduce(local_max_diff, op=MPI.MAX)
+                    )
+                    global_different = int(
+                        mpi.allreduce(max(0, local_different), op=MPI.SUM)
+                    )
+                    if rank == 0:
+                        print(
+                            "MUMPS-REUSE-AUDIT "
+                            f"phase={phase} "
+                            f"step={TS.getStepNumber()} "
+                            f"time={t:.17g} shift={sig:.17g} "
+                            f"graph_changed={int(graph_changed)} "
+                            f"values_changed={int(values_changed)} "
+                            f"local_flags={local_change} "
+                            f"global_flags={global_change} "
+                            f"entries_changed_global={global_different} "
+                            f"max_abs_delta_global={global_max_diff:.17g} "
+                            f"update_operator={int(previous is None or values_changed)}",
+                            flush=True,
+                        )
                 if previous is None or values_changed:
                     # Only a genuinely changed operator may increment the
                     # MatState of P/A. PETSc tests MatState in PCSetUp()
