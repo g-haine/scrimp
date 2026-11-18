@@ -70,7 +70,7 @@ for ranks in 1 2; do
         python -u /workspace/scrimp/sandbox/probe_ph_fieldsplit_baseline.py \
           --mesh "$mesh" --x-pc "$x_pc" --e-pc "$e_pc" --schur-pc "$schur_pc" --output "/artifacts/fieldsplit_${ranks}r.json" \
         > "$out/fieldsplit_${ranks}r.log" 2>&1; then
-        grep -aE '^(PASS|FAIL) sigma=|^Saved:|^SCHUR-SELF-P FIELDS:' "$out/fieldsplit_${ranks}r.log" || true
+        grep -aE '^(PASS|FAIL) sigma=|^Saved:|^SCHUR-SELF-P FIELDS:|^SCHUR-Y_L COUPLINGS:' "$out/fieldsplit_${ranks}r.log" || true
     else
         echo "NON-PASS: $ranks MPI ranks; inspect $out/fieldsplit_${ranks}r.log" >&2
         tail -n 45 "$out/fieldsplit_${ranks}r.log" >&2
