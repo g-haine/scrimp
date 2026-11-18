@@ -108,22 +108,32 @@ def main():
     comm = MPI.COMM_WORLD
     if args.mesh <= 0 or args.repeat < 2 or args.repeat > 12:
         raise ValueError("mesh > 0 and repeat in [2,12] required")
-    # PETSc MUMPS options control the actual factor Mat. Crucially these
-    # must be applied BEFORE factor creation and NOT recycled between jobs.
-    opts = PETSc.Options()
-    if args.ordering == "sequential":
-        opts["mat_mumps_icntl_28"] = "1"
-    elif args.ordering == "parallel":
-        opts["mat_mumps_icntl_28"] = "2"
-        opts["mat_mumps_icntl_29"] = "0"  # request MUMPS automatic parallel ordering
-
+    # Build the reference first. The audit options below must not alter
+    # its CN/MUMPS trajectory, and belong solely to the audited KSP.
     start = perf_counter()
     matrix, origin = build_operator(args)
     build_s = interval(start)
     if matrix.getSize()[0] != matrix.getSize()[1]:
         raise RuntimeError("Non-square operator")
     before_factor = rss()
+    # MUMPS factor matrices inherit the KSP/PC prefix. An unprefixed
+    # mat_mumps_icntl_28 was silently ignored by the earlier audit.
+    # Each MPI job is separate and receives a fresh PETSc.Options database.
+    prefix = "wave_mumps_audit_"
+    opts = PETSc.Options()
+    option_keys = []
+    requested28 = {"sequential": 1, "parallel": 2}.get(args.ordering)
+    if requested28 is not None:
+        key = prefix + "mat_mumps_icntl_28"
+        opts[key] = str(requested28)
+        option_keys.append(key)
+    if args.ordering == "parallel":
+        key = prefix + "mat_mumps_icntl_29"
+        opts[key] = "0"  # MUMPS automatic parallel ordering selection
+        option_keys.append(key)
+
     ksp = PETSc.KSP().create(comm=PETSc.COMM_WORLD)
+    ksp.setOptionsPrefix(prefix)
     ksp.setType("preonly")
     ksp.setErrorIfNotConverged(False)
     pc = ksp.getPC()
@@ -137,6 +147,8 @@ def main():
         "mpi_ranks": comm.size,
         "mesh": args.mesh, "matrix_source": origin,
         "ordering_requested": args.ordering,
+        "ksp_options_prefix": prefix,
+        "mumps_options_set": {key: opts[key] for key in option_keys},
         "matrix_size": list(matrix.getSize()),
         "matrix_nnz_used_sum": int(comm.allreduce(int(matrix.getInfo()["nz_used"]), op=MPI.SUM)),
         "wave_preparation_seconds_max": build_s,
@@ -213,6 +225,8 @@ def main():
     finally:
         ksp.destroy()
         matrix.destroy()
+        for key in option_keys:
+            del opts[key]
     if comm.rank == 0:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(report, indent=2)+"\n", encoding="utf-8")
