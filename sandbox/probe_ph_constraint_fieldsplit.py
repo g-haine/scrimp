@@ -43,21 +43,30 @@ def trial(A, rhs, iz, il, rtol, max_it, schur_pre):
     pc.setType("fieldsplit")
     pc.setFieldSplitType(PETSc.PC.CompositeType.SCHUR)
     pc.setFieldSplitSchurFactType(PETSc.PC.FieldSplitSchurFactType.FULL)
-    pc.setFieldSplitSchurPreType(
-        PETSc.PC.FieldSplitSchurPreType.FULL
-        if schur_pre == "full"
-        else PETSc.PC.FieldSplitSchurPreType.SELFP
-    )
+    pc.setFieldSplitSchurPreType({
+        "full": PETSc.PC.FieldSplitSchurPreType.FULL,
+        "selfp": PETSc.PC.FieldSplitSchurPreType.SELFP,
+        "self": PETSc.PC.FieldSplitSchurPreType.SELF,
+    }[schur_pre])
     pc.setFieldSplitIS(("principal", iz), ("constraint", il))
     opts = PETSc.Options()
     options = {
         "ph_constraint_fieldsplit_principal_ksp_type": "preonly",
         "ph_constraint_fieldsplit_principal_pc_type": "lu",
         "ph_constraint_fieldsplit_principal_pc_factor_mat_solver_type": "mumps",
-        "ph_constraint_fieldsplit_constraint_ksp_type": "preonly",
-        "ph_constraint_fieldsplit_constraint_pc_type": "lu",
-        "ph_constraint_fieldsplit_constraint_pc_factor_mat_solver_type": "mumps",
+        "ph_constraint_fieldsplit_constraint_ksp_type": (
+            "gmres" if schur_pre == "self" else "preonly"
+        ),
+        "ph_constraint_fieldsplit_constraint_pc_type": (
+            "none" if schur_pre == "self" else "lu"
+        ),
     }
+    if schur_pre == "self":
+        options["ph_constraint_fieldsplit_constraint_ksp_rtol"] = "1e-12"
+        options["ph_constraint_fieldsplit_constraint_ksp_atol"] = "1e-14"
+        options["ph_constraint_fieldsplit_constraint_ksp_max_it"] = "100"
+    else:
+        options["ph_constraint_fieldsplit_constraint_pc_factor_mat_solver_type"] = "mumps"
     result = A.createVecRight()
     try:
         for key, val in options.items():
@@ -227,7 +236,7 @@ def main():
     p.add_argument("--shift2", type=float, default=2000)
     p.add_argument("--rtol", type=float, default=1e-12)
     p.add_argument("--max-it", type=int, default=400)
-    p.add_argument("--schur-pre", choices=("full", "selfp"), default="full",
+    p.add_argument("--schur-pre", choices=("self", "full", "selfp"), default="self",
                    help="FULL explicit Schur reference (default), or failing SELFP control")
     p.add_argument("--accept-error", type=float, default=5e-8)
     p.add_argument("--accept-residual", type=float, default=5e-8)
