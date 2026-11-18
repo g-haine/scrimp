@@ -12,7 +12,7 @@ Scientific gates:
  - same wave.py, same DOFs and ten accepted fixed CN steps,
  - complete initial and final PETSc vectors across ALL MPI ranks,
  - actual MUMPS ordering and on_change policy,
- - exactly ONE main TS MUMPS numerical factorization for ten steps,
+ - exact PETSc numeric LU count equals collective operator updates,
  - no elapsed-time estimates fabricated from step averages,
  - compare true end states, not merely their norms.
 
