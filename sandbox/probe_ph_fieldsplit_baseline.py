@@ -172,6 +172,52 @@ def block_trial(A, rhs, is_e, is_x, rtol, max_it, x_pc, e_pc, schur_pc, fields, 
                         }
                     diagnostics["actual_schur_selfp_diagonal_by_field"] = details
 
+                    # Field-to-field coupling audit of the actual P_S,
+                    # including the zero-diagonal Y_L multiplier block.
+                    # Only small scalar norms are reduced; no full matrix
+                    # is gathered or modified. Complement ordering is
+                    # derived from the locally owned PETSc index set.
+                    p_lo, p_hi = pmat.getOwnershipRange()
+                    if p_hi - p_lo != len(local_x):
+                        raise RuntimeError("Unexpected Schur matrix ownership")
+                    field_is = {}
+                    try:
+                        for fld in fields:
+                            if fld["group"] == "coenergy":
+                                continue
+                            mask = ((local_x >= fld["start"])
+                                    & (local_x < fld["stop"]))
+                            local_positions = (
+                                p_lo + np.flatnonzero(mask)
+                            ).astype(PETSc.IntType)
+                            field_is[fld["name"]] = PETSc.IS().createGeneral(
+                                local_positions, comm=PETSc.COMM_WORLD
+                            )
+                        yl = field_is.get("Y_L")
+                        if yl is not None:
+                            couplings = {}
+                            for other_name, other_is in field_is.items():
+                                for row_name, row_is, col_name, col_is in (
+                                    ("Y_L", yl, other_name, other_is),
+                                    (other_name, other_is, "Y_L", yl),
+                                ):
+                                    submat = pmat.createSubMatrix(
+                                        row_is, col_is
+                                    )
+                                    try:
+                                        couplings[f"{row_name}<-{col_name}"] = (
+                                            float(submat.norm(
+                                                PETSc.NormType.FROBENIUS
+                                            ))
+                                        )
+                                    finally:
+                                        submat.destroy()
+                            diagnostics["actual_schur_Y_L_couplings"] = couplings
+                    finally:
+                        for obj in field_is.values():
+                            obj.destroy()
+
+
         except (AttributeError, RuntimeError, ValueError) as exc:
             diagnostics["sub_ksp_error"] = str(exc)
         return result, elapsed, reason, its, diagnostics
@@ -288,6 +334,11 @@ def run(args):
             "fieldsplit_seconds_max": trial_seconds,
         }
         results.append(item)
+        if rank == 0 and "actual_schur_Y_L_couplings" in diagnostics:
+            print("SCHUR-Y_L COUPLINGS:", json.dumps(
+                diagnostics["actual_schur_Y_L_couplings"],
+                sort_keys=True,
+            ), flush=True)
         if rank == 0 and "actual_schur_selfp_diagonal_by_field" in diagnostics:
             print("SCHUR-SELF-P FIELDS:", json.dumps(
                 diagnostics["actual_schur_selfp_diagonal_by_field"],
