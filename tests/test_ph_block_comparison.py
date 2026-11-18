@@ -62,6 +62,8 @@ class PhBlockComparisonTests(unittest.TestCase):
                 [1 if x else 0 for x in row] for row in role
             ]
             return {
+                "nnz_stored": sum(sum(row) for row in block_nnz),
+                "nnz_effective": sum(sum(row) for row in block_nnz),
                 "variable_order": [f["name"] for f in fields],
                 "roles": roles,
                 "block_effective_nnz": block_nnz,
