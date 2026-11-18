@@ -196,10 +196,47 @@ class PhBlockLayoutTests(unittest.TestCase):
             "e_q": _FakeCoState(substituted=True),
             "e_p": _FakeCoState(substituted=True),
         }
-        with self.assertRaisesRegex(
-            ValueError, "Substituted effort.*independent"
-        ):
+        # The skipped substituted e_q/e_p intervals leave holes in
+        # the remaining GetFEM vector; full DoF coverage catches this
+        # inconsistent declaration without calling GetFEM C++ on the
+        # nonexistent substituted coenergy name.
+        with self.assertRaisesRegex(ValueError, "leave a gap"):
             self.fields()
+
+    def test_substituted_names_are_never_probed_in_getfem(self):
+        self.model.intervals = {
+            "q": (0, 2), "p": (2, 3),
+            "U": (5, 1), "Y": (6, 1),
+        }
+        self.model.nbdof = lambda: 7
+        self.kwargs["costates"] = {
+            "e_q": _FakeCoState(substituted=True),
+            "e_p": _FakeCoState(substituted=True),
+        }
+        self.kwargs["ports"] = {
+            "q": _FakePort("q", "e_q", False),
+            "p": _FakePort("p", "e_p", False),
+            "Boundary": _FakePort("U", "Y", True),
+        }
+        self.kwargs["controls"] = {
+            "Boundary": _FakePort("U", "Y", True)
+        }
+        calls = []
+        original = self.model.interval_of_variable
+
+        def recorded(name):
+            calls.append(name)
+            if name in ("e_q", "e_p"):
+                raise AssertionError(
+                    "Substituted variable must not be queried in GetFEM"
+                )
+            return original(name)
+
+        self.model.interval_of_variable = recorded
+        fields = self.fields()
+        self.assertNotIn("e_q", calls)
+        self.assertNotIn("e_p", calls)
+        self.assertEqual(sum(f["ndofs"] for f in fields), 7)
 
     def test_non_substituted_missing_coenergy_is_rejected(self):
         del self.model.intervals["e_q"]
