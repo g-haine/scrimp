@@ -50,10 +50,11 @@ the operator and PETSc re-factorizes normally; a graph change forces
 a symbolic reset. The candidate and previous CSR snapshots are freed
 after solve().
 
-The revised mechanism is **not yet native qualified**. Its added
-workspace memory must also be measured on refined meshes. Before
-repeating the 78-second original release control, use only current
-1/2-rank native smoke:
+The revised mechanism has now **passed a native production smoke
+at h=0.04 on one and two MPI ranks** (see results below). The
+additional workspace memory must still be quantified on refined
+meshes and during long trajectories. The short reproducibility gate
+remains:
 
 ~~~bash
 bash sandbox/run_v130_numeric_reuse_smoke.sh 0.04 1,2
@@ -62,8 +63,31 @@ bash sandbox/run_v130_numeric_reuse_smoke.sh 0.04 1,2
 The smoke enforces equality between main-stage MatLUFactorNum and
 exact collective operator changes, and between MatLUFactorSym and
 graph changes, plus MatSolve=10, TS convergence and full current MPI
-initial/final parity. If the smoke fails, do not proceed to
-cross-release performance tests.
+initial/final parity. It passed on commit b7f3c7c6, archived under
+`sandbox/outputs/v130-numeric-smoke-h0p04-b7f3c7c6-rrUp27/`.
+
+| Production on_change, h=0.04 | 1 rank | 2 ranks |
+|---|---:|---:|
+| Accepted CN steps | 10 | 10 |
+| Main CN IJacobian calls | 10 | 10 |
+| Exact unchanged-operator reuse decisions | 8 | 8 |
+| Required numerical factor updates | 2 | 2 |
+| Observed MatLUFactorNum | 2 | 2 |
+| Required symbolic factor updates | 1 | 1 |
+| Observed MatLUFactorSym | 1 | 1 |
+| Observed MatSolve | 10 | 10 |
+| Complete solve time | 1.563 s | 1.264 s |
+| Max process RSS | 588.0 MiB | 525.6 MiB |
+
+Full initial PETSc vectors are bitwise identical; the full final
+vectors differ by L2=2.463e-12, relative L2=1.659e-13 and
+Linf=5.089e-13, consistent with the specified 5e-8
+scaled parity threshold. Numeric LU counts correspond to the
+last-step rounding-induced Jacobian change, not a solver failure.
+`png/` and `svg/` contain human-readable factor-decision and
+timing plots. These are single-run timings, **not** replicated
+v1.3.0 performance estimates. They do not establish the power
+balance, nonlinear-tangent correctness or long-run memory behavior.
 
 ## Exact final-step CN shift: two numeric LU factorizations justified
 
@@ -108,11 +132,13 @@ update counters are retained after solve without storing CSR data.
 - [x] Add isolated exact-CSR regression tests.
 - [x] Prepare same-source v1.2.0-vs-current sequential benchmark and
   staged 1/2/4/6-rank MPI scaling benchmark with per-step timings.
-- [ ] **Run** the new production on_change wave h=0.04 qualification
-  (10 CN steps, 3 repeats, full initial/final state comparison).
-  The main TS must show native MatLUFactorNum calls equal to
-  exact collective operator updates (two for the observed final-step
-  rounding case), and MatLUFactorSym equal graph changes.
+- [x] **Pass** production on_change h=0.04 smoke with one and two
+  MPI ranks: 10 CN steps, full initial/final MPI vector comparison,
+  numeric and symbolic native PETSc LU counts equal exact collective
+  matrix update decisions.
+- [ ] **Run** the full same-source v1.2.0 serial vs v1.3 candidate
+  benchmark (3 repeats, ranks 1/2/4/6), comparing complete vectors
+  and reporting reproducible step and stage timings.
 - [ ] Verify the **numeric transition case** on a changing Jacobian:
   one fresh numeric LU for every actual numeric change, but no
   unnecessary symbolic reanalysis for an unchanged graph.
@@ -140,8 +166,9 @@ The h=0.01 PETSc log with the old refactor-every-step mode showed
 | Triangular solve (ten calls) | 0.923 s | 1.060 s |
 
 Those numbers illustrate a plateau across the solver's native phases.
-They are **not** an extrapolation to the forthcoming one-numeric-LU
-v1.3.0 configuration. Rerun after numeric reuse to see which operations
+They are **not** an extrapolation to the newly validated
+exact on_change v1.3.0 behavior (two numeric LU events on this
+10-step test owing to final-time shift rounding). Rerun after numeric reuse to see which operations
 still dominate. Consider MUMPS multifrontal load balance, etree,
 MPI distribution and rank/core placement, and per-step collective
 synchronization. Benchmark on >1 NUMA domain or additional machines
