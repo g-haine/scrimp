@@ -76,12 +76,54 @@ semantics, or both; then check initial conditions and DAE constraints
 mathematically. **Do not change the production model to match an
 unvalidated legacy numerical artifact.**
 
+### 18 Nov diagnostic: root cause of cross-version state mismatch confirmed
+
+The two current-version experimental runs with replayed pseudo-TS
+monitor synchronization reproduce the archived **unmodified v1.2.0**
+complete state exactly at initialization, and to ~6.22e-30 absolute
+L2 at t_f, for **both** `direct_getfem` and `legacy` residual forms.
+Without replay, the initial and final L2 differences were ~5.82
+and ~6.29. The accepted pseudo-TS state is thus the actual source of
+the state mismatch, **not** an effect of residual formulation.
+
+The accepted pseudo-state has field norms
+`q=0.00471761, p=14.36784, e_q=0.0202897, e_p=5.76279`,
+while before the pseudo step `q=e_q=e_p=0`. The user-prescribed
+`q(0)=0` is therefore perturbed by pseudo-time advancement; the
+initialization's *physical* DAE-consistency and fidelity to prescribed
+differential initial conditions still require a separate check. Do
+not claim scientific validity simply from equality with v1.2.0.
+
+**Production fix implemented:** after the *accepted* pseudo-TS solve,
+unconditionally scatter its global PETSc state and transfer it to
+GetFEM variables, before constructing the main TS initial vector.
+This is independent of `linear_mass`/`linear_stiffness` and preserves
+the correctly classified prescribed source bricks and MUMPS reuse.
+A direct unit regression tests that both linear and nonlinear flag
+configurations transfer the accepted state, without aliasing memory.
+
+**Native qualification pending:** one current-version solve only
+against the archived v1.2.0 state, with full-vector parity and
+native PETSc MUMPS factor-count gates. No old release rerun:
+
+~~~bash
+bash sandbox/run_wave_initial_state_regression.sh
+~~~
+
+This generates a human-readable PNG/SVG full-state parity plot.
+After it passes, repeat the minimum necessary physical power
+diagnostics, then update the v1.3.0 performance figures.
+
 Exit gates:
 
-- [ ] Explain the full v1.2.0/current initial-state mismatch using
-  GetFEM variable maps, initial consistency operator, assembly,
-  mass/source coupling and exact MPI/serial snapshots. Determine
-  which solver state satisfies the actual physical constraints.
+- [x] Explain historical cross-version state mismatch:
+  initial pseudo-TS state was not propagated to GetFEM after fixing
+  the source/nonlinearity classification. Both experimental replays
+  reproduce the native v1.2.0 complete trajectory endpoints.
+- [ ] Verify the production pseudo-state sync patch by one native
+  current-only run against archived full vectors and MUMPS counters;
+  determine whether the pseudo-time perturbation of q(0)=0 respects
+  the intended physical initial condition / DAE constraints.
 - [ ] Correct any regression exposed; keep both versions' numerical
   outputs and the build/solve timing categories distinct.
 - [ ] Compare full *time trajectories*, not just initial/final
