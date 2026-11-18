@@ -31,7 +31,6 @@ echo "SCRIMP full CN wave MUMPS default vs parallel ordering"
 echo "Commit=$sha mesh=$mesh ranks=$ranks_csv repeats=$repeats MUMPS reset policy=never ONLY"
 echo "Output: $out"
 sudo -v
-failed=0
 for rep in $(seq 1 "$repeats"); do
   for n in "${ranks[@]}"; do
     if (( n > ${#cpus[@]} )); then echo "Missing CPUs for $n ranks" >&2; exit 2; fi
@@ -55,6 +54,7 @@ for rep in $(seq 1 "$repeats"); do
         -v "$root/scrimp:/workspace/scrimp/scrimp:ro" \
         -v "$root/sandbox:/workspace/scrimp/sandbox:ro" \
         -v "$root/examples:/workspace/scrimp/examples:ro" \
+        -v "$out:/workspace/scrimp/outputs" \
         -v "$out:/artifacts" \
         scrimp-mpi:local \
         timeout -k 10s "${timeout_s}s" \
@@ -69,11 +69,12 @@ for rep in $(seq 1 "$repeats"); do
         else
           echo "NON-PASS $label -- $out/$label.log" >&2
           tail -n 50 "$out/$label.log" >&2
-          failed=1
+          echo "STOP: first failing configuration; remaining experiments NOT launched" >&2
+          echo "Reports: $out" >&2
+          exit 1
         fi
     done
   done
 done
 echo "Reports: $out"
-if (( failed )); then echo "NON-PASS: read logs, do not relax numerical gates" >&2; exit 1; fi
 echo "PASS: all full CN runs verified actual MUMPS ordering with policy NEVER"
