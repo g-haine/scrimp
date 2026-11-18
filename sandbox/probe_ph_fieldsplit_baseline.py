@@ -59,9 +59,16 @@ def block_trial(A, rhs, is_e, is_x, rtol, max_it, x_pc):
     ksp.setErrorIfNotConverged(False)
     pc = ksp.getPC()
     pc.setType("fieldsplit")
-    # Multiplicative block correction is triangular in the *actual*
-    # PETSc ordering. No assumption of SPD or exact Schur factorization.
-    pc.setFieldSplitType(PETSc.PC.CompositeType.MULTIPLICATIVE)
+    # Keep the failed triangular block PC as a reproducible control.
+    # Schur mode uses A00=-Q and a shift-dependent SELF-P Schur PC:
+    # S_p = G - D diag(-Q)^(-1) C. The true Schur action retains
+    # the complete constitutive inverse via the e-subsolver.
+    if x_pc == "schur-selfp":
+        pc.setFieldSplitType(PETSc.PC.CompositeType.SCHUR)
+        pc.setFieldSplitSchurFactType(PETSc.PC.FieldSplitSchurFactType.FULL)
+        pc.setFieldSplitSchurPreType(PETSc.PC.FieldSplitSchurPreType.SELFP)
+    else:
+        pc.setFieldSplitType(PETSc.PC.CompositeType.MULTIPLICATIVE)
     pc.setFieldSplitIS(("e", is_e), ("x", is_x))
     opts = PETSc.Options()
     settings = {
@@ -76,7 +83,8 @@ def block_trial(A, rhs, is_e, is_x, rtol, max_it, x_pc):
             "ph_trial_fieldsplit_x_sub_ksp_type": "preonly",
             "ph_trial_fieldsplit_x_sub_pc_type": "ilu",
         })
-    elif x_pc == "lu":
+    elif x_pc in ("lu", "schur-selfp"):
+        settings["ph_trial_fieldsplit_x_pc_type"] = "lu"
         settings["ph_trial_fieldsplit_x_pc_factor_mat_solver_type"] = "mumps"
     else:
         raise ValueError("Unsupported complement block preconditioner")
@@ -246,7 +254,7 @@ def run(args):
         "dofs": int(system.gf_model.nbdof()),
         "fields": fields,
         "formulation": classification["formulation"],
-        "solver": f"FGMRES / multiplicative PCFIELDSPLIT; e: MUMPS; x: {args.x_pc}",
+        "solver": (f"FGMRES/PCFIELDSPLIT ({'schur full, SELF-P' if args.x_pc == 'schur-selfp' else 'multiplicative'}); e: MUMPS; x: {args.x_pc}"),
         "reference": "full PETSc MUMPS on identical A(sigma) and RHS",
         "trials": results,
         "all_converged": all(x["converged"] for x in results),
@@ -275,8 +283,8 @@ def main():
     p.add_argument("--shift2", type=float, default=2000)
     p.add_argument("--rtol", type=float, default=1e-10)
     p.add_argument("--max-it", type=int, default=400)
-    p.add_argument("--x-pc", choices=("bjacobi", "lu"), default="bjacobi",
-                   help="Complement PC: BJACOBI/ILU or diagnostic MUMPS LU")
+    p.add_argument("--x-pc", choices=("bjacobi", "lu", "schur-selfp"), default="bjacobi",
+                   help="Complement PC: BJACOBI/ILU, LU on G, or Schur SELF-P + LU")
     p.add_argument("--accept-residual", type=float, default=5e-8)
     p.add_argument("--accept-error", type=float, default=5e-8)
     p.add_argument("--output", type=Path, required=True)
