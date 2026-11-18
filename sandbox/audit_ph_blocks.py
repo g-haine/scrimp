@@ -21,18 +21,61 @@ numerical blocks that must be identified and signed before designing
 a field-split preconditioner.
 """
 import argparse
+import importlib.util
 import json
 import os
 from pathlib import Path
+from unittest.mock import patch
 
 from mpi4py import MPI
 import numpy as np
 
 from bench_acoustic_2d import _build_wave
+import scrimp as S
 from scrimp.utils.ph_block_layout import (
-    GROUPS, discover_layout, owned_group_ranges,
+    GROUPS, discover_layout, classify_ph_formulation,
+    owned_group_ranges,
     classify_owned_csr, aggregate_role_pairs,
 )
+
+
+class _StopBeforeExampleSolve(Exception):
+    def __init__(self, system):
+        self.system = system
+
+
+def _build_coenergy_wave(mesh):
+    """Build examples/wave_coenergy.py without its published long run."""
+    source = (
+        Path(__file__).resolve().parents[1]
+        / "examples" / "wave_coenergy.py"
+    )
+    spec = importlib.util.spec_from_file_location(
+        "_scrimp_audit_wave_coenergy", source
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    original_domain = S.Domain
+
+    def short_mesh(kind, params, *a, **kw):
+        updated = dict(params)
+        if kind == "Concentric":
+            updated["h"] = mesh
+        return original_domain(kind, updated, *a, **kw)
+
+    def stop_before_solve(system):
+        raise _StopBeforeExampleSolve(system)
+
+    with patch.object(S, "Domain", short_mesh), patch.object(
+        S.DPHS, "solve", stop_before_solve
+    ):
+        try:
+            module.wave_coenergy_eq()
+        except _StopBeforeExampleSolve as captured:
+            return captured.system
+    raise RuntimeError(
+        "wave_coenergy.py did not call DPHS.solve"
+    )
 
 
 def audit(args):
@@ -45,7 +88,11 @@ def audit(args):
     if os.environ.get("SCRIMP_GETFEM_BRIDGE_DISTRIBUTED") != "coo":
         raise ValueError("Native block audit requires PETSc COO bridge")
 
-    system = _build_wave(args.mesh)
+    system = (
+        _build_coenergy_wave(args.mesh)
+        if args.model == "wave_coenergy"
+        else _build_wave(args.mesh)
+    )
     system.set_time_scheme(
         ts_type="cn", ts_adapt_type="none",
         ts_exact_final_time="matchstep",
@@ -69,6 +116,19 @@ def audit(args):
         ports=system.ports,
         controls=system.controls,
     )
+    formulation = classify_ph_formulation(
+        fields, costates=system.costates
+    )
+    if args.model == "wave_coenergy":
+        if formulation["formulation"] != "substituted_coenergy":
+            raise RuntimeError(
+                "Coenergy example unexpectedly has an explicit -Qc block"
+            )
+    elif formulation["formulation"] != "implicit_constitutive":
+        raise RuntimeError(
+            "Mixed wave benchmark unexpectedly lacks independent coenergies"
+        )
+
     n = int(system.gf_model.nbdof())
     matrices = {
         "flow_mass_F_and_algebraic_zero_rows": system.mass,
@@ -129,7 +189,12 @@ def audit(args):
             "mesh": args.mesh,
             "mpi_ranks": ranks,
             "dofs": n,
-            "physical_model": "examples/wave.py:wave_eq",
+            "physical_model": (
+                "examples/wave_coenergy.py:wave_coenergy_eq"
+                if args.model == "wave_coenergy"
+                else "examples/wave.py:wave_eq"
+            ),
+            "formulation": formulation,
             "ts_type": "cn", "dt": args.dt, "steps": args.steps,
             "final_time": float(system.last_ts_time),
             "linear_mass": bool(system.linear_mass),
@@ -139,14 +204,26 @@ def audit(args):
             ),
             "fields": fields,
             "owned_ranges_by_rank": ownership,
-            "candidate_preconditioner_partition": {
-                "first": "coenergy",
-                "second": "dynamic + boundary + algebraic",
-                "scope": (
-                    "Exploratory ONLY. Boundary saddle-point rows "
-                    "must be examined before selecting a Schur solver."
-                ),
-            },
+            "candidate_preconditioner_partition": (
+                {
+                    "first": "coenergy",
+                    "second": "dynamic + boundary + algebraic",
+                    "scope": (
+                        "Exploratory ONLY. Boundary saddle-point "
+                        "rows require further analysis."
+                    ),
+                }
+                if formulation["formulation"] == "implicit_constitutive"
+                else {
+                    "first": "dynamic",
+                    "second": "boundary + algebraic",
+                    "scope": (
+                        "NO independent constitutive -Qc exists. "
+                        "Explore mass/Dirac/port split; MUMPS global "
+                        "remains the only enabled solver."
+                    ),
+                }
+            ),
             "assembled_matrices": by_matrix,
             "caveats": [
                 "The final TS Jacobian contains the actual last shift.",
@@ -158,6 +235,9 @@ def audit(args):
                 "and MUST be retained by any preconditioner.",
                 "Nonzero patterns and norms do not by themselves "
                 "prove discrete adjointness or energy positivity.",
+                "A feedback law may use a GetFEM nonlinear brick "
+                "even if it is mathematically linear; a zero "
+                "linear_stiffness flag does not prove a nonlinear PDE.",
             ],
         }
         args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -186,6 +266,11 @@ def audit(args):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--model", choices=("wave", "wave_coenergy"),
+        default="wave",
+        help="Original full wave DAE or substituted-coenergy wave",
+    )
     parser.add_argument("--mesh", type=float, default=0.08)
     parser.add_argument("--dt", type=float, default=0.002)
     parser.add_argument("--steps", type=int, default=2)
