@@ -110,10 +110,13 @@ def main():
             "SCRIMP_GETFEM_BRIDGE_DISTRIBUTED"
         ) != "coo":
             raise RuntimeError("Current benchmark must use COO bridge")
-        if os.environ.get(
-            "SCRIMP_MUMPS_RESET_POLICY"
-        ) != args.policy:
-            raise RuntimeError("Unexpected current MUMPS policy")
+        explicit_policy = os.environ.get("SCRIMP_MUMPS_RESET_POLICY")
+        if explicit_policy is not None and explicit_policy != args.policy:
+            raise RuntimeError(
+                f"Unexpected explicit MUMPS policy {explicit_policy!r}"
+            )
+        # No environment override: evaluate the NEW production default
+        # from system._mumps_reset_policy after solve().
     if not Path(S.__file__).resolve().as_posix().startswith(
         "/workspace/scrimp/scrimp/"
     ):
