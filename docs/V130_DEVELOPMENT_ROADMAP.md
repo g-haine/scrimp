@@ -121,6 +121,50 @@ time grids may legitimately yield different counts, but must satisfy
 the same exact update/event relationship. Numeric and symbolic
 update counters are retained after solve without storing CSR data.
 
+## Qualified v1.2.0 → corrected candidate sequential comparison (18 Nov)
+
+After explicit propagation of the accepted PETSc pseudo-TS state
+to GetFEM variables, the complete native wave h=0.04, ten-step
+Crank–Nicolson v1.2.0 (tag 88e2c144) vs corrected current
+(commit 24e70e92) qualification **PASSED**.
+
+The user-supplied complete performance archive was inspected
+directly: full initial PETSc vector is **bit-for-bit identical**
+(47,942 DOFs), and full final state differences are L2
+`6.215e-30`, scaled L2 `3.924e-31`, L-inf `1.281e-30`.
+One native source-matched serial run of each version gave:
+
+| Measure | v1.2.0 | Corrected v1.3.0 candidate |
+|---|---:|---:|
+| Full wall solve incl. assembly | 73.268 s | 1.512 s |
+| Initial CN step | 393.7 ms | 381.3 ms |
+| Steps 2–10 mean | 131.1 ms | 53.6 ms |
+| Maximum single-process RSS | 592.2 MiB | 582.6 MiB |
+| Mass assembly + matrix transfer | 15.15 s | 0.0452 s |
+| Stiffness assembly + matrix transfer | 56.08 s | 0.1693 s |
+
+**Raw 48.45x now passes the full-state numerical regression gate**
+for this configuration, but was measured **once**; do not label it
+a three-run median. Stage timings show that the dominant benefit
+is GetFEM/PETSc assembly and transfer, not a 48x speedup of
+the underlying PETSc factorization. Main current TS: 1 symbolic
++ 2 numerical MUMPS LU events and 10 solves, matching exact
+operator-change decisions. The final-step extra numerical LU
+is from CN `MATCHSTEP` shift roundoff.
+
+This resolves the previous ~0.376/0.397 cross-release full-state
+mismatch. Its root cause was accidental loss of accepted pseudo-TS
+state synchronization when prescribed RHS-only sources were
+correctly excluded from nonlinear stiffness flags. Both source
+classification and new exact MUMPS policy are retained.
+
+**Remaining separate scientific gates:** the pseudo-TS step perturbs
+`q(0)=0` to `||q|| ≈ 0.0047176`, so verify actual DAE
+constraint satisfaction and physical initialization semantics.
+Qualify full trajectories and power balance, corrected 1/2/4/6
+MPI comparisons, larger h=0.01 and long-run memory before
+declaring the optimization programme fully complete.
+
 ## v1.3.0 implementation and release gates
 
 - [x] Switch default MUMPS policy to on_change rather than inferring
@@ -138,9 +182,13 @@ update counters are retained after solve without storing CSR data.
   MPI ranks: 10 CN steps, full initial/final MPI vector comparison,
   numeric and symbolic native PETSc LU counts equal exact collective
   matrix update decisions.
-- [ ] **Run** the full same-source v1.2.0 serial vs v1.3 candidate
-  benchmark (3 repeats, ranks 1/2/4/6), comparing complete vectors
-  and reporting reproducible step and stage timings.
+- [x] **Pass** matched original-tag v1.2.0 serial vs corrected
+  v1.3.0 candidate sequential benchmark: identical full initial
+  state, final-state relative L2 ~3.924e-31, valid measured
+  single-run 48.45x full-wall-solve ratio and PNG/SVG reports.
+- [ ] Repeat on corrected source with 1/2/4/6 MPI ranks,
+  including complete vector parity and a three-repetition
+  performance sample before reporting robust medians.
 - [ ] Verify the **numeric transition case** on a changing Jacobian:
   one fresh numeric LU for every actual numeric change, but no
   unnecessary symbolic reanalysis for an unchanged graph.
