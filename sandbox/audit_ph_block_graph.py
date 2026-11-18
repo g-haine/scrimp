@@ -54,10 +54,10 @@ def audit_blocks(A, fields, *, atol=0.0):
         source = int(np.searchsorted(starts, row, side="right") - 1)
         if source < 0 or row >= stops[source]:
             raise RuntimeError("Unclassified owned PETSc row")
-        cols, values = A.getRow(row)
+        raw_cols, raw_values = A.getRow(row)
         try:
-            cols = np.asarray(cols, dtype=np.int64)
-            values = np.asarray(values)
+            cols = np.asarray(raw_cols, dtype=np.int64)
+            values = np.asarray(raw_values)
             if cols.size and (
                 np.any(cols < 0) or np.any(cols >= n)
                 or not np.all(np.isfinite(values))
@@ -82,7 +82,7 @@ def audit_blocks(A, fields, *, atol=0.0):
             diagonal_total[source] += 1
             diagonal_zero[source] += int(is_zero)
         finally:
-            A.restoreRow(row, cols, values)
+            A.restoreRow(row, raw_cols, raw_values)
 
     # Reduce only small per-block statistics; never gather sparse entries.
     global_stored = np.empty_like(stored)
