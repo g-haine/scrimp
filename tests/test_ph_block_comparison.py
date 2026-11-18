@@ -22,6 +22,13 @@ SPEC = importlib.util.spec_from_file_location(
 COMPARE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(COMPARE)
 
+DIAGNOSTIC_SPEC = importlib.util.spec_from_file_location(
+    "_scrimp_ph_discrepancy",
+    ROOT / "sandbox" / "diagnose_ph_block_parity.py",
+)
+DIAGNOSTIC = importlib.util.module_from_spec(DIAGNOSTIC_SPEC)
+DIAGNOSTIC_SPEC.loader.exec_module(DIAGNOSTIC)
+
 
 class PhBlockComparisonTests(unittest.TestCase):
     def setUp(self):
@@ -167,6 +174,35 @@ class PhBlockComparisonTests(unittest.TestCase):
             ValueError, "reference Gmsh mesh files differ"
         ):
             COMPARE.compare(self.directory)
+
+    def test_offline_diagnostic_identifies_specific_mass_block(self):
+        # Existing runs can be diagnosed without PETSc or rerunning
+        # the expensive native MPI experiment.
+        mass = self.records[2]["assembled_matrices"][
+            "flow_mass_F_and_algebraic_zero_rows"
+        ]
+        mass["block_frobenius_norm"][0][0] = 3.5
+        self.flush()
+        report = DIAGNOSTIC.diagnose(self.directory)
+        mismatches = report["matrices"][
+            "flow_mass_F_and_algebraic_zero_rows"
+        ]["mismatches"]
+        self.assertEqual(len(mismatches), 1)
+        self.assertEqual(mismatches[0]["row"], "q")
+        self.assertEqual(mismatches[0]["column"], "q")
+        self.assertGreater(mismatches[0]["abs_diff"], 2.0)
+        self.assertTrue(
+            (self.directory / "ph_block_discrepancy.json").is_file()
+        )
+
+    def test_offline_diagnostic_reports_unknown_original_mesh(self):
+        report = DIAGNOSTIC.diagnose(self.directory)
+        self.assertIsNone(report["mesh_sha256_1r"])
+        self.assertIsNone(report["mesh_sha256_2r"])
+        self.assertTrue(all(
+            not v["mismatches"]
+            for v in report["matrices"].values()
+        ))
 
     def test_wrong_fem_interval_rejected(self):
         self.records[2]["fields"][1]["start"] = 3
