@@ -605,6 +605,83 @@ rerun the short native audit once to obtain mesh
 fingerprints, and if needed do an exact sparse
 entrywise matrix comparison.
 
+### Resolved: Concentric's mixed-dimensional region merge (18 Nov 2026)
+
+**Root cause confirmed by the user's two raw-matrix audits** with
+*identical Gmsh .msh SHA256*
+`ec213dfd79ad4ade52515820295587083d3d30937717792cc0e44dea1f2045b3`
+at `h=0.12` and the same Docker GetFEM MPI-2 binary:
+
+```python
+# Incorrect (removed in scrimp/utils/mesh.py):
+mesh.region_merge(1, 10)
+mesh.region_merge(2, 10)
+```
+
+These lines merged the **lower-dimensional 1D interface** region
+`10` into both **2D volume** regions `1` and `2`.
+GetFEM's `gmsh_with_lower_dim_elt` import includes those
+lower-dimensional elements, so the mixed region changes both
+integration and FEM DoF restrictions. The resulting matrices
+were inconsistent between one and two ranks. No generic
+`1/mpi_ranks` compensation is justified.
+
+The user edited only these geometry declarations locally
+between successive runs. **Both runs printed source HEAD
+`3dc1fff4`**, demonstrating that `git rev-parse HEAD` does
+*not* identify an uncommitted bind-mounted source. The native
+audit now records `scrimp_mesh_source_sha256` and warns when
+the host `mesh.py` differs from HEAD.
+
+| Observed quantity, native one/two MPI ranks | Old geometry | Corrected geometry |
+|---|---:|---:|
+| Total GetFEM DoFs | 5790 | 5724 |
+| Dissipation `e_r` DoFs | 735 | 669 |
+| Raw GetFEM mass 2r vs 1r rel Fro error | 0.494526 | 5.08731e-18 |
+| Raw GetFEM stiffness 2r vs 1r rel Fro error | 0.707107 | 0 |
+| Raw-to-PETSc COO error (both rank counts) | 0 | 0 |
+| `||K[e_r,e_r]||_F` at one rank | 7.9304e15 | 0.0843037 |
+
+The 66 artificial dissipative DoFs were associated with the
+mixed-dimensional region inclusion. The huge dissipative
+coefficient was consistent with
+`nu=10*(0.36-x*x-y*y)=0` on the internal curve `r=0.6`,
+while `M_r` uses `e_r/nu*Test_e_r`. The clean geometry
+does not integrate this volumetric term on the 1D interface.
+These were not PETSc or MUMPS defects.
+
+**Permanent fix:** SCRIMP now keeps `region_merge(10,11)`,
+`region_merge(10,12)` for internal-curve labels, and
+`region_merge(20,21)`, `region_merge(20,22)` for the
+external boundary, but does **NOT** merge either into
+the volume regions. The separately accessible region
+`Interface: 10` is unchanged. The regression
+`tests/test_concentric_region_integrity.py` enforces
+these source-level invariants without native dependencies.
+The native 1-/2-rank `wave_coenergy` audit above is the
+numerical evidence. No other built-in geometry was changed.
+
+**Separate feedback check.** The original coenergy example
+uses `U=0.5*Y`. Its final Jacobian (where the feedback
+tangent is assembled) has `||J[U,Y]||_F=0.225193954`
+on both rank counts and the linear control block has
+`||K[U,U]||_F=0.450387908`. This ratio supports the
+expected derivative but is **not a coefficientwise proof**.
+The current optional raw-matrix audit additionally saves
+the final PETSc TS Jacobian on each rank and checks
+`J[U,Y] = -0.5*K[U,U]` and `J[U,U]=K[U,U]`
+coefficientwise in `sandbox/compare_raw_getfem_petsc.py`.
+The feedback test must be run on a clean source worktree
+before the model is used for strong-scaling and power
+preservation claims.
+
+**Scientific next gate:** use the normal geometry, verify
+the exact derivative of boundary feedback, then compare
+1-/2-rank trajectories, constitutive and port residuals,
+Hamiltonian, and discrete power defect. Only then start
+the physics-informed coenergy block-preconditioner
+design. Keep MUMPS global as reference.
+
 ### Code and native diagnostic
 
 `scrimp/utils/ph_block_layout.py` now exposes
