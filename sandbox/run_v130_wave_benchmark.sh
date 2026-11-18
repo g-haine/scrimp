@@ -20,6 +20,10 @@ if [[ $# -gt 2 || ! "$mesh" =~ ^0\.[0-9]+$ ||
 fi
 cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 1
 root="$PWD"
+# The user may have deleted sandbox/outputs entirely. A clean
+# qualification must recreate its output directory without relying on
+# any previous measurement, archive or reference vectors.
+mkdir -p "$root/sandbox/outputs"
 current_sha="$(git rev-parse HEAD)"
 git rev-parse -q --verify "refs/tags/v1.2.0^{commit}" >/dev/null || git fetch --tags origin
 release_sha="$(git rev-parse "refs/tags/v1.2.0^{commit}")"
