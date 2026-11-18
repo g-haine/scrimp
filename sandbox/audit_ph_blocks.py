@@ -22,6 +22,7 @@ a field-split preconditioner.
 """
 import argparse
 import hashlib
+import importlib
 import importlib.util
 import json
 import os
@@ -34,11 +35,54 @@ from petsc4py import PETSc
 
 from bench_acoustic_2d import _build_wave
 import scrimp as S
+import getfem as gf
 from scrimp.utils.ph_block_layout import (
     GROUPS, discover_layout, classify_ph_formulation,
     owned_group_ranges,
     classify_owned_csr, aggregate_role_pairs,
 )
+
+
+def _dump_owned_petsc_csr(mat, path):
+    """Record matrix-owned row CSR without any global MPI gather."""
+    lo, hi = map(int, mat.getOwnershipRange())
+    ptr, columns, values = mat.getValuesCSR()
+    np.savez_compressed(
+        path,
+        lo=np.int64(lo),
+        hi=np.int64(hi),
+        shape=np.asarray(mat.getSize(), dtype=np.int64),
+        indptr=np.asarray(ptr),
+        indices=np.asarray(columns),
+        data=np.asarray(values),
+    )
+
+
+def _trace_raw_getfem_matrix(M, path, global_size):
+    """Capture GetFEM's RAW matrix, BEFORE SCRIMP's COO transfer.
+
+    GetFEM exposes CSC; transpose the temporary copy to obtain
+    global-row CSR. This must NEVER modify M or the solver path.
+    No MPI collective occurs inside the native assembly callback.
+    """
+    source = gf.Spmat("copy", M)
+    source.transpose()
+    ptr, cols = source.csc_ind()
+    values = source.csc_val()
+    ptr = np.asarray(ptr, dtype=np.int64)
+    cols = np.asarray(cols, dtype=np.int64)
+    values = np.asarray(values)
+    if (
+        ptr.size != global_size+1 or ptr[0] != 0
+        or ptr[-1] != len(values) or len(cols) != len(values)
+    ):
+        raise RuntimeError(
+            "Invalid native GetFEM tangent CSR during MPI diagnostic"
+        )
+    np.savez_compressed(
+        path, shape=np.asarray((global_size, global_size)),
+        indptr=ptr, indices=cols, data=values,
+    )
 
 
 class _StopBeforeExampleSolve(Exception):
@@ -103,7 +147,51 @@ def audit(args):
         ksp_type="preonly", pc_type="lu",
         pc_factor_mat_solver_type="mumps",
     )
-    system.solve()
+    if args.capture_matrices:
+        # The existing SCRIMP assembly passes its raw GetFEM tangent
+        # to this converter. Snapshot only the two initial LINEAR
+        # matrices to locate GetFEM-vs-PETSc MPI discrepancies.
+        # The original converter and all runtime behavior are preserved.
+        dphs_module = importlib.import_module("scrimp.dphs")
+        original_bridge = dphs_module.convert_gmm_to_petsc
+        captured = set()
+        output_folder = args.output.parent
+        output_folder.mkdir(parents=True, exist_ok=True)
+
+        def bridge_snapshot(M, B, *positional, **options):
+            label = options.get("profile_label", "")
+            part = label.rsplit(".", 1)[-1]
+            if part in ("mass", "stiffness") and part not in captured:
+                _trace_raw_getfem_matrix(
+                    M,
+                    output_folder / (
+                        f"raw_getfem_{part}_{ranks}r_rank{rank}.npz"
+                    ),
+                    int(system.gf_model.nbdof()),
+                )
+                captured.add(part)
+            return original_bridge(M, B, *positional, **options)
+
+        with patch.object(
+            dphs_module, "convert_gmm_to_petsc", bridge_snapshot
+        ):
+            system.solve()
+        if captured != {"mass", "stiffness"}:
+            raise RuntimeError(
+                f"Missing raw GetFEM matrix snapshots: {captured}"
+            )
+        for label, mat in (
+            ("mass", system.mass),
+            ("stiffness", system.stiffness),
+        ):
+            _dump_owned_petsc_csr(
+                mat,
+                output_folder / (
+                    f"petsc_{label}_{ranks}r_rank{rank}.npz"
+                ),
+            )
+    else:
+        system.solve()
     if (
         system.last_ts_converged_reason <= 0
         or system.last_ts_steps != args.steps
@@ -238,6 +326,12 @@ def audit(args):
             "mesh_sha256": mesh_digest,
             "mesh_file_size_bytes": mesh_size,
             "formulation": formulation,
+            "capture_matrices": bool(args.capture_matrices),
+            "getfem_module_path": str(gf.__file__),
+            "getfem_mpi_level": int(
+                gf.util_mpi_parallelism_level()
+            ),
+            "petsc_version": list(PETSc.Sys.getVersion()),
             "ts_type": "cn", "dt": args.dt, "steps": args.steps,
             "final_time": float(system.last_ts_time),
             "linear_mass": bool(system.linear_mass),
@@ -322,6 +416,11 @@ def main():
     parser.add_argument("--dt", type=float, default=0.002)
     parser.add_argument("--steps", type=int, default=2)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--capture-matrices", action="store_true",
+        help="Record raw GetFEM and final PETSc mass/stiffness CSR "
+             "on EACH rank; small-mesh MPI bridge diagnosis only",
+    )
     audit(parser.parse_args())
 
 
