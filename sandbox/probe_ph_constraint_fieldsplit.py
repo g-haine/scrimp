@@ -29,6 +29,7 @@ from audit_ph_block_graph import audit_blocks
 from probe_constitutive_mumps_schur import _filled_right
 from probe_ph_fieldsplit_baseline import solve_reference, relative_residual
 from qualify_ph_constraint_schur import locally_owned_indices
+from ph_schur_path2 import build_path2_schur
 from scrimp.utils.ph_block_layout import discover_layout
 
 
@@ -43,11 +44,19 @@ def trial(A, rhs, iz, il, rtol, max_it, schur_pre, inner_restart_cap):
     pc.setType("fieldsplit")
     pc.setFieldSplitType(PETSc.PC.CompositeType.SCHUR)
     pc.setFieldSplitSchurFactType(PETSc.PC.FieldSplitSchurFactType.FULL)
-    pc.setFieldSplitSchurPreType({
-        "full": PETSc.PC.FieldSplitSchurPreType.FULL,
-        "selfp": PETSc.PC.FieldSplitSchurPreType.SELFP,
-        "self": PETSc.PC.FieldSplitSchurPreType.SELF,
-    }[schur_pre])
+    path2 = None
+    path2_report = None
+    if schur_pre == "path2":
+        path2, path2_report = build_path2_schur(A, iz, il)
+        pc.setFieldSplitSchurPreType(
+            PETSc.PC.FieldSplitSchurPreType.USER, path2
+        )
+    else:
+        pc.setFieldSplitSchurPreType({
+            "full": PETSc.PC.FieldSplitSchurPreType.FULL,
+            "selfp": PETSc.PC.FieldSplitSchurPreType.SELFP,
+            "self": PETSc.PC.FieldSplitSchurPreType.SELF,
+        }[schur_pre])
     pc.setFieldSplitIS(("principal", iz), ("constraint", il))
     opts = PETSc.Options()
     options = {
@@ -55,19 +64,21 @@ def trial(A, rhs, iz, il, rtol, max_it, schur_pre, inner_restart_cap):
         "ph_constraint_fieldsplit_principal_pc_type": "lu",
         "ph_constraint_fieldsplit_principal_pc_factor_mat_solver_type": "mumps",
         "ph_constraint_fieldsplit_constraint_ksp_type": (
-            "gmres" if schur_pre == "self" else "preonly"
+            "gmres" if schur_pre in ("self", "path2") else "preonly"
         ),
         "ph_constraint_fieldsplit_constraint_pc_type": (
             "none" if schur_pre == "self" else "lu"
         ),
     }
     inner_restart = min(int(il.getSize()) + 5, inner_restart_cap)
-    if schur_pre == "self":
+    if schur_pre in ("self", "path2"):
         options["ph_constraint_fieldsplit_constraint_ksp_gmres_restart"] = str(inner_restart)
         options["ph_constraint_fieldsplit_constraint_ksp_rtol"] = "1e-12"
         options["ph_constraint_fieldsplit_constraint_ksp_atol"] = "1e-14"
         options["ph_constraint_fieldsplit_constraint_ksp_max_it"] = str(max(100, 2 * inner_restart))
     else:
+        options["ph_constraint_fieldsplit_constraint_pc_factor_mat_solver_type"] = "mumps"
+    if schur_pre == "path2":
         options["ph_constraint_fieldsplit_constraint_pc_factor_mat_solver_type"] = "mumps"
     result = A.createVecRight()
     try:
@@ -107,7 +118,8 @@ def trial(A, rhs, iz, il, rtol, max_it, schur_pre, inner_restart_cap):
             "iterations": int(ksp.getIterationNumber()),
             "pc_failed_reason": str(pc.getFailedReason()),
             "subsolver_cumulative_monitor": sub_stats,
-            "inner_gmres_restart_configured": inner_restart if schur_pre == "self" else None,
+            "inner_gmres_restart_configured": inner_restart if schur_pre in ("self", "path2") else None,
+            "sparse_path2_preconditioner": path2_report,
         }
         try:
             diagnostics["sub_solvers"] = [
@@ -129,6 +141,8 @@ def trial(A, rhs, iz, il, rtol, max_it, schur_pre, inner_restart_cap):
         raise
     finally:
         ksp.destroy()
+        if path2 is not None:
+            path2.destroy()
         for key in options:
             del opts[key]
 
@@ -284,8 +298,8 @@ def main():
     p.add_argument("--max-it", type=int, default=400)
     p.add_argument("--inner-restart-cap", type=int, default=256,
                    help="Cap for dimension-aware GMRES Schur restart; diagnostic only")
-    p.add_argument("--schur-pre", choices=("self", "full", "selfp"), default="self",
-                   help="SELF implicit Schur GMRES (default), FULL explicit, SELFP control")
+    p.add_argument("--schur-pre", choices=("self", "path2", "full", "selfp"), default="self",
+                   help="SELF baseline, PATH2 sparse Schur USER Pmat, FULL/SELFP controls")
     p.add_argument("--accept-error", type=float, default=5e-8)
     p.add_argument("--accept-residual", type=float, default=5e-8)
     p.add_argument("--output", type=Path, required=True)
