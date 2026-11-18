@@ -129,7 +129,7 @@ def main():
 
     observations = {"initial": None, "final": None, "steps": None,
                     "rejected": None, "snes_failures": None,
-                    "last_callback_time": None}
+                    "last_callback_time": None, "main_mumps_icntl28": None}
     original_monitor = system.monitor
     # Each rank records intervals locally. The previous monitor exit
     # and the next monitor entry bracket only PETSc step work, not
@@ -156,6 +156,14 @@ def main():
         # The initial-consistency TS uses `initial_step=True` in both
         # versions. Do not count that pseudostep as a physical CN step.
         if not kw.get("initial_step", False) and i >= 0:
+            if args.variant == "current" and i >= 1:
+                pc = TS.getSNES().getKSP().getPC()
+                factor = pc.getFactorMatrix()
+                observed28 = int(factor.getMumpsIcntl(28))
+                if (observations["main_mumps_icntl28"] is not None
+                        and observed28 != observations["main_mumps_icntl28"]):
+                    raise RuntimeError("MUMPS ICNTL28 changed during CN steps")
+                observations["main_mumps_icntl28"] = observed28
             observations["steps"] = int(TS.getStepNumber())
             observations["rejected"] = int(TS.getStepRejections())
             observations["snes_failures"] = int(TS.getSNESFailures())
@@ -248,6 +256,13 @@ def main():
             f"last monitor metadata={observations}"
         )
     if args.variant == "current":
+        expected28 = 2 if ranks > 1 else 1
+        effective28 = mpi.allgather(observations["main_mumps_icntl28"])
+        if any(v != expected28 for v in effective28):
+            raise RuntimeError(
+                f"Main CN MUMPS ordering unexpected: expected ICNTL(28)="
+                f"{expected28}, per-rank values={effective28}"
+            )
         if (getattr(system, "last_ts_converged_reason", 0) <= 0
                 or getattr(system, "last_ts_steps", -1) != target_steps
                 or getattr(system, "_mumps_reset_policy", None)
@@ -346,6 +361,7 @@ def main():
             ),
             "trajectory_backend": "memory",
             "profile": phase_profile,
+            "main_cn_mumps_icntl28": observations["main_mumps_icntl28"],
             "wall_build_s": float(build_wall),
             "wall_solve_s": float(solve_wall),
             "wall_total_s": float(build_wall + solve_wall),
