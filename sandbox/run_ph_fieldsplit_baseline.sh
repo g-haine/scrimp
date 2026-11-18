@@ -12,8 +12,8 @@
 set -euo pipefail
 mesh="${1:-0.08}"
 x_pc="${2:-bjacobi}"
-if [[ $# -gt 2 || ! "$mesh" =~ ^0\.[0-9]+$ || ! "$x_pc" =~ ^(bjacobi|lu)$ ]]; then
-    echo "Usage: bash sandbox/run_ph_fieldsplit_baseline.sh [mesh_h=0.08] [x_pc=bjacobi|lu]" >&2
+if [[ $# -gt 2 || ! "$mesh" =~ ^0\.[0-9]+$ || ! "$x_pc" =~ ^(bjacobi|lu|schur-selfp)$ ]]; then
+    echo "Usage: bash sandbox/run_ph_fieldsplit_baseline.sh [mesh_h=0.08] [x_pc=bjacobi|lu|schur-selfp]" >&2
     exit 2
 fi
 cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 1
