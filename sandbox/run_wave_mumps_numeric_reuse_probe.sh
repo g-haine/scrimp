@@ -68,7 +68,7 @@ for mode in baseline static_cn; do
         exit 1
     fi
 done
-/usr/bin/python3 - "$out/baseline.json" "$out/static_cn.json" <<'PY'
+/usr/bin/python3 - "$out/baseline.json" "$out/static_cn.json" "$out/baseline.log" "$out/static_cn.log" <<'PY'
 import json, math, sys
 base, static = (json.load(open(p, encoding="utf-8")) for p in sys.argv[1:])
 for report in (base, static):
@@ -89,8 +89,37 @@ if any(not math.isfinite(v) or v > 5e-8 for v in reldiff.values()):
     raise SystemExit("FAIL: state norm gate (full vector/power budget not yet compared)")
 print("  baseline solve:", base["wall_solve_seconds_max"], "seconds")
 print("  static_cn solve:", static["wall_solve_seconds_max"], "seconds")
-print("NOTE: check PETSc main-stage MatLUFactorNum event count in logs.")
-print("NOTE: norm agreement is necessary but insufficient for full-state accuracy.")
+import re
+def main_numeric_count(log):
+    stage = None
+    found = []
+    for line in open(log, encoding="utf-8", errors="replace"):
+        if "Event Stage" in line and ("WAVE_MAIN_CN" in line
+                                      or "WAVE_INITIAL_CONSISTENCY" in line
+                                      or "Main Stage" in line):
+            if "WAVE_MAIN_CN" in line:
+                stage = "main"
+            else:
+                stage = "other"
+            continue
+        match = re.match(r"^\\s*MatLUFactorNum\\s+(\\d+)\\s+", line)
+        if match and stage == "main":
+            found.append(int(match.group(1)))
+    if len(found) != 1:
+        raise SystemExit(
+            f"FAIL: expected exactly one MAIN CN MatLUFactorNum event "
+            f"in {log}, got {found}; inspect the PETSc log stage names"
+        )
+    return found[0]
+baseline_count = main_numeric_count(sys.argv[3])
+reuse_count = main_numeric_count(sys.argv[4])
+print("Main CN MatLUFactorNum counts: baseline=", baseline_count,
+      " static_cn=", reuse_count)
+if baseline_count != 10 or reuse_count != 1:
+    raise SystemExit(
+        "FAIL: actual numeric LU reuse not confirmed (expected 10 -> 1)"
+    )
+print("NOTE: norm agreement does not replace full-state and power-balance checks.")
 PY
 echo "Reports: $out"
-echo "PASS: static numeric reuse experiment finished; inspect PETSc event counts"
+echo "PASS: main CN numerical LU reuse (10 -> 1) confirmed by PETSc event counts"
