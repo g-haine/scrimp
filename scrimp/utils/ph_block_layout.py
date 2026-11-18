@@ -79,6 +79,12 @@ def discover_layout(model, *, states, costates, ports, controls):
 
     fields = []
     for name, group in roles.items():
+        # The GetFEM C++ binding prints "logic_error exception caught"
+        # BEFORE Python can catch a missing interval. Substituted
+        # coenergies have no independent DoFs by definition: never
+        # query their nonexistent GetFEM variable intervals.
+        if name in substituted:
+            continue
         try:
             start, count = model.interval_of_variable(name)
         except (KeyError, RuntimeError, ValueError) as exc:
