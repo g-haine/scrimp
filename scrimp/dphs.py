@@ -15,6 +15,7 @@
 
 from scrimp.utils.linalg import convert_gmm_to_petsc, extract_gmm_to_scipy
 from scrimp.utils.profiling import TimingProfiler
+from scrimp.utils.initial_state import publish_accepted_pseudo_state
 from scrimp.utils.matrix_memory import (
     alias_readonly_linear_tangent, add_mass_hessian_fd_reused,
 )
@@ -2489,12 +2490,8 @@ class DPHS:
         of RHS-only sources must not suppress consistent initialization.
         """
         with self.profiler.measure("initial.petsc.accepted_state_sync"):
-            self.Scatter[0].scatter(init_vec, self.GlobalVec)
-            self.gf_model.to_variables(
-                np.asarray(
-                    self.GlobalVec.getArray(readonly=True).real,
-                    dtype=np.float64,
-                ).copy()
+            publish_accepted_pseudo_state(
+                self.Scatter[0], init_vec, self.GlobalVec, self.gf_model
             )
 
     def init_step(self):
