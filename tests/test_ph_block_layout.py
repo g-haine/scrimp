@@ -192,8 +192,7 @@ class PhBlockLayoutTests(unittest.TestCase):
 
     def test_partially_substituted_formulation_is_not_assumed_explicit(self):
         del self.model.intervals["e_p"]
-        self.model.intervals["p"] = (5, 1)
-        self.model.nbdof = lambda: 6
+        self.model.nbdof = lambda: 5
         self.kwargs["costates"] = {
             "e_q": _FakeCoState(substituted=False),
             "e_p": _FakeCoState(substituted=True),
