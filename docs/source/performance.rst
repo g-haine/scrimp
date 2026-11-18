@@ -85,8 +85,11 @@ creates ``png/01_smoke_numeric_factor_reuse.png`` and
 ``png/02_smoke_solve_time.png`` after all factor and state gates pass.
 
 The runner fails when accepted steps are missing, current MPI
-initial/final states disagree, or the production main CN stage
-refactorizes numerically more than once. If current and native v1.2.0
+initial/final states disagree, or PETSc native factorization events
+do not match the exact graph/coefficient changes recorded collectively
+by SCRIMP. A final CN MATCHSTEP shift may differ by floating-point
+roundoff and legitimately produce a second numerical factorization.
+No silent numeric tolerance is applied to the reuse decision. If current and native v1.2.0
 states disagree, the current MPI scaling report is still valid,
 but **no cross-version speedup claim is accepted** and the
 release timing is excluded from the common scaling graph. Results
