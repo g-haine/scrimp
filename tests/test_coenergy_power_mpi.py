@@ -83,10 +83,11 @@ class CoenergyPowerMpiTests(unittest.TestCase):
             )
 
     def test_exact_cn_discrete_power_identity_on_quadratic_model(self):
-        # M zdot+Kz=0 with M positive and symmetric, K dissipative.
-        # CN preserves the discrete midpoint H + dissipated power.
-        mass = np.diag([2., 3., 1.])
-        stiffness = np.diag([.5, 1., 2.])
+        # SCRIMP's flow bricks enter the residual with a MINUS:
+        # M=-M_physical, K=-R_physical.
+        # Hamiltonian H=-0.5 z.T M z; P=-z.T K z is positive.
+        mass = -np.diag([2., 3., 1.])
+        stiffness = -np.diag([.5, 1., 2.])
         dt = .07
         z0 = np.array([1., 2., -.7])
         z1 = np.linalg.solve(
@@ -94,9 +95,9 @@ class CoenergyPowerMpiTests(unittest.TestCase):
             (mass - .5*dt*stiffness)@z0,
         )
         midpoint = .5*(z0+z1)
-        h0 = .5*z0@mass@z0
-        h1 = .5*z1@mass@z1
-        power = midpoint@stiffness@midpoint
+        h0 = -.5*z0@mass@z0
+        h1 = -.5*z1@mass@z1
+        power = -midpoint@stiffness@midpoint
         self.assertAlmostEqual(
             h1-h0+dt*power, 0., places=13
         )
