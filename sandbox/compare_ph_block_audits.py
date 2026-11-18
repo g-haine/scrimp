@@ -37,9 +37,13 @@ def compare(directory):
     a, b = reports[1], reports[2]
     for name in ("source_commit", "physical_model", "mesh", "dofs",
                  "dt", "steps", "final_time", "fields",
-                 "formulation", "linear_stiffness"):
+                 "linear_stiffness"):
         if a[name] != b[name]:
             raise ValueError(f"Mismatch in {name} between 1/2 MPI ranks")
+    # Older wave-only JSON reports did not contain this field.
+    # Continue to support reanalysing these reference campaigns.
+    if a.get("formulation") != b.get("formulation"):
+        raise ValueError("Mismatch in formulation between 1/2 MPI ranks")
     if a["mumps_policy"] != b["mumps_policy"]:
         raise ValueError("Different MUMPS policy between 1/2 ranks")
     for p, data in reports.items():
