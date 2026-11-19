@@ -71,7 +71,7 @@ def main() -> int:
     ancestor_rules = {"!" + str(Path(p)) for pattern in ALLOW
                       for p in Path(pattern).parents if str(p) != "."}
     expected = {"!" + p for p in ALLOW} | ancestor_rules
-    actual = {x for x in ignore if x.startswith("!")}
+    actual = {x.rstrip("/") for x in ignore if x.startswith("!")}
     assert actual == expected, (
         f"Unexpected .dockerignore exceptions: "
         f"extra={sorted(actual - expected)}; "
