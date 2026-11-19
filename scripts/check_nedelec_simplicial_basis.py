@@ -112,6 +112,42 @@ def audit(dim: int, k: int, *, exact: bool) -> tuple[int, int, int | None]:
     return len(basis), len(functionals), rank
 
 
+
+def n2_functionals(dim: int, k: int):
+    """Pointwise tangent DoFs for experimental nodal Nedelec-II (k=1,2)."""
+    assert dim in (2, 3) and k in (1, 2)
+    n = k + 2
+    vertices = [reference_vertex(dim, v) for v in range(dim + 1)]
+    for bary in product(range(n + 1), repeat=dim + 1):
+        if sum(bary) != n:
+            continue
+        present = [v for v, b in enumerate(bary) if b != 0]
+        x = sum((sy.Rational(bary[v], n)*vertices[v]
+                 for v in range(dim + 1)), sy.zeros(dim, 1))
+        if len(present) == 2:
+            yield x, vertices[present[1]] - vertices[present[0]]
+        elif len(present) == 3 and k == 2:
+            dominant = max(present, key=lambda v: bary[v])
+            centroid = sum((vertices[v] for v in present),
+                           sy.zeros(dim, 1)) / 3
+            yield x, vertices[dominant] - centroid
+
+
+def audit_n2(dim: int, k: int) -> int:
+    """Exact rank of the nodal reference interpolation matrix."""
+    basis = poly_space(dim, k, first_kind=False)
+    functionals = list(n2_functionals(dim, k))
+    n = n2_dimension(dim, k)
+    assert len(basis) == len(functionals) == n
+    matrix = sy.Matrix([
+        [t.dot(vector_evaluate(p, x, dim)) for p in basis]
+        for x, t in functionals
+    ])
+    rank = matrix.rank()
+    assert rank == n, (dim, k, rank, n)
+    return rank
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--max-order", type=int, default=2,
@@ -125,6 +161,11 @@ def main() -> None:
             count, nfunc, rank = audit(dim, k, exact=(k <= 2))
             status = f"exact rank={rank}" if rank is not None else "count only"
             print(f"N1 dim={dim} k={k}: basis={count}, functionals={nfunc}; {status}")
+    print("Nedelec-II nodal reference ranks (k=1,2):")
+    for dim in (2, 3):
+        for k in (1, 2):
+            rank = audit_n2(dim, k)
+            print(f"N2 dim={dim} k={k}: exact rank={rank}/{n2_dimension(dim, k)}")
     print("Reference spaces only: no H(curl) conformity or MPI claim.")
 
 
