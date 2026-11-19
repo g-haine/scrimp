@@ -27,7 +27,11 @@ class StarterProjectTest(unittest.TestCase):
         obj = json.loads(
             (TEMPLATE / ".devcontainer/devcontainer.json").read_text()
         )
-        self.assertIn("SCRIMP_DOCKER_IMAGE", obj["image"])
+        # Dev Containers may parse colons inside ${localEnv:...:fallback}
+        # incorrectly, silently truncating "name:tag" to "name" and
+        # triggering a docker pull of the nonexistent ":latest" image.
+        self.assertEqual(obj["image"], "scrimp-mpi:v1.3.0-rc1")
+        self.assertNotIn("${", obj["image"])
         self.assertEqual(obj["workspaceFolder"], "/work")
         self.assertIn("type=bind", obj["workspaceMount"])
         self.assertIn("localWorkspaceFolder", obj["workspaceMount"])
@@ -49,6 +53,19 @@ class StarterProjectTest(unittest.TestCase):
         self.assertIn("system.solve()", example)
         self.assertIn("outputs/oscillator.csv", example)
         self.assertNotIn("plt.show()", example)
+
+    def test_generator_default_image_is_local_candidate_with_tag(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            dest = Path(temporary) / "DefaultSCRIMP"
+            result = subprocess.run(
+                [sys.executable, str(CREATOR), str(dest)],
+                capture_output=True, text=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            config = json.loads(
+                (dest / ".devcontainer/devcontainer.json").read_text()
+            )
+            self.assertEqual(config["image"], "scrimp-mpi:v1.3.0-rc1")
 
     def test_generator_creates_isolated_project_and_never_overwrites(self):
         with tempfile.TemporaryDirectory() as temporary:
