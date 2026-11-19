@@ -25,45 +25,59 @@ silently upgraded by the experimental instructions below.
 Modern parallel Docker image (GetFEM 5.5)
 -----------------------------------------
 
-A versioned image recipe lives in ``docker/Dockerfile``, with
-``docker/environment.yml``. It uses one *consistent* conda-forge
-OpenMPI stack for native PETSc, SLEPc and MUMPS, with a
-complex PETSc scalar type. The petsc4py/slepc4py Python bindings
-are built against that stack and the NumPy 2 headers from source. GetFEM 5.5 is built from the official
-release source with ``--enable-paralevel=2``. NumPy 2 is **required**,
-not presumed to work: builds fail if its ABI smoke test fails.
+The v1.3.0 **candidate** Docker recipe is in ``docker/Dockerfile``,
+with dependencies in ``docker/environment.yml``. It uses one
+consistent conda-forge OpenMPI stack and complex PETSc/SLEPc/MUMPS.
+The PETSc/SLEPc Python bindings are compiled against the installed
+native libraries and NumPy 2 headers. GetFEM 5.5 is compiled with
+``--enable-paralevel=2``, including SCRIMP's approved simplex
+BDM/Nédélec source patches.
+
+Native dependencies are now compiled in **cache-friendly layers
+before copying SCRIMP's Python sources**. Docker BuildKit retains
+APT, Micromamba, pip and verified GetFEM tarball downloads.
+
+Use an **independently tagged candidate**, not the qualified existing
+``scrimp-mpi:local`` image:
 
 .. code-block:: bash
 
-    docker build --progress=plain -f docker/Dockerfile \
-        -t scrimp-mpi:gf55 .
+    cd ~/Simulations/scrimp
+    git pull --ff-only
+    bash scripts/build-v130-docker-candidate.sh
+    bash scripts/smoke-v130-docker-candidate.sh
 
-    docker run --rm scrimp-mpi:gf55 \
-        mpiexec -n 2 python sandbox/smoke_modern_stack.py
+By default these target ``scrimp-mpi:v1.3.0-rc1``. The build script
+writes ``sandbox/outputs/v130-docker-build.log`` and records the
+built image ID; the smoke writes
+``sandbox/outputs/v130-docker-smoke.log``, exports the exact
+resolved Conda package spec and checks the GetFEM simplex descriptor
+support, NumPy ABI, complex PETSc and distributed MUMPS at 1/2 ranks.
+It explicitly rejects Nédélec-II order k>=3, which has **not**
+been implemented.
 
-    docker run --rm scrimp-mpi:gf55 \
-        mpiexec -n 2 python -m unittest -v tests.test_mpi_algebra
+These commands are prepared but **the full candidate clean build and
+MPI validation have not yet been run** on the user's workstation.
+Do not replace or delete ``scrimp-mpi:local`` merely because the
+Docker recipe is checked into Git.
 
-To mount the repository for development, from its root:
+For an interactive candidate session:
 
 .. code-block:: bash
 
-    docker run --rm -it -v "$PWD:/work" \
-        --workdir /work scrimp-mpi:gf55 bash
+    sudo docker run --rm -it -v "$PWD:/work" \
+        --workdir /work scrimp-mpi:v1.3.0-rc1 bash
 
-These examples launch multiple MPI processes **inside one container
-on one host**. Running between HPC nodes requires a compatible
-MPI launcher/transport (for example Apptainer with a site-supported
-MPI ABI) and dedicated cluster testing. Avoid mixing Ubuntu MPI,
-conda MPI and host MPI shared libraries.
+Further instructions and the cache-validation protocol are in
+``docs/V130_DOCKER_BUILD.md``. The image is **not released**.
+Existing Sphinx/Conda instructions for the stable ``scrimp.yml``
+environment remain unchanged.
 
 The GitHub Actions workflow ``.github/workflows/docker-mpi.yml``
-builds and tests the image. **Publication on GHCR is opt-in**:
-manually run `Build and validate modern GetFEM MPI image` using
-`workflow_dispatch` with `publish=true`. No image is published
-unless building and smoke tests have succeeded. Record the produced
-``docker-resolved-spec.txt`` artifact and image digest before
-shipping a release.
+is still manual-only and separately checks MPI/native assembly,
+algebra and representative wave physics. GHCR publication remains
+opt-in and must follow actual image validation; the local candidate
+build script never publishes.
 
 Local GetFEM 5.5 MPI compilation (Conda environment)
 ----------------------------------------------------
