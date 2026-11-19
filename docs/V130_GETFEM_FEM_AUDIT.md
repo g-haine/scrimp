@@ -41,7 +41,7 @@ exact-arithmetic mathematical reference for a general first-kind
 polynomial generating set and symmetric nodal interpolation scheme
 (edge tangents, two face tangents, volume components). A **separate
 experimental GetFEM source patch** is also staged under
-`scripts/patches/getfem-5.5/experimental/0003-nedelec-first-kind-simplices.patch`
+`scripts/patches/getfem-5.5/0003-nedelec-first-kind-simplices.patch`
 for `FEM_NEDELEC1(N,K)` (k=0 delegates to the existing Whitney family).
 It is intentionally **excluded from the Docker build**, pending native
 compilation and two-cell H(curl) orientation checks. The second-kind
@@ -372,3 +372,37 @@ space is `[P_k]^d` (k>=1), with edge tangential trace and additional
 face/interior functionals; reference:
 https://defelement.org/elements/nedelec2.html . Its k=1/2
 expected dimensions are 6/12 in 2D and 12/30 in 3D.
+
+### Nédélec-II nodal source proposal: experimental only (19 November 2026)
+
+The new experimental source patch is
+`scripts/patches/getfem-5.5/experimental/0004-nedelec-second-kind-simplices.patch`
+and registers `FEM_NEDELEC2(N,K)` on triangles/tetrahedra **for k=1,2
+only**. The local vector polynomial space is `[P_k]^d`. It uses
+k+1 pointwise edge tangential samples and, when k=2, three
+interior nodal radial-tangential samples per triangular face.
+For tetrahedra these face functionals are geometrically linkable;
+for triangles they are cell-interior DoFs.
+
+The exact rational interpolation matrices computed on reference
+simplexes have full rank:
+
+| Geometry | k=1 | k=2 |
+| --- | ---: | ---: |
+| Triangle | 6/6 | 12/12 |
+| Tetrahedron | 12/12 | 30/30 |
+
+This uses nodal functionals, **not** the standard Nédélec-II
+integral-moment implementation described by DefElement
+(https://defelement.org/elements/nedelec2.html). Global geometric
+orientation and H(curl) conformity **remain to be tested natively**;
+the reference rank alone is not sufficient.
+
+`scripts/test-getfem55-nedelec2-patch-in-docker.sh` applies approved
+`0001`, `0002`, `0003` and experimental `0004` to the original
+GetFEM 5.5 source in an isolated disposable container and runs
+`sandbox/audit_getfem55_nedelec2_simplices.py`. This checks local
+k=1/2 dimensions, shared-face/edge DoF counts, SPD mass matrices
+and two-cell tangential traces. **The Nédélec-II source has not been
+compiled or executed yet.** Do not promote it to the standard Docker
+build until this smoke passes.
