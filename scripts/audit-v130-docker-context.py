@@ -77,14 +77,14 @@ def main() -> int:
         "(no broad negation exceptions)"
     )
     dockerfile = (ROOT / "docker/Dockerfile").read_text()
-    assert not re.search(r"(?m)^COPY\\s+(?:--\\S+\\s+)*\\.\\s+", dockerfile), (
+    assert not re.search(r"(?m)^COPY\s+(?:--\S+\s+)*\.\s+", dockerfile), (
         "Broad Dockerfile COPY . is not permitted"
     )
 
     # Anchored, slash-aware pattern matching (never pathlib/glob of
     # the live repository: that can enumerate giant data directories).
     patterns = [
-        re.compile("^" + re.escape(p).replace(r"\\*", "[^/]*") + "$")
+        re.compile("^" + re.escape(p).replace(r"\*", "[^/]*") + "$")
         for p in ALLOW
     ]
     tracked = subprocess.run(
@@ -93,7 +93,7 @@ def main() -> int:
     ).stdout
     matched: dict[str, Path] = {}
     root_resolved = ROOT.resolve()
-    for entry in tracked.split(b"\\0"):
+    for entry in tracked.split(b"\0"):
         if not entry:
             continue
         relative = os.fsdecode(entry)
@@ -155,8 +155,8 @@ def main() -> int:
         # This is a physically isolated, already safe context. Do not
         # copy the root .dockerignore, which intentionally denies all.
         (dest / ".dockerignore").write_text(
-            "# Audited, physically isolated Docker context.\\n"
-            "# No local untracked simulations can exist here.\\n",
+            "# Audited, physically isolated Docker context.\n"
+            "# No local untracked simulations can exist here.\n",
             encoding="utf-8",
         )
         staged_bytes = sum(
