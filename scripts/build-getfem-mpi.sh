@@ -37,13 +37,28 @@ export RANLIB="$(command -v ranlib)"
 PYTHON_BIN="$(command -v python)"
 
 if [[ "$GETFEM_SOURCE" == release ]]; then
-  file="$BUILD_DIR/getfem-$GETFEM_VERSION.tar.gz"
+  # Optional separate DOWNLOAD cache: Docker mounts this directory as a
+  # BuildKit cache, while its actual compiled sources remain in BUILD_DIR.
+  # The default preserves the original host-conda behavior.
+  archive_dir="${GETFEM_ARCHIVE_DIR:-$BUILD_DIR}"
+  mkdir -p "$archive_dir"
+  file="$archive_dir/getfem-$GETFEM_VERSION.tar.gz"
   url="https://download-mirror.savannah.gnu.org/releases/getfem/stable/getfem-$GETFEM_VERSION.tar.gz"
   if [[ ! -f "$file" ]]; then
-    curl --fail --location --retry 3 --output "$file" "$url"
+    # Do not leave a corrupted partial archive in the persistent cache
+    # when the download is interrupted or a mirror fails.
+    incomplete="$file.part.$"
+    trap 'rm -f "$incomplete"' EXIT
+    curl --fail --location --retry 3 --output "$incomplete" "$url"
+    mv "$incomplete" "$file"
+    trap - EXIT
   fi
   if [[ -n "${GETFEM_SHA256:-}" ]]; then
-    echo "$GETFEM_SHA256  $file" | sha256sum -c -
+    if ! echo "$GETFEM_SHA256  $file" | sha256sum -c -; then
+      rm -f "$file"
+      echo "ERROR: GetFEM archive SHA256 mismatch; corrupt cached archive removed." >&2
+      exit 2
+    fi
   else
     echo "WARNING: no GETFEM_SHA256 configured (experimental build)." >&2
   fi
