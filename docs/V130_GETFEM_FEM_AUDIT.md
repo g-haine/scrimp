@@ -84,33 +84,44 @@ Use **GetFEM v5.5 original sources** and the local SCRIMP Docker/GetFEM build; c
 - https://defelement.org/elements/nedelec2.html
 - https://getfem.org/project/contribute.html
 
-## First native constructor probe (SCRIMP integration test only)
+## Native constructor probe — container qualification (19 November 2026)
 
-**Important protocol correction (19 November 2026):** the first execution (2026-11-19T10:38Z) was run under the *host* Python `/opt/anaconda3/envs/scrimp/bin/python`, loading GetFEM from `/opt/anaconda3/envs/scrimp/lib/python3.12/site-packages/getfem/`. Its report of 5/14 constructed and 9 errors **does not qualify GetFEM 5.5**. Keep the JSON as a clearly labeled historical host probe; do not cite the failures as native Docker regressions.
+The historical host-conda execution on 2026-11-19T10:38Z loaded the **old** GetFEM from `/opt/anaconda3/envs/scrimp`. Its 5/14 result does **not** qualify GetFEM 5.5. Keep the JSON as a labeled historical non-qualifying probe.
 
-The non-invasive driver `sandbox/audit_getfem55_element_catalog.py` runs each GetFEM descriptor in its **own subprocess**. It now **refuses to run on host conda by default**: before launching any element, it checks Docker environment markers, that Python/GetFEM are loaded from the image's `/opt/conda/envs/scrimp/` environment, and `getfem.util_mpi_parallelism_level() == 2`. A deliberate host-only diagnostic may use `--allow-non-docker`; that report is flagged non-qualifying. This runtime check **does not establish the source tag or tarball checksum**: use the image build log/digest for source provenance.
+The subsequent **real Docker** execution loaded Python and GetFEM from `/opt/conda/envs/scrimp`, reported `docker_marker_present=true`, and `getfem.util_mpi_parallelism_level() == 2`. It constructed **12 of 14** descriptors with matching local dimensions:
 
-Use the already validated **local** GetFEM 5.5 image, here `scrimp-mpi:local` (do **not** rebuild or replace it for the constructor smoke), with the current SCRIMP source bind-mounted:
+| Family / dimension | k range tested | Constructed / attempted | Conclusion |
+|---|---:|---:|---|
+| RT simplex 2D | 0–2 | 3/3 | Local construction and dimension PASS |
+| RT simplex 3D | 0–2 | 3/3 | Local construction and dimension PASS |
+| BDM simplex 2D | 1–2 | 2/2 | Local construction and dimension PASS |
+| **BDM simplex 3D** | **1–2** | **0/2** | Constructor ERROR; detailed exception not yet captured |
+| RT0Q 2D and 3D | 0 | 2/2 | Local construction and dimension PASS |
+| Nédélec first kind 2D and 3D | 0 | 2/2 | Local construction and dimension PASS |
+
+The first Docker script wrote the JSON **after** all probes to `sandbox/outputs/getfem55_constructor_audit_docker.json` on the bind-mounted host tree. This failed with `PermissionError: [Errno 13]` because the non-root image user lacked write permission to the destination; the child error messages for BDM were therefore not preserved in JSON. **This is a report-output permission issue, not a GetFEM constructor failure.**
+
+### Corrected reporting without changing host permissions
+
+The audit script now supports `--output -`: diagnostics go to **stderr**, while complete machine-readable JSON goes to **stdout**. Shell redirection on the **host** writes it to a host-owned path, so no Docker user needs write access to `sandbox/outputs`. Unwritable file output also falls back to printing the JSON between markers instead of raising a traceback. All failed descriptors display their full exception text.
+
+From the updated `release/1.3.0-preparation` worktree, test **only the failed constructors**:
 
 ```bash
 cd ~/Simulations/scrimp
-git fetch origin
-git switch release/1.3.0-preparation
 git pull --ff-only
-
-# Verify the image is present; record the exact image ID:
-sudo docker image inspect scrimp-mpi:local --format '{{.Id}}'
-
-# Run inside the container, not in host conda; preserve the previous host JSON:
 sudo docker run --rm \
-  -v "$PWD:/workspace/scrimp" \
+  -v "$PWD:/workspace/scrimp:ro" \
   -w /workspace/scrimp \
   scrimp-mpi:local \
   python -u sandbox/audit_getfem55_element_catalog.py \
   --max-order 2 \
-  --output sandbox/outputs/getfem55_constructor_audit_docker.json
+  --only 'FEM_BDMK(3,1)' \
+  --only 'FEM_BDMK(3,2)' \
+  --output - \
+  > "$HOME/getfem55_bdm3_docker.json"
 ```
 
-If the existing image has a different local tag, substitute its **verified** tag based on `sudo docker image ls`, rather than creating a new image just for this probe. Probe `--max-order 5 --timeout 120` only after inspecting the lower-order results.
+Once the BDM error traces are inspected, broaden to `--max-order 5` as resources permit; capture to a **different** JSON filename. Record the Docker image ID (`sudo docker image inspect scrimp-mpi:local --format '{{.Id}}'`) and build provenance (actual GetFEM source archive checksum/version). The runtime gate proves Python/extension origin and MPI level 2, but it **cannot independently prove** the source commit: `source_commit_verified=false`.
 
-This checks constructor acceptance and reference-cell dimensions, not unisolvance, conformity, facet orientation, Piola mappings, numerical convergence, or MPI multi-process parity. Output JSON remains under `sandbox/outputs` (ignored by Git). Preserve all point-0 native artifacts. Do **not** classify a source-level 3D BDM issue as experimentally reproduced until the Docker probe confirms it.
+**Scope:** local element construction only, not H(div)/H(curl) conformity, shared facets/edge orientation, Piola transformations, numerical convergence, or MPI multi-rank parity. Nothing in the point-0 solver or benchmarks was changed.
