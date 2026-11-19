@@ -270,39 +270,50 @@ Retain those as documented scientific/memory limitations and
 dedicated follow-up tests. The v1.3.0 release itself remains
 gated by the remaining workstreams below.
 
-## 1 — GetFEM 5.5 finite-element family audit and upstream patch
+## 1 — GetFEM 5.5 simplicial FEM contributions (SCRIMP-first)
 
-**Source-level audit:** [V130_GETFEM_FEM_AUDIT.md](V130_GETFEM_FEM_AUDIT.md) records the pinned upstream v5.5 source, currently registered families, the suspected 3D BDM facet-DOF cardinality defect, and the native qualification matrix. Its findings are preliminary until C++/Python and MPI tests pass.
+**Scope decision (19 November 2026):** support only **triangles and
+tetrahedra**. No quadrilateral, hexahedral or prism developments in v1.3.0.
+SCRIMP users are the immediate audience. Our patches may later be handed
+to the GetFEM maintainers **as a useful starting point**, not as a
+community-ready, exhaustive and fully certified FEM contribution.
+The independent source-level and native findings are in
+[V130_GETFEM_FEM_AUDIT.md](V130_GETFEM_FEM_AUDIT.md).
 
-Do **not** reimplement an element simply because another project's
-API uses a different name. The current GetFEM documentation describes
-`FEM_RTK(P,K)` and `FEM_BDMK(P,K)` on simplices; it describes
-`FEM_NEDELEC(P)` as a lowest-order edge element. Tensor-product
-geometries have their own availability restrictions; distinguish
-these from missing higher-order simplex elements.
+- Reuse existing GetFEM 5.5 RT elements and lowest-order Nédélec.
+- Fix demonstrably failing BDM tetrahedral constructors first; preserve
+  existing working triangle cases. Build source patches live under
+  `scripts/patches/getfem-5.5/` and are applied by
+  `scripts/build-getfem-mpi.sh`. Do not modify the upstream source tree
+  inside SCRIMP's repository or change point-0 production solvers.
+- Add missing parameterized Nédélec first-kind and second-kind families
+  on **simplices**; document order conventions and the distinction
+  between local polynomial dimension and *globally conforming* DoFs.
+  Do not falsely advertise an unverified local construction as an
+  H(curl)-conforming production element.
+- Keep checks **lean and purposeful**: constructors and expected local
+  dimensions (initially k<=2, plus one higher-order smoke), a two-cell
+  orientation/normal-or-tangent trace check, and a small assembly test.
+  Preserve existing SCRIMP regression tests. Validate 1/2-rank MPI
+  integration when the Maxwell workstream starts; broader convergence
+  and energy/power tests belong to the actual Maxwell example (point 3),
+  not an exhaustive independent GetFEM upstream certification campaign.
+- Build the patched source in a **new test Docker image**, inspect the
+  report before replacing the qualified point-0 image, and record the
+  image ID and source patch identity. Packaging/infrastructure refinement
+  remains point 2.
 
-1. Reproduce native GetFEM 5.5 element creation, dimensions,
-   degrees of freedom, interpolation and assembly in 2D/3D.
-2. Test Raviart–Thomas (start k=0..5), BDM (start k=1..5),
-   and **both** first/second Nédélec families at their admissible
-   orders. Distinguish triangular/tetrahedral from
-   quadrilateral/hexahedral support explicitly.
-3. Confirm the mathematical definitions and dimension formulas,
-   orientation and facet matching, Piola pullbacks,
-   H(div)/H(curl) continuity, convergence, exact sequence behavior,
-   and serial vs 4-MPI rank results.
-4. Implement only genuinely missing functionality as a minimal,
-   independently reviewable GetFEM upstream patch, with native
-   C++ and Python regressions. Do not carry an undocumented local
-   binary patch.
-5. Pin the tested GetFEM commit/patch in the Docker installation
-   and disclose whether the patch was accepted upstream or
-   vendored temporarily.
+**Current evidence:** unmodified Docker GetFEM 5.5 MPI-2 constructed
+12/14 tested descriptors at k<=2; both `FEM_BDMK(3,1)` and
+`FEM_BDMK(3,2)` failed with the constructor's `ipoint == nddl`
+assertion at line 2319. The separate old-host-conda 5/14 run was
+non-qualifying and must not be cited as a GetFEM 5.5 regression.
 
-Exit: supported domain/order matrix with green native GetFEM tests
-and reproducible source-level patch for any additions. “Arbitrary
-order” must be a parameterized construction, not a hard-coded list
-of only five degrees.
+Exit: SCRIMP's selected simplex families can be constructed and used in
+small representative sequential tests with no known interface
+misorientation, and the GetFEM source changes remain explicit,
+version-pinned and available as self-contained patches. Upstream
+acceptance is **not** an SCRIMP v1.3.0 release gate.
 
 ## 2 — Docker, native install and platform entry points
 
