@@ -287,3 +287,30 @@ upstream `interface/src/gf_spmat_get.cc`. The mass assembly itself,
 BDM2 global DoF count (expected **54**) and trace continuity remain
 **not yet verified**. BDM1 face DoF sharing by cardinality is verified;
 that alone is not a pointwise normal-flux continuity proof.
+
+### BDM tetrahedron face linking and mass assembly: PASS (19 November 2026)
+
+The latest disposable Docker test (GetFEM 5.5, MPI parallelism level 2,
+patched Python static-archive linkage) passed both two-cell cases on
+adjacent tetrahedra with reversed local face ordering:
+
+| Case | Global DoFs (observed / expected) | Mass shape | Relative symmetry | Smallest eigenvalue |
+| --- | ---: | ---: | ---: | ---: |
+| BDM1 | 21 / 21 | 21×21 | 0 | 1.760e-2 |
+| BDM2 | 54 / 54 | 54×54 | 0 | 3.760e-3 |
+
+The mass matrices are symmetric and positive definite to reported
+precision. The BDM construction, Python linkage, face DoF count and
+mass assembly gates are **PASS**. These do not alone prove H(div)
+conformity.
+
+The disposable smoke now also probes **the physical normal traces**
+from both sides of the common triangular face. For each order it
+constructs two independent deterministic coefficient vectors, uses
+GetFEM's own `compute(..., "interpolate on", points)` at five face
+locations approached with ±1e-7 normal offsets, and checks the
+relative flux jump. This new trace probe is **NOT YET EXECUTED**.
+If it fails, distinguish element interpolation/interface behavior
+from a genuine orientation error; do not declare the element conforming
+on cardinality alone. The user-requested qualification remains lean and
+limited to triangles/tetrahedra, SCRIMP users first.
