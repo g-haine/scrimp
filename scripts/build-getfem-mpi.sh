@@ -47,7 +47,7 @@ if [[ "$GETFEM_SOURCE" == release ]]; then
   if [[ ! -f "$file" ]]; then
     # Do not leave a corrupted partial archive in the persistent cache
     # when the download is interrupted or a mirror fails.
-    incomplete="$file.part.$"
+    incomplete="${file}.part.${BASHPID}"
     trap 'rm -f "$incomplete"' EXIT
     curl --fail --location --retry 3 --output "$incomplete" "$url"
     mv "$incomplete" "$file"
