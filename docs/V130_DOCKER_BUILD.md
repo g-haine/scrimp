@@ -224,6 +224,39 @@ modifies the Docker source pin, Docker images, or any user
 simulation files. Optional `--archive /path/to/getfem-5.5.tar.gz`
 avoids the second download when a local copy exists.
 
+**First source-audit result (19 November 2026):** the Savannah
+archive matches its observed SHA-256 and has a valid gzip stream.
+The official `v5.5` tag resolves to the expected immutable commit
+`c242f7fe0989e9a90846c63eaccc6b495d774724`.
+Of 1,718 Git-tracked paths, 1,170 regular files were compared with
+the distribution archive. Two shared files differ:
+`CMakeLists.txt` and **`interface/src/gf_util.cc`**.
+The previous audit also reported 129 missing "core" paths, but
+that category was **over-broad**: release archives can legitimately
+omit `autogen.sh`, optional `contrib/` fixtures, documentation
+and source-tree-only files. It prematurely exited **before**
+testing our five SCRIMP patches.
+
+The revised audit prints a bounded **unified diff** for both
+changed files, lists missing compiled C/C++ headers and sources
+separately from omitted distribution extras, verifies the actual
+patch target files are present, and attempts **all five** patches
+before returning its final verdict. A changed native file such
+as `interface/src/gf_util.cc` **still causes a review-required
+exit**, even if the patches apply: the script does not silently
+equate different release trees. There is no evidence yet that
+the difference is harmless or harmful. No GetFEM archive digest
+has been changed in the Dockerfile.
+
+Rerun the **source audit, not the expensive Docker build**:
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+python3 scripts/audit-getfem55-release-source.py \
+  2>&1 | tee sandbox/outputs/getfem55-release-source-audit.log
+```
+
 **Acceptance rule:** only review a new pinned archive SHA after
 the core sources match the immutable tag and all five patches
 apply. A non-core mismatch still requires a human review.
