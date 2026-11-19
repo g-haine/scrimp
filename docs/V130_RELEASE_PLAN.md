@@ -303,10 +303,20 @@ The independent source-level and native findings are in
   image ID and source patch identity. Packaging/infrastructure refinement
   remains point 2.
 
-**Current evidence:** unmodified Docker GetFEM 5.5 MPI-2 constructed
-12/14 tested descriptors at k<=2; both `FEM_BDMK(3,1)` and
-`FEM_BDMK(3,2)` failed with the constructor's `ipoint == nddl`
-assertion at line 2319. The separate old-host-conda 5/14 run was
+**Current evidence (19 November 2026):** the *unmodified*
+Docker GetFEM 5.5 MPI-2 image constructed 12/14 descriptors; both
+`FEM_BDMK(3,1)` and `FEM_BDMK(3,2)` failed at the upstream
+`ipoint == nddl` assertion. **BDM tetrahedron corrections are now
+validated for SCRIMP's lean k=1,2 scope** in disposable Docker:
+the modified Python extension loads the new core, 12/30 local DoFs,
+21/54 shared-face global DoFs, positive mass matrices and four
+physical normal-trace comparisons pass (max relative mismatch
+4.529e-6 at 1e-7 offsets). The approved `0001` BDM and `0002`
+Python-link source patches remain in `scripts/patches/getfem-5.5/`.
+The experimental Nédélec-I `0003` patch is **not yet compiled/accepted**;
+a separate disposable Docker smoke is available at
+`scripts/test-getfem55-nedelec1-patch-in-docker.sh`. Nédélec-II
+remains to be implemented. The old-host-conda 5/14 run is
 non-qualifying and must not be cited as a GetFEM 5.5 regression.
 
 Exit: SCRIMP's selected simplex families can be constructed and used in
