@@ -1,0 +1,3 @@
+# Keep outputs/ directory in a fresh project without tracking any results.
+*
+!.gitignore
