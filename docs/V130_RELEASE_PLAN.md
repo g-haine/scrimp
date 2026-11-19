@@ -347,8 +347,12 @@ acceptance is **not** an SCRIMP v1.3.0 release gate.
 
 **Implementation in progress (19 November 2026).** The BuildKit
 candidate Dockerfile, safe candidate build driver, and lean 1/2-rank
-native smoke are now prepared; the first full candidate build and warm
-cache validation on the user's Linux workstation are **pending**.
+native smoke are now prepared. The **first build attempt** reached
+GetFEM after a 1.60 MB Docker context transfer and successful
+Conda/PETSc/SLEPc ABI checks, but stopped at a root-owned BuildKit
+tarball cache. Cache ownership has been repaired and the accidental
+CUDA PETSc/SLEPc variant has been excluded; **the corrected full
+candidate build and warm-cache validation remain pending**.
 The reproducible build procedure, cache boundaries, evidence paths
 and deferred lock/platform work are documented in
 [V130_DOCKER_BUILD.md](V130_DOCKER_BUILD.md). Following the
