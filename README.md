@@ -18,6 +18,34 @@ The easiest way to install SCRIMP is to use a conda environment.
 5. Activate the environment:  ```conda activate scrimp```
 6. Finish with pip: ```pip install -e .```
 
+## v1.3.0 preview: start your own SCRIMP project in VS Code
+
+The upcoming v1.3.0 user workflow separates **installation** from
+**simulations**. The goal is to choose a precompiled Docker image,
+compile Docker locally, or use native Conda — and then work in the
+**same independent VS Code project**. Your scripts, geometries and
+results stay on your computer; they are never baked into Docker.
+
+A reusable starter lives in [project-template](project-template/).
+During development, create a project from a temporary SCRIMP checkout:
+
+```bash
+python3 scripts/create-scrimp-project.py "$HOME/MySCRIMPProject"
+```
+
+Open that new directory with VS Code and use **Dev Containers:
+Reopen in Container** when using Docker. The template provides
+serial Python debugging, an MPI startup task and a genuine short
+mass–spring–damper simulation that saves
+`outputs/oscillator.csv` locally. For native Conda, select the
+native interpreter instead of reopening in a container.
+
+See the [complete first-project / Dev Containers tutorial](docs/source/vscode.rst).
+The future precompiled `ghcr.io/g-haine/scrimp:1.3.0` image
+**is not published or qualified yet**, and the template is still
+under pre-release validation. No SCRIMP source checkout should be
+required of end users after the release project's ZIP asset ships.
+
 ## Experimental GetFEM 5.5 / NumPy 2 experimental MPI stack
 
 For a from-source **parallel GetFEM 5.5** build (Conda or Docker), MPI
