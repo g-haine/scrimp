@@ -313,10 +313,18 @@ the modified Python extension loads the new core, 12/30 local DoFs,
 physical normal-trace comparisons pass (max relative mismatch
 4.529e-6 at 1e-7 offsets). The approved `0001` BDM and `0002`
 Python-link source patches remain in `scripts/patches/getfem-5.5/`.
-The experimental Nédélec-I `0003` patch is **not yet compiled/accepted**;
-a separate disposable Docker smoke is available at
-`scripts/test-getfem55-nedelec1-patch-in-docker.sh`. Nédélec-II
-remains to be implemented. The old-host-conda 5/14 run is
+The Nédélec-I `0003` patch is **now accepted for SCRIMP's
+lean k=1,2 scope** and has been moved to the approved top-level patch
+series. Its disposable native smoke passed on triangles/tetrahedra
+(k=1/2): expected two-cell connectivity, SPD mass matrices and
+tangential trace differences at most 2.385e-6 relative.
+Nédélec-II `0004` has been implemented as an **experimental**
+nodal k=1/2 simplex patch; exact reference interpolation ranks
+(6/12 triangle, 12/30 tetrahedron) are full. Its Docker C++
+compilation, two-cell connectivity, mass assembly and tangential
+traces **remain pending**. Test it using
+`scripts/test-getfem55-nedelec2-patch-in-docker.sh`, without
+changing the qualified production image. The old-host-conda 5/14 run is
 non-qualifying and must not be cited as a GetFEM 5.5 regression.
 
 Exit: SCRIMP's selected simplex families can be constructed and used in
