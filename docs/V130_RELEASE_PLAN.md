@@ -293,7 +293,10 @@ The independent source-level and native findings are in
   Nédélec-I is coded parametrically but k>=3 remains unvalidated;
   **Nédélec-II is implemented only for k=1,2 and rejects k>=3**.
   Arbitrary-order support is still an enhancement, not a completed
-  deliverable. Do not advertise unverified H(curl) elements.
+  deliverable. The per-entity degree-of-freedom formulas and future
+  tests are recorded in
+  [V130_GETFEM_HIGHER_ORDER_TODO.md](V130_GETFEM_HIGHER_ORDER_TODO.md).
+  Do not advertise unverified H(curl) elements.
 - Keep checks **lean and purposeful**: constructors and expected local
   dimensions (initially k<=2, plus one higher-order smoke), a two-cell
   orientation/normal-or-tangent trace check, and a small assembly test.
