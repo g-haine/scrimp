@@ -350,9 +350,13 @@ candidate Dockerfile, safe candidate build driver, and lean 1/2-rank
 native smoke are now prepared. The **first build attempt** reached
 GetFEM after a 1.60 MB Docker context transfer and successful
 Conda/PETSc/SLEPc ABI checks, but stopped at a root-owned BuildKit
-tarball cache. Cache ownership has been repaired and the accidental
-CUDA PETSc/SLEPc variant has been excluded; **the corrected full
-candidate build and warm-cache validation remain pending**.
+tarball cache. Cache ownership was repaired and the unintended CUDA
+PETSc/SLEPc variant was excluded. A **second build confirmed**
+writable caches, CPU complex PETSc/SLEPc 3.26.1, NumPy-2 Python
+bindings and Gmsh imports, then stopped at a **GetFEM 5.5 release
+archive SHA-256 discrepancy**. The build now prints the final mirror
+and actual digest before failing closed; **full candidate build
+and warm-cache validation remain pending**.
 The reproducible build procedure, cache boundaries, evidence paths
 and deferred lock/platform work are documented in
 [V130_DOCKER_BUILD.md](V130_DOCKER_BUILD.md). Following the
