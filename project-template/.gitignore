@@ -1,0 +1,11 @@
+# User-owned simulation outputs (never copied into the SCRIMP image).
+outputs/*
+!outputs/.gitignore
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+*.msh
+*.vtu
+*.vtk
+*.pvtu
