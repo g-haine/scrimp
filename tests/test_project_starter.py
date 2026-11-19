@@ -13,6 +13,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from zipfile import ZipFile
 
 ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE = ROOT / "project-template"
@@ -74,6 +75,31 @@ class StarterProjectTest(unittest.TestCase):
             )
             self.assertNotEqual(again.returncode, 0)
             self.assertEqual(marker.read_text(), "DO NOT OVERWRITE")
+
+    def test_release_zip_excludes_user_files_and_matches_template(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary) / "template.zip"
+            result = subprocess.run(
+                [sys.executable,
+                 str(ROOT / "scripts/package-scrimp-project-template.py"),
+                 "--output", str(output)],
+                capture_output=True, text=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            with ZipFile(output) as artifact:
+                entries = artifact.namelist()
+                self.assertIn(
+                    "scrimp-project/.devcontainer/devcontainer.json", entries)
+                self.assertIn(
+                    "scrimp-project/simulations/first_simulation.py", entries)
+                self.assertNotIn("scrimp-project/outputs/oscillator.csv", entries)
+                self.assertFalse(any(
+                    "sandbox/" in x or ".git/" in x or ".build/" in x
+                    for x in entries
+                ))
+                self.assertTrue(all(
+                    x.startswith("scrimp-project/") for x in entries
+                ))
 
     def test_generator_dry_run_does_not_create_directory(self):
         with tempfile.TemporaryDirectory() as temporary:
