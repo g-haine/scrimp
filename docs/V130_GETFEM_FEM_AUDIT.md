@@ -37,12 +37,16 @@ construction in place. **Do not label the patch PASS before compilation
 and native constructor+two-element checks.**
 
 For Nédélec, `scripts/check_nedelec_simplicial_basis.py` is a compact,
-separate, exact-arithmetic mathematical prototype for a general
-first-kind polynomial generating set and a symmetric nodal
-interpolation scheme (edge tangents, two face tangents and volume
-components). It is *not* a GetFEM implementation. Both Nédélec
-GetFEM constructors remain to be implemented; in particular a
-second-kind 3D face-DoF selection must respect shared-face conformity.
+exact-arithmetic mathematical reference for a general first-kind
+polynomial generating set and symmetric nodal interpolation scheme
+(edge tangents, two face tangents, volume components). A **separate
+experimental GetFEM source patch** is also staged under
+`scripts/patches/getfem-5.5/experimental/0002-nedelec-first-kind-simplices.patch`
+for `FEM_NEDELEC1(N,K)` (k=0 delegates to the existing Whitney family).
+It is intentionally **excluded from the Docker build**, pending native
+compilation and two-cell H(curl) orientation checks. The second-kind
+construction has not yet been added; in particular its tetrahedral
+face DoF scheme must respect shared-face conformity.
 
 ### Lean acceptance criteria
 
