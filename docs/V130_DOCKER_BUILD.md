@@ -1,6 +1,6 @@
 # SCRIMP v1.3.0 — Docker candidate build and cache qualification
 
-**Status: second native build attempted on 19 November 2026; context isolation, cache ownership, CPU-only complex PETSc/SLEPc, NumPy-2 bindings and Gmsh imports all passed. GetFEM's downloaded tarball SHA-256 differs from the pinned archive; mirror identity inspection and a complete rebuild/MPI smoke remain pending.**
+**Status (19 November 2026): Docker context, caches, CPU complex PETSc/SLEPc, NumPy-2 Python bindings and Gmsh checks passed. Savannah's GetFEM 5.5 archive has now been source-audited against the immutable upstream v5.5 tag, including five clean patch applications, and re-pinned to its exact SHA-256. Complete GetFEM Docker compilation and MPI/VS Code runtime tests remain pending.**
 This document is part of [v1.3.0 release point 2](V130_RELEASE_PLAN.md).
 Always build/test a **new tag**. The existing qualified
 `scrimp-mpi:local` image must not be retagged, overwritten, pruned
@@ -32,10 +32,10 @@ an atomic `*.part` download. Its SHA-256 is checked **before**
 extraction. The candidate Dockerfile pins:
 
 ```text
-f6c09fb2edd112b6abe04e0485534f5e965d6f8f9ad853308b7120bfc6722ab5
+0e042770b86152b09be4bfd0ee160b8d10d49c3f8a0b9b06d55f1ffaa1d30fc4
 ```
 
-(The digest is for the official `getfem-5.5.tar.gz` release archive;
+(The digest is for the **reviewed Savannah** `getfem-5.5.tar.gz` release archive;
 a mismatch **fails the build**, removes the bad cached archive and
 must be investigated rather than bypassed.) The native build directory
 is **not** a BuildKit cache: its compilation state is kept in the
@@ -164,91 +164,54 @@ new CPU variant and must not be reused.
 Code runtime acceptance is claimed yet.** Continue with the normal
 candidate builder after pulling the corrected branch.
 
-## 1c. GetFEM 5.5 tarball checksum discrepancy (19 November)
+## 1c. GetFEM 5.5 archive discrepancy — reviewed and resolved
 
-The **second candidate build** (source `8ff7ceab`) successfully
-reused the small 1.60 MB physically staged GitHub context, repaired
-all three non-root BuildKit caches, solved **CPU complex**
-PETSc/SLEPc 3.26.1 (Conda download down from about **2 GB** to
-**489 MB**), compiled/loaded their NumPy-2 Python bindings and
-imported Gmsh 4.15.2. The GetFEM download then reached 16.12 MiB,
-but `sha256sum` rejected it. The build correctly stopped without
-compiling an unverified source archive.
-
-The pinned digest
-`f6c09fb2edd112b6abe04e0485534f5e965d6f8f9ad853308b7120bfc6722ab5`
-is documented by the Fossies snapshot of the GetFEM 5.5 archive,
-dated **8 June 2026**. A GNU Savannah mirror directory lists a
-file of the same name dated **15 June 2026**. A repacked/reissued
-archive (not yet proved to be content-identical) is plausible.
-Do **not** simply turn SHA-256 verification off, silently change
-the expected digest to a value returned by an unknown mirror, or
-promote this unqualified candidate.
-
-The build script now reports the **actual SHA-256 digest**, exact
-byte count, gzip-integrity result and final redirected mirror URL
-on mismatch, then still deletes the unverified cached archive and
-exits. All previously successful BuildKit layers stay cached.
-
-**Third build finding:** the Savannah archive is a valid gzip
-with **16,911,362 bytes** and SHA-256
+**Source provenance (19 November 2026):** the Savannah download
+`https://download-mirror.savannah.gnu.org/releases/getfem/stable/getfem-5.5.tar.gz`
+is a valid gzip release archive of **16,911,362 bytes**, with SHA-256
 `0e042770b86152b09be4bfd0ee160b8d10d49c3f8a0b9b06d55f1ffaa1d30fc4`.
-The earlier Fossies snapshot contains **16,911,397 bytes**
-and SHA-256
-`f6c09fb2edd112b6abe04e0485534f5e965d6f8f9ad853308b7120bfc6722ab5`.
-The **total compressed file sizes differ by 35 bytes**. That makes
-gzip-header or reproducible-compression differences *plausible*,
-but does not establish identical source content. Neither archive
-has been accepted as the replacement pin solely on that basis.
+It is not byte-identical to the earlier Fossies snapshot
+(16,911,397 bytes, SHA-256
+`f6c09fb2edd112b6abe04e0485534f5e965d6f8f9ad853308b7120bfc6722ab5`).
+The pinned immutable upstream Git reference is
+`v5.5` at `c242f7fe0989e9a90846c63eaccc6b495d774724`.
 
-**Next gate (independent source comparison, BEFORE rebuilding Docker):**
+**Independent comparison performed on the developer's workstation:**
+1,170 files common to the release archive and upstream Git tag
+were compared byte-for-byte. Only two shared files differ:
 
-```bash
-cd ~/Simulations/scrimp
-git pull --ff-only
-mkdir -p sandbox/outputs
-python3 scripts/audit-getfem55-release-source.py \
-  2>&1 | tee sandbox/outputs/getfem55-release-source-audit.log
-```
+- `CMakeLists.txt`: corrects a stale version string from **5.4.2**
+  to **5.5.0**, unifies GMM/GetFEM version handling, and cleans
+  `check_include_file_cxx` syntax. Our GetFEM build uses
+  **Autotools**, not CMake.
+- `interface/src/gf_util.cc`: moves the existing
+  `#if defined(GMM_USES_MUMPS)` binary availability test into a
+  `MUMPS_LINKED` macro defined through `#ifdef GMM_USES_MUMPS`.
+  Both report 1 when the preprocessor symbol is defined and 0
+  otherwise. No change to the MPI numerical algorithm was found.
 
-The new audit downloads the Savannah archive to a disposable
-directory, requires its **exact observed** SHA-256, checks its
-gzip integrity, fetches the official GitHub mirror's annotated
-`v5.5` tag (requiring immutable commit
-`c242f7fe0989e9a90846c63eaccc6b495d774724`),
-compares Git-tracked files shared with the release archive
-**byte by byte**, reports missing and differing files, and
-tries the five approved SCRIMP patch files sequentially
-on an extracted **disposable** source copy. The script never
-modifies the Docker source pin, Docker images, or any user
-simulation files. Optional `--archive /path/to/getfem-5.5.tar.gz`
-avoids the second download when a local copy exists.
+The remaining **six absent native-looking files** are
+`interface/src/gf_poly.cc`, three
+`interface/src/octave/` headers, and
+`src/getfem_enumeration_dof_para.cc` /
+`src/getfem_interpolation_on_deformed_domains.cc`.
+We checked the upstream Autotools `src/Makefile.am` and
+`interface/src/Makefile.am`: these missing files are not
+among the compiled source lists for our GetFEM MPI/Python
+configuration. In particular, `getfem_enumeration_dof_para.cc`
+is explicitly commented out. Their omission is therefore
+acceptable for **this** build, not a claim that the archive
+contains the entire Git source tree.
 
-**First source-audit result (19 November 2026):** the Savannah
-archive matches its observed SHA-256 and has a valid gzip stream.
-The official `v5.5` tag resolves to the expected immutable commit
-`c242f7fe0989e9a90846c63eaccc6b495d774724`.
-Of 1,718 Git-tracked paths, 1,170 regular files were compared with
-the distribution archive. Two shared files differ:
-`CMakeLists.txt` and **`interface/src/gf_util.cc`**.
-The previous audit also reported 129 missing "core" paths, but
-that category was **over-broad**: release archives can legitimately
-omit `autogen.sh`, optional `contrib/` fixtures, documentation
-and source-tree-only files. It prematurely exited **before**
-testing our five SCRIMP patches.
+**All five SCRIMP GetFEM patches `0000`–`0004` applied
+sequentially without errors** to a disposable extraction of the
+Savannah archive. The new accepted exact digest is recorded in
+`docker/Dockerfile`; the mandatory pre-extraction SHA-256 check
+remains in place. Previous Conda/PETSc layers are unaffected
+because the GetFEM digest build argument is declared **after**
+those layers.
 
-The revised audit prints a bounded **unified diff** for both
-changed files, lists missing compiled C/C++ headers and sources
-separately from omitted distribution extras, verifies the actual
-patch target files are present, and attempts **all five** patches
-before returning its final verdict. A changed native file such
-as `interface/src/gf_util.cc` **still causes a review-required
-exit**, even if the patches apply: the script does not silently
-equate different release trees. There is no evidence yet that
-the difference is harmless or harmful. No GetFEM archive digest
-has been changed in the Dockerfile.
-
-Rerun the **source audit, not the expensive Docker build**:
+**Reproducible source audit** (separate from native compilation):
 
 ```bash
 cd ~/Simulations/scrimp
@@ -257,18 +220,19 @@ python3 scripts/audit-getfem55-release-source.py \
   2>&1 | tee sandbox/outputs/getfem55-release-source-audit.log
 ```
 
-**Acceptance rule:** only review a new pinned archive SHA after
-the core sources match the immutable tag and all five patches
-apply. A non-core mismatch still requires a human review.
-An audit PASS is *not* a signed upstream attestation or a full
-bit-for-bit match of a generated release tarball. Do not simply
-turn off checksum verification or change the Dockerfile pin
-without that review. Once the new archive is accepted, rerun
-the normal Docker build, followed by FEM and MPI qualification.
+The updated audit requires this exact Savannah archive digest,
+the immutable upstream tag, *exactly these two reviewed shared-file
+changes*, *exactly these six reviewed source omissions*, and
+clean application of all five patches. Any additional difference
+or missing patch target **fails closed**. This is a reviewed
+distribution variant, not a claim of bit-for-bit identity to
+the Git tag or of an upstream cryptographic signature.
 
-The independent binary download and Git checkout are performed
-by the user's workstation; the assistant's current execution
-container could not access these archives directly.
+**Still required:** run the candidate Docker build with its
+new strict digest, verify GetFEM MPI level 2, the complex ABI,
+BDM/Nédélec FEM qualification, 1/2-rank SCRIMP/MUMPS numerical
+smokes and the independent VS Code user-project output.
+No release image has been promoted or published.
 
 ## 2. Build a candidate without disturbing the qualified image
 
@@ -312,11 +276,12 @@ release evidence. A build interrupted during native compilation may
 restart that step but should **not redownload** a valid cached
 tarball or cached pip/Conda packages.
 
-**Warning:** the first build reached GetFEM and stopped at cache
-permissions. The second build passed that step and the corrected
-CPU-PETSc bindings, but stopped at a **GetFEM release SHA-256
-mismatch**. An end-to-end build and numerical smoke are still
-pending; no image has been promoted or released.
+**Warning:** first builds confirmed Conda/PETSc and source
+context isolation but were blocked by GetFEM cache ownership, then
+a release tarball digest discrepancy. Both have now been addressed
+in source. The complete GetFEM build and subsequent native/MPI
+smoke are **not yet validated**; no image has been promoted or
+released.
 
 ### Buildx prerequisite (Ubuntu 22.04 / Docker from Ubuntu repositories)
 
