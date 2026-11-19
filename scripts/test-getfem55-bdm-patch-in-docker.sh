@@ -32,10 +32,21 @@ sudo docker run --rm \
     python /tmp/scrimp-apply-unified-patch.py "$src" "$patchfile"
     make -C "$src" -j2
     make -C "$src" install "am__py_compile=:"
+    echo "GetFEM source: post-patch BDM assertion location:"
+    grep -nF "GMM_ASSERT2(ipoint == nddl" "$src/src/getfem_fem.cc"
+    echo "GetFEM source object / installed extension provenance:"
+    ls -l "$src/src/getfem_fem.o" "$src/src/.libs/libgetfem.a"
     python - <<'"'"'PY'"'"'
 import getfem
-print("GetFEM imported from:", getfem.__file__)
-print("GetFEM MPI level:", getfem.util_mpi_parallelism_level())
+import importlib
+import pathlib
+import subprocess
+extension = importlib.import_module("getfem._getfem")
+print("GetFEM package:", getfem.__file__, flush=True)
+print("Loaded GetFEM native extension:", extension.__file__, flush=True)
+print("Extension mtime:", pathlib.Path(extension.__file__).stat().st_mtime, flush=True)
+subprocess.run(["ldd", extension.__file__], check=True)
+print("GetFEM MPI level:", getfem.util_mpi_parallelism_level(), flush=True)
 assert int(getfem.util_mpi_parallelism_level()) == 2
 tests = [
     ("FEM_BDMK(2,1)", 6),
