@@ -9,12 +9,14 @@ PATCHES="$REPO_ROOT/scripts/patches/getfem-5.5"
 
 echo "Image: $IMAGE (ephemeral run; existing image and point-0 results untouched)"
 echo "Patch: $PATCHES/0001-bdm-tetrahedron-unisolvent-dofs.patch"
+echo "Applier: Python standard library (no GNU patch installation)"
 
 mkdir -p "$REPO_ROOT/sandbox/outputs"
 LOG="$REPO_ROOT/sandbox/outputs/getfem55_bdm_patch_smoke.log"
 
 sudo docker run --rm \
   -v "$PATCHES:/tmp/scrimp-getfem-patches:ro" \
+  -v "$REPO_ROOT/scripts/apply_unified_patch.py:/tmp/scrimp-apply-unified-patch.py:ro" \
   "$IMAGE" bash -lc '
     set -euo pipefail
     src=/workspace/scrimp/.build/getfem/getfem-5.5
@@ -24,13 +26,10 @@ sudo docker run --rm \
       echo "ERROR: GetFEM source tree not present at $src in this image" >&2
       exit 2
     fi
-    if ! command -v patch >/dev/null 2>&1; then
-      echo "ERROR: GNU patch is not installed in this preexisting image." >&2
-      echo "The next Docker build includes the required dependency; do not alter the qualified image." >&2
-      exit 2
-    fi
-    patch --batch --forward --dry-run -p1 -d "$src" < "$patchfile"
-    patch --batch --forward -p1 -d "$src" < "$patchfile"
+    # The qualified image lacks GNU patch. Verify every expected hunk
+    # against the exact installed GetFEM source before writing anything.
+    python /tmp/scrimp-apply-unified-patch.py "$src" "$patchfile" --dry-run
+    python /tmp/scrimp-apply-unified-patch.py "$src" "$patchfile"
     make -C "$src" -j2
     make -C "$src" install "am__py_compile=:"
     python - <<'"'"'PY'"'"'
