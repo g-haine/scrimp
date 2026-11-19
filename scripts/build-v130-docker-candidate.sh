@@ -39,12 +39,23 @@ if "${DOCKER[@]}" buildx version >/dev/null 2>&1; then
     --build-arg "MAKE_JOBS=$MAKE_JOBS" \
     . 2>&1 | tee -a "$LOG"
 else
-  "${DOCKER[@]}" build --progress=plain \
-    --file docker/Dockerfile \
-    --tag "$IMAGE" \
-    --build-arg "SCRIMP_REVISION=$REVISION" \
-    --build-arg "MAKE_JOBS=$MAKE_JOBS" \
-    . 2>&1 | tee -a "$LOG"
+  # A legacy Docker daemon may not enable BuildKit by default.
+  # Force BuildKit because the Dockerfile uses RUN cache mounts.
+  if [[ "${SCRIMP_DOCKER_NO_SUDO:-0}" == 1 ]]; then
+    DOCKER_BUILDKIT=1 docker build --progress=plain \
+      --file docker/Dockerfile \
+      --tag "$IMAGE" \
+      --build-arg "SCRIMP_REVISION=$REVISION" \
+      --build-arg "MAKE_JOBS=$MAKE_JOBS" \
+      . 2>&1 | tee -a "$LOG"
+  else
+    sudo env DOCKER_BUILDKIT=1 docker build --progress=plain \
+      --file docker/Dockerfile \
+      --tag "$IMAGE" \
+      --build-arg "SCRIMP_REVISION=$REVISION" \
+      --build-arg "MAKE_JOBS=$MAKE_JOBS" \
+      . 2>&1 | tee -a "$LOG"
+  fi
 fi
 
 echo "Built image ID and revision:" | tee -a "$LOG"
