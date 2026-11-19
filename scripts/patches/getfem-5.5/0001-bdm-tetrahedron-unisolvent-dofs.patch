@@ -58,3 +58,10 @@ diff --git a/src/getfem_fem.cc b/src/getfem_fem.cc
            gmm::copy(gmm::mat_row(V, i), gmm::mat_row(A, ipoint));
            add_node(ipk_center_dof(nc, ipoint), barycenter); ++ipoint;
          }
+@@ -2317,5 +2331,5 @@
+     }
+     
+-    GMM_ASSERT2(ipoint == nddl, "Internal error");
++    GMM_ASSERT2(ipoint == nddl, "SCRIMP_BDM3D_PATCH_0001: invalid DoF cardinality");
+ 
+     // Deducing the base of shape functions
