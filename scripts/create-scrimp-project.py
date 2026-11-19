@@ -33,9 +33,10 @@ def main() -> int:
     parser.add_argument("destination", type=Path, help="new project directory")
     parser.add_argument(
         "--image",
-        help="optional Docker image tag (e.g. scrimp-mpi:v1.3.0-rc1). "
-             "By default the template uses SCRIMP_DOCKER_IMAGE from VS "
-             "Code's host environment.")
+        help="optional explicit Docker image tag "
+             "(e.g. ghcr.io/g-haine/scrimp:1.3.0). "
+             "Default: scrimp-mpi:v1.3.0-rc1 for the current "
+             "pre-release template.")
     parser.add_argument(
         "--dry-run", action="store_true",
         help="report files that would be created without writing anything")
