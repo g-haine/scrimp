@@ -354,9 +354,16 @@ tarball cache. Cache ownership was repaired and the unintended CUDA
 PETSc/SLEPc variant was excluded. A **second build confirmed**
 writable caches, CPU complex PETSc/SLEPc 3.26.1, NumPy-2 Python
 bindings and Gmsh imports, then stopped at a **GetFEM 5.5 release
-archive SHA-256 discrepancy**. The build now prints the final mirror
-and actual digest before failing closed; **full candidate build
-and warm-cache validation remain pending**.
+archive SHA-256 discrepancy**. The Savannah 5.5 release archive was
+subsequently compared to immutable Git tag `v5.5`:
+1,170 common files, two explainable distribution differences
+(`CMakeLists.txt` version metadata, `gf_util.cc` equivalent MUMPS
+availability macro), six omitted files unused by our Autotools
+build, and **all five approved source patches apply cleanly**.
+The reviewed Savannah digest
+`0e042770b86152b09be4bfd0ee160b8d10d49c3f8a0b9b06d55f1ffaa1d30fc4`
+is now **strictly pinned**. Full candidate build and warm-cache
+validation remain pending.
 The reproducible build procedure, cache boundaries, evidence paths
 and deferred lock/platform work are documented in
 [V130_DOCKER_BUILD.md](V130_DOCKER_BUILD.md). Following the
