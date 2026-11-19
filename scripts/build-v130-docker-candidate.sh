@@ -28,9 +28,16 @@ echo "SCRIMP v1.3.0 candidate BuildKit build" | tee "$LOG"
 echo "Image: $IMAGE; source: $REVISION; MAKE_JOBS=$MAKE_JOBS" | tee -a "$LOG"
 echo "Qualified image scrimp-mpi:local remains untouched." | tee -a "$LOG"
 
-# Fail before contacting Docker if any COPY accidentally reverts to a
-# whole-repository copy or the strict source allowlist has broadened.
-python3 scripts/audit-v130-docker-context.py 2>&1 | tee -a "$LOG"
+# SAFETY: Docker must NEVER see the working tree. Previous negated
+# .dockerignore directory patterns transferred >45 GB of user outputs
+# despite an apparent 1.78 MiB source-side audit. Instead create an
+# physically isolated small context containing only Git-tracked sources.
+STAGED_CONTEXT="$(mktemp -d -t scrimp-v130-context.XXXXXXXX)"
+trap 'rm -rf -- "$STAGED_CONTEXT"' EXIT
+python3 scripts/audit-v130-docker-context.py \
+  --stage-to "$STAGED_CONTEXT" 2>&1 | tee -a "$LOG"
+echo "Build context: physically isolated $STAGED_CONTEXT (NOT $ROOT)" \
+  | tee -a "$LOG"
 
 # A BuildKit Dockerfile needs the Buildx CLI plugin. In particular,
 # DOCKER_BUILDKIT=1 is NOT a valid fallback when Buildx is missing: recent
@@ -55,7 +62,7 @@ fi
   --tag "$IMAGE" \
   --build-arg "SCRIMP_REVISION=$REVISION" \
   --build-arg "MAKE_JOBS=$MAKE_JOBS" \
-  . 2>&1 | tee -a "$LOG"
+  "$STAGED_CONTEXT" 2>&1 | tee -a "$LOG"
 
 echo "Built image ID and revision:" | tee -a "$LOG"
 "${DOCKER[@]}" image inspect --format \
