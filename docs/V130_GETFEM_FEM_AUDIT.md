@@ -444,4 +444,7 @@ is native and was not separately retested in this workstream.
 Therefore do not claim that all four families support arbitrary k.
 A general Nédélec-II construction requires a systematic high-order
 set of face/interior DoFs and their orientation; the current k<=2
-nodal scheme is insufficient at higher k.
+nodal scheme is insufficient at higher k. The explicit formulas,
+first missing order k=3, and deferred implementation/validation
+checklist for the four families are captured in
+[V130_GETFEM_HIGHER_ORDER_TODO.md](V130_GETFEM_HIGHER_ORDER_TODO.md).
