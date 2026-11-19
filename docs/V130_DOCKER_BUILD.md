@@ -47,46 +47,73 @@ builder and are **not included in the resulting image**.
 BuildKit caches can be cleared by a Docker build-cache prune; no
 SCRIMP script prunes them automatically.
 
-## 1a. Strict Docker context isolation: no simulation outputs
+## 1a. Physical isolation of the Docker context (critical)
 
-The root `.dockerignore` now begins with `**` (deny everything) and
-then explicitly allows only:
+**19 November 2026 regression caught on the Linux workstation:**
+the old `.dockerignore` with a deny-all `**` followed by
+directory negations such as `!sandbox/` **did not protect against
+recursive simulation data**. The host Python preflight counted
+212 apparently allowed files (1.78 MiB), but BuildKit transferred
+**more than 45.60 GB** before the build was interrupted with Ctrl+C.
+This was a real build-context regression; the earlier source-side
+audit provided a false sense of safety. There was **no native
+numerical compilation outcome** in this run.
 
-- Installation metadata: `setup.py`, `pyproject.toml`, `README.md`,
-  `LICENSE`, Dockerfile and `docker/environment.yml`.
-- SCRIMP Python modules under `scrimp/`, `scrimp/GUI/`, `scrimp/utils/`.
-- Python examples, sandbox diagnostics and unit tests (plus shell
-  scripts in `sandbox/`), *not* notebook or simulation outputs.
-- Build scripts and the five approved top-level GetFEM `*.patch`
-  files. Experimental patches and historical audit Markdown files
-  are excluded.
+**Permanent fix: Docker never receives the working tree as its
+build context.** The root `.dockerignore` now contains only
+`**` (deny everything). Direct
+`docker build ... .` is intentionally unsupported; it cannot
+access the sources needed by the Dockerfile.
 
-The Dockerfile **no longer uses `COPY .`**. It copies these
-subdirectories explicitly after the expensive native library layers.
-The whitelist excludes `sandbox/outputs`, `.build`, figures, meshes,
-movies, PDFs, notebooks, `docs/`, and arbitrary extra local folders
-even when they are not recognized by file extension.
+The supported build driver
+`scripts/build-v130-docker-candidate.sh` creates an *empty
+temporary directory outside the repository*, with a cleanup trap.
+Its audited staging script:
 
-A pre-build audit runs automatically in
-`scripts/build-v130-docker-candidate.sh`. Run it separately to see
-the actual allowlisted files and their total size on the host:
+1. Reads `git ls-files --cached -z` (tracked files only), and
+   matches exact, slash-aware allowlist patterns for installation
+   metadata, SCRIMP Python sources, examples, sandbox diagnostics,
+   tests, build scripts and five approved GetFEM patches.
+2. Rejects symlink source paths, missing essential tracked inputs,
+   unexpectedly oversized files, and context totals over 64 MiB.
+3. Copies only these files into the temporary directory and checks
+   the staged byte total before invoking Docker.
+4. Invokes `docker buildx build --load ... "$STAGED_CONTEXT"`,
+   **not** `docker build ... .`; cleanup removes the staging
+   directory after completion, failure or Ctrl+C.
+
+This changes the protection from pattern-dependent Dockerignore
+semantics to **physical separation**. Nothing resembling
+`sandbox/outputs`, `.build`, simulation archives, plots, videos,
+untracked local scripts or user data exists in the supplied
+temporary directory. A separately generated tiny `.dockerignore`
+inside that directory has no broad negations.
+
+To inspect the tracked-source selection without Docker:
 
 ```bash
 python3 scripts/audit-v130-docker-context.py
 ```
 
-The audit fails if a new unreviewed `.dockerignore` exception is
-added, a broad `COPY .` reappears, required sources disappear,
-an allowed source is a symlink, or the selected input unexpectedly
-exceeds a 64 MiB safety bound (overridable with
-`SCRIMP_DOCKER_CONTEXT_MAX_MB`). For the tracked files in the
-v1.3.0 preparation branch at the time of this change, the
-allowlisted sources total **about 1.5 MiB**; the real host
-count may include additional untracked Python sources.
+To materialize it independently for inspection (remove only
+that explicitly created temporary directory afterwards):
 
-BuildKit also reports the **actual transferred context** in
-the build log. The allowlist audit is an independent preflight,
-not a substitute for inspecting that transfer line in the first build.
+```bash
+CTX="$(mktemp -d -t scrimp-context-inspect.XXXXXXXX)"
+python3 scripts/audit-v130-docker-context.py --stage-to "$CTX"
+du -sh "$CTX"
+find "$CTX" -type f | wc -l
+rm -rf -- "$CTX"
+```
+
+The new driver performs staging automatically. At the previous
+commit, the repository's Git-tracked allowlisted inputs totaled
+approximately **1.5 MiB**. The first fixed BuildKit run must now
+show a transfer of that order of magnitude, not gigabytes. If
+it does not, stop immediately and investigate before compiling.
+
+The manual GitHub Actions Docker build also uses physical staging,
+to avoid bypassing this safety boundary.
 
 ## 2. Build a candidate without disturbing the qualified image
 
