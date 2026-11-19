@@ -413,10 +413,13 @@ def main():
         build_stop - build_start, op=MPI.MAX
     )
     solve_wall = mpi.allreduce(end - start, op=MPI.MAX)
-    max_rss = mpi.allreduce(
-        int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss),
-        op=MPI.MAX,
-    )
+    local_rss_kib = int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
+    max_rss = mpi.allreduce(local_rss_kib, op=MPI.MAX)
+    # Sum of per-rank lifetime high-water marks: useful for MPI
+    # capacity assessment, but NOT the instantaneous peak of the
+    # aggregate resident set (maxima can occur at different times).
+    summed_rank_rss = mpi.allreduce(local_rss_kib, op=MPI.SUM)
+    rss_by_rank = mpi.gather(local_rss_kib, root=0)
     if rank == 0:
         if args.variant == "current" and any(
             counts != reuse_stats_by_rank[0]
@@ -523,6 +526,13 @@ def main():
             "steady_step_late_mean_s": float(np.mean(late)),
             "steady_step_window_size": half,
             "max_rank_hwm_kib": int(max_rss),
+            "sum_rank_hwm_kib": int(summed_rank_rss),
+            "rank_hwm_kib": [int(x) for x in rss_by_rank],
+            "rank_hwm_definition": (
+                "Linux ru_maxrss of each MPI process (KiB), measured "
+                "at the end of the run. The sum is a sum of independent "
+                "lifetime peaks, NOT instantaneous aggregate peak."
+            ),
             "initial_sha256": hashlib.sha256(
                 initial.tobytes()
             ).hexdigest(),
