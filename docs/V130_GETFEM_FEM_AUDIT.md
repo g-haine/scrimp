@@ -48,6 +48,23 @@ compilation and two-cell H(curl) orientation checks. The second-kind
 construction has not yet been added; in particular its tetrahedral
 face DoF scheme must respect shared-face conformity.
 
+### Nédélec second kind — construction target
+
+For each triangle/tetrahedron, the local space is `[P_k]^d`,
+`k >= 1`. To obtain **H(curl)** conformity, implement the
+*edge tangent moments* and the appropriate tangential *face moments*
+(and interior moments for higher k), not just vector-valued Lagrange
+point DOFs. Source: https://defelement.org/elements/nedelec2.html.
+The mathematical degree conventions for its RT moment test spaces
+must be respected (subdegree versus superdegree).
+
+For k=1 on a tetrahedron, all twelve local DoFs are associated with
+edges; for k=2, the 30 local DoFs comprise 18 edge and 12 face DoFs.
+Choosing arbitrary subsets of pointwise face samples can be
+unisolvent locally but still fail global tangential continuity after
+neighboring tetrahedra reorder their vertices. This is why the
+second-kind source patch is **not** being registered prematurely.
+
 ### Lean acceptance criteria
 
 - GetFEM descriptor local dimensions at low k plus one higher-order smoke;
