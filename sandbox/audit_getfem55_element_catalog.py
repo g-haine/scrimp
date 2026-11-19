@@ -204,6 +204,9 @@ def main() -> int:
                         default=Path("sandbox/outputs/getfem55_constructor_audit.json"),
                         help="JSON report destination; use '-' for JSON on stdout "
                              "(status/progress goes to stderr)")
+    parser.add_argument("--only", action="append", metavar="DESCRIPTOR",
+                        help="Probe one exact descriptor; repeat for several "
+                             "(for example --only 'FEM_BDMK(3,1)')")
     parser.add_argument("--strict", action="store_true",
                         help="Exit 1 if any constructor did not match its expected dimensions")
     parser.add_argument("--allow-non-docker", action="store_true",
@@ -228,6 +231,13 @@ def main() -> int:
         parser.error(str(exc))
     progress("Runtime provenance:", json.dumps(provenance, sort_keys=True), flush=True)
     rows = catalog(args.max_order)
+    if args.only:
+        available = {row["descriptor"] for row in rows}
+        missing = set(args.only) - available
+        if missing:
+            parser.error(f"Requested descriptor(s) outside --max-order catalog: {sorted(missing)}")
+        chosen = set(args.only)
+        rows = [row for row in rows if row["descriptor"] in chosen]
     results = []
     for row in rows:
         progress(f"{row['descriptor']:<22} expected={row['expected_dofs']:<4}", end=" ", flush=True)
@@ -246,6 +256,7 @@ def main() -> int:
         "timestamp_utc": datetime.now(timezone.utc).isoformat(),
         "python_executable": sys.executable,
         "max_order": args.max_order,
+        "only_descriptors": args.only,
         "results": results,
     }
     json_report = json.dumps(out, indent=2, ensure_ascii=False) + "\n"
