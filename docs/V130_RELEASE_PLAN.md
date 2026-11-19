@@ -351,7 +351,10 @@ native smoke are now prepared; the first full candidate build and warm
 cache validation on the user's Linux workstation are **pending**.
 The reproducible build procedure, cache boundaries, evidence paths
 and deferred lock/platform work are documented in
-[V130_DOCKER_BUILD.md](V130_DOCKER_BUILD.md). No image has been
+[V130_DOCKER_BUILD.md](V130_DOCKER_BUILD.md). The Docker input
+context now uses a **deny-by-default allowlist**, explicit source
+copies and a pre-build size/content audit; the tracked allowlisted
+inputs total approximately 1.5 MiB. No image has been
 promoted, and `scrimp-mpi:local` is untouched.
 
 - Rework the Dockerfile into cache-friendly dependency layers:
