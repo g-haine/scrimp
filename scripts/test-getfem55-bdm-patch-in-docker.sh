@@ -86,7 +86,46 @@ for descriptor, expected in tests:
     actual = int(f.nbdof())
     print(f"{descriptor}: local DoFs={actual} (expected {expected})")
     assert actual == expected, descriptor
-print("PASS: patched BDM local constructors/dimensions only.")
-print("Still required: 3D shared-facet H(div) check and small assembly.")
+print("PASS: patched BDM local constructors/dimensions.")
+print("Checking two tetrahedra with a common triangular face:", flush=True)
+import numpy as np
+
+mesh = getfem.Mesh("empty", 3)
+geo = getfem.GeoTrans("GT_PK(3,1)")
+# Same shared triangle, opposite vertices, and reversed local face ordering.
+tetra1 = np.array([[0., 1., 0., 0.],
+                   [0., 0., 1., 0.],
+                   [0., 0., 0., 1.]])
+tetra2 = np.array([[0., 0., 1., 0.],
+                   [0., 1., 0., 0.],
+                   [0., 0., 0., -1.]])
+mesh.add_convex(geo, tetra1)
+mesh.add_convex(geo, tetra2)
+mim = getfem.MeshIm(mesh, 6)
+
+for k, local, face in ((1, 12, 3), (2, 30, 6)):
+    mf = getfem.MeshFem(mesh, 1)
+    mf.set_fem(getfem.Fem(f"FEM_BDMK(3,{k})"))
+    expected = 2 * local - face
+    n = int(mf.nbdof())
+    print(f"BDM{k}, two tetrahedra: global DoFs={n}, expected={expected}",
+          flush=True)
+    assert n == expected, (
+        f"Face DoFs are not shared for BDM{k}: got {n}, expected {expected}"
+    )
+    mat = getfem.asm("mass matrix", mim, mf)
+    dense = mat.toarray() if hasattr(mat, "toarray") else np.asarray(mat)
+    assert dense.shape == (expected, expected), dense.shape
+    assert np.all(np.isfinite(dense)), f"BDM{k}: nonfinite mass matrix"
+    sym = float(np.linalg.norm(dense - dense.T) /
+                max(1., np.linalg.norm(dense)))
+    min_eig = float(np.linalg.eigvalsh((dense + dense.T)/2.).min())
+    print(f"BDM{k}: mass symmetry error={sym:.3e}, "
+          f"lambda_min={min_eig:.3e}", flush=True)
+    assert sym < 1e-10 and min_eig > 0, (
+        f"BDM{k}: mass matrix not symmetric positive definite"
+    )
+print("PASS: BDM3D shared-face DoF count and positive mass assembly.")
+print("NOTE: full pointwise normal-flux continuity is not yet checked.")
 PY
   ' 2>&1 | tee "$LOG"
