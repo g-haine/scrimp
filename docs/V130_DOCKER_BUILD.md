@@ -47,52 +47,6 @@ builder and are **not included in the resulting image**.
 BuildKit caches can be cleared by a Docker build-cache prune; no
 SCRIMP script prunes them automatically.
 
-## 1b. BuildKit cache ownership and CPU-only complex solver variants
-
-**First clean build finding (19 November 2026, source bcab1507):**
-the physically staged GitHub context contained only 189 files /
-1.51 MiB; BuildKit transferred **1.60 MB**, closing the former
->45 GB regression. Micromamba created `scrimp`, and the NumPy-2 /
-PETSc-3.26.1 / SLEPc-3.26.1 Python ABI checks **passed**.
-The subsequent GetFEM release tarball download failed with curl
-exit **23** (`Permission denied` on
-`/tmp/scrimp-getfem-tarballs/getfem-5.5.tar.gz.part.1`).
-The same build also reported that pip had disabled its cache and
-micromamba could not open `/opt/conda/pkgs/pkgs.lock`.
-
-**Cache repair:** Before switching to the non-root `mambauser`,
-the Dockerfile now temporarily mounts **all three existing BuildKit
-package caches as root**, reassigns their ownership to
-`mambauser:mambauser`, and then explicitly checks the resulting
-non-root writability before installation. This preserves downloaded
-packages and does not prune caches or alter the host Conda
-environment. This correction still needs a real Docker re-run.
-
-**Avoid unwanted CUDA packages:** The first solve selected
-`petsc-3.26.1-cuda13_complex` and
-`slepc-3.26.1-cuda13_complex`, which pulled a **2 GB**
-environment with substantial unused CUDA dependencies. The
-general Linux CPU/MPI candidate now requires
-`petsc=3.26.*=complex_*` and `slepc=3.26.*=complex_*`:
-the leading `complex_` excludes `cuda12_complex_` and
-`cuda13_complex_`. A Docker build stage checks the resolved
-Conda metadata and fails if a GPU PETSc/SLEPc build or large
-CUDA numerical runtime libraries sneak back in. A separate
-GPU-specific environment may be provided in a future release;
-the CPU candidate must work without CUDA.
-
-**Cache reuse after the repair:** Changing `docker/environment.yml`
-intentionally invalidates the Micromamba and later image layers,
-so `petsc4py` and `slepc4py` must be built again for the
-**new CPU libraries**. Generic downloads in the BuildKit caches
-are preserved where their package hashes still match.
-The previous CUDA binding builds are NOT ABI-compatible with the
-new CPU variant and must not be reused.
-
-**No full build, native GetFEM patch acceptance, MPI smoke or VS
-Code runtime acceptance is claimed yet.** Continue with the normal
-candidate builder after pulling the corrected branch.
-
 ## 1a. Physical isolation of the Docker context (critical)
 
 **19 November 2026 regression caught on the Linux workstation:**
@@ -163,6 +117,52 @@ it does not, stop immediately and investigate before compiling.
 
 The manual GitHub Actions Docker build also uses physical staging,
 to avoid bypassing this safety boundary.
+
+## 1b. BuildKit cache ownership and CPU-only complex solver variants
+
+**First clean build finding (19 November 2026, source bcab1507):**
+the physically staged GitHub context contained only 189 files /
+1.51 MiB; BuildKit transferred **1.60 MB**, closing the former
+>45 GB regression. Micromamba created `scrimp`, and the NumPy-2 /
+PETSc-3.26.1 / SLEPc-3.26.1 Python ABI checks **passed**.
+The subsequent GetFEM release tarball download failed with curl
+exit **23** (`Permission denied` on
+`/tmp/scrimp-getfem-tarballs/getfem-5.5.tar.gz.part.1`).
+The same build also reported that pip had disabled its cache and
+micromamba could not open `/opt/conda/pkgs/pkgs.lock`.
+
+**Cache repair:** Before switching to the non-root `mambauser`,
+the Dockerfile now temporarily mounts **all three existing BuildKit
+package caches as root**, reassigns their ownership to
+`mambauser:mambauser`, and then explicitly checks the resulting
+non-root writability before installation. This preserves downloaded
+packages and does not prune caches or alter the host Conda
+environment. This correction still needs a real Docker re-run.
+
+**Avoid unwanted CUDA packages:** The first solve selected
+`petsc-3.26.1-cuda13_complex` and
+`slepc-3.26.1-cuda13_complex`, which pulled a **2 GB**
+environment with substantial unused CUDA dependencies. The
+general Linux CPU/MPI candidate now requires
+`petsc=3.26.*=complex_*` and `slepc=3.26.*=complex_*`:
+the leading `complex_` excludes `cuda12_complex_` and
+`cuda13_complex_`. A Docker build stage checks the resolved
+Conda metadata and fails if a GPU PETSc/SLEPc build or large
+CUDA numerical runtime libraries sneak back in. A separate
+GPU-specific environment may be provided in a future release;
+the CPU candidate must work without CUDA.
+
+**Cache reuse after the repair:** Changing `docker/environment.yml`
+intentionally invalidates the Micromamba and later image layers,
+so `petsc4py` and `slepc4py` must be built again for the
+**new CPU libraries**. Generic downloads in the BuildKit caches
+are preserved where their package hashes still match.
+The previous CUDA binding builds are NOT ABI-compatible with the
+new CPU variant and must not be reused.
+
+**No full build, native GetFEM patch acceptance, MPI smoke or VS
+Code runtime acceptance is claimed yet.** Continue with the normal
+candidate builder after pulling the corrected branch.
 
 ## 2. Build a candidate without disturbing the qualified image
 
