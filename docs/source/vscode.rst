@@ -111,6 +111,26 @@ into an isolated Docker context:
    bash scripts/build-v130-docker-candidate.sh
    bash scripts/smoke-v130-docker-candidate.sh
 
+**Dev Containers image selection (Linux validation finding):**
+Use an **explicit complete image reference** in
+``.devcontainer/devcontainer.json``, including its tag:
+
+.. code-block:: json
+
+   "image": "scrimp-mpi:v1.3.0-rc1"
+
+In the first VS Code GUI attempt, the template's expression
+`${localEnv:SCRIMP_DOCKER_IMAGE:scrimp-mpi:v1.3.0-rc1}`
+was incorrectly resolved to just `scrimp-mpi`. VS Code
+then attempted to fetch `scrimp-mpi:latest` from Docker Hub and
+failed. This was **not** a Docker permissions or SCRIMP runtime
+failure. The starter now uses the literal candidate tag. For a
+different built image, edit the ``image`` property or generate
+the project with ``--image IMAGE:TAG``. Projects created before
+the fix must update their **own copy** of devcontainer.json;
+pulling the SCRIMP Git repository does not modify existing
+independent projects.
+
 The development tag is scrimp-mpi:v1.3.0-rc1. It **passed its
 first native Docker build and 1/2-rank CLI smoke on 19 November 2026**,
 including a newly scaffolded project, an actual serial oscillator
