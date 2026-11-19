@@ -25,6 +25,17 @@ jobs:
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
+      - name: Check independent VS Code project template (no Docker required)
+        run: |
+          python3 -m unittest -v tests.test_project_starter
+          python3 scripts/package-scrimp-project-template.py \
+            --output scrimp-project-template.zip
+      - name: Preserve candidate user project ZIP (NOT a released asset)
+        uses: actions/upload-artifact@v4
+        with:
+          name: scrimp-v130-project-template-preview
+          path: scrimp-project-template.zip
+          if-no-files-found: error
       - name: Build experimental GetFEM 5.5/NumPy 2 image
         run: |
           # Never give Docker the checkout as a context: local and CI
