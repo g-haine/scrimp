@@ -1,0 +1,60 @@
+diff --git a/src/getfem_fem.cc b/src/getfem_fem.cc
+--- a/src/getfem_fem.cc
++++ b/src/getfem_fem.cc
+@@ -2232,7 +2232,10 @@
+     vtype = VECTORIAL_PRIMAL_TYPE;
+ 
+     bgeot::pconvex_ref cvn
+-      = bgeot::simplex_of_reference(nc, bgeot::short_type(k+2));
++      // The normal trace on each (nc-1)-simplex is P_k.  Use the
++      // interior face points of the lattice of degree k+nc, giving
++      // exactly dim(P_k(face)) independently linkable normal DoFs.
++      = bgeot::simplex_of_reference(nc, bgeot::short_type(k+nc));
+ 
+     // Building a simple base of BDMk 
+     PK_fem_ PK(nc, k);
+@@ -2267,7 +2270,10 @@
+ 
+     base_node barycenter(nc); barycenter.fill(1./(nc+1));
+     
+-    if (k > 1) {
++    // Preserve the historical divergence-based interior construction
++    // in 2D.  On tetrahedra, the corresponding rows contain redundant
++    // divergence constraints and do not complete an unisolvent basis.
++    if (k > 1 && nc == 2) {
+       bgeot::pbasic_mesh pm;
+       bgeot::pmesh_precomposite pmp;
+       
+@@ -2299,15 +2305,23 @@
+       }
+     }
+ 
+-    if (k > 2) { // Completing the base with an orthogonal base of the kernel
+-#     if defined(GMM_USES_LAPACK)
+-      base_vector EIG(nddl);
+-      base_matrix U(nddl, nddl), V(nddl, nddl), AA(A);
+-      gmm::svd(AA, U, V, EIG);
+-      gmm::clean(V, 1E-14);
+-
+-      for (size_type i = 0; i < nddl; ++i)
+-        if (gmm::abs(EIG[i]) < 1E-16) {
++    // Complete the missing interior functionals by a basis of the
++    // nullspace of all previously selected (face) functionals.
++    // In 3D this is necessary already at k=2.
++    if (k > 2 || (nc == 3 && k > 1)) {
++#     if defined(GMM_USES_LAPACK)
++      base_vector EIG(nddl);
++      base_matrix U(nddl, nddl), V(nddl, nddl), AA(A);
++      gmm::svd(AA, U, V, EIG);
++      gmm::clean(V, 1E-14);
++      scalar_type sigma_max = scalar_type(0);
++      for (size_type i = 0; i < nddl; ++i)
++        sigma_max = std::max(sigma_max, gmm::abs(EIG[i]));
++      const scalar_type null_tol = (nc == 3)
++        ? 1E-10 * sigma_max : 1E-16;
++
++      for (size_type i = 0; i < nddl; ++i)
++        if (gmm::abs(EIG[i]) < null_tol) {
+           gmm::copy(gmm::mat_row(V, i), gmm::mat_row(A, ipoint));
+           add_node(ipk_center_dof(nc, ipoint), barycenter); ++ipoint;
+         }
