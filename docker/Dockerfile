@@ -93,7 +93,9 @@ RUN --mount=type=cache,id=scrimp-v130-pip-cache,target=/tmp/scrimp-pip-cache,sha
 ARG GETFEM_VERSION=5.5
 ARG MAKE_JOBS=4
 # SHA256 of official GetFEM 5.5 source tarball, checked by the build script.
-ARG GETFEM_SHA256=f6c09fb2edd112b6abe04e0485534f5e965d6f8f9ad853308b7120bfc6722ab5
+# Reviewed 2026-11-19 Savannah release variant, compared to immutable v5.5
+# c242f7fe... + all approved patches (see V130_DOCKER_BUILD.md).
+ARG GETFEM_SHA256=0e042770b86152b09be4bfd0ee160b8d10d49c3f8a0b9b06d55f1ffaa1d30fc4
 
 # Only GetFEM's build script and approved 0000..0004 patches enter the
 # next heavy layer. A change to SCRIMP itself does not rebuild GetFEM.
