@@ -430,11 +430,31 @@ unused `-info`; its origin and need for suppression have not
 yet been qualified. GetFEM also prints a trace during the
 stack smoke; neither message affects this acceptance result.
 
-**Qualification boundary:** this is a *smoke*, not a proof of
-Hamiltonian or power-balance preservation, parallel strong
-scaling, full Maxwell physics or full VS Code Dev Containers
-first-use behavior. Follow those distinct roadmap gates
-before image publication.
+**Subsequent VS Code Dev Container Ubuntu qualification (19 Nov):**
+the user opened the independent project inside a real VS Code
+Dev Container with `(scrimp)` active and `/work` mounted.
+The integrated terminal ran the ten-step `first_simulation.py`
+successfully and created `/work/outputs/oscillator.csv`.
+`mpiexec -n 2 python simulations/mpi_check.py` also passed.
+The candidate image therefore passes **both the CLI host-volume
+smoke and the Linux VS Code integrated-terminal workflow**.
+
+The editor separately displayed **"No Python found — Install uv
+and Python"** despite the working container interpreter at
+`/opt/conda/envs/scrimp/bin/python`. This generic VS Code
+discovery/installer prompt is **not evidence that Python or
+SCRIMP is absent**. The user should dismiss it and, if needed,
+select the existing interpreter with **Python: Select Interpreter**.
+No extra Python installation or image rebuild is appropriate;
+see [the first-user guide](source/vscode.rst). The template's
+Dev Container already declares the path. Actual breakpoint
+debugging with **F5/debugpy** remains untested.
+
+**Qualification boundary:** these results are a *smoke*, not proof of
+Hamiltonian or power-balance preservation, parallel strong scaling,
+full Maxwell physics, F5 debugging or cross-platform VS Code
+onboarding. Follow those distinct roadmap gates before
+publishing an image.
 
 ## 4. Verify the warm-cache behavior
 
