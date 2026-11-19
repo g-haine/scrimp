@@ -1,7 +1,7 @@
 diff --git a/src/getfem_fem.cc b/src/getfem_fem.cc
 --- a/src/getfem_fem.cc
 +++ b/src/getfem_fem.cc
-@@ -2466,5 +2466,237 @@
+@@ -2480,5 +2480,237 @@
  
    /* ******************************************************************** */
 +  /* ******************************************************************** */
@@ -239,7 +239,7 @@ diff --git a/src/getfem_fem.cc b/src/getfem_fem.cc
    /*    P1 element with a bubble base function on a face : type lagrange  */
    /* ******************************************************************** */
  
-@@ -4643,4 +4875,5 @@
+@@ -4657,4 +4889,5 @@
        add_suffix("RT0Q", P1_RT0Q);
        add_suffix("NEDELEC", P1_nedelec);
 +      add_suffix("NEDELEC1", nedelec1k);
