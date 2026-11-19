@@ -86,13 +86,31 @@ Use **GetFEM v5.5 original sources** and the local SCRIMP Docker/GetFEM build; c
 
 ## First native constructor probe (SCRIMP integration test only)
 
-The non-invasive driver `sandbox/audit_getfem55_element_catalog.py` runs each requested GetFEM descriptor in its **own process**, because C++ assertions may terminate Python. It checks the local finite-element dimension; it does **not** assert global conformity.
+**Important protocol correction (19 November 2026):** the first execution (2026-11-19T10:38Z) was run under the *host* Python `/opt/anaconda3/envs/scrimp/bin/python`, loading GetFEM from `/opt/anaconda3/envs/scrimp/lib/python3.12/site-packages/getfem/`. Its report of 5/14 constructed and 9 errors **does not qualify GetFEM 5.5**. Keep the JSON as a clearly labeled historical host probe; do not cite the failures as native Docker regressions.
+
+The non-invasive driver `sandbox/audit_getfem55_element_catalog.py` runs each GetFEM descriptor in its **own subprocess**. It now **refuses to run on host conda by default**: before launching any element, it checks Docker environment markers, that Python/GetFEM are loaded from the image's `/opt/conda/envs/scrimp/` environment, and `getfem.util_mpi_parallelism_level() == 2`. A deliberate host-only diagnostic may use `--allow-non-docker`; that report is flagged non-qualifying. This runtime check **does not establish the source tag or tarball checksum**: use the image build log/digest for source provenance.
+
+Use the already validated **local** GetFEM 5.5 image, here `scrimp-mpi:local` (do **not** rebuild or replace it for the constructor smoke), with the current SCRIMP source bind-mounted:
 
 ```bash
-conda activate scrimp
-python sandbox/audit_getfem55_element_catalog.py --max-order 2
-# If quick probes qualify and sufficient host resources are available:
-python sandbox/audit_getfem55_element_catalog.py --max-order 5 --timeout 120
+cd ~/Simulations/scrimp
+git fetch origin
+git switch release/1.3.0-preparation
+git pull --ff-only
+
+# Verify the image is present; record the exact image ID:
+sudo docker image inspect scrimp-mpi:local --format '{{.Id}}'
+
+# Run inside the container, not in host conda; preserve the previous host JSON:
+sudo docker run --rm \
+  -v "$PWD:/workspace/scrimp" \
+  -w /workspace/scrimp \
+  scrimp-mpi:local \
+  python -u sandbox/audit_getfem55_element_catalog.py \
+  --max-order 2 \
+  --output sandbox/outputs/getfem55_constructor_audit_docker.json
 ```
 
-JSON output defaults to `sandbox/outputs/getfem55_constructor_audit.json` (ignored by Git). Repeat in the actual Docker GetFEM 5.5 image; retain reports separately and never overwrite previously qualified point-0 baselines.
+If the existing image has a different local tag, substitute its **verified** tag based on `sudo docker image ls`, rather than creating a new image just for this probe. Probe `--max-order 5 --timeout 120` only after inspecting the lower-order results.
+
+This checks constructor acceptance and reference-cell dimensions, not unisolvance, conformity, facet orientation, Piola mappings, numerical convergence, or MPI multi-process parity. Output JSON remains under `sandbox/outputs` (ignored by Git). Preserve all point-0 native artifacts. Do **not** classify a source-level 3D BDM issue as experimentally reproduced until the Docker probe confirms it.
