@@ -17,13 +17,38 @@ RUN --mount=type=cache,id=scrimp-v130-apt-archives,target=/var/cache/apt,sharing
         libxcursor1 libxinerama1 libxi6 libxrandr2 libxfixes3 libsm6 libice6 \
         libxft2 libfontconfig1 libfreetype6 libxmu6 libxt6 libx11-6 libxcb1
 
+# BuildKit cache mounts start as root-owned (even with mode=0777 on
+# an existing mount). Three previous user steps hit permission failures:
+# micromamba pkgs.lock, pip caching and the GetFEM tarball download.
+# Fix BOTH newly created and existing named caches from a root step;
+# avoid any cache prune and preserve already-downloaded dependencies.
+RUN --mount=type=cache,id=scrimp-v130-mamba-pkgs,target=/opt/conda/pkgs,sharing=locked,mode=0775 \
+    --mount=type=cache,id=scrimp-v130-pip-cache,target=/tmp/scrimp-pip-cache,sharing=locked,mode=0775 \
+    --mount=type=cache,id=scrimp-v130-getfem-tarballs,target=/tmp/scrimp-getfem-tarballs,sharing=locked,mode=0775 \
+    chown -R "$MAMBA_USER:$MAMBA_USER" \
+        /opt/conda/pkgs /tmp/scrimp-pip-cache /tmp/scrimp-getfem-tarballs \
+    && test -w /opt/conda/pkgs \
+    && test -w /tmp/scrimp-pip-cache \
+    && test -w /tmp/scrimp-getfem-tarballs
+
 USER $MAMBA_USER
 
 # Micromamba's default package cache is /opt/conda/pkgs. This cache
 # persists across builds but is not copied into the resulting image.
 COPY --chown=$MAMBA_USER:$MAMBA_USER docker/environment.yml /tmp/scrimp-environment.yml
-RUN --mount=type=cache,id=scrimp-v130-mamba-pkgs,target=/opt/conda/pkgs,sharing=locked,mode=0777 \
+RUN --mount=type=cache,id=scrimp-v130-mamba-pkgs,target=/opt/conda/pkgs,sharing=locked,mode=0775 \
     micromamba create -y -f /tmp/scrimp-environment.yml
+
+# Guard the actual resolved native builds: the previous wildcard '*complex*'
+# silently pulled cuda13_complex plus >1 GiB of CUDA libraries on a CPU host.
+# Keep complex PETSc/SLEPc and NumPy 2 without CUDA dependencies.
+RUN micromamba run -n scrimp python -c "import json, pathlib; \
+    base=pathlib.Path('/opt/conda/envs/scrimp/conda-meta'); \
+    pkgs=[json.loads(p.read_text()) for p in base.glob('*.json')]; \
+    builds={p['name']: p.get('build', '') for p in pkgs}; \
+    assert all(builds.get(k, '').startswith('complex_') for k in ('petsc','slepc')), builds; \
+    assert not ({'libcublas', 'libcusolver', 'libcusparse', 'libcufft'} & builds.keys()), 'CUDA runtime unexpectedly resolved'; \
+    print('CPU complex PETSc/SLEPc:', builds['petsc'], builds['slepc'])"
 
 # Catch missing native Gmsh wheel runtime dependencies before costly builds.
 RUN micromamba run -n scrimp python -c "import gmsh; print('Gmsh native library loaded:', gmsh.__version__)"
@@ -50,7 +75,7 @@ WORKDIR /workspace/scrimp
 # native COMPLEX libraries and NumPy 2. SCRIMP edits do not invalidate this.
 COPY --chown=$MAMBA_USER:$MAMBA_USER \
     scripts/install-petsc-python-bindings.sh scripts/install-petsc-python-bindings.sh
-RUN --mount=type=cache,id=scrimp-v130-pip-cache,target=/tmp/scrimp-pip-cache,sharing=locked,mode=0777 \
+RUN --mount=type=cache,id=scrimp-v130-pip-cache,target=/tmp/scrimp-pip-cache,sharing=locked,mode=0775 \
     SCRIMP_PIP_USE_CACHE=1 PIP_CACHE_DIR=/tmp/scrimp-pip-cache \
     bash scripts/install-petsc-python-bindings.sh
 
@@ -69,7 +94,7 @@ COPY --chown=$MAMBA_USER:$MAMBA_USER \
 # not invalidate an expensive native GetFEM compilation layer.
 COPY --chown=$MAMBA_USER:$MAMBA_USER \
     scripts/patches/getfem-5.5/*.patch scripts/patches/getfem-5.5/
-RUN --mount=type=cache,id=scrimp-v130-getfem-tarballs,target=/tmp/scrimp-getfem-tarballs,sharing=locked,mode=0777 \
+RUN --mount=type=cache,id=scrimp-v130-getfem-tarballs,target=/tmp/scrimp-getfem-tarballs,sharing=locked,mode=0775 \
     GETFEM_ARCHIVE_DIR=/tmp/scrimp-getfem-tarballs \
     GETFEM_VERSION="${GETFEM_VERSION}" GETFEM_SHA256="${GETFEM_SHA256}" \
     MAKE_JOBS="${MAKE_JOBS}" bash scripts/build-getfem-mpi.sh
