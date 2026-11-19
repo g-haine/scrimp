@@ -28,6 +28,10 @@ echo "SCRIMP v1.3.0 candidate BuildKit build" | tee "$LOG"
 echo "Image: $IMAGE; source: $REVISION; MAKE_JOBS=$MAKE_JOBS" | tee -a "$LOG"
 echo "Qualified image scrimp-mpi:local remains untouched." | tee -a "$LOG"
 
+# Fail before contacting Docker if any COPY accidentally reverts to a
+# whole-repository copy or the strict source allowlist has broadened.
+python3 scripts/audit-v130-docker-context.py 2>&1 | tee -a "$LOG"
+
 # A BuildKit Dockerfile needs the Buildx CLI plugin. In particular,
 # DOCKER_BUILDKIT=1 is NOT a valid fallback when Buildx is missing: recent
 # Docker versions abort with "buildx component is missing or broken".
