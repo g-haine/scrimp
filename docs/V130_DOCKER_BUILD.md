@@ -1,6 +1,6 @@
 # SCRIMP v1.3.0 — Docker candidate build and cache qualification
 
-**Status (19 November 2026): Docker context, caches, CPU complex PETSc/SLEPc, NumPy-2 Python bindings and Gmsh checks passed. Savannah's GetFEM 5.5 archive has now been source-audited against the immutable upstream v5.5 tag, including five clean patch applications, and re-pinned to its exact SHA-256. Complete GetFEM Docker compilation and MPI/VS Code runtime tests remain pending.**
+**Status (19 November 2026): candidate image `scrimp-mpi:v1.3.0-rc1` built successfully from Git revision `96961d647c2caf41dd77d2a7b5926e86e86c4b69`. GetFEM 5.5 native compilation, FEM constructors, MPI-2 GetFEM, complex PETSc/SLEPc 3.26.1, distributed MUMPS (1/2 MPI ranks), a real serial SCRIMP model with host-persistent CSV, and a two-rank user-project MPI startup all PASS. The full scientific physics/scaling and actual VS Code Dev Containers acceptance gates remain open; no GHCR release or qualified-image replacement has occurred.**
 This document is part of [v1.3.0 release point 2](V130_RELEASE_PLAN.md).
 Always build/test a **new tag**. The existing qualified
 `scrimp-mpi:local` image must not be retagged, overwritten, pruned
@@ -276,12 +276,14 @@ release evidence. A build interrupted during native compilation may
 restart that step but should **not redownload** a valid cached
 tarball or cached pip/Conda packages.
 
-**Warning:** first builds confirmed Conda/PETSc and source
-context isolation but were blocked by GetFEM cache ownership, then
-a release tarball digest discrepancy. Both have now been addressed
-in source. The complete GetFEM build and subsequent native/MPI
-smoke are **not yet validated**; no image has been promoted or
-released.
+**Validated candidate (19 Nov):** the full image build and native,
+FEM/MPI 1/2-rank, independent user-workspace and persistent host-output
+smokes **passed**. The historical cache-ownership and GetFEM source
+checksum blockers are closed. The actual VS Code GUI/Dev Container
+interaction, whole-science MPI parity, physical power balances,
+cross-platform compatibility and warm-cache reproducibility remain
+**separate acceptance gates**. This candidate has not been published
+or promoted over `scrimp-mpi:local`.
 
 ### Buildx prerequisite (Ubuntu 22.04 / Docker from Ubuntu repositories)
 
@@ -306,11 +308,10 @@ configured here. The build runner now checks `sudo docker buildx
 version` before any image construction and fails with an actionable
 message rather than starting a build that cannot work.
 
-**Observed initial build blocker:** before the plugin was installed,
-Docker reported `BuildKit is enabled but the buildx component is
-missing or broken`. This occurs before the Dockerfile starts;
-it is **not** evidence of an error in the native numerical libraries
-or source patches. The new candidate image has not yet built.
+**Historical initial build blocker:** before the plugin was
+installed, Docker reported `BuildKit is enabled but the buildx
+component is missing or broken`. This was corrected by installing
+Ubuntu's `docker-buildx`; the candidate image now builds.
 
 ## 2a. After installation: independent user projects in VS Code
 
@@ -389,6 +390,51 @@ and patch checksum list are exported to:
 and FEM constructor smokes. They do not replace the earlier full wave
 1/2/4/6-rank strong-scaling qualification or certify physical Maxwell
 power balance, which are distinct release workstreams.
+
+## 3a. First complete native and user-workspace qualification — PASS
+
+**Evidence supplied 19 November 2026 (build revision
+`96961d647c2caf41dd77d2a7b5926e86e86c4b69`):**
+
+- Buildx exported/loaded
+  `scrimp-mpi:v1.3.0-rc1` with image ID
+  `sha256:ab08d9beaa60a1685b7e8df1e69f5a085f5571ca46c2b7d8554f53ec42ace3e8`
+  (the recorded ID is a manifest-list digest, not a statement
+  about other architectures).
+- Native GetFEM MPI level **2**; PETSc/SLEPc **3.26.1 complex**,
+  NumPy **2.5.5**, SciPy **1.18.1**, mpi4py **4.1.2**.
+- Local simplex descriptors/DoF counts pass for RT k=0 (2D/3D),
+  BDM k=1 (2D/3D) and k=2 (3D), Nédélec I k=1 (2D/3D)
+  and k=2 (3D), Nédélec II k=1/2 (2D/3D). Unsupported
+  Nédélec-II k>=3 correctly raises an exception.
+- PETSc distributed MUMPS factor/solve passes at 1 and 2 ranks.
+- A **real** independently scaffolded user simulation solves the
+  four-DoF mass–spring–damper system for 10 steps
+  (`t=0..0.1`, `dt=0.01`), with zero rejections/failures.
+  It saves 11 rows with `time,q,p,H` to a host-mounted
+  `outputs/oscillator.csv`; the smoke checks its presence
+  **outside** Docker.
+- The same independent user project imports SCRIMP and starts on
+  **two MPI ranks**; both print their rank and return success.
+
+**Observed non-blocking diagnostics (not hidden):**
+the real GetFEM model receives PETSc's complex trial vector.
+The legacy `dtype=np.float64` cast in
+`DPHS._sync_lumped_trial_state` produced a NumPy
+`ComplexWarning` even though the real first-user simulation
+completed. The source now **explicitly copies the real part**,
+matching the existing TS monitor's behavior; this is a narrow
+post-image change requiring an image rebuild to validate.
+The MPI startup printed a PETSc option-database warning about
+unused `-info`; its origin and need for suppression have not
+yet been qualified. GetFEM also prints a trace during the
+stack smoke; neither message affects this acceptance result.
+
+**Qualification boundary:** this is a *smoke*, not a proof of
+Hamiltonian or power-balance preservation, parallel strong
+scaling, full Maxwell physics or full VS Code Dev Containers
+first-use behavior. Follow those distinct roadmap gates
+before image publication.
 
 ## 4. Verify the warm-cache behavior
 
