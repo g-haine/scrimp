@@ -83,6 +83,35 @@ the user's host. The first native build is the next qualification
 action; no image has been promoted or released by committing these
 files.
 
+### Buildx prerequisite (Ubuntu 22.04 / Docker from Ubuntu repositories)
+
+The candidate Dockerfile uses BuildKit cache mounts and requires the
+**Docker Buildx CLI plugin**. A plain `docker build` with
+`DOCKER_BUILDKIT=1` is not a fallback when Buildx is unavailable.
+
+On the currently tested host, Docker is installed as Ubuntu's
+`docker.io` package (29.1.3-0ubuntu3~22.04.2), **not** Docker CE.
+The correct matching package is `docker-buildx`:
+
+```bash
+sudo apt-get install docker-buildx
+sudo docker buildx version
+git pull --ff-only
+bash scripts/build-v130-docker-candidate.sh
+```
+
+Do **not** use `docker-buildx-plugin` on this host: that is the
+package name used by the upstream Docker CE repository, which is not
+configured here. The build runner now checks `sudo docker buildx
+version` before any image construction and fails with an actionable
+message rather than starting a build that cannot work.
+
+**Observed initial build blocker:** before the plugin was installed,
+Docker reported `BuildKit is enabled but the buildx component is
+missing or broken`. This occurs before the Dockerfile starts;
+it is **not** evidence of an error in the native numerical libraries
+or source patches. The new candidate image has not yet built.
+
 ## 3. Run the candidate smoke and capture reproducible inputs
 
 After the candidate image has built:
