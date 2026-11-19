@@ -28,35 +28,30 @@ echo "SCRIMP v1.3.0 candidate BuildKit build" | tee "$LOG"
 echo "Image: $IMAGE; source: $REVISION; MAKE_JOBS=$MAKE_JOBS" | tee -a "$LOG"
 echo "Qualified image scrimp-mpi:local remains untouched." | tee -a "$LOG"
 
-# Use Buildx when available (including Docker Desktop); otherwise use the
-# standard BuildKit builder. No implicit push, pruning or Docker image deletion.
-if "${DOCKER[@]}" buildx version >/dev/null 2>&1; then
-  "${DOCKER[@]}" buildx build --load \
-    --progress=plain \
-    --file docker/Dockerfile \
-    --tag "$IMAGE" \
-    --build-arg "SCRIMP_REVISION=$REVISION" \
-    --build-arg "MAKE_JOBS=$MAKE_JOBS" \
-    . 2>&1 | tee -a "$LOG"
-else
-  # A legacy Docker daemon may not enable BuildKit by default.
-  # Force BuildKit because the Dockerfile uses RUN cache mounts.
-  if [[ "${SCRIMP_DOCKER_NO_SUDO:-0}" == 1 ]]; then
-    DOCKER_BUILDKIT=1 docker build --progress=plain \
-      --file docker/Dockerfile \
-      --tag "$IMAGE" \
-      --build-arg "SCRIMP_REVISION=$REVISION" \
-      --build-arg "MAKE_JOBS=$MAKE_JOBS" \
-      . 2>&1 | tee -a "$LOG"
-  else
-    sudo env DOCKER_BUILDKIT=1 docker build --progress=plain \
-      --file docker/Dockerfile \
-      --tag "$IMAGE" \
-      --build-arg "SCRIMP_REVISION=$REVISION" \
-      --build-arg "MAKE_JOBS=$MAKE_JOBS" \
-      . 2>&1 | tee -a "$LOG"
-  fi
+# A BuildKit Dockerfile needs the Buildx CLI plugin. In particular,
+# DOCKER_BUILDKIT=1 is NOT a valid fallback when Buildx is missing: recent
+# Docker versions abort with "buildx component is missing or broken".
+# Probe through the same identity (sudo or non-sudo) used for the build.
+if ! "${DOCKER[@]}" buildx version 2>&1 | tee -a "$LOG"; then
+  {
+    echo "ERROR: Docker Buildx is missing or not accessible through ${DOCKER[*]}."
+    echo "Ubuntu docker.io installation: sudo apt-get install docker-buildx"
+    echo "Official Docker CE apt installation: sudo apt-get install docker-buildx-plugin"
+    echo "First inspect: apt-cache policy docker.io docker-ce docker-buildx docker-buildx-plugin"
+    echo "Then verify: ${DOCKER[*]} buildx version"
+    echo "This script will NOT install packages or replace Docker automatically."
+  } | tee -a "$LOG" >&2
+  exit 2
 fi
+
+# Buildx is explicitly required. Never push, prune or delete images.
+"${DOCKER[@]}" buildx build --load \
+  --progress=plain \
+  --file docker/Dockerfile \
+  --tag "$IMAGE" \
+  --build-arg "SCRIMP_REVISION=$REVISION" \
+  --build-arg "MAKE_JOBS=$MAKE_JOBS" \
+  . 2>&1 | tee -a "$LOG"
 
 echo "Built image ID and revision:" | tee -a "$LOG"
 "${DOCKER[@]}" image inspect --format \
