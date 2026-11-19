@@ -1,6 +1,7 @@
-# Experimental modern stack; the conda-forge solver selects the newest
-# mutually compatible *complex* PETSc/SLEPc builds at image build time.
-# After native validation, freeze the resolved explicit lock for releases.
+# Experimental modern CPU/MPI stack. Choose the *complex*, NON-CUDA
+# PETSc/SLEPc builds; an unconstrained '*complex*' accidentally selected
+# cuda13_complex on 2026-11-19 and pulled ~2 GiB of CUDA libraries.
+# After native validation, freeze the explicit lock for releases.
 name: scrimp
 channels:
   - conda-forge
@@ -24,11 +25,11 @@ dependencies:
   - metis
   - parmetis
   - scalapack
-  # Native complex PETSc/SLEPc from conda-forge; Python bindings
-  # are then built against THESE EXACT libraries and NumPy 2 via pip.
-  # The conda-forge complex petsc4py builds currently force NumPy<2.
-  - petsc=3.26.*=*complex*
-  - slepc=3.26.*=*complex*
+  # Native *CPU complex* PETSc/SLEPc, not cuda12_complex / cuda13_complex.
+  # The build string must BEGIN with 'complex_' to exclude CUDA variants.
+  # Python wrappers are built against these exact libraries + NumPy 2.
+  - petsc=3.26.*=complex_*
+  - slepc=3.26.*=complex_*
   - cython>=3
   - numpy>=2,<3
   - scipy
