@@ -1,6 +1,12 @@
 # SCRIMP v1.3.0 — GetFEM 5.5 finite-element family audit
 
-**Status:** source-level audit (19 November 2026); **native C++/Python and MPI qualification not yet performed**. Do not mistake constructor acceptance for certified H(div)/H(curl) conformity.
+**Status (19 November 2026):** unmodified *Docker* GetFEM 5.5 MPI-2
+constructor probe performed (12/14 locally constructible, failing only
+BDM1/2 on tetrahedra). This checks constructors and local dimensions,
+**not** H(div)/H(curl) conformity or MPI parity. A minimal GetFEM 5.5
+source correction for BDM tetrahedra is **staged in scripts**, but is
+**not yet compiled or tested**. Immediate objective: working SCRIMP
+simplex elements; possible upstream contribution later as a starting point.
 
 ## Immutable source reference
 
@@ -12,6 +18,43 @@
 - Reference grids: `src/bgeot_convex_ref.cc`, `src/getfem/bgeot_convex_ref.h` and `doc/sphinx/source/project/femdesc.rst`.
 - User documentation: https://getfem.org/userdoc/appendixA.html
 - Mathematical cross-check: https://defelement.org/
+
+## Supported geometry and deliverable
+
+**Strict scope: triangles (2D) and tetrahedra (3D) only.**
+Quadrilateral, hexahedral, prism and other tensor-cell developments
+are out of scope. The presence of `FEM_RT0Q` in the unmodified
+GetFEM catalogue is historical context, not an extension target.
+
+The initial, deliberately **small** GetFEM patch is:
+`scripts/patches/getfem-5.5/0001-bdm-tetrahedron-unisolvent-dofs.patch`.
+`scripts/build-getfem-mpi.sh` will apply it while building GetFEM
+5.5 in the next Docker image. This patch modifies the tetrahedral
+facet lattice degree from `k+2` to `k+nc` and uses SVD nullspace
+completion of the facet interpolation matrix for interior tetrahedron
+DoFs (k>=2); it leaves the historical triangular BDM interior
+construction in place. **Do not label the patch PASS before compilation
+and native constructor+two-element checks.**
+
+For Nédélec, `scripts/check_nedelec_simplicial_basis.py` is a compact,
+separate, exact-arithmetic mathematical prototype for a general
+first-kind polynomial generating set and a symmetric nodal
+interpolation scheme (edge tangents, two face tangents and volume
+components). It is *not* a GetFEM implementation. Both Nédélec
+GetFEM constructors remain to be implemented; in particular a
+second-kind 3D face-DoF selection must respect shared-face conformity.
+
+### Lean acceptance criteria
+
+- GetFEM descriptor local dimensions at low k plus one higher-order smoke;
+- a two-cell normal/tangential trace/orientation check (especially on
+  tetrahedra);
+- one simple operator assembly per new/modified family;
+- no regression to the existing point-0 SCRIMP baselines.
+
+Maxwell 3D numerical convergence, discrete energy/power conservation
+and MPI scaling belong to **point 3**. These checks are not an
+upstream-ready certification campaign.
 
 ## Family / geometry availability (GetFEM 5.5)
 
@@ -95,7 +138,7 @@ The subsequent **real Docker** execution loaded Python and GetFEM from `/opt/con
 | RT simplex 2D | 0–2 | 3/3 | Local construction and dimension PASS |
 | RT simplex 3D | 0–2 | 3/3 | Local construction and dimension PASS |
 | BDM simplex 2D | 1–2 | 2/2 | Local construction and dimension PASS |
-| **BDM simplex 3D** | **1–2** | **0/2** | Constructor ERROR; detailed exception not yet captured |
+| **BDM simplex 3D** | **1–2** | **0/2** | Constructor ERROR at `getfem_fem.cc:2319`; detailed exceptions archived |
 | RT0Q 2D and 3D | 0 | 2/2 | Local construction and dimension PASS |
 | Nédélec first kind 2D and 3D | 0 | 2/2 | Local construction and dimension PASS |
 
@@ -125,3 +168,12 @@ sudo docker run --rm \
 Once the BDM error traces are inspected, broaden to `--max-order 5` as resources permit; capture to a **different** JSON filename. Record the Docker image ID (`sudo docker image inspect scrimp-mpi:local --format '{{.Id}}'`) and build provenance (actual GetFEM source archive checksum/version). The runtime gate proves Python/extension origin and MPI level 2, but it **cannot independently prove** the source commit: `source_commit_verified=false`.
 
 **Scope:** local element construction only, not H(div)/H(curl) conformity, shared facets/edge orientation, Piola transformations, numerical convergence, or MPI multi-rank parity. Nothing in the point-0 solver or benchmarks was changed.
+
+### Reproduced BDM 3D failures (Docker, original GetFEM 5.5)
+
+The isolated JSON report `sandbox/outputs/getfem55_bdm3_docker.json`
+(recorded on the host after the read-only bind-mounted probe) reports
+`FEM_BDMK(3,1)` expected 12 and `FEM_BDMK(3,2)` expected 30; both
+abort at `getfem_fem.cc:2319` inside the existing `ipoint == nddl`
+assertion. This supports the source-level facet-cardinality diagnosis.
+The source patch's effectiveness remains **untested**.
