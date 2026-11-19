@@ -47,7 +47,14 @@ jobs:
             --build-arg GETFEM_VERSION=5.5 \
             --build-arg MAKE_JOBS=2 \
             --build-arg "SCRIMP_REVISION=$GITHUB_SHA" \
-            -f docker/Dockerfile -t scrimp-mpi:candidate "$CONTEXT"
+            -f "$CONTEXT/docker/Dockerfile" -t scrimp-mpi:candidate "$CONTEXT"
+      - name: Validate independent project workspace and persistent output
+        run: |
+          # Includes native import checks, a real serial SCRIMP simulation
+          # on a writable host mount and a 2-rank MPI startup check.
+          SCRIMP_DOCKER_NO_SUDO=1 \
+          SCRIMP_DOCKER_CANDIDATE_IMAGE=scrimp-mpi:candidate \
+            bash scripts/smoke-v130-docker-candidate.sh
       # ubuntu-24.04 hosted runners may expose only 2 physical CPU slots.
       # OpenMPI must be allowed to start 4 ranks for FUNCTIONAL CI checks.
       # --oversubscribe must never be used for performance benchmarks.
