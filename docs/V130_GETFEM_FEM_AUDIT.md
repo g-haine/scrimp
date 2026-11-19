@@ -271,3 +271,19 @@ pointwise normal-trace continuity across the interface.
 
 Original qualified `scrimp-mpi:local` remains unchanged: all
 recompilation happened inside a disposable `docker run --rm` container.
+
+### Two-tetrahedron check: BDM1 face linking PASS; mass API error (19 November 2026)
+
+The first corrected (vector-valued `MeshFem(mesh, 3)`) two-cell run
+found **21 global DoFs for BDM1**, matching `2*12-3` for two
+tetrahedra with a common face, despite reversed local face orientation.
+It then failed in the **test harness** on
+`assert dense.shape == (expected, expected), dense.shape`, reporting
+`AssertionError: ()`. The returned `getfem.asm("mass matrix", ...)`
+object is GetFEM's `Spmat`, not a SciPy sparse matrix; calling
+`np.asarray(spmat)` produces a scalar object array of shape `()`.
+The test now uses the native `Spmat.full()` accessor documented by
+upstream `interface/src/gf_spmat_get.cc`. The mass assembly itself,
+BDM2 global DoF count (expected **54**) and trace continuity remain
+**not yet verified**. BDM1 face DoF sharing by cardinality is verified;
+that alone is not a pointwise normal-flux continuity proof.
