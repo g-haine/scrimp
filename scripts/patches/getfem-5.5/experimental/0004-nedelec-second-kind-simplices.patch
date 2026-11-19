@@ -1,0 +1,184 @@
+diff --git a/src/getfem_fem.cc b/src/getfem_fem.cc
+--- a/src/getfem_fem.cc
++++ b/src/getfem_fem.cc
+@@ -2712,5 +2712,174 @@
+   }
+ 
++  /* ******************************************************************** */
++  /* Second-kind Nedelec on simplices, degrees k=1 and k=2.              */
++  /* Local space [P_k]^d with linkable pointwise tangential functionals.  */
++  /* Higher orders deliberately left for a subsequent source extension.  */
++  /* ******************************************************************** */
++
++  struct nedelec2k_ : public fem<base_poly> {
++    dim_type nc, k;
++    base_small_vector norient;
++    std::vector<base_small_vector> local_directions;
++    std::vector<unsigned char> is_edge;
++    mutable bgeot::pgeotrans_precomp pgp;
++    mutable bgeot::pgeometric_trans pgt_stored;
++    mutable pfem_precomp pfp;
++
++    nedelec2k_(dim_type n, dim_type order);
++    virtual void mat_trans(base_matrix &M, const base_matrix &G,
++                           bgeot::pgeometric_trans pgt) const;
++  };
++
++  nedelec2k_::nedelec2k_(dim_type n, dim_type order) : nc(n), k(order) {
++    GMM_ASSERT1((nc == 2 || nc == 3) && (k == 1 || k == 2),
++                "Nedelec 2nd kind: only triangles/tetrahedra, k=1 or 2");
++    pgt_stored = nullptr;
++    cvr = bgeot::simplex_of_reference(nc);
++    dim_ = cvr->structure()->dim();
++    init_cvs_node();
++    es_degree = k;
++    is_pol = true;
++    is_standard_fem = is_lag = is_equiv = false;
++    ntarget_dim = nc;
++    vtype = VECTORIAL_DUAL_TYPE;
++
++    gmm::resize(norient, nc);
++    norient[0] = M_PI;
++    for (unsigned j = 1; j < nc; ++j) norient[j] = norient[j-1]*M_PI;
++
++    typedef std::vector<base_poly> vector_poly;
++    std::vector<vector_poly> generators;
++    PK_fem_ PK(nc, k);
++    for (size_type i = 0; i < PK.base().size(); ++i)
++      for (unsigned m = 0; m < nc; ++m) {
++        vector_poly v(nc, base_poly(nc,0));
++        v[m] = PK.base()[i];
++        generators.push_back(v);
++      }
++
++    const size_type nddl = (nc == 2)
++      ? size_type(k+1)*size_type(k+2)
++      : size_type(k+1)*size_type(k+2)*size_type(k+3)/2;
++    GMM_ASSERT2(generators.size() == nddl,
++                "Nedelec2k: polynomial generator dimension mismatch");
++    base_matrix A(nddl, nddl);
++    size_type row = 0;
++    auto add_eval = [&](const base_node &pt, const base_small_vector &t,
++                        pdof_description desc, bool edge) {
++      GMM_ASSERT2(row < nddl, "Nedelec2k: too many interpolation functionals");
++      for (size_type j = 0; j < nddl; ++j) {
++        scalar_type val = 0;
++        for (unsigned m = 0; m < nc; ++m)
++          val += t[m] * generators[j][m].eval(pt.begin());
++        A(row,j) = val;
++      }
++      add_node(desc, pt);
++      local_directions.push_back(t);
++      is_edge.push_back(edge ? 1 : 0);
++      ++row;
++    };
++
++    // Interior points of each edge of the barycentric (k+2)-lattice
++    // give k+1 independent edge-tangent trace functionals.
++    // For k=2, three interior points of each triangular face, each
++    // with one intrinsic radial tangent, complete the trace space.
++    // 2D: these are element-interior (hence unshared) functionals.
++    bgeot::pconvex_ref lattice =
++      bgeot::simplex_of_reference(nc, bgeot::short_type(k+2));
++    for (size_type ip = 0; ip < lattice->nb_points(); ++ip) {
++      const base_node &pt = lattice->points()[ip];
++      std::vector<unsigned> vertices;
++      for (unsigned f = 0; f <= nc; ++f)
++        if (gmm::abs(lattice->is_in_face(f,pt)) >= 1E-10)
++          vertices.push_back(f);
++      if (vertices.size() == 2) {
++        base_small_vector t(nc);
++        for (unsigned m = 0; m < nc; ++m)
++          t[m] = cvr->points()[vertices[1]][m]
++               - cvr->points()[vertices[0]][m];
++        add_eval(pt, t, edge_component_dof(nc), true);
++      } else if (k == 2 && vertices.size() == 3) {
++        // At the barycentric weights (2,1,1)/4, the unique dominant
++        // vertex determines the radial direction. This construction is
++        // invariant under permutation of simplex vertices.
++        unsigned dominant = vertices[0];
++        scalar_type largest = -1;
++        for (unsigned v : vertices) {
++          scalar_type lambda = (v == 0) ? scalar_type(1) : pt[v-1];
++          if (v == 0)
++            for (unsigned m = 0; m < nc; ++m) lambda -= pt[m];
++          if (lambda > largest) { largest = lambda; dominant = v; }
++        }
++        base_small_vector t(nc);
++        for (unsigned m = 0; m < nc; ++m) {
++          scalar_type centroid = 0;
++          for (unsigned v : vertices) centroid += cvr->points()[v][m];
++          t[m] = cvr->points()[dominant][m] - centroid / scalar_type(3);
++        }
++        pdof_description desc = (nc == 3)
++          ? to_coord_dof(edge_component_dof(nc),0)
++          : to_coord_dof(lagrange_dof(nc),0);
++        add_eval(pt, t, desc, false);
++      }
++    }
++
++    GMM_ASSERT2(row == nddl, "Nedelec2k: incorrect DoF cardinality");
++    gmm::lu_inverse(A);
++    base_.resize(nddl*nc, base_poly(nc,0));
++    for (size_type i = 0; i < nddl; ++i)
++      for (size_type j = 0; j < nddl; ++j)
++        for (unsigned m = 0; m < nc; ++m)
++          if (gmm::abs(A(j,i)) > 1E-14)
++            base_[i+m*nddl] += generators[j][m] * A(j,i);
++  }
++
++  void nedelec2k_::mat_trans(base_matrix &M, const base_matrix &G,
++                             bgeot::pgeometric_trans pgt) const {
++    GMM_ASSERT1(dim_type(G.nrows()) == nc,
++                "Nedelec2k: invalid geometric dimension");
++    if (pgt != pgt_stored) {
++      pgt_stored = pgt;
++      pgp = bgeot::geotrans_precomp(pgt, node_tab(0), 0);
++      pfp = fem_precomp(std::make_shared<nedelec2k_>(nc, k), node_tab(0), 0);
++    }
++    fem_interpolation_context ctx(pgp, pfp, 0, G, 0);
++    for (size_type i = 0; i < nb_dof(0); ++i) {
++      ctx.set_ii(i);
++      base_small_vector t(nc), v(nc);
++      gmm::mult(ctx.K(), local_directions[i], t);
++      t /= gmm::vect_norm2(t);
++      // Only edges need a global orientation rule. Face-interior
++      // radial tangents are already intrinsic to the physical face.
++      if (is_edge[i] && gmm::vect_sp(t, norient) < 0)
++        t *= scalar_type(-1);
++      gmm::mult(gmm::transposed(ctx.B()), t, v);
++      const bgeot::base_tensor &tt = pfp->val(i);
++      for (size_type j = 0; j < nb_dof(0); ++j) {
++        scalar_type val = 0;
++        for (unsigned m = 0; m < nc; ++m) val += tt(j,m) * v[m];
++        M(j,i) = val;
++      }
++    }
++    gmm::lu_inverse(M);
++  }
++
++  static pfem nedelec2k(fem_param_list &params,
++                         std::vector<dal::pstatic_stored_object> &dependencies) {
++    GMM_ASSERT1(params.size() == 2, "FEM_NEDELEC2(N,K) expects two integers");
++    GMM_ASSERT1(params[0].type() == 0 && params[1].type() == 0,
++                "Nedelec2k: parameters must be integers");
++    int n = int(::floor(params[0].num() + 0.01));
++    int k = int(::floor(params[1].num() + 0.01));
++    GMM_ASSERT1((n == 2 || n == 3) && double(n) == params[0].num(),
++                "Nedelec2k: only dimension 2/3");
++    GMM_ASSERT1((k == 1 || k == 2) && double(k) == params[1].num(),
++                "Nedelec2k: currently supports k=1,2 only");
++    pfem p = std::make_shared<nedelec2k_>(dim_type(n), dim_type(k));
++    dependencies.push_back(p->ref_convex(0));
++    dependencies.push_back(p->node_tab(0));
++    return p;
++  }
+   /*    P1 element with a bubble base function on a face : type lagrange  */
+   /* ******************************************************************** */
+ 
+@@ -4890,4 +5059,5 @@
+       add_suffix("NEDELEC", P1_nedelec);
+       add_suffix("NEDELEC1", nedelec1k);
++      add_suffix("NEDELEC2", nedelec2k);
+       add_suffix("PYRAMID_QK", pyramid_QK_fem);
+       add_suffix("PYRAMID_QK_DISCONTINUOUS", pyramid_QK_disc_fem);
