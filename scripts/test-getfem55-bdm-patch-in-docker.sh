@@ -104,7 +104,8 @@ mesh.add_convex(geo, tetra2)
 mim = getfem.MeshIm(mesh, 6)
 
 for k, local, face in ((1, 12, 3), (2, 30, 6)):
-    mf = getfem.MeshFem(mesh, 1)
+    # BDM is vector-valued: target_dim=3 requires Qdim=3 (not 1).
+    mf = getfem.MeshFem(mesh, 3)
     mf.set_fem(getfem.Fem(f"FEM_BDMK(3,{k})"))
     expected = 2 * local - face
     n = int(mf.nbdof())
