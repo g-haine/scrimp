@@ -140,6 +140,28 @@ Do not use MPI --oversubscribe as evidence of strong scaling: it is
 appropriate only for small functional tests when the host has too
 few CPUs.
 
+Using an existing local sandbox directory
+-----------------------------------------
+
+Developers may already have many personal simulations under their
+SCRIMP source checkout's sandbox/. **They do not need to move or copy
+those files.** The Linux command-line runner binds the existing
+sandbox directory at /work at runtime:
+
+.. code-block:: bash
+
+   cd ~/Simulations/scrimp
+   SCRIMP_SIM_DIR="$PWD/sandbox" \
+       bash scripts/run-v130-docker-simulation.sh wave_1D.py
+
+This command is **not an image build**. The Python script is read from
+the local sandbox; its results stay under sandbox/outputs/. Change the
+script name to run another local simulation, or set SCRIMP_MPI_RANKS=2
+for a script that is actually MPI-compatible. The runner is currently
+a Linux/macOS shell development convenience, **not** the final
+cross-platform user installer. It still requires a successfully
+built/pulled SCRIMP Docker image.
+
 C. Native Conda / source installation (without Docker)
 ------------------------------------------------------
 
