@@ -10,15 +10,16 @@ happen later. They are not presented as an upstream-certified FEM library.
 | Patch | Why | State |
 |---|---|---|
 | `0000-mpi-assembly-timing.patch` | Makes GetFEM's unconditional MPI `Assembly time` print opt-in with `SCRIMP_GETFEM_ASSEMBLY_TIMING=1`, without changing assembly | **Included in the next Docker build; matches original GetFEM v5.5 source; native rebuild pending** |
-| `0001-bdm-tetrahedron-unisolvent-dofs.patch` | Fixes BDM facet normal DoF lattice for tetrahedra; uses interior nullspace completion from k>=2, while preserving existing 2D behavior | **Staged, NOT compiled or qualified yet** |
-| `0002-python-interface-link-in-tree.patch` | Links the Python `_getfem` extension explicitly against the **fresh in-tree** `libgetfemint.a` and `libgetfem.a` instead of resolving potentially stale `-lgetfem` | **Staged, native smoke pending** |
+| `0001-bdm-tetrahedron-unisolvent-dofs.patch` | Fixes BDM facet normal DoF lattice for tetrahedra; uses interior nullspace completion from k>=2, while preserving existing 2D behavior | **Native Docker constructor smoke PASS (BDM1/BDM2, 2D/3D); shared-face and mass assembly pending** |
+| `0002-python-interface-link-in-tree.patch` | Links the Python `_getfem` extension explicitly against the **fresh in-tree** `libgetfemint.a` and `libgetfem.a` instead of resolving potentially stale `-lgetfem` | **Native Docker relink PASS; patch marker present in loaded extension** |
 | `experimental/0003-nedelec-first-kind-simplices.patch` | Prototype `FEM_NEDELEC1(N,K)` on triangles/tetrahedra, reusing `FEM_NEDELEC(N)` at k=0 | **EXPERIMENTAL, not applied by default, no native build yet** |
 
 The original Docker GetFEM 5.5 MPI-2 image produced `FEM_BDMK(3,1)`
 and `FEM_BDMK(3,2)` assertion failures at `getfem_fem.cc:2319`.
-The staged patch fixes the identified *construction logic*, but no
-claims of working H(div) conformity or high-order stability are made
-until the build and lightweight smoke tests pass.
+The patch now compiles and constructs BDM1/2 on triangles and tetrahedra
+with their expected local dimensions in Docker (19 November 2026).
+Global H(div) conformity and higher-order stability are **not** yet
+established; the next smoke checks shared-face DoF count and mass assembly.
 
 ### Build wiring
 
@@ -52,8 +53,9 @@ Python standard library only) to apply the unchanged, standard
 `.patch` files **inside the disposable container**. It applies
 `0001` (BDM) and `0002` (Python linkage), then regenerates the
 configured `interface/src/python/setup.py` using `config.status`
-before compiling the binding. The resulting extension must contain
-the BDM patch marker before its element constructors are tested.
+before compiling the binding. The resulting extension contained the BDM patch marker in the latest
+native constructor run (PASS 4/4); the next run also checks global
+face DoFs and mass-matrix assembly.
 This requires no Docker rebuild, download, root-package install,
 or modification of the qualified image. The later v1.3 Docker build
 still uses normal GNU `patch` for all approved top-level patches.
@@ -109,3 +111,8 @@ archive. `0002` replaces the implicit GetFEM archive lookup with
 same other link dependencies. This is a linking hypothesis pending
 native confirmation by the next disposable smoke; it does not alter
 GetFEM finite-element mathematics.
+
+The Docker constructor smoke for BDM1/BDM2 has **passed** (4/4).
+The upgraded disposable smoke additionally checks global DoF linking
+on two tetrahedra (expected 21 for k=1 and 54 for k=2) and a small
+positive-definite mass matrix; this added part is **not yet executed**.
