@@ -62,6 +62,10 @@ if [[ "$SCRIMP_DOCKER_SOURCE" == github ]]; then
 else
   echo "Local Git source explicitly selected (development only)" | tee -a "$LOG"
   SOURCE_TREE="$ROOT"
+  if [[ -n "$(git -C "$SOURCE_TREE" status --porcelain --untracked-files=no)" ]]; then
+    echo "WARNING: local tracked changes are included, not represented by the Git SHA." \
+      | tee -a "$LOG"
+  fi
 fi
 
 REVISION="$(git -C "$SOURCE_TREE" rev-parse HEAD)"
@@ -90,7 +94,7 @@ fi
 # Buildx is explicitly required. Never push, prune or delete images.
 "${DOCKER[@]}" buildx build --load \
   --progress=plain \
-  --file docker/Dockerfile \
+  --file "$STAGED_CONTEXT/docker/Dockerfile" \
   --tag "$IMAGE" \
   --build-arg "SCRIMP_REVISION=$REVISION" \
   --build-arg "MAKE_JOBS=$MAKE_JOBS" \
