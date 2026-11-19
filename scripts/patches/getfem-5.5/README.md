@@ -123,4 +123,4 @@ and unisolvency; simply lifting the restriction is invalid.
 The precise **deferred higher-order implementation checklist**,
 including per-entity DoF formulas, a concrete k=3 example and
 small acceptance criteria for Nédélec I/II, BDM and RT, is in
-[the higher-order GetFEM follow-up](../../docs/V130_GETFEM_HIGHER_ORDER_TODO.md).
+[the higher-order GetFEM follow-up](../../../docs/V130_GETFEM_HIGHER_ORDER_TODO.md).
