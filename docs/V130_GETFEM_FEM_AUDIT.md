@@ -218,5 +218,20 @@ archive and the loaded Python extension. A missing marker precisely
 localizes a stale source/archive/link step; if all three contain it but
 the old assertion remains, further symbol-resolution investigation is
 needed. No numerical assembly, MPI code or qualified Docker image is
-modified by this diagnostic. The newly instrumented smoke has not yet
-been executed by the user.
+modified by this diagnostic. The instrumented smoke **has now been executed**: it found the marker once
+in `getfem_fem.o` and once in `src/.libs/libgetfem.a`, but **zero
+times** in the installed `getfem/_getfem*.so`. This confirms that the
+GetFEM core was rebuilt but not faithfully incorporated into the
+Python extension. The `ldd` output in the preceding run listed no
+dynamic `libgetfem` dependency; GetFEM is statically linked here.
+
+To remove archive selection ambiguity, the next source patch,
+`scripts/patches/getfem-5.5/0002-python-interface-link-in-tree.patch`,
+changes only upstream `interface/src/python/setup.py.in`:
+`libgetfemint.a` and `libgetfem.a` are now explicit local
+`extra_objects`, not libraries resolved by bare `-lgetfemint` and
+`-lgetfem`. The disposable smoke also re-runs
+`./config.status interface/src/python/setup.py` before recompiling,
+so the generated file picks up this source change. This is a proposed
+link fix: it still requires native validation before being considered
+proven or enabled for SCRIMP end users.
