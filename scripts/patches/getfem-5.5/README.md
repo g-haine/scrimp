@@ -9,6 +9,7 @@ happen later. They are not presented as an upstream-certified FEM library.
 
 | Patch | Why | State |
 |---|---|---|
+| `0000-mpi-assembly-timing.patch` | Makes GetFEM's unconditional MPI `Assembly time` print opt-in with `SCRIMP_GETFEM_ASSEMBLY_TIMING=1`, without changing assembly | **Included in the next Docker build; matches original GetFEM v5.5 source; native rebuild pending** |
 | `0001-bdm-tetrahedron-unisolvent-dofs.patch` | Fixes BDM facet normal DoF lattice for tetrahedra; uses interior nullspace completion from k>=2, while preserving existing 2D behavior | **Staged, NOT compiled or qualified yet** |
 | `experimental/0002-nedelec-first-kind-simplices.patch` | Prototype `FEM_NEDELEC1(N,K)` on triangles/tetrahedra, reusing `FEM_NEDELEC(N)` at k=0 | **EXPERIMENTAL, not applied by default, no native build yet** |
 
@@ -20,8 +21,7 @@ until the build and lightweight smoke tests pass.
 
 ### Build wiring
 
-The build script uses GNU `patch` (provided by `docker/environment.yml`)
-and fails if a patch no longer applies cleanly. Source patches are only
+The build script applies all top-level `*.patch` files in filename order (`0000`, `0001`, ...), using GNU `patch` (provided by `docker/environment.yml`), and fails if a patch no longer applies cleanly. Source patches are only
 applied for `GETFEM_VERSION=5.5`; git-source builds must use the
 `v5.5` tag or the dereferenced release commit
 `c242f7fe0989e9a90846c63eaccc6b495d774724`.
@@ -80,3 +80,14 @@ in exact arithmetic for 2D/3D at k=0..2 by
 global DoF linking and 3D physical-face orientation are **not yet tested**.
 Do not enable it for end users before these checks. The parameterized
 2nd-kind construction is still to be developed.
+
+### MPI assembly timing patch
+
+`0000-mpi-assembly-timing.patch` replaces the former custom
+`scripts/patch-getfem-mpi-timing.py` rewrite. The unified diff changes
+only `src/getfem_models.cc`: it adds `#include <cstdlib>` and checks
+`SCRIMP_GETFEM_ASSEMBLY_TIMING=1` before the master-rank
+`Assembly time` message. Nothing in the numerical assembly changes.
+The script was removed so *every production GetFEM modification* now
+uses the same source patch mechanism. The qualified existing image is
+not changed. To get the new behavior, use the planned Docker rebuild.
