@@ -65,11 +65,40 @@ PY
   "${DOCKER[@]}" run --rm "$IMAGE" \
     mpiexec --oversubscribe -n 2 python -u sandbox/smoke_modern_stack.py
 
+  echo "=== Independent user workspace: serial simulation and host-persistent CSV ==="
+  # Use only a new temporary test workspace, NEVER the owner's sandbox.
+  # The runtime volume mount is distinct from the build context.
+  USER_TEST_ROOT="$(mktemp -d -t scrimp-v130-user-smoke.XXXXXXXX)"
+  trap 'rm -rf -- "$USER_TEST_ROOT"' EXIT
+  python3 scripts/create-scrimp-project.py "$USER_TEST_ROOT/project" \
+    --image "$IMAGE"
+  "${DOCKER[@]}" run --rm --user "$(id -u):$(id -g)" \
+    --env HOME=/tmp --env XDG_CACHE_HOME=/tmp/.cache \
+    --volume "$USER_TEST_ROOT/project:/work:rw" --workdir /work \
+    --entrypoint /opt/conda/envs/scrimp/bin/python \
+    "$IMAGE" simulations/first_simulation.py
+  test -s "$USER_TEST_ROOT/project/outputs/oscillator.csv" || {
+    echo "ERROR: first simulation did not create a persistent HOST CSV." >&2
+    exit 2
+  }
+  head -n 2 "$USER_TEST_ROOT/project/outputs/oscillator.csv"
+  echo "PASS: user simulation output exists on host, not only inside Docker."
+
+  echo "=== Independent user workspace: two-rank MPI startup ==="
+  "${DOCKER[@]}" run --rm --user "$(id -u):$(id -g)" \
+    --env HOME=/tmp --env XDG_CACHE_HOME=/tmp/.cache \
+    --volume "$USER_TEST_ROOT/project:/work:rw" --workdir /work \
+    --entrypoint /opt/conda/envs/scrimp/bin/mpiexec \
+    "$IMAGE" --oversubscribe -n 2 \
+      /opt/conda/envs/scrimp/bin/python simulations/mpi_check.py
+  rm -rf -- "$USER_TEST_ROOT"
+  trap - EXIT
+
   echo "=== Persist explicit Conda spec and approved GetFEM patch checksums ==="
   "${DOCKER[@]}" run --rm "$IMAGE" \
     cat docker-resolved-spec.txt > "$ROOT/sandbox/outputs/v130-docker-resolved-spec.txt"
   "${DOCKER[@]}" run --rm "$IMAGE" \
     sha256sum scripts/patches/getfem-5.5/*.patch \
     > "$ROOT/sandbox/outputs/v130-getfem-patch-sha256.txt"
-  echo "PASS: candidate native, 1/2-rank MPI and FEM descriptor smoke."
+  echo "PASS: native, MPI and independent user-workspace host-output smoke."
 } 2>&1 | tee "$LOG"
