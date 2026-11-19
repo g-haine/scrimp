@@ -85,6 +85,13 @@ def audit(archive: Path, checkout: Path, extraction: Path) -> int:
             name = PurePosixPath(member.name)
             if name.is_absolute() or ".." in name.parts:
                 raise RuntimeError(f"Unsafe release archive member: {member.name}")
+            if member.issym() or member.islnk():
+                # Symlinks should not escape the top-level release tree.
+                target = PurePosixPath(member.linkname)
+                if target.is_absolute() or ".." in target.parts:
+                    raise RuntimeError(
+                        f"Unsafe archive link: {member.name} -> {member.linkname}"
+                    )
             if len(name.parts) == 0 or name.parts[0] != "getfem-5.5":
                 raise RuntimeError(
                     f"Unexpected GetFEM top-level archive member: {member.name}"
@@ -168,10 +175,17 @@ def audit(archive: Path, checkout: Path, extraction: Path) -> int:
     for patch in patches:
         print(f"  {patch.name}", flush=True)
         with patch.open("rb") as f:
-            subprocess.run(["patch", "--batch", "--forward", "-p1",
-                            "--reject-file=-", "-d", str(src)],
-                           stdin=f, check=True, stdout=subprocess.PIPE,
-                           stderr=subprocess.STDOUT)
+            result = subprocess.run(
+                ["patch", "--batch", "--forward", "-p1",
+                 "--reject-file=-", "-d", str(src)],
+                stdin=f, stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+            )
+        if result.returncode:
+            print(result.stdout.decode(errors="replace"), file=sys.stderr)
+            raise RuntimeError(
+                f"Patch {patch.name} failed with exit {result.returncode}"
+            )
     print("PASS: approved 0000..0004 patches apply sequentially to "
           "the Savannah GetFEM tarball.")
     print("\nSOURCE-AUDIT PASS: safe to REVIEW the observed archive digest "
