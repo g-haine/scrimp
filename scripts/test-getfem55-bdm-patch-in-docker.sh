@@ -10,6 +10,9 @@ PATCHES="$REPO_ROOT/scripts/patches/getfem-5.5"
 echo "Image: $IMAGE (ephemeral run; existing image and point-0 results untouched)"
 echo "Patch: $PATCHES/0001-bdm-tetrahedron-unisolvent-dofs.patch"
 
+mkdir -p "$REPO_ROOT/sandbox/outputs"
+LOG="$REPO_ROOT/sandbox/outputs/getfem55_bdm_patch_smoke.log"
+
 sudo docker run --rm \
   -v "$PATCHES:/tmp/scrimp-getfem-patches:ro" \
   "$IMAGE" bash -lc '
@@ -48,5 +51,4 @@ for descriptor, expected in tests:
     assert actual == expected, descriptor
 print("PASS: patched BDM local constructors/dimensions only.")
 print("Still required: 3D shared-facet H(div) check and small assembly.")
-PY
-  '
+PY  ' 2>&1 | tee "$LOG"
