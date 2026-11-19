@@ -134,6 +134,56 @@ for k, local, face in ((1, 12, 3), (2, 30, 6)):
         f"BDM{k}: mass matrix not symmetric positive definite"
     )
 print("PASS: BDM3D shared-face DoF count and positive mass assembly.")
-print("NOTE: full pointwise normal-flux continuity is not yet checked.")
+
+# A field with globally shared face DoFs must have a single normal trace,
+# not merely the expected global cardinality. Check independent fields
+# approaching the common face from BOTH tetrahedra, using the real
+# GetFEM physical-element interpolation (including the Piola mapping).
+face_points = np.array([
+    [0.20, 0.65, 0.10, 0.30, 0.40],
+    [0.20, 0.10, 0.65, 0.40, 0.25],
+], dtype=float)
+eps = 1e-7
+points = np.vstack([
+    np.concatenate([face_points[0], face_points[0]]),
+    np.concatenate([face_points[1], face_points[1]]),
+    np.concatenate([np.full(5, eps), np.full(5, -eps)]),
+])
+for k in (1, 2):
+    mf = getfem.MeshFem(mesh, 3)
+    mf.set_fem(getfem.Fem(f"FEM_BDMK(3,{k})"))
+    n = int(mf.nbdof())
+    ids = np.arange(n, dtype=float)
+    for field_idx, coeffs in enumerate((
+        np.sin(0.73 * ids) + 0.41 * np.cos(1.17 * ids),
+        np.cos(1.31 * ids) - 0.22 * np.sin(0.89 * ids),
+    )):
+        vals = np.asarray(
+            getfem.compute(mf, coeffs, "interpolate on", points),
+            dtype=float
+        )
+        if vals.shape == (points.shape[1], 3):
+            vals = vals.T
+        assert vals.shape == (3, points.shape[1]), (
+            f"BDM{k}: unexpected interpolation output {vals.shape}"
+        )
+        assert np.all(np.isfinite(vals)), (
+            f"BDM{k}: nonfinite interpolated field"
+        )
+        flux_plus, flux_minus = vals[2, :5], vals[2, 5:]
+        jump = float(np.max(np.abs(flux_plus - flux_minus)))
+        scale = max(1.0, float(np.max(np.abs(vals[2]))))
+        rel_jump = jump / scale
+        print(f"BDM{k} normal trace field={field_idx}: "
+              f"max_jump={jump:.3e}, relative={rel_jump:.3e}, "
+              f"eps={eps:g}", flush=True)
+        # The samples are 2*eps apart, hence O(eps) is expected
+        # for a continuous polynomial normal trace.
+        assert rel_jump < 1e-4, (
+            f"BDM{k}: H(div) normal trace jumps across shared face: "
+            f"{rel_jump:.3e}"
+        )
+print("PASS: BDM3D two-tetrahedron normal traces, for two fields/order.")
+
 PY
   ' 2>&1 | tee "$LOG"
