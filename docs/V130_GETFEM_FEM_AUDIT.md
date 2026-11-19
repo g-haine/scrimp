@@ -198,3 +198,25 @@ The isolated JSON report `sandbox/outputs/getfem55_bdm3_docker.json`
 abort at `getfem_fem.cc:2319` inside the existing `ipoint == nddl`
 assertion. This supports the source-level facet-cardinality diagnosis.
 The source patch's effectiveness remains **untested**.
+
+### BDM patch smoke: source rebuilt, but stale runtime assertion (19 November 2026)
+
+A disposable `scrimp-mpi:local` test succeeded in applying the three
+original hunks of `0001` with exact context and recompiling/installing
+`getfem_fem.cc`, `libgetfem.a` and the Python native extension. The
+unchanged BDM triangle constructors still pass. However,
+`FEM_BDMK(3,1)` still reports **line 2319** (`Internal error`), whereas
+the patch moves the relevant assertion to **line 2333**. The runtime
+failure therefore appears to involve older native code; do not interpret
+it as evidence that the patched tetrahedral constructor itself fails.
+The DLL/runtime cause remains unconfirmed.
+
+The fourth hunk added to the BDM patch changes **only the assertion
+message** to contain `SCRIMP_BDM3D_PATCH_0001`. The disposable smoke
+checks for this marker in the newly compiled object, the GetFEM static
+archive and the loaded Python extension. A missing marker precisely
+localizes a stale source/archive/link step; if all three contain it but
+the old assertion remains, further symbol-resolution investigation is
+needed. No numerical assembly, MPI code or qualified Docker image is
+modified by this diagnostic. The newly instrumented smoke has not yet
+been executed by the user.
