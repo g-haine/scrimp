@@ -74,9 +74,18 @@ RUN --mount=type=cache,id=scrimp-v130-getfem-tarballs,target=/tmp/scrimp-getfem-
     GETFEM_VERSION="${GETFEM_VERSION}" GETFEM_SHA256="${GETFEM_SHA256}" \
     MAKE_JOBS="${MAKE_JOBS}" bash scripts/build-getfem-mpi.sh
 
-# Keep the complete SCRIMP source and its frequently edited examples
-# OUTSIDE the native dependency layers, for a fast iterative rebuild.
-COPY --chown=$MAMBA_USER:$MAMBA_USER . /workspace/scrimp/
+# Explicit application COPY: no recursive repository copy.
+# The strict .dockerignore allowlist also excludes ALL local simulation
+# results/meshes/plots, even if users generate them under an unusual name.
+# Docs and notebooks do not belong in the runtime candidate image.
+COPY --chown=$MAMBA_USER:$MAMBA_USER \
+    setup.py pyproject.toml README.md LICENSE ./
+COPY --chown=$MAMBA_USER:$MAMBA_USER scrimp/ scrimp/
+COPY --chown=$MAMBA_USER:$MAMBA_USER examples/ examples/
+COPY --chown=$MAMBA_USER:$MAMBA_USER sandbox/ sandbox/
+COPY --chown=$MAMBA_USER:$MAMBA_USER tests/ tests/
+COPY --chown=$MAMBA_USER:$MAMBA_USER scripts/ scripts/
+
 RUN python -m pip install --no-deps --no-build-isolation -e . \
     && python sandbox/smoke_modern_stack.py \
     && micromamba env export -n scrimp --explicit > /workspace/scrimp/docker-resolved-spec.txt
