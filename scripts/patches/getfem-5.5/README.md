@@ -119,3 +119,8 @@ In particular, k>=3 is not implemented for Nédélec II. A true
 arbitrary-order second-kind implementation needs polynomial moments
 or another complete set of face and interior DoFs with orientation
 and unisolvency; simply lifting the restriction is invalid.
+
+The precise **deferred higher-order implementation checklist**,
+including per-entity DoF formulas, a concrete k=3 example and
+small acceptance criteria for Nédélec I/II, BDM and RT, is in
+[the higher-order GetFEM follow-up](../../docs/V130_GETFEM_HIGHER_ORDER_TODO.md).
