@@ -1278,8 +1278,17 @@ class DPHS:
         if self.linear_mass and self.linear_stiffness and not self.lumped_variables:
             return
         self.Scatter[0].scatter(z, self.GlobalVec)
+        # PETSc is compiled with complex scalars, while GetFEM's
+        # physical model variables are real. Select the real component
+        # explicitly, as in the TS monitor, instead of letting NumPy
+        # silently cast complex128 -> float64 (ComplexWarning).
+        # Preserve the historical copy semantics of the cast.
         self.gf_model.to_variables(
-            np.asarray(self.GlobalVec.getArray(), dtype=np.float64)
+            np.array(
+                self.GlobalVec.getArray(readonly=True).real,
+                dtype=np.float64,
+                copy=True,
+            )
         )
 
     def _trace_newton_blocks(self, phase, t, z, zd):
