@@ -49,14 +49,31 @@ if [[ "$GETFEM_SOURCE" == release ]]; then
     # when the download is interrupted or a mirror fails.
     incomplete="${file}.part.${BASHPID}"
     trap 'rm -f "$incomplete"' EXIT
-    curl --fail --location --retry 3 --output "$incomplete" "$url"
+    echo "GetFEM release download: $url"
+    curl --fail --location --retry 3 \
+      --write-out 'GetFEM final URL: %{url_effective}; HTTP %{http_code}\\n' \
+      --output "$incomplete" "$url"
     mv "$incomplete" "$file"
     trap - EXIT
   fi
   if [[ -n "${GETFEM_SHA256:-}" ]]; then
     if ! echo "$GETFEM_SHA256  $file" | sha256sum -c -; then
+      echo "ERROR: GetFEM release archive differs from the pinned artifact." >&2
+      echo "  Expected SHA256: $GETFEM_SHA256" >&2
+      echo "  Observed SHA256: $(sha256sum "$file" | cut -d ' ' -f 1)" >&2
+      echo "  Archive bytes:   $(wc -c < "$file")" >&2
+      echo "  Archive type:    $(file -b "$file")" >&2
+      echo "  Archive gzip integrity:" >&2
+      if gzip -t "$file"; then
+        echo "  gzip integrity: PASS (an alternative archive/repack is possible)" >&2
+      else
+        echo "  gzip integrity: FAIL (truncated or non-gzip download)" >&2
+      fi
+      # Never treat a new upstream release with an unchanged '5.5'
+      # filename as trusted until its exact hash and source identity
+      # have been checked. Do NOT disable SHA256 verification.
       rm -f "$file"
-      echo "ERROR: GetFEM archive SHA256 mismatch; corrupt cached archive removed." >&2
+      echo "ERROR: unverified cached GetFEM archive deleted; build stopped." >&2
       exit 2
     fi
   else
