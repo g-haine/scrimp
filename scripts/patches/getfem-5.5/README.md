@@ -17,12 +17,13 @@ next production image build. It fails on incompatible GetFEM sources.
 | `0001-bdm-tetrahedron-unisolvent-dofs.patch` | Fix tetrahedral BDM k=1,2 face DoFs and interior basis completion | **PASS** — native constructors, shared-face DoFs, SPD mass, normal traces |
 | `0002-python-interface-link-in-tree.patch` | Link Python bindings against newly built GetFEM static archives explicitly | **PASS** — patched native marker present in loaded `_getfem` extension |
 | `0003-nedelec-first-kind-simplices.patch` | Provide `FEM_NEDELEC1(N,K)`, triangles/tetrahedra, k=0 delegates to built-in Nédélec | **PASS** — native k=1/2 constructors, shared-edge/face DoFs, SPD mass, tangential traces |
-| `experimental/0004-nedelec-second-kind-simplices.patch` | Provide `FEM_NEDELEC2(N,K)` for triangles/tetrahedra, currently k=1,2 | **EXPERIMENTAL: exact reference rank PASS; native smoke NOT RUN** |
+| `0004-nedelec-second-kind-simplices.patch` | Provide `FEM_NEDELEC2(N,K)` on triangles/tetrahedra; **explicitly only k=1,2** | **PASS** — constructors, shared DoFs, SPD mass, tangential traces; k>=3 unsupported |
 
-The standard build loop deliberately ignores nested
-`experimental/*.patch` files. Nédélec-II will only be promoted to
-the top level after it compiles and passes the same small two-cell
-smoke as Nédélec-I.
+All five approved top-level patches (`0000`–`0004`) are applied in
+order by the next GetFEM 5.5 build. **The newly approved Nédélec-II
+patch supports only k=1,2**; this release does not claim arbitrary
+order polynomial families. For k>=3, the Nédélec-II DoFs need a
+separate higher-order construction and validation.
 
 ## Lean native evidence
 
@@ -33,7 +34,13 @@ below 4.529e-6 relative for fields evaluated 1e-7 to either side.
 The Nédélec-I Docker smoke passed k=1/2 on two triangles and two
 tetrahedra, with the expected local and global DoF counts, SPD mass
 matrices and maximum tangential mismatch **2.385e-6 relative** for
-fields evaluated 1e-7 to either side. The GetFEM build reports
+fields evaluated 1e-7 to either side.
+
+The Nédélec-II Docker smoke passed the same targeted checks for
+**k=1,2 on triangles and tetrahedra**: local DoFs 6/12 (2D),
+12/30 (3D), global two-cell DoFs 10/21 (2D), 18/48 (3D),
+SPD mass matrices, and maximum relative tangential mismatch
+**1.446e-6** at offsets ±1e-7. All four cases passed. The GetFEM build reports
 `util_mpi_parallelism_level() == 2`, but these are sequential tests
 inside an MPI-enabled image, **not MPI rank-parity tests**.
 
@@ -49,7 +56,7 @@ From the SCRIMP repository root:
 ```bash
 bash scripts/test-getfem55-bdm-patch-in-docker.sh
 bash scripts/test-getfem55-nedelec1-patch-in-docker.sh
-bash scripts/test-getfem55-nedelec2-patch-in-docker.sh  # experimental
+bash scripts/test-getfem55-nedelec2-patch-in-docker.sh  # k=1,2
 ```
 
 They run **inside disposable containers** created from the
@@ -67,10 +74,11 @@ Logs remain in `sandbox/outputs/`:
 - `getfem55_nedelec1_patch_smoke.log`
 - `getfem55_nedelec2_patch_smoke.log`
 
-**Nédélec-II is not yet a production element.** Its reference scheme
-uses `[P_k]^d`: k+1 tangential point samples on every edge, plus,
-at k=2, three radial tangential point samples on every triangular
-face (interior points in 2D, linkable face points in 3D). The face
+**Nédélec-II is production-ready only for the lean k=1,2 SCRIMP
+scope**, not for arbitrary k. Its reference scheme uses `[P_k]^d`:
+k+1 tangential point samples on every edge, plus, at k=2, three
+radial tangential point samples on every triangular face (interior
+points in 2D, linkable face points in 3D). The face
 direction is chosen by the unique dominant barycentric vertex, so
 it does not depend on local simplex vertex numbering. The resulting
 four reference interpolation matrices have exact full rank:
@@ -79,18 +87,35 @@ four reference interpolation matrices have exact full rank:
 These **nodal functionals** are an alternative to the canonical
 integral moments used in
 [DefElement's Nédélec-II definition](https://defelement.org/elements/nedelec2.html).
-The native two-cell tangential-continuity and assembly probe will
-determine whether the GetFEM implementation is appropriate for SCRIMP.
+The native two-cell tangential-continuity and assembly smoke has
+**passed for k=1,2**. Extending to k>=3 requires additional
+face/interior functionals and remains an open enhancement.
 
 ## GetFEM source provenance
 
 The approved patches target official GetFEM v5.5 (release tag or
 dereferenced commit
 `c242f7fe0989e9a90846c63eaccc6b495d774724`).
-The existing point-0 qualified Docker image is untouched. After
-Nédélec-II validation, a **new separately named Docker image** must
-be built and validated before replacing it.
+The existing point-0 qualified Docker image is untouched. With
+k=1,2 Nédélec-II validation complete, a **new separately named
+Docker image** must be built and validated before replacing the
+qualified original.
 
 The previous `scripts/patch-getfem-mpi-timing.py` rewriter was
 replaced by the standard `0000-mpi-assembly-timing.patch`; no
 special-case GetFEM source-rewriting scripts remain in production.
+
+## Exact order support and evidence
+
+| Family | In-source order range | Orders covered by SCRIMP native tests |
+| --- | --- | --- |
+| RT | GetFEM original supports parameterized k>=0 | No additional targeted tests in this workstream |
+| BDM | GetFEM original family with tetrahedral patch, k>=1 | k=1,2 |
+| Nédélec I | Parameterized k>=0 (k=0 aliases built-in) | Constructors k=0,1,2; two-cell tests k=1,2 |
+| Nédélec II | **k=1,2 only** (explicit constructor restriction) | k=1,2 |
+
+**Do not advertise the whole family for arbitrary polynomial order.**
+In particular, k>=3 is not implemented for Nédélec II. A true
+arbitrary-order second-kind implementation needs polynomial moments
+or another complete set of face and interior DoFs with orientation
+and unisolvency; simply lifting the restriction is invalid.
