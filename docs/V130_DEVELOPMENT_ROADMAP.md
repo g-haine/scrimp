@@ -165,6 +165,77 @@ Qualify full trajectories and power balance, corrected 1/2/4/6
 MPI comparisons, larger h=0.01 and long-run memory before
 declaring the optimization programme fully complete.
 
+## Final corrected v1.3.0 strong scaling at 2,966,786 DOFs — PASS
+
+The **19 Nov 2026** large-wave qualification at h=0.005 used the
+corrected current-only source commit `25837de0`, fixed-CN dt=.002,
+ten steps, 1/2/4/6 MPI ranks, and **five independent repetitions**
+per configuration (20 native runs). **No v1.2.0 runs** were made.
+The local archive is
+`sandbox/outputs/v130-large-wave-h0p005-25837de0-CBukYK/`.
+
+| MPI | Solve median (s) | Total median (s) | Speedup | Efficiency | Largest rank RSS HWM (GiB) | Sum rank RSS HWM (GiB) |
+|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 134.679 | 142.195 | 1.000x | 100.0% | 14.05 | 14.05 |
+| 2 | 109.466 | 116.766 | 1.230x | 61.5% | 9.20 | 18.34 |
+| **4** | **86.239** | **94.724** | **1.562x** | **39.0%** | **6.14** | **22.17** |
+| 6 | 91.493 | 101.151 | 1.472x | 24.5% | 5.17 | 25.64 |
+
+The full five-run 4-rank solve interval [85.655, 86.660] s
+and 6-rank interval [91.063, 93.093] s do not overlap. **Four
+MPI ranks are the measured optimum on this node**. Going from
+4 to 6 ranks increases solve wall time by 6.1% and the sum
+of independent per-rank RSS high-water marks by 15.7%.
+The latter is a memory-capacity proxy, **not** a simultaneous
+whole-job resident peak.
+
+Native PETSc stage logs for **all 20 runs** were independently
+parsed from the user-supplied reduced ZIP (states omitted).
+Every main CN TS performs 1 symbolic LU, 2 numeric LU, 10
+triangular solves; the native event counts agree with
+exact collective `on_change` coefficient/graph decisions.
+The original native analyzer compared all complete PETSc
+initial/final vectors before the user removed the bulky state
+files from the shared ZIP: maximum reported scaled L2 errors
+**1.04e-14 initial** and **7.56e-13 final**, vs 5e-8 tolerance.
+These state errors cannot independently be recalculated without
+the removed NPZ; they remain supported by the archived native
+validation report and per-run fingerprints.
+
+Main reasons for the **4→6** rank regression (median-stage
+observations; inclusive profiler clocks must not be summed):
+
+| Phase / event | 4 ranks | 6 ranks |
+|---|---:|---:|
+| DAE initial consistency | 23.77 s | 26.40 s |
+| Main PETSc TS solve | 52.48 s | 55.14 s |
+| Main native MUMPS symbolic LU | 15.98 s | 18.08 s |
+| Main native MUMPS numeric LU (2 calls) | 9.38 s | 9.07 s |
+| Main native MatSolve (10 calls) | 3.73 s | 3.47 s |
+| GetFEM stiffness phase | 2.93 s | 3.55 s |
+| Stiffness GetFEM→PETSc bridge | 4.32 s | 3.70 s |
+
+Therefore the six-rank plateau is associated with initial
+consistency, symbolic ordering and other overheads, **not**
+a failure of numeric LU scaling or reuse. We record this
+limit rather than introduce speculative new solver changes
+before v1.3.0. Twelve PNG/SVG scientific performance figures
+were successfully generated, including scaling, per-step,
+startup, PETSc phases, bridge, LU and memory.
+
+On 1/2 ranks, the separate h=0.12 coenergy wave physical
+test also **PASSED** with relative discrete power defects
+`7.04e-16` and `3.02e-16`, full trajectory-state relative
+MPI discrepancy `4.19e-16`, and independent GetFEM Hamiltonian
+parity. That establishes the claimed discrete identity for
+the **tested dissipative linear model** only.
+
+**Point-0 performance qualification is complete for these test
+cases**. Do not silently close separate open questions on
+the DAE pseudo-time perturbation of prescribed `q(0)=0`,
+nonlinear-tangent invalidation and long-duration memory
+stability; these remain documented limitations/tests.
+
 ## v1.3.0 implementation and release gates
 
 - [x] Switch default MUMPS policy to on_change rather than inferring
@@ -186,14 +257,17 @@ declaring the optimization programme fully complete.
   v1.3.0 candidate sequential benchmark: identical full initial
   state, final-state relative L2 ~3.924e-31, valid measured
   single-run 48.45x full-wall-solve ratio and PNG/SVG reports.
-- [ ] Repeat on corrected source with 1/2/4/6 MPI ranks,
-  including complete vector parity and a three-repetition
-  performance sample before reporting robust medians.
+- [x] Repeat on corrected source with 1/2/4/6 MPI ranks,
+  5 native repetitions at 2,966,786 DOFs. All 20 native LU and
+  complete initial/final state-parity gates PASS; four-rank
+  performance optimum and RSS capacity cost documented.
 - [ ] Verify the **numeric transition case** on a changing Jacobian:
   one fresh numeric LU for every actual numeric change, but no
   unnecessary symbolic reanalysis for an unchanged graph.
-- [ ] Validate the actual full-state trajectory and discrete
-  Hamiltonian/input-power identity (not merely final vector norms).
+- [x] Validate a full-state 1/2-rank coenergy trajectory,
+  discrete Hamiltonian and damping/boundary power balance at h=0.12
+  (5,724 DoFs; five CN steps): ~1e-16 relative power defects.
+  This is not proof of arbitrary nonlinear/time-varying behavior.
 - [ ] Repeat physically meaningful MPI tests (linear driven wave and
   dissipative Saint-Venant) at 1/2/4 ranks. Ensure 'on_change' does
   not freeze nonlinear/variable-step tangents.
