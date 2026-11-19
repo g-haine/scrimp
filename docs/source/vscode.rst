@@ -143,7 +143,7 @@ few CPUs.
 C. Native Conda / source installation (without Docker)
 ------------------------------------------------------
 
-Use the native build instructions in :doc: install for the intended
+Use the native build instructions in :doc:`install` for the intended
 platform. Then activate the installed Conda environment:
 
 .. code-block:: bash
