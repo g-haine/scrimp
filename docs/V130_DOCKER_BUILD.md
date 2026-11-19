@@ -66,9 +66,12 @@ build context.** The root `.dockerignore` now contains only
 access the sources needed by the Dockerfile.
 
 The supported build driver
-`scripts/build-v130-docker-candidate.sh` creates an *empty
-temporary directory outside the repository*, with a cleanup trap.
-Its audited staging script:
+`scripts/build-v130-docker-candidate.sh` fetches a **clean GitHub
+revision by default** (override via `SCRIMP_GITHUB_REF`). For
+deliberate uncommitted library development only, set
+`SCRIMP_DOCKER_SOURCE=local`. In *both* modes it creates an **empty
+second temporary Docker context outside the repository**, with a
+cleanup trap. Its audited staging script:
 
 1. Reads `git ls-files --cached -z` (tracked files only), and
    matches exact, slash-aware allowlist patterns for installation
@@ -117,14 +120,23 @@ to avoid bypassing this safety boundary.
 
 ## 2. Build a candidate without disturbing the qualified image
 
-From the existing `release/1.3.0-preparation` branch:
+From a temporary checkout of SCRIMP's preparation branch,
+or from an existing developer checkout (the actual compiled sources
+are fetched from **GitHub**, not your local worktree):
 
 ```bash
 cd ~/Simulations/scrimp
 git pull --ff-only
-
 bash scripts/build-v130-docker-candidate.sh
 ```
+
+For an exact revision, set `SCRIMP_GITHUB_REF` to an immutable
+Git commit hash. The build logs the selected commit and adds it to
+the image's OCI revision label. If the branch advances, the next
+invocation may select a newer revision unless pinned. Only the
+deliberate `SCRIMP_DOCKER_SOURCE=local` mode sees tracked edits
+from the developer checkout, and those are still staged in a
+separate context.
 
 Default tag: `scrimp-mpi:v1.3.0-rc1`; default native Make jobs: 4.
 Override deliberately, for example:
@@ -134,9 +146,10 @@ MAKE_JOBS=2 SCRIMP_DOCKER_CANDIDATE_IMAGE=scrimp-mpi:v1.3.0-rc2 \
   bash scripts/build-v130-docker-candidate.sh
 ```
 
-The build driver prefers `docker buildx build --load` and otherwise
-uses the BuildKit Docker builder. It never pushes images and refuses
-`scrimp-mpi:local` and `scrimp-mpi:latest` as output tags.
+The build driver **requires** `docker buildx build --load`;
+it deliberately refuses to fall back to the legacy Docker builder.
+It never pushes images and refuses `scrimp-mpi:local` and
+`scrimp-mpi:latest` as output tags.
 If the current user has permission to run Docker without `sudo`,
 set `SCRIMP_DOCKER_NO_SUDO=1`.
 
@@ -180,6 +193,37 @@ Docker reported `BuildKit is enabled but the buildx component is
 missing or broken`. This occurs before the Dockerfile starts;
 it is **not** evidence of an error in the native numerical libraries
 or source patches. The new candidate image has not yet built.
+
+## 2a. After installation: independent user projects in VS Code
+
+**An image is not a simulation workspace.** SCRIMP's own `sandbox/`
+belongs to the source repository; users instead create their own
+project with an editable `simulations/` folder, `geometries/`,
+VS Code `.devcontainer/` setup and writable, persistent `outputs/`.
+
+The project starter is under `project-template/`; make a workspace
+in a **new local directory** with:
+
+```bash
+python3 scripts/create-scrimp-project.py "$HOME/MySCRIMPProject"
+```
+
+The project template's Dev Container defaults to
+`scrimp-mpi:v1.3.0-rc1` during development. With a published
+GHCR image, point the Dev Container to the corresponding qualified
+tag instead. For native Conda, select its Python interpreter in VS
+Code and do not reopen the project in a container.
+
+The first simulation saves `outputs/oscillator.csv` with
+time, displacement, momentum and Hamiltonian, **in the user's
+directory**. The MPI script is only a startup smoke. Neither script
+causes a Docker rebuild. See
+[the VS Code user guide](source/vscode.rst).
+
+The candidate packaging command for a future GitHub release asset
+is `python3 scripts/package-scrimp-project-template.py`. The
+source-only project ZIP is not published yet; no public image or
+starter release artifact is claimed at this stage.
 
 ## 3. Run the candidate smoke and capture reproducible inputs
 
