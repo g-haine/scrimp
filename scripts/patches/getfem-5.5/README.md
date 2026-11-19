@@ -12,7 +12,7 @@ happen later. They are not presented as an upstream-certified FEM library.
 | `0000-mpi-assembly-timing.patch` | Makes GetFEM's unconditional MPI `Assembly time` print opt-in with `SCRIMP_GETFEM_ASSEMBLY_TIMING=1`, without changing assembly | **Included in the next Docker build; matches original GetFEM v5.5 source; native rebuild pending** |
 | `0001-bdm-tetrahedron-unisolvent-dofs.patch` | Fixes BDM facet normal DoF lattice for tetrahedra; uses interior nullspace completion from k>=2, while preserving existing 2D behavior | **Staged, NOT compiled or qualified yet** |
 | `0002-python-interface-link-in-tree.patch` | Links the Python `_getfem` extension explicitly against the **fresh in-tree** `libgetfemint.a` and `libgetfem.a` instead of resolving potentially stale `-lgetfem` | **Staged, native smoke pending** |
-| `experimental/0002-nedelec-first-kind-simplices.patch` | Prototype `FEM_NEDELEC1(N,K)` on triangles/tetrahedra, reusing `FEM_NEDELEC(N)` at k=0 | **EXPERIMENTAL, not applied by default, no native build yet** |
+| `experimental/0003-nedelec-first-kind-simplices.patch` | Prototype `FEM_NEDELEC1(N,K)` on triangles/tetrahedra, reusing `FEM_NEDELEC(N)` at k=0 | **EXPERIMENTAL, not applied by default, no native build yet** |
 
 The original Docker GetFEM 5.5 MPI-2 image produced `FEM_BDMK(3,1)`
 and `FEM_BDMK(3,2)` assertion failures at `getfem_fem.cc:2319`.
