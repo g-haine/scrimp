@@ -201,7 +201,9 @@ def main() -> int:
     parser.add_argument("--timeout", type=float, default=90.0,
                         help="Per-element subprocess timeout, in seconds")
     parser.add_argument("--output", type=Path,
-                        default=Path("sandbox/outputs/getfem55_constructor_audit.json"))
+                        default=Path("sandbox/outputs/getfem55_constructor_audit.json"),
+                        help="JSON report destination; use '-' for JSON on stdout "
+                             "(status/progress goes to stderr)")
     parser.add_argument("--strict", action="store_true",
                         help="Exit 1 if any constructor did not match its expected dimensions")
     parser.add_argument("--allow-non-docker", action="store_true",
@@ -210,6 +212,12 @@ def main() -> int:
     args = parser.parse_args()
     if args.probe is not None:
         return child_probe(args.probe)
+    json_to_stdout = args.output == Path("-")
+    progress_stream = sys.stderr if json_to_stdout else sys.stdout
+
+    def progress(*items: object, **kwargs: Any) -> None:
+        print(*items, file=progress_stream, **kwargs)
+
     if not (0 <= args.max_order <= 5):
         parser.error("--max-order must be between 0 and 5")
     if args.timeout <= 0:
@@ -218,15 +226,18 @@ def main() -> int:
         provenance = runtime_provenance(allow_non_docker=args.allow_non_docker)
     except RuntimeError as exc:
         parser.error(str(exc))
-    print("Runtime provenance:", json.dumps(provenance, sort_keys=True), flush=True)
+    progress("Runtime provenance:", json.dumps(provenance, sort_keys=True), flush=True)
     rows = catalog(args.max_order)
     results = []
     for row in rows:
-        print(f"{row['descriptor']:<22} expected={row['expected_dofs']:<4}", end=" ", flush=True)
+        progress(f"{row['descriptor']:<22} expected={row['expected_dofs']:<4}", end=" ", flush=True)
         result = run_one(row, args.timeout)
         results.append(result)
         observed = result.get("nbdof", "-")
-        print(f"observed={str(observed):<4} {result['status']}", flush=True)
+        progress(f"observed={str(observed):<4} {result['status']}", flush=True)
+        if result["status"] != "constructed_matching_dimension":
+            why = result.get("error") or result.get("stderr_tail") or "no diagnostic"
+            progress("  detail:", str(why).strip()[:1200], flush=True)
     out = {
         "audit_type": "constructor_and_local_dimension_only",
         "reference_source_expected": "GetFEM v5.5 tag c242f7fe0989e9a90846c63eaccc6b495d774724",
@@ -237,13 +248,31 @@ def main() -> int:
         "max_order": args.max_order,
         "results": results,
     }
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(out, indent=2, ensure_ascii=False) + "\n")
+    json_report = json.dumps(out, indent=2, ensure_ascii=False) + "\n"
+    if json_to_stdout:
+        sys.stdout.write(json_report)
+        sys.stdout.flush()
+    else:
+        try:
+            args.output.parent.mkdir(parents=True, exist_ok=True)
+            args.output.write_text(json_report, encoding="utf-8")
+        except OSError as exc:
+            print(
+                f"WARNING: unable to write JSON to {args.output}: {exc}. "
+                "Emitting full report on stdout between markers instead; "
+                "rerun with --output - and redirect stdout on the host.",
+                file=sys.stderr,
+                flush=True,
+            )
+            print("GETFEM_AUDIT_FALLBACK_JSON_BEGIN", flush=True)
+            sys.stdout.write(json_report)
+            print("GETFEM_AUDIT_FALLBACK_JSON_END", flush=True)
     bad = sum(row["status"] != "constructed_matching_dimension" for row in results)
-    print(f"\nConstructor audit: {len(results) - bad}/{len(results)} constructed "
-          f"with expected dimensions; {bad} errors/mismatches/timeouts.")
-    print(f"JSON report: {args.output}")
-    print("WARNING: MPI level 2 is checked, but this is NOT an MPI-parity, Piola or H(div)/H(curl) validation.")
+    progress(f"\nConstructor audit: {len(results) - bad}/{len(results)} constructed "
+             f"with expected dimensions; {bad} errors/mismatches/timeouts.")
+    progress(f"JSON report: {'stdout' if json_to_stdout else args.output}")
+    progress("WARNING: MPI level 2 is checked, but this is NOT an MPI-parity, "
+             "Piola or H(div)/H(curl) validation.")
     return int(args.strict and bad > 0)
 
 
