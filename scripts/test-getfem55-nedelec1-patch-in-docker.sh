@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Probe the experimental simplicial Nedelec-I patch inside a disposable
+# Probe the approved simplicial Nedelec-I patch inside a disposable
 # GetFEM 5.5 container. Does NOT mutate scrimp-mpi:local or host conda.
 set -euo pipefail
 
@@ -11,7 +11,7 @@ mkdir -p "$ROOT/sandbox/outputs"
 
 echo "Nedelec-I experimental Docker smoke (triangles/tetrahedra, k<=2)"
 echo "Image: $IMAGE (disposable container, no Docker image rebuild)"
-echo "Patches: 0001 BDM, 0002 Python link, experimental/0003 Nedelec-I"
+echo "Patches: 0001 BDM, 0002 Python link, 0003 Nedelec-I (now approved)"
 echo "Output: $LOG"
 
 sudo docker run --rm \
@@ -25,7 +25,7 @@ sudo docker run --rm \
     for patchfile in \
       /tmp/scrimp-patches/0001-bdm-tetrahedron-unisolvent-dofs.patch \
       /tmp/scrimp-patches/0002-python-interface-link-in-tree.patch \
-      /tmp/scrimp-patches/experimental/0003-nedelec-first-kind-simplices.patch; do
+      /tmp/scrimp-patches/0003-nedelec-first-kind-simplices.patch; do
       python /tmp/scrimp-apply-patch.py "$src" "$patchfile" --dry-run
       python /tmp/scrimp-apply-patch.py "$src" "$patchfile"
     done
