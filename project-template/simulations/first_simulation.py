@@ -71,11 +71,15 @@ def main() -> None:
     momentum = np.asarray(system.get_solution("p"), dtype=float).ravel()
     if not (len(times) == len(displacement) == len(momentum)):
         raise RuntimeError("Unexpected time-series dimensions")
+    # Energy is tracked explicitly: this *driven, damped* oscillator
+    # exchanges power with the exterior and dissipates energy, so H
+    # is not expected to remain constant. Hamiltonian = k*q^2/2+p^2/(2m).
+    energy = 0.5 * 5.0 * displacement**2 + momentum**2 / (2 * 1.5)
     output = Path("outputs/oscillator.csv")
     output.parent.mkdir(parents=True, exist_ok=True)
-    np.savetxt(output, np.column_stack((times, displacement, momentum)),
-               delimiter=",", header="time,q,p", comments="")
-    print(f"Saved {len(times)} time points to {output.resolve()}")
+    np.savetxt(output, np.column_stack((times, displacement, momentum, energy)),
+               delimiter=",", header="time,q,p,H", comments="")
+    print(f"Saved {len(times)} time points (including H) to {output.resolve()}")
 
 
 if __name__ == "__main__":
