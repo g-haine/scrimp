@@ -158,6 +158,71 @@ VS Code workflow for either Docker installation
    python simulations/first_simulation.py
    mpiexec -n 2 python simulations/mpi_check.py
 
+Python is installed, even if VS Code says "No Python found"
+-----------------------------------------------------------
+
+.. important::
+
+   **Do not click "Install uv and Python"** when opening a SCRIMP
+   Dev Container. The image **already contains Python**, installed
+   in the named Micromamba environment ``scrimp`` along with
+   SCRIMP, GetFEM, PETSc and SLEPc. Installing another Python with
+   ``uv`` would create an unrelated interpreter and might leave
+   VS Code running code outside the qualified numerical environment.
+
+During the first Linux Dev Containers GUI test (19 November 2026),
+VS Code displayed::
+
+   No Python found. Would you like to install uv and use it to
+   install Python?
+
+This message comes from **VS Code's Python environment discovery /
+installation UI**, not from SCRIMP or the Python runtime. The
+subsequent integrated terminal showed ``(scrimp)``, and both
+``python simulations/first_simulation.py`` and
+``mpiexec -n 2 python simulations/mpi_check.py`` **passed**.
+Therefore that specific prompt was a **false negative for the
+already installed container interpreter**.
+
+**When this prompt appears:**
+
+1. Select **Don't ask again** (or **Cancel** to dismiss without
+   installing anything). Do not select **Install uv and Python**.
+2. Wait until the Dev Container has fully opened and the Python
+   extension has completed initialization.
+3. Open a Python file, press **Ctrl+Shift+P**, select
+   **Python: Select Interpreter**, then choose **Enter interpreter
+   path** and enter ``/opt/conda/envs/scrimp/bin/python`` if
+   that interpreter is not already selected. Depending on VS Code's
+   extension version, the command/labels may differ slightly.
+4. Confirm the environment in the **Dev Container's integrated
+   terminal**, not in a host terminal:
+
+   .. code-block:: bash
+
+      python -c "import sys, scrimp; print(sys.executable); print('SCRIMP OK')"
+      python simulations/first_simulation.py
+
+   Expected first line of the interpreter check::
+
+      /opt/conda/envs/scrimp/bin/python
+
+5. If the terminal test passes but **F5** still cannot find Python,
+   check that the Microsoft **Python** and **Python Debugger**
+   extensions are installed **in Dev Container: SCRIMP**, not
+   only in the local VS Code window. Restart the Python extension /
+   reload the VS Code window, and explicitly select the interpreter
+   above. This is an editor integration problem, not an indication
+   that the numerical image needs rebuilding.
+
+The starter's ``.devcontainer/devcontainer.json`` already declares
+``python.defaultInterpreterPath`` as the Conda interpreter
+**inside the container**. VS Code's environment-discovery UI may
+still present a generic first-run message before selection
+completes. The native Conda installation path uses the
+**actual local** interpreter instead; do not force the container
+path into ``.vscode/settings.json`` shared by both modes.
+
 The host project is bind-mounted at /work. The first command
 writes MySCRIMPProject/outputs/oscillator.csv **on the host**.
 Closing VS Code or removing the container does not delete that file.
@@ -222,10 +287,13 @@ a Docker image locally, which still targets a Linux container.
 Known limitations / release gates
 ---------------------------------
 
-- The candidate image has **passed its native Linux build and
-  1/2-rank CLI smoke**. Actual VS Code Dev Containers GUI workflow,
-  native compatibility and Windows/macOS/Apple Silicon remain
-  unqualified; do not extrapolate the Linux smoke to these platforms.
+- The candidate image **passed its Linux native build** and the
+  1/2-rank CLI smoke. A **real VS Code Dev Container session** on
+  Ubuntu subsequently ran the 10-step oscillator, wrote the CSV
+  to the host, and started SCRIMP on two MPI ranks. VS Code
+  **F5/debugpy**, native compatibility, Windows/macOS/Apple
+  Silicon and power-balance/physics qualification remain separate
+  acceptance gates; do not extrapolate the Linux test.
 - The public GHCR v1.3.0 tag and starter project ZIP are not
   published; both require an accepted release.
 - The introductory oscillator is a serial model; use validated
