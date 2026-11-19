@@ -383,9 +383,20 @@ GetFEM state synchronization. A small source-only fix now selects
 the real part explicitly, consistent with the existing TS monitor;
 the candidate image above predates this change. The PETSc
 `-info` unused-option warning requires separate triage.
-**Still pending:** warm-cache rebuild, actual VS Code Dev Containers
-interaction, cross-platform onboarding, full 1/2/4/6-rank
-physics/scaling and port-Hamiltonian power-balance qualification.
+**VS Code GUI attempt (19 Nov):** Docker now works without
+`sudo` and the candidate image imports SCRIMP correctly as
+`mambauser`. Dev Containers initially failed *before startup*
+because the starter's colon-bearing `${localEnv:...:fallback}`
+resolved to `scrimp-mpi` and attempted to pull nonexistent
+`scrimp-mpi:latest`. The template now embeds
+`"image": "scrimp-mpi:v1.3.0-rc1"` explicitly; generated-project
+tests enforce a full image tag. Previously generated independent
+projects require a one-line local update.
+
+**Still pending:** warm-cache rebuild, actual successful VS Code
+Dev Containers interaction (including UID remapping and F5),
+cross-platform onboarding, full 1/2/4/6-rank physics/scaling and
+port-Hamiltonian power-balance qualification.
 No GHCR image has been published or promoted.
 The reproducible build procedure, cache boundaries, evidence paths
 and deferred lock/platform work are documented in
