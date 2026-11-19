@@ -62,8 +62,10 @@ RUN --mount=type=cache,id=scrimp-v130-pip-cache,target=/tmp/scrimp-pip-cache,sha
 # next heavy layer. A change to SCRIMP itself does not rebuild GetFEM.
 COPY --chown=$MAMBA_USER:$MAMBA_USER \
     scripts/build-getfem-mpi.sh scripts/build-getfem-mpi.sh
+# Copy ONLY approved *.patch files here: README/experimental edits must
+# not invalidate an expensive native GetFEM compilation layer.
 COPY --chown=$MAMBA_USER:$MAMBA_USER \
-    scripts/patches/getfem-5.5/ scripts/patches/getfem-5.5/
+    scripts/patches/getfem-5.5/*.patch scripts/patches/getfem-5.5/
 RUN --mount=type=cache,id=scrimp-v130-getfem-tarballs,target=/tmp/scrimp-getfem-tarballs,sharing=locked,mode=0777 \
     GETFEM_ARCHIVE_DIR=/tmp/scrimp-getfem-tarballs \
     GETFEM_VERSION="${GETFEM_VERSION}" GETFEM_SHA256="${GETFEM_SHA256}" \
