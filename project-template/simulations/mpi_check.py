@@ -1,3 +1,7 @@
+# SCRIMP starter project — simulation example
+# Copyright (C) 2015-2026 ISAE-SUPAERO — GNU GPLv3
+# See https://github.com/g-haine/scrimp/blob/master/LICENSE
+#
 """Check MPI and SCRIMP imports without running a physics simulation.
 
 Run from the project root (inside Dev Container / activated native conda):
