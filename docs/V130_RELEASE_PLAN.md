@@ -362,8 +362,31 @@ availability macro), six omitted files unused by our Autotools
 build, and **all five approved source patches apply cleanly**.
 The reviewed Savannah digest
 `0e042770b86152b09be4bfd0ee160b8d10d49c3f8a0b9b06d55f1ffaa1d30fc4`
-is now **strictly pinned**. Full candidate build and warm-cache
-validation remain pending.
+is now **strictly pinned**.
+
+**Candidate build and first smoke PASS (19 Nov):** image
+`scrimp-mpi:v1.3.0-rc1`, revision
+`96961d647c2caf41dd77d2a7b5926e86e86c4b69`,
+manifest digest
+`sha256:ab08d9beaa60a1685b7e8df1e69f5a085f5571ca46c2b7d8554f53ec42ace3e8`.
+The GetFEM 5.5 native build completed; MPI parallelism level 2,
+complex PETSc/SLEPc 3.26.1, NumPy 2.5.5 and distributed MUMPS
+solve passed on 1/2 ranks. RT, BDM and Nédélec I/II supported
+simplex constructor checks passed. A newly scaffolded **user-owned
+project**, mounted read-write, successfully ran 10 time steps of
+a four-DoF port-Hamiltonian oscillator and wrote
+`outputs/oscillator.csv` **to the host** (11 time points,
+including Hamiltonian); its 2-rank MPI startup also passed.
+
+The sample produced a nonfatal NumPy `ComplexWarning` in real
+GetFEM state synchronization. A small source-only fix now selects
+the real part explicitly, consistent with the existing TS monitor;
+the candidate image above predates this change. The PETSc
+`-info` unused-option warning requires separate triage.
+**Still pending:** warm-cache rebuild, actual VS Code Dev Containers
+interaction, cross-platform onboarding, full 1/2/4/6-rank
+physics/scaling and port-Hamiltonian power-balance qualification.
+No GHCR image has been published or promoted.
 The reproducible build procedure, cache boundaries, evidence paths
 and deferred lock/platform work are documented in
 [V130_DOCKER_BUILD.md](V130_DOCKER_BUILD.md). Following the
@@ -377,8 +400,10 @@ A **self-contained end-user project template** is now staged at
 `project-template/` with a generator, future release ZIP packager,
 VS Code Dev Containers configuration, Python debugging and MPI
 startup task. A short port-Hamiltonian oscillator exports a persistent
-host CSV. These are source-level deliverables, **not yet accepted
-as a runtime cross-platform user experience**; see the
+host CSV. **The host-mounted CLI workflow has now passed its
+first real Docker runtime smoke**; end-to-end GUI-based VS Code
+Dev Containers and cross-platform onboarding still require
+qualification. See the
 [VS Code onboarding guide](source/vscode.rst).
 
 - Rework the Dockerfile into cache-friendly dependency layers:
