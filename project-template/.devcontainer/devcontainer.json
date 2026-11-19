@@ -1,0 +1,27 @@
+{
+  "name": "SCRIMP (Python / PETSc / GetFEM)",
+  "image": "${localEnv:SCRIMP_DOCKER_IMAGE:scrimp-mpi:v1.3.0-rc1}",
+  "workspaceFolder": "/work",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/work,type=bind",
+  "remoteUser": "mambauser",
+  "updateRemoteUserUID": true,
+  "remoteEnv": {
+    "PATH": "/opt/conda/envs/scrimp/bin:${containerEnv:PATH}"
+  },
+  "runArgs": [
+    "--init"
+  ],
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "python.defaultInterpreterPath": "/opt/conda/envs/scrimp/bin/python",
+        "python.terminal.activateEnvironment": false,
+        "python.testing.pytestEnabled": false
+      },
+      "extensions": [
+        "ms-python.python",
+        "ms-python.debugpy"
+      ]
+    }
+  }
+}
