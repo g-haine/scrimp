@@ -1,17 +1,19 @@
 #!/usr/bin/env python3
-"""Preflight *source allowlist* for the SCRIMP v1.3 BuildKit context.
+"""Stage a physically isolated, Git-tracked SCRIMP Docker context.
 
-This is a fail-closed check for accidental broad COPY, symlinks,
-unexpected source categories and a very large allowed source file.
-The actual Docker context is filtered by the root .dockerignore;
-the BuildKit progress log reports the transferred context size.
+The *real* repository may contain enormous untracked simulation outputs.
+Never pass the repository root to Docker: BuildKit ignore negations may
+re-expose whole directories. Instead stage only approved tracked files.
 """
 from __future__ import annotations
 
+import argparse
 import collections
 import os
 from pathlib import Path
 import re
+import shutil
+import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -58,42 +60,59 @@ REQUIRED = (
 )
 
 def main() -> int:
-    ignore_lines = (ROOT / ".dockerignore").read_text().splitlines()
-    ignore = [line.strip() for line in ignore_lines
-              if line.strip() and not line.lstrip().startswith("#")]
-    assert ignore and ignore[0] == "**", (
-        "Docker context must start with a deny-all '**' rule"
-    )
-    # BuildKit pattern syntax differs from Python glob, so check that
-    # *every* actual allow exception is exactly one audited pattern or
-    # a parent of one. New exceptions must get an explicit review.
-    allow_set = set(ALLOW)
-    ancestor_rules = {"!" + str(Path(p)) for pattern in ALLOW
-                      for p in Path(pattern).parents if str(p) != "."}
-    expected = {"!" + p for p in ALLOW} | ancestor_rules
-    actual = {x.rstrip("/") for x in ignore if x.startswith("!")}
-    assert actual == expected, (
-        f"Unexpected .dockerignore exceptions: "
-        f"extra={sorted(actual - expected)}; "
-        f"missing={sorted(expected - actual)}"
-    )
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--stage-to", type=Path, metavar="EMPTY_DIRECTORY",
+        help="copy only allowlisted Git-tracked sources into this "
+             "physically isolated temporary Docker context")
+    args = parser.parse_args()
 
+    # A direct root-context build must be a FAIL-CLOSED operation.
+    # Only the external staged directory can be used for a real build.
+    ignore_lines = (ROOT / ".dockerignore").read_text().splitlines()
+    rules = [line.strip() for line in ignore_lines
+             if line.strip() and not line.lstrip().startswith("#")]
+    assert rules == ["**"], (
+        "Root .dockerignore must contain only deny-all '**' "
+        "(no broad negation exceptions)"
+    )
     dockerfile = (ROOT / "docker/Dockerfile").read_text()
-    assert not re.search(r"(?m)^COPY\s+(?:--\S+\s+)*\.\s+", dockerfile), (
+    assert not re.search(r"(?m)^COPY\\s+(?:--\\S+\\s+)*\\.\\s+", dockerfile), (
         "Broad Dockerfile COPY . is not permitted"
     )
-    for relative in REQUIRED:
-        assert (ROOT / relative).is_file(), f"Required source missing: {relative}"
 
+    # Anchored, slash-aware pattern matching (never pathlib/glob of
+    # the live repository: that can enumerate giant data directories).
+    patterns = [
+        re.compile("^" + re.escape(p).replace(r"\\*", "[^/]*") + "$")
+        for p in ALLOW
+    ]
+    tracked = subprocess.run(
+        ["git", "ls-files", "--cached", "-z", "--full-name"],
+        cwd=ROOT, check=True, stdout=subprocess.PIPE,
+    ).stdout
     matched: dict[str, Path] = {}
-    for pattern in ALLOW:
-        for path in ROOT.glob(pattern):
-            if not path.is_file():
-                continue
-            relative = path.relative_to(ROOT).as_posix()
-            if path.is_symlink():
-                raise RuntimeError(f"Symlink in Docker source allowlist: {relative}")
-            matched[relative] = path
+    root_resolved = ROOT.resolve()
+    for entry in tracked.split(b"\\0"):
+        if not entry:
+            continue
+        relative = os.fsdecode(entry)
+        if not any(p.fullmatch(relative) for p in patterns):
+            continue
+        path = ROOT / relative
+        assert path.resolve().is_relative_to(root_resolved), (
+            f"Tracked source escapes repository: {relative!r}"
+        )
+        if any(parent.is_symlink() for parent in (path, *path.parents)):
+            raise RuntimeError(f"Symlink path in Docker context: {relative}")
+        if not path.is_file():
+            raise RuntimeError(f"Missing Git-tracked source: {relative}")
+        matched[relative] = path
+
+    for relative in REQUIRED:
+        assert relative in matched, (
+            f"Required Git-tracked Docker source missing: {relative}"
+        )
 
     # Check sizes of exactly the allowlisted sources, NOT user data
     # directories such as sandbox/outputs or hidden .build.
@@ -114,19 +133,49 @@ def main() -> int:
             f"Allowlisted source {overall / 1024**2:.1f} MiB exceeds "
             f"{cap / 1024**2:.0f} MiB limit"
         )
-    print("Docker input allowlist: DENY BY DEFAULT, no COPY .", flush=True)
+    print("Docker staging: Git-tracked source ONLY; root context DENIED", flush=True)
     for category in sorted(totals):
         print(f"  {category:10s}: {count[category]:3d} files, "
               f"{totals[category] / 1024**2:.2f} MiB")
     print(f"  TOTAL: {len(matched)} files, {overall / 1024**2:.2f} MiB")
-    print("  Excluded: docs, notebooks, images, meshes, recordings, "
-          "sandbox/outputs, .build and all other unlisted paths.")
-    print("  Docker BuildKit will report actual transferred context size.")
+    print("  Excluded: ALL untracked files (including simulations), "
+          "docs, notebooks, images, meshes, recordings, .build, "
+          "sandbox/outputs and all other unlisted paths.")
+
+    if args.stage_to is not None:
+        dest = args.stage_to.resolve()
+        if dest.is_relative_to(root_resolved):
+            raise RuntimeError("Docker stage destination must be OUTSIDE repository")
+        if not dest.is_dir() or any(dest.iterdir()):
+            raise RuntimeError("Docker stage destination must be an empty directory")
+        for relative, path in sorted(matched.items()):
+            output = dest / relative
+            output.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(path, output, follow_symlinks=False)
+        # This is a physically isolated, already safe context. Do not
+        # copy the root .dockerignore, which intentionally denies all.
+        (dest / ".dockerignore").write_text(
+            "# Audited, physically isolated Docker context.\\n"
+            "# No local untracked simulations can exist here.\\n",
+            encoding="utf-8",
+        )
+        staged_bytes = sum(
+            (dest / relative).stat().st_size for relative in matched
+        )
+        assert staged_bytes == overall, (
+            "Unexpected staged context size discrepancy"
+        )
+        print(f"STAGED: {len(matched)} files, "
+              f"{staged_bytes / 1024**2:.2f} MiB in {dest}", flush=True)
+        print("Docker MUST build from this directory, never the live root.")
+    else:
+        print("Run with --stage-to /tmp/EMPTY_DIRECTORY "
+              "to create a safe Docker context.")
     return 0
 
 if __name__ == "__main__":
     try:
         sys.exit(main())
-    except (AssertionError, RuntimeError, OSError, ValueError) as exc:
+    except (AssertionError, RuntimeError, OSError, ValueError, subprocess.CalledProcessError) as exc:
         print(f"ERROR: Docker source context audit failed: {exc}", file=sys.stderr)
         sys.exit(2)
