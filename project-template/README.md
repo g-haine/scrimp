@@ -38,7 +38,16 @@ The template's default Dev Container image is that local candidate
 tag **until the public image is qualified and released**.
 
 Alternatively, edit `.devcontainer/devcontainer.json` to refer to
-another **already built** local SCRIMP image.
+another **already built** local SCRIMP image. Always use the **complete
+image reference including its tag**, such as
+`"image": "scrimp-mpi:v1.3.0-rc1"`. Avoid a nested
+`${localEnv:...:fallback-with-colons}` expression here: a prior
+Dev Containers build truncated the candidate tag to `scrimp-mpi`,
+causing an erroneous Docker Hub lookup for `:latest`.
+For a newly created project, the generator's `--image IMAGE:TAG`
+option embeds the chosen tag explicitly. If you created a project
+before this fix, update **its own** `.devcontainer/devcontainer.json`;
+pulling newer SCRIMP sources will not alter your personal project.
 
 ## Work in VS Code with Docker (both options)
 
