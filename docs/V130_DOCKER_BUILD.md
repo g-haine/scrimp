@@ -220,10 +220,21 @@ directory**. The MPI script is only a startup smoke. Neither script
 causes a Docker rebuild. See
 [the VS Code user guide](source/vscode.rst).
 
-The candidate packaging command for a future GitHub release asset
-is `python3 scripts/package-scrimp-project-template.py`. The
-source-only project ZIP is not published yet; no public image or
-starter release artifact is claimed at this stage.
+The candidate packaging command is
+`python3 scripts/package-scrimp-project-template.py`, which creates
+a **preview** ZIP pointing to the local candidate image.
+**At release publication only**, prepare the ZIP with the actually
+validated and published image tag:
+
+```bash
+python3 scripts/package-scrimp-project-template.py \
+  --image ghcr.io/g-haine/scrimp:1.3.0
+```
+
+The command only creates a local ZIP and never publishes images or
+release assets. A corresponding public GHCR image and release asset
+are **not available yet**; they remain gated on the complete
+release validation.
 
 ## 3. Run the candidate smoke and capture reproducible inputs
 
