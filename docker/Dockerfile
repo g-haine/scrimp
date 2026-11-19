@@ -1,27 +1,35 @@
-# Modern, single-node OpenMPI/GetFEM 5.5/SCRIMP MPI build.
-# EXPERIMENTAL: not yet native-build validated. Build + tests must pass
-# before promoting or publishing a GHCR release tag.
+# syntax=docker/dockerfile:1.7
+# SCRIMP v1.3.0 CANDIDATE. Do not overwrite scrimp-mpi:local until qualified.
+# Native dependencies are intentionally built BEFORE copying SCRIMP sources:
+# edits to Python, examples or docs only rebuild the final inexpensive layers.
 FROM mambaorg/micromamba:2.10.0-ubuntu24.04
 
 ARG MAMBA_DOCKERFILE_ACTIVATE=1
 ARG GETFEM_VERSION=5.5
 ARG MAKE_JOBS=4
+# SHA256 of official GetFEM 5.5 source tarball, checked by the build script.
+ARG GETFEM_SHA256=f6c09fb2edd112b6abe04e0485534f5e965d6f8f9ad853308b7120bfc6722ab5
 
+# Keep APT index and .deb downloads in BuildKit caches instead of image layers.
 USER root
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates binutils file libgl1 libglu1-mesa libxrender1 libxext6 \
-    libxcursor1 libxinerama1 libxi6 libxrandr2 libxfixes3 libsm6 libice6 \
-    libxft2 libfontconfig1 libfreetype6 libxmu6 libxt6 libx11-6 libxcb1 \
-    && rm -rf /var/lib/apt/lists/*
+RUN --mount=type=cache,id=scrimp-v130-apt-archives,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,id=scrimp-v130-apt-lists,target=/var/lib/apt/lists,sharing=locked \
+    rm -f /etc/apt/apt.conf.d/docker-clean \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates binutils file libgl1 libglu1-mesa libxrender1 libxext6 \
+        libxcursor1 libxinerama1 libxi6 libxrandr2 libxfixes3 libsm6 libice6 \
+        libxft2 libfontconfig1 libfreetype6 libxmu6 libxt6 libx11-6 libxcb1
+
 USER $MAMBA_USER
 
+# Micromamba's default package cache is /opt/conda/pkgs. This cache
+# persists across builds but is not copied into the resulting image.
 COPY --chown=$MAMBA_USER:$MAMBA_USER docker/environment.yml /tmp/scrimp-environment.yml
-RUN micromamba create -y -f /tmp/scrimp-environment.yml \
-    && micromamba clean -a -y
+RUN --mount=type=cache,id=scrimp-v130-mamba-pkgs,target=/opt/conda/pkgs,sharing=locked,mode=0777 \
+    micromamba create -y -f /tmp/scrimp-environment.yml
 
-# Fail early on missing transitive shared libraries of the pip Gmsh wheel.
-# This is intentionally BEFORE the expensive PETSc bindings and GetFEM C++
-# compilation; missing libXcursor/libXft previously surfaced minutes later.
+# Catch missing native Gmsh wheel runtime dependencies before costly builds.
 RUN micromamba run -n scrimp python -c "import gmsh; print('Gmsh native library loaded:', gmsh.__version__)"
 
 ENV ENV_NAME=scrimp \
@@ -35,30 +43,44 @@ ENV ENV_NAME=scrimp \
     SCRIMP_GETFEM_RHS_MODE=auto \
     SCRIMP_GETFEM_SOURCE_RHS_MODE=raw
 
-WORKDIR /workspace/scrimp
-COPY --chown=$MAMBA_USER:$MAMBA_USER . /workspace/scrimp
-
-# Compile the Python wrappers *against* NumPy 2 and conda's
-# complex PETSc/SLEPc libraries (conda petsc4py currently pins NumPy 1).
-RUN bash scripts/install-petsc-python-bindings.sh
-
-# The legacy Docker builder may keep the WORKDIR itself owned by root,
-# even though COPY --chown assigns the source files to mambauser.
-# GetFEM builds in /workspace/scrimp/.build by default and editable pip
-# installs may also write project metadata. Fix the directory ownership
-# before either operation. Keep this AFTER petsc4py/slepc4py compilation
-# so an ownership fix does not invalidate that expensive cached layer.
+# WORKDIR would otherwise be created as root on the Docker builder.
+# Set ownership ONCE, before the expensive native build layers.
 USER root
-RUN chown -R "$MAMBA_USER:$MAMBA_USER" /workspace/scrimp
+RUN install -d -m 0755 -o "$MAMBA_USER" -g "$MAMBA_USER" /workspace/scrimp
 USER $MAMBA_USER
+WORKDIR /workspace/scrimp
 
-# The same GetFEM source-build script also works in local conda.
-RUN GETFEM_VERSION="${GETFEM_VERSION}" \
-    MAKE_JOBS="${MAKE_JOBS}" \
-    bash scripts/build-getfem-mpi.sh
+# PETSc/SLEPc Python wrappers are built against conda-forge's exact
+# native COMPLEX libraries and NumPy 2. SCRIMP edits do not invalidate this.
+COPY --chown=$MAMBA_USER:$MAMBA_USER \
+    scripts/install-petsc-python-bindings.sh scripts/install-petsc-python-bindings.sh
+RUN --mount=type=cache,id=scrimp-v130-pip-cache,target=/tmp/scrimp-pip-cache,sharing=locked,mode=0777 \
+    SCRIMP_PIP_USE_CACHE=1 PIP_CACHE_DIR=/tmp/scrimp-pip-cache \
+    bash scripts/install-petsc-python-bindings.sh
 
+# Only GetFEM's build script and approved 0000..0004 patches enter the
+# next heavy layer. A change to SCRIMP itself does not rebuild GetFEM.
+COPY --chown=$MAMBA_USER:$MAMBA_USER \
+    scripts/build-getfem-mpi.sh scripts/build-getfem-mpi.sh
+COPY --chown=$MAMBA_USER:$MAMBA_USER \
+    scripts/patches/getfem-5.5/ scripts/patches/getfem-5.5/
+RUN --mount=type=cache,id=scrimp-v130-getfem-tarballs,target=/tmp/scrimp-getfem-tarballs,sharing=locked,mode=0777 \
+    GETFEM_ARCHIVE_DIR=/tmp/scrimp-getfem-tarballs \
+    GETFEM_VERSION="${GETFEM_VERSION}" GETFEM_SHA256="${GETFEM_SHA256}" \
+    MAKE_JOBS="${MAKE_JOBS}" bash scripts/build-getfem-mpi.sh
+
+# Keep the complete SCRIMP source and its frequently edited examples
+# OUTSIDE the native dependency layers, for a fast iterative rebuild.
+COPY --chown=$MAMBA_USER:$MAMBA_USER . /workspace/scrimp/
 RUN python -m pip install --no-deps --no-build-isolation -e . \
     && python sandbox/smoke_modern_stack.py \
     && micromamba env export -n scrimp --explicit > /workspace/scrimp/docker-resolved-spec.txt
+
+# Build metadata deliberately comes after GetFEM: specifying a new
+# revision must not force an expensive native rebuild.
+ARG SCRIMP_REVISION=unknown
+LABEL org.opencontainers.image.source="https://github.com/g-haine/scrimp" \
+      org.opencontainers.image.title="SCRIMP v1.3.0 candidate (unqualified)" \
+      org.opencontainers.image.revision="${SCRIMP_REVISION}"
 
 CMD ["/bin/bash"]
