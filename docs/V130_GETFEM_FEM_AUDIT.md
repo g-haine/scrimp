@@ -260,8 +260,12 @@ This **closes the native constructor blocker**, not the H(div)
 conformity/face-orientation check or the numerical assembly check.
 The updated smoke script now builds two tetrahedra with one shared face
 and checks that BDM1/2 global DoFs are respectively 21 and 54, followed
-by symmetric-positive-definite mass-matrix assembly. **These new
-two-tetrahedron tests have not yet been run**. A passing count and mass
+by symmetric-positive-definite mass-matrix assembly. **The first two-tetrahedron run was blocked by a test harness mistake:**
+the script created `getfem.MeshFem(mesh, 1)` for the vector-valued
+`FEM_BDMK(3,k)` with `target_dim=3`. GetFEM correctly rejected the
+`Qdim=1` / `target_dim=3` mismatch before computing global DoFs or the
+mass matrix (19 November 2026). The smoke now uses
+`getfem.MeshFem(mesh, 3)`; the corrected two-cell test is **pending**. A passing count and mass
 matrix are necessary checks, but they do not by themselves prove
 pointwise normal-trace continuity across the interface.
 
