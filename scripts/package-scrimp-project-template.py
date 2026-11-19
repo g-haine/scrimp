@@ -7,6 +7,7 @@ this release artifact. This does not publish anything to GitHub/GHCR.
 from __future__ import annotations
 
 import argparse
+import json
 from runpy import run_path
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
@@ -19,7 +20,14 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path,
                         default=ROOT / "dist/scrimp-project-template.zip")
+    parser.add_argument(
+        "--image", help="embed a specific built/published Docker image "
+                        "in devcontainer.json; omit for the pre-release default")
     args = parser.parse_args()
+    if args.image is not None and (
+        not args.image.strip() or any(c.isspace() for c in args.image)
+    ):
+        parser.error("--image must be one nonempty Docker image reference")
     output = args.output.expanduser().resolve()
     if output.is_relative_to(TEMPLATE.resolve()):
         parser.error("ZIP output must not be stored inside project-template/")
@@ -39,6 +47,12 @@ def main() -> int:
                  compresslevel=9) as zip_file:
         for relative in sorted(files):
             filedata = (TEMPLATE / relative).read_bytes()
+            if relative == ".devcontainer/devcontainer.json" and args.image:
+                config = json.loads(filedata.decode("utf-8"))
+                config["image"] = args.image
+                filedata = (
+                    json.dumps(config, indent=2, ensure_ascii=False) + "\n"
+                ).encode("utf-8")
             member = ZipInfo(f"scrimp-project/{relative}",
                              date_time=(2026, 1, 1, 0, 0, 0))
             member.compress_type = ZIP_DEFLATED
