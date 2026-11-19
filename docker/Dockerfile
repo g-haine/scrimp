@@ -5,10 +5,6 @@
 FROM mambaorg/micromamba:2.10.0-ubuntu24.04
 
 ARG MAMBA_DOCKERFILE_ACTIVATE=1
-ARG GETFEM_VERSION=5.5
-ARG MAKE_JOBS=4
-# SHA256 of official GetFEM 5.5 source tarball, checked by the build script.
-ARG GETFEM_SHA256=f6c09fb2edd112b6abe04e0485534f5e965d6f8f9ad853308b7120bfc6722ab5
 
 # Keep APT index and .deb downloads in BuildKit caches instead of image layers.
 USER root
@@ -57,6 +53,13 @@ COPY --chown=$MAMBA_USER:$MAMBA_USER \
 RUN --mount=type=cache,id=scrimp-v130-pip-cache,target=/tmp/scrimp-pip-cache,sharing=locked,mode=0777 \
     SCRIMP_PIP_USE_CACHE=1 PIP_CACHE_DIR=/tmp/scrimp-pip-cache \
     bash scripts/install-petsc-python-bindings.sh
+
+# Declare GetFEM-only build args as late as possible: changing MAKE_JOBS
+# or the pinned tarball must not invalidate the apt/Conda/PETSc layers.
+ARG GETFEM_VERSION=5.5
+ARG MAKE_JOBS=4
+# SHA256 of official GetFEM 5.5 source tarball, checked by the build script.
+ARG GETFEM_SHA256=f6c09fb2edd112b6abe04e0485534f5e965d6f8f9ad853308b7120bfc6722ab5
 
 # Only GetFEM's build script and approved 0000..0004 patches enter the
 # next heavy layer. A change to SCRIMP itself does not rebuild GetFEM.
