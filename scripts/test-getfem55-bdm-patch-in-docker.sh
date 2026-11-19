@@ -51,4 +51,5 @@ for descriptor, expected in tests:
     assert actual == expected, descriptor
 print("PASS: patched BDM local constructors/dimensions only.")
 print("Still required: 3D shared-facet H(div) check and small assembly.")
-PY  ' 2>&1 | tee "$LOG"
+PY
+  ' 2>&1 | tee "$LOG"
