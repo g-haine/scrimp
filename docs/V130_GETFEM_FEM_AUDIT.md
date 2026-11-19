@@ -83,3 +83,16 @@ Use **GetFEM v5.5 original sources** and the local SCRIMP Docker/GetFEM build; c
 - https://defelement.org/elements/nedelec1.html
 - https://defelement.org/elements/nedelec2.html
 - https://getfem.org/project/contribute.html
+
+## First native constructor probe (SCRIMP integration test only)
+
+The non-invasive driver `sandbox/audit_getfem55_element_catalog.py` runs each requested GetFEM descriptor in its **own process**, because C++ assertions may terminate Python. It checks the local finite-element dimension; it does **not** assert global conformity.
+
+```bash
+conda activate scrimp
+python sandbox/audit_getfem55_element_catalog.py --max-order 2
+# If quick probes qualify and sufficient host resources are available:
+python sandbox/audit_getfem55_element_catalog.py --max-order 5 --timeout 120
+```
+
+JSON output defaults to `sandbox/outputs/getfem55_constructor_audit.json` (ignored by Git). Repeat in the actual Docker GetFEM 5.5 image; retain reports separately and never overwrite previously qualified point-0 baselines.
