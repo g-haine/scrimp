@@ -46,6 +46,16 @@ Creating the independent workspace
 When SCRIMP v1.3.0 is released, download the standalone
 scrimp-project-template.zip archive from GitHub Releases and extract
 it as your own project. That release asset **is not published yet**.
+At release packaging time the maintainer must embed the **validated**
+GHCR tag in the ZIP's Dev Container metadata, for example:
+
+.. code-block:: bash
+
+   python3 scripts/package-scrimp-project-template.py \
+       --image ghcr.io/g-haine/scrimp:1.3.0
+
+This command only creates a local ZIP: it does not publish that
+image or asset. Only run it with the GHCR tag after qualification.
 
 During development, obtain the template from GitHub once:
 
@@ -170,7 +180,7 @@ platform. Then activate the installed Conda environment:
 
 .. code-block:: bash
 
-   conda activate scrimp
+   conda activate scrimp55  # for the native modern-stack example in install.rst
    cd ~/MySCRIMPProject
    python simulations/first_simulation.py
    mpiexec -n 2 python simulations/mpi_check.py
