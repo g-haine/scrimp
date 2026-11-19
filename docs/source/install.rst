@@ -136,9 +136,10 @@ C++ ``std::cout`` in ``src/getfem_models.cc``, rather than
 SCRIMP's Python logger.
 
 For **new native GetFEM builds made with SCRIMP's build script**,
-``scripts/patch-getfem-mpi-timing.py`` changes only this single
-diagnostic print, after extracting the upstream source and before
-compilation. Normal execution is quiet. To restore upstream-style
+``scripts/patches/getfem-5.5/0000-mpi-assembly-timing.patch`` changes
+only this diagnostic print, after extracting the upstream source and
+before compilation. It is applied by the same ordered patch loop as
+the BDM fix. Normal execution is quiet. To restore upstream-style
 per-assembly timing information for diagnosis, set:
 
 .. code-block:: bash
@@ -147,9 +148,9 @@ per-assembly timing information for diagnosis, set:
         python sandbox/smoke_modern_stack.py
 
 The flag must be present in the environment **inside** the
-container and on all MPI ranks. The script fails on unrecognised
-upstream source instead of guessing at a patch; tests cover the exact
-source rewrite. Neither mathematical expressions, assembly results,
+container and on all MPI ranks. The source patch fails to apply if
+GetFEM's expected code has changed: it must be reviewed rather than
+silently forced. Neither mathematical expressions, assembly results,
 nor MPI communication are changed. Avoid silencing all stdout/stderr
 in Python: GetFEM's native errors and diagnostics must remain visible.
 
