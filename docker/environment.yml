@@ -13,6 +13,7 @@ dependencies:
   - cxx-compiler
   - fortran-compiler
   - make
+  - patch  # Apply pinned SCRIMP GetFEM source patches during Docker build
   - pkg-config
   - libtool
   - autoconf
