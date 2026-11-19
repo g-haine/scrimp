@@ -343,3 +343,32 @@ The next workstream is higher-order simplicial Nédélec I/II in the
 separate experimental patches; never enable the Nédélec prototype
 automatically until it compiles and a two-cell tangential-conformity
 smoke has passed.
+
+### Nédélec first-kind simplex k=1,2: lean native acceptance PASS (19 November 2026)
+
+The user ran the disposable Docker smoke
+`scripts/test-getfem55-nedelec1-patch-in-docker.sh` with GetFEM 5.5
+compiled against the **experimental** `0003` first-kind patch and the
+approved BDM/Python-link patches. It compiled cleanly, retained
+GetFEM MPI parallelism level 2 and passed all local constructors
+(k=0,1,2) and four two-simplex smoke cases (k=1,2):
+
+| Simplex | k | Local DoFs | Two-cell global DoFs | Smallest mass eigenvalue | Max relative tangential mismatch (two test fields) |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Triangle | 1 | 8 | 14 | 4.429e-2 | 6.556e-7 |
+| Triangle | 2 | 15 | 27 | 1.532e-2 | 2.385e-6 |
+| Tetrahedron | 1 | 20 | 32 | 4.555e-3 | 5.179e-7 |
+| Tetrahedron | 2 | 45 | 75 | 1.221e-3 | 8.100e-7 |
+
+Each matrix is symmetric to reported precision and positive definite.
+Tangential traces were compared at points separated by 2e-7 across
+a common edge/face. This is enough to close first-kind Nédélec
+k=1,2 for the SCRIMP-first **lean acceptance** scope; it is not
+a Maxwell, arbitrary curved-geometry, MPI-rank-parity or comprehensive
+GetFEM upstream qualification.
+
+**Nédélec second kind** is the remaining simplex family. Its local
+space is `[P_k]^d` (k>=1), with edge tangential trace and additional
+face/interior functionals; reference:
+https://defelement.org/elements/nedelec2.html . Its k=1/2
+expected dimensions are 6/12 in 2D and 12/30 in 3D.
