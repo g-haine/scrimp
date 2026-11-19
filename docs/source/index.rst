@@ -110,6 +110,7 @@ User's guide
     :maxdepth: 2
     
     install
+    vscode
     started
     performance
     examples
