@@ -33,6 +33,15 @@ RUN --mount=type=cache,id=scrimp-v130-mamba-pkgs,target=/opt/conda/pkgs,sharing=
 
 USER $MAMBA_USER
 
+# Verify actual non-root write access before invoking micromamba, pip or
+# curl. Root's test -w alone is not proof that mambauser can write.
+RUN --mount=type=cache,id=scrimp-v130-mamba-pkgs,target=/opt/conda/pkgs,sharing=locked,mode=0775 \
+    --mount=type=cache,id=scrimp-v130-pip-cache,target=/tmp/scrimp-pip-cache,sharing=locked,mode=0775 \
+    --mount=type=cache,id=scrimp-v130-getfem-tarballs,target=/tmp/scrimp-getfem-tarballs,sharing=locked,mode=0775 \
+    for directory in /opt/conda/pkgs /tmp/scrimp-pip-cache /tmp/scrimp-getfem-tarballs; do \
+        test -w "$directory" || { echo "ERROR: non-writable BuildKit cache $directory" >&2; exit 2; }; \
+    done
+
 # Micromamba's default package cache is /opt/conda/pkgs. This cache
 # persists across builds but is not copied into the resulting image.
 COPY --chown=$MAMBA_USER:$MAMBA_USER docker/environment.yml /tmp/scrimp-environment.yml
