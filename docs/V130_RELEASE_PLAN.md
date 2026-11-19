@@ -351,11 +351,20 @@ native smoke are now prepared; the first full candidate build and warm
 cache validation on the user's Linux workstation are **pending**.
 The reproducible build procedure, cache boundaries, evidence paths
 and deferred lock/platform work are documented in
-[V130_DOCKER_BUILD.md](V130_DOCKER_BUILD.md). The Docker input
-context now uses a **deny-by-default allowlist**, explicit source
-copies and a pre-build size/content audit; the tracked allowlisted
-inputs total approximately 1.5 MiB. No image has been
-promoted, and `scrimp-mpi:local` is untouched.
+[V130_DOCKER_BUILD.md](V130_DOCKER_BUILD.md). Following the
+**>45 GB accidental Docker context transfer**, the supported build
+now fetches GitHub source by default and creates a **physically isolated,
+small, Git-tracked allowlisted context**. A developer may explicitly
+select local source, but even then user outputs never enter the build.
+No image has been promoted and `scrimp-mpi:local` remains untouched.
+
+A **self-contained end-user project template** is now staged at
+`project-template/` with a generator, future release ZIP packager,
+VS Code Dev Containers configuration, Python debugging and MPI
+startup task. A short port-Hamiltonian oscillator exports a persistent
+host CSV. These are source-level deliverables, **not yet accepted
+as a runtime cross-platform user experience**; see the
+[VS Code onboarding guide](source/vscode.rst).
 
 - Rework the Dockerfile into cache-friendly dependency layers:
   package download and native PETSc/SLEPc/GetFEM build layers
@@ -370,6 +379,11 @@ promoted, and `scrimp-mpi:local` is untouched.
   (document Docker Desktop/WSL2 requirements) and **macOS**
   (including Apple Silicon image constraints). Separate
   supported/validated platforms from best-effort instructions.
+- Ship the validated **independent VS Code project template** as a
+  small GitHub release ZIP. Its Dev Container must select the actually
+  published GHCR image (or an explicitly rebuilt local image);
+  installed SCRIMP and user simulations must remain separate.
+  Continue to offer native Conda + Python interpreter selection.
 - Rebuild the image **locally on the user's computer**, prove
   SCRIMP, GetFEM, petsc4py/slepc4py and MPI smoke tests, then
   remove obsolete image(s) as requested. Avoid deleting the only
@@ -433,6 +447,10 @@ limits displayed rather than concealed.
   installation, bind mounts, persistent outputs, MPI terminals,
   Python interpreter/debugging, UID/GID permission model
   and CPU/NUMA configuration.
+  A first version is already drafted in `docs/source/vscode.rst`,
+  with source-level project template tests. End-to-end Linux and
+  cross-platform validation, screenshots and the released GHCR image
+  remain pending.
 - Ensure HTML, LaTeX/PDF, navigation, examples and screenshots
   render correctly. Maintain the user-level and developer-level
   reading paths.
