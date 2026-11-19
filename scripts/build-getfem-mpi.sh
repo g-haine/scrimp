@@ -71,6 +71,32 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 python "$SCRIPT_DIR/patch-getfem-mpi-timing.py" "$src/src/getfem_models.cc"
 
+# Apply small SCRIMP-maintained GetFEM 5.5 source patches before compiling.
+# Keep patches separate from SCRIMP's solver, and fail rather than silently
+# building an unsupported source. The original release archive is untouched.
+if [[ "$GETFEM_VERSION" == "5.5" ]]; then
+  if [[ "$GETFEM_SOURCE" == git && "$GETFEM_REF" != "v5.5" && "$GETFEM_REF" != "c242f7fe0989e9a90846c63eaccc6b495d774724" ]]; then
+    echo "ERROR: SCRIMP GetFEM 5.5 patches require the v5.5 tag/commit, not GETFEM_REF=$GETFEM_REF" >&2
+    exit 2
+  fi
+  command -v patch >/dev/null || {
+    echo "ERROR: 'patch' is required to apply SCRIMP GetFEM source fixes." >&2
+    exit 2
+  }
+  for source_patch in "$SCRIPT_DIR"/patches/getfem-5.5/*.patch; do
+    [[ -f "$source_patch" ]] || continue
+    echo "GetFEM source patch: $(basename "$source_patch")"
+    if patch --batch --forward --silent --dry-run -p1 -d "$src" < "$source_patch"; then
+      patch --batch --forward -p1 -d "$src" < "$source_patch"
+    elif patch --batch --silent --dry-run -R -p1 -d "$src" < "$source_patch"; then
+      echo "Already applied: $(basename "$source_patch")"
+    else
+      echo "ERROR: GetFEM patch cannot be applied cleanly: $source_patch" >&2
+      exit 2
+    fi
+  done
+fi
+
 echo "GetFEM=$GETFEM_VERSION source=$GETFEM_SOURCE"
 echo "MPI=$("$CC" -show 2>/dev/null || command -v "$CC")"
 echo "Python=$PYTHON_BIN NumPy=$(python -c 'import numpy; print(numpy.__version__)')"
