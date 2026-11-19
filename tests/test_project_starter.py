@@ -82,7 +82,8 @@ class StarterProjectTest(unittest.TestCase):
             result = subprocess.run(
                 [sys.executable,
                  str(ROOT / "scripts/package-scrimp-project-template.py"),
-                 "--output", str(output)],
+                 "--output", str(output),
+                 "--image", "ghcr.io/g-haine/scrimp:1.3.0"],
                 capture_output=True, text=True,
             )
             self.assertEqual(result.returncode, 0, result.stderr)
@@ -90,6 +91,11 @@ class StarterProjectTest(unittest.TestCase):
                 entries = artifact.namelist()
                 self.assertIn(
                     "scrimp-project/.devcontainer/devcontainer.json", entries)
+                cfg = json.loads(artifact.read(
+                    "scrimp-project/.devcontainer/devcontainer.json"))
+                self.assertEqual(
+                    cfg["image"], "ghcr.io/g-haine/scrimp:1.3.0"
+                )
                 self.assertIn(
                     "scrimp-project/simulations/first_simulation.py", entries)
                 self.assertNotIn("scrimp-project/outputs/oscillator.csv", entries)
