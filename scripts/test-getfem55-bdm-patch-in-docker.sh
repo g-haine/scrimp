@@ -115,8 +115,15 @@ for k, local, face in ((1, 12, 3), (2, 30, 6)):
         f"Face DoFs are not shared for BDM{k}: got {n}, expected {expected}"
     )
     mat = getfem.asm("mass matrix", mim, mf)
-    dense = mat.toarray() if hasattr(mat, "toarray") else np.asarray(mat)
-    assert dense.shape == (expected, expected), dense.shape
+    # GetFEM Spmat is NOT a SciPy sparse matrix. np.asarray(Spmat)
+    # returns a zero-dimensional object array, not the matrix entries.
+    # Use the native Spmat.full() accessor (gf_spmat_get: "full").
+    dense = np.asarray(mat.full(), dtype=float)
+    print(f"BDM{k}: assembled GetFEM Spmat shape={dense.shape}, "
+          f"expected={(expected, expected)}", flush=True)
+    assert dense.shape == (expected, expected), (
+        f"BDM{k}: unexpected mass matrix shape {dense.shape}"
+    )
     assert np.all(np.isfinite(dense)), f"BDM{k}: nonfinite mass matrix"
     sym = float(np.linalg.norm(dense - dense.T) /
                 max(1., np.linalg.norm(dense)))
