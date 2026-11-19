@@ -17,6 +17,8 @@ Changing a simulation **never rebuilds** the SCRIMP Docker image.
 
 The future released image is expected to be
 `ghcr.io/g-haine/scrimp:1.3.0` (**not yet published**).
+The final GitHub Release project ZIP will need its Dev Container
+image name set to that **verified published** tag at packaging time.
 Once published, install Docker (Docker Desktop on Windows/macOS)
 and pull the image:
 
@@ -79,7 +81,7 @@ Follow SCRIMP's native Conda/source installation instructions in
 the official installation guide. Activate the resulting environment:
 
 ```bash
-conda activate scrimp
+conda activate scrimp55  # or your actual SCRIMP Conda env name
 python simulations/first_simulation.py
 ```
 
