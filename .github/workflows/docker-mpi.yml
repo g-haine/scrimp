@@ -27,10 +27,16 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build experimental GetFEM 5.5/NumPy 2 image
         run: |
-          docker build --progress=plain \
+          # Never give Docker the checkout as a context: local and CI
+          # workflows must both stage only audited Git-tracked sources.
+          CONTEXT="$(mktemp -d -t scrimp-ci-context.XXXXXXXX)"
+          trap 'rm -rf -- "$CONTEXT"' EXIT
+          python3 scripts/audit-v130-docker-context.py --stage-to "$CONTEXT"
+          docker buildx build --load --progress=plain \
             --build-arg GETFEM_VERSION=5.5 \
             --build-arg MAKE_JOBS=2 \
-            -f docker/Dockerfile -t scrimp-mpi:candidate .
+            --build-arg "SCRIMP_REVISION=$GITHUB_SHA" \
+            -f docker/Dockerfile -t scrimp-mpi:candidate "$CONTEXT"
       # ubuntu-24.04 hosted runners may expose only 2 physical CPU slots.
       # OpenMPI must be allowed to start 4 ranks for FUNCTIONAL CI checks.
       # --oversubscribe must never be used for performance benchmarks.
