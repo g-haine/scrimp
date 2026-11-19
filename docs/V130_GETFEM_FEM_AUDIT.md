@@ -314,3 +314,32 @@ If it fails, distinguish element interpolation/interface behavior
 from a genuine orientation error; do not declare the element conforming
 on cardinality alone. The user-requested qualification remains lean and
 limited to triangles/tetrahedra, SCRIMP users first.
+
+### BDM tetrahedral normal traces: lean acceptance PASS (19 November 2026)
+
+The user executed the full disposable Docker smoke with GetFEM 5.5,
+MPI level 2 and the SCRIMP BDM/Python-link patches. All previous
+constructor, shared-face DoF count and positive mass-assembly checks
+remained PASS. The final test evaluated two independent coefficient
+fields on each BDM order at five interior locations of the common face,
+using physical interpolation points at z=+/-1e-7:
+
+| Space | Field 0 maximum absolute / relative normal mismatch | Field 1 maximum absolute / relative normal mismatch |
+| --- | ---: | ---: |
+| BDM1 | 3.987e-7 / 3.987e-7 | 1.279e-6 / 7.172e-7 |
+| BDM2 | 4.954e-6 / 4.529e-6 | 2.748e-6 / 1.625e-6 |
+
+All four relative differences satisfy the smoke threshold 1e-4.
+Since values are sampled from distinct points 2e-7 apart, the observed
+nonzero residual is compatible with the O(epsilon) smooth variation
+of the normal component; it is not a direct jump evaluated at epsilon=0.
+These results, the correct shared-face identification (21 / 54 global
+DoFs), and symmetric positive definite mass assembly are **sufficient
+to close the BDM1/BDM2 tetrahedral workstream for SCRIMP v1.3.0**.
+No assertion is made about all orders, arbitrary curved geometries,
+MPI rank-parity or exhaustive GetFEM upstream certification.
+
+The next workstream is higher-order simplicial Nédélec I/II in the
+separate experimental patches; never enable the Nédélec prototype
+automatically until it compiles and a two-cell tangential-conformity
+smoke has passed.
