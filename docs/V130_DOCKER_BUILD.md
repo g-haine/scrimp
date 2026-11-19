@@ -190,21 +190,52 @@ byte count, gzip-integrity result and final redirected mirror URL
 on mismatch, then still deletes the unverified cached archive and
 exits. All previously successful BuildKit layers stay cached.
 
-To collect this evidence, pull the updated branch and rerun:
+**Third build finding:** the Savannah archive is a valid gzip
+with **16,911,362 bytes** and SHA-256
+`0e042770b86152b09be4bfd0ee160b8d10d49c3f8a0b9b06d55f1ffaa1d30fc4`.
+The earlier Fossies snapshot contains **16,911,397 bytes**
+and SHA-256
+`f6c09fb2edd112b6abe04e0485534f5e965d6f8f9ad853308b7120bfc6722ab5`.
+Only **35 compressed bytes** differ in overall size. That makes
+gzip-header or reproducible-compression differences *plausible*,
+but does not establish identical source content. Neither archive
+has been accepted as the replacement pin solely on that basis.
+
+**Next gate (independent source comparison, BEFORE rebuilding Docker):**
 
 ```bash
+cd ~/Simulations/scrimp
 git pull --ff-only
-bash scripts/build-v130-docker-candidate.sh
+mkdir -p sandbox/outputs
+python3 scripts/audit-getfem55-release-source.py \
+  2>&1 | tee sandbox/outputs/getfem55-release-source-audit.log
 ```
 
-Inspect `sandbox/outputs/v130-docker-build.log` for
-`GetFEM final URL`, `Expected SHA256`, `Observed SHA256`,
-`Archive bytes`, `Archive type` and `gzip integrity`.
-Compare the observed hash/bytes against an **independent archive
-mirror or a trusted immutable upstream release** before revising
-the pinned Dockerfile digest. Then verify the five patches still
-apply cleanly and repeat native FEM/MPI qualification. Do not
-change user simulations or `scrimp-mpi:local`.
+The new audit downloads the Savannah archive to a disposable
+directory, requires its **exact observed** SHA-256, checks its
+gzip integrity, fetches the official GitHub mirror's annotated
+`v5.5` tag (requiring immutable commit
+`c242f7fe0989e9a90846c63eaccc6b495d774724`),
+compares Git-tracked files shared with the release archive
+**byte by byte**, reports missing and differing files, and
+tries the five approved SCRIMP patch files sequentially
+on an extracted **disposable** source copy. The script never
+modifies the Docker source pin, Docker images, or any user
+simulation files. Optional `--archive /path/to/getfem-5.5.tar.gz`
+avoids the second download when a local copy exists.
+
+**Acceptance rule:** only review a new pinned archive SHA after
+the core sources match the immutable tag and all five patches
+apply. A non-core mismatch still requires a human review.
+An audit PASS is *not* a signed upstream attestation or a full
+bit-for-bit match of a generated release tarball. Do not simply
+turn off checksum verification or change the Dockerfile pin
+without that review. Once the new archive is accepted, rerun
+the normal Docker build, followed by FEM and MPI qualification.
+
+The independent binary download and Git checkout are performed
+by the user's workstation; the assistant's current execution
+container could not access these archives directly.
 
 ## 2. Build a candidate without disturbing the qualified image
 
