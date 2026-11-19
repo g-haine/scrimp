@@ -272,6 +272,8 @@ gated by the remaining workstreams below.
 
 ## 1 — GetFEM 5.5 finite-element family audit and upstream patch
 
+**Source-level audit:** [V130_GETFEM_FEM_AUDIT.md](V130_GETFEM_FEM_AUDIT.md) records the pinned upstream v5.5 source, currently registered families, the suspected 3D BDM facet-DOF cardinality defect, and the native qualification matrix. Its findings are preliminary until C++/Python and MPI tests pass.
+
 Do **not** reimplement an element simply because another project's
 API uses a different name. The current GetFEM documentation describes
 `FEM_RTK(P,K)` and `FEM_BDMK(P,K)` on simplices; it describes
