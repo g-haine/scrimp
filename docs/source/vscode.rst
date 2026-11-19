@@ -1,0 +1,177 @@
+First SCRIMP project with VS Code (v1.3.0 preview)
+======================================================
+
+.. important::
+
+   This is the **target v1.3.0 experience**, being developed on
+   the release/1.3.0-preparation branch. The public GHCR v1.3.0 image
+   and the Dev Containers end-to-end qualification are **not yet released**.
+
+What is on the user's computer?
+-------------------------------
+
+After installation the user has **three separate components**:
+
+1. Local VS Code (Python and, for Docker, Dev Containers extensions).
+2. The SCRIMP numerical environment (a Docker image containing SCRIMP,
+   PETSc, SLEPc, GetFEM, Gmsh and Python; or a native Conda environment).
+3. An **independent local project** holding their simulations, geometry
+   inputs and persistent output files.
+
+The project is independent from SCRIMP's source repository. It works
+with both a precompiled and locally built Docker image; the same
+directory also works with a native Conda installation.
+
+The supplied project template creates this structure:
+
+.. code-block:: text
+
+   MySCRIMPProject/
+     .devcontainer/devcontainer.json
+     .vscode/launch.json
+     .vscode/tasks.json
+     .vscode/settings.json
+     simulations/first_simulation.py
+     simulations/mpi_check.py
+     geometries/
+     outputs/
+
+The first example is a genuine serial port-Hamiltonian
+mass-spring-damper simulation and saves outputs/oscillator.csv.
+The second script checks MPI startup, **not physical MPI parity**.
+
+Creating the independent workspace
+----------------------------------
+
+When SCRIMP v1.3.0 is released, download the standalone
+scrimp-project-template.zip archive from GitHub Releases and extract
+it as your own project. That release asset **is not published yet**.
+
+During development, obtain the template from GitHub once:
+
+.. code-block:: bash
+
+   git clone --depth 1 --branch release/1.3.0-preparation \
+       https://github.com/g-haine/scrimp.git /tmp/scrimp-starter
+   python3 /tmp/scrimp-starter/scripts/create-scrimp-project.py \
+       "$HOME/MySCRIMPProject"
+   rm -rf /tmp/scrimp-starter
+
+The generator refuses to overwrite any pre-existing directory and
+never copies the source repository's sandbox, output data or Git history.
+For future release packaging, the ZIP is built by:
+
+.. code-block:: bash
+
+   python3 scripts/package-scrimp-project-template.py
+
+A. Precompiled Docker installation (planned release path)
+---------------------------------------------------------
+
+After the image has **passed validation and actually been published**,
+the planned pull command is:
+
+.. code-block:: bash
+
+   docker pull ghcr.io/g-haine/scrimp:1.3.0
+
+No compilation or SCRIMP source checkout is required. The image is
+stored in Docker's image store, *not* in the user's simulations folder.
+The published project template should select that image by default.
+For the pre-release template, change the image field in
+.devcontainer/devcontainer.json to this tag **only after it exists**.
+
+B. Locally compiled Docker installation
+---------------------------------------
+
+A developer can rebuild the same candidate from a specific GitHub
+revision. The official build driver fetches that revision into a
+temporary checkout and stages only tracked, allowlisted source files
+into an isolated Docker context:
+
+.. code-block:: bash
+
+   # In a temporary checkout of SCRIMP:
+   bash scripts/build-v130-docker-candidate.sh
+   bash scripts/smoke-v130-docker-candidate.sh
+
+The development tag is scrimp-mpi:v1.3.0-rc1. It has not yet passed
+its first full build. This tag is the *pre-release default* in
+the project's .devcontainer configuration. The Docker build **does
+not access any local simulations**, even from a developer checkout.
+Explicit library development with uncommitted changes uses
+SCRIMP_DOCKER_SOURCE=local (still using physical source staging).
+A user only modifying simulations never rebuilds the image.
+
+VS Code workflow for either Docker installation
+------------------------------------------------
+
+1. Install Docker and VS Code with Python and Dev Containers extensions.
+   On Windows use Docker Desktop with WSL2; on macOS use Docker Desktop.
+2. Open **MySCRIMPProject** in VS Code (not SCRIMP's source checkout).
+3. Choose **Dev Containers: Reopen in Container**.
+4. Check the selected interpreter is
+   /opt/conda/envs/scrimp/bin/python.
+5. Run the following in the VS Code integrated terminal:
+
+.. code-block:: bash
+
+   python simulations/first_simulation.py
+   mpiexec -n 2 python simulations/mpi_check.py
+
+The host project is bind-mounted at /work. The first command
+writes MySCRIMPProject/outputs/oscillator.csv **on the host**.
+Closing VS Code or removing the container does not delete that file.
+
+The included VS Code Run and Debug configurations support **F5**
+for a serial simulation or the active Python file; MPI multiprocess
+debugging requires a separate setup. VS Code Tasks also provide
+the first simulation and a two-rank MPI smoke.
+
+SCRIMP initializes output directories relative to the working
+directory (outputs/log, outputs/mesh, outputs/png, outputs/pv).
+Linux Dev Containers attempts to map the mambauser UID/GID to that
+of the host user. Test host output-directory permissions before
+large runs; Windows and macOS use different Docker Desktop volume
+semantics.
+
+CPU/NUMA selection should be recorded for performance benchmarks.
+Do not use MPI --oversubscribe as evidence of strong scaling: it is
+appropriate only for small functional tests when the host has too
+few CPUs.
+
+C. Native Conda / source installation (without Docker)
+------------------------------------------------------
+
+Use the native build instructions in :doc: install for the intended
+platform. Then activate the installed Conda environment:
+
+.. code-block:: bash
+
+   conda activate scrimp
+   cd ~/MySCRIMPProject
+   python simulations/first_simulation.py
+   mpiexec -n 2 python simulations/mpi_check.py
+
+Open this **same project** in VS Code, select **Python: Select
+Interpreter** and choose the Conda interpreter. Do not select
+Reopen in Container. Native installation is distinct from compiling
+a Docker image locally, which still targets a Linux container.
+
+Known limitations / release gates
+---------------------------------
+
+- The candidate image, native compatibility and VS Code workflows
+  have NOT yet been validated on Linux/Windows/macOS/Apple Silicon.
+- The public GHCR v1.3.0 tag and starter project ZIP are not
+  published; both require an accepted release.
+- The introductory oscillator is a serial model; use validated
+  PDE scripts for MPI and Hamiltonian/power-balance qualification.
+- The old >45 GB Docker-context regression is addressed by staging
+  only approved Git-tracked source files in a separate temporary
+  directory. User-owned mounted workspaces are never part of the
+  image build.
+
+See the installation guide for the numerical stack, the release
+plan for remaining scientific acceptance tests and the developer
+Docker build guide for cache and provenance details.
