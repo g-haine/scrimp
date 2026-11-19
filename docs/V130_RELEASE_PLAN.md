@@ -345,6 +345,15 @@ acceptance is **not** an SCRIMP v1.3.0 release gate.
 
 ## 2 — Docker, native install and platform entry points
 
+**Implementation in progress (19 November 2026).** The BuildKit
+candidate Dockerfile, safe candidate build driver, and lean 1/2-rank
+native smoke are now prepared; the first full candidate build and warm
+cache validation on the user's Linux workstation are **pending**.
+The reproducible build procedure, cache boundaries, evidence paths
+and deferred lock/platform work are documented in
+[V130_DOCKER_BUILD.md](V130_DOCKER_BUILD.md). No image has been
+promoted, and `scrimp-mpi:local` is untouched.
+
 - Rework the Dockerfile into cache-friendly dependency layers:
   package download and native PETSc/SLEPc/GetFEM build layers
   **before** copying frequent SCRIMP changes.
