@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Probe the approved simplicial Nedelec-III patch inside a disposable
+# Probe the experimental simplicial Nedelec-II patch inside a disposable
 # GetFEM 5.5 container. Does NOT mutate scrimp-mpi:local or host conda.
 set -euo pipefail
 
@@ -9,9 +9,9 @@ PATCHES="$ROOT/scripts/patches/getfem-5.5"
 LOG="$ROOT/sandbox/outputs/getfem55_nedelec2_patch_smoke.log"
 mkdir -p "$ROOT/sandbox/outputs"
 
-echo "Nedelec-III experimental Docker smoke (triangles/tetrahedra, k<=2)"
+echo "Nedelec-II experimental Docker smoke (triangles/tetrahedra, k<=2)"
 echo "Image: $IMAGE (disposable container, no Docker image rebuild)"
-echo "Patches: 0001 BDM, 0002 Python link, 0003 Nedelec-III (now approved)"
+echo "Patches: 0001 BDM, 0002 Python link, 0003 Nedelec-I (approved), experimental/0004 Nedelec-II"
 echo "Output: $LOG"
 
 sudo docker run --rm \
