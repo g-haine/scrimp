@@ -29,6 +29,26 @@ The existing, qualified `scrimp-mpi:local` image is **not modified**.
 Build and test a *separately named* image before replacing it during
 SCRIMP v1.3.0 Docker workstream.
 
+### Test in a disposable container (without touching the qualified image)
+
+From the SCRIMP repository root:
+
+```bash
+bash scripts/test-getfem55-bdm-patch-in-docker.sh
+```
+
+This runs on a *temporary* container created from `scrimp-mpi:local`,
+patches its source, performs an incremental GetFEM build/install, and
+checks BDM1/2 constructor dimensions in 2D/3D. The compile/test output
+is saved by the host script to
+`sandbox/outputs/getfem55_bdm_patch_smoke.log`.
+
+The preexisting image needs `patch` installed for this convenience
+smoke; the next Docker build includes it explicitly. The script fails
+cleanly if the legacy image lacks the tool or GetFEM source tree.
+Passing this local smoke does **not** constitute conforming H(div) or
+MPI qualification.
+
 ### Minimal checks (before enabling for SCRIMP users)
 
 1. Constructor and expected local dimensions: BDM 2D k=1,2 and 3D k=1,2.
