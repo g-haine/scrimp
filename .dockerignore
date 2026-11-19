@@ -24,3 +24,8 @@ sandbox/outputs
 *.vtk
 *.vtu
 *.msh
+# Generated native candidate artifacts must never override in-image manifests.
+docker-resolved-spec.txt
+docker-build-metadata.json
+**/.ruff_cache
+**/.tox
