@@ -1,54 +1,13 @@
-# SCRIMP v1.3.0 Docker: STRICT ALLOWLIST, not a blacklist.
-# Docker sends only these source files to the builder. Untracked/user
-# simulation data, snapshots, meshes, logs, screenshots, PDFs, videos,
-# generated outputs, and arbitrarily named local directories are excluded
-# regardless of their location in the repository.
+# SAFE DEFAULT: do not pass the live SCRIMP working tree to Docker.
 #
-# Important: each ancestor directory of an exception must be unignored.
-# "docker/Dockerfile" is also transferred by Docker even if ignored, but
-# we include it explicitly to make this manifest self-documenting.
+# This repository can contain hundreds of gigabytes of untracked
+# simulation results. Directory negation patterns (!sandbox/, etc.)
+# were NOT sufficient: BuildKit transferred >45 GB despite a
+# Python-side 1.78 MiB audit.
+#
+# Direct "docker build ... ." is therefore deliberately unsupported.
+# Use scripts/build-v130-docker-candidate.sh, which stages ONLY audited
+# Git-tracked source files in a temporary external context and builds
+# from that physically isolated directory. The staged context has its
+# own small .dockerignore, not this deny-all guard.
 **
-
-# Installation metadata / package license
-!setup.py
-!pyproject.toml
-!README.md
-!LICENSE
-
-# Docker definition and dependency lock input
-!docker/
-!docker/Dockerfile
-!docker/environment.yml
-
-# Core SCRIMP Python package, including GUI and utils modules
-!scrimp/
-!scrimp/*.py
-!scrimp/GUI/
-!scrimp/GUI/*.py
-!scrimp/utils/
-!scrimp/utils/*.py
-
-# Executable examples only (exclude Jupyter notebooks, results, data)
-!examples/
-!examples/*.py
-!examples/published/
-!examples/published/*/
-!examples/published/*/*.py
-
-# Python tests and diagnostic/sandbox source scripts only;
-# NEVER include sandbox outputs, numerical dumps, movies or figures.
-!tests/
-!tests/*.py
-!tests/perf/
-!tests/perf/*.py
-!sandbox/
-!sandbox/*.py
-!sandbox/*.sh
-
-# Release/build helpers and approved GetFEM patches only
-!scripts/
-!scripts/*.sh
-!scripts/*.py
-!scripts/patches/
-!scripts/patches/getfem-5.5/
-!scripts/patches/getfem-5.5/*.patch
