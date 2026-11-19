@@ -1,0 +1,19 @@
+diff --git a/src/getfem_models.cc b/src/getfem_models.cc
+--- a/src/getfem_models.cc
++++ b/src/getfem_models.cc
+@@ -21,4 +21,5 @@
+ #include <iomanip>
++#include <cstdlib>
+ #include "gmm/gmm_range_basis.h"
+ #include "gmm/gmm_solver_cg.h"
+ #include "gmm/gmm_condition_number.h"
+@@ -2879,4 +2880,8 @@
+ 
+     #if GETFEM_PARA_LEVEL > 0
+-    if (MPI_IS_MASTER()) cout << "Assembly time " << MPI_Wtime()-t_ref << endl;
++    if (MPI_IS_MASTER()) {
++      const char *flag = std::getenv("SCRIMP_GETFEM_ASSEMBLY_TIMING");
++      if (flag && flag[0] == '1' && flag[1] == '\0')
++        cout << "Assembly time " << MPI_Wtime()-t_ref << endl;
++    }
+     #endif
