@@ -11,6 +11,7 @@ happen later. They are not presented as an upstream-certified FEM library.
 |---|---|---|
 | `0000-mpi-assembly-timing.patch` | Makes GetFEM's unconditional MPI `Assembly time` print opt-in with `SCRIMP_GETFEM_ASSEMBLY_TIMING=1`, without changing assembly | **Included in the next Docker build; matches original GetFEM v5.5 source; native rebuild pending** |
 | `0001-bdm-tetrahedron-unisolvent-dofs.patch` | Fixes BDM facet normal DoF lattice for tetrahedra; uses interior nullspace completion from k>=2, while preserving existing 2D behavior | **Staged, NOT compiled or qualified yet** |
+| `0002-python-interface-link-in-tree.patch` | Links the Python `_getfem` extension explicitly against the **fresh in-tree** `libgetfemint.a` and `libgetfem.a` instead of resolving potentially stale `-lgetfem` | **Staged, native smoke pending** |
 | `experimental/0002-nedelec-first-kind-simplices.patch` | Prototype `FEM_NEDELEC1(N,K)` on triangles/tetrahedra, reusing `FEM_NEDELEC(N)` at k=0 | **EXPERIMENTAL, not applied by default, no native build yet** |
 
 The original Docker GetFEM 5.5 MPI-2 image produced `FEM_BDMK(3,1)`
@@ -48,10 +49,14 @@ The preexisting, qualified image **does not have GNU `patch`**.
 The disposable smoke therefore uses
 `scripts/apply_unified_patch.py` (strict source-context matching,
 Python standard library only) to apply the unchanged, standard
-`.patch` file **inside the disposable container**. This requires no
-rebuild, download, root-package install, or modification of the original
-Docker image. The later v1.3 Docker build still supports the normal
-GNU `patch` application.
+`.patch` files **inside the disposable container**. It applies
+`0001` (BDM) and `0002` (Python linkage), then regenerates the
+configured `interface/src/python/setup.py` using `config.status`
+before compiling the binding. The resulting extension must contain
+the BDM patch marker before its element constructors are tested.
+This requires no Docker rebuild, download, root-package install,
+or modification of the qualified image. The later v1.3 Docker build
+still uses normal GNU `patch` for all approved top-level patches.
 
 The script fails cleanly if the expected GetFEM source tree or exact
 patch context is missing. Passing this local constructor smoke does
@@ -91,3 +96,16 @@ only `src/getfem_models.cc`: it adds `#include <cstdlib>` and checks
 The script was removed so *every production GetFEM modification* now
 uses the same source patch mechanism. The qualified existing image is
 not changed. To get the new behavior, use the planned Docker rebuild.
+
+### Why the Python-link patch was needed
+
+A native disposable-container run on 19 November 2026 confirmed that
+GetFEM's patched `getfem_fem.o` and `src/.libs/libgetfem.a` contained
+the unique BDM diagnostic marker, whereas the installed Python
+`getfem/_getfem*.so` did **not**. The original setuptools command
+used `-lgetfem`, which does not unambiguously identify the just-built
+archive. `0002` replaces the implicit GetFEM archive lookup with
+**explicit paths to the two source-tree archives**, retaining the
+same other link dependencies. This is a linking hypothesis pending
+native confirmation by the next disposable smoke; it does not alter
+GetFEM finite-element mathematics.
