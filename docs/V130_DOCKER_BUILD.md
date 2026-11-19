@@ -17,11 +17,12 @@ The source `docker/Dockerfile` is a BuildKit Dockerfile based on
 | Micromamba/NumPy/PETSc/SLEPc native packages | `docker/environment.yml` | `/opt/conda/pkgs` |
 | petsc4py/slepc4py native wrappers | `scripts/install-petsc-python-bindings.sh`, env layer | pip wheel/source downloads |
 | GetFEM 5.5 MPI core and Python extension | `scripts/build-getfem-mpi.sh`, approved top-level `*.patch` | verified upstream GetFEM tarball |
-| SCRIMP Python package, examples and docs | full `COPY .` from filtered context | none required for native libs |
+| SCRIMP Python runtime, examples and tests | explicit `COPY` of allowlisted sources only | none required for native libs |
 
-The full repository is copied **only after GetFEM and PETSc/SLEPc
-bindings are built**, so editing `scrimp/`, `sandbox/`, documentation
-or examples does **not** invalidate expensive native layers. A change
+Only **explicitly selected source paths** are copied after GetFEM
+and PETSc/SLEPc are built, so editing `scrimp/`, `sandbox/` or examples
+does **not** invalidate expensive native layers. Documentation and
+simulation artifacts are *not* copied into the runtime image. A change
 to an approved `0000`–`0004` patch intentionally invalidates the
 GetFEM layer, but *not* the earlier Conda/PETSc layers. Edits to the
 patch README or to `experimental/` do not invalidate native GetFEM.
@@ -45,6 +46,47 @@ BuildKit cache mounts persist across builds using the same Docker
 builder and are **not included in the resulting image**.
 BuildKit caches can be cleared by a Docker build-cache prune; no
 SCRIMP script prunes them automatically.
+
+## 1a. Strict Docker context isolation: no simulation outputs
+
+The root `.dockerignore` now begins with `**` (deny everything) and
+then explicitly allows only:
+
+- Installation metadata: `setup.py`, `pyproject.toml`, `README.md`,
+  `LICENSE`, Dockerfile and `docker/environment.yml`.
+- SCRIMP Python modules under `scrimp/`, `scrimp/GUI/`, `scrimp/utils/`.
+- Python examples, sandbox diagnostics and unit tests (plus shell
+  scripts in `sandbox/`), *not* notebook or simulation outputs.
+- Build scripts and the five approved top-level GetFEM `*.patch`
+  files. Experimental patches and historical audit Markdown files
+  are excluded.
+
+The Dockerfile **no longer uses `COPY .`**. It copies these
+subdirectories explicitly after the expensive native library layers.
+The whitelist excludes `sandbox/outputs`, `.build`, figures, meshes,
+movies, PDFs, notebooks, `docs/`, and arbitrary extra local folders
+even when they are not recognized by file extension.
+
+A pre-build audit runs automatically in
+`scripts/build-v130-docker-candidate.sh`. Run it separately to see
+the actual allowlisted files and their total size on the host:
+
+```bash
+python3 scripts/audit-v130-docker-context.py
+```
+
+The audit fails if a new unreviewed `.dockerignore` exception is
+added, a broad `COPY .` reappears, required sources disappear,
+an allowed source is a symlink, or the selected input unexpectedly
+exceeds a 64 MiB safety bound (overridable with
+`SCRIMP_DOCKER_CONTEXT_MAX_MB`). For the tracked files in the
+v1.3.0 preparation branch at the time of this change, the
+allowlisted sources total **about 1.5 MiB**; the real host
+count may include additional untracked Python sources.
+
+BuildKit also reports the **actual transferred context** in
+the build log. The allowlist audit is an independent preflight,
+not a substitute for inspecting that transfer line in the first build.
 
 ## 2. Build a candidate without disturbing the qualified image
 
