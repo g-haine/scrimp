@@ -187,6 +187,48 @@ equivalence issue is understood. Then cut a single long-lived
 `release/1.3.0-preparation` integration branch. Do not prematurely
 merge an unqualified solver change to `master`.
 
+### Final point-0 size-qualification campaign: h=0.005
+
+As requested, run the **complete** current-version strong-scaling
+campaign at **h=0.005** (approximately three million DOFs; actual
+GetFEM `nbdof()` is authoritative). This is **not** a pilot and
+never launches v1.2.0. The source is the corrected production
+`examples/wave.py` with exact `on_change` Jacobian reuse,
+fixed Crank–Nicolson (10 steps, dt=0.002), compact distributed COO
+and parallel MUMPS symbolic ordering.
+
+~~~bash
+bash sandbox/run_v130_large_wave_scaling.sh 0.005 3
+~~~
+
+Runs **1, 2, 4, 6 MPI ranks**, **three repetitions** each, pinned
+by default to physical CPUs 0,2,4,6,8,10. Real timing and
+per-process memory outputs are recorded for *all* twelve runs,
+with complete initial/final state parity across rank counts and
+repetitions and a native PETSc event gate matching exact MUMPS
+symbolic/numeric updates to collective Jacobian changes.
+No release worktree, comparison or rebuilt v1.2.0 reference is
+created. The script stops on an actual failed native test and
+preserves all prior successful outputs.
+
+Expected deliverables in the generated ignored
+`sandbox/outputs/v130-large-wave-.../` folder:
+`v130_large_wave_performance.md`, `v130_large_wave_summary.json`,
+per-run CSV, scaling CSV, raw PETSc/SCRIMP logs, complete PETSc
+reference states and **12 paired PNG/SVG figures**: run spread,
+total/solve scaling, speedup, efficiency, CN startup/warm and
+per-step evolution, phase/MUMPS costs, COO assembly/bridge, LU
+reuse call counts and per-rank/summed RSS high-water marks.
+**Summed per-rank `ru_maxrss` values are not a synchronized
+whole-job memory peak**.
+
+**Status:** prepared, synthetic parser/figure tests added; native
+large-size host runs and performance measurements are not yet
+present and must not be inferred from the earlier h=0.04 results.
+The h=0.005 run is the requested final strong-scaling data gate;
+it is not a substitute for the separate scientific DAE and
+long-trajectory memory limitations in this roadmap.
+
 ## 1 — GetFEM 5.5 finite-element family audit and upstream patch
 
 Do **not** reimplement an element simply because another project's
