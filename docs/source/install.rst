@@ -7,6 +7,14 @@ The modern stack is NOT yet declared validated: the Docker build,
 NumPy ABI import, MPI algebra tests and physics/scalability benchmarks
 must pass on real machines before it becomes the release default.
 
+**New users:** read :doc:`vscode` for the planned v1.3.0
+post-install experience: an independent local simulation project,
+the three installation modes (precompiled Docker / locally built
+Docker / native Conda), VS Code Dev Containers, persistent outputs,
+MPI terminals and Python debugging. The project template is available
+in the repository's `project-template/` directory. Neither the
+public v1.3.0 image nor the standalone project ZIP is released yet.
+
 Stable user environment (Conda)
 -------------------------------
 
@@ -37,6 +45,15 @@ Native dependencies are now compiled in **cache-friendly layers
 before copying SCRIMP's Python sources**. Docker BuildKit retains
 APT, Micromamba, pip and verified GetFEM tarball downloads.
 
+The candidate build driver fetches the selected GitHub revision
+by default into a temporary checkout and stages only audited tracked
+sources in a *second* isolated context. It **never hands Docker the
+live SCRIMP repository**, even if the user has tens of gigabytes
+of simulations under sandbox/outputs. For intentionally local
+library development, set `SCRIMP_DOCKER_SOURCE=local`; this still
+copies only tracked allowlisted source files into the build context.
+Neither mode includes user simulation data.
+
 Use an **independently tagged candidate**, not the qualified existing
 ``scrimp-mpi:local`` image:
 
@@ -61,12 +78,20 @@ MPI validation have not yet been run** on the user's workstation.
 Do not replace or delete ``scrimp-mpi:local`` merely because the
 Docker recipe is checked into Git.
 
-For an interactive candidate session:
+For interactive development with an **independent local
+simulation project** (not the source checkout), see :doc:`vscode`.
+For a manual command-line session from the user's simulation folder:
 
 .. code-block:: bash
 
+    cd ~/MySCRIMPProject
     sudo docker run --rm -it -v "$PWD:/work" \
         --workdir /work scrimp-mpi:v1.3.0-rc1 bash
+
+This binds the local workspace read-write, so simulations and outputs
+persist on the host even when the container is removed. On Linux,
+check UID/GID mapping before relying on direct docker-run commands;
+the VS Code Dev Containers template enables UID matching.
 
 Further instructions and the cache-validation protocol are in
 ``docs/V130_DOCKER_BUILD.md``. The image is **not released**.
