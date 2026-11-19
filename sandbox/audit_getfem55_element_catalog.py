@@ -7,6 +7,7 @@ constructed with the expected number of local DoFs. It does *not* certify
 Piola transforms, facet continuity, unisolvance, convergence or MPI behavior.
 
 Examples:
+    # Run INSIDE the scrimp-mpi:local GetFEM 5.5 container, NOT host conda.
     python sandbox/audit_getfem55_element_catalog.py --max-order 2
     python sandbox/audit_getfem55_element_catalog.py --max-order 5 --timeout 120
 """
@@ -15,6 +16,7 @@ from __future__ import annotations
 import argparse
 from datetime import datetime, timezone
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -145,6 +147,53 @@ def run_one(row: dict[str, Any], timeout: float) -> dict[str, Any]:
     }
 
 
+def runtime_provenance(*, allow_non_docker: bool) -> dict[str, Any]:
+    """Fail closed before probing a host-installed or serial GetFEM.
+
+    This proves that the Python binding is loaded from the expected Docker
+    environment and reports GetFEM MPI level; the image's source SHA and
+    tarball checksum must still be recorded externally at build time.
+    """
+    try:
+        import getfem
+    except (ImportError, OSError) as exc:
+        raise RuntimeError(f"Cannot load GetFEM in active Python: {exc}") from exc
+    module = str(Path(getfem.__file__).resolve())
+    mpi_level = int(getfem.util_mpi_parallelism_level())
+    container_marker = Path("/.dockerenv").exists()
+    expected_prefix = "/opt/conda/envs/scrimp/"
+    provenance = {
+        "python_executable": sys.executable,
+        "python_prefix": sys.prefix,
+        "getfem_module": module,
+        "getfem_mpi_parallelism_level": mpi_level,
+        "docker_marker_present": container_marker,
+        "active_conda_prefix": os.environ.get("CONDA_PREFIX"),
+        "source_commit_verified": False,
+        "note": "Image source identity requires external build provenance.",
+    }
+    if not allow_non_docker:
+        issues = []
+        if not container_marker:
+            issues.append("not running inside a Docker container")
+        if not str(Path(sys.executable).resolve()).startswith(expected_prefix):
+            issues.append(f"Python executable is not in {expected_prefix}")
+        if not module.startswith(expected_prefix):
+            issues.append(f"GetFEM module is not in {expected_prefix}")
+        if mpi_level != 2:
+            issues.append(f"GetFEM MPI level is {mpi_level}, expected 2")
+        if issues:
+            raise RuntimeError(
+                "REFUSING non-qualified GetFEM constructor audit: "
+                + "; ".join(issues)
+                + ". Use the SCRIMP GetFEM-5.5 Docker image. "
+                "For deliberate host diagnostics only, pass --allow-non-docker "
+                "(results will be flagged as NON-QUALIFYING)."
+            )
+    provenance["environment_qualified_for_docker_probe"] = not allow_non_docker
+    return provenance
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--max-order", type=int, default=2,
@@ -155,6 +204,8 @@ def main() -> int:
                         default=Path("sandbox/outputs/getfem55_constructor_audit.json"))
     parser.add_argument("--strict", action="store_true",
                         help="Exit 1 if any constructor did not match its expected dimensions")
+    parser.add_argument("--allow-non-docker", action="store_true",
+                        help="Diagnostic only: override the mandatory Docker/GetFEM MPI-2 guard")
     parser.add_argument("--probe", help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.probe is not None:
@@ -163,6 +214,11 @@ def main() -> int:
         parser.error("--max-order must be between 0 and 5")
     if args.timeout <= 0:
         parser.error("--timeout must be positive")
+    try:
+        provenance = runtime_provenance(allow_non_docker=args.allow_non_docker)
+    except RuntimeError as exc:
+        parser.error(str(exc))
+    print("Runtime provenance:", json.dumps(provenance, sort_keys=True), flush=True)
     rows = catalog(args.max_order)
     results = []
     for row in rows:
@@ -173,7 +229,9 @@ def main() -> int:
         print(f"observed={str(observed):<4} {result['status']}", flush=True)
     out = {
         "audit_type": "constructor_and_local_dimension_only",
-        "source_version_expected": "GetFEM v5.5 tag c242f7fe0989e9a90846c63eaccc6b495d774724",
+        "reference_source_expected": "GetFEM v5.5 tag c242f7fe0989e9a90846c63eaccc6b495d774724",
+        "runtime_provenance": provenance,
+        "qualifying_environment": not args.allow_non_docker,
         "timestamp_utc": datetime.now(timezone.utc).isoformat(),
         "python_executable": sys.executable,
         "max_order": args.max_order,
@@ -185,7 +243,7 @@ def main() -> int:
     print(f"\nConstructor audit: {len(results) - bad}/{len(results)} constructed "
           f"with expected dimensions; {bad} errors/mismatches/timeouts.")
     print(f"JSON report: {args.output}")
-    print("WARNING: This is not an H(div)/H(curl), Piola, or MPI validation.")
+    print("WARNING: MPI level 2 is checked, but this is NOT an MPI-parity, Piola or H(div)/H(curl) validation.")
     return int(args.strict and bad > 0)
 
 
