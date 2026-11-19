@@ -241,7 +241,13 @@ This checks:
    **rejected**, not a supported element.
 2. The existing `sandbox/smoke_modern_stack.py` ABI and MUMPS solve
    pass inside the candidate with **1 and 2 MPI ranks**.
-3. The Conda resolved **explicit package spec**, GetFEM top-level
+3. A **new independent host-side project** is created in a temporary
+   directory. The image runs the actual mass–spring–damper SCRIMP
+   example against this writable bind mount, and the smoke refuses
+   to pass unless `outputs/oscillator.csv` is present **on the
+   host**. It then checks an MPI startup in the same workspace.
+   Neither test reads or writes the developer's real sandbox.
+4. The Conda resolved **explicit package spec**, GetFEM top-level
    patch hashes, image ID and source Git revision are preserved.
 
 The smoke log is
@@ -250,8 +256,8 @@ and patch checksum list are exported to:
 `sandbox/outputs/v130-docker-resolved-spec.txt` and
 `sandbox/outputs/v130-getfem-patch-sha256.txt`.
 
-**Scope limitation:** these are candidate-stack, ABI and FEM
-constructor smokes. They do not replace the earlier full wave
+**Scope limitation:** these are candidate-stack, ABI, user-workspace
+and FEM constructor smokes. They do not replace the earlier full wave
 1/2/4/6-rank strong-scaling qualification or certify physical Maxwell
 power balance, which are distinct release workstreams.
 
