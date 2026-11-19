@@ -7,7 +7,7 @@ this release artifact. This does not publish anything to GitHub/GHCR.
 from __future__ import annotations
 
 import argparse
-from importlib.machinery import SourceFileLoader
+from runpy import run_path
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 
@@ -24,10 +24,9 @@ def main() -> int:
     if output.is_relative_to(TEMPLATE.resolve()):
         parser.error("ZIP output must not be stored inside project-template/")
     # The project generator is the single authoritative allowlist.
-    generator = SourceFileLoader(
-        "scrimp_project_generator", str(ROOT / "scripts/create-scrimp-project.py")
-    ).load_module()
-    files = generator.TEMPLATE_FILES
+    files = run_path(str(ROOT / "scripts/create-scrimp-project.py"))[
+        "TEMPLATE_FILES"
+    ]
     for path in files:
         source = TEMPLATE / path
         if not source.is_file() or source.is_symlink():
