@@ -376,7 +376,7 @@ expected dimensions are 6/12 in 2D and 12/30 in 3D.
 ### Nédélec-II nodal source proposal: experimental only (19 November 2026)
 
 The new experimental source patch is
-`scripts/patches/getfem-5.5/experimental/0004-nedelec-second-kind-simplices.patch`
+`scripts/patches/getfem-5.5/0004-nedelec-second-kind-simplices.patch`
 and registers `FEM_NEDELEC2(N,K)` on triangles/tetrahedra **for k=1,2
 only**. The local vector polynomial space is `[P_k]^d`. It uses
 k+1 pointwise edge tangential samples and, when k=2, three
@@ -406,3 +406,42 @@ k=1/2 dimensions, shared-face/edge DoF counts, SPD mass matrices
 and two-cell tangential traces. **The Nédélec-II source has not been
 compiled or executed yet.** Do not promote it to the standard Docker
 build until this smoke passes.
+
+### Nédélec II, k=1/2: lean native Docker acceptance PASS (19 November 2026)
+
+The user ran `scripts/test-getfem55-nedelec2-patch-in-docker.sh`
+successfully against official GetFEM 5.5 with MPI parallelism level 2
+and the SCRIMP patch sequence `0001` (BDM), `0002` (Python link),
+`0003` (Nédélec I), `0004` (Nédélec II). C++ compilation, binding
+linking and all four cases passed (two triangles / two tetrahedra,
+including reversed edge / face orientation):
+
+| Simplex | k | Local DoFs | Global DoFs (2 cells) | Minimum mass eigenvalue | Largest relative tangential mismatch |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Triangle | 1 | 6 | 10 | 7.626e-2 | 2.030e-7 |
+| Triangle | 2 | 12 | 21 | 2.016e-2 | 1.446e-6 |
+| Tetrahedron | 1 | 12 | 18 | 1.027e-2 | 1.258e-7 |
+| Tetrahedron | 2 | 30 | 48 | 2.111e-3 | 1.042e-6 |
+
+All mass matrices are symmetric within the printed precision and
+positive definite. The tangential traces use two deterministic global
+coefficient vectors at five locations per shared edge/face, evaluated
+at ±1e-7 offsets. The small nonzero differences are compatible
+with smooth variation across the 2e-7 separation.
+
+**This closes Nédélec II only for the explicitly implemented orders
+k=1,2**, on triangles/tetrahedra, for our SCRIMP-first lean native
+gate. The `0004` patch was promoted from `experimental/` to the
+top-level production GetFEM patch list following this successful run.
+This does **not** prove compliance on arbitrary curved meshes, MPI
+multi-rank numerical equivalence, or Maxwell energy/power preservation.
+
+**Important limitation raised by the user:** unlike the parameterized
+Nédélec-I prototype, Nédélec-II currently rejects k>=3 at construction
+time. Nédélec-I accepts higher k in the source but k>=3 has not been
+validated. BDM tetrahedral tests cover k=1,2 only; GetFEM's RT family
+is native and was not separately retested in this workstream.
+Therefore do not claim that all four families support arbitrary k.
+A general Nédélec-II construction requires a systematic high-order
+set of face/interior DoFs and their orientation; the current k<=2
+nodal scheme is insufficient at higher k.
