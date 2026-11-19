@@ -111,8 +111,11 @@ into an isolated Docker context:
    bash scripts/build-v130-docker-candidate.sh
    bash scripts/smoke-v130-docker-candidate.sh
 
-The development tag is scrimp-mpi:v1.3.0-rc1. It has not yet passed
-its first full build. This tag is the *pre-release default* in
+The development tag is scrimp-mpi:v1.3.0-rc1. It **passed its
+first native Docker build and 1/2-rank CLI smoke on 19 November 2026**,
+including a newly scaffolded project, an actual serial oscillator
+simulation and a CSV saved on the host. It is not yet release-qualified
+or published. This tag is the *pre-release default* in
 the project's .devcontainer configuration. The Docker build **does
 not access any local simulations**, even from a developer checkout.
 Explicit library development with uncommitted changes uses
@@ -199,8 +202,10 @@ a Docker image locally, which still targets a Linux container.
 Known limitations / release gates
 ---------------------------------
 
-- The candidate image, native compatibility and VS Code workflows
-  have NOT yet been validated on Linux/Windows/macOS/Apple Silicon.
+- The candidate image has **passed its native Linux build and
+  1/2-rank CLI smoke**. Actual VS Code Dev Containers GUI workflow,
+  native compatibility and Windows/macOS/Apple Silicon remain
+  unqualified; do not extrapolate the Linux smoke to these platforms.
 - The public GHCR v1.3.0 tag and starter project ZIP are not
   published; both require an accepted release.
 - The introductory oscillator is a serial model; use validated
