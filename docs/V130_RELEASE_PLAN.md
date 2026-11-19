@@ -286,11 +286,14 @@ The independent source-level and native findings are in
   `scripts/patches/getfem-5.5/` and are applied by
   `scripts/build-getfem-mpi.sh`. Do not modify the upstream source tree
   inside SCRIMP's repository or change point-0 production solvers.
-- Add missing parameterized Nédélec first-kind and second-kind families
-  on **simplices**; document order conventions and the distinction
-  between local polynomial dimension and *globally conforming* DoFs.
-  Do not falsely advertise an unverified local construction as an
-  H(curl)-conforming production element.
+- Add Nédélec first-kind and second-kind families on **simplices**;
+  document order conventions and the distinction between local
+  polynomial dimension and *globally conforming* DoFs. **Release-gated
+  orders are k=1,2 only** (plus the pre-existing Nédélec-I k=0).
+  Nédélec-I is coded parametrically but k>=3 remains unvalidated;
+  **Nédélec-II is implemented only for k=1,2 and rejects k>=3**.
+  Arbitrary-order support is still an enhancement, not a completed
+  deliverable. Do not advertise unverified H(curl) elements.
 - Keep checks **lean and purposeful**: constructors and expected local
   dimensions (initially k<=2, plus one higher-order smoke), a two-cell
   orientation/normal-or-tangent trace check, and a small assembly test.
@@ -318,16 +321,20 @@ lean k=1,2 scope** and has been moved to the approved top-level patch
 series. Its disposable native smoke passed on triangles/tetrahedra
 (k=1/2): expected two-cell connectivity, SPD mass matrices and
 tangential trace differences at most 2.385e-6 relative.
-Nédélec-II `0004` has been implemented as an **experimental**
-nodal k=1/2 simplex patch; exact reference interpolation ranks
-(6/12 triangle, 12/30 tetrahedron) are full. Its Docker C++
-compilation, two-cell connectivity, mass assembly and tangential
-traces **remain pending**. Test it using
-`scripts/test-getfem55-nedelec2-patch-in-docker.sh`, without
-changing the qualified production image. The old-host-conda 5/14 run is
+Nédélec-II `0004` has now **passed** the same native targeted
+checks for k=1,2 on triangles/tetrahedra (6/12 local DoFs in 2D,
+12/30 local DoFs in 3D; two-cell shared DoFs 10/21 in 2D and
+18/48 in 3D; SPD mass matrices; relative tangential mismatch
+at most 1.446e-6). It has been promoted to the approved top-level
+patch sequence, **with the explicit k=1,2 constructor restriction**.
+A general `k>=3` Nédélec-II implementation requires new face and
+interior functionals and is not included. No claim of all-order
+family support is made. 
+The old-host-conda 5/14 run is
 non-qualifying and must not be cited as a GetFEM 5.5 regression.
 
-Exit: SCRIMP's selected simplex families can be constructed and used in
+Exit for the lean GetFEM gate: SCRIMP's selected simplex families at
+the explicitly accepted k=1,2 orders can be constructed and used in
 small representative sequential tests with no known interface
 misorientation, and the GetFEM source changes remain explicit,
 version-pinned and available as self-contained patches. Upstream
