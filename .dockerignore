@@ -1,0 +1,26 @@
+# Keep MPI image context small and deterministic.
+.git
+.github
+.idea
+.build
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/.pytest_cache
+**/.mypy_cache
+**/.venv
+*.egg-info
+build
+dist
+outputs
+sandbox/outputs
+*.log
+*.petscbin
+*.mp4
+*.png
+*.jpg
+*.jpeg
+*.pdf
+*.vtk
+*.vtu
+*.msh

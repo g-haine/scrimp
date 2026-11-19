@@ -12,7 +12,47 @@ jobs:
           python-version: "3.11"
       - name: Compile modified Python sources
         run: |
-          python -m py_compile scrimp/dphs.py scrimp/utils/linalg.py tests/test_parallel_powers.py tests/test_mpi_algebra.py sandbox/viscous_swe_2d_mpi.py sandbox/test_petsc_mumps_reset.py sandbox/check_swe_implicit_jacobian.py sandbox/check_getfem_mpi_rhs.py sandbox/replay_petsc_mumps_snapshot.py
+          python -m py_compile scrimp/dphs.py scrimp/utils/linalg.py scrimp/utils/profiling.py tests/test_profiling.py tests/test_parallel_powers.py tests/test_mpi_algebra.py sandbox/viscous_swe_2d_mpi.py sandbox/test_petsc_mumps_reset.py sandbox/check_petsc_mumps_symbolic_reuse.py sandbox/check_acoustic_state_parity.py sandbox/check_swe_implicit_jacobian.py sandbox/check_getfem_mpi_rhs.py sandbox/replay_petsc_mumps_snapshot.py sandbox/bench_acoustic_2d.py sandbox/analyze_acoustic_scaling.py sandbox/check_acoustic_energy_mpi.py sandbox/analyze_acoustic_power_balance.py sandbox/smoke_modern_stack.py sandbox/diagnose_getfem_mpi_assembly.py sandbox/analyze_getfem_mpi_assembly.py scripts/patch-getfem-mpi-timing.py tests/test_getfem_timing_patch.py
+      - name: Validate opt-in SCRIMP profiling
+        run: |
+          python -m unittest -v tests.test_profiling
+      - name: Validate native GetFEM MPI timing patch
+        run: |
+          python -m unittest -v tests.test_getfem_timing_patch
+      - name: Validate asynchronous binary I/O protocol (no MPI/PETSc)
+        run: |
+          python -m pip install 'numpy>=1.24,<3'
+          python -m py_compile scrimp/utils/async_binary_trajectory.py sandbox/async_binary_trajectory.py sandbox/check_async_binary_mpi.py sandbox/probe_async_binary_mpi.py sandbox/verify_async_acoustic.py sandbox/compare_async_acoustic.py sandbox/verify_async_swe.py sandbox/compare_async_swe.py tests/test_async_binary_trajectory.py tests/test_async_swe_comparison.py
+          bash -n sandbox/run_async_binary_smoke.sh sandbox/run_async_acoustic_parity.sh sandbox/run_async_swe_parity.sh
+          python -m unittest -v tests.test_async_binary_trajectory tests.test_async_swe_comparison
+      - name: Validate compact matrix algebra and A/B gates (no PETSc)
+        run: |
+          python -m py_compile scrimp/utils/matrix_memory.py scrimp/utils/phase_memory_audit.py sandbox/matrix_memory_metrics.py sandbox/compare_compact_matrix.py sandbox/analyze_phase_memory.py tests/test_matrix_memory.py tests/test_compact_matrix_comparison.py tests/test_phase_memory_audit.py
+          bash -n sandbox/run_compact_matrix_parity.sh
+          python -m unittest -v tests.test_matrix_memory tests.test_compact_matrix_comparison tests.test_phase_memory_audit
+      - name: Validate pH-DAE block ordering and MPI sparse audit (no PETSc)
+        run: |
+          python -m pip install 'scipy>=1.10,<2'
+          python -m py_compile scrimp/utils/mesh.py scrimp/utils/ph_block_layout.py sandbox/audit_ph_blocks.py sandbox/compare_ph_block_audits.py sandbox/diagnose_ph_block_parity.py sandbox/compare_raw_getfem_petsc.py tests/test_ph_block_layout.py tests/test_ph_block_comparison.py tests/test_getfem_bridge_localization.py tests/test_concentric_region_integrity.py
+          bash -n sandbox/run_ph_block_audit.sh
+          python -m unittest -v tests.test_ph_block_layout tests.test_ph_block_comparison tests.test_getfem_bridge_localization tests.test_concentric_region_integrity
+      - name: Validate coenergy MPI physical power and full-trajectory gates (no PETSc)
+        run: |
+          python -m py_compile sandbox/verify_coenergy_power_mpi.py sandbox/compare_coenergy_power_mpi.py tests/test_coenergy_power_mpi.py
+          bash -n sandbox/run_coenergy_power_mpi.sh
+          python -m unittest -v tests.test_coenergy_power_mpi
+      - name: Validate native constitutive MUMPS/Schur probe gates (no PETSc)
+        run: |
+          python -m py_compile sandbox/probe_constitutive_mumps_schur.py sandbox/compare_constitutive_mumps_schur.py tests/test_constitutive_schur.py
+          bash -n sandbox/run_constitutive_mumps_schur.sh
+          python -m unittest -v tests.test_constitutive_schur
+      - name: Validate v1.2.0 versus COO/MPI benchmark figures
+        run: |
+          python -m pip install 'matplotlib>=3.7,<4'
+          python -m py_compile sandbox/bench_wave_release_scaling.py sandbox/analyze_v130_wave_benchmark.py sandbox/analyze_v130_large_wave_scaling.py sandbox/plot_release120_coo_scaling.py sandbox/diagnose_release120_states.py tests/test_release120_scaling_plots.py tests/test_mumps_numeric_reuse.py tests/test_v130_wave_figures.py tests/test_v130_large_wave_scaling.py tests/test_initial_consistency_sync.py
+          bash -n sandbox/run_release120_coo_scaling.sh sandbox/run_v130_wave_benchmark.sh sandbox/run_v130_numeric_reuse_smoke.sh sandbox/run_v130_large_wave_scaling.sh sandbox/run_wave_initial_sync_probe.sh sandbox/run_wave_initial_state_regression.sh sandbox/run_coo_factorization_probe.sh
+          python -m py_compile sandbox/analyze_v130_wave_benchmark.py tests/test_mumps_numeric_reuse.py
+          python -m unittest -v tests.test_release120_scaling_plots tests.test_v130_wave_figures tests.test_v130_large_wave_scaling tests.test_initial_consistency_sync
       - name: Validate SCRIMP source headers
         run: |
           python -m unittest -v tests.test_python_headers

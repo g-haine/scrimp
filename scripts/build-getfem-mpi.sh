@@ -1,0 +1,117 @@
+#!/usr/bin/env bash
+# Build the official GetFEM release against the *active* conda/MPI stack.
+# The source tarball avoids tracking upstream development HEAD.
+set -euo pipefail
+
+: "${CONDA_PREFIX:?Activate the target conda/micromamba environment first}"
+GETFEM_VERSION="${GETFEM_VERSION:-5.5}"
+GETFEM_SOURCE="${GETFEM_SOURCE:-release}"  # release or git
+GETFEM_REF="${GETFEM_REF:-master}"
+GETFEM_PREFIX="${GETFEM_PREFIX:-$CONDA_PREFIX}"
+MAKE_JOBS="${MAKE_JOBS:-4}"
+BUILD_DIR="${GETFEM_BUILD_DIR:-$PWD/.build/getfem}"
+mkdir -p "$BUILD_DIR"
+
+export PATH="$CONDA_PREFIX/bin:$PATH"
+export PKG_CONFIG_PATH="$CONDA_PREFIX/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
+export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:${LD_LIBRARY_PATH:-}"
+export CPPFLAGS="-I$CONDA_PREFIX/include ${CPPFLAGS:-}"
+export LDFLAGS="-L$CONDA_PREFIX/lib -Wl,-rpath,$CONDA_PREFIX/lib ${LDFLAGS:-}"
+export CC="${GETFEM_CC:-mpicc}"
+export CXX="${GETFEM_CXX:-mpicxx}"
+export FC="${GETFEM_FC:-mpifort}"
+
+# Autoconf/libtool can silently substitute "false" for an absent
+# archiver and only fail after compiling all GetFEM C++ objects:
+#   libtool: link: false cr .libs/libgetfem.a ...
+# Check the complete native toolchain *before* downloading/compiling.
+for tool in "$CC" "$CXX" "$FC" ar ranlib objdump nm file make; do
+  if ! command -v "$tool" >/dev/null 2>&1; then
+    echo "ERROR: missing required GetFEM build tool '$tool'." >&2
+    echo "Ubuntu: sudo apt-get install binutils file" >&2
+    exit 2
+  fi
+done
+export AR="$(command -v ar)"
+export RANLIB="$(command -v ranlib)"
+PYTHON_BIN="$(command -v python)"
+
+if [[ "$GETFEM_SOURCE" == release ]]; then
+  file="$BUILD_DIR/getfem-$GETFEM_VERSION.tar.gz"
+  url="https://download-mirror.savannah.gnu.org/releases/getfem/stable/getfem-$GETFEM_VERSION.tar.gz"
+  if [[ ! -f "$file" ]]; then
+    curl --fail --location --retry 3 --output "$file" "$url"
+  fi
+  if [[ -n "${GETFEM_SHA256:-}" ]]; then
+    echo "$GETFEM_SHA256  $file" | sha256sum -c -
+  else
+    echo "WARNING: no GETFEM_SHA256 configured (experimental build)." >&2
+  fi
+  tar -xzf "$file" -C "$BUILD_DIR"
+  src="$BUILD_DIR/getfem-$GETFEM_VERSION"
+elif [[ "$GETFEM_SOURCE" == git ]]; then
+  command -v git >/dev/null
+  src="$BUILD_DIR/getfem-git"
+  if [[ ! -d "$src/.git" ]]; then
+    git clone https://git.savannah.nongnu.org/git/getfem.git "$src"
+  fi
+  git -C "$src" fetch --tags origin
+  git -C "$src" checkout --detach "$GETFEM_REF"
+  ( cd "$src" && bash autogen.sh )
+else
+  echo "Unsupported GETFEM_SOURCE=$GETFEM_SOURCE (release or git)" >&2
+  exit 2
+fi
+
+# GetFEM 5.5 prints "Assembly time" unconditionally on MPI rank 0
+# during *every* assembly, even with gf.util_trace_level(0).
+# Make this diagnostic opt-in in future native builds; never redirect
+# stdout/stderr from SCRIMP or edit the numerical assembly itself.
+# Refuse unrecognised upstream layouts instead of silently guessing.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+python "$SCRIPT_DIR/patch-getfem-mpi-timing.py" "$src/src/getfem_models.cc"
+
+echo "GetFEM=$GETFEM_VERSION source=$GETFEM_SOURCE"
+echo "MPI=$("$CC" -show 2>/dev/null || command -v "$CC")"
+echo "Python=$PYTHON_BIN NumPy=$(python -c 'import numpy; print(numpy.__version__)')"
+cd "$src"
+./configure \
+  --prefix="$GETFEM_PREFIX" \
+  --enable-python \
+  --enable-paralevel=2 \
+  --with-pic \
+  PYTHON="$PYTHON_BIN" CC="$CC" CXX="$CXX" FC="$FC"
+
+# Fail here rather than shipping an accidentally *serial* GetFEM.
+if ! grep -E 'GETFEM_PARA_LEVEL[^0-9]*2|enable.paralevel[^0-9]*2' config.log >/dev/null; then
+  echo "NOTE: verify configure's MPI level 2 from the runtime smoke." >&2
+fi
+make -j "$MAKE_JOBS"
+
+# GetFEM 5.5 ships GNU Automake 1.16's obsolete "py-compile" helper.
+# That helper still uses "import imp", removed in Python 3.12; the
+# shared library and _getfem extension are already compiled by now.
+# Override only Automake's optional byte-compilation stage while
+# keeping all library, header and extension installation active.
+# The command-line variable propagates to recursive make invocations.
+# Compile real .py modules afterwards using the supported stdlib API.
+echo "Installing GetFEM without legacy Automake py-compile (Python >=3.12)"
+make install 'am__py_compile=:'
+python - <<'PYCOMPILE'
+import compileall
+import pathlib
+import sysconfig
+package = pathlib.Path(sysconfig.get_path("platlib")) / "getfem"
+if not package.is_dir():
+    raise RuntimeError(f"GetFEM Python package missing after install: {package}")
+if not compileall.compile_dir(str(package), quiet=1, force=True):
+    raise RuntimeError(f"Python byte-compilation failed for {package}")
+print("GetFEM Python byte-compiled:", package)
+PYCOMPILE
+
+python - <<'PY'
+import getfem
+level = int(getfem.util_mpi_parallelism_level())
+assert level == 2, f"GetFEM compiled without MPI level 2: {level}"
+print("GetFEM MPI level:", level)
+PY

@@ -27,15 +27,30 @@ from unittest.mock import Mock, patch
 import numpy as np
 from petsc4py import PETSc
 
-from scrimp.dphs import DPHS, _set_main_ts_default_exact_final_time
+from scrimp.dphs import (DPHS, _set_main_ts_default_exact_final_time,
+                        _getfem_mpi_rhs_scale)
 from scrimp.brick import Brick
 from scrimp.utils import linalg
+from scrimp.utils.profiling import TimingProfiler
 
 
 COMM = PETSc.COMM_WORLD
 RANK = COMM.getRank()
 SIZE = COMM.getSize()
 N = max(8, SIZE * 2)
+
+
+def _partial_dphs():
+    """Construct a minimal DPHS for unit-level algebra tests.
+
+    Tests bypass __init__ intentionally to avoid allocating a full
+    GetFEM model. Mirror the profiler fields required by the assembly
+    methods without introducing timing or MPI collectives.
+    """
+    instance = object.__new__(DPHS)
+    instance.profiler = TimingProfiler(enabled=False)
+    instance._profile_phase = "test"
+    return instance
 
 
 class FakeGetFEMDistributedMatrix:
@@ -67,6 +82,34 @@ class FakeGetFEMDistributedMatrix:
 
 
 class TestMPIAlgebra(unittest.TestCase):
+    def test_acoustic_benchmark_norms_accept_numpy_trajectories(self):
+        """Wave benchmark must accept DPHS's post-solve NumPy arrays.
+
+        A successful Crank-Nicolson wave solve previously failed in
+        *reporting* because it tested a non-empty ndarray's truth value.
+        Preserve complex-state magnitudes as well.
+        """
+        from sandbox.bench_acoustic_2d import _norms
+
+        intervals = {"q": (0, 1), "p": (1, 1)}
+        model = SimpleNamespace(
+            interval_of_variable=lambda name: intervals[name],
+        )
+        system = SimpleNamespace(
+            solution={
+                "z": np.array([
+                    [0.0 + 0.0j, 0.0 + 0.0j],
+                    [3.0 + 4.0j, 5.0 + 12.0j],
+                ]),
+            },
+            gf_model=model,
+        )
+        self.assertEqual(_norms(system), {"q": 5.0, "p": 13.0})
+        system.solution["z"] = []
+        self.assertEqual(_norms(system), {})
+        system.solution["z"] = np.empty((0, 2))
+        self.assertEqual(_norms(system), {})
+
     def test_main_ts_default_exact_final_time_is_matchstep(self):
         """The production TS must not silently overshoot requested t_f.
 
@@ -99,6 +142,53 @@ class TestMPIAlgebra(unittest.TestCase):
         )
         self.assertEqual(saved_t[-1], 0.0003)
 
+    def test_final_solution_filter_avoids_multiple_copies_with_exact_values(self):
+        """Optimized trajectory consolidation must match the legacy output.
+
+        The legacy implementation stacked every state and then copied it
+        again for argsort and the final-time mask. These cases include
+        unsorted timestamps, ULP-roundoff, true STEPOVER, complex states,
+        NumPy pre-stacked input and all-rejected/empty trajectories.
+        """
+        from scrimp.dphs import _select_saved_solution_through_final_time
+
+        def legacy_filter(times, states, final):
+            t = np.asarray(times, dtype=float)
+            z = np.asarray(states)
+            ulps = 32.0 * abs(np.spacing(final if final else 1.0))
+            order = np.argsort(t)
+            t, z = t[order], z[order]
+            keep = t <= final + ulps
+            t, z = t[keep], z[keep]
+            t[np.abs(t - final) <= ulps] = final
+            return t, z
+
+        t = [0.00031, 0.00030000000000000003, 0.0001, 0.0]
+        for dtype in (np.float64, np.complex128):
+            rows = np.arange(4 * 7, dtype=np.float64).reshape((4, 7))
+            if dtype is np.complex128:
+                rows = rows + 1j * (rows + 0.125)
+            rows = rows.astype(dtype)
+            for input_states in (rows, list(rows)):
+                for final in (0.0003, -0.0001):
+                    expected_t, expected_z = legacy_filter(
+                        t, input_states, final
+                    )
+                    actual_t, actual_z = (
+                        _select_saved_solution_through_final_time(
+                            t, input_states, final
+                        )
+                    )
+                    np.testing.assert_array_equal(actual_t, expected_t)
+                    np.testing.assert_array_equal(actual_z, expected_z)
+                    self.assertEqual(actual_z.dtype, expected_z.dtype)
+                    self.assertEqual(actual_z.shape, expected_z.shape)
+        actual_t, actual_z = (
+            _select_saved_solution_through_final_time([], [], 0.1)
+        )
+        self.assertEqual(actual_t.shape, (0,))
+        self.assertEqual(actual_z.shape, (0,))
+
     def test_direct_ifunction_keeps_source_sign_separate_from_nonlinear_rhs(self):
         """MCSS2024 controls: GetFEM rhs=-N(z)+S, but F includes +N+S.
 
@@ -126,7 +216,7 @@ class TestMPIAlgebra(unittest.TestCase):
                 diagonal.destroy()
             return mat
 
-        sys = DPHS.__new__(DPHS)
+        sys = _partial_dphs()
         sys.mass = mat_with_diagonal(0.0)
         sys.stiffness = mat_with_diagonal(-1.0)
         sys.linear_mass = True
@@ -154,6 +244,14 @@ class TestMPIAlgebra(unittest.TestCase):
 
                     def assemble_rhs(source_only=False):
                         calls.append(source_only)
+                        # This mock returns the already-physical RHS:
+                        # alpha=1. Real DPHS.assemble_rhs records the
+                        # full-assembly scale, which IFunction needs for
+                        # the source-aware sign correction. Mirror that
+                        # contract explicitly rather than relying on
+                        # an attribute left by an earlier invocation.
+                        if not source_only:
+                            sys._getfem_full_rhs_scale = 1.0
                         # At a constant u, N(u)=3*u^2 and S=2.
                         # GetFEM returns -N+S before SCRIMP signs.
                         raw = (-3.0 * u**2) + (
@@ -167,7 +265,10 @@ class TestMPIAlgebra(unittest.TestCase):
                     sys.assemble_rhs = assemble_rhs
                     with patch.dict(
                         os.environ,
-                        {"SCRIMP_NONLINEAR_RESIDUAL_FORM": "direct_getfem"},
+                        {
+                            "SCRIMP_NONLINEAR_RESIDUAL_FORM": "direct_getfem",
+                            "SCRIMP_GETFEM_SOURCE_RHS_MODE": "raw",
+                        },
                     ):
                         sys.IFunction(None, 0.0, z, zd, F)
                     expected = -u + 3.0*u**2 + (
@@ -217,7 +318,7 @@ class TestMPIAlgebra(unittest.TestCase):
                 return {"h": (0, 2), "p": (2, 2),
                         "e_h": (4, 1)}[name]
 
-        d = DPHS.__new__(DPHS)
+        d = _partial_dphs()
         d.ports = {
             "height": DummyPort("h", "e_h"),
             "momentum": DummyPort("p", "e_h"),
@@ -247,8 +348,15 @@ class TestMPIAlgebra(unittest.TestCase):
         mat.setUp()
         fake = FakeGetFEMDistributedMatrix()
         try:
-            with patch.dict(os.environ, {"SCRIMP_GETFEM_MATRIX_MODE": "distributed"}), \
-                    patch.object(linalg.gf, "Spmat", return_value=fake):
+            with patch.dict(os.environ, {
+                    "SCRIMP_GETFEM_MATRIX_MODE": "distributed",
+                    # The user-facing CSR alias must follow exactly the
+                    # established distributed IJV/ADD_VALUES semantics.
+                    "SCRIMP_GETFEM_BRIDGE_DISTRIBUTED": "csr",
+                    # Must have NO effect in distributed mode: incoming
+                    # contributions may target remote PETSc-owned rows.
+                    "SCRIMP_GETFEM_BRIDGE_REPLICATED": "owned_rows",
+                }), patch.object(linalg.gf, "Spmat", return_value=fake):
                 for _ in range(2):
                     # Reassembly must REPLACE old entries, not double the
                     # operator across Newton iterations.
@@ -301,6 +409,240 @@ class TestMPIAlgebra(unittest.TestCase):
         finally:
             mat.destroy()
 
+    def test_real_getfem_distributed_coo_matches_existing_petsc_mat(self):
+        """In-place COO must preserve the pre-initialized Mat and CSR.
+
+        Unlike the standalone sandbox probe, both matrices are created
+        by SCRIMP.init_matrix(), which inserts structural diagonal zeros
+        before the GetFEM bridge. Repeated transfers must preserve the
+        PETSc handle and exact stored CSR structure; the distributed
+        IJV path remains in use for ineligible nonlinear assemblies.
+        An environment-free distributed eligible call must pick COO.
+        """
+        gf = linalg.gf
+        if int(gf.util_mpi_parallelism_level()) != 2:
+            self.skipTest("requires GetFEM MPI level 2")
+        mesh = gf.Mesh("cartesian", np.linspace(0., 1., 17))
+        mf = gf.MeshFem(mesh, 1)
+        mf.set_fem(gf.Fem("FEM_PK(1,1)"))
+        mim = gf.MeshIm(mesh, gf.Integ("IM_GAUSS1D(5)"))
+        model = gf.Model("real")
+        model.add_fem_variable("u", mf)
+        model.add_linear_term(mim, "u*Test_u")
+        n = model.nbdof()
+        system = _partial_dphs()
+        system.gf_model = model
+        reference = PETSc.Mat().create(comm=COMM)
+        candidate = PETSc.Mat().create(comm=COMM)
+        default_candidate = PETSc.Mat().create(comm=COMM)
+        try:
+            system.init_matrix(reference)
+            system.init_matrix(candidate)
+            system.init_matrix(default_candidate)
+            original_candidate = candidate
+            for _ in range(2):
+                model.assembly(option="build_matrix")
+                tangent = model.tangent_matrix()
+                with patch.dict(os.environ, {
+                    "SCRIMP_GETFEM_MATRIX_MODE": "distributed",
+                    "SCRIMP_GETFEM_BRIDGE_DISTRIBUTED": "coo",
+                }):
+                    # Eligibility must be opt-in at the CALL SITE,
+                    # not inferred from an environment variable alone.
+                    linalg.convert_gmm_to_petsc(tangent, reference)
+                    profiler = TimingProfiler(enabled=True)
+                    linalg.convert_gmm_to_petsc(
+                        tangent, candidate, profiler=profiler,
+                        profile_label="test.bridge",
+                        distributed_coo_eligible=True,
+                    )
+                # Exercise the TRUE default: no assembly-method
+                # override in the process environment.
+                with patch.dict(os.environ, {
+                    "SCRIMP_GETFEM_MATRIX_MODE": "distributed",
+                }):
+                    # Remove only the bridge override. Clearing ALL
+                    # environment variables in an MPI rank could remove
+                    # PMIx/OpenMPI runtime configuration unexpectedly.
+                    os.environ.pop(
+                        "SCRIMP_GETFEM_BRIDGE_DISTRIBUTED", None
+                    )
+                    default_profiler = TimingProfiler(enabled=True)
+                    linalg.convert_gmm_to_petsc(
+                        tangent, default_candidate,
+                        profiler=default_profiler,
+                        profile_label="test.default",
+                        distributed_coo_eligible=True,
+                    )
+                self.assertEqual(
+                    default_profiler._calls[
+                        "test.default.petsc.coo.preallocate"
+                    ], 1
+                )
+                self.assertEqual(
+                    default_profiler._calls[
+                        "test.default.petsc.coo.set_values"
+                    ], 1
+                )
+                self.assertIs(candidate, original_candidate)
+                self.assertEqual(
+                    profiler._calls["test.bridge.petsc.coo.preallocate"], 1
+                )
+                self.assertEqual(
+                    profiler._calls["test.bridge.petsc.coo.set_values"], 1
+                )
+                expected = reference.getValuesCSR()
+                actual = candidate.getValuesCSR()
+                default_values = default_candidate.getValuesCSR()
+                for current in (actual, default_values):
+                    np.testing.assert_array_equal(current[0], expected[0])
+                    np.testing.assert_array_equal(current[1], expected[1])
+                    np.testing.assert_allclose(
+                        current[2], expected[2], rtol=1e-12, atol=1e-12
+                    )
+                x = candidate.createVecRight()
+                y = candidate.createVecLeft()
+                try:
+                    x.set(1.)
+                    candidate.mult(x, y)
+                    self.assertAlmostEqual(
+                        float(np.real(x.dot(y))), 1., places=9
+                    )
+                finally:
+                    x.destroy()
+                    y.destroy()
+        finally:
+            default_candidate.destroy()
+            candidate.destroy()
+            reference.destroy()
+
+    def test_bridge_subphase_profile_uses_existing_profiler(self):
+        """Bridge timings must be local-only, not new MPI collectives.
+
+        The synthetic globally numbered distributed contributions exercise
+        the ADD_VALUES path. Profiling must not alter its PETSc result.
+        """
+        mat = PETSc.Mat().createAIJ(size=(N, N), comm=COMM)
+        mat.setUp()
+        profiler = TimingProfiler(enabled=True)
+        fake = FakeGetFEMDistributedMatrix()
+        try:
+            with patch.dict(os.environ, {
+                "SCRIMP_GETFEM_MATRIX_MODE": "distributed",
+            }), patch.object(linalg.gf, "Spmat", return_value=fake):
+                linalg.convert_gmm_to_petsc(
+                    object(), mat, profiler=profiler,
+                    profile_label="test.bridge",
+                )
+            for step in (
+                "getfem.copy",
+                "getfem.transpose",
+                "getfem.csr_extract",
+                "csr_validate",
+                "petsc.zero_entries",
+                "petsc.insert",
+                "petsc.assemble",
+            ):
+                self.assertEqual(
+                    profiler._calls[f"test.bridge.{step}"], 1,
+                    f"Missing existing-profiler bridge event: {step}",
+                )
+            x, y = mat.createVecRight(), mat.createVecLeft()
+            try:
+                x.set(1.0)
+                mat.mult(x, y)
+                np.testing.assert_allclose(
+                    y.getArray(readonly=True),
+                    1.0, atol=1e-11, rtol=1e-11,
+                )
+            finally:
+                y.destroy()
+                x.destroy()
+        finally:
+            mat.destroy()
+
+    def test_replicated_owned_rows_matches_full_real_getfem(self):
+        """Experimental local extraction must preserve stored CSR AND values.
+
+        This checks native linear and state-dependent nonlinear tangents,
+        including GetFEM's explicit stored-zero slots on MPI builds.
+        A physical integral alone would NOT detect sparsity differences
+        that change MUMPS symbolic-factorization reuse.
+        Run at 1/2/4/6 ranks; PETSc owns different global rows on each.
+        """
+        gf = linalg.gf
+        mesh = gf.Mesh("cartesian", np.linspace(0.0, 1.0, 17))
+        mf = gf.MeshFem(mesh, 1)
+        mf.set_fem(gf.Fem("FEM_PK(1,1)"))
+        mim = gf.MeshIm(mesh, gf.Integ("IM_GAUSS1D(5)"))
+        # Keep the C++ GetFEM model dependencies alive until both PETSc
+        # matrices have been fully tested and destroyed.
+        _dependencies = (mesh, mf, mim)
+
+        for nonlinear in (False, True):
+            model = gf.Model("real")
+            model.add_fem_variable("u", mf)
+            if nonlinear:
+                model.add_nonlinear_term(mim, "u*u*Test_u")
+            else:
+                model.add_linear_term(mim, "u*Test_u")
+            n = int(model.nbdof())
+            full = PETSc.Mat().createAIJ(size=(n, n), comm=COMM)
+            local = PETSc.Mat().createAIJ(size=(n, n), comm=COMM)
+            full.setUp()
+            local.setUp()
+            try:
+                for c in (1.0, 2.0):
+                    model.set_variable("u", np.full(n, c))
+                    model.assembly(option="build_matrix")
+                    tangent = model.tangent_matrix()
+                    with patch.dict(os.environ, {
+                        "SCRIMP_GETFEM_MATRIX_MODE": "replicated",
+                        "SCRIMP_GETFEM_BRIDGE_REPLICATED": "full",
+                    }):
+                        linalg.convert_gmm_to_petsc(tangent, full)
+                    with patch.dict(os.environ, {
+                        "SCRIMP_GETFEM_MATRIX_MODE": "replicated",
+                        "SCRIMP_GETFEM_BRIDGE_REPLICATED": "owned_rows",
+                    }):
+                        linalg.convert_gmm_to_petsc(tangent, local)
+
+                    full_csr = full.getValuesCSR()
+                    local_csr = local.getValuesCSR()
+                    np.testing.assert_array_equal(
+                        local_csr[0], full_csr[0],
+                        err_msg="Owned-row extraction changed CSR row pointers",
+                    )
+                    np.testing.assert_array_equal(
+                        local_csr[1], full_csr[1],
+                        err_msg="Owned-row extraction changed stored columns",
+                    )
+                    np.testing.assert_allclose(
+                        local_csr[2], full_csr[2],
+                        rtol=1e-13, atol=1e-13,
+                        err_msg="Owned-row extraction changed matrix values",
+                    )
+
+                    x = full.createVecRight()
+                    y_full = full.createVecLeft()
+                    y_local = local.createVecLeft()
+                    try:
+                        x.set(1.0)
+                        full.mult(x, y_full)
+                        local.mult(x, y_local)
+                        np.testing.assert_allclose(
+                            y_local.getArray(readonly=True),
+                            y_full.getArray(readonly=True),
+                            rtol=1e-13, atol=1e-13,
+                        )
+                    finally:
+                        y_local.destroy()
+                        y_full.destroy()
+                        x.destroy()
+            finally:
+                local.destroy()
+                full.destroy()
+
     def test_real_getfem_mpi2_mass_matrix_is_rank_independent(self):
         """A real GetFEM model must integrate the constant 1 on [0,1].
 
@@ -327,8 +669,10 @@ class TestMPIAlgebra(unittest.TestCase):
         mat.setUp()
         mat.setOption(PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR, False)
         try:
-            with patch.dict(os.environ, {"SCRIMP_GETFEM_MATRIX_MODE": "replicated"}):
-                linalg.convert_gmm_to_petsc(model.tangent_matrix(), mat)
+            # Unlike the original local GetFEM 5.4.2 install, 5.5
+            # supplies distributed native tangent contributions. Respect
+            # the matrix mode selected for the actual environment.
+            linalg.convert_gmm_to_petsc(model.tangent_matrix(), mat)
             x, y = mat.createVecRight(), mat.createVecLeft()
             try:
                 x.set(1.0)
@@ -363,21 +707,20 @@ class TestMPIAlgebra(unittest.TestCase):
         mat.setUp()
         mat.setOption(PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR, False)
         try:
-            with patch.dict(os.environ, {"SCRIMP_GETFEM_MATRIX_MODE": "replicated"}):
-                for c in (1.0, 2.0):
-                    model.set_variable("u", np.full(n, c, dtype=float))
-                    model.assembly(option="build_matrix")
-                    linalg.convert_gmm_to_petsc(model.tangent_matrix(), mat)
-                    x, y = mat.createVecRight(), mat.createVecLeft()
-                    try:
-                        x.set(1.0)
-                        mat.mult(x, y)
-                        self.assertAlmostEqual(
-                            float(np.real(x.dot(y))), 2.0*c, places=9
-                        )
-                    finally:
-                        x.destroy()
-                        y.destroy()
+            for c in (1.0, 2.0):
+                model.set_variable("u", np.full(n, c, dtype=float))
+                model.assembly(option="build_matrix")
+                linalg.convert_gmm_to_petsc(model.tangent_matrix(), mat)
+                x, y = mat.createVecRight(), mat.createVecLeft()
+                try:
+                    x.set(1.0)
+                    mat.mult(x, y)
+                    self.assertAlmostEqual(
+                        float(np.real(x.dot(y))), 2.0*c, places=9
+                    )
+                finally:
+                    x.destroy()
+                    y.destroy()
         finally:
             mat.destroy()
 
@@ -406,7 +749,7 @@ class TestMPIAlgebra(unittest.TestCase):
             assembly=lambda **kwargs: None,
             tangent_matrix=lambda: None,
         )
-        system = object.__new__(DPHS)
+        system = _partial_dphs()
         system.gf_model = model
         system.bricks = {}
         system.mass = linear_diagonal(3.0)
@@ -473,7 +816,7 @@ class TestMPIAlgebra(unittest.TestCase):
         an invalid way to fill the distributed PETSc vector with zero.
         Repeatedly initialize, assemble, then use a PETSc-owned vector.
         """
-        system = object.__new__(DPHS)
+        system = _partial_dphs()
         system.gf_model = SimpleNamespace(nbdof=lambda: N)
         for _ in range(4):
             matrix = PETSc.Mat().create(comm=COMM)
@@ -525,7 +868,7 @@ class TestMPIAlgebra(unittest.TestCase):
         mass = diag_matrix(2.0)
         A = diag_matrix(0.0)
         P = diag_matrix(0.0)
-        system = object.__new__(DPHS)
+        system = _partial_dphs()
         system.gf_model = SimpleNamespace(set_time=lambda t: None)
         system.lumped_variables = set()
         system.linear_mass = True
@@ -584,7 +927,7 @@ class TestMPIAlgebra(unittest.TestCase):
         mass = diagonal_matrix(3.0)
         A = diagonal_matrix(0.0)
         P = diagonal_matrix(0.0)
-        system = object.__new__(DPHS)
+        system = _partial_dphs()
         system.gf_model = SimpleNamespace(set_time=lambda t: None)
         system.lumped_variables = set()
         system.linear_mass = True
@@ -633,7 +976,7 @@ class TestMPIAlgebra(unittest.TestCase):
         n = model.nbdof()
         model.set_variable("u", np.ones(n))
         rhs = PETSc.Vec().createMPI(n, comm=COMM)
-        system = object.__new__(DPHS)
+        system = _partial_dphs()
         system.gf_model = model
         system.bricks = {}
         system.rhs = rhs
@@ -669,13 +1012,15 @@ class TestMPIAlgebra(unittest.TestCase):
             rhs.destroy()
 
     def test_source_aware_rhs_recovers_mixed_getfem_control_on_mpi(self):
-        """Prescribed sources are summed once; nonlinear RHS is P-fold.
+        """Source-aware model must retain the actual forcing on all ranks.
 
-        The tested GetFEM 5.4.2 MPI-2 build assembles an explicit
-        source brick globally (no P-fold duplication), but nonlinear
-        generic terms P times. Use a real GetFEM model plus the REAL
-        DPHS.assemble_rhs/IFunction to confirm N+S=1+2=3 at 1/2/4
-        ranks, not 1+2/P. The new behavior is opt-in.
+        The tested local GetFEM 5.4.2 has generic RHS multiplied by
+        P and source RHS assembled once. GetFEM 5.5 may instead have
+        a correct (factor=1) generic RHS. Never assume that generic
+        RHS *must* be P-fold: let SCRIMP calibrate it from an exact
+        integral, then assert that unscaled source recovers N+S=3.
+        Independent native probes classify source scaling on each
+        installed GetFEM build before this SCRIMP integration test.
         """
         gf = linalg.gf
         if int(gf.util_mpi_parallelism_level()) != 2:
@@ -707,7 +1052,7 @@ class TestMPIAlgebra(unittest.TestCase):
         model.disable_bricks([nonlinear_id, source_id])
         model.set_variable("u", np.ones(model.nbdof()))
 
-        system = DPHS.__new__(DPHS)
+        system = _partial_dphs()
         system.gf_model = model
         system.bricks = {"nonlinear": nonlinear, "source": source}
         system.linear_mass = True
@@ -731,20 +1076,27 @@ class TestMPIAlgebra(unittest.TestCase):
         z.set(1.0)
         zd.set(0.0)
         try:
-            for source_mode, expected in (
-                ("match_generic", 1.0 + 2.0 / SIZE),
-                ("raw", 3.0),
-            ):
+            for source_mode in ("match_generic", "raw"):
                 with patch.dict(os.environ, {
-                    "SCRIMP_GETFEM_RHS_MODE": "divide_by_mpi_size",
+                    # Auto must select 1 when GetFEM is correct and
+                    # 1/P only when GetFEM's generic weak form is
+                    # actually multiplied by MPI size.
+                    "SCRIMP_GETFEM_RHS_MODE": "auto",
                     "SCRIMP_GETFEM_SOURCE_RHS_MODE": source_mode,
                     "SCRIMP_NONLINEAR_RESIDUAL_FORM": "direct_getfem",
                 }):
                     system.IFunction(None, 0.0, z, zd, F)
+                    generic_scale = _getfem_mpi_rhs_scale()
+                expected = (
+                    1.0 + 2.0 * generic_scale
+                    if source_mode == "match_generic"
+                    else 3.0
+                )
                 self.assertAlmostEqual(
                     float(np.real(F.sum())),
                     expected, places=9,
-                    msg=f"source_mode={source_mode}, ranks={SIZE}",
+                    msg=(f"source_mode={source_mode}, "
+                         f"generic_scale={generic_scale}, ranks={SIZE}"),
                 )
         finally:
             for obj in (
@@ -759,7 +1111,7 @@ class TestMPIAlgebra(unittest.TestCase):
             assembly=lambda **kwargs: None,
             rhs=lambda: np.arange(N, dtype=float) + 1.0,
         )
-        system = object.__new__(DPHS)
+        system = _partial_dphs()
         system.bricks = {}
         system.gf_model = model
         system.rhs = rhs
@@ -782,7 +1134,7 @@ class TestMPIAlgebra(unittest.TestCase):
 
     def test_algebraic_tolerances_preserve_distributed_layout(self):
         residual = PETSc.Vec().createMPI(N, comm=COMM)
-        system = object.__new__(DPHS)
+        system = _partial_dphs()
         system.F = residual
         system.gf_model = SimpleNamespace(
             nbdof=lambda: N,

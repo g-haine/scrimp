@@ -14,6 +14,15 @@
 """
 
 from scrimp.utils.linalg import convert_gmm_to_petsc, extract_gmm_to_scipy
+from scrimp.utils.profiling import TimingProfiler
+from scrimp.utils.initial_state import publish_accepted_pseudo_state
+from scrimp.utils.matrix_memory import (
+    alias_readonly_linear_tangent, add_mass_hessian_fd_reused,
+)
+from scrimp.utils.phase_memory_audit import PhaseMemoryAudit
+from scrimp.utils.async_binary_trajectory import (
+    RankSender, LazyTrajectory, wait_for_manifest,
+)
 from scrimp.hamiltonian import Hamiltonian
 from scrimp.brick import Brick
 from scrimp.control import Control_Port
@@ -29,6 +38,8 @@ import matplotlib.pyplot as plt
 import matplotlib.pylab as pl
 import numpy as np
 import os
+import re
+from mpi4py import MPI
 
 import petsc4py
 import sys
@@ -57,6 +68,19 @@ def _set_main_ts_default_exact_final_time(ts):
     ts.setExactFinalTime(PETSc.TS.ExactFinalTime.MATCHSTEP)
 
 
+def _select_saved_time_indices_through_final_time(times, t_final):
+    """Select time metadata and archive indices without stacking states."""
+    t = np.asarray(times, dtype=float)
+    if not np.isfinite(t_final):
+        raise ValueError("Final time must be finite")
+    ulps = 32.0 * abs(np.spacing(t_final if t_final else 1.0))
+    order = np.argsort(t)
+    kept = order[t[order] <= t_final + ulps]
+    selected = t[kept].copy()
+    selected[np.abs(selected - t_final) <= ulps] = t_final
+    return selected, kept
+
+
 def _select_saved_solution_through_final_time(times, states, t_final):
     """Keep accepted solution snapshots up to t_f with ULP tolerance.
 
@@ -68,18 +92,19 @@ def _select_saved_solution_through_final_time(times, states, t_final):
     than an absolute 1e-12 that could be too coarse for tiny horizons.
     Truly STEPOVER steps beyond the requested horizon remain excluded.
     """
-    t = np.asarray(times, dtype=float)
-    z = np.asarray(states)
-    if not np.isfinite(t_final):
-        raise ValueError("Final time must be finite")
-    ulps = 32.0 * abs(np.spacing(t_final if t_final else 1.0))
-    order = np.argsort(t)
-    t, z = t[order], z[order]
-    keep = t <= t_final + ulps
-    t, z = t[keep], z[keep]
-    # Replace round-off-only endpoint differences, not true STEPOVER.
-    at_end = np.abs(t - t_final) <= ulps
-    t[at_end] = t_final
+    # Filter time indices before materializing any state array.
+    t, kept = _select_saved_time_indices_through_final_time(times, t_final)
+    if isinstance(states, np.ndarray):
+        z = states[kept]  # One indexed copy, same output dtype/shape.
+    elif len(kept):
+        # Exactly one stacked allocation; do not stack rejected states.
+        z = np.stack([states[int(i)] for i in kept], axis=0)
+    elif len(states):
+        # Match historical (0, ...) shape even if every state is rejected.
+        sample = np.asarray(states[0])
+        z = np.empty((0,) + sample.shape, dtype=sample.dtype)
+    else:
+        z = np.asarray(states)
     return t, z
 
 
@@ -171,6 +196,146 @@ def _getfem_source_rhs_mode():
     return mode
 
 
+def _get_mumps_reset_policy(all_bricks_linear=False):
+    """Select the MUMPS reset policy, honoring explicit user overrides.
+
+    With no override: on_change for ALL models (including nominally
+    linear ones). Exact CSR sparsity and coefficient comparisons are
+    necessary because linear does not imply time-invariant, and TS shift
+    can change under variable-step integration.
+    The legacy boolean flag is still accepted for old benchmarks.
+    An explicit policy ALWAYS wins over automatic linearity detection.
+    """
+    policy = os.environ.get("SCRIMP_MUMPS_RESET_POLICY")
+    if policy is None:
+        legacy = os.environ.get("SCRIMP_MUMPS_RESET_PC_ON_JACOBIAN")
+        if legacy is None:
+            return "on_change"
+        if legacy == "1":
+            return "always"
+        if legacy == "0":
+            return "never"
+        raise ValueError(
+            "SCRIMP_MUMPS_RESET_PC_ON_JACOBIAN must be 0 or 1"
+        )
+    policy = policy.strip().lower()
+    if policy not in ("on_change", "always", "never"):
+        raise ValueError(
+            "SCRIMP_MUMPS_RESET_POLICY must be on_change, always or never"
+        )
+    return policy
+
+
+# Known GWFL time, geometric symbols and elementary functions only.
+# Any unknown identifier is deliberately classified as potentially
+# state-dependent: custom macros may hide references to GetFEM variables.
+# Do NOT infer that all "source" bricks are independent of the state.
+_PRESCRIBED_CONTROL_SYMBOLS = frozenset({
+    "t", "x", "y", "z", "X", "Normal", "Tangent", "pi", "Pi",
+    "sin", "cos", "tan", "asin", "acos", "atan", "atan2",
+    "sinh", "cosh", "tanh", "exp", "log", "sqrt", "pow",
+    "min", "max", "abs", "sign", "floor", "ceil",
+    "Norm", "Trace", "Grad", "Div", "Det", "Id", "Sym",
+})
+
+
+def _control_expression_is_prescribed(expression, model_variables):
+    """Certify a simple open-loop GWFL control by its lexical symbols.
+
+    All model unknowns take precedence over the safe symbol allowlist.
+    Unknown functions/macros/data yield False (conservative nonlinear
+    feedback path). This deliberately does NOT attempt to parse or
+    expand arbitrary GetFEM user-defined macros.
+    """
+    if not isinstance(expression, str) or not expression.strip():
+        return False
+    # Scientific notation (e.g. 1e-8, 2.5E+4) must not be mistaken
+    # for a model symbol named 'e' or 'E'. Remove numeric literals
+    # before extracting GWFL identifiers, without evaluating code.
+    without_exponents = re.sub(
+        r"(?<![\w.])(?:\d+(?:\.\d*)?|\.\d+)[eE][+-]?\d+\b",
+        "0", expression,
+    )
+    symbols = set(re.findall(r"\b[A-Za-z_][A-Za-z0-9_]*\b", without_exponents))
+    # Match complete identifiers, so Y and Y_n cannot be confused.
+    unknowns = symbols.difference(_PRESCRIBED_CONTROL_SYMBOLS)
+    return not symbols.intersection(model_variables) and not unknowns
+
+
+def _all_bricks_are_linear(bricks):
+    """Only skip CSR checks for provably affine, fixed-graph systems.
+
+    A GetFEM source brick has no nonlinear Jacobian contribution,
+    but we only trust sources *created by set_control* and certified
+    to be state-independent. User-supplied or unknown source bricks
+    remain conservative. Feedback controls are ordinary nonlinear
+    variational bricks and have proper GetFEM tangents.
+    """
+    return bool(bricks) and all(
+        brick.get_linear()
+        or (
+            brick.get_position() == "source"
+            and getattr(brick, "_scrimp_prescribed_control_source", False)
+        )
+        for brick in bricks.values()
+    )
+
+
+def _local_stored_csr_pattern(matrix):
+    """Snapshot exact stored row pointers/columns of the owned PETSc rows.
+
+    This is the same comparison as the validated standalone PETSc
+    on_change probes. The owned-row interval is also recorded, so a
+    repartition can never masquerade as unchanged local CSR.
+    """
+    rowptr, columns, _values = matrix.getValuesCSR()
+    return (
+        tuple(int(x) for x in matrix.getOwnershipRange()),
+        np.array(rowptr, copy=True),
+        np.array(columns, copy=True),
+    )
+
+
+def _local_csr_pattern_changed(before, after):
+    return (
+        before[0] != after[0]
+        or not np.array_equal(before[1], after[1])
+        or not np.array_equal(before[2], after[2])
+    )
+
+
+def _local_stored_csr_snapshot(matrix):
+    """Exact CSR graph AND numeric values for owned PETSc rows.
+
+    Do not use fingerprints or mathematical linearity assumptions:
+    a changed coefficient or TS shift requires a fresh numeric LU.
+    The snapshot is per rank and includes ownership to catch repartition.
+    """
+    rowptr, columns, values = matrix.getValuesCSR()
+    return (
+        tuple(int(x) for x in matrix.getOwnershipRange()),
+        np.array(rowptr, copy=True),
+        np.array(columns, copy=True),
+        np.array(values, copy=True),
+    )
+
+
+def _local_csr_change_flags(before, after):
+    """Bit 0: graph changed; bit 1: numeric values changed.
+
+    A changed graph necessarily implies a changed operator. Exact
+    comparisons deliberately treat NaN as changed, never as reusable.
+    """
+    if before is None:
+        return 3
+    pattern_changed = _local_csr_pattern_changed(before, after)
+    numeric_changed = (
+        pattern_changed
+        or not np.array_equal(before[3], after[3])
+    )
+    return int(pattern_changed) | (int(numeric_changed) << 1)
+
+
 import scrimp.utils.config
 outputs_path = scrimp.utils.config.outputs_path
 
@@ -191,6 +356,9 @@ class DPHS:
 
         #: The `domain` of a dphs is an object that handle mesh(es) and dict of regions with getfem indices (for each mesh), useful to define `bricks` (i.e. forms) in the getfem syntax
         self.domain = None
+        #: Opt-in, rank-local timing collector (SCRIMP_PROFILE=1).
+        self.profiler = TimingProfiler()
+        self._profile_phase = "setup"
         #: Clear and init `time_scheme` member, which embed PETSc TS options database
         self.get_cleared_TS_options()
         #: The dict of `states`, store many infos for display()
@@ -235,6 +403,17 @@ class DPHS:
         self.solution["t"] = list()
         #: Solution z at time t
         self.solution["z"] = list()
+        #: Only ARCHIVED states change backend; PETSc/TS/Newton state does not.
+        self._trajectory_backend = "memory"
+        self._trajectory_sender = None
+        self._trajectory_directory = None
+        #: Keep historical matrix layout until compact mode is validated.
+        self._matrix_memory_mode = "legacy"
+        self._mass_hessian_fd_probe = None
+        self._mass_hessian_fd_matrix = None
+        self._mass_hessian_fd_probe_allocations = 0
+        self._mass_hessian_fd_matrix_allocations = 0
+        self._mass_hessian_fd_matrix_reuses = 0
         #: To check if the system has been solved
         self.solve_done = False
         #: To stop TS integration by keeping already computed timesteps if one step fails
@@ -261,6 +440,27 @@ class DPHS:
 
         if rank == 0:
             logging.info(f"A model with {basis_field} unknowns has been initialized")
+
+    def get_profile(self):
+        """Collect per-rank timings, call counts and MPI min/mean/max.
+
+        **Collective** when SCRIMP_PROFILE=1: every MPI rank must call
+        this method after solve(). Returns None when profiling is off.
+        Events are inclusive, including nested GetFEM and PETSc work.
+        """
+        return self.profiler.report(comm.tompi4py())
+
+    def _profile_ifunction(self, *args):
+        with self.profiler.measure(
+            f"{self._profile_phase}.petsc.callback.ifunction"
+        ):
+            return self.IFunction(*args)
+
+    def _profile_ijacobian(self, *args):
+        with self.profiler.measure(
+            f"{self._profile_phase}.petsc.callback.ijacobian"
+        ):
+            return self.IJacobian(*args)
 
     def set_domain(self, domain: Domain):
         """This function sets a domain for the dphs.
@@ -689,11 +889,16 @@ class DPHS:
         self.add_port(control_port)
 
     def set_control(self, name, expression):
-        """This function applies a source term `expression` to the control port `name`
+        """Set a prescribed open-loop input or an implicit feedback law.
+
+        State-independent GWFL expressions use an RHS-only GetFEM source.
+        Expressions referencing model variables (or unknown macros)
+        use a nonlinear variational brick so Newton assembles the
+        feedback derivative, not just the control residual.
 
         Args:
-            name (str): the name of the port
-            expression (str): the expression of the source term
+            name (str): the name of the control port
+            expression (str): GWFL scalar/vector/tensor expression
         """
 
         kind = self.controls[name].get_kind()
@@ -723,9 +928,30 @@ class DPHS:
             )
         )
 
-        # Add the source brick
-        self.add_brick(
-            Brick(
+        # A prescribed control (only t, geometry, known mathematical
+        # functions) belongs to the efficient RHS-only source brick.
+        #
+        # A feedback law can depend on another port variable, e.g.
+        # set_control("Interface Heat", "Y_w"). A GetFEM source brick
+        # ignores its Jacobian by design; using it for feedback yields
+        # an inconsistent Newton tangent. Instead, represent a
+        # non-prescribed control as a nonlinear variational term:
+        #       -M_u * u + expression = 0
+        # GetFEM differentiates this term with respect to all model
+        # unknowns. Unrecognized user macros are deliberately treated
+        # as potentially state-dependent; a false positive here costs
+        # assembly time but cannot silently drop a feedback derivative.
+        model_variables = {
+            variable
+            for port in self.ports.values()
+            for variable in (port.get_flow(), port.get_effort())
+            if variable
+        }
+        prescribed = _control_expression_is_prescribed(
+            expression, model_variables
+        )
+        if prescribed:
+            source = Brick(
                 u + "_source",
                 expression,
                 [self.controls[name].get_region()],
@@ -734,7 +960,22 @@ class DPHS:
                 position="source",
                 mesh_id=self.controls[name].get_mesh_id(),
             )
-        )
+            # A source generated here is certified state-independent.
+            # This tag cannot be inferred from position="source" alone.
+            source._scrimp_prescribed_control_source = True
+            self.add_brick(source)
+        else:
+            self.add_brick(
+                Brick(
+                    u + "_feedback",
+                    f"({expression}){times}Test_{u}",
+                    [self.controls[name].get_region()],
+                    linear=False,
+                    dt=False,
+                    position="constitutive",
+                    mesh_id=self.controls[name].get_mesh_id(),
+                )
+            )
 
         self.controls[name].get_isSet()
         if rank == 0:
@@ -756,12 +997,17 @@ class DPHS:
                 brick.enable_id_bricks(self.gf_model)
 
         _mpi_trace("mass: before GetFEM build_matrix")
-        self.gf_model.assembly(option="build_matrix")
+        with self.profiler.measure(f"{self._profile_phase}.getfem.mass"):
+            self.gf_model.assembly(option="build_matrix")
         _mpi_trace("mass: before GetFEM -> PETSc conversion")
-        convert_gmm_to_petsc(
-            self.gf_model.tangent_matrix(),
-            self.mass,
-        )
+        with self.profiler.measure(f"{self._profile_phase}.bridge.mass"):
+            convert_gmm_to_petsc(
+                self.gf_model.tangent_matrix(),
+                self.mass,
+                profiler=self.profiler,
+                profile_label=f"{self._profile_phase}.bridge.mass",
+                distributed_coo_eligible=True,
+            )
         _mpi_trace("mass: PETSc matrix assembled")
 
         self.disable_all_bricks()
@@ -785,12 +1031,17 @@ class DPHS:
                 brick.enable_id_bricks(self.gf_model)
 
         _mpi_trace("stiffness: before GetFEM build_matrix")
-        self.gf_model.assembly(option="build_matrix")
+        with self.profiler.measure(f"{self._profile_phase}.getfem.stiffness"):
+            self.gf_model.assembly(option="build_matrix")
         _mpi_trace("stiffness: before GetFEM -> PETSc conversion")
-        convert_gmm_to_petsc(
-            self.gf_model.tangent_matrix(),
-            self.stiffness,
-        )
+        with self.profiler.measure(f"{self._profile_phase}.bridge.stiffness"):
+            convert_gmm_to_petsc(
+                self.gf_model.tangent_matrix(),
+                self.stiffness,
+                profiler=self.profiler,
+                profile_label=f"{self._profile_phase}.bridge.stiffness",
+                distributed_coo_eligible=True,
+            )
         _mpi_trace("stiffness: PETSc matrix assembled")
 
         self.disable_all_bricks()
@@ -832,7 +1083,8 @@ class DPHS:
                     brick.enable_id_bricks(self.gf_model)
 
         _mpi_trace("rhs: before GetFEM build_rhs")
-        self.gf_model.assembly(option="build_rhs")
+        with self.profiler.measure(f"{self._profile_phase}.getfem.rhs"):
+            self.gf_model.assembly(option="build_rhs")
         _mpi_trace("rhs: before PETSc owned-row insertion")
         # GetFEM MPI-2 already sums and replicates the entire RHS on
         # every rank. Insert only PETSc-owned rows; never ADD these
@@ -883,14 +1135,15 @@ class DPHS:
                 f"rhs: mode={rhs_mode}, source_mode={source_mode}, "
                 f"source_only={source_only}, scale={scale:.9g}"
             )
-        lo, hi = self.rhs.getOwnershipRange()
-        if hi > lo:
-            self.rhs.setValues(
-                range(lo, hi),
-                gf_rhs[lo:hi] * scale,
-                addv=PETSc.InsertMode.INSERT_VALUES,
-            )
-        self.rhs.assemble()
+        with self.profiler.measure(f"{self._profile_phase}.bridge.rhs"):
+            lo, hi = self.rhs.getOwnershipRange()
+            if hi > lo:
+                self.rhs.setValues(
+                    range(lo, hi),
+                    gf_rhs[lo:hi] * scale,
+                    addv=PETSc.InsertMode.INSERT_VALUES,
+                )
+            self.rhs.assemble()
         _mpi_trace("rhs: PETSc vector assembled")
 
         self.disable_all_bricks()
@@ -898,18 +1151,27 @@ class DPHS:
     def assemble_nl_mass(self):
         """This function performs the assembly of the bricks dt=True and linear=False and set the PETSc.Mat attribute `nl_mass`"""
 
+        if self._matrix_memory_mode == "compact" and self.linear_mass:
+            # The tangent aliases the *assembled* linear mass; do not
+            # accidentally change that read-only matrix via zeroEntries.
+            return
+
         for _, brick in self.bricks.items():
             # Enable the bricks that are dynamical and non-linear
             if brick.get_dt() and not brick.get_linear():
                 brick.enable_id_bricks(self.gf_model)
 
         _mpi_trace("nl_mass: before GetFEM build_matrix")
-        self.gf_model.assembly(option="build_matrix")
+        with self.profiler.measure(f"{self._profile_phase}.getfem.nl_mass"):
+            self.gf_model.assembly(option="build_matrix")
         _mpi_trace("nl_mass: before GetFEM -> PETSc conversion")
-        convert_gmm_to_petsc(
-            self.gf_model.tangent_matrix(),
-            self.nl_mass,
-        )
+        with self.profiler.measure(f"{self._profile_phase}.bridge.nl_mass"):
+            convert_gmm_to_petsc(
+                self.gf_model.tangent_matrix(),
+                self.nl_mass,
+                profiler=self.profiler,
+                profile_label=f"{self._profile_phase}.bridge.nl_mass",
+            )
         _mpi_trace("nl_mass: PETSc matrix assembled")
         _mpi_trace("nl_mass: before PETSc copy/AXPY")
         # Keep the allocated PETSc Mat alive throughout TS/Newton iterations.
@@ -942,6 +1204,11 @@ class DPHS:
     def assemble_nl_stiffness(self):
         """This function performs the assembly of the bricks dt=False and linear=False and set the PETSc.Mat attribute `nl_stiffness`"""
 
+        if self._matrix_memory_mode == "compact" and self.linear_stiffness:
+            # Do not modify the aliased linear stiffness by accidentally
+            # assembling an empty nonlinear tangent.
+            return
+
         for _, brick in self.bricks.items():
             # Enable the bricks that are non-dynamical and non-linear
             if (
@@ -952,12 +1219,16 @@ class DPHS:
                 brick.enable_id_bricks(self.gf_model)
 
         _mpi_trace("nl_stiffness: before GetFEM build_matrix")
-        self.gf_model.assembly(option="build_matrix")
+        with self.profiler.measure(f"{self._profile_phase}.getfem.nl_stiffness"):
+            self.gf_model.assembly(option="build_matrix")
         _mpi_trace("nl_stiffness: before GetFEM -> PETSc conversion")
-        convert_gmm_to_petsc(
-            self.gf_model.tangent_matrix(),
-            self.nl_stiffness,
-        )
+        with self.profiler.measure(f"{self._profile_phase}.bridge.nl_stiffness"):
+            convert_gmm_to_petsc(
+                self.gf_model.tangent_matrix(),
+                self.nl_stiffness,
+                profiler=self.profiler,
+                profile_label=f"{self._profile_phase}.bridge.nl_stiffness",
+            )
         _mpi_trace("nl_stiffness: PETSc matrix assembled")
         _mpi_trace("nl_stiffness: before PETSc copy/AXPY")
         # As for the nonlinear mass, retain the existing PETSc Mat handle.
@@ -1215,6 +1486,17 @@ class DPHS:
             )
         )
 
+        if self._matrix_memory_mode == "compact":
+            # One reusable PETSc Mat and Vec across IJacobian calls.
+            # The - perturbation remains in tangent_mass; no extra
+            # copy or correction Mat is necessary.
+            add_mass_hessian_fd_reused(
+                self, t, z, zd, P, eta,
+                PETSc.Mat.Structure.DIFFERENT_NONZERO_PATTERN,
+            )
+            return
+
+        # Original allocation-heavy path retained for A/B parity.
         z_plus, z_minus = z.copy(), z.copy()
         mass_plus = mass_minus = correction = None
         try:
@@ -1246,11 +1528,19 @@ class DPHS:
                     obj.destroy()
 
     def set_linear_flags(self):
-        """
-        This function set the "linear flags" to speed-up IFunction calls for linear systems.
-        """
+        """Flag state-dependent mass/stiffness terms for reassembly.
 
-        for _, brick in self.bricks.items():
+        GetFEM source bricks contribute only to the RHS, even when
+        declared linear=False for their special assembly route.
+        Feedback controls created by set_control() are *not* source
+        bricks: they are nonlinear constitutive terms whose tangent
+        must be reassembled at each Newton iteration.
+        """
+        self.linear_mass = True
+        self.linear_stiffness = True
+        for brick in self.bricks.values():
+            if brick.get_position() == "source":
+                continue
             if brick.get_dt() and not brick.get_linear():
                 self.linear_mass = False
             if not brick.get_dt() and not brick.get_linear():
@@ -1286,31 +1576,58 @@ class DPHS:
         # explicitly unsafe in PETSc (and can crash). Likewise MatAXPY
         # must not assume that M(z) has the same nonzeros as K(z).
         structure = PETSc.Mat.Structure.DIFFERENT_NONZERO_PATTERN
-        # Opt-in workaround for MUMPS: the symbolic LU factor from a
-        # previous Newton iteration may be incompatible with the next
-        # Jacobian's sparsity pattern, even when MatCopy is explicitly
-        # marked DIFFERENT_NONZERO_PATTERN. Reset the *PC* before
-        # modifying the existing operator Mat; do not reset the KSP or
-        # change any solver defaults. Resetting on every Jacobian is
-        # deliberately conservative until a collective, reliable
-        # global sparsity-change detector is validated under MPI.
-        #
-        # PC.reset() is collective: all MPI ranks must use the same
-        # opt-in setting and solver. This also applies to the initial
-        # consistency TS, which is typically SuperLU in the MCSS probe.
-        if os.environ.get("SCRIMP_MUMPS_RESET_PC_ON_JACOBIAN") == "1":
-            pc = TS.getSNES().getKSP().getPC()
-            if (pc.getType() == "lu"
-                    and pc.getFactorSolverType() == "mumps"):
-                _mpi_trace("IJacobian: before opt-in MUMPS PC.reset")
+        # v1.3.0 default: on_change tracks the ACTUAL assembled PETSc
+        # operator, not model linearity. Reuse the symbolic LU when its
+        # exact stored graph is unchanged, and the numeric LU only when
+        # all stored coefficients are identical across all MPI ranks.
+        # This handles nonlinear tangents and changing TS shift correctly.
+        # Explicit never/always policies remain supported as overrides.
+        # Checks happen after ALL Jacobian contributions are assembled.
+        policy = getattr(self, "_mumps_reset_policy", None)
+        if policy is None:
+            policy = _get_mumps_reset_policy(
+                all_bricks_linear=_all_bricks_are_linear(self.bricks)
+            )
+        ksp = TS.getSNES().getKSP()
+        pc = ksp.getPC()
+        is_mumps = (
+            pc.getType() == "lu"
+            and pc.getFactorSolverType() == "mumps"
+        )
+        if policy == "always" and is_mumps:
+            _mpi_trace("IJacobian: always policy before MUMPS PC.reset")
+            with self.profiler.measure(
+                f"{self._profile_phase}.petsc.pc_reset"
+            ):
                 pc.reset()
-                _mpi_trace("IJacobian: after opt-in MUMPS PC.reset")
+            _mpi_trace("IJacobian: always policy after MUMPS PC.reset")
 
-        _mpi_trace("IJacobian: before tangent -> preconditioner copy")
-        self.tangent_stiffness.copy(P, structure=structure)
-        _mpi_trace("IJacobian: after tangent -> preconditioner copy")
+        # SNESComputeJacobian() overwrites KSP's reuse-preconditioner
+        # flag AFTER this callback returns (PETSc 3.26). Merely calling
+        # pc.setReusePreconditioner(True) here is therefore ineffective.
+        # Instead, assemble into a reusable *independent* workspace.
+        # If the full CSR operator is unchanged, do NOT touch PETSc's
+        # factorized P (or A): its MatState remains unchanged, allowing
+        # PCSetUp() to skip numerical LU without any SNES lagging.
+        # In particular, this also works if the TS shift or nonlinear
+        # tangent changes: a changed operator is copied back.
+        compare_on_change = policy == "on_change" and is_mumps
+        if compare_on_change:
+            candidate = getattr(self, "_mumps_jacobian_candidate", None)
+            if candidate is None:
+                # No SHARED_NONZERO_PATTERN: nonlinear operators may gain
+                # or lose entries and must remain independently mutable.
+                candidate = self.tangent_stiffness.duplicate(copy=True)
+                self._mumps_jacobian_candidate = candidate
+            target = candidate
+        else:
+            target = P
+
+        _mpi_trace("IJacobian: before tangent -> Jacobian work matrix")
+        self.tangent_stiffness.copy(target, structure=structure)
+        _mpi_trace("IJacobian: after tangent -> Jacobian work matrix")
         _mpi_trace("IJacobian: before shift*mass AXPY")
-        P.axpy(sig, self.tangent_mass, structure=structure)
+        target.axpy(sig, self.tangent_mass, structure=structure)
 
         mass_mode = os.environ.get(
             "SCRIMP_NONLINEAR_MASS_JACOBIAN", "finite_difference"
@@ -1329,7 +1646,7 @@ class DPHS:
                     "SCRIMP_NONLINEAR_RESIDUAL_FORM=direct_getfem"
                 )
             _mpi_trace("IJacobian: before nonlinear mass Hessian FD")
-            self._add_nonlinear_mass_hessian_fd(t, z, zd, P)
+            self._add_nonlinear_mass_hessian_fd(t, z, zd, target)
             _mpi_trace("IJacobian: after nonlinear mass Hessian FD")
 
         _mpi_trace("IJacobian: preconditioner assembled")
@@ -1338,16 +1655,16 @@ class DPHS:
             # Local-only diagnostics, with no extra MPI collectives.
             # This catches singular/non-finite operators before PETSc's
             # native KSP/PC factorization path is entered.
-            rp, ci, vals = P.getValuesCSR()
+            rp, ci, vals = target.getValuesCSR()
             bad = int(np.count_nonzero(~np.isfinite(vals)))
-            diagonal = P.getDiagonal()
+            diagonal = target.getDiagonal()
             d = np.asarray(diagonal.getArray(readonly=True))
             diag_zeros = int(np.count_nonzero(d == 0))
             diag_bad = int(np.count_nonzero(~np.isfinite(d)))
             # Zero diagonals may be expected in mixed saddle-point DAEs.
             # Entirely zero numerical rows, however, indicate an absent
             # equation. Detect the latter separately (trace mode only).
-            first_row = P.getOwnershipRange()[0]
+            first_row = target.getOwnershipRange()[0]
             numerical_zero_rows = np.asarray([
                 not np.any(vals[rp[i]:rp[i + 1]])
                 for i in range(len(rp) - 1)
@@ -1357,8 +1674,8 @@ class DPHS:
             )
             zero_diagonal_global = np.flatnonzero(d == 0) + first_row
             _mpi_trace(
-                f"IJacobian: operator shape={P.getSize()}, "
-                f"ownership={P.getOwnershipRange()}, "
+                f"IJacobian: operator shape={target.getSize()}, "
+                f"ownership={target.getOwnershipRange()}, "
                 f"nnz_owned={len(vals)}, nonfinite={bad}, "
                 f"diagonal_zeros={diag_zeros}, diagonal_nonfinite={diag_bad}, "
                 f"zero_numerical_rows={len(zero_rows_global)}; "
@@ -1369,12 +1686,148 @@ class DPHS:
             if bad or diag_bad:
                 raise FloatingPointError("Non-finite PETSc Jacobian entries")
 
-        if A != P:
-            # PETSc TS/SNES may use separate operator and preconditioner
-            # matrices. Both must contain the actual Jacobian; assembling
-            # an untouched A would leave the linear solver with stale data.
+        if not compare_on_change and A != P:
+            # Preserve the original behavior for non-MUMPS/always/never.
             _mpi_trace("IJacobian: copy preconditioner into distinct operator")
             P.copy(A, structure=structure)
+
+        if policy == "on_change":
+            # Initial and main TS own distinct KSP/PC/MUMPS factors.
+            # Check solver uniformity once for each phase, then do one
+            # collective bitmask per Jacobian (1=graph, 2=coefficients).
+            mpi = comm.tompi4py()
+            phase = self._profile_phase
+            checked = getattr(self, "_mumps_phase_enabled", None)
+            if checked is None:
+                checked = self._mumps_phase_enabled = {}
+            if phase not in checked:
+                n_mumps = mpi.allreduce(int(is_mumps), op=MPI.SUM)
+                if n_mumps not in (0, max_rank):
+                    raise RuntimeError(
+                        "MUMPS LU must be configured on every MPI rank "
+                        "for collective on_change symbolic/numeric reuse"
+                    )
+                checked[phase] = n_mumps == max_rank
+            if is_mumps != checked[phase]:
+                raise RuntimeError(
+                    "MUMPS solver type changed within the same TS phase; "
+                    "this invalidates the collective reuse cache"
+                )
+            if is_mumps:
+                with self.profiler.measure(
+                    f"{self._profile_phase}.petsc.csr_pattern_check"
+                ):
+                    try:
+                        current = _local_stored_csr_snapshot(target)
+                        csr_error = None
+                    except (PETSc.Error, AttributeError,
+                            NotImplementedError, TypeError) as exc:
+                        current = None
+                        csr_error = exc
+                    if mpi.allreduce(
+                        int(csr_error is not None), op=MPI.SUM
+                    ):
+                        raise RuntimeError(
+                            "Cannot inspect full stored PETSc CSR on "
+                            "every rank; automatic symbolic/numeric "
+                            "reuse cannot be validated"
+                        ) from csr_error
+                    snapshots = getattr(self, "_mumps_csr_snapshots", None)
+                    if snapshots is None:
+                        snapshots = self._mumps_csr_snapshots = {}
+                    previous = snapshots.get(phase)
+                    local_change = _local_csr_change_flags(previous, current)
+                    # MPI BOR broadcasts each kind of change to ALL ranks.
+                    global_change = int(
+                        mpi.allreduce(local_change, op=MPI.BOR)
+                    )
+                    graph_changed = bool(global_change & 1)
+                    values_changed = bool(global_change & 2)
+                    if previous is None or values_changed:
+                        snapshots[phase] = current
+                # Lightweight per-phase accounting for reproducible
+                # qualification. These are collective decisions derived
+                # from global_change, not rank-local guesses. Retain
+                # only counters after solve, not any CSR data.
+                counters = getattr(self, "_mumps_reuse_stats", None)
+                if counters is None:
+                    counters = self._mumps_reuse_stats = {}
+                counts = counters.setdefault(phase, {
+                    "ijacobian_calls": 0,
+                    "numeric_updates": 0,
+                    "symbolic_updates": 0,
+                    "reused_operators": 0,
+                })
+                counts["ijacobian_calls"] += 1
+                if previous is None or values_changed:
+                    counts["numeric_updates"] += 1
+                    if previous is None or graph_changed:
+                        counts["symbolic_updates"] += 1
+                else:
+                    counts["reused_operators"] += 1
+                if os.environ.get("SCRIMP_MUMPS_REUSE_DIAG") == "1":
+                    # Diagnostic ONLY: no tolerance-based reuse decision.
+                    # PETSc CN can change its shift, including on the
+                    # final MATCHSTEP interval. We need to distinguish
+                    # a genuine matrix change from a redundant PC setup.
+                    # One extra collective is only active for this
+                    # short opt-in qualification.
+                    if (previous is not None
+                            and not (local_change & 1)
+                            and current[3].shape == previous[3].shape):
+                        delta = np.abs(current[3] - previous[3])
+                        local_max_diff = (
+                            float(np.max(delta)) if delta.size else 0.0
+                        )
+                        local_different = int(np.count_nonzero(
+                            current[3] != previous[3]
+                        ))
+                    else:
+                        local_max_diff = -1.0
+                        local_different = -1
+                    global_max_diff = float(
+                        mpi.allreduce(local_max_diff, op=MPI.MAX)
+                    )
+                    global_different = int(
+                        mpi.allreduce(max(0, local_different), op=MPI.SUM)
+                    )
+                    if rank == 0:
+                        print(
+                            "MUMPS-REUSE-AUDIT "
+                            f"phase={phase} "
+                            f"step={TS.getStepNumber()} "
+                            f"time={t:.17g} shift={sig:.17g} "
+                            f"graph_changed={int(graph_changed)} "
+                            f"values_changed={int(values_changed)} "
+                            f"local_flags={local_change} "
+                            f"global_flags={global_change} "
+                            f"entries_changed_global={global_different} "
+                            f"max_abs_delta_global={global_max_diff:.17g} "
+                            f"update_operator={int(previous is None or values_changed)}",
+                            flush=True,
+                        )
+                if previous is None or values_changed:
+                    # Only a genuinely changed operator may increment the
+                    # MatState of P/A. PETSc tests MatState in PCSetUp()
+                    # and retains the LU if it has not changed.
+                    if previous is not None and graph_changed:
+                        _mpi_trace(
+                            "IJacobian: stored CSR graph changed globally; "
+                            "resetting MUMPS symbolic factor"
+                        )
+                        with self.profiler.measure(
+                            f"{self._profile_phase}.petsc.pc_reset"
+                        ):
+                            pc.reset()
+                    target.copy(P, structure=structure)
+                    if A != P:
+                        P.copy(A, structure=structure)
+                    if previous is not None and graph_changed:
+                        ksp.setOperators(A, P)
+                # Otherwise DO NOTHING to A or P, including no assembly,
+                # no MatCopy, no MatAXPY, no forced PC flag. SNES may
+                # explicitly set reuse_preconditioner=False and PCSetUp
+                # still skips setup for an identical MatState.
 
         # Opt-in native diagnostic: dump selected actual SWE Jacobians
         # before PETSc/MUMPS factorization. Binary MatView is collective,
@@ -1439,11 +1892,24 @@ class DPHS:
         self.mass.bindToCPU(True)
         self.init_matrix(self.mass)
         self.init_matrix(self.nl_mass)
-        self.init_matrix(self.tangent_mass)
+        if self._matrix_memory_mode == "compact" and self.linear_mass:
+            # No state-dependent dt brick. Keep the same PETSc Mat
+            # rather than allocating a separate full tangent copy.
+            # Do this BEFORE J/TS/KSP takes references to any Mat.
+            self.tangent_mass = alias_readonly_linear_tangent(
+                self.mass, self.tangent_mass
+            )
+        else:
+            self.init_matrix(self.tangent_mass)
         self.stiffness.bindToCPU(True)
         self.init_matrix(self.stiffness)
         self.init_matrix(self.nl_stiffness)
-        self.init_matrix(self.tangent_stiffness)
+        if self._matrix_memory_mode == "compact" and self.linear_stiffness:
+            self.tangent_stiffness = alias_readonly_linear_tangent(
+                self.stiffness, self.tangent_stiffness
+            )
+        else:
+            self.init_matrix(self.tangent_stiffness)
 
         self.rhs = self.nl_stiffness.createVecRight()
         self.F = self.nl_stiffness.createVecRight()
@@ -1490,6 +1956,21 @@ class DPHS:
 
         if not self.time_scheme.hasName("pc_factor_mat_solver_type"):
             self.time_scheme["pc_factor_mat_solver_type"] = "mumps"
+
+        # The MPI MUMPS analysis mode is the qualified v1.3 default:
+        # ICNTL(28)=2 uses distributed symbolic ordering on multiple
+        # ranks. Never override user-supplied options or non-MUMPS PCs.
+        if (
+            max_rank > 1
+            and self.time_scheme.getString("pc_type", "").lower() == "lu"
+            and self.time_scheme.getString(
+                "pc_factor_mat_solver_type", ""
+            ).lower() == "mumps"
+        ):
+            if not self.time_scheme.hasName("mat_mumps_icntl_28"):
+                self.time_scheme["mat_mumps_icntl_28"] = 2
+            if not self.time_scheme.hasName("mat_mumps_icntl_29"):
+                self.time_scheme["mat_mumps_icntl_29"] = 0
 
         if not self.time_scheme.hasName("t_0"):
             self.time_scheme["t_0"] = 0.0
@@ -1582,10 +2063,126 @@ class DPHS:
                 f"dt reached the limit {float(self.time_scheme['ts_adapt_dt_min']):8g}.\n"
             )
 
-    def solve(self):
-        """Perform the time-resolution of the dphs thanks to PETSc TS
+    def _memory_phase(self, phase, **metadata):
+        """Collect a local per-rank memory sample only when enabled."""
+        trace = getattr(self, "_phase_memory_trace", None)
+        if trace is not None:
+            trace.sample(phase, **metadata)
 
-        The options database is set in the `time_scheme` attribute
+    def solve(self):
+        """Solve the DPHS; optionally record inclusive solve timings.
+
+        Enable SCRIMP_PROFILE=1 before creating the system, then call
+        get_profile() on ALL MPI ranks to aggregate the timing report.
+        """
+        self.profiler.reset()
+        self._profile_phase = "setup"
+        matrix_mode = os.environ.get(
+            "SCRIMP_MATRIX_MEMORY_MODE", "legacy"
+        ).strip().lower()
+        if matrix_mode not in ("legacy", "compact"):
+            raise ValueError(
+                "SCRIMP_MATRIX_MEMORY_MODE must be legacy or compact"
+            )
+        self._matrix_memory_mode = matrix_mode
+        # Workspaces belong to this solve, not to an old TS/KSP. Avoid
+        # stale references or retaining matrices from previous solves.
+        self._mass_hessian_fd_matrix = None
+        self._mass_hessian_fd_probe = None
+        self._mass_hessian_fd_probe_allocations = 0
+        self._mass_hessian_fd_matrix_allocations = 0
+        self._mass_hessian_fd_matrix_reuses = 0
+        audit_dir = os.environ.get(
+            "SCRIMP_MEMORY_PHASE_AUDIT_DIR", ""
+        ).strip()
+        self._phase_memory_trace = (
+            PhaseMemoryAudit(
+                audit_dir, rank=rank, ranks=max_rank,
+                source_commit=os.environ.get("SCRIMP_BENCH_GIT_SHA", ""),
+                mode=matrix_mode,
+            )
+            if audit_dir else None
+        )
+        self._memory_phase("solve_entry")
+        backend = os.environ.get(
+            "SCRIMP_TRAJECTORY_BACKEND", "memory"
+        ).strip().lower()
+        if backend not in ("memory", "async_binary"):
+            raise ValueError(
+                "SCRIMP_TRAJECTORY_BACKEND must be memory or async_binary"
+            )
+        self._trajectory_backend = backend
+        self._trajectory_sender = None
+        self._trajectory_directory = None
+        if backend == "async_binary":
+            from pathlib import Path
+            directory = os.environ.get("SCRIMP_TRAJECTORY_DIR", "").strip()
+            socket_name = os.environ.get(
+                "SCRIMP_TRAJECTORY_SOCKET", ""
+            ).strip()
+            if not directory or not socket_name:
+                raise ValueError(
+                    "async_binary requires SCRIMP_TRAJECTORY_DIR "
+                    "and SCRIMP_TRAJECTORY_SOCKET; start the independent "
+                    "writer BEFORE mpiexec (never fork a live MPI rank)"
+                )
+            if len(self.solution["t"]) or len(self.solution["z"]):
+                raise RuntimeError(
+                    "async_binary requires an empty output trajectory"
+                )
+            self._trajectory_directory = Path(directory).resolve()
+            if (self._trajectory_directory / "trajectory_manifest.json").exists():
+                raise FileExistsError(
+                    "Refusing to reuse an already committed trajectory"
+                )
+        # A new solve creates fresh initial/main TS/KSP/PC lifecycles:
+        # never inherit numeric or symbolic snapshots from old factors.
+        self._mumps_csr_patterns = {}
+        self._mumps_csr_snapshots = {}
+        self._mumps_reuse_stats = {}
+        old_candidate = getattr(self, "_mumps_jacobian_candidate", None)
+        if old_candidate is not None:
+            old_candidate.destroy()
+        self._mumps_jacobian_candidate = None
+        self._mumps_phase_enabled = {}
+        # Bricks linearity is diagnostic only; on_change now validates
+        # the actual Jacobian values, including time/step dependence.
+        self._all_bricks_linear = _all_bricks_are_linear(self.bricks)
+        self._mumps_reset_policy = _get_mumps_reset_policy(
+            all_bricks_linear=self._all_bricks_linear
+        )
+        _mpi_trace(
+            f"MUMPS reuse policy={self._mumps_reset_policy} "
+            f"(all_bricks_linear={self._all_bricks_linear})"
+        )
+        policies = comm.tompi4py().allgather(
+            (self._mumps_reset_policy, self._matrix_memory_mode)
+        )
+        if any(value != policies[0] for value in policies):
+            raise RuntimeError(
+                "MUMPS policy and SCRIMP_MATRIX_MEMORY_MODE must resolve "
+                "identically on all MPI ranks: " + repr(policies)
+            )
+        with self.profiler.measure("solve.total"):
+            try:
+                return self._solve_impl()
+            finally:
+                # The candidate Jacobian is only needed during callbacks.
+                # Keep its allocations out of subsequent solves and do not
+                # retain one extra full MPI sparse matrix after TS finishes.
+                candidate = getattr(self, "_mumps_jacobian_candidate", None)
+                if candidate is not None:
+                    candidate.destroy()
+                    self._mumps_jacobian_candidate = None
+                self._mumps_csr_snapshots = {}
+                self._memory_phase("solve_exit")
+                if self._phase_memory_trace is not None:
+                    self._phase_memory_trace.write()
+
+    def _solve_impl(self):
+        """Perform the time-resolution of the dphs thanks to PETSc TS.
+
+        The options database is set in the `time_scheme` attribute.
         """
 
         assert self.time_scheme[
@@ -1621,21 +2218,31 @@ class DPHS:
 
         # Load time scheme options to PETSc
         self.time_scheme = PETSc.Options()
-        self.allocate_memory()
+        self._memory_phase("before_petsc_allocate_memory")
+        with self.profiler.measure("setup.petsc.allocate_memory"):
+            self.allocate_memory()
+        self._memory_phase("after_petsc_allocate_memory")
 
         # Initialization
         self.disable_all_bricks()  # enabling is done in assembly accurately
         self.gf_model.set_time(float(self.time_scheme["t_0"]))
         self.gf_model.first_iter()
 
-        # Assembly
+        # Assembly. In compact mode a purely linear tangent aliases
+        # its assembled base matrix and must not be reassembled/overwritten.
+        self._memory_phase("before_getfem_assembly")
         self.assemble_mass()
-        self.assemble_nl_mass()
+        if not (self._matrix_memory_mode == "compact" and self.linear_mass):
+            self.assemble_nl_mass()
+        self._memory_phase("after_mass_assembly")
 
         self.assemble_stiffness()
-        self.assemble_nl_stiffness()
+        if not (self._matrix_memory_mode == "compact" and self.linear_stiffness):
+            self.assemble_nl_stiffness()
+        self._memory_phase("after_stiffness_assembly")
 
         self.assemble_rhs()
+        self._memory_phase("after_rhs_assembly")
 
         # PETSc TS Jacobian and residual
         self.J = self.tangent_stiffness.duplicate()
@@ -1646,14 +2253,34 @@ class DPHS:
 
         self.buffer = self.rhs.duplicate()
         self.buffer.assemble()
+        self._memory_phase("after_jacobian_and_vector_duplicates")
 
         self.ts_start = time.perf_counter()
         if (
             self.time_scheme["init_step"] == "true"
         ):  # Because PETSc DB store everything as str
             _mpi_trace("solve: before initial consistency step")
-            self.init_step()
+            self._profile_phase = "initial"
+            with self.profiler.measure("initial.consistency_total"):
+                self.init_step()
             _mpi_trace("solve: after initial consistency step")
+        self._memory_phase("after_initial_consistency_ts_cleanup")
+        self._profile_phase = "main"
+
+        if self._trajectory_backend == "async_binary":
+            # Each producer owns its PETSc rows; no global output gather.
+            local_lo, local_hi = self.F.getOwnershipRange()
+            queued = int(os.environ.get(
+                "SCRIMP_TRAJECTORY_MAX_QUEUED", "4"
+            ))
+            self._trajectory_sender = RankSender(
+                os.environ["SCRIMP_TRAJECTORY_SOCKET"],
+                rank=rank, ranks=max_rank,
+                global_size=int(self.gf_model.nbdof()),
+                lo=local_lo, hi=local_hi,
+                # Match the historical monitor's real float64 archive.
+                dtype=np.float64, max_queued=queued,
+            )
 
         # TS
         TS = PETSc.TS().create(comm=comm)
@@ -1671,8 +2298,8 @@ class DPHS:
         TS.setMonitor(monitor)
         TS.setEventHandler([0], [True], self.event, self.postevent)
         TS.setEventTolerances(1e-16, vtol=[1e-19])
-        TS.setIFunction(self.IFunction, self.F)
-        TS.setIJacobian(self.IJacobian, self.J)
+        TS.setIFunction(self._profile_ifunction, self.F)
+        TS.setIJacobian(self._profile_ijacobian, self.J)
         TS.setTime(float(self.time_scheme["t_0"]))
         TS.setMaxTime(float(self.time_scheme["t_f"]))
         TS.setTimeStep(float(self.time_scheme["dt"]))
@@ -1684,7 +2311,6 @@ class DPHS:
         _set_main_ts_default_exact_final_time(TS)
         TS.setFromOptions()
         self.exclude_algebraic_var_from_lte(TS)
-
         InitVec = self.tangent_stiffness.createVecRight()
         InitVec.zeroEntries()
         # PETSc ownership ranges use GLOBAL indices. setValuesLocal
@@ -1700,9 +2326,11 @@ class DPHS:
         
         comm.barrier()
         
+        self._memory_phase("before_main_ts_solve")
         _mpi_trace("solve: before main TS.solve")
         try:
-            TS.solve(InitVec)
+            with self.profiler.measure("main.petsc.ts_solve"):
+                TS.solve(InitVec)
         except PETSc.Error:
             # Requested only for a SERIAL native MUMPS failure. Read
             # KSP/PC and the actual LU factor's MUMPS status *before*
@@ -1743,6 +2371,7 @@ class DPHS:
                         f"{diagnostic_error!r}"
                     )
             raise
+        self._memory_phase("after_main_ts_solve")
         # The stored solution samples depend on dt_save and the monitor.
         # Their last timestamp need NOT equal the actual PETSc TS end
         # time (e.g. steps at 0.0001, 0.0003 with dt_save=0.0001).
@@ -1798,22 +2427,72 @@ class DPHS:
                 f"Nonlinear iterations: {TS.getSNESIterations()}, Linear iterations: {TS.getKSPIterations()}"
             )
         
-        TS.reset()
-        TS.destroy()
-        gc.collect()
+        with self.profiler.measure("main.petsc.cleanup"):
+            TS.reset()
+            TS.destroy()
+            gc.collect()
+        self._memory_phase("after_main_ts_cleanup")
 
-        # Keep the true endpoint even when PETSc accumulates an
-        # extra floating-point ULP beyond the Python literal t_f.
-        # This is required for endpoint Hamiltonian/power accounting.
-        self.solution["t"], self.solution["z"] = (
-            _select_saved_solution_through_final_time(
-                self.solution["t"], self.solution["z"],
-                float(self.time_scheme["t_f"]),
+        # Preserve the real end time and publish the trajectory only
+        # after all local transport threads have drained. A committed
+        # manifest is mandatory; no incomplete output can look solved.
+        if self._trajectory_backend == "async_binary" and (
+            self.last_ts_converged_reason <= 0
+        ):
+            raise RuntimeError(
+                "Refusing to commit an unconverged PETSc trajectory"
             )
-        )
-        
+        if self._trajectory_backend == "async_binary":
+            self._trajectory_sender.close()
+            self._trajectory_sender = None
+            manifest = wait_for_manifest(
+                self._trajectory_directory / "trajectory_manifest.json",
+                timeout=float(os.environ.get(
+                    "SCRIMP_TRAJECTORY_COMMIT_TIMEOUT_S", "30"
+                )),
+            )
+            saved_t, indices = (
+                _select_saved_time_indices_through_final_time(
+                    self.solution["t"], float(self.time_scheme["t_f"])
+                )
+            )
+            archived = LazyTrajectory(manifest, indices=indices)
+            raw_t = np.asarray(self.solution["t"], dtype=float)
+            if (len(archived) != len(saved_t)
+                    or not np.array_equal(archived.times, raw_t[indices])):
+                raise RuntimeError(
+                    "Binary archive metadata differs from PETSc monitor"
+                )
+            self.solution["t"] = saved_t
+            self.solution["z"] = archived
+        else:
+            self.solution["t"], self.solution["z"] = (
+                _select_saved_solution_through_final_time(
+                    self.solution["t"], self.solution["z"],
+                    float(self.time_scheme["t_f"]),
+                )
+            )
+
         self.enable_all_bricks()
         self.solve_done = True
+
+    def _sync_accepted_pseudo_initial_state(self, init_vec):
+        """Publish the accepted PETSc pseudo-TS state to GetFEM on all ranks.
+
+        A DAE pseudo-initialization can change both algebraic and
+        differential unknowns. The following physical TS reconstructs
+        its initial Vec from gf_model.from_variables(), so merely
+        solving the pseudo-TS does NOT propagate its accepted state.
+
+        In v1.2.0 the monitor performed this synchronization only as
+        a side effect of linear_stiffness=False; prescribed source
+        bricks happened to set that flag. The correct classification
+        of RHS-only sources must not suppress consistent initialization.
+        """
+        with self.profiler.measure("initial.petsc.accepted_state_sync"):
+            publish_accepted_pseudo_state(
+                self.Scatter[0], init_vec, self.GlobalVec, self.gf_model
+            )
 
     def init_step(self):
         """Construct DAE-consistent initial data with a tiny TS solve.
@@ -1855,8 +2534,8 @@ class DPHS:
             )
 
         TS.setMonitor(monitor)
-        TS.setIFunction(self.IFunction, self.F)
-        TS.setIJacobian(self.IJacobian, self.J)
+        TS.setIFunction(self._profile_ifunction, self.F)
+        TS.setIJacobian(self._profile_ijacobian, self.J)
         TS.setTime(t0 - init_dt if negative_bdf_start else t0)
         TS.setMaxSteps(
             1 if negative_bdf_start
@@ -1998,11 +2677,30 @@ class DPHS:
             )
         InitVec.assemble()
         initial_state_norm = float(InitVec.norm())
+        # Optional diagnostics: distinguish an algebraic consistency solve
+        # from pseudo-time relaxation that changes the physical h and p.
+        # Compare the actual PETSc final state, not the last Newton trial
+        # held by GetFEM. Copies are only allocated for this opt-in audit.
+        audit_dynamic = os.environ.get(
+            "SCRIMP_INIT_DYNAMIC_STATE_AUDIT", "0"
+        ) == "1"
+        if audit_dynamic:
+            initial_dynamics = {}
+            initial_all = np.asarray(
+                self.gf_model.from_variables()
+            ).real.copy()
+            for name in self.states:
+                start, width = self.gf_model.interval_of_variable(name)
+                start, width = int(start), int(width)
+                initial_dynamics[name] = initial_all[
+                    start:start + width
+                ].copy()
         comm.barrier()
 
         _mpi_trace("init_step: before consistency TS.solve")
         try:
-            TS.solve(InitVec)
+            with self.profiler.measure("initial.petsc.ts_solve"):
+                TS.solve(InitVec)
         except PETSc.Error:
             # A TS_DIVERGED_STEP_REJECTED is not an MUMPS error.
             # Expose the nested SNES/KSP reasons before PETSc's
@@ -2024,6 +2722,46 @@ class DPHS:
                 )
             raise
         final_state_norm = float(InitVec.norm())
+
+        # The accepted PETSc pseudo-TS solution is the authoritative
+        # consistent initial state for the main TS. Previously, its
+        # propagation to GetFEM depended accidentally on whether a
+        # source brick marked linear_stiffness=False: the monitor
+        # then called to_variables(), but correctly classified
+        # prescribed RHS-only sources now leave linear_stiffness=True.
+        # Synchronize explicitly for ALL models (including linear,
+        # nonlinear, MPI and lumped PDE/ODE), independently of those
+        # Jacobian flags. Do this before TS.reset() and before the main
+        # InitVec is reconstructed from gf_model.from_variables().
+        # This collective scatter populates GlobalVec on every rank.
+        if int(TS.getConvergedReason()) > 0 and TS.getStepNumber() > 0:
+            self._sync_accepted_pseudo_initial_state(InitVec)
+        if audit_dynamic:
+            # Compare the exact accepted pseudo-TS state, now also
+            # synchronized to GetFEM for the following main solve.
+            if int(TS.getConvergedReason()) <= 0 or TS.getStepNumber() <= 0:
+                self.Scatter[0].scatter(InitVec, self.GlobalVec)
+            final_all = np.asarray(
+                self.GlobalVec.getArray(readonly=True)
+            ).real
+            if rank == 0:
+                for name, initial_values in initial_dynamics.items():
+                    start, width = self.gf_model.interval_of_variable(name)
+                    final_values = final_all[
+                        int(start):int(start + width)
+                    ]
+                    delta = float(np.linalg.norm(
+                        final_values - initial_values
+                    ))
+                    baseline = float(np.linalg.norm(initial_values))
+                    print(
+                        f"[SCRIMP initial dynamic audit] {name}: "
+                        f"initial_norm={baseline:.9g}, "
+                        f"final_norm={np.linalg.norm(final_values):.9g}, "
+                        f"absolute_change={delta:.9g}, "
+                        f"relative_change={delta / max(baseline, 1e-14):.9g}",
+                        file=sys.stderr, flush=True,
+                    )
         _mpi_trace(
             "init_step: consistency TS completed: reason={}, "
             "t={:.12g}, steps={}, rejected={}, SNES_failures={}, "
@@ -2044,19 +2782,33 @@ class DPHS:
                     f"t0={t0:.12g}: reached {TS.getTime()}, "
                     f"reason={TS.getConvergedReason()}"
                 )
-            # This is a *diagnostic safeguard*, not a mathematical
-            # guarantee of DAE-consistent initial data. It prevents
-            # silently accepting the massive blow-up (~1e24 norm)
-            # previously observed with pseudo-TS for Saint-Venant.
-            norm_limit = float(self.time_scheme.getString(
-                "init_step_max_norm_amplification", "inf"
-            ))
+        # The norm guard is opt-in through init_step_max_norm_amplification.
+        # Apply it to *any* initial TS type when set: previously it only
+        # protected negative-start BDF2 and could silently accept the
+        # disastrous ~1e24 pseudo-TS result in the SWE diagnostic.
+        # Passing this guard does NOT prove DAE consistency or that
+        # the original dynamical initial states have been preserved.
+        if self.time_scheme.hasName("init_step_max_norm_amplification"):
+            norm_limit = float(self.time_scheme[
+                "init_step_max_norm_amplification"
+            ])
+            if np.isnan(norm_limit) or norm_limit <= 0:
+                raise ValueError(
+                    "init_step_max_norm_amplification must be positive"
+                )
+            if int(TS.getConvergedReason()) <= 0:
+                raise RuntimeError(
+                    f"Initial {init_type} TS failed: "
+                    f"reason={int(TS.getConvergedReason())}, "
+                    f"steps={TS.getStepNumber()}"
+                )
             if not np.isfinite(final_state_norm) or (
                 final_state_norm
                 > norm_limit * max(initial_state_norm, 1.0)
             ):
+                label = "BDF2" if negative_bdf_start else init_type.upper()
                 raise RuntimeError(
-                    "Initial BDF2 state diverged: "
+                    f"Initial {label} state diverged: "
                     f"||z_initial||={initial_state_norm:.9g}, "
                     f"||z_final||={final_state_norm:.9g}, "
                     f"maximum factor={norm_limit:.9g}"
@@ -2069,11 +2821,12 @@ class DPHS:
             )
 
         _mpi_trace("init_step: before TS.reset (PC factor cleanup)")
-        TS.reset()
-        _mpi_trace("init_step: after TS.reset")
-        TS.destroy()
-        _mpi_trace("init_step: after TS.destroy")
-        gc.collect()
+        with self.profiler.measure("initial.petsc.cleanup"):
+            TS.reset()
+            _mpi_trace("init_step: after TS.reset")
+            TS.destroy()
+            _mpi_trace("init_step: after TS.destroy")
+            gc.collect()
 
         # Delete temporary options, including BDF2/adapt overrides
         # which must not leak into the main time integrator.
@@ -2101,8 +2854,24 @@ class DPHS:
             initial_step (bool): `True` if this is the initial consistency step (default=`False`)
         """
 
-        # self.GlobalVec.zeroEntries()
-        self.Scatter[0].scatter(z, self.GlobalVec)
+        # Step 0 precedes the main factorization; step 1 follows it.
+        # Sampling is local-only; it never introduces MPI collectives.
+        if not initial_step and i in (0, 1):
+            self._memory_phase(
+                "main_monitor_step_" + str(i),
+                step=int(i), time=float(t),
+            )
+
+        # Do not gather full state on all ranks merely for archival.
+        # The nonlinear GetFEM model STILL needs its global transient
+        # state; PETSc's Newton trial-state path is unchanged.
+        needs_global_state = (
+            initial_step
+            or getattr(self, "_trajectory_backend", "memory") != "async_binary"
+            or not self.linear_mass or not self.linear_stiffness
+        )
+        if needs_global_state:
+            self.Scatter[0].scatter(z, self.GlobalVec)
 
         if not initial_step:
             if self.solution["t"]:
@@ -2131,13 +2900,21 @@ class DPHS:
                         f"\ri={i:8d} t={t:8g} * ({int(spent_time)}s)   dt={current_dt:8g}   ETE={int(remaining_time)}s   ({progress}%)        \n"
                     )
                     sys.stdout.flush()
-                self.solution["t"].append(t)
-                self.solution["z"].append(
-                    np.array(
-                        self.GlobalVec.getArray(readonly=True).real,
-                        dtype=np.float64, copy=True,
+                if getattr(self, "_trajectory_backend", "memory") == "async_binary":
+                    # Short rank-local copy only. Disk/socket waits happen
+                    # in the I/O thread, never in this TS callback.
+                    self._trajectory_sender.enqueue(
+                        i, t, z.getArray(readonly=True).real
                     )
-                )
+                    self.solution["t"].append(t)
+                else:
+                    self.solution["t"].append(t)
+                    self.solution["z"].append(
+                        np.array(
+                            self.GlobalVec.getArray(readonly=True).real,
+                            dtype=np.float64, copy=True,
+                        )
+                    )
             else:
                 if rank == 0:
                     sys.stdout.write(

@@ -34,8 +34,11 @@ This still does NOT instantiate SNES/TS or call GetFEM.
 """
 
 import argparse
+import json
 from pathlib import Path
 
+from mpi4py import MPI
+import numpy as np
 from petsc4py import PETSc
 
 
@@ -58,6 +61,130 @@ def load_matrix(path, comm):
     finally:
         viewer.destroy()
     return matrix
+
+
+
+def inspect_two_matrices(first_path, second_path):
+    """Compare actual stored CSR and numerical values without factorization.
+
+    The matrices are loaded independently: PETSc MatCopy cannot hide a
+    removed nonzero by retaining the old destination's allocated slots.
+    Report exact rank-local added/removed locations and the Frobenius
+    difference of the matrices, reduced across all MPI ranks.
+    """
+    comm = PETSc.COMM_WORLD
+    mpi = MPI.COMM_WORLD
+    if not Path(first_path).is_file() or not Path(second_path).is_file():
+        raise FileNotFoundError(
+            f"Both snapshot files are required: {first_path}; {second_path}"
+        )
+    first = load_matrix(first_path, comm)
+    second = load_matrix(second_path, comm)
+    try:
+        if (first.getSize() != second.getSize()
+                or first.getOwnershipRange() != second.getOwnershipRange()):
+            raise ValueError("Snapshot sizes or distributed ownership differ")
+        ra, ca, va = first.getValuesCSR()
+        rb, cb, vb = second.getValuesCSR()
+        if len(ra) != len(rb):
+            raise ValueError("Snapshot local row counts differ")
+
+        added = removed = 0
+        rows_pattern_changed = 0
+        local_delta_sq = 0.0
+        local_nonfinite_a = int(np.count_nonzero(~np.isfinite(va)))
+        local_nonfinite_b = int(np.count_nonzero(~np.isfinite(vb)))
+        for row in range(len(ra) - 1):
+            ia0, ia1 = int(ra[row]), int(ra[row + 1])
+            ib0, ib1 = int(rb[row]), int(rb[row + 1])
+            cols_a, cols_b = ca[ia0:ia1], cb[ib0:ib1]
+            vals_a, vals_b = va[ia0:ia1], vb[ib0:ib1]
+            _shared, inda, indb = np.intersect1d(
+                cols_a, cols_b, assume_unique=True, return_indices=True
+            )
+            row_added = len(cols_b) - len(indb)
+            row_removed = len(cols_a) - len(inda)
+            added += row_added
+            removed += row_removed
+            if row_added or row_removed:
+                rows_pattern_changed += 1
+            # Compare aligned values, including entries present in only one
+            # of the two matrices, without any in-place PETSc operations.
+            keep_a = np.ones(len(cols_a), dtype=bool)
+            keep_b = np.ones(len(cols_b), dtype=bool)
+            keep_a[inda] = False
+            keep_b[indb] = False
+            local_delta_sq += float(np.sum(np.abs(vals_a[inda] - vals_b[indb]) ** 2))
+            local_delta_sq += float(np.sum(np.abs(vals_a[keep_a]) ** 2))
+            local_delta_sq += float(np.sum(np.abs(vals_b[keep_b]) ** 2))
+
+        norm_a = float(first.norm(PETSc.NormType.FROBENIUS))
+        norm_b = float(second.norm(PETSc.NormType.FROBENIUS))
+        diff_frob = float(np.sqrt(mpi.allreduce(local_delta_sq, op=MPI.SUM)))
+        result = {
+            "mode": "inspect_only_no_factorization",
+            "mpi_size": mpi.Get_size(),
+            "first": str(first_path),
+            "second": str(second_path),
+            "global_size": first.getSize(),
+            "stored_nnz_first": int(mpi.allreduce(len(ca), op=MPI.SUM)),
+            "stored_nnz_second": int(mpi.allreduce(len(cb), op=MPI.SUM)),
+            "stored_nnz_added": int(mpi.allreduce(added, op=MPI.SUM)),
+            "stored_nnz_removed": int(mpi.allreduce(removed, op=MPI.SUM)),
+            "rows_with_pattern_change": int(
+                mpi.allreduce(rows_pattern_changed, op=MPI.SUM)
+            ),
+            "stored_zeros_first": int(
+                mpi.allreduce(np.count_nonzero(va == 0), op=MPI.SUM)
+            ),
+            "stored_zeros_second": int(
+                mpi.allreduce(np.count_nonzero(vb == 0), op=MPI.SUM)
+            ),
+            "nonfinite_first": int(
+                mpi.allreduce(local_nonfinite_a, op=MPI.SUM)
+            ),
+            "nonfinite_second": int(
+                mpi.allreduce(local_nonfinite_b, op=MPI.SUM)
+            ),
+            "frobenius_first": norm_a,
+            "frobenius_second": norm_b,
+            "frobenius_difference": diff_frob,
+            "relative_frobenius_difference": diff_frob / max(1.0, norm_a),
+        }
+        if mpi.Get_rank() == 0:
+            print(json.dumps(result, indent=2), flush=True)
+        if result["nonfinite_first"] or result["nonfinite_second"]:
+            raise RuntimeError("At least one snapshot has non-finite coefficients")
+    finally:
+        second.destroy()
+        first.destroy()
+
+
+def stored_csr_pattern(matrix):
+    """Return a detached copy of the locally stored sparse pattern."""
+    indptr, indices, _ = matrix.getValuesCSR()
+    return np.array(indptr, copy=True), np.array(indices, copy=True)
+
+
+def local_pattern_changed(before, after):
+    """Compare CSR positions, without checking numerical values."""
+    return (not np.array_equal(before[0], after[0])
+            or not np.array_equal(before[1], after[1]))
+
+
+def relative_state_error(solution, expected):
+    """Check the manufactured exact state, not only the algebraic residual.
+
+    A tiny ||A*x-b|| / ||b|| alone may hide a large state error when
+    the captured, potentially divergent Jacobian is ill-conditioned.
+    """
+    difference = solution.duplicate()
+    try:
+        solution.copy(difference)
+        difference.axpy(-1.0, expected)
+        return difference.norm() / max(expected.norm(), 1.0)
+    finally:
+        difference.destroy()
 
 
 def replay(path, cycles, factor_only, solver="mumps"):
@@ -109,16 +236,19 @@ def replay(path, cycles, factor_only, solver="mumps"):
                             )
                         finally:
                             check.destroy()
+                        state_error = relative_state_error(x, x_true)
                         emit(
                             comm,
                             f"cycle={cycle} after KSP.solve, "
                             f"reason={int(ksp.getConvergedReason())}, "
                             f"iterations={ksp.getIterationNumber()}, "
                             f"relative_linear_residual="
-                            f"{relative_residual:.9g}",
+                            f"{relative_residual:.9g}, "
+                            f"relative_state_error={state_error:.9g}",
                         )
                         if (int(ksp.getConvergedReason()) <= 0
-                                or relative_residual > 1e-5):
+                                or not (relative_residual <= 1e-5)
+                                or not (state_error <= 1e-5)):
                             raise RuntimeError(
                                 "LU solver failed to reproduce the "
                                 "known consistent Jacobian solution"
@@ -148,6 +278,7 @@ def replay_changing_operator(first_path, second_path, transitions,
     reassembles the SAME PETSc Mat handle with A_002's new structure.
     """
     comm = PETSc.COMM_WORLD
+    mpi = MPI.COMM_WORLD
     if not Path(first_path).is_file() or not Path(second_path).is_file():
         raise FileNotFoundError(
             f"Snapshots must both exist: {first_path}; {second_path}"
@@ -171,6 +302,8 @@ def replay_changing_operator(first_path, second_path, transitions,
         pc.setFactorSolverType(solver)
         ksp.setOperators(working)
         structure = PETSc.Mat.Structure.DIFFERENT_NONZERO_PATTERN
+        previous_pattern = stored_csr_pattern(working)
+        reset_count = 0
 
         emit(
             comm,
@@ -186,7 +319,7 @@ def replay_changing_operator(first_path, second_path, transitions,
                 # factorization the PC may still own LU symbolic
                 # structures for the OLD sparse graph. This is an
                 # opt-in diagnostic; the default reproduces the bug.
-                if transition_reset != "none":
+                if transition_reset in ("pc", "ksp"):
                     emit(
                         comm,
                         f"transition={index} BEFORE "
@@ -194,10 +327,9 @@ def replay_changing_operator(first_path, second_path, transitions,
                     )
                     if transition_reset == "pc":
                         ksp.getPC().reset()
-                    elif transition_reset == "ksp":
-                        ksp.reset()
                     else:
-                        raise ValueError(transition_reset)
+                        ksp.reset()
+                    reset_count += 1
                     emit(
                         comm,
                         f"transition={index} AFTER "
@@ -212,8 +344,29 @@ def replay_changing_operator(first_path, second_path, transitions,
                 )
                 source.copy(working, structure=structure)
                 working.assemble()
+                new_pattern = stored_csr_pattern(working)
+                pattern_changed = bool(mpi.allreduce(
+                    local_pattern_changed(previous_pattern, new_pattern),
+                    op=MPI.LOR,
+                ))
+                previous_pattern = new_pattern
+                emit(
+                    comm,
+                    f"transition={index} after in-place Mat.copy "
+                    f"stored_pattern_changed={pattern_changed}",
+                )
+                if transition_reset == "on_change" and pattern_changed:
+                    # In this PETSc-only diagnostic the exact, collective
+                    # CSR check is made after MatCopy. Reset the stale LU
+                    # before the next factorization/KSPSolve. Retained
+                    # allocated slots are intentionally considered unchanged.
+                    emit(comm, f"transition={index} BEFORE pc.reset "
+                               "(stored pattern changed)")
+                    ksp.getPC().reset()
+                    reset_count += 1
+                    emit(comm, f"transition={index} AFTER pc.reset "
+                               "(stored pattern changed)")
                 ksp.setOperators(working)
-                emit(comm, f"transition={index} after in-place Mat.copy")
 
             working.mult(x_true, rhs)
             x.set(0.0)
@@ -223,17 +376,20 @@ def replay_changing_operator(first_path, second_path, transitions,
             working.mult(x, check)
             check.axpy(-1.0, rhs)
             relative_residual = check.norm() / max(rhs.norm(), 1.0)
+            state_error = relative_state_error(x, x_true)
             emit(
                 comm,
                 f"transition={index} after KSP.solve "
                 f"reason={reason}, iterations={ksp.getIterationNumber()}, "
-                f"relative_linear_residual={relative_residual:.9g}",
+                f"relative_linear_residual={relative_residual:.9g}, "
+                f"relative_state_error={state_error:.9g}",
             )
-            if reason <= 0 or not (
-                relative_residual <= 1e-5
-            ):
+            if (reason <= 0 or not (relative_residual <= 1e-5)
+                    or not (state_error <= 1e-5)):
                 pc = ksp.getPC()
                 details = {
+                    "relative_linear_residual": relative_residual,
+                    "relative_state_error": state_error,
                     "KSP_reason": reason,
                     "PC_type": pc.getType(),
                     "PC_failed_reason": str(pc.getFailedReason()),
@@ -253,6 +409,7 @@ def replay_changing_operator(first_path, second_path, transitions,
                     "Persistent KSP failed after a nonlinear matrix update"
                 )
 
+        emit(comm, f"persistent KSP explicit_factor_resets={reset_count}")
         emit(comm, "persistent KSP before KSP.reset")
         ksp.reset()
         emit(comm, "persistent KSP after KSP.reset")
@@ -272,6 +429,11 @@ def main():
                         help="PETSc binary Jacobian captured on OLD env")
     parser.add_argument("--cycles", type=int, default=3)
     parser.add_argument(
+        "--inspect-only", action="store_true",
+        help="Compare exact stored CSR patterns and numeric coefficients "
+             "of two binary matrices without invoking KSP or MUMPS",
+    )
+    parser.add_argument(
         "--solver", choices=("mumps", "superlu"), default="mumps",
         help="Compare the exact same stored Jacobian with MUMPS versus "
              "SuperLU (one rank); defaults to MUMPS",
@@ -282,11 +444,12 @@ def main():
              "KSP and Mat while alternating old/new Jacobian patterns",
     )
     parser.add_argument(
-        "--transition-reset", choices=("none", "pc", "ksp"),
+        "--transition-reset", choices=("none", "pc", "ksp", "on_change"),
         default="none",
-        help="For a changing matrix, reset the factor PC or full KSP "
-             "BEFORE in-place Mat.copy; isolate stale sparse symbolic "
-             "factorization. Default none reproduces the failure.",
+        help="For a changing matrix: pc/ksp reset before every MatCopy; "
+             "on_change resets only after a rank-collective exact comparison "
+             "of the newly stored CSR against the prior CSR, before solve. "
+             "The unsafe default 'none' is retained for legacy diagnostics.",
     )
     parser.add_argument(
         "--factor-only", action="store_true",
@@ -295,6 +458,13 @@ def main():
     args = parser.parse_args()
     if args.cycles <= 0:
         parser.error("--cycles must be positive")
+    if args.inspect_only:
+        if not args.next_matrix:
+            parser.error("--inspect-only requires --next-matrix")
+        if args.factor_only or args.transition_reset != "none":
+            parser.error("--inspect-only is incompatible with factor-only/reset")
+        inspect_two_matrices(args.matrix, args.next_matrix)
+        return
     if args.next_matrix:
         if args.factor_only:
             parser.error("--factor-only cannot be used with --next-matrix")

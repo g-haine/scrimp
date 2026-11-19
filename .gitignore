@@ -12,3 +12,7 @@ dist/
 *egg*
 *.json
 !*.session.json
+# Local GetFEM source builds and performance outputs
+.build/
+sandbox/outputs/
+docker-resolved-spec.txt
