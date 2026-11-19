@@ -1,6 +1,6 @@
 # SCRIMP v1.3.0 — Docker candidate build and cache qualification
 
-**Status: first native rebuild attempted on 19 November 2026; context isolation, Conda installation and PETSc/SLEPc Python bindings passed. GetFEM cache permission failure fixed in source; a complete rebuild and MPI smoke remain pending.**
+**Status: second native build attempted on 19 November 2026; context isolation, cache ownership, CPU-only complex PETSc/SLEPc, NumPy-2 bindings and Gmsh imports all passed. GetFEM's downloaded tarball SHA-256 differs from the pinned archive; mirror identity inspection and a complete rebuild/MPI smoke remain pending.**
 This document is part of [v1.3.0 release point 2](V130_RELEASE_PLAN.md).
 Always build/test a **new tag**. The existing qualified
 `scrimp-mpi:local` image must not be retagged, overwritten, pruned
@@ -164,6 +164,48 @@ new CPU variant and must not be reused.
 Code runtime acceptance is claimed yet.** Continue with the normal
 candidate builder after pulling the corrected branch.
 
+## 1c. GetFEM 5.5 tarball checksum discrepancy (19 November)
+
+The **second candidate build** (source `8ff7ceab`) successfully
+reused the small 1.60 MB physically staged GitHub context, repaired
+all three non-root BuildKit caches, solved **CPU complex**
+PETSc/SLEPc 3.26.1 (Conda download down from about **2 GB** to
+**489 MB**), compiled/loaded their NumPy-2 Python bindings and
+imported Gmsh 4.15.2. The GetFEM download then reached 16.12 MiB,
+but `sha256sum` rejected it. The build correctly stopped without
+compiling an unverified source archive.
+
+The pinned digest
+`f6c09fb2edd112b6abe04e0485534f5e965d6f8f9ad853308b7120bfc6722ab5`
+is documented by the Fossies snapshot of the GetFEM 5.5 archive,
+dated **8 June 2026**. A GNU Savannah mirror directory lists a
+file of the same name dated **15 June 2026**. A repacked/reissued
+archive (not yet proved to be content-identical) is plausible.
+Do **not** simply turn SHA-256 verification off, silently change
+the expected digest to a value returned by an unknown mirror, or
+promote this unqualified candidate.
+
+The build script now reports the **actual SHA-256 digest**, exact
+byte count, gzip-integrity result and final redirected mirror URL
+on mismatch, then still deletes the unverified cached archive and
+exits. All previously successful BuildKit layers stay cached.
+
+To collect this evidence, pull the updated branch and rerun:
+
+```bash
+git pull --ff-only
+bash scripts/build-v130-docker-candidate.sh
+```
+
+Inspect `sandbox/outputs/v130-docker-build.log` for
+`GetFEM final URL`, `Expected SHA256`, `Observed SHA256`,
+`Archive bytes`, `Archive type` and `gzip integrity`.
+Compare the observed hash/bytes against an **independent archive
+mirror or a trusted immutable upstream release** before revising
+the pinned Dockerfile digest. Then verify the five patches still
+apply cleanly and repeat native FEM/MPI qualification. Do not
+change user simulations or `scrimp-mpi:local`.
+
 ## 2. Build a candidate without disturbing the qualified image
 
 From a temporary checkout of SCRIMP's preparation branch,
@@ -206,10 +248,11 @@ release evidence. A build interrupted during native compilation may
 restart that step but should **not redownload** a valid cached
 tarball or cached pip/Conda packages.
 
-**Warning:** the first clean build reached the GetFEM download but
-stopped at cache permissions. The fixed Dockerfile still needs an
-end-to-end rebuild and numerical smoke on the user's host; no image
-has been promoted or released by committing these files.
+**Warning:** the first build reached GetFEM and stopped at cache
+permissions. The second build passed that step and the corrected
+CPU-PETSc bindings, but stopped at a **GetFEM release SHA-256
+mismatch**. An end-to-end build and numerical smoke are still
+pending; no image has been promoted or released.
 
 ### Buildx prerequisite (Ubuntu 22.04 / Docker from Ubuntu repositories)
 
