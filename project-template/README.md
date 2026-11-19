@@ -64,6 +64,41 @@ python simulations/first_simulation.py
 mpiexec -n 2 python simulations/mpi_check.py
 ```
 
+### If VS Code says "No Python found" or offers "Install uv and Python"
+
+**Do not install another Python.** SCRIMP's numerical image already
+contains Python and all numerical libraries in the **`scrimp` Conda
+environment**. On the first Ubuntu Dev Containers launch, VS Code
+briefly offered to download `uv` and install Python even though
+the container's Python worked: the simulation and two-rank MPI
+check both passed in the integrated terminal.
+
+Click **Don't ask again** or **Cancel**, then open a Python file and
+run **Python: Select Interpreter** (`Ctrl+Shift+P`). If necessary,
+choose **Enter interpreter path** and enter:
+
+```text
+/opt/conda/envs/scrimp/bin/python
+```
+
+Verify from the **container terminal** (which should start with
+`(scrimp)`):
+
+```bash
+python -c "import sys, scrimp; print(sys.executable); print('SCRIMP OK')"
+```
+
+The printed interpreter should be
+`/opt/conda/envs/scrimp/bin/python`. The starter
+`.devcontainer/devcontainer.json` sets
+`python.defaultInterpreterPath` to this value already, but
+the editor may still show a generic discovery popup at first launch.
+If **F5** fails after the terminal succeeds, check the Microsoft
+Python and Python Debugger extensions are installed **inside the
+Dev Container**, reload VS Code, and re-select that interpreter.
+Do **not** rebuild SCRIMP or create an `uv` environment to
+address this editor prompt.
+
 The first command is a **real, short serial port-Hamiltonian
 mass–spring–damper simulation**. It saves `outputs/oscillator.csv`.
 The second only checks MPI startup. To test MPI physics use a
@@ -113,7 +148,9 @@ on the host.
 ## Release status
 
 This starter project is being prepared on the
-`release/1.3.0-preparation` branch. The public `v1.3.0` image,
-native cross-platform installation and Dev Containers end-to-end
-tests are **not yet qualified**. The starter configuration and
-scientific example still require first-runtime acceptance.
+`release/1.3.0-preparation` branch. The public `v1.3.0` image
+and native cross-platform installation are **not yet qualified**.
+The **Linux VS Code Dev Container terminal run** passed the actual
+first SCRIMP simulation, host-persistent CSV and two-rank MPI
+startup on 19 November 2026. Python debugging with **F5** and
+cross-platform VS Code behavior still require separate acceptance.
