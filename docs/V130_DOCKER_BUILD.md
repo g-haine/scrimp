@@ -196,7 +196,7 @@ with **16,911,362 bytes** and SHA-256
 The earlier Fossies snapshot contains **16,911,397 bytes**
 and SHA-256
 `f6c09fb2edd112b6abe04e0485534f5e965d6f8f9ad853308b7120bfc6722ab5`.
-Only **35 compressed bytes** differ in overall size. That makes
+The **total compressed file sizes differ by 35 bytes**. That makes
 gzip-header or reproducible-compression differences *plausible*,
 but does not establish identical source content. Neither archive
 has been accepted as the replacement pin solely on that basis.
