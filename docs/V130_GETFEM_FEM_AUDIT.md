@@ -235,3 +235,35 @@ changes only upstream `interface/src/python/setup.py.in`:
 so the generated file picks up this source change. This is a proposed
 link fix: it still requires native validation before being considered
 proven or enabled for SCRIMP end users.
+
+
+### BDM 3D Docker constructor smoke: PASS (19 November 2026)
+
+The revised disposable test applied both
+`0001-bdm-tetrahedron-unisolvent-dofs.patch` and
+`0002-python-interface-link-in-tree.patch` to the original GetFEM 5.5
+source. After rebuilding, `_getfem*.so` **contained** the unique
+BDM diagnostic marker: the Python interface now embeds the newly built
+archive instead of the stale GetFEM binary.
+
+Observed `getfem.util_mpi_parallelism_level() == 2`, and the following
+local constructor dimensions all passed:
+
+| FEM | Expected DoFs | Observed DoFs |
+| --- | ---: | ---: |
+| `FEM_BDMK(2,1)` | 6 | 6 |
+| `FEM_BDMK(2,2)` | 12 | 12 |
+| `FEM_BDMK(3,1)` | 12 | 12 |
+| `FEM_BDMK(3,2)` | 30 | 30 |
+
+This **closes the native constructor blocker**, not the H(div)
+conformity/face-orientation check or the numerical assembly check.
+The updated smoke script now builds two tetrahedra with one shared face
+and checks that BDM1/2 global DoFs are respectively 21 and 54, followed
+by symmetric-positive-definite mass-matrix assembly. **These new
+two-tetrahedron tests have not yet been run**. A passing count and mass
+matrix are necessary checks, but they do not by themselves prove
+pointwise normal-trace continuity across the interface.
+
+Original qualified `scrimp-mpi:local` remains unchanged: all
+recompilation happened inside a disposable `docker run --rm` container.
