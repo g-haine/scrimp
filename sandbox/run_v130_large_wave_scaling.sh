@@ -101,7 +101,7 @@ for rep in $(seq 1 "$repetitions"); do
     done
 done
 
-echo "ANALYZE: exact MPI full-state parity, PETSc LU events, 3-repeat distributions"
+echo "ANALYZE: exact MPI full-state parity, PETSc LU events, $repetitions repetitions per MPI size"
 sudo docker run --rm \
     --user "$(id -u):$(id -g)" --workdir /workspace/scrimp \
     -e HOME=/tmp -e MPLBACKEND=Agg \
