@@ -35,9 +35,17 @@ PY
 PETSC_VERSION="$(printf '%s\n' "$versions" | sed -n '1p')"
 SLEPC_VERSION="$(printf '%s\n' "$versions" | sed -n '2p')"
 echo "Native PETSc=$PETSC_VERSION, SLEPc=$SLEPC_VERSION; building Python bindings for NumPy=$(python -c 'import numpy; print(numpy.__version__)')"
-python -m pip install --no-deps --no-build-isolation --no-cache-dir \
+# Default host-conda behavior stays unchanged. In a Docker BuildKit layer,
+# SCRIMP_PIP_USE_CACHE=1 enables a separately mounted pip download cache;
+# it is NOT included in the resulting image.
+pip_cache_flags=(--no-cache-dir)
+if [[ "${SCRIMP_PIP_USE_CACHE:-0}" == "1" ]]; then
+    pip_cache_flags=()
+    echo "Reusing BuildKit pip cache: ${PIP_CACHE_DIR:-default}"
+fi
+python -m pip install --no-deps --no-build-isolation "${pip_cache_flags[@]}" \
     "petsc4py==$PETSC_VERSION"
-python -m pip install --no-deps --no-build-isolation --no-cache-dir \
+python -m pip install --no-deps --no-build-isolation "${pip_cache_flags[@]}" \
     "slepc4py==$SLEPC_VERSION"
 python - <<'PY'
 import numpy as np
