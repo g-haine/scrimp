@@ -51,7 +51,7 @@ if [[ "$GETFEM_SOURCE" == release ]]; then
     trap 'rm -f "$incomplete"' EXIT
     echo "GetFEM release download: $url"
     curl --fail --location --retry 3 \
-      --write-out 'GetFEM final URL: %{url_effective}; HTTP %{http_code}\\n' \
+      --write-out 'GetFEM final URL: %{url_effective}; HTTP %{http_code}\n' \
       --output "$incomplete" "$url"
     mv "$incomplete" "$file"
     trap - EXIT
