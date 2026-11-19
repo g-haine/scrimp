@@ -61,11 +61,17 @@ During development, obtain the template from GitHub once:
 
 .. code-block:: bash
 
+   BOOTSTRAP="$(mktemp -d -t scrimp-starter.XXXXXXXX)"
    git clone --depth 1 --branch release/1.3.0-preparation \
-       https://github.com/g-haine/scrimp.git /tmp/scrimp-starter
-   python3 /tmp/scrimp-starter/scripts/create-scrimp-project.py \
+       https://github.com/g-haine/scrimp.git "$BOOTSTRAP/source"
+   python3 "$BOOTSTRAP/source/scripts/create-scrimp-project.py" \
        "$HOME/MySCRIMPProject"
-   rm -rf /tmp/scrimp-starter
+
+The BOOTSTRAP directory is a separate **newly created** temporary
+source checkout. The user's new project is in MySCRIMPProject and
+can be retained indefinitely. The temporary source checkout can
+be removed after successful project creation; never remove an
+existing user directory to make room for it.
 
 The generator refuses to overwrite any pre-existing directory and
 never copies the source repository's sandbox, output data or Git history.
