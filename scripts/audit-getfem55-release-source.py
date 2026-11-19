@@ -37,6 +37,32 @@ TAG_COMMIT = "c242f7fe0989e9a90846c63eaccc6b495d774724"
 KNOWN_SAVANNAH_SHA = "0e042770b86152b09be4bfd0ee160b8d10d49c3f8a0b9b06d55f1ffaa1d30fc4"
 ORIGINAL_FOSSIES_SHA = "f6c09fb2edd112b6abe04e0485534f5e965d6f8f9ad853308b7120bfc6722ab5"
 
+# Reviewed Savannah 5.5 distribution against upstream Git tag
+# c242f7fe... on 2026-11-19. The official *release tarball* is not
+# byte-identical to the Git tree. These are the ONLY allowed shared
+# modifications, protected by KNOWN_SAVANNAH_SHA of the full archive:
+# - CMakeLists.txt: updates stale 5.4.2 version string to 5.5.0,
+#   simplifies GMM_VERSION and check_include_file_cxx syntax.
+# - gf_util.cc: moves the same #if defined(GMM_USES_MUMPS) test into
+#   MUMPS_LINKED macro; returns the same 0/1 for either build mode.
+# The following six Git-tracked source paths are not shipped in the
+# release tarball and are not used by our Autotools Python/MPI build.
+# src/getfem_enumeration_dof_para.cc is explicitly commented out
+# in the upstream src/Makefile.am.
+REVIEWED_SHARED_DELTAS = frozenset({
+    "CMakeLists.txt",
+    "interface/src/gf_util.cc",
+})
+REVIEWED_DIST_OMISSIONS = frozenset({
+    "interface/src/gf_poly.cc",
+    "interface/src/octave/getfem_interface.h",
+    "interface/src/octave/gfi_array.h",
+    "interface/src/octave/tmwtypes.h",
+    "src/getfem_enumeration_dof_para.cc",
+    "src/getfem_interpolation_on_deformed_domains.cc",
+})
+
+
 # Git source trees contain non-distribution files (contrib fixtures, docs,
 # autogen.sh). Their absence from a release tarball is not a failure.
 # Require the native build sources, headers, and every SCRIMP patch target
@@ -212,19 +238,31 @@ def audit(archive: Path, checkout: Path, extraction: Path) -> int:
     print("PASS: approved 0000..0004 patches apply sequentially to "
           "the Savannah GetFEM tarball.")
     print("No Docker image or SCRIMP file was changed.")
-    # Passing patches is NOT enough to establish source identity. A
-    # human must review any native build source difference before
-    # adopting a new strict archive hash.
-    if not common or missing_build_sources or different_build_sources:
-        print("SOURCE-AUDIT NEEDS REVIEW: missing/different native build "
-              "sources shown above. Keep the Docker SHA256 unchanged.")
+    # This is a *reviewed release variant*, not a claim that the
+    # Savannah tarball and the v5.5 Git tree are byte-identical.
+    # The whole tarball hash is checked before this comparison. Fail
+    # closed if ANY different shared file or missing native file is
+    # added beyond the precisely reviewed distribution differences.
+    unexpected_diffs = set(different) - REVIEWED_SHARED_DELTAS
+    unexpected_missing = set(missing_build_sources) - REVIEWED_DIST_OMISSIONS
+    unaccounted_reviews = (
+        REVIEWED_SHARED_DELTAS - set(different),
+        REVIEWED_DIST_OMISSIONS - set(missing_build_sources),
+    )
+    if not common or unexpected_diffs or unexpected_missing or any(unaccounted_reviews):
+        print("SOURCE-AUDIT FAIL: unexpected changes relative to reviewed "
+              "Savannah 5.5 distribution.", flush=True)
+        print("  Unexpected changed files:", sorted(unexpected_diffs))
+        print("  Unexpected absent build sources:", sorted(unexpected_missing))
+        print("  Reviewed changed files not observed:", sorted(unaccounted_reviews[0]))
+        print("  Reviewed omissions not observed:", sorted(unaccounted_reviews[1]))
         return 2
-    if different:
-        print("SOURCE-AUDIT NEEDS REVIEW: non-native files differ; inspect "
-              "the complete printed diff before updating the release pin.")
-        return 2
-    print("SOURCE-AUDIT PASS: the overlapping distribution and Git "
-          "sources match, and all five patches apply.")
+    print("SOURCE-AUDIT PASS: accepted Savannah GetFEM 5.5 artifact "
+          "with its EXACT verified SHA256, the two explicitly reviewed "
+          "distribution modifications, six known Autotools-irrelevant "
+          "omissions and all five SCRIMP patches.")
+    print("NOTE: this is archive/source verification; native compilation "
+          "and physical/MPI smoke remain separate acceptance gates.")
     return 0
 
 
