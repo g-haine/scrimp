@@ -9,7 +9,7 @@ PATCHES="$ROOT/scripts/patches/getfem-5.5"
 LOG="$ROOT/sandbox/outputs/getfem55_nedelec1_patch_smoke.log"
 mkdir -p "$ROOT/sandbox/outputs"
 
-echo "Nedelec-I experimental Docker smoke (triangles/tetrahedra, k<=2)"
+echo "Nedelec-I approved-source Docker smoke (triangles/tetrahedra, k<=2)"
 echo "Image: $IMAGE (disposable container, no Docker image rebuild)"
 echo "Patches: 0001 BDM, 0002 Python link, 0003 Nedelec-I (now approved)"
 echo "Output: $LOG"
