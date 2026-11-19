@@ -8,7 +8,7 @@ IMAGE="${SCRIMP_GETFEM_TEST_IMAGE:-scrimp-mpi:local}"
 PATCHES="$REPO_ROOT/scripts/patches/getfem-5.5"
 
 echo "Image: $IMAGE (ephemeral run; existing image and point-0 results untouched)"
-echo "Patch: $PATCHES/0001-bdm-tetrahedron-unisolvent-dofs.patch"
+echo "Patches: 0001 BDM tetrahedra + 0002 Python extension in-tree archive linkage"
 echo "Applier: Python standard library (no GNU patch installation)"
 
 mkdir -p "$REPO_ROOT/sandbox/outputs"
@@ -20,16 +20,24 @@ sudo docker run --rm \
   "$IMAGE" bash -lc '
     set -euo pipefail
     src=/workspace/scrimp/.build/getfem/getfem-5.5
-    patchfile=/tmp/scrimp-getfem-patches/0001-bdm-tetrahedron-unisolvent-dofs.patch
 
     if [[ ! -f "$src/src/getfem_fem.cc" ]]; then
       echo "ERROR: GetFEM source tree not present at $src in this image" >&2
       exit 2
     fi
-    # The qualified image lacks GNU patch. Verify every expected hunk
-    # against the exact installed GetFEM source before writing anything.
-    python /tmp/scrimp-apply-unified-patch.py "$src" "$patchfile" --dry-run
-    python /tmp/scrimp-apply-unified-patch.py "$src" "$patchfile"
+    # The qualified image lacks GNU patch. Verify the exact upstream
+    # contexts before applying both source fixes in this disposable container.
+    for patchfile in \
+      /tmp/scrimp-getfem-patches/0001-bdm-tetrahedron-unisolvent-dofs.patch \
+      /tmp/scrimp-getfem-patches/0002-python-interface-link-in-tree.patch; do
+      python /tmp/scrimp-apply-unified-patch.py "$src" "$patchfile" --dry-run
+      python /tmp/scrimp-apply-unified-patch.py "$src" "$patchfile"
+    done
+
+    # setup.py is generated from setup.py.in by configure. Refresh it,
+    # otherwise make keeps linking GetFEM from the old linker arguments.
+    (cd "$src" && ./config.status interface/src/python/setup.py)
+    grep -nF "extra_objects = [" "$src/interface/src/python/setup.py"
     make -C "$src" -j2
     make -C "$src" install "am__py_compile=:"
     echo "GetFEM source: post-patch BDM assertion location:"
