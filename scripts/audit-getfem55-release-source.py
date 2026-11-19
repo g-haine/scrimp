@@ -15,6 +15,7 @@ before changing the pinned Docker SHA256.
 from __future__ import annotations
 
 import argparse
+import difflib
 import gzip
 import hashlib
 import os
@@ -36,11 +37,13 @@ TAG_COMMIT = "c242f7fe0989e9a90846c63eaccc6b495d774724"
 KNOWN_SAVANNAH_SHA = "0e042770b86152b09be4bfd0ee160b8d10d49c3f8a0b9b06d55f1ffaa1d30fc4"
 ORIGINAL_FOSSIES_SHA = "f6c09fb2edd112b6abe04e0485534f5e965d6f8f9ad853308b7120bfc6722ab5"
 
-CORE_ROOTS = ("src/", "interface/", "tests/", "contrib/", "config/", "m4/")
-CORE_TOP = {
-    "configure.ac", "Makefile.am", "autogen.sh",
-    "src/Makefile.am", "interface/Makefile.am",
-}
+# Git source trees contain non-distribution files (contrib fixtures, docs,
+# autogen.sh). Their absence from a release tarball is not a failure.
+# Require the native build sources, headers, and every SCRIMP patch target
+# instead; differences in *shared* files must still be reviewed.
+BUILD_SOURCE_ROOTS = ("src/", "interface/src/")
+BUILD_SOURCE_EXTS = (".cc", ".c", ".cpp", ".h", ".hpp", ".in", ".py")
+DIFF_LINES_LIMIT = 120
 
 
 def run(argv: list[str], **kwargs: object) -> subprocess.CompletedProcess[bytes]:
@@ -55,8 +58,25 @@ def digest(path: Path) -> str:
     return h.hexdigest()
 
 
-def is_core(path: str) -> bool:
-    return path.startswith(CORE_ROOTS) or path in CORE_TOP
+def is_build_source(path: str) -> bool:
+    return (path.startswith(BUILD_SOURCE_ROOTS)
+            and path.endswith(BUILD_SOURCE_EXTS))
+
+
+def show_diff(relative: str, reference: bytes, archive: bytes) -> None:
+    """Print a bounded unified diff with deterministic UTF-8 decoding."""
+    print(f"\n--- DIFF: {relative} (tag v5.5 -> Savannah tarball) ---",
+          flush=True)
+    lines = list(difflib.unified_diff(
+        reference.decode("utf-8", "replace").splitlines(keepends=True),
+        archive.decode("utf-8", "replace").splitlines(keepends=True),
+        fromfile=f"v5.5/{relative}",
+        tofile=f"savannah/getfem-5.5/{relative}",
+    ))
+    for line in lines[:DIFF_LINES_LIMIT]:
+        print(line, end="" if line.endswith("\n") else "\n")
+    if len(lines) > DIFF_LINES_LIMIT:
+        print(f"  ... {len(lines) - DIFF_LINES_LIMIT} further diff lines hidden")
 
 
 def audit(archive: Path, checkout: Path, extraction: Path) -> int:
@@ -110,15 +130,16 @@ def audit(archive: Path, checkout: Path, extraction: Path) -> int:
         common = 0
         missing: list[str] = []
         different: list[str] = []
-        missing_core: list[str] = []
-        different_core: list[str] = []
+        missing_build_sources: list[str] = []
+        different_build_sources: list[str] = []
+        differing_contents: dict[str, tuple[bytes, bytes]] = {}
         for relative in tracked:
             path = checkout / relative
             info = archive_members.get(relative)
             if info is None:
                 missing.append(relative)
-                if is_core(relative) and path.is_file() and not path.is_symlink():
-                    missing_core.append(relative)
+                if is_build_source(relative) and path.is_file() and not path.is_symlink():
+                    missing_build_sources.append(relative)
                 continue
             if not path.is_file() or path.is_symlink():
                 continue
@@ -128,10 +149,12 @@ def audit(archive: Path, checkout: Path, extraction: Path) -> int:
             with stream:
                 original = stream.read()
             common += 1
-            if original != path.read_bytes():
+            ref_content = path.read_bytes()
+            if original != ref_content:
                 different.append(relative)
-                if is_core(relative):
-                    different_core.append(relative)
+                differing_contents[relative] = (ref_content, original)
+                if is_build_source(relative):
+                    different_build_sources.append(relative)
 
     print(f"Git-tracked paths in tag:     {len(tracked)}")
     print(f"Regular files in tarball:    {len(archive_members)}")
@@ -139,26 +162,15 @@ def audit(archive: Path, checkout: Path, extraction: Path) -> int:
     print(f"Git paths absent from tar:   {len(missing)} "
           "(some VCS/generated/dist omissions expected)")
     print(f"Different common files:      {len(different)}")
-    print(f"Missing core source paths:   {len(missing_core)}")
-    print(f"Different core source paths: {len(different_core)}")
-    if different:
-        print("DIFFERENT examples (first 25):")
-        for p in different[:25]:
+    print(f"Missing native source/header paths:    {len(missing_build_sources)}")
+    print(f"Different native source/header paths:  {len(different_build_sources)}")
+    if missing_build_sources:
+        print("MISSING native source/header files (first 30):")
+        for p in missing_build_sources[:30]:
             print("  " + p)
-    if missing_core:
-        print("MISSING CORE examples (first 25):")
-        for p in missing_core[:25]:
-            print("  " + p)
-
-    if not common or different_core or missing_core:
-        print("FAIL: release archive core files are not byte-identical to "
-              "the pinned Git tag. Do not change the Docker SHA256.")
-        return 2
-
-    print("PASS: all shared core source files match the official Git tag.")
-    if different:
-        print("NOTE: some shared non-core files differ; review above before "
-              "claiming a fully identical release tree.")
+    for relative in different:
+        reference, original = differing_contents[relative]
+        show_diff(relative, reference, original)
 
     print("\n=== Approved patches, sequential disposable application ===",
           flush=True)
@@ -172,6 +184,17 @@ def audit(archive: Path, checkout: Path, extraction: Path) -> int:
     if len(patches) != 5:
         raise RuntimeError(f"Expected five approved GetFEM patches; got "
                            f"{len(patches)}: {[p.name for p in patches]}")
+    # Check that EVERY path targeted by a SCRIMP patch exists in the
+    # distribution, regardless of the source-tree file inventory.
+    patch_targets: set[str] = set()
+    for patch in patches:
+        for line in patch.read_text(encoding="utf-8").splitlines():
+            if line.startswith("+++ b/"):
+                patch_targets.add(line.removeprefix("+++ b/").strip())
+    missing_targets = sorted(p for p in patch_targets if p not in archive_members)
+    if missing_targets:
+        raise RuntimeError(f"Patch target files absent from tarball: {missing_targets}")
+    print(f"All {len(patch_targets)} patch target source files present.")
     for patch in patches:
         print(f"  {patch.name}", flush=True)
         with patch.open("rb") as f:
@@ -188,9 +211,20 @@ def audit(archive: Path, checkout: Path, extraction: Path) -> int:
             )
     print("PASS: approved 0000..0004 patches apply sequentially to "
           "the Savannah GetFEM tarball.")
-    print("\nSOURCE-AUDIT PASS: safe to REVIEW the observed archive digest "
-          "for a new strict release pin.")
     print("No Docker image or SCRIMP file was changed.")
+    # Passing patches is NOT enough to establish source identity. A
+    # human must review any native build source difference before
+    # adopting a new strict archive hash.
+    if not common or missing_build_sources or different_build_sources:
+        print("SOURCE-AUDIT NEEDS REVIEW: missing/different native build "
+              "sources shown above. Keep the Docker SHA256 unchanged.")
+        return 2
+    if different:
+        print("SOURCE-AUDIT NEEDS REVIEW: non-native files differ; inspect "
+              "the complete printed diff before updating the release pin.")
+        return 2
+    print("SOURCE-AUDIT PASS: the overlapping distribution and Git "
+          "sources match, and all five patches apply.")
     return 0
 
 
