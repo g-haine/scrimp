@@ -187,47 +187,88 @@ equivalence issue is understood. Then cut a single long-lived
 `release/1.3.0-preparation` integration branch. Do not prematurely
 merge an unqualified solver change to `master`.
 
-### Final point-0 size-qualification campaign: h=0.005
+### Final point-0 large-wave strong-scaling qualification: h=0.005 — PASSED
 
-As requested, run the **complete** current-version strong-scaling
-campaign at **h=0.005** (approximately three million DOFs; actual
-GetFEM `nbdof()` is authoritative). This is **not** a pilot and
-never launches v1.2.0. The source is the corrected production
-`examples/wave.py` with exact `on_change` Jacobian reuse,
-fixed Crank–Nicolson (10 steps, dt=0.002), compact distributed COO
-and parallel MUMPS symbolic ordering.
+**19 November 2026: full native production campaign PASS, five independent
+repetitions at each of 1, 2, 4, 6 MPI ranks — 20 complete simulations.**
+Not a pilot; no v1.2.0 process was run. Exact source commit:
+`25837de018ae53f8056f41cedf2f66f7ddb3841c`; archived native
+output `sandbox/outputs/v130-large-wave-h0p005-25837de0-CBukYK/`.
+The user supplied the complete 4.3-MB reduced ZIP containing **all
+20 PETSc staged logs and JSON reports, 12 PNG + 12 SVG plots,
+two CSV files and the original analysis**; large NPZ state vectors
+were omitted from the shared ZIP after native verification.
+
+Fixed `examples/wave.py`, mesh **h=0.005**, actual global
+**2,966,786 DoFs**, ten accepted Crank–Nicolson steps,
+dt=0.002, final time=0.02. Distributed GetFEM→PETSc COO,
+compact matrix mode, default exact MUMPS `on_change`, ICNTL(28)
+parallel ordering on multi-rank solves. CPU affinity:
+0; 0,2; 0,2,4,6; 0,2,4,6,8,10. No production source changed
+during the twenty measured runs.
+
+| MPI ranks | Full solve median (s) | Min–max (s) | Full solve + build median (s) | Speedup vs current 1-rank | Efficiency | Largest rank RSS HWM (GiB) | Sum of rank RSS HWM (GiB) |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 134.679 | 134.292–136.065 | 142.195 | 1.000× | 100.0% | 14.05 | 14.05 |
+| 2 | 109.466 | 109.335–109.734 | 116.766 | 1.230× | 61.5% | 9.20 | 18.34 |
+| **4** | **86.239** | **85.655–86.660** | **94.724** | **1.562×** | **39.0%** | **6.14** | **22.17** |
+| 6 | 91.493 | 91.063–93.093 | 101.151 | 1.472× | 24.5% | 5.17 | 25.64 |
+
+**Strong-scaling optimum is four MPI ranks on the tested six-physical-
+core machine**, not six. Five-run distributions do not overlap.
+From 4→6 ranks: wall solve **+6.1%**, total incl. build **+6.8%**,
+and summed process RSS lifetime high-water marks **+15.7%**.
+Per-rank HWM falls, however, from 6.14 to 5.17 GiB, so six ranks
+may be useful for per-process memory constraints. RSS sums are **not
+an instantaneous synchronized total** and include MPI replication.
+No claims about other node topologies.
+
+**Native scientific/numerical gate:** all 20 PETSc stage logs were
+independently parsed from the shared ZIP and agree exactly with
+SCRIMP's recorded collective matrix-update decisions:
+`MatLUFactorSym=1`, `MatLUFactorNum=2`,
+`MatSolve=10` per main TS. The on_change policy reused unchanged
+numeric LU on eight of ten CN Jacobian calls. The native analyzer
+previously compared **full** initial/final vectors in all 20 runs
+and reported PASS; from the reduced ZIP its audit results can be
+checked, but the large vectors cannot be independently reconstructed.
+Maximum reported scaled full-vector L2 discrepancies (across all
+MPI ranks and repetitions): initial **1.04e-14**, final **7.56e-13**
+(tolerance 5e-8).
+
+**Why 6 ranks is slower than 4:** the measured native stages indicate
+higher startup/communication/ordering cost rather than a failure of
+numeric factorization scaling. Median initial DAE consistency rises
+from **23.77 to 26.40 s**, main TS from **52.48 to 55.14 s**,
+symbolic MUMPS LU from **15.98 to 18.08 s**; yet numeric LU gets
+slightly faster (**9.38→9.07 s**) and triangular solves improve
+(**3.73→3.47 s**). The GetFEM stiffness phase also grows
+(**2.93→3.55 s**) despite faster stiffness bridge
+(**4.32→3.70 s**). Profiling phases overlap: **do not sum
+nested event timings**. Strong-scaling saturation is documented,
+not a justification to retune the solver mid-release.
+
+The full campaign created **12 human-readable figures in `png/` and
+`svg/`**: strong scaling, speedup, efficiency, five-repeat spread,
+first/warm CN and every CN step, SCRIMP phases, GetFEM/COO bridge,
+MUMPS factorization breakdown/counts, memory and separate
+first/warm speedup. The command to reproduce (default three reps,
+here explicitly FIVE):
 
 ~~~bash
-bash sandbox/run_v130_large_wave_scaling.sh 0.005 3
+bash sandbox/run_v130_large_wave_scaling.sh 0.005 5
 ~~~
 
-Runs **1, 2, 4, 6 MPI ranks**, **three repetitions** each, pinned
-by default to physical CPUs 0,2,4,6,8,10. Real timing and
-per-process memory outputs are recorded for *all* twelve runs,
-with complete initial/final state parity across rank counts and
-repetitions and a native PETSc event gate matching exact MUMPS
-symbolic/numeric updates to collective Jacobian changes.
-No release worktree, comparison or rebuilt v1.2.0 reference is
-created. The script stops on an actual failed native test and
-preserves all prior successful outputs.
-
-Expected deliverables in the generated ignored
-`sandbox/outputs/v130-large-wave-.../` folder:
-`v130_large_wave_performance.md`, `v130_large_wave_summary.json`,
-per-run CSV, scaling CSV, raw PETSc/SCRIMP logs, complete PETSc
-reference states and **12 paired PNG/SVG figures**: run spread,
-total/solve scaling, speedup, efficiency, CN startup/warm and
-per-step evolution, phase/MUMPS costs, COO assembly/bridge, LU
-reuse call counts and per-rank/summed RSS high-water marks.
-**Summed per-rank `ru_maxrss` values are not a synchronized
-whole-job memory peak**.
-
-**Status:** prepared, synthetic parser/figure tests added; native
-large-size host runs and performance measurements are not yet
-present and must not be inferred from the earlier h=0.04 results.
-The h=0.005 run is the requested final strong-scaling data gate;
-it is not a substitute for the separate scientific DAE and
-long-trajectory memory limitations in this roadmap.
+**Conclusion:** performance/scaling and MPI full-state/numeric-LU
+qualification at approximately 3M DoFs **passed**. The separate
+coenergy discrete power-identity test passed on 1/2 MPI ranks
+(h=0.12, 5,724 DoFs, 5 CN steps; defects ~1e-16).
+This campaign does **not** establish physically faithful `q(0)=0`
+in the artificial pseudo-TS initial consistency step, universal
+nonlinear solver correctness, or flat RSS over long integrations.
+Retain those as documented scientific/memory limitations and
+dedicated follow-up tests. The v1.3.0 release itself remains
+gated by the remaining workstreams below.
 
 ## 1 — GetFEM 5.5 finite-element family audit and upstream patch
 
