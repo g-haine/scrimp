@@ -44,11 +44,18 @@ checks BDM1/2 constructor dimensions in 2D/3D. The compile/test output
 is saved by the host script to
 `sandbox/outputs/getfem55_bdm_patch_smoke.log`.
 
-The preexisting image needs `patch` installed for this convenience
-smoke; the next Docker build includes it explicitly. The script fails
-cleanly if the legacy image lacks the tool or GetFEM source tree.
-Passing this local smoke does **not** constitute conforming H(div) or
-MPI qualification.
+The preexisting, qualified image **does not have GNU `patch`**.
+The disposable smoke therefore uses
+`scripts/apply_unified_patch.py` (strict source-context matching,
+Python standard library only) to apply the unchanged, standard
+`.patch` file **inside the disposable container**. This requires no
+rebuild, download, root-package install, or modification of the original
+Docker image. The later v1.3 Docker build still supports the normal
+GNU `patch` application.
+
+The script fails cleanly if the expected GetFEM source tree or exact
+patch context is missing. Passing this local constructor smoke does
+**not** constitute conforming H(div) or MPI qualification.
 
 ### Minimal checks (before enabling for SCRIMP users)
 
