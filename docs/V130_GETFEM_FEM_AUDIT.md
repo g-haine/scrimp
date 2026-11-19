@@ -41,7 +41,7 @@ exact-arithmetic mathematical reference for a general first-kind
 polynomial generating set and symmetric nodal interpolation scheme
 (edge tangents, two face tangents, volume components). A **separate
 experimental GetFEM source patch** is also staged under
-`scripts/patches/getfem-5.5/experimental/0002-nedelec-first-kind-simplices.patch`
+`scripts/patches/getfem-5.5/experimental/0003-nedelec-first-kind-simplices.patch`
 for `FEM_NEDELEC1(N,K)` (k=0 delegates to the existing Whitney family).
 It is intentionally **excluded from the Docker build**, pending native
 compilation and two-cell H(curl) orientation checks. The second-kind
