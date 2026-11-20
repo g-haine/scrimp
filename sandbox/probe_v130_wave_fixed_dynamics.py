@@ -238,6 +238,14 @@ def _collect_probe(system, before, accepted, dynamic, algebraic, mpi):
                 for k, v in algebraic.items()
             },
             "dynamic_data_change_l2": delta,
+            "prescribed_dynamic_norm_l2": {
+                name: float(np.linalg.norm(before[start:start + count]))
+                for name, (start, count) in dynamic.items()
+            },
+            "accepted_pseudo_dynamic_norm_l2": {
+                name: float(np.linalg.norm(accepted[start:start + count]))
+                for name, (start, count) in dynamic.items()
+            },
             "linear_least_squares": result["solve"],
             "independent_native_residual_after_project_l2": native_norm,
             "native_residual_after_pseudo_l2": float(
