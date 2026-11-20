@@ -447,11 +447,26 @@ an actual close/reopen Dev Containers GUI check, and any earlier
 user project needs its own `.devcontainer/devcontainer.json`
 updated.
 
-**Still pending:** GUI retest of Python discovery and Pylance
-after the config fix, warm-cache image rebuild including the
-source-only ComplexWarning fix, cross-platform onboarding, full
-1/2/4/6-rank physics/scaling, and port-Hamiltonian power-balance
-qualification.
+**GUI retest (20 Nov): partial PASS.** The new
+`python.analysis.extraPaths=/workspace/scrimp` removes the
+false Pylance `reportMissingImports` on `import scrimp`.
+However, even with `python.defaultInterpreterPath` and
+`python-envs.globalSearchPaths` configured, VS Code still
+reports **"An Invalid Python interpreter is selected"**.
+Runtime Python, F5 and MPI remain functional; editor interpreter
+discovery is **not yet accepted**. VS Code stores a selected
+interpreter persistently, so the next diagnostic is
+`Python: Clear Workspace Interpreter Setting`, reload,
+and explicit selection of `/opt/conda/envs/scrimp/bin/python`.
+If that fails, inspect the **Python / Python Environments** log
+and the **PET Resolve Environment** output; Micromamba-vs-Conda
+environment classification is a possible cause, not yet proved.
+
+**Still pending:** successful persistent Python interpreter
+recognition on a new Dev Container session, warm-cache image
+rebuild including the source-only ComplexWarning fix,
+cross-platform onboarding, full 1/2/4/6-rank physics/scaling,
+and port-Hamiltonian power-balance qualification.
 No GHCR image has been published or promoted.
 The reproducible build procedure, cache boundaries, evidence paths
 and deferred lock/platform work are documented in
