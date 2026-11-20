@@ -30,8 +30,7 @@ for f in \
     scrimp/utils/dae_initialization.py \
     examples/shallow_water.py \
     sandbox/check_v130_shallow_water_mass_jacobian.py \
-    sandbox/compare_v130_shallow_water_mass_jacobian.py \
-    sandbox/compare_v130_shallow_explicit_tangent.py; do
+    sandbox/compare_v130_shallow_water_mass_jacobian.py; do
     [[ -s "$f" ]] || { echo "Missing source $f" >&2; exit 2; }
 done
 sha="$(git rev-parse HEAD)"
@@ -42,7 +41,7 @@ printf '{"image":"%s","image_source":"%s","diagnostic_source":"%s","model":"orig
     "$image" "$revision" "$sha" > "$out/manifest.json"
 echo "SCRIMP v1.3.0 default mass Jacobian native regression"
 echo "Original shallow_water weak forms, no main TS, MPI1/2"
-echo "A/B: production tangent vs original GetFEM explicit G included diagnostically" 
+echo "G is fully explicit: accepted-state frozen PETSc RHS; no G tangent"
 echo "Compare corrected mass default (env unset) vs legacy on MPI 1/2; never relax thresholds"
 echo "Frozen image: $image @ $revision; core: $sha"
 echo "Output: $out"
@@ -80,31 +79,28 @@ if ! "${docker_cmd[@]}" run --rm "${common[@]}" "$image" \
 fi
 cat "$out/import_preflight.log"
 for ranks in 1 2; do
-    for tangent in production diagnostic_full; do
-        for mode in default legacy; do
-            echo "RUN SWE MASS J mode=$mode tangent=$tangent MPI=$ranks"
-            extra=()
-            if [[ "$mode" == legacy ]]; then
-                extra=(--env SCRIMP_NONLINEAR_MASS_JACOBIAN=legacy)
-            fi
-            if ! "${docker_cmd[@]}" run --rm "${common[@]}" "${extra[@]}" "$image" \
-                timeout -k 5s 240s \
-                mpiexec --oversubscribe --bind-to none -n "$ranks" \
-                python -u /workspace/scrimp/sandbox/check_v130_shallow_water_mass_jacobian.py \
-                    --mesh .2 --epsilon 1e-6 --state-perturb .01 \
-                    --mode "$mode" --tangent-policy "$tangent" \
-                    --output-dir /artifacts \
-                > "$out/${tangent}_${mode}_${ranks}r.log" 2>&1; then
-                echo "FAIL: shallow mass Jacobian mode=$mode tangent=$tangent MPI=$ranks" >&2
-                tail -n 100 "$out/${tangent}_${mode}_${ranks}r.log" >&2
-                echo "Evidence: $out" >&2
-                exit 1
-            fi
-            grep -a "SHALLOW MASS JACOBIAN" "$out/${tangent}_${mode}_${ranks}r.log" || true
-        done
+    for mode in default legacy; do
+        echo "RUN SWE MASS J mode=$mode fully-explicit-G MPI=$ranks"
+        extra=()
+        if [[ "$mode" == legacy ]]; then
+            extra=(--env SCRIMP_NONLINEAR_MASS_JACOBIAN=legacy)
+        fi
+        if ! "${docker_cmd[@]}" run --rm "${common[@]}" "${extra[@]}" "$image" \
+            timeout -k 5s 240s \
+            mpiexec --oversubscribe --bind-to none -n "$ranks" \
+            python -u /workspace/scrimp/sandbox/check_v130_shallow_water_mass_jacobian.py \
+                --mesh .2 --epsilon 1e-6 --state-perturb .01 \
+                --mode "$mode" --output-dir /artifacts \
+            > "$out/${mode}_${ranks}r.log" 2>&1; then
+            echo "FAIL: fully explicit shallow mass Jacobian mode=$mode MPI=$ranks" >&2
+            tail -n 100 "$out/${mode}_${ranks}r.log" >&2
+            echo "Evidence: $out" >&2
+            exit 1
+        fi
+        grep -a "SHALLOW MASS JACOBIAN" "$out/${mode}_${ranks}r.log" || true
     done
 done
-echo "COMPARE diagnostic A/B: effect of original explicitly marked gyroscopic G on the tangent"
+echo "STRICT PRODUCTION GATE: G frozen at accepted state, unchanged FD threshold"
 if ! "${docker_cmd[@]}" run --rm \
     --user "$(id -u):$(id -g)" --workdir /scrimp-work \
     --env HOME=/tmp \
