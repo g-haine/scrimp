@@ -340,17 +340,34 @@ estimates differ (167.7/126.4), which is not a rank
 certificate. Original evidence:
 `sandbox/outputs/v130-algebraic-only-h0p2-de3b2c73-RSTntEzH/`.
 
-**Next staged, not yet native-executed:** enhanced bounded dual
-residual witness, named algebraic-row residual breakdown, and
-an explicit two-scenario, same-q0/p0 **left-boundary-control
-compatibility A/B**: published `U_L(0)=0` versus a
-temporarily overridden diagnostic left control satisfying
-`U_L(0)=p_0(0,y)/rho(0,y)`. Both cases run at MPI 1/2
-with the same original rc3 solver; no image rebuild. Use
-`scripts/run-v130-fixed-dynamics-probe.sh` after pulling.
-Do not change the actual published example or production DAE
-initialization before evaluating those native results. Full
-scientific interpretation: sections 6–7 of
+**Follow-up native evidence (20 November 2026): published control
+PASS, alternate control NOT TESTED due to diagnostic parser error.**
+The enhanced original-control 1/2-rank run confirms that
+`e_p` accounts for most of the `4.82244319e-6`
+fixed-dynamics residual (`e_p: 4.82044425e-6`), with
+left input/output residuals ~`9.817e-8`.
+LSMR stopped with normal-equation residuals ~2e-18.
+The bounded dual witness establishes a numerical
+`4.82243693e-6`/`4.82243747e-6` lower bound
+for corrections with `||delta_a|| <= 12.09304`,
+**not** a global exact rank proof.
+
+The `matched_left_control` case was stopped during
+`GetFEM.add_source_term_brick` by the diagnostic-only
+Python exponent `3**...` (GetFEM generic assembly
+rejects `**`). No result for the alternative physics
+or its boundary compatibility can be inferred from
+that aborted run. The temporary source expression has
+been replaced by the equivalent `exp(...)` analytic
+Gaussian trace, and the runner now executes a dedicated
+**native matched-control syntax preflight** before
+the four A/B cases. A source-only regression checks the
+expression's numerical boundary trace. Existing rc3
+Docker image and production equations are untouched.
+**Next action:** re-run
+`scripts/run-v130-fixed-dynamics-probe.sh` after pulling
+and interpret actual A/B residuals. Scientific details
+and exact host output: sections 7–8 of
 [V130_DAE_INITIAL_VALIDATION.md](V130_DAE_INITIAL_VALIDATION.md).
 
 ## 1 — GetFEM 5.5 simplicial FEM contributions (SCRIMP-first)
