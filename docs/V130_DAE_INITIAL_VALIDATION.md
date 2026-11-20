@@ -1687,3 +1687,99 @@ acceptance tolerance was changed.**
 The global default remains `pseudo` until the
 independent second-model power gate and remaining
 default-migration checks are satisfied.
+
+## 23. Second independent linear dissipative pH-DAE — FULL NATIVE MPI/PASS (20 November 2026)
+
+**The second, genuinely dissipative model has now PASSED the complete
+scientific acceptance gate**, including the native algebraic projection,
+exact prescribed differential initial data, ten accepted
+Crank–Nicolson steps, nonzero signed boundary work, **positive
+internal dissipation**, the complete Hamiltonian balance and
+full-state MPI 1/2 parity.
+
+Frozen qualified Docker runtime:
+`scrimp-mpi:v1.3.0-rc3`, OCI source
+`1d6d0c90115213298047b28237a7f38087563a35`.
+Model/core source revision at the native test:
+`7eec01724a41e0b9db7914e3921464e1cd13fc24`.
+Developer-owned host evidence:
+
+```text
+sandbox/outputs/v130-second-linear-dae-7eec0172-Ostu9LKD/
+```
+
+**Physical configuration:** unchanged weak/constitutive equations
+and internal damping port from the original
+`examples/wave_dissipative.py`; manufactured
+FE-compatible `p0=x*(3-x)`, `q0=0`, density
+`rho=3-x`, driven left boundary
+`U_L(t)=0.08*sin(20*t)`, mesh `h=0.2`,
+2,804 total DOFs, `dt=0.002`, `t_f=0.02`,
+**10 accepted fixed CN steps**, MPI ranks 1 and 2.
+The original published example remains unchanged, with
+explicit historical `init_step_ts_type="pseudo"`.
+
+| Actual measured property | MPI 1 | MPI 2 |
+| --- | ---: | ---: |
+| Native algebraic residual after projection | **9.99416399e-14** | **9.93812525e-14** |
+| Exact dynamic initial-data drift `q0` | **0** | **0** |
+| Exact dynamic initial-data drift `p0` | **0** | **0** |
+| Positive integrated internal damping `D` | **0.0132790026** | **0.0132790026** |
+| Signed integrated external boundary work `W` | **-5.40249757e-5** | **-5.40249757e-5** |
+| Max absolute cumulative Hamiltonian/power defect | **2.64805539e-15** | **3.55097896e-15** |
+| Original unchanged absolute power tolerance | 2.0001e-5 | 2.0001e-5 |
+| All original main CN steps accepted | **10/10** | **10/10** |
+| Full native independent second-model gate | **PASS** | **PASS** |
+
+The independent comparator measured maximum
+**full-state CN trajectory scaled L2** across
+MPI 1/2 of
+
+```text
+6.3717319e-14  <=  5e-8  (unchanged parity threshold)
+```
+
+The actual pH dissipation relation measured at
+each midpoint was
+
+```text
+H(t)-H(0) + W_boundary(t) + D_internal(t) = 0,
+D_internal(t) >= 0.
+```
+
+The power defects, **~2.6e-15 and ~3.6e-15**,
+are close to floating-point precision and many
+orders below the conservative acceptance threshold.
+This is not a zero-power identity:
+`D_internal=0.0132790026>0` and
+`W_boundary=-5.40249757e-5 != 0`.
+The full-domain damping integration uses the
+established GetFEM `region=-1` convention for
+a port without a named mesh region (see historical
+diagnostic failure and fix in section 22).
+
+**Scientific conclusion:** the production-owned
+`DPHS.init_step(init_step_ts_type="algebraic")`
+has now passed full native physics tests on
+both the **conservative acoustic wave** (section 21)
+and a second **dissipative** wave system with a
+distinct interior resistive port, on 1 and 2
+MPI ranks. It preserves the requested differential
+initial state, obeys the true discrete algebraic
+constraints at approximately `1e-13`, and
+preserves the port-Hamiltonian balance after CN
+with nonzero power exchange/dissipation. This is
+evidence for the qualified **linear class tested**,
+not a universal DAE theorem for arbitrary FE spaces,
+meshes, nonlinearities or high-index constraints.
+
+**Default migration remains a distinct software
+compatibility gate.** Switching the default requires
+auditing implicit pseudo users, preserving the
+published Gaussian/unsupported examples via
+explicit `pseudo`, testing the
+**no-explicit-initializer** path *natively*,
+and examining initialization performance, memory
+and exceptional MPI cleanup. The previously
+qualified Docker image is unchanged; no
+automatic fallback to pseudo is permitted.
