@@ -16,15 +16,29 @@ def main():
     # previously valid init_step=False applications fail.
     noinit = S.DPHS("real")
     noinit.set_time_scheme(init_step=False)
-    if noinit.time_scheme.hasName("init_step_ts_type"):
+    # PETSc.Options.hasName() means the option exists in the
+    # database, not that the caller explicitly supplied it.
+    # SCRIMP deliberately materializes its effective default so the
+    # eventual _solve_impl() re-entry uses the same strategy.
+    if noinit.time_scheme.getString(
+        "init_step_ts_type", ""
+    ).strip().lower() != "algebraic":
         raise RuntimeError(
-            "No-init model unexpectedly acquired an explicit strategy"
+            "No-init model did not register effective algebraic default"
         )
     if noinit.time_scheme.getString(
         "init_step", ""
     ).strip().lower() != "false":
         raise RuntimeError("init_step=False was not preserved")
-    print("PASS: implicit default + init_step=False is allowed")
+    noinit.set_time_scheme()
+    if noinit.time_scheme.getString(
+        "init_step_ts_type", ""
+    ).strip().lower() != "algebraic":
+        raise RuntimeError(
+            "Internal no-kwargs set_time_scheme changed the default"
+        )
+    print("PASS: default registered as algebraic; init_step=False "
+          "remains legal through repeated set_time_scheme")
 
     # In contrast, explicitly requesting the projection while forbidding
     # initialization is contradictory and must raise an actionable error.
