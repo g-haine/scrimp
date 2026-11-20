@@ -469,15 +469,49 @@ the initial height :math:`h_0`.
     ## Solve in time
     # Define the time scheme
     swe.set_time_scheme(
+        # Preserve the example's historical pseudo-time consistency
+        # relaxation, rather than using the new linear-only algebraic
+        # initializer (unsupported for this nonlinear DAE).
+        init_step_ts_type="pseudo",
         ts_type="bdf",
-        ts_bdf_order=4,
+        ts_bdf_order=2,
         t_f=0.5,
         dt=0.0001,
         dt_save=0.01,
+        ksp_type="gmres",
+        pc_type="lu",
+        pc_factor_mat_solver_type="superlu",
     )
     
     # Solve the system in time
     swe.solve()
+
+.. important::
+
+   The gyroscopic brick ``G`` above has
+   ``explicit=True``: SCRIMP evaluates it at the **last
+   accepted** time/state and freezes its contribution during
+   all Newton and line-search iterations of the next step.
+   Its derivative is excluded from the implicit Jacobian,
+   as is mathematically consistent with that *genuinely
+   explicit* discretization. This creates a generally
+   **first-order lag for G**, even though the implicit
+   integrator here is BDF2. Exact Hamiltonian conservation
+   is not automatically guaranteed by this split.
+   See :doc:`../explicit_bricks`.
+
+   The **state-dependent-mass Jacobian** of the original
+   shallow-water weak forms has been independently
+   qualified by a native MPI 1/2 full-residual directional
+   finite-difference test (20 November 2026):
+   default corrected maximum relative error
+   ``1.06105781e-8``, historical ``legacy``
+   ``3.84378444e-6`` (unchanged ``1e-5``
+   acceptance threshold). The test freezes a nonzero
+   explicit ``G``, but does **not** integrate a
+   physical time step. A separate bounded actual-TS
+   acceptance test is required before claiming
+   temporal stability or a balance for the explicit split.
 
 The Hamiltonian are then defined, computed, and shown.
 
