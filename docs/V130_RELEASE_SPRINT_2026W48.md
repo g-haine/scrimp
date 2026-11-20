@@ -338,3 +338,58 @@ tests are satisfied. The previously passed
 unaffected by this narrow nonlinear-only change,
 but the general release-wide regression
 suite is still required.
+
+## 20 November native #27 second trial — full mass-Jacobian directional FD PASS, short TS still pending
+
+**Source:** `fae066a64b649131351e686ac9383ea11c13c0a6` on
+`release/1.3.0-preparation`; unchanged qualified image
+`scrimp-mpi:v1.3.0-rc3` (OCI source
+`1d6d0c90115213298047b28237a7f38087563a35`).
+The host-owned native output is:
+
+```text
+sandbox/outputs/v130-shallow-mass-J-fae066a6-VvvbTRp4/
+```
+
+**PASS:** native full `IFunction` versus `IJacobian` independent
+directional difference on the **shipped original shallow-water weak
+forms**, MPI 1/2, 1,246 DOFs, with nonzero independent `zd`,
+shifts 0 and 1, prescribed perturbation `epsilon=1e-6`,
+nonzero gyroscopic explicit RHS norm `0.00536124096` frozen at
+a *different accepted state* and **exactly zero cache drift**
+during all Jacobian and FD evaluations. No environment flag
+was set for the production mass Hessian correction.
+Both MPI-rank counts agree to printed precision.
+
+| MPI | `finite_difference` default max relative directional error | Explicit `legacy` control |
+| ---: | ---: | ---: |
+| 1 | **1.06105781e-8** | **3.84378444e-6** |
+| 2 | **1.06105781e-8** | **3.84378444e-6** |
+
+The default is approximately **362 times more accurate** than
+`legacy` at this test state. The unchanged strict
+`1e-5` maximum error limit, negative-control separation and MPI
+comparison all PASSED. The physical gyroscopic weak form and
+sign were not modified; `explicit=True` means the complete term
+is genuinely lagged at the last accepted state instead of
+silently evaluated at Newton trial states without a tangent.
+
+The **Jacobian directional accuracy sub-gate #27 is CLOSED/PASS**.
+The **overall issue #27 remains OPEN** under its original
+acceptance contract: still requires a short actual PETSc TS
+integration with accepted-step explicit-RHS refresh, convergence
+and (as feasible) signed energy/power audit. The Jacobian-only
+runner explicitly reported `main_TS_executed=False`;
+do not substitute this PASS for a production time-integration
+or energy-preservation guarantee. In particular, the lagged
+`G(t_n,z_n)` term has generally **first-order temporal
+accuracy**, even alongside BDF2 or CN.
+
+**Next action:** bounded native short physical TS on original
+shallow-water weak forms in MPI 1/2, check positive convergence
+reason, final time, accepted/rejected count, explicit cache
+update from *accepted states only*, nonvacuous activity if
+feasible, final-state MPI parity and a carefully scoped
+Hamiltonian/port-work comparison. If the initial data prevent
+a safe short solve, report that explicitly rather than
+mark #27 fully closed or relaxing the Jacobian tolerances.
