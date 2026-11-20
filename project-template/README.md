@@ -133,8 +133,14 @@ Python Debugger. Its Dev Container settings include:
 ```
 
 This is an **editor-only** change: Python, Conda, GetFEM, MPI
-and the already validated SCRIMP image are untouched. The fix
-still needs a fresh VS Code GUI acceptance test.
+and the already validated SCRIMP image are untouched.
+**Confirmed on Ubuntu:** after adding the missing
+`"python.useEnvironmentsExtension": false` line to the
+existing user's Dev Container settings, VS Code no longer
+reported an invalid/missing interpreter. The editable SCRIMP
+import warning had already disappeared with `extraPaths`.
+A clean-room new-user test and other platforms remain
+unqualified.
 
 **If you created your workspace before this fix:** edit *its own*
 `.devcontainer/devcontainer.json` and set
@@ -219,7 +225,8 @@ first SCRIMP simulation, host-persistent CSV and two-rank MPI
 startup on 19 November 2026. On **20 November**, Python
 debugging with **F5/debugpy**, breakpoints, F10 stepping,
 Locals, Call Stack and successful **resume-to-completion** passed.
-Automatic Python discovery and Pylance editable-install
-configuration have been improved but still need a fresh-window
-editor acceptance check. Multi-rank debugging and cross-platform
-VS Code behavior remain separate acceptance checks.
+The Ubuntu user also confirmed **interpreter recognition
+without errors** after opting out of Python Environments,
+and Pylance's editable-import diagnostic is resolved. Clean-room
+onboarding, multi-rank debugging and cross-platform behavior
+remain separate acceptance checks.
