@@ -12,6 +12,21 @@
 set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$root"
+# Saved native evidence can be revalidated without Docker, PETSc or MPI.
+# In particular, a failed host-only comparator must not force rerunning
+# successful native production initializations.
+if [[ "${1:-}" == "--compare-only" ]]; then
+    if [[ "$#" != 2 ]]; then
+        echo "Usage: $0 --compare-only <existing-host-evidence-directory>" >&2
+        exit 2
+    fi
+    python3 sandbox/compare_v130_issue28_production_nonlinear_affine.py --evidence "$2"
+    exit 0
+fi
+if [[ "$#" != 0 ]]; then
+    echo "Usage: $0 [--compare-only <existing-host-evidence-directory>]" >&2
+    exit 2
+fi
 docker_exec() {
     if [[ "$(printenv SCRIMP_DOCKER_NO_SUDO || true)" == 1 ]]; then
         docker "$@"
@@ -74,30 +89,5 @@ for ranks in 1 2; do
     fi
     grep -a 'ISSUE28 PRODUCTION NONLINEAR_AFFINE' "$out/mpi_${ranks}.log"
 done
-python3 - "$out" <<'PY'
-import json, math, pathlib, sys
-base=pathlib.Path(sys.argv[1])
-a=json.loads((base/"result_1/production_nonlinear_affine.json").read_text())
-b=json.loads((base/"result_2/production_nonlinear_affine.json").read_text())
-for x in (a,b):
-    assert x["status"]=="PASS_NATIVE_PRODUCTION_INITIALIZER"
-    assert x["original_dynamic_h0_p0_bitwise"]
-    assert x["published_algebraic_dofs_modified"]
-    assert x["actual_published_IFunction_Fa_l2"]<=1e-11
-    assert x["explicit_gyro_from_original_shallow_water"]
-    assert x["explicit_gyro_cache_ready"]
-    assert not x["pseudo_initial_TS_executed"]
-    assert not x["main_physical_TS_executed"]
-    assert not x["high_index_rotating_Y_initialization_qualified"]
-    r=x["real_production_init_step_report"]
-    assert r["status"]=="PASS" and r["differential_initial_exact"]
-    assert r["native_final_algebraic_residual_l2"]<=r["accuracy_target"]
-    assert r["algebraic_null_columns"]==0
-for field in ("dofs",):
-    assert a[field]==b[field],field
-for field in ("actual_published_IFunction_Fa_l2",):
-    assert math.isclose(a[field],b[field],rtol=1e-3,abs_tol=1e-11)
-print("PASS native production nonlinear_affine initializer path, MPI 1/2.")
-print("Not a general nonlinear Newton or rotating high-index DAE qualification.")
-PY
+python3 sandbox/compare_v130_issue28_production_nonlinear_affine.py --evidence "$out"
 echo "COMPLETE: native retained evidence $out"

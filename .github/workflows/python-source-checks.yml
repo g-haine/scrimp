@@ -84,6 +84,8 @@ jobs:
           bash -n scripts/run-v130-issue28-shallow-initial.sh
           python -m py_compile scrimp/utils/nonlinear_affine_dae.py sandbox/probe_v130_issue28_production_nonlinear_affine.py
           bash -n scripts/run-v130-issue28-production-nonlinear-affine.sh
+          python -m py_compile sandbox/compare_v130_issue28_production_nonlinear_affine.py tests/test_v130_issue28_production_nonlinear_affine_comparator.py
+          python -m unittest -v tests.test_v130_issue28_production_nonlinear_affine_comparator
           python -m unittest -v tests.test_v130_issue28_rot_convention
           python -m unittest -v tests.test_v130_issue28_geometry_report
           python -m unittest -v tests.test_v130_issue6_viscous_mpi
