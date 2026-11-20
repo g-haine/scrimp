@@ -1157,9 +1157,11 @@ class DPHS:
             # residual needs it to undo source attenuation when source
             # bricks are already globally assembled under GetFEM MPI-2.
             self._getfem_full_rhs_scale = scale
-        elif source_mode == "raw":
-            # On the validated GetFEM MPI-2 build, source bricks are
-            # already globally summed ONCE, unlike generic RHS terms.
+        elif source_only and source_mode == "raw":
+            # On the validated GetFEM MPI-2 build, SOURCE bricks are
+            # globally summed ONCE, unlike generic nonlinear terms.
+            # The separately frozen explicit nonlinear RHS is still
+            # a generic term and MUST retain the calibrated scale.
             scale = 1.0
         if os.environ.get("SCRIMP_MPI_TRACE") == "1":
             _mpi_trace(
