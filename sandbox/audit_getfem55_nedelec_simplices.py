@@ -1,4 +1,12 @@
 #!/usr/bin/env python3
+# SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
+#
+# Copyright (C) 2015-2026 ISAE-SUPAERO -- GNU GPLv3
+# 
+# See the LICENSE file for license information.
+#
+# github: https://github.com/g-haine/scrimp
+
 """Lean native GetFEM 5.5 Nedelec-I simplex smoke (experimental source patch).
 
 Only triangles/tetrahedra and first-kind orders k=0,1,2. This is NOT
