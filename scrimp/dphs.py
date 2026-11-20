@@ -418,6 +418,12 @@ class DPHS:
         self._mass_hessian_fd_probe_allocations = 0
         self._mass_hessian_fd_matrix_allocations = 0
         self._mass_hessian_fd_matrix_reuses = 0
+        # A completely explicit nonlinear brick is assembled only at
+        # the previously accepted TS state/time, never at a Newton trial.
+        # The PETSc-owned RHS stays fixed during each implicit step.
+        self._explicit_rhs = None
+        self._explicit_rhs_ready = False
+        self._explicit_rhs_time = None
         #: To check if the system has been solved
         self.solve_done = False
         #: To stop TS integration by keeping already computed timesteps if one step fails
@@ -845,6 +851,15 @@ class DPHS:
         position = brick.get_position()
         form = brick.get_form()
 
+        if brick.get_explicit() and (
+            brick.get_dt() or brick.get_linear()
+            or brick.get_position() == "source"
+        ):
+            raise ValueError(
+                "explicit=True requires a nonlinear, non-dt, non-source "
+                "weak brick; otherwise a lagged RHS cannot be "
+                "assembled consistently"
+            )
         self.bricks[name_brick] = brick
 
         # Flow and explicit brick need a minus for fully implicit formulation in time-resolution
@@ -1055,7 +1070,7 @@ class DPHS:
                 f"Linear stiffness matrix assembly done in {time.perf_counter() - start:1.4g}s"
             )
 
-    def assemble_rhs(self, source_only=False):
+    def assemble_rhs(self, source_only=False, explicit_only=False):
         """Assemble the GetFEM RHS into the owned PETSc entries.
 
         GetFEM's model.rhs() mixes two DIFFERENT signs:
@@ -1074,17 +1089,29 @@ class DPHS:
         See sandbox/check_mcss_source_sign.py.
         """
 
+        if source_only and explicit_only:
+            raise ValueError("RHS assembly cannot be both source-only and explicit-only")
         for _, brick in self.bricks.items():
             if source_only:
-                if brick.get_position() == "source":
-                    brick.enable_id_bricks(self.gf_model)
+                enabled = brick.get_position() == "source"
+            elif explicit_only:
+                # Freeze the complete nonlinear weak-form contribution
+                # at the previous accepted TS state. The registered
+                # GetFEM form retains its original sign.
+                enabled = brick.get_explicit()
             else:
-                # Source terms contribute positively to GetFEM rhs,
-                # nonlinear weak forms contribute negatively.
-                if brick.get_position() == "source" or brick.get_explicit():
-                    brick.enable_id_bricks(self.gf_model)
-                if not brick.get_dt() and not brick.get_linear():
-                    brick.enable_id_bricks(self.gf_model)
+                # A fully explicit brick must NOT be reevaluated at
+                # z_{n+1} in IFunction. Its cached RHS is added later.
+                enabled = (
+                    brick.get_position() == "source"
+                    or (
+                        not brick.get_dt()
+                        and not brick.get_linear()
+                        and not brick.get_explicit()
+                    )
+                )
+            if enabled:
+                brick.enable_id_bricks(self.gf_model)
 
         _mpi_trace("rhs: before GetFEM build_rhs")
         with self.profiler.measure(f"{self._profile_phase}.getfem.rhs"):
@@ -1125,7 +1152,7 @@ class DPHS:
         else:
             scale = 1.0
         source_mode = _getfem_source_rhs_mode()
-        if not source_only:
+        if not source_only and not explicit_only:
             # Save alpha used for the full mixed (-N+S) RHS. The direct
             # residual needs it to undo source attenuation when source
             # bricks are already globally assembled under GetFEM MPI-2.
@@ -1151,6 +1178,32 @@ class DPHS:
         _mpi_trace("rhs: PETSc vector assembled")
 
         self.disable_all_bricks()
+
+    def _freeze_explicit_rhs(self, time_at_accepted_state, accepted_z):
+        """Freeze all fully explicit nonlinear bricks at one known TS state.
+
+        This is a first-order lagged RHS: E(t_n, z_n), independent of
+        Newton trial state z_{n+1} and trial derivative. Call this once
+        at the *beginning* of each accepted-state step, including the
+        historical pseudo/BDF initialization TS. A rejected attempt
+        must reuse the same accepted-state forcing.
+        """
+        if not any(brick.get_explicit() for brick in self.bricks.values()):
+            return
+        if self._explicit_rhs is None:
+            self._explicit_rhs = self.rhs.duplicate()
+        self._explicit_rhs_ready = False
+        self._sync_lumped_trial_state(time_at_accepted_state, accepted_z)
+        self.assemble_rhs(explicit_only=True)
+        self.rhs.copy(self._explicit_rhs)
+        self._explicit_rhs_ready = True
+        self._explicit_rhs_time = float(time_at_accepted_state)
+
+    def _prestep_explicit_rhs(self, ts):
+        """PETSc TS PreStep: use ONLY the last accepted state, not SNES."""
+        if not any(brick.get_explicit() for brick in self.bricks.values()):
+            return
+        self._freeze_explicit_rhs(ts.getTime(), ts.getSolution())
 
     def assemble_nl_mass(self):
         """This function performs the assembly of the bricks dt=True and linear=False and set the PETSc.Mat attribute `nl_mass`"""
@@ -1381,6 +1434,14 @@ class DPHS:
         if not self.linear_stiffness and nonlinear_form == "legacy":
             self.assemble_nl_stiffness()
 
+        if any(brick.get_explicit() for brick in self.bricks.values()):
+            if not self._explicit_rhs_ready or self._explicit_rhs is None:
+                raise RuntimeError(
+                    "explicit=True nonlinear bricks require a frozen RHS "
+                    "from the previous accepted state; use PETSc TS "
+                    "PreStep or _freeze_explicit_rhs() in a standalone "
+                    "Jacobian diagnostic"
+                )
         self.assemble_rhs()
         _mpi_trace("IFunction: RHS assembled; before PETSc algebra")
 
@@ -1449,6 +1510,16 @@ class DPHS:
             self.tangent_mass.mult(zd, self.buffer)
             self.tangent_stiffness.multAdd(z, self.buffer, F)
             F.axpy(1, self.rhs)
+        if self._explicit_rhs_ready:
+            if nonlinear_form != "direct_getfem":
+                raise ValueError(
+                    "Fully explicit bricks require "
+                    "SCRIMP_NONLINEAR_RESIDUAL_FORM=direct_getfem"
+                )
+            # For a nonlinear weak brick GetFEM RHS=-N. The frozen
+            # value has the SAME sign as the original IFunction,
+            # but is independent of the current Newton iteration.
+            F.axpy(-1, self._explicit_rhs)
         _mpi_trace("IFunction: residual completed")
 
     def _add_nonlinear_mass_hessian_fd(self, t, z, zd, P):
@@ -2144,6 +2215,11 @@ class DPHS:
         self._mass_hessian_fd_probe_allocations = 0
         self._mass_hessian_fd_matrix_allocations = 0
         self._mass_hessian_fd_matrix_reuses = 0
+        if self._explicit_rhs is not None:
+            self._explicit_rhs.destroy()
+            self._explicit_rhs = None
+        self._explicit_rhs_ready = False
+        self._explicit_rhs_time = None
         audit_dir = os.environ.get(
             "SCRIMP_MEMORY_PHASE_AUDIT_DIR", ""
         ).strip()
@@ -2352,6 +2428,10 @@ class DPHS:
         TS.setEventTolerances(1e-16, vtol=[1e-19])
         TS.setIFunction(self._profile_ifunction, self.F)
         TS.setIJacobian(self._profile_ijacobian, self.J)
+        if any(brick.get_explicit() for brick in self.bricks.values()):
+            # PreStep runs before the Newton solve, with the last
+            # accepted time/state (including the first physical step).
+            TS.setPreStep(self._prestep_explicit_rhs)
         TS.setTime(float(self.time_scheme["t_0"]))
         TS.setMaxTime(float(self.time_scheme["t_f"]))
         TS.setTimeStep(float(self.time_scheme["dt"]))
@@ -2482,6 +2562,11 @@ class DPHS:
         with self.profiler.measure("main.petsc.cleanup"):
             TS.reset()
             TS.destroy()
+            if self._explicit_rhs is not None:
+                self._explicit_rhs.destroy()
+                self._explicit_rhs = None
+            self._explicit_rhs_ready = False
+            self._explicit_rhs_time = None
             gc.collect()
         self._memory_phase("after_main_ts_cleanup")
 
@@ -2622,6 +2707,10 @@ class DPHS:
         TS.setMonitor(monitor)
         TS.setIFunction(self._profile_ifunction, self.F)
         TS.setIJacobian(self._profile_ijacobian, self.J)
+        if any(brick.get_explicit() for brick in self.bricks.values()):
+            # PreStep runs before the Newton solve, with the last
+            # accepted time/state (including the first physical step).
+            TS.setPreStep(self._prestep_explicit_rhs)
         TS.setTime(t0 - init_dt if negative_bdf_start else t0)
         TS.setMaxSteps(
             1 if negative_bdf_start
