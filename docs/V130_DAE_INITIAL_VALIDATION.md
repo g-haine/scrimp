@@ -1446,3 +1446,76 @@ pseudo-time PETSc TS or change the actual CN/BDF
 main time integration. Compare the option to
 the **immutable native diagnostic reference**
 before considering any release or default change.
+
+
+## 20. Core opt-in initializer implemented — native qualification pending
+
+**Status 20 November 2026: SOURCE READY; NOT YET QUALIFIED AS A CORE
+FEATURE OR A GLOBAL DEFAULT.** The final section 19 native
+result remains a **validated independent diagnostic**, whereas
+this section records a separate production integration.
+
+Core code now provides:
+
+- `scrimp/utils/dae_initialization.py` —
+  the distributed PETSc algebraic-block LSQR
+  projection, strict interval/mass-row/linearity
+  guards, prescribed differential coefficients
+  preserved, true `IFunction` residual verification,
+  bounded refinement, explicit numerical
+  rejection with original-state restoration,
+  and a per-pass `initialization_report`.
+- `scrimp/dphs.py` —
+  opt-in `init_step_ts_type="algebraic"`
+  dispatch **before** `init_step_dt` and historical
+  pseudo/BDF TS construction. The existing
+  default is **still `pseudo`** pending independent
+  core native acceptance and default migration.
+- `tests/test_dae_algebraic_initialization_core.py` —
+  pure/isolated helper tests; **not native proof**.
+- `sandbox/probe_v130_core_dae_initial.py`,
+  `sandbox/compare_v130_core_dae_initial.py`,
+  `scripts/run-v130-core-dae-initial.sh` —
+  actual core initialization tests, 1/2-rank
+  polynomial positive and published Gaussian
+  negative, against the frozen full
+  trajectories, physical port powers and native
+  IFunction results. Plus a legacy serial pseudo
+  comparison and an explicit tiny negative-time
+  BDF2 smoke.
+
+**Next native command** (uses the unchanged qualified
+`scrimp-mpi:v1.3.0-rc3` and read-only
+runtime core-file overlays):
+
+~~~bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-core-dae-initial.sh
+~~~
+
+The comparator refuses to qualify core code unless
+the originally measured frozen native diagnostic
+and pseudo physical states are available and match
+the strict t0/CN/energy/port-power gates.
+
+**Important next milestone after core PASS:** the user
+requested algebraic initialization as the **default**.
+The published `examples/wave.py` Gaussian is
+**numerically rejected** by the new fixed-dynamics
+method, and several other published examples have
+lumped, substituted or nonlinear variables that the
+current helper explicitly does not support. A global
+default change **cannot** be made safely before
+their explicit migration, a second independent
+linear DAE validation and native cleanup/memory
+tests. This is documented in
+[V130_DAE_DEFAULT_MIGRATION.md](V130_DAE_DEFAULT_MIGRATION.md).
+
+For a reusable explanation of all three initialization
+modes (`algebraic`, historical `pseudo`,
+and tiny-step negative-start `bdf` order 2),
+see [the Sphinx user guide](source/initialization.rst)
+and the [technical method note](V130_DAE_ALGEBRAIC_INITIALIZER_DESIGN.md).
