@@ -681,6 +681,43 @@ base-image + Conda lock are qualified.
 for the candidate, matching the current `setup.py`. The version
 change is intentionally gated with the release packaging freeze.
 
+### 4c. rc3 native `-info` correction — PASS; harness-only `-c` retest
+
+The **20 November 2026 rc3 build and initial smoke** at immutable Git
+revision `1d6d0c90115213298047b28237a7f38087563a35` have
+**passed**: all native layers `CACHED`, correct GetFEM MPI level 2,
+complex PETSc/MUMPS 1/2-rank execution, real oscillator, host CSV and
+NumPy `ComplexWarning` gate. Both MPI import ranks confirmed no
+implicit PETSc `-info`. Before/after `scrimp-mpi:local` image IDs
+matched. Full evidence:
+[V130_DOCKER_RC3_ACCEPTANCE.md](V130_DOCKER_RC3_ACCEPTANCE.md).
+
+The final message `Option left: name:-c ... source: command line`
+came from using `python -c` **inside our diagnostic check**, not
+from SCRIMP's runtime code. The smoke script now creates a disposable
+Python file under the isolated user test workspace, bind-mounts it at
+runtime (never in the image context), and rejects any PETSc unused
+option warning. This harness correction requires **no new Docker
+image build**. On the Ubuntu host:
+
+~~~bash
+cd ~/Simulations/scrimp
+git switch release/1.3.0-preparation
+git pull --ff-only
+SCRIMP_DOCKER_CANDIDATE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+SCRIMP_DOCKER_NO_SUDO=1 \
+  bash scripts/smoke-v130-docker-candidate.sh
+cp sandbox/outputs/v130-docker-smoke.log \
+   sandbox/outputs/v130-docker-smoke-rc3-warning-free.log
+cp sandbox/outputs/v130-petsc-options-smoke.log \
+   sandbox/outputs/v130-petsc-options-rc3.log
+~~~
+
+Omit `SCRIMP_DOCKER_NO_SUDO=1` on hosts using `sudo docker`.
+The full new smoke run is **pending developer evidence**. Until
+then, the narrower observed rc3 native / `-info` result is PASS;
+the improved **warning-free smoke** gate remains open.
+
 ## 5. Reproducibility and work not done yet
 
 - **Pinned today:** base image *version tag*, PETSc/SLEPc native
@@ -704,8 +741,8 @@ change is intentionally gated with the release packaging freeze.
   For k>=3 extension work see
   [the deferred higher-order plan](V130_GETFEM_HIGHER_ORDER_TODO.md).
 
-**Next action:** rebuild a separate rc3 for the now-identified
-PETSc `-info` fix, confirm the two-rank opt-in regression gate,
-then pursue the remaining scientific and clean-room reproducibility
-workstreams. Do not rebuild all large wave benchmarks merely to
-revalidate a source-only diagnostic option change.
+**Next action:** re-run the corrected host-side smoke against
+the **already built rc3** without rebuilding Docker, then advance
+the independent scientific trajectory, power-balance and Maxwell
+qualification gates. Preserve rc1/rc2/rc3 and `scrimp-mpi:local`;
+do not rerun large wave benchmarks for a diagnostic harness edit.
