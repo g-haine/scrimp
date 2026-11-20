@@ -33,7 +33,7 @@ GetFEM, PETSc, petsc4py and parallel MUMPS available. Each run should
 finish without an MPI deadlock and save diagnostics for every case.
 
 ```bash
-git switch fix/issue-6-parallel-powers-saint-venant-2d
+git switch release/1.3.0-preparation
 
 # First validate in serial, then repeat using MPI
 python sandbox/viscous_swe_2d_mpi.py --case open \
@@ -116,3 +116,48 @@ The generic `DPHS.plot_Hamiltonian(with_powers=True)` checks SCRIMP's
 port-power postprocessing and exercises issue #6; it does **not**
 automatically incorporate the height-weighted boundary fluxes for this
 specific formulation. Use `power_balance.png` for the physical balance.
+
+## v1.3.0 issue #6: bounded native qualification runner (source gate, NOT yet native-PASSED)
+
+The maintained release-branch runner now separates a zero-rotation
+**rest sanity check** from a **nontrivial physical smoke**. Both use
+the existing experimental viscous 2D Saint-Venant weak forms, fixed
+BDF2, mesh 0.2, ten nominal 0.002 s steps through 0.02 s,
+and the previously qualified immutable rc3 image; no dependencies
+are rebuilt. This is NOT a reproduction of the paper's long-time
+250-second experiment or proof of pH discrete energy preservation.
+
+```bash
+git pull --ff-only
+SCRIMP_DOCKER_NO_SUDO=1 SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+    bash scripts/run-v130-issue6-viscous-mpi.sh rest
+
+# Only after rest passes; NONZERO rotation, both open and closed loop.
+SCRIMP_DOCKER_NO_SUDO=1 SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+    bash scripts/run-v130-issue6-viscous-mpi.sh physical
+```
+
+The run is intentionally fail-fast at the **first** failed native
+case (including PETSc TS failure, timeout, nonpositive sampled height
+coefficients, parity or power defect); retained host-owned logs remain
+in `sandbox/outputs/v130-issue6-viscous-*/`. Each (case, MPI size)
+uses a distinct working directory and artifact directory, preventing
+cross-run mesh and output clobbering. Only rank 0 writes figures and
+`metrics.json`; every MPI rank writes its **own** generic-port-power
+record to `mpi_port_powers_rankN.json`. The comparator checks these
+traces **within** the MPI run as well as **against serial**, compares
+full endpoint state vectors and sampled physical h-weighted powers,
+and verifies the signed energy and volume balances.
+
+A check of `minimum_height_coefficient>0` is necessary but cannot
+establish pointwise positivity for quadratic finite elements.
+The short-smoke provisional gates are at most 5% error relative
+to actual energy exchange, 1e-4 relative mass-balance error, and
+rank agreement according to the comparator; thresholds are not
+paper-reproduction claims. If the physical configuration does not
+converge (historical initialization/geometry issues), keep #6 OPEN
+and diagnose rather than switching silently to the stationary
+case or relaxing thresholds. The CLI's generic
+`plot_Hamiltonian(with_powers=True)` continues to exercise the
+collective port-power code; its **unweighted port powers must not
+be substituted** for the physical h-weighted energy identity.

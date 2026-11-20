@@ -23,7 +23,7 @@ Changes to SCRIMP are recorded here. See also the
 - Record the deferred MPI scalability, nonlinear-physics and
   experimental Schur results in `docs/V130_DEVELOPMENT_ROADMAP.md`.
 
-### Truly explicit nonlinear weak-form bricks (Jacobian native PASS; actual TS gate pending)
+### Truly explicit nonlinear weak-form bricks (directional FD and physical TS native PASS)
 
 - Correct `Brick(explicit=True)` semantics: previously SCRIMP
   excluded such a nonlinear term from `IJacobian` while

@@ -455,7 +455,31 @@ def save_outputs(swe, result, out):
         relative_volume_balance=d["relative_volume_balance"],
         lyapunov=d["lyapunov"],
     )
+    # Positivity of the height FE *coefficients* is a necessary,
+    # not sufficient, condition for pointwise positive P2 height.
+    # Preserve this weaker meaning explicitly in the metric name.
+    h_start, h_count = swe.gf_model.interval_of_variable("h")
+    h_start, h_count = int(h_start), int(h_count)
+    height_coefficients = [
+        np.asarray(z, dtype=float)[h_start:h_start + h_count]
+        for z in swe.solution["z"]
+    ]
+    if not height_coefficients or any(v.size != h_count for v in height_coefficients):
+        raise RuntimeError("Cannot verify stored Saint-Venant height coefficients")
+    if not all(np.all(np.isfinite(v)) for v in height_coefficients):
+        raise RuntimeError("Nonfinite height coefficients in saved trajectory")
+    np.savez_compressed(
+        out / "state_endpoints.npz",
+        initial=np.asarray(swe.solution["z"][0], dtype=float),
+        final=np.asarray(swe.solution["z"][-1], dtype=float),
+    )
     metrics = {
+        "minimum_height_coefficient": min(float(np.min(v)) for v in height_coefficients),
+        "maximum_height_coefficient": max(float(np.max(v)) for v in height_coefficients),
+        "petsc_ts_converged_reason": int(swe.last_ts_converged_reason),
+        "petsc_ts_accepted_steps": int(swe.last_ts_steps),
+        "petsc_ts_rejected_steps": int(swe.last_ts_rejections),
+        "petsc_ts_snes_failures": int(swe.last_ts_snes_failures),
         "gamma": float(d["gamma"]),
         "mpi_ranks": comm.getSize(),
         "steps_saved": int(t.size),
@@ -736,6 +760,28 @@ def main():
         with_powers=True, save_figure=True,
         filename=f"viscous_swe_{args.case}_Hamiltonian.png",
     )
+    # Issue #6 MPI-native evidence: independently record the generic
+    # (UNWEIGHTED) SCRIMP port powers actually assembled on EACH rank.
+    # Never infer rank-local power equality from rank-0 diagnostics.
+    # Names are per rank, so there are no competing output writers.
+    port_powers = {}
+    for port in swe.ports.values():
+        if port.get_algebraic() and not port.get_substituted():
+            values = np.asarray(port.get_power(), dtype=float)
+            if values.shape != (len(swe.solution["t"]),) or not np.all(np.isfinite(values)):
+                raise RuntimeError(f"Invalid rank-{rank} power trace for {port.get_name()}")
+            port_powers[port.get_name()] = values.tolist()
+    (out / f"mpi_port_powers_rank{rank}.json").write_text(
+        json.dumps({
+            "rank": rank, "world_size": comm.getSize(),
+            "times": [float(t) for t in swe.solution["t"]],
+            "powers": port_powers,
+            "note": "generic unweighted port power; NOT physical h-weighted SWE balance",
+        }, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    comm.barrier()
+
     if rank == 0:
         print(json.dumps({
             "case": args.case,
