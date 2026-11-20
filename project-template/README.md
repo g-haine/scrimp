@@ -99,71 +99,62 @@ Dev Container**, reload VS Code, and re-select that interpreter.
 Do **not** rebuild SCRIMP or create an `uv` environment to
 address this editor prompt.
 
-### Python and Pylance are preconfigured for Dev Containers
+### Python environment and Pylance in Dev Containers
 
-SCRIMP is installed in the named Conda/Micromamba environment
-`/opt/conda/envs/scrimp`, and its Python package is installed
-**editably** from `/workspace/scrimp` inside the image. These
-locations are **not your personal simulations folder**.
+The SCRIMP runtime has already validated Python, SCRIMP imports,
+MPI and F5/debugpy under Ubuntu. Its interpreter is:
 
-The starter's `.devcontainer/devcontainer.json` now includes:
+```text
+/opt/conda/envs/scrimp/bin/python
+```
+
+Pylance once reported a **false** `import scrimp` warning because
+SCRIMP is installed editably from `/workspace/scrimp`. The
+`python.analysis.extraPaths` setting fixed the warning in
+the actual Ubuntu VS Code GUI.
+
+A different problem persisted: **"Invalid Python interpreter is
+selected"**, accompanied by repeated offers to install Python
+via `uv`. Even after clearing the workspace interpreter choice,
+the Python extension logged an **active interpreter at the correct
+path** but said *"No Python environment is set for this
+resource"*. The **Python Environments** extension was managing
+discovery, but did not assign our Micromamba environment to /work.
+
+The container template therefore **opts out of that environment
+manager**, retaining the original Python extension, Pylance and
+Python Debugger. Its Dev Container settings include:
 
 ```json
 "python.defaultInterpreterPath": "/opt/conda/envs/scrimp/bin/python",
-"python-envs.globalSearchPaths": ["/opt/conda/envs"],
+"python.useEnvironmentsExtension": false,
 "python.interpreter.infoVisibility": "always",
 "python.analysis.extraPaths": ["/workspace/scrimp"]
 ```
 
-The extra search path helps Pylance resolve `import scrimp`
-when the runtime editable installation uses an import hook.
-**Do not disable missing-import diagnostics:** a truly
-missing package must still be reported. The explicit discovery
-root should help VS Code find the installed environment instead
-of offering to install an unrelated Python via `uv`.
-The latter still needs a successful clean-window GUI retest;
-the terminal and Python debugger already work.
+This is an **editor-only** change: Python, Conda, GetFEM, MPI
+and the already validated SCRIMP image are untouched. The fix
+still needs a fresh VS Code GUI acceptance test.
 
-**If your project was created before this fix**, update *its own*
-`.devcontainer/devcontainer.json` with the three additional
-settings (keep the existing image tag), then choose
+**If you created your workspace before this fix:** edit *its own*
+`.devcontainer/devcontainer.json` and set
+`"python.useEnvironmentsExtension": false` inside
+`customizations.vscode.settings`. Remove
+`"python-envs.globalSearchPaths"` if present. Retain the
+explicit interpreter path, Pylance search path and full
+Docker image tag. Select **Developer: Reload Window** or,
+if the new remote settings are not picked up,
 **Dev Containers: Rebuild and Reopen in Container**.
-That recreates the VS Code container **without rebuilding the
-SCRIMP Docker image**, and does not erase the local simulations
-or results. Restart the Python language server if Pylance
-still displays stale errors.
+This does not recompile the SCRIMP image or erase your project.
 
-The absolute container paths are deliberately not part of the
-shared `.vscode/settings.json`: native Conda users must be able
-to select their own local interpreter.
-
-### If VS Code says "An Invalid Python interpreter is selected"
-
-On the **first editor retest after adding the Python Environments
-and Pylance settings**, the `import scrimp` warning **disappeared**,
-but the interpreter was still reported invalid.
-
-VS Code remembers a selected interpreter separately from
-`python.defaultInterpreterPath`. Rebuilding a Dev Container does
-not necessarily clear this cached workspace choice. Before changing
-the SCRIMP image or installing any additional Python:
-
-1. In the **Dev Container window**, use **Ctrl+Shift+P** →
-   **Python: Clear Workspace Interpreter Setting**.
-2. Run **Developer: Reload Window**.
-3. Run **Python: Select Interpreter** → **Enter interpreter path**;
-   choose `/opt/conda/envs/scrimp/bin/python` if it is not offered.
-4. If the same error reappears, use **Show output** from the popup
-   and inspect the **Python** and **Python Environments** logs.
-   The **Python Environments: Run Python Environment Tool (PET)
-   in Terminal** command can resolve the existing interpreter
-   and explain why it is classified as invalid.
-
-We use **Micromamba**, whose environment-manager discovery may
-differ from a full Conda installation. This issue is still
-being diagnosed; **do not install Python with `uv`**, suppress
-interpreter diagnostics globally or assume the editor is fixed
-merely because the terminal and F5 already work.
+If the old interpreter selection is still cached, use
+**Python: Clear Workspace Interpreter Setting** and
+**Python: Select Interpreter** to choose the existing
+`/opt/conda/envs/scrimp/bin/python`. **Do not click
+"Install uv and Python"**: it would create an unrelated
+environment. Do not disable Pylance missing-import diagnostics
+or modify the shared `.vscode/settings.json`, which must also
+work for native Conda users.
 
 The first command is a **real, short serial port-Hamiltonian
 mass–spring–damper simulation**. It saves `outputs/oscillator.csv`.
