@@ -204,8 +204,20 @@ def _project_distributed(system, mpi, *, atol=1e-10, rtol=1e-8):
         # Each rank inserts ONLY its original owned algebraic DOFs.
         # No correction is ever applied to a differential variable.
         if len(local):
+            # GetFEM/NumPy variable intervals use int64, while this
+            # qualified rc3 PETSc build uses 32-bit PetscInt.  Vec.setValues
+            # requires PETSc.IntType (unlike IS.createGeneral's already
+            # correctly cast indices above).  Reject overflow explicitly.
+            if (
+                np.min(local) < np.iinfo(PETSc.IntType).min
+                or np.max(local) > np.iinfo(PETSc.IntType).max
+            ):
+                raise OverflowError("DAE index outside PETSc.IntType range")
+            owned_petsc_indices = np.asarray(
+                local, dtype=PETSc.IntType
+            )
             z.setValues(
-                local,
+                owned_petsc_indices,
                 correction.getArray(readonly=True).copy(),
                 addv=PETSc.InsertMode.ADD_VALUES,
             )
