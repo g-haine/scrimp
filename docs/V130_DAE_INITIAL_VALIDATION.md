@@ -502,7 +502,95 @@ SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
 bash scripts/run-v130-fixed-dynamics-probe.sh
 ~~~
 
-**Pending:** real native GetFEM parse and the alternative
-`matched_left_control` projection outcome, followed by an
-interpreted A/B comparison. Do not mark the alternative
-compatible/incompatible on the basis of the aborted run.
+**A/B native rerun now completed:** see section 9.
+The GetFEM preflight PASS and both MPI variants of each
+scenario completed. The analytic trace-matched control
+**increased**, rather than eliminated, the fixed-dynamic
+algebraic residual. Neither configuration passed the
+prescribed-data algebraic feasibility threshold.
+
+## 9. Completed full native A/B experiment (20 November 2026)
+
+**Observed native output:** immutable
+`scrimp-mpi:v1.3.0-rc3` (source
+`1d6d0c90115213298047b28237a7f38087563a35`),
+diagnostic commit
+`25f9bf27d260abca401899c0c8b2e1bd2c97300e`,
+`h=0.2`, 2,230 DOFs, 1,175 algebraic, five accepted
+Crank–Nicolson steps per case, identical prescribed Gaussian
+`p0` and zero `q0`, MPI 1 and 2.
+
+Original host output:
+
+```text
+sandbox/outputs/v130-algebraic-only-h0p2-25f9bf27-DbVTy7aw/
+```
+
+The **GetFEM matched-control source preflight passed**.
+Both `published` and `matched_left_control` then completed
+on 1/2 ranks; linearization verified against original PETSc
+`IFunction` to approximately `1.9e-18`. All 1/2-rank
+comparisons reported PASS with the same physical q/p
+coefficients and equal residual norms.
+
+| Euclidean coefficient residual | Published U_L(0)=0 | Analytic trace-matched U_L(0)=p0(0,y)/rho(0,y) |
+| --- | ---: | ---: |
+| Initial all algebraic rows | 0.0106898950 | 0.0106921438 |
+| Fixed q/p, optimized algebraic-only | **4.82244319e-6** | **9.18141097e-6** |
+| After original pseudo-TS (q/p changed) | ~2e-18 | ~2e-18 |
+| Constitutive `e_p` residual after projection | 4.82044425e-6 | 9.17758251e-6 |
+| Left input `U_L` residual after projection | 9.81721862e-8 | 1.87465454e-7 |
+| Left output `Y_L` residual after projection | 9.81721861e-8 | 1.87465454e-7 |
+| Computed dual lower bound (`||delta_a|| <= ~12.09`) | ~4.822437e-6 | ~9.181407e-6 |
+
+The trace-matched control made the fixed-dynamic algebraic
+residual **approximately 90.4% larger**, not smaller.
+The numerical normal equation residuals are `~2e-18`
+(published) and `~3e-18` (trace-matched), with bounded
+adjoint-witness residuals near the measured least-squares
+minimum. The original hypothesis that simply matching the
+**analytic** trace `p0/rho` at the left boundary is a
+sufficient discrete fix is **not supported by these data**.
+This does **not** prove that the boundary constraint is
+irrelevant or that no compatible control exists: the
+constitutive relation is a **weak finite-element projection**,
+and pointwise continuous traces do not generally commute
+with that projection.
+
+**Scientific next step:** manufacture a truly FE-representable
+and left-boundary-compatible nonzero momentum for this
+very same model:
+
+```text
+q0(x,y) = [0, 0]
+p0(x,y) = x*(3-x)
+rho(x,y) = 3-x
+e_p(x,y) = x
+U_L(0,y) = 0
+```
+
+Both `p0` (degree 2) and `e_p` (degree 1) are exactly
+representable by the published CG2 space; `e_p=0` at
+the left boundary. The weak constitutive relation
+`-M_e_p e_p + CR_p p = 0` and left velocity constraint
+have an explicit compatible candidate. The q/e_q
+constitutive pair is initially zero. This is a
+**different scientific initial-value problem** from the
+published Gaussian, deliberately chosen as a positive
+control for the algebraic-only projection algorithm.
+In particular, even for this compatible initial state,
+the historical pseudo-TS may still move differential
+variables by integrating in pseudo-time; that movement
+must be measured and reported separately.
+
+A failure of the manufactured case, despite the exact
+FE construction, would be evidence to investigate the
+constraint extraction, the LSMR solve, or other algebraic
+rows before proposing changes to the Gaussian data.
+A PASS would isolate the obstruction to the original
+initial data/control combination (not a universal proof
+of the theoretical DAE constraint structure).
+
+No change to `scrimp/dphs.py`, `examples/wave.py`,
+the qualified Docker image, or user local files is
+authorized by this A/B result alone.
