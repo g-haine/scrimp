@@ -113,6 +113,7 @@ User's guide
     vscode
     started
     initialization
+    explicit_bricks
     performance
     examples
     lumped
