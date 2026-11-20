@@ -58,6 +58,7 @@ class TestV130DefaultPromotion(unittest.TestCase):
                         "mpi_ranks": ranks,
                         "scenario": scenario,
                         "mode": "algebraic",
+                        "effective_PETSc_initial_strategy": "algebraic",
                         "status": (
                             "EXPECTED_REJECTION" if negative else "PASS"
                         ),
@@ -76,6 +77,7 @@ class TestV130DefaultPromotion(unittest.TestCase):
             self._json(f"dissipative_core_{ranks}r.json", {
                 "implicit_default_requested": True,
                 "explicit_init_step_ts_type_present": False,
+                "effective_PETSc_initial_strategy": "algebraic",
                 "dae_projection": {
                     "strategy": "algebraic",
                     "pseudo_ts_executed": False,
@@ -87,6 +89,7 @@ class TestV130DefaultPromotion(unittest.TestCase):
                 {
                     "mode": mode,
                     "status": "PASS",
+                    "effective_PETSc_initial_strategy": explicit,
                     "implicit_default_requested": False,
                     "explicit_init_step_ts_type_present": True,
                     "initialization_options": {
@@ -119,6 +122,24 @@ class TestV130DefaultPromotion(unittest.TestCase):
         result=self._run()
         self.assertNotEqual(result.returncode,0)
         self.assertIn("actual default", result.stderr)
+
+    def test_false_default_pet_sc_strategy_is_rejected(self):
+        path = self.folder / "core_algebraic_polynomial_compatible_1r.json"
+        data = json.loads(path.read_text(encoding="utf-8"))
+        data["effective_PETSc_initial_strategy"] = "pseudo"
+        self._json(path.name, data)
+        result = self._run()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("actual default", result.stderr)
+
+    def test_false_dissipative_default_pet_sc_strategy_is_rejected(self):
+        path = self.folder / "dissipative_core_2r.json"
+        data = json.loads(path.read_text(encoding="utf-8"))
+        data["effective_PETSc_initial_strategy"] = "pseudo"
+        self._json(path.name, data)
+        result = self._run()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Dissipative wave", result.stderr)
 
     def test_gaussian_must_not_be_accepted_by_default(self):
         path=self.folder / "core_algebraic_published_2r.json"
