@@ -223,6 +223,79 @@ completes. The native Conda installation path uses the
 **actual local** interpreter instead; do not force the container
 path into ``.vscode/settings.json`` shared by both modes.
 
+Automatic interpreter discovery and Pylance imports (v1.3.0)
+--------------------------------------------------------------
+
+The first real Ubuntu VS Code test confirmed two *editor-only*
+issues even though SCRIMP and debugpy executed correctly:
+
+- The Python Environments extension repeatedly proposed
+  **"No Python found / Install uv and Python"**.
+- Pylance reported `Import "scrimp" could not be resolved`
+  despite a successful `import scrimp` and F5 debugging.
+
+The template now declares **three complementary container-scoped
+settings** (all in
+``.devcontainer/devcontainer.json`` under
+``customizations.vscode.settings``):
+
+.. code-block:: json
+
+   {
+     "python.defaultInterpreterPath": "/opt/conda/envs/scrimp/bin/python",
+     "python-envs.globalSearchPaths": ["/opt/conda/envs"],
+     "python.interpreter.infoVisibility": "always",
+     "python.analysis.extraPaths": ["/workspace/scrimp"]
+   }
+
+The interpreter and discovery root reference SCRIMP's **already
+installed Micromamba environment**. The source search path is the
+parent directory of the installed editable
+``/workspace/scrimp/scrimp/`` package. Pylance can then analyze
+the Python source directly, without relying on how ``pip install
+-e .`` implements editable-install import hooks. The configuration
+does **not** disable or suppress the ``reportMissingImports``
+diagnostic for other imports.
+
+**Updating a project created before this change:** its files are
+independent of SCRIMP's Git repository. Pulling SCRIMP does **not**
+alter an existing ``MySCRIMPProject``. Open
+``MySCRIMPProject/.devcontainer/devcontainer.json`` and add
+the three *new* settings to the existing
+``customizations.vscode.settings`` object, keeping the complete
+Docker image tag. Select **Dev Containers: Rebuild and Reopen in
+Container** to apply the updated container-specific settings.
+This recreates the editor's development container from the existing
+image; it **does not recompile GetFEM, PETSc, SLEPc or SCRIMP**.
+The local ``simulations/`` and ``outputs/`` remain mounted
+and persistent.
+
+**Verification:** inside the re-opened container, the Python status
+bar should identify the selected interpreter. Open a Python file,
+wait for Pylance analysis to refresh, and confirm the yellow
+``reportMissingImports`` underline on ``import scrimp``
+disappears. The ``Python: Select Interpreter`` list should
+offer the SCRIMP environment; ``Python Environments: Refresh All
+Environment Managers`` can refresh a stale discovery cache.
+If the interpreter remains missing, check the **Python
+Environments** output panel and use **Python Environments: Run
+Python Environment Tool (PET) in Terminal** to inspect discovery
+before creating/installing anything. If the interpreter is found
+but Pylance still complains, use **Python: Restart Language
+Server** and inspect the **Pylance** output log.
+
+These settings match Microsoft's Python Environments discovery and
+Pylance ``extraPaths`` guidance, but **automatic popup
+suppression is not yet verified on a new VS Code launch**. The
+new verification is a separate GUI acceptance gate. Do not treat
+a Python language-server error as a failure of the already
+passing Python/MPI runtime.
+
+Container-specific settings belong in Dev Container metadata,
+**not** shared ``.vscode/settings.json``: users who select a
+native Conda interpreter must not inherit hard-coded Linux Docker
+paths.
+
 The host project is bind-mounted at /work. The first command
 writes MySCRIMPProject/outputs/oscillator.csv **on the host**.
 Closing VS Code or removing the container does not delete that file.
@@ -253,8 +326,9 @@ For a first debugging session:
    to step over one Python statement and expand `system`
    or `q` in the **Locals** pane to inspect their attributes.
 5. Press **F5** to resume execution, or **Shift+F5** to
-   stop the debugger. Reaching the simulation end normally
-   after this final resume is a separate check.
+   stop the debugger. On **20 November 2026**, the user
+   confirmed that execution resumed and the simulation
+   finished normally after stepping and inspecting the state.
 
 This is a **serial Python debugging** validation. Debugging
 simultaneous MPI worker ranks, and breakpoints inside compiled
@@ -321,10 +395,13 @@ Known limitations / release gates
   Ubuntu subsequently ran the 10-step oscillator, wrote the CSV
   to the host, and started SCRIMP on two MPI ranks.
   **Serial Python debugging has also passed** with F5,
-  an active breakpoint, F10 stepping, Locals and Call Stack.
-  Native compatibility, Windows/macOS/Apple Silicon, MPI
-  multi-process debugging and power-balance/physics
-  qualification remain separate gates.
+  a breakpoint, F10 stepping, Locals, Call Stack and normal
+  completion on resume. Source-level settings now address
+  automatic interpreter discovery and editable-SCRIMP imports;
+  their actual fresh-window GUI retest remains open. Native
+  compatibility, Windows/macOS/Apple Silicon, MPI multi-process
+  debugging and power-balance/physics qualification remain
+  separate gates.
 - The public GHCR v1.3.0 tag and starter project ZIP are not
   published; both require an accepted release.
 - The introductory oscillator is a serial model; use validated
