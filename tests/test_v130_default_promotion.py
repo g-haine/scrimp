@@ -147,7 +147,7 @@ class TestV130DefaultPromotion(unittest.TestCase):
             wave,
         )
         self.assertIn('kwargs["init_step_ts_type"] = option',wave)
-        self.assertIn('if not use_default:',diss)
+        self.assertIn('if use_default:',diss)
         self.assertIn('kwargs["init_step_ts_type"] = "algebraic"',diss)
         self.assertIn(
             'kwargs.pop("init_step_ts_type", None)',diss
