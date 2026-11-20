@@ -862,7 +862,10 @@ class DPHS:
             )
         self.bricks[name_brick] = brick
 
-        # Flow and explicit brick need a minus for fully implicit formulation in time-resolution
+        # Preserve the original weak-form sign: flow bricks and
+        # nonlinear explicit bricks are negated when registered.
+        # Explicit terms are subsequently evaluated at the *accepted*
+        # TS state and moved to a frozen RHS, never to the Newton tangent.
         if position == "flow" or brick.get_explicit():
             form = "-(" + form + ")"
 
