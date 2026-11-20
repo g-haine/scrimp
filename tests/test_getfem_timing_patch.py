@@ -1,59 +1,62 @@
 # SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
 #
 # Copyright (C) 2015-2026 ISAE-SUPAERO -- GNU GPLv3
-# 
+#
 # See the LICENSE file for license information.
 #
 # github: https://github.com/g-haine/scrimp
 
-"""Regression tests for the *diagnostic-only* native GetFEM MPI patch.
+"""Source contract for the approved native GetFEM MPI timing patch.
 
-No GetFEM/PETSc installation is required to run these tests.
+The former scripts/patch-getfem-mpi-timing.py helper was replaced
+by the versioned 0000 patch. This test checks the actual shipped patch;
+the separate GetFEM source audit checks clean application of all patches.
+No PETSc/GetFEM installation is required here.
 """
-import importlib.util
+
 from pathlib import Path
 import unittest
 
 
-SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "patch-getfem-mpi-timing.py"
-spec = importlib.util.spec_from_file_location("getfem_mpi_timing_patch", SCRIPT)
-module = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(module)
-
-UPSTREAM = """#include <iomanip>
-namespace getfem {
-void model::assembly(build_version version) {
-#if GETFEM_PARA_LEVEL > 0
-  if (MPI_IS_MASTER()) cout << "Assembly time " << MPI_Wtime()-t_ref << endl;
-#endif
-}
-}
-"""
+PATCH = (
+    Path(__file__).resolve().parents[1]
+    / "scripts/patches/getfem-5.5/0000-mpi-assembly-timing.patch"
+)
+PRINT = 'cout << "Assembly time " << MPI_Wtime()-t_ref << endl;'
 
 
 class GetFEMTimingPatchTest(unittest.TestCase):
-    def test_native_assembly_print_requires_explicit_opt_in(self):
-        patched = module.patch_source(UPSTREAM)
-        self.assertIn("#include <cstdlib>", patched)
-        self.assertIn('std::getenv("SCRIMP_GETFEM_ASSEMBLY_TIMING")', patched)
-        self.assertIn("flag[0] == '1' && flag[1] == '\\0'", patched)
+    def test_approved_patch_gates_assembly_print_on_opt_in(self):
+        diff = PATCH.read_text(encoding="utf-8")
+        added = [
+            line[1:] for line in diff.splitlines()
+            if line.startswith("+") and not line.startswith("+++")
+        ]
+        removed = [
+            line[1:] for line in diff.splitlines()
+            if line.startswith("-") and not line.startswith("---")
+        ]
+        self.assertIn("#include <cstdlib>", added)
         self.assertIn(
-            'cout << "Assembly time " << MPI_Wtime()-t_ref << endl;', patched
+            '      const char *flag = std::getenv("SCRIMP_GETFEM_ASSEMBLY_TIMING");',
+            added,
         )
-        self.assertEqual(module.patch_source(patched), patched)
-
-    def test_refuses_unexpected_upstream_source(self):
-        with self.assertRaisesRegex(ValueError, "Expected exactly one"):
-            module.patch_source(UPSTREAM.replace("Assembly time ", "Time "))
-
-    def test_refuses_multiple_timing_prints(self):
-        modified = UPSTREAM.replace(
-            "#endif",
-            '  if (MPI_IS_MASTER()) cout << "Assembly time " '
-            '<< MPI_Wtime()-t_ref << endl;\n#endif',
+        self.assertIn(
+            r"      if (flag && flag[0] == '1' && flag[1] == '\0')",
+            added,
         )
-        with self.assertRaisesRegex(ValueError, "found 2"):
-            module.patch_source(modified)
+        self.assertEqual(sum(PRINT in line for line in added), 1)
+        self.assertEqual(sum(PRINT in line for line in removed), 1)
+        self.assertIn("    if (MPI_IS_MASTER()) {", added)
+        self.assertIn("    }", added)
+
+    def test_patch_changes_only_getfem_model_source(self):
+        diff = PATCH.read_text(encoding="utf-8")
+        self.assertEqual(
+            [line for line in diff.splitlines() if line.startswith("diff --git ")],
+            ["diff --git a/src/getfem_models.cc b/src/getfem_models.cc"],
+        )
+        self.assertIn("@@ -2879,", diff)
 
 
 if __name__ == "__main__":
