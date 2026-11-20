@@ -229,7 +229,8 @@ with the actual tested discrete weak constraints without checking.
 
 ## 6. Follow-up: algebraic-only feasibility with frozen differential initial data
 
-**Source staged; native run pending.** The first measured wave test
+**First native probe completed (20 November 2026); further A/B
+diagnostics staged but not yet executed.** The first measured wave test
 proves an important trade-off (algebraic residual ~1e-18 versus
 changed q/p), but does not tell us whether the *discrete algebraic
 system* can be solved with the originally prescribed q/p held fixed.
@@ -298,3 +299,107 @@ converge, and **no production code is patched on the basis of
 these unexecuted diagnostics**. Source-only CI and synthetic tests
 prove the probe's shape/decision semantics, not the actual
 native wave result.
+
+## 7. Measured fixed-dynamics feasibility and A/B follow-up (20 November 2026)
+
+### 7.1 Completed native results: original published control
+
+The actual native probe of the published wave at `h=0.2`,
+2,230 DoFs (1,175 algebraic), 5 accepted CN steps, MPI 1/2,
+using unchanged qualified `scrimp-mpi:v1.3.0-rc3` with
+source revision `1d6d0c90115213298047b28237a7f38087563a35`,
+and diagnostic commit
+`de3b2c734d03f94bc11db3613a3c0daf259f2105`:
+
+| Euclidean coefficient residual | 1 MPI rank | 2 MPI ranks |
+| --- | ---: | ---: |
+| Algebraic before correction | 0.010689895 | 0.010689895 |
+| After solving K_aa delta_a=-F_a, q/p EXACTLY frozen | 4.82244319e-6 | 4.82244319e-6 |
+| After standard pseudo-TS (q/p altered) | 2.44609825e-18 | 2.21270009e-18 |
+| Difference actual residual vs K_aa prediction | 1.9331465e-18 | 1.8659101e-18 |
+| Iterative LSMR condition estimate | 167.7 | 126.4 |
+
+Actual host evidence:
+`sandbox/outputs/v130-algebraic-only-h0p2-de3b2c73-RSTntEzH/`.
+
+The algebraic-only correction reduced the residual by about
+a factor 2,217, but the remaining residual was
+`4.82e-6`, about `4.51e-4` of the original.
+`FIXED-DYNAMICS ALGEBRAIC FEASIBILITY: UNRESOLVED`
+at **both** MPI ranks. The reconstructed PETSc Jacobian accurately
+predicts the actual GetFEM production `IFunction` to ~1e-18.
+Thus, **this is a genuine remaining residual in the discrete
+constraint equations**, not an assembly/Jacobian mismatch.
+However, a *nonzero iterative least-squares residual does
+not alone prove that no different, potentially larger algebraic
+correction exists*; the estimator `condA` is not a formal rank
+certificate.
+
+### 7.2 Next experiment, source-ready; native execution pending
+
+The enhanced diagnostic constructs a **computed left-nullspace
+witness** `w = residual_after / ||residual_after||`, reports
+`||K_aa^H w||` and `|w^H F_a|`, and evaluates the explicit bound
+
+```text
+||K_aa delta_a + F_a|| >=
+  max(0, |w^H F_a| - ||K_aa^H w|| * R)
+  for any ||delta_a|| <= R.
+```
+
+The bound is for a **specified finite correction radius**,
+default `R=10*max(1, ||delta_a_LSMR||)`. It does *not*
+establish infeasibility for arbitrarily large corrections,
+nor an exact rank/nullspace theorem.
+
+The diagnostic now also records remaining algebraic residuals
+by **named field** (`e_q`, `e_p`, boundary input/output ports),
+rather than relying on a global norm alone.
+
+Finally, it compares **two different boundary-control problems**
+on the exact same mesh and with **identical q0/p0**:
+
+- **published:** original left velocity `U_L(0,y)=0`;
+- **matched_left_control:** replace only the prescribed left
+  velocity `U_L(t,y)` by `p0(0,y)/rho(0,y)
+  = 3**(-20*(0.25+(y-0.5)^2))/3`, to ensure **pointwise
+  initial left-boundary compatibility**.
+
+The comparison does **not** modify `examples/wave.py`,
+the FE spaces, mass/stiffness bricks, `q_0` or `p_0`;
+the alternative is assembled with a **temporary diagnostic
+interception of `DPHS.set_control`**. We keep the original
+production image/source and its actual pseudo-TS/main CN
+state untouched. Thus differences between scenarios test
+the specific `p_0/rho` vs `U_L(0)` compatibility hypothesis;
+they are not described as numerical equivalence of two
+identical physical problems.
+
+Run the **same command** after pulling the current branch:
+
+~~~bash
+cd ~/Simulations/scrimp
+git switch release/1.3.0-preparation
+git pull --ff-only
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-fixed-dynamics-probe.sh
+~~~
+
+This updated runner performs four small native cases:
+published/matched control × MPI 1/2, compares each scenario
+across MPI and finally compares the two controls while
+checking q0/p0 are unchanged. It archives independent JSON
+and numerical reports in a new unique directory under
+`sandbox/outputs/`, never in the Docker build context.
+
+**Interpretation:**
+a near-zero algebraic-only residual for `matched_left_control`
+but a nonzero bounded dual obstruction for `published`
+would strongly localize the defect to the initial boundary
+compatibility of this wave example. If both problems remain
+incompatible, investigate other boundary/constitutive
+rows and possible singularity. In neither case should the
+production pseudo-TS, initial state or solver be silently
+changed from these diagnostic observations alone.
+
