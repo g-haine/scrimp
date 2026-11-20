@@ -130,14 +130,24 @@ historical legacy; independent nonzero explicit
 gyroscopic term, no tolerance relaxation).
 Frozen output:
 `sandbox/outputs/v130-shallow-mass-J-fae066a6-VvvbTRp4/`.
-The ORIGINAL issue
+The complete native acceptance gate for issue
 [#27](https://github.com/g-haine/scrimp/issues/27)
-still requires a short **actual accepted-step
-physical PETSc TS** demonstration before closure;
-that dedicated runner is
-`scripts/run-v130-shallow-explicit-physical-ts.sh`.
-There is no need to rerun the FD campaign
-unless a relevant core change invalidates it.
+is **PASS**: the independent directional-FD
+qualification above and the actual short
+physical PETSc BDF2 integration on the original
+shallow-water weak forms, with fully explicit
+accepted-state-frozen gyroscopic `G`, both passed
+on MPI 1/2. The latter is frozen at source
+`9ecd173983252795a3cba13b5879d29127b57638`,
+output
+`sandbox/outputs/v130-shallow-explicit-TS-9ecd1739-LZjvda5C/`.
+Four accepted steps per case, no rejects/SNES
+failures, exact frozen-cache drift zero and full
+MPI state parity `6.39215556e-16`.
+No exact discrete Hamiltonian balance, global order
+two, nonlinear DAE initializer or MPI rank-4
+qualification is implied. Do not rerun these
+frozen gates without relevant core changes.
 The general nonlinear DAE Newton extension
 [#28](https://github.com/g-haine/scrimp/issues/28)
 is a separate, explicitly guarded future
@@ -1373,3 +1383,52 @@ is ready for native use, but as yet
 until the physical smoke passes.
 General nonlinear DAE consistent
 initialization remains separate #28.
+
+## 20 November 2026 — shipped SWE physical TS/explicit G native PASS; issue #27 qualified
+
+Following the previously recorded directional-FD PASS at
+`fae066a64b649131351e686ac9383ea11c13c0a6`,
+the independent **real PETSc TS** runner
+`scripts/run-v130-shallow-explicit-physical-ts.sh`
+passed on the same unchanged
+`scrimp-mpi:v1.3.0-rc3` image (OCI source
+`1d6d0c90115213298047b28237a7f38087563a35`),
+using current source
+`9ecd173983252795a3cba13b5879d29127b57638`.
+
+Host-owned immutable evidence:
+`sandbox/outputs/v130-shallow-explicit-TS-9ecd1739-LZjvda5C/`
+(`manifest.json`, four per-case PETSc logs and JSON trajectory records,
+`compare.log`, `shallow_explicit_TS_comparison.json`).
+Original inviscid shallow-water weak bricks/signs are unchanged.
+Only mesh, short horizon and, for one independent control, initial
+momentum data are overridden. Physical main TS uses BDF2
+with fixed `dt=1e-4`, four accepted steps, `t_f=4e-4`.
+The historical pseudo initializer is requested explicitly;
+**no general nonlinear DAE initial-data consistency qualification** is inferred.
+
+| Initial momentum | MPI ranks | Accepted / rejected / SNES failures | Max explicit G RHS norm | Signed final Hamiltonian change |
+| --- | ---: | ---: | ---: | ---: |
+| Published `[0,0]` | 1 | 4 / 0 / 0 | 2.4381721e-6 | -0.00206566661 |
+| Published `[0,0]` | 2 | 4 / 0 / 0 | 2.4381721e-6 | -0.00206566662 |
+| Manufactured `[y,-x]` | 1 | 4 / 0 / 0 | 0.000688335575 | -0.00206572620 |
+| Manufactured `[y,-x]` | 2 | 4 / 0 / 0 | 0.000688335575 | -0.00206572615 |
+
+All main `TSConvergedReason=1`; the explicit RHS cache is rebuilt
+at each accepted state and has **exactly zero recorded drift**
+within Newton residual evaluations.
+Maximum scaled full-state MPI 1/2 discrepancy:
+`6.392155562495291e-16`; maximum relative Hamiltonian discrepancy:
+`1.2677184090553238e-15`.
+Relative absolute final Hamiltonian changes are
+`6.5438023e-8` (published) and `6.54399075e-8` (manufactured).
+They are **measured changes**, **not** evidence of exact pH power
+preservation, nor do they isolate error from the lagged `G`.
+
+**Release decision:** #27 is qualified in its tested native scope
+and can be closed with this pinned evidence.
+Keep broader MPI/port-power and 1/2/4-rank viscous SWE as
+independent issue #6; upstream GetFEM assembly/partition diagnosis
+as #23; nonlinear algebraic initial-data projection as #28.
+A fixed-horizon `dt` refinement plus signed boundary/dissipation
+power accounting is a separate scientific follow-up.

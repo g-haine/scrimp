@@ -43,7 +43,7 @@ Do not silently delete a committed gate to make the deadline.
 | 1 — GetFEM 5.5 simplex FE | **Lean native PASS** | Integrate supported patches consistently into final image; test Maxwell FE spaces. |
 | 2 — Docker/native/VS Code | **rc3 native PASS** | Final source revision image/wheel smoke and provenance; do not rebuild on every Python edit. |
 | DAE default (new) | **FULL native PASS, two linear pH-DAEs** | Preserve explicit pseudo/BDF2, documented incompatible Gaussian, and short memory/exceptional MPI cleanup gate. |
-| **#27** state-dependent mass Jacobian | **Native original shallow-water directional FD PASS (MPI 1/2)**; short physical TS **PENDING** | Do **not** repeat the passing FD campaign. Run `scripts/run-v130-shallow-explicit-physical-ts.sh` to check real accepted BDF2 steps, nonvacuous frozen G, MPI trajectory parity and measured Hamiltonian drift before closing the complete issue. |
+| **#27** state-dependent mass Jacobian | **FULL native gate PASS (MPI 1/2)**: directional FD plus genuine 4-step physical TS with accepted-state frozen G | Freeze the two evidenced campaigns; close #27 with explicit limitations. No automatic claims about exact energy conservation, order two, nonlinear DAE initialization or 4-rank MPI. |
 | 3 — New 3D Maxwell | **NOT QUALIFIED** | Minimal scientifically meaningful 3D H(curl)/H(div) example with boundary energy/Poynting power, element orientation and MPI correctness. **Largest new-model schedule risk.** |
 | 4 — Performance figures | **Wave evidence PASS; publication figures incomplete** | Curate reproducible plots and metadata; Maxwell scaling only if Maxwell physics qualifies. |
 | 5 / **#26** — Sphinx and research docs | **Partially complete** | HTML and LaTeX/PDF green on final source, accurately scoped MPI/jacobian/DAE/default, usable first-run path. |
@@ -145,9 +145,11 @@ for historical reproducibility.
 - **#26 (open enhancement):** full Sphinx docs/examples/developer
   refresh. Close only after final HTML/LaTeX, examples, numerical
   MPI guide and first-run install walk-through are verified.
-- **#27 (new P0):** state-dependent mass Jacobian default on
-  shipped shallow water. Close only with native 1/2-rank
-  directional FD and legacy control logs.
+- **#27 (P0 gate passed 20 Nov):** state-dependent mass Jacobian
+  on shipped shallow water: native MPI 1/2 directional FD and
+  default/legacy control **PASS**; independent real BDF2 PETSc TS
+  on MPI 1/2 with nonvacuous frozen explicit G **PASS**.
+  Close with pinned native provenance and limitations.
 - **#28 (new P1):** nonlinear constrained DAE initializer.
   Keep open until genuinely qualified; not a pretext
   to delay/relabel the passed linear default.
@@ -158,11 +160,12 @@ environment provenance and explicit scope/remaining limits.
 
 ## Week 48 sequence — no unnecessary repeats
 
-- **Monday 23 Nov — correctness freeze:** run #27 native
-  shallow-water mass Jacobian check, pin FD and residual
-  default/legacy evidence; triage #6/#23 and confirm no
-  unaddressed P0 MPI deadlock or output race. Retain the
-  already frozen DAE-default and wave physics results.
+- **Monday 23 Nov — correctness freeze:** retain the two
+  already native-PASSED #27 gates, close the issue with pinned
+  FD and short-TS evidence; prioritize #6 real MPI 1/2/4
+  viscous SWE power, deadlock, output-integrity qualification
+  and #23 upstream triage. Retain frozen DAE-default and wave
+  physics results.
 - **Tuesday 24 Nov — model & build gates:** GetFEM simplex
   patch integration and a narrowly scoped 3D Maxwell
   benchmark prototype, plus final candidate-image
@@ -341,7 +344,7 @@ unaffected by this narrow nonlinear-only change,
 but the general release-wide regression
 suite is still required.
 
-## 20 November native #27 second trial — full mass-Jacobian directional FD PASS, short TS still pending
+## 20 November native #27 second trial — full mass-Jacobian directional FD PASS (historical: before TS run)
 
 **Source:** `fae066a64b649131351e686ac9383ea11c13c0a6` on
 `release/1.3.0-preparation`; unchanged qualified image
@@ -396,7 +399,7 @@ Hamiltonian/port-work comparison. If the initial data prevent
 a safe short solve, report that explicitly rather than
 mark #27 fully closed or relaxing the Jacobian tolerances.
 
-## Next native command — short *real* shallow-water PETSc TS (still pending)
+## Historical next native command — short *real* shallow-water PETSc TS (now PASSED)
 
 The previously PASSED native Jacobian FD gate is frozen.
 Run only the remaining physical-step test on the unchanged
@@ -427,3 +430,47 @@ the calendar deadline. Successful short-TS
 evidence is **not** a proof of order 2 or exact
 discrete Hamiltonian balance; a dedicated
 time-refinement/energy study is separate.
+
+## 20 November — native #27 physical-step gate PASS (supersedes historical PENDING sections above)
+
+Native source: `9ecd173983252795a3cba13b5879d29127b57638`,
+unchanged `scrimp-mpi:v1.3.0-rc3`, OCI source
+`1d6d0c90115213298047b28237a7f38087563a35`.
+Frozen host evidence:
+`sandbox/outputs/v130-shallow-explicit-TS-9ecd1739-LZjvda5C/`.
+
+The original inviscid shallow-water weak forms passed genuine
+PETSc BDF2 TS integrations for both published momentum
+`p0=[0,0]` and independent nonzero-G manufactured
+`p0=[y,-x]`, at MPI 1 and 2. Each run reached
+`t_f=4e-4` with four accepted fixed `dt=1e-4` steps,
+zero rejected steps/SNES failures and `TSConvergedReason=1`.
+The accepted-state gyroscopic RHS is nonzero (up to
+`2.4381721e-6` published and `6.88335575e-4` manufactured)
+and **never changes within Newton** (`cache drift = 0`).
+Across MPI 1/2, maximum scaled full-state difference is
+`6.392155562495291e-16`, Hamiltonian difference
+`1.2677184090553238e-15`.
+
+Signed `H_f - H_0` was `-0.00206566661` (published)
+and `-0.00206572620` (manufactured); both are
+`~6.54e-8` relative. These are **recorded defects**,
+not a claim of exact structure-preserving discrete power
+balance or global BDF2 order for first-order-lagged `G`.
+The general nonlinear algebraic DAE initializer remains
+issue #28, unqualified. The earlier PENDING/next-command
+paragraphs in this sprint are an **historical audit trail**
+and must not be used to schedule redundant native reruns.
+
+**Decision:** original #27 release acceptance is satisfied
+in its exact tested scope; close #27 with the two SHA/output
+provenances. Next P0: original issue #6 on **genuine 1/2/4-rank
+viscous Saint-Venant power diagnostics and MPI-safe outputs**,
+while #23 remains a separate open GetFEM root-cause investigation.
+For #6 use `sandbox/viscous_swe_2d_mpi.py`: preserve
+its physical h-weighted boundary powers, volume balance,
+both dissipations, non-negativity and true TS completion
+checks. Compare trajectories/diagnostics to serial at
+**equal physical parameters**. Never treat
+`plot_Hamiltonian(with_powers=True)` alone as the physical
+viscous SWE power identity.

@@ -70,18 +70,25 @@ Changes to SCRIMP are recorded here. See also the
   The acceptance threshold was not relaxed.
   Host evidence:
   `sandbox/outputs/v130-shallow-mass-J-fae066a6-VvvbTRp4/`.
-- **Actual physical time integration remains PENDING**:
-  the numerical Jacobian gate explicitly reports
-  `main_TS_executed=False`. A separate four-case
-  short BDF2 native regression covering real accepted
-  PETSc steps, original and manufactured initial
-  data, MPI parity and signed Hamiltonian drift
-  is provided by
-  `scripts/run-v130-shallow-explicit-physical-ts.sh`.
-  A first-order lag of `G` does not certify
-  exact Hamiltonian conservation or BDF2 order.
-  Issue #27 remains open until its original
-  acceptance criteria pass.
+- **Actual native physical integration PASSED independently**
+  at source `9ecd173983252795a3cba13b5879d29127b57638`
+  on unchanged `scrimp-mpi:v1.3.0-rc3`. Four genuine
+  BDF2 TS accepted steps per published/manufactured
+  original-weak-form shallow-water case (MPI 1 and 2),
+  zero rejected/SNES failures, nonzero accepted-state
+  frozen gyroscopic `G` with zero in-Newton cache drift,
+  maximum full-state MPI parity `6.39215556e-16`
+  and Hamiltonian parity `1.26771841e-15`.
+  Recorded signed final Hamiltonian changes:
+  `-0.00206566661` and `-0.00206572620`
+  (relative `~6.54e-8`); **not** an exact-power
+  conservation or global order-two claim.
+  Evidence:
+  `sandbox/outputs/v130-shallow-explicit-TS-9ecd1739-LZjvda5C/`.
+  Together with the independent native directional FD gate,
+  the original scope of issue #27 is qualified.
+  Longer-time energy/power, MPI rank 4 viscous SWE and
+  general nonlinear DAE initialization remain separate.
 
 ### Consistent DAE initialization (new linear default; native two-model gate PASSED)
 
