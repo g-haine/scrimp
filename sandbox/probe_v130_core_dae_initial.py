@@ -80,6 +80,23 @@ def main():
     else:
         system = _build_scenario(args.mesh, "published")
 
+    # The benchmark builder reuses the published wave example,
+    # now deliberately pinned to its historical pseudo initializer.
+    # For this *separate, default-specific diagnostic*, remove the
+    # builder's inherited legacy strategy before calling the real
+    # DPHS.set_time_scheme() without ANY initializer keyword.
+    # The original published example remains unchanged.
+    if args.use_default and system.time_scheme.hasName(
+        "init_step_ts_type"
+    ):
+        if system.time_scheme.getString(
+            "init_step_ts_type", ""
+        ) != "pseudo":
+            raise RuntimeError(
+                "Unexpected inherited benchmark initializer mode"
+            )
+        system.time_scheme.delValue("init_step_ts_type")
+
     original = np.asarray(
         system.gf_model.from_variables(), dtype=np.float64
     ).copy()
