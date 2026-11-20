@@ -740,3 +740,79 @@ initial q/p are exactly preserved by the projected
 branch. Do not enable a production option or change
 `scrimp/dphs.py` until this gate passes; large
 performance runs and Maxwell are not needed here.
+
+## 12. Full CN initializer comparison with non-vacuous port power — source ready
+
+**Status (20 November 2026): diagnostic source and runner committed.
+The new native 4-run experiment has not yet been executed.**
+Section 11's initial-state findings are measured results.
+
+### Controlled same-model A/B
+
+The same published 2D-wave bricks, FE spaces and boundary geometry,
+h=0.2, q0=[0,0], p0=x*(3-x), rho=3-x, are used in both modes,
+with a genuinely driven left port U_L(t)=0.08*sin(20*t) (zero at t0).
+Main TS: fixed Crank–Nicolson dt=0.002, t_f=0.02, ten steps,
+MPI 1 and 2.
+
+- Mode **pseudo** uses the unchanged production pseudo-TS accepted
+  state as the first state of the main physical CN solve.
+- Mode **algebraic** first runs that same original pseudo-TS, then
+  uses a *diagnostic-only* real PETSc algebraic-block projection
+  of the original prescribed dynamic state. The accepted projection
+  replaces the initial GetFEM state **only before the main TS**
+  is constructed. The actual original IFunction algebraic rows
+  must pass tolerance, with all q/p coefficients bitwise preserved.
+  No production initializer or global solver behavior is changed.
+
+### Independent scientific checks
+
+1. The actual first saved physical state must match the state
+   published by each initializer. Algebraic mode preserves
+   every prescribed dynamic coefficient (L2 <=1e-12).
+2. The entire **11-step-including-t0 global CN trajectory**
+   and time series of Hamiltonian, per-boundary midpoint power,
+   accumulated port work and per-step defect must match
+   between MPI 1 and MPI 2 **within each mode**.
+   Different modes have different initial states, so their
+   physical trajectories should not be required to coincide.
+3. The independent existing native acoustic energy audit
+   evaluates the same potential/kinetic terms as wave.py and
+   the signed port-Hamiltonian midpoint identity:
+   H[n]-H[n-1] + dt*sum_ports(flow*effort)[midpoint] = 0.
+   The drive must yield nontrivial absolute boundary work
+   exceeding 1e-9. The per-mode balance acceptance is
+   max |H-H0+W| <= 1e-9 + 1e-5*balance_reference_scale.
+
+A violation of one criterion cannot be hidden behind another
+PASS: e.g., MPI parity does not establish correct initial data,
+and conservation from a wrong t0 does not repair that data.
+
+Run the small native experiment without rebuilding rc3:
+
+~~~bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-wave-initializer-physics.sh
+~~~
+
+The runner executes only **pseudo/algebraic × MPI 1/2**,
+10 CN steps per case. It stores unique host-side output in
+sandbox/outputs/v130-wave-init-power-h0p2-.../ including
+JSON summaries, complete .npz trajectories, four native logs,
+the comparison and a manifest with the immutable source SHA
+and current diagnostic Git revision.
+
+Source-only regression tests cover bad later-time MPI parity,
+an altered projected q0, and failure of an otherwise non-vacuous
+signed power balance. The native program always preserves the
+four per-case scientific records when a power check fails;
+only the final strict comparison marks the overall experiment
+as FAIL. There is no v1.2.0 rerun, large scaling benchmark,
+Docker rebuild, GitHub release or change to the production
+wave.py, dphs.py, scrimp-mpi:local or sandbox/sloshing_tank.py.
+
+**No new physical acceptance is claimed until that native
+comparison has been executed and its logs inspected.**
