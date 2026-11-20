@@ -117,11 +117,11 @@ class PETScDAEScientificComparatorTests(unittest.TestCase):
         # the correction loop is now factored across bounded passes.
         self.assertRegex(
             source,
-            r"owned_petsc_indices\\s*=\\s*np\\.asarray\\("
-            r"\\s*local,\\s*dtype=PETSc\\.IntType\\s*\\)",
+            r"owned_petsc_indices\s*=\s*np\.asarray\("
+            r"\s*local,\s*dtype=PETSc\.IntType\s*\)",
         )
         self.assertRegex(
-            source, r"z\\.setValues\\(\\s*owned_petsc_indices,"
+            source, r"z\.setValues\(\s*owned_petsc_indices,"
         )
         self.assertIn(
             "np.iinfo(PETSc.IntType).max", source
