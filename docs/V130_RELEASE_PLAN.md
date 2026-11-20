@@ -2056,3 +2056,72 @@ geometry/initial-boundary compatibility issue is interpreted,
 and ONLY THEN, investigate nonlinear constrained
 initialization using `examples/shallow_water.py`, as
 explicitly requested. No native post-fix data yet.
+
+
+## 20 November 2026 — post-fix GetFEM GWFL matrix convention: native P1/P2 evidence
+
+**Important Python user pitfall:** the GetFEM Generic Weak-Form Language
+(GWFL) writes nested explicit matrices as *column vectors*, whereas
+Python/NumPy list-of-lists conventions use *rows*.
+
+- **Authoritative upstream reference:**
+  [GetFEM GWFL — Explicit matrices](https://getfem.org/userdoc/gasm_high.html#explicit-matrices).
+- **User-facing Sphinx guide:** `docs/source/getfem_gwfl.rst`
+  (reachable from the website index, getting started, initialization
+  page, and repository README).
+- **Incorrect for clockwise rotation:** GWFL `[[0,1],[-1,0]]`
+  (counterclockwise as an actual matrix).
+- **Correct clockwise:** GWFL `[[0,-1],[1,0]]`
+  or the more readable row/semicolon form `[0,1;-1,0]`.
+- Actual GWFL `Normal` is outward; in the unit disk
+  `Rot*Normal` now agrees with the original
+  prescribed clockwise velocity `p0/rho`.
+
+**Native post-correction qualification of sign and reduced algebraic
+feasibility (not of complete DAE initialization).** Branch source
+`120c01bd8aa206ea0986ba876d65d35489a825b6`, immutable
+Docker `scrimp-mpi:v1.3.0-rc3`, true GetFEM/PETSc MPI 1 and 2:
+
+| Quantity | P1 geometric mesh | P2 curved geometric mesh |
+|---|---:|---:|
+| Actual GWFL tangent orientation | ALIGNED (MPI 1/2) | ALIGNED (MPI 1/2) |
+| Relative aligned trace mismatch | `0.0549180824` | `6.97292855e-5` |
+| Relative normal leakage | `0.0548807074` | `6.96876238e-5` |
+| GWFL integral `X.Normal` | `6.24529106` | `6.28316812` |
+
+The P2 geometric transformation was actually imported as
+`GT_PK(2,2)`, not simply simulated with P2 state FEM on straight edges.
+
+**Independent original P2 algebraic LSQR**, fixed `h0,p0`:
+before the GWFL sign correction (source `7286bec`)
+`||F_a||_min=0.0277336388`; after the correction (source
+`120c01bd`) `4.1850871648724585e-8` (MPI 1) and
+`4.183695287884114e-8` (MPI 2): a reduction of
+**more than 660,000 times**. The post-fix rotating feasibility tolerance
+is `2.60963115021321e-9`, so the strict label is still
+`INCOMPATIBLE_AT_TOLERANCE` and **must not be advertised as PASS**.
+The rotating per-block projected `e_p` norm is
+`4.101738589874305e-8` on MPI 1.
+
+At rest (P2), the original known equilibrium yielded a
+diagnostic-only LSQR residual of `4.746567828624845e-9`
+(MPI 1) and `4.721221465777258e-9` (MPI 2), with a stricter
+acceptance tolerance `9.507859931505774e-10`.
+**A fail against this numerical stopping threshold is not a proof
+of physical incompatibility**, particularly for a resting
+state already qualified as an equilibrium. Precision/conditioning
+and subsequent high-index initialization need separate treatment.
+
+Evidence: user-supplied archive `v130-issue28-.zip`,
+the host native post-fix sign output directory
+`sandbox/outputs/v130-issue28-native-normal-120c01bd-sq5HgESS/`,
+and the native post-fix feasibility output
+`sandbox/outputs/v130-issue28-P2-geometry-120c01bd-sKH7lgKN/`.
+
+**Do not close #28 yet:** although the tangential sign error is fixed,
+the open-loop traction `Y` remains absent from the algebraic equations
+(`dF_a/dY=0`), so a complete consistent initial traction generally
+needs a different, possibly constraint-differentiated formulation.
+As agreed with the user, test `examples/shallow_water.py` as a
+separate nonlinear-initializer experiment **only after** the current
+boundary/geometric work is concluded.
