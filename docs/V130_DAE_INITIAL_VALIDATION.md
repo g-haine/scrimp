@@ -1,10 +1,24 @@
 # SCRIMP v1.3.0 — Physical DAE initialization and full-wave-state qualification
 
-**Status (20 November 2026): first native Ubuntu 1/2-rank experiment
-**COMPLETED**. MPI full-trajectory parity and algebraic consistency
-**PASS**; prescribed dynamic initial data **FAIL**. The historical
-pseudo-TS is not physically qualified as a constrained projection.
-No production solver patch is approved on this evidence alone.**
+**Current scientific status — 20 November 2026: DISTRIBUTED ALGEBRAIC
+INITIALIZATION PROTOTYPE QUALIFIED on the tested compatible linear wave,
+MPI 1/2.** At the original native `IFunction` algebraic rows the
+positive polynomial case reaches ~`1e-13` while preserving every
+prescribed dynamic coefficient; the full 10-step CN trajectories agree
+to ~`9.22e-13` and satisfy the signed nonzero-work Hamiltonian balance
+to ~`6e-15`. The original Gaussian is explicitly rejected at `t_0`.
+**The historical pseudo-TS still changes prescribed dynamic initial data.**
+These are numerical validations of the *diagnostic prototype* only:
+**`scrimp/dphs.py` has NOT yet integrated an optional algebraic initializer**.
+
+**Start here for the method and its meaning:**
+[DAE algebraic initialization — mathematics, PETSc/MPI algorithm,
+reproducible results and production integration contract](V130_DAE_ALGEBRAIC_INITIALIZER_DESIGN.md).
+**Section 19 below** is the final four-case evidence and qualifies
+the scientific result; sections 1–18 intentionally preserve
+the chronological hypotheses, negative tests and failed iterations.
+Earlier "**pending**" labels describe their historical state and
+are superseded by section 19.
 
 This is the first scientific acceptance investigation after closing
 the Ubuntu Docker BuildKit/native-stack gate. The reference production
@@ -1296,6 +1310,11 @@ SCRIMP_DOCKER_NO_SUDO=1 \
 SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
 bash scripts/run-v130-petsc-mpi-dae-initial.sh
 ~~~
+
+For a standalone explanation of **why** these checks matter, the
+exact `F_a` / `K_aa` construction, the distributed PETSc/LSQR
+implementation and the next guarded API changes, see
+[V130_DAE_ALGEBRAIC_INITIALIZER_DESIGN.md](V130_DAE_ALGEBRAIC_INITIALIZER_DESIGN.md).
 
 ## 19. Fourth native distributed PETSc DAE run — all scientific gates PASS (20 November 2026)
 
