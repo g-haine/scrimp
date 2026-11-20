@@ -1,24 +1,38 @@
 # SCRIMP v1.3.0 — Physical DAE initialization and full-wave-state qualification
 
-**Current scientific status — 20 November 2026: DISTRIBUTED ALGEBRAIC
-INITIALIZATION PROTOTYPE QUALIFIED on the tested compatible linear wave,
-MPI 1/2.** At the original native `IFunction` algebraic rows the
-positive polynomial case reaches ~`1e-13` while preserving every
-prescribed dynamic coefficient; the full 10-step CN trajectories agree
-to ~`9.22e-13` and satisfy the signed nonzero-work Hamiltonian balance
-to ~`6e-15`. The original Gaussian is explicitly rejected at `t_0`.
-**The historical pseudo-TS still changes prescribed dynamic initial data.**
-These are numerical validations of the *diagnostic prototype* only:
-**`scrimp/dphs.py` has NOT yet integrated an optional algebraic initializer**.
+**Current status — 20 November 2026: production-owned
+algebraic DAE initializer NATIVE QUALIFIED as an explicit
+option on two independent real, linear pH-DAEs
+(conservative wave and dissipative wave), MPI 1/2.**
+Both reproduce the true initial algebraic residual
+at ~`1e-13`, preserve the differential initial
+coefficients exactly, and satisfy their signed
+Hamiltonian plus nonzero port-work (and damping)
+balances to ~`1e-15`. The original Gaussian
+is rejected before CN. The historical `pseudo`
+and small negative-time BDF2 modes modify
+prescribed dynamic initial data.
+
+**A NEW default migration is now STAGED IN SOURCE:**
+`DPHS.set_time_scheme()` and `DPHS.init_step()`
+use `algebraic` when `init_step_ts_type` is
+omitted. This specific implicit-default behavior
+has **NOT YET PASSED its own native acceptance**
+and is **NOT release-qualified**. Existing
+legacy examples explicitly select `pseudo`.
+There is no silent pseudo fallback.
 
 **Start here for the method and its meaning:**
 [DAE algebraic initialization — mathematics, PETSc/MPI algorithm,
 reproducible results and production integration contract](V130_DAE_ALGEBRAIC_INITIALIZER_DESIGN.md).
-**Section 19 below** is the final four-case evidence and qualifies
-the scientific result; sections 1–18 intentionally preserve
-the chronological hypotheses, negative tests and failed iterations.
-Earlier "**pending**" labels describe their historical state and
-are superseded by section 19.
+**Sections 19, 21 and 23** contain the final
+native-scientific reference results: the distributed
+diagnostic, the actual integrated core and the second
+independent dissipative model, respectively.
+Historical failed experiments, intermediate hypotheses
+and earlier "pending" statements remain below
+for full reproducibility and are superseded
+by the latest status and sections.
 
 This is the first scientific acceptance investigation after closing
 the Ubuntu Docker BuildKit/native-stack gate. The reference production
@@ -1783,3 +1797,53 @@ and examining initialization performance, memory
 and exceptional MPI cleanup. The previously
 qualified Docker image is unchanged; no
 automatic fallback to pseudo is permitted.
+
+## 24. Implicit algebraic default candidate — source integrated, native migration pending
+
+**20 November 2026:** after the FULL NATIVE PASS
+on a second independent dissipative linear pH-DAE
+(section 23), the development branch now
+**stages `init_step_ts_type="algebraic"`
+as the implicit default** in
+`DPHS.set_time_scheme()` and
+`DPHS.init_step()`, while continuing to
+accept historical explicit `pseudo` and
+`bdf` initialization. No pseudo-time
+fallback is introduced for incompatible or
+unsupported initial data.
+
+This **does not retroactively validate the
+new default as a release feature**:
+the two native experiments above explicitly
+requested algebraic mode. A separate
+**no-option native gate** must demonstrate that
+the new implicit selection really calls
+the fixed-differential-data projection,
+and must repeat the independent full-state
+and signed power comparisons on the
+conservative and dissipative waves in MPI 1/2.
+The published Gaussian must still be rejected
+before CN with its initial state restored,
+while explicit pseudo and BDF2 remain usable.
+
+To preserve historical results during this
+default migration, the eight primary examples
+plus the published Maxwell simulation,
+legacy notebooks, GUI-generated old scripts
+and identified sandbox benchmarks now
+explicitly request pseudo where appropriate.
+The published physical data and equations
+are unchanged.
+
+The dedicated new runner is
+`scripts/run-v130-dae-default-promotion.sh`,
+using the same frozen qualified rc3 Docker
+image, source-only read-only overlays and
+the already measured independent frozen
+reference directories.
+
+**Native status: NOT YET EXECUTED / PENDING.**
+Do not interpret a source CI pass as native
+physics, initial-state, cleanup or memory
+qualification. No release tag or Docker
+rebuild has been made.
