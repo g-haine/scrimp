@@ -3,10 +3,11 @@
 **Date:** 20 November 2026  
 **Candidate:** `scrimp-mpi:v1.3.0-rc3`  
 **Exact runtime revision:** `1d6d0c90115213298047b28237a7f38087563a35`  
-**Status:** **PASS** for Docker build, native/MPI stack, host-persistent
-oscillator and the original PETSc `-info` fix. The smoke harness's separate
-`-c` warning is fixed in source **after** this image build; its warning-free
-rerun is the final diagnostics acceptance gate.
+**Status:** **PASS — targeted Ubuntu native/BuildKit and PETSc diagnostic qualification complete.**
+Original rc3 smoke covered the native/MPI stack, host-persistent oscillator and
+PETSc `-info` correction. The corrected host-side two-rank import diagnostic
+was rerun against the **existing** rc3 image and is **warning-free**. This does
+not imply full scientific or clean-room/bitwise release acceptance.
 
 This report is based on the Ubuntu developer's complete terminal
 output of the rc3 build and smoke. It is not evidence of a fresh
@@ -88,9 +89,22 @@ SCRIMP_DOCKER_CANDIDATE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
 Omit `SCRIMP_DOCKER_NO_SUDO=1` if the host uses `sudo docker`.
 Capture both `sandbox/outputs/v130-docker-smoke.log` and
 `sandbox/outputs/v130-petsc-options-smoke.log` before any further
-qualification. The strict **warning-free** smoke result is
-**pending** until this corrected harness is run on the existing rc3.
-Do not represent this file's presence as a second executed runtime test.
+qualification. **Follow-up host evidence (20 November 2026) — PASS:** the developer
+supplied the actual diagnostic output from the corrected test:
+
+~~~text
+=== PETSc optional diagnostics: no implicit -info under two MPI ranks ===
+PASS: PETSc import options clean (rank 1/2)
+PASS: PETSc import options clean (rank 2/2)
+PASS: PETSc -info and -c absent, no unused-option warning.
+~~~
+
+This closes the final **PETSc option diagnostic** gate with both MPI
+ranks, independently of the prior rc3 native smoke. The supplied
+excerpt confirms the targeted diagnostic rather than reproducing
+the entire second smoke log. The underlying rc3 image was **not
+rebuilt**, because the correction only changed the host-side
+test harness.
 
 ## Follow-up gates
 
