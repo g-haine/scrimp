@@ -126,20 +126,28 @@ def main():
             init_step_dt=args.tiny_bdf_dt,
             init_step_from_negative_time=True,
         )
+    # Test which options the *caller supplied*; PETSc.Options.hasName()
+    # is true for both caller-provided and SCRIMP-materialized defaults.
+    explicit_present = "init_step_ts_type" in kwargs
+    if args.use_default and explicit_present:
+        raise RuntimeError(
+            "Implicit-default regression accidentally supplied "
+            "an init_step_ts_type keyword argument"
+        )
     system.set_time_scheme(**kwargs)
-    explicit_present = system.time_scheme.hasName(
-        "init_step_ts_type"
-    )
-    if args.use_default:
-        if explicit_present:
-            raise RuntimeError(
-                "Implicit-default regression accidentally supplied "
-                "an init_step_ts_type option"
-            )
-    elif args.mode == "algebraic" and system.time_scheme.getString(
+    effective_strategy = system.time_scheme.getString(
         "init_step_ts_type", ""
-    ) != "algebraic":
-        raise RuntimeError("Production option did not select algebraic mode")
+    ).strip().lower()
+    if effective_strategy != option:
+        raise RuntimeError(
+            f"Production PETSc.Options selected {effective_strategy!r}"
+            f", expected {option!r}"
+        )
+    if not system.time_scheme.hasName("init_step_ts_type"):
+        raise RuntimeError(
+            "Production failed to register its effective initializer "
+            "in PETSc.Options"
+        )
 
     report = {
         "schema": "scrimp-v130-production-dae-initial-native-v1",
@@ -153,7 +161,9 @@ def main():
         "scenario": args.scenario,
         "mode": args.mode,
         "implicit_default_requested": bool(args.use_default),
+        # Caller-supplied kwargs, not PETSc database presence.
         "explicit_init_step_ts_type_present": bool(explicit_present),
+        "effective_PETSc_initial_strategy": effective_strategy,
         "time_initial": 0.,
         "physical_steps_requested": args.steps,
         "main_dt": args.dt,
