@@ -98,18 +98,24 @@ def _positive_projection(system, initial, dynamic, algebraic, mpi):
     if mpi.Get_rank() == 0:
         residual_norm = float(np.linalg.norm(real_residual))
         threshold = float(out["details"]["requested_tolerance"])
+        validity_error = None
         if residual_norm > threshold:
-            raise RuntimeError(
+            validity_error = (
                 "Algebraic-only projected model failed its native "
                 f"IFunction residual gate: {residual_norm} > {threshold}"
             )
-        if not out["details"]["linearized_compatible_within_tolerance"]:
-            raise RuntimeError(
+        elif not out["details"]["linearized_compatible_within_tolerance"]:
+            validity_error = (
                 "LSMR linearized algebraic-only correction did not pass"
             )
+        decision = (residual_norm, threshold, validity_error)
     else:
-        residual_norm = None
-    residual_norm = mpi.bcast(residual_norm, root=0)
+        decision = None
+    residual_norm, threshold, validity_error = mpi.bcast(
+        decision, root=0
+    )
+    if validity_error:
+        raise RuntimeError(validity_error)
 
     changes = {}
     for name, (start, count) in dynamic.items():
@@ -266,10 +272,11 @@ def main():
     if len(power["times"]) != args.steps + 1:
         raise RuntimeError("Port-power audit lost CN snapshots")
     nonvacuous = power["absolute_port_work"] > 1e-9
-    if not nonvacuous:
-        raise RuntimeError(
-            "The driven left port did not generate measurable power; "
-            "cannot qualify a vacuous power balance"
+    if not nonvacuous and mpi.Get_rank() == 0:
+        print(
+            "SCIENTIFIC WARNING: non-vacuous port-power threshold NOT "
+            "MET; the final strict comparator will reject this case.",
+            flush=True,
         )
     energy_tolerance = float(
         1e-9 + 1e-5 * power["balance_reference_scale"]
