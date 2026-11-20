@@ -529,6 +529,62 @@ nullspace ambiguity. Do not promote code to
 MPI gate passes. See section 18 of
 [V130_DAE_INITIAL_VALIDATION.md](V130_DAE_INITIAL_VALIDATION.md).
 
+**FINAL SCIENTIFIC DAE PROTOTYPE GATE: PASSED
+(20 November 2026; qualified frozen rc3 image).**
+
+All four native PETSc distributed DAE scenarios complete:
+positive nonzero polynomial initial condition
+`p0=x*(3-x)` gives true algebraic
+`||F_a(t0)||_2 = 9.8141843e-14` (MPI 1) and
+`9.6187779e-14` (MPI 2), each in **two** distributed
+LSQR passes without any pseudo-TS and without
+gathering `K_aa` on rank 0. The explicit original
+Gaussian negative controls both produce
+`||F_a||_2 = 4.8224432e-6` and are
+**EXPECTED_REJECTION** before any physical CN step.
+
+Both positive cases preserve prescribed q0/p0
+**bitwise** and execute the unchanged original
+10-step Crank–Nicolson integrator. Max
+Hamiltonian + signed, **nonzero** boundary work
+defects are `5.6085329e-15` and
+`6.0526306e-15` for MPI 1/2.
+Cross-rank projected initial-state discrepancy
+is `9.21579389e-13`; maximum scaled
+full-trajectory MPI discrepancy is
+`9.22182758e-13`, versus the original,
+unchanged `5e-8` acceptance limit.
+All strict native scientific comparator gates
+**PASS**. Host evidence:
+`sandbox/outputs/v130-petsc-dae-mpi-h0p2-4d3b4d0c-gb0qNKB8/`.
+Source Git SHA:
+`4d3b4d0cdee4e9b66d49170f5d128466c74e5ad8`.
+See section 19 of
+[V130_DAE_INITIAL_VALIDATION.md](V130_DAE_INITIAL_VALIDATION.md).
+
+**NEXT: opt-in production engineering, NOT yet qualified.**
+The source-ready prototype uses a distributed
+PETSc algebraic submatrix, but still replicates
+the full initial state using SCRIMP's existing
+`Scatter.toAll` and GetFEM
+`from_variables`/`to_variables`; a distributed
+matrix is not an end-to-end memory-scalability
+proof. Design the opt-in
+`init_step_ts_type=algebraic` path while
+leaving the default `pseudo` untouched.
+Require exact preservation of differential
+initial DOFs, true `IFunction` feasibility,
+a separate strict refinement target, bounded
+iterations, explicit unsupported-model guards
+and atomic rejection with no fallback to
+pseudo-TS. Use the qualified native
+wave 1/2 MPI JSON/NPZ as independent regression
+fixtures; test production lifecycle, cleanup,
+memory overhead and larger/other linear models
+before broadening to nonlinear DAE or Maxwell.
+**No SCRIMP production solver code was modified
+by this scientific validation.**
+
 ## 1 — GetFEM 5.5 simplicial FEM contributions (SCRIMP-first)
 
 **Scope decision (19 November 2026):** support only **triangles and
