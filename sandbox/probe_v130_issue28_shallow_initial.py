@@ -35,12 +35,46 @@ from mpi4py import MPI
 from petsc4py import PETSc
 
 from check_v130_shallow_water_mass_jacobian import _build_original
-from probe_v130_issue28_structure import (
-    indices, indexset, rowmax, norm_sub,
-)
-
 TOL_RESIDUAL = 1e-9
 TOL_DERIVATIVE = 1e-7
+
+
+def indices(names, iv):
+    """Global GetFEM variable DOF indices, independent of disk probes."""
+    return np.concatenate([
+        np.arange(iv[name][0], iv[name][0] + iv[name][1], dtype=np.int64)
+        for name in names
+    ])
+
+
+def indexset(global_rows, lo, hi, comm):
+    owned = global_rows[
+        (global_rows >= lo) & (global_rows < hi)
+    ]
+    return PETSc.IS().createGeneral(
+        np.asarray(owned, dtype=PETSc.IntType), comm=comm
+    )
+
+
+def rowmax(mat, selected_rows, mpi):
+    pointer, _, values = mat.getValuesCSR()
+    lo, hi = mat.getOwnershipRange()
+    mx = 0.
+    for row in selected_rows[
+        (selected_rows >= lo) & (selected_rows < hi)
+    ]:
+        segment = values[pointer[row-lo]:pointer[row-lo+1]]
+        if len(segment):
+            mx = max(mx, float(np.max(np.abs(segment))))
+    return float(mpi.allreduce(mx, op=MPI.MAX))
+
+
+def norm_sub(v, iset):
+    subv = v.getSubVector(iset)
+    try:
+        return float(subv.norm())
+    finally:
+        v.restoreSubVector(iset, subv)
 
 
 def layout(system):
