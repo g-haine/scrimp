@@ -269,14 +269,13 @@ def run_audit(system, mpi):
             Fp.axpy(-1., Fm)
             Fp.scale(1./(2.*eps))
             fd = Fp.getSubVector(ia)
+            error = exact_dir.copy()
             try:
-                error = keep(exact_dir.copy())
                 error.axpy(-1., fd)
                 absolute_error = float(error.norm())
                 fd_norm = float(fd.norm())
-                error.destroy()
-                objects.pop()
             finally:
+                error.destroy()
                 Fp.restoreSubVector(ia, fd)
             relative_error = absolute_error / max(
                 1e-12, directional_reference_norm, fd_norm
