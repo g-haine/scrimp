@@ -57,7 +57,14 @@ def main():
     p.add_argument("--steps", type=int, default=10)
     p.add_argument("--output-dir", type=Path, required=True)
     p.add_argument("--tiny-bdf-dt", type=float, default=1.e-6)
+    p.add_argument(
+        "--use-default", action="store_true",
+        help="Omit init_step_ts_type entirely to exercise the real "
+             "DPHS implicit default; only supported with mode=algebraic",
+    )
     args = p.parse_args()
+    if args.use_default and args.mode != "algebraic":
+        p.error("--use-default requires --mode algebraic")
     if args.mode != "algebraic" and args.scenario != "polynomial_compatible":
         p.error("Legacy controls use only polynomial_compatible positive case")
     if (
@@ -85,8 +92,10 @@ def main():
         t_f=args.dt * args.steps,
         ksp_type="preonly", pc_type="lu",
         pc_factor_mat_solver_type="mumps",
-        init_step=True, init_step_ts_type=option,
+        init_step=True,
     )
+    if not args.use_default:
+        kwargs["init_step_ts_type"] = option
     if args.mode == "algebraic":
         kwargs.update(
             init_algebraic_atol=1.e-10,
@@ -101,7 +110,16 @@ def main():
             init_step_from_negative_time=True,
         )
     system.set_time_scheme(**kwargs)
-    if args.mode == "algebraic" and system.time_scheme.getString(
+    explicit_present = system.time_scheme.hasName(
+        "init_step_ts_type"
+    )
+    if args.use_default:
+        if explicit_present:
+            raise RuntimeError(
+                "Implicit-default regression accidentally supplied "
+                "an init_step_ts_type option"
+            )
+    elif args.mode == "algebraic" and system.time_scheme.getString(
         "init_step_ts_type", ""
     ) != "algebraic":
         raise RuntimeError("Production option did not select algebraic mode")
@@ -117,6 +135,8 @@ def main():
         "mpi_ranks": mpi.Get_size(),
         "scenario": args.scenario,
         "mode": args.mode,
+        "implicit_default_requested": bool(args.use_default),
+        "explicit_init_step_ts_type_present": bool(explicit_present),
         "time_initial": 0.,
         "physical_steps_requested": args.steps,
         "main_dt": args.dt,
