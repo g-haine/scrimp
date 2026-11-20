@@ -86,6 +86,31 @@ class TestMassJacobianQualification(unittest.TestCase):
         self.assertNotEqual(x.returncode,0)
         self.assertIn("Wrong native Jacobian",x.stderr)
 
+    def test_frozen_rc3_runner_mounts_all_production_import_dependencies(self):
+        runner=(ROOT/"scripts/run-v130-shallow-mass-jacobian.sh"
+                ).read_text(encoding="utf-8")
+        # The frozen rc3 Docker image predates the DAE helper module.
+        # Mounting only current dphs.py led to ModuleNotFoundError
+        # before any GetFEM/Jacobian work; prevent this exact failure.
+        self.assertIn(
+            'scrimp/utils/dae_initialization.py \\\n', runner
+        )
+        self.assertIn(
+            '--volume "$root/scrimp/utils/dae_initialization.py:'
+            '/workspace/scrimp/scrimp/utils/dae_initialization.py:ro"',
+            runner,
+        )
+        self.assertIn(
+            'python -c \'from scrimp.dphs import DPHS; '
+            'from scrimp.utils.dae_initialization import '
+            'initialize_linear_algebraic;',
+            runner,
+        )
+        self.assertIn(
+            '"PREFLIGHT: current SCRIMP core and DAE initialization import',
+            runner,
+        )
+
     def test_production_default_is_finite_difference(self):
         s=CORE.read_text(encoding="utf-8")
         self.assertIn(
