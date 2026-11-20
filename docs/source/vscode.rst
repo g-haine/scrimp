@@ -232,6 +232,35 @@ for a serial simulation or the active Python file; MPI multiprocess
 debugging requires a separate setup. VS Code Tasks also provide
 the first simulation and a two-rank MPI smoke.
 
+**Verified on Ubuntu Dev Containers (20 November 2026):** the user
+opened `simulations/first_simulation.py`, started the
+`SCRIMP: first simulation` F5 configuration, and successfully
+stepped with **F10** from the DPHS initialization to the
+`p = S.State("p", "Momentum", "lumped")` instruction. The
+debugger's **Locals** pane showed the live `system` (DPHS)
+and `q` (State), and **Call Stack** contained `main()`.
+The terminal showed execution via
+`/opt/conda/envs/scrimp/bin/python` and the Python
+`debugpy` launcher.
+
+For a first debugging session:
+
+1. Open `simulations/first_simulation.py` in VS Code.
+2. Click in the gutter beside `system = S.DPHS("real")`
+   to add a **red breakpoint**.
+3. Press **F5** and select **SCRIMP: first simulation**.
+4. When paused (yellow current-line arrow), press **F10**
+   to step over one Python statement and expand `system`
+   or `q` in the **Locals** pane to inspect their attributes.
+5. Press **F5** to resume execution, or **Shift+F5** to
+   stop the debugger. Reaching the simulation end normally
+   after this final resume is a separate check.
+
+This is a **serial Python debugging** validation. Debugging
+simultaneous MPI worker ranks, and breakpoints inside compiled
+GetFEM/PETSc/MUMPS C/C++/Fortran code, are different workflows
+and are **not** qualified by this Python test.
+
 SCRIMP initializes output directories relative to the working
 directory (outputs/log, outputs/mesh, outputs/png, outputs/pv).
 Linux Dev Containers attempts to map the mambauser UID/GID to that
@@ -290,10 +319,12 @@ Known limitations / release gates
 - The candidate image **passed its Linux native build** and the
   1/2-rank CLI smoke. A **real VS Code Dev Container session** on
   Ubuntu subsequently ran the 10-step oscillator, wrote the CSV
-  to the host, and started SCRIMP on two MPI ranks. VS Code
-  **F5/debugpy**, native compatibility, Windows/macOS/Apple
-  Silicon and power-balance/physics qualification remain separate
-  acceptance gates; do not extrapolate the Linux test.
+  to the host, and started SCRIMP on two MPI ranks.
+  **Serial Python debugging has also passed** with F5,
+  an active breakpoint, F10 stepping, Locals and Call Stack.
+  Native compatibility, Windows/macOS/Apple Silicon, MPI
+  multi-process debugging and power-balance/physics
+  qualification remain separate gates.
 - The public GHCR v1.3.0 tag and starter project ZIP are not
   published; both require an accepted release.
 - The introductory oscillator is a serial model; use validated
