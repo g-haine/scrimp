@@ -861,3 +861,74 @@ git pull --ff-only
 SCRIMP_DOCKER_NO_SUDO=1 SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
   bash scripts/run-v130-issue28-feasibility.sh
 ```
+
+## 20 November 2026 — proposed correction via *geometric* P2, not altered wall velocity
+
+After stage #28.1 fixed-differential-data LSQR, the native dataset
+`sandbox/outputs/v130-issue28-feasibility-9082bbee-1vi0TtA9/`
+reported original omega=0.2 minimal algebraic residual
+`||F_a||~0.02656138`, equally for MPI 1/2, with
+the dominant e_p residual `~0.02646368`.
+The separate stationary control had a far smaller
+LSQR residual `5e-9--7e-9` but incorrectly exceeded the
+very strict `~9.47e-10` threshold; its label
+`INCOMPATIBLE_AT_TOLERANCE` must **NOT** be taken
+as proof that a resting equilibrium does not exist.
+
+**Key distinction:** the experiment had field FEM P2 but
+GEOMETRIC order 1 (straight polygon edges). On the actual
+polygon, a circular tangent initial `p0` has a small
+normal trace; simply replacing `U=omega Rot*Normal`
+with `U=omega Rot*X` would match some initial traces
+but introduce **nonzero wall penetration**, so it is not
+an acceptable physical correction.
+
+An **opt-in** `geometry_order=2` parameter now exists on
+`scrimp.utils.mesh.Disk` and in the viscous-SWE sandbox.
+Only when selected, the Gmsh mesh is promoted with
+`model.mesh.setOrder(2)` *after* mesh generation/refinement.
+The existing `geometry_order=1` behavior is unchanged by
+default; the PDE, boundary velocity law `U=omega Rot*Normal`,
+FEM field orders, parameter values, pressure/viscosity
+and initial rotating `h0,p0` are UNMODIFIED.
+The quadratic isoparametric boundary approximates the
+ideal circle, but is not an exact circle: **do not**
+assume exact DAE consistency from geometry order alone.
+
+New bounded native diagnostic:
+`scripts/run-v130-issue28-P2-geometry.sh`.
+It pins the same immutable rc3 Docker image, mounts the
+changed mesh generator and sandbox modules read-only, and
+runs **P2 geometric order**, separately for stationary and
+original rotating p0 (both MPI 1 and MPI 2).
+It reuses the native fixed-h0,p0 LSQR feasibility probe;
+the reports now show the requested order, imported GetFEM
+geometric point counts / element counts / transformations,
+true original `IFunction` residuals, and an **informational**
+comparison to P1 original `0.02656138`.
+Full physics, historical BDF2 pseudo initialization and
+main TS steps are **not** executed here.
+
+The runner checks MPI equality and explicit state rollback.
+It does **not** assert that P2 cures the initial-state
+incompatibility; its primary qualification is whether
+GetFEM really retains curved P2 geometry and what
+the resulting native constraint residual is.
+If the original tangential initial data remain incompatible,
+we must diagnose and explain the specific discrete constraint
+and advise a compatible p0 or a smooth startup from rest.
+No automatic alteration of user-prescribed initial data.
+
+Source commits:
+`7875617c8e6ba6193f0cc14ffe9ec9e6594bcebc`
+(opt-in curved mesh) and
+`a9ebc1766a3814c2215681ae74af7385ece0aa19`
+(native P2 feasibility runner and compatibility suggestions).
+**Native P2 evidence remains PENDING.**
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+SCRIMP_DOCKER_NO_SUDO=1 SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+  bash scripts/run-v130-issue28-P2-geometry.sh
+```
