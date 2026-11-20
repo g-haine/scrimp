@@ -1093,3 +1093,92 @@ bash scripts/run-v130-petsc-mpi-dae-initial.sh
 
 A passing **source CI** alone cannot validate the
 PETSc native correction or physical properties.
+
+## 17. Second native distributed DAE projection — residual slightly above gate
+
+**Native result received 20 November 2026:** diagnostic
+`ce6e8edf99a03408390961a0906d6c1c6cd5c7b1`,
+qualified immutable source
+`1d6d0c90115213298047b28237a7f38087563a35`.
+Run stopped on the first positive `polynomial_compatible`
+MPI=1 scenario, before any physical CN step; other three
+scenarios were **not executed**. Host evidence:
+
+```text
+sandbox/outputs/v130-petsc-dae-mpi-h0p2-ce6e8edf-yuonmmPp/
+```
+
+The previous `PETSc.IntType` correction now works, and
+the distributed PETSc submatrix + LSQR path reaches
+the actual GetFEM/PETSc algebraic acceptance check.
+For `h=0.2`, `p0=x*(3-x)`, `q0=0`:
+
+| Quantity | Native measurement |
+| --- | ---: |
+| Initial algebraic residual, Euclidean L2 | 0.162506819 |
+| PETSc LSQR projected algebraic residual | **1.88801542e-9** |
+| Unchanged acceptance threshold `1e-10+1e-8*initial` | **1.72506819e-9** |
+| Excess above acceptance threshold | **9.45%** |
+| Previously measured centralized SciPy positive residual | ~7e-12 |
+
+Therefore, the **strict UNRESOLVED/FAIL is correct**;
+the PETSc-distributed implementation has not yet
+demonstrated an accurate enough projection, even
+though this manufactured FE-compatible datum is
+known numerically to admit one. Do not loosen the
+physical residual tolerance or label PETSc LSQR
+as validated on this evidence. The
+`-ts_adapt_type`/`-ts_exact_final_time` warnings
+occur because rejection prevents the main TS
+construction, not because CN failed.
+
+### Bounded distributed correction and failure evidence
+
+The trial now performs **at most three total**
+PETSc-distributed LSQR defect-correction passes,
+using the same assembled distributed `K_aa`
+operator and actual `IFunction` re-evaluation:
+
+```text
+r_k = F_a(t0, z_k, zdot=0)
+K_aa * delta_k = -r_k                   (PETSc distributed LSQR)
+z_(k+1)[algebraic] = z_k[algebraic] + delta_k
+z_(k+1)[differential] = z_0[differential] (bitwise)
+```
+
+Each pass records PETSc's convergence reason,
+iterations, reported residual, correction norm
+and the **independent native algebraic residual**.
+The procedure stops immediately on a true
+residual PASS, PETSc divergence, or stagnation;
+it never continues unboundedly or accepts
+normal-equation convergence alone.
+If a later pass worsens the true residual,
+the best state is restored and re-evaluated.
+The acceptance criterion **remains**
+`1e-10+1e-8*||F_a(t0,z0,0)||`.
+
+Importantly, a future positive-model rejection
+now writes a structured JSON and prints its
+entire LSQR history before exiting nonzero,
+so the reason for failure can be inspected
+without relying on a full exception trace.
+The negative original Gaussian remains an
+expected explicit t0 rejection only if the
+actual residual exceeds threshold, without
+starting physical CN.
+
+**Status:** updated source and source-only regression
+ready, but no post-refinement native results yet.
+No `scrimp/dphs.py`, `examples/wave.py`,
+Docker, MUMPS or main CN change.
+
+Rerun the **same small native launcher** on rc3:
+
+~~~bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-petsc-mpi-dae-initial.sh
+~~~
