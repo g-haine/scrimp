@@ -71,9 +71,67 @@ class Issue6MPIComparatorTests(unittest.TestCase):
                             "powers": {"algebraic": [0., 0.1, 0.2]},
                         }), encoding="utf-8")
 
-    def compare(self):
+    def compare(self, expect_rest=False):
         return module.compare(self.root, ["open", "closed"], 0.02,
-                              0.05, 1e-4, True)
+                              0.05, 1e-4, not expect_rest,
+                              expect_rest=expect_rest)
+
+    def write_rest(self):
+        """True stationary synthetic records with deliberately meaningless
+        100% exchange-scaled residuals; still enforce absolute physics."""
+        for case in ("open", "closed"):
+            for ranks in (1, 2, 4):
+                p = self.root / f"{case}_{ranks}r"
+                with np.load(p / "energies.npz") as f:
+                    data = {k: f[k].copy() for k in f.files}
+                for key in ("hamiltonian", "potential"):
+                    data[key][:] = 10.
+                for key in ("kinetic", "diss_grad", "diss_div",
+                            "power_normal", "power_viscous", "supplied",
+                            "dissipated", "balance", "relative_balance_exchange"):
+                    data[key][:] = 0.
+                np.savez_compressed(p / "energies.npz", **data)
+                metrics_file = p / "metrics.json"
+                m = json.loads(metrics_file.read_text(encoding="utf-8"))
+                m["maximum_absolute_balance_error_over_actual_exchange"] = 1.
+                m["minimum_height_coefficient"] = 5.
+                m["maximum_height_coefficient"] = 5.
+                metrics_file.write_text(json.dumps(m), encoding="utf-8")
+                for rank in range(ranks):
+                    power_file = p / f"mpi_port_powers_rank{rank}.json"
+                    power_doc = json.loads(power_file.read_text(encoding="utf-8"))
+                    power_doc["powers"]["algebraic"] = [0., 0., 0.]
+                    power_file.write_text(json.dumps(power_doc), encoding="utf-8")
+
+    def test_stationary_equilibrium_ignores_ill_conditioned_exchange_ratio(self):
+        self.write_rest()
+        result = self.compare(expect_rest=True)
+        self.assertEqual(result["gate"], "rest_equilibrium")
+        self.assertFalse(result["exchange_scaled_metric_applicable"])
+        self.assertIsNone(
+            result["comparisons"]["open"]["max_exchange_scaled_power_balance_defect"]
+        )
+
+    def test_rest_rejects_hidden_kinetic_activity(self):
+        self.write_rest()
+        p = self.root / "open_2r" / "energies.npz"
+        with np.load(p) as f:
+            data = {k: f[k].copy() for k in f.files}
+        data["kinetic"][-1] = 0.01
+        np.savez_compressed(p, **data)
+        with self.assertRaisesRegex(ValueError, "rest equilibrium violation"):
+            self.compare(expect_rest=True)
+
+    def test_rest_rejects_energy_drift_despite_zero_exchange(self):
+        self.write_rest()
+        p = self.root / "open_1r" / "energies.npz"
+        with np.load(p) as f:
+            data = {k: f[k].copy() for k in f.files}
+        data["hamiltonian"][-1] += 0.01
+        data["balance"][-1] += 0.01
+        np.savez_compressed(p, **data)
+        with self.assertRaisesRegex(ValueError, "rest equilibrium violation"):
+            self.compare(expect_rest=True)
 
     def test_valid_synthetic_contract(self):
         result = self.compare()

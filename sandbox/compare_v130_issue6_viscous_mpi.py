@@ -43,7 +43,8 @@ def _assert_close(a, b, label, rtol=2e-5, atol=1e-8):
         raise ValueError(f"{label}: serial/MPI or inter-rank discrepancy, max |delta|={delta:.9g}")
 
 
-def _case(output, name, ranks, tf, exchange_limit, volume_limit, activity):
+def _case(output, name, ranks, tf, exchange_limit, volume_limit, activity,
+          expect_rest=False):
     root = output / f"{name}_{ranks}r"
     metrics = json.loads((root / "metrics.json").read_text(encoding="utf-8"))
     with np.load(root / "energies.npz") as archive:
@@ -78,7 +79,42 @@ def _case(output, name, ranks, tf, exchange_limit, volume_limit, activity):
                   rtol=1e-11, atol=1e-8)
     eb = float(metrics["maximum_absolute_balance_error_over_actual_exchange"])
     vb = float(metrics["maximum_absolute_relative_volume_balance_error"])
-    if not np.isfinite(eb) or eb > exchange_limit:
+    if not np.isfinite(eb):
+        raise ValueError(f"{name}/{ranks}r: nonfinite exchange-scaled power defect")
+    if expect_rest:
+        # In a true equilibrium the actual exchange is at numerical
+        # roundoff, and normalizing by max(exchange, 1e-14) produces
+        # arbitrarily large ratios. This diagnostic is ILL-CONDITIONED
+        # in the rest gate. Do not relax the physical-flow gate below.
+        scale = max(1., abs(float(h[0])))
+        span = float(t[-1] - t[0])
+        kinetic = energy["kinetic"]
+        boundary_power = energy["power_normal"] + energy["power_viscous"]
+        dissipative_power = energy["diss_grad"] + energy["diss_div"]
+        rest_activity = max(
+            float(np.max(np.abs(h - h[0]))),
+            float(np.max(np.abs(kinetic))),
+            float(np.max(np.abs(work))),
+            float(np.max(np.abs(diss))),
+            span * float(np.max(np.abs(boundary_power))),
+            span * float(np.max(np.abs(dissipative_power))),
+        ) / scale
+        rest_balance = float(np.max(np.abs(reconstructed))) / scale
+        rest_height_deviation = max(
+            abs(float(metrics["minimum_height_coefficient"]) - 5.0),
+            abs(float(metrics["maximum_height_coefficient"]) - 5.0),
+        ) / 5.0
+        # Explicit equilibrium/inactivity and absolute energy checks.
+        # This is NOT the nontrivial 5%-of-energy-exchange gate.
+        if (rest_activity > 1e-10 or rest_balance > 1e-11
+                or rest_height_deviation > 1e-10):
+            raise ValueError(
+                f"{name}/{ranks}r: rest equilibrium violation: "
+                f"activity/Hscale={rest_activity:.9g}, "
+                f"balance/Hscale={rest_balance:.9g}, "
+                f"height_relative_deviation={rest_height_deviation:.9g}"
+            )
+    elif eb > exchange_limit:
         raise ValueError(f"{name}/{ranks}r: physical power defect {eb:.9g} > {exchange_limit}")
     if not np.isfinite(vb) or vb > volume_limit:
         raise ValueError(f"{name}/{ranks}r: volume defect {vb:.9g} > {volume_limit}")
@@ -112,20 +148,28 @@ def _case(output, name, ranks, tf, exchange_limit, volume_limit, activity):
                           f"{name}/{ranks}r: rank-{rank} generic port {key}")
     return {"energy": energy, "states": states, "metrics": metrics,
             "ports": powers[0], "max_exchange_defect": eb,
-            "max_volume_defect": vb}
+            "max_volume_defect": vb,
+            "rest_activity_relative": rest_activity if expect_rest else None,
+            "rest_balance_relative": rest_balance if expect_rest else None,
+            "rest_height_deviation": rest_height_deviation if expect_rest else None}
 
 
-def compare(root, cases, final_time, exchange_limit, volume_limit, require_activity):
+def compare(root, cases, final_time, exchange_limit, volume_limit,
+            require_activity, expect_rest=False):
+    if expect_rest and require_activity:
+        raise ValueError("Rest equilibrium and required nonzero flow are mutually exclusive")
     results = {}
     for case in cases:
         for ranks in RANKS:
             results[case, ranks] = _case(
                 root, case, ranks, final_time, exchange_limit,
-                volume_limit, require_activity,
+                volume_limit, require_activity, expect_rest=expect_rest,
             )
     summary = {"schema": "scrimp-v130-issue6-viscous-mpi-smoke-v1",
                "status": "PASS", "source": "native outputs",
                "cases": cases, "mpi_ranks": list(RANKS),
+               "gate": "rest_equilibrium" if expect_rest else "physical_exchange",
+               "exchange_scaled_metric_applicable": not expect_rest,
                "requires_further_long_time_qualification": True,
                "exact_discrete_power_conservation_claimed": False,
                "comparisons": {}}
@@ -148,7 +192,17 @@ def compare(root, cases, final_time, exchange_limit, volume_limit, require_activ
                               f"{case} {ranks}r vs 1r generic port {port}")
         summary["comparisons"][case] = {
             "max_exchange_scaled_power_balance_defect":
+                None if expect_rest else
                 max(results[case, n]["max_exchange_defect"] for n in RANKS),
+            "maximum_recorded_ill_conditioned_exchange_ratio":
+                max(results[case, n]["max_exchange_defect"] for n in RANKS)
+                if expect_rest else None,
+            "max_rest_activity_relative_to_energy_scale":
+                max(results[case, n]["rest_activity_relative"] for n in RANKS)
+                if expect_rest else None,
+            "max_rest_balance_relative_to_energy_scale":
+                max(results[case, n]["rest_balance_relative"] for n in RANKS)
+                if expect_rest else None,
             "max_relative_volume_balance_defect":
                 max(results[case, n]["max_volume_defect"] for n in RANKS),
             "mpi_full_state_initial_final_parity": True,
@@ -157,7 +211,8 @@ def compare(root, cases, final_time, exchange_limit, volume_limit, require_activ
         }
     path = root / "issue6_mpi_comparison.json"
     path.write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
-    print("PASS: issue #6 bounded native MPI 1/2/4 viscous SWE smoke")
+    print("PASS: issue #6 bounded native MPI 1/2/4 "
+          + ("stationary equilibrium" if expect_rest else "nontrivial viscous SWE smoke"))
     print(json.dumps(summary["comparisons"], indent=2))
     print("NOT a long-time physical release qualification.")
     return summary
@@ -172,13 +227,17 @@ def main():
     parser.add_argument("--max-exchange-defect", type=float, default=0.05)
     parser.add_argument("--max-relative-volume-defect", type=float, default=1e-4)
     parser.add_argument("--require-activity", action="store_true")
+    parser.add_argument("--expect-rest", action="store_true",
+                        help="Explicit zero-rotation equilibrium gate: "
+                             "require near-zero energy/kinetic/power/activity "
+                             "instead of ill-conditioned exchange normalization")
     args = parser.parse_args()
     if (args.final_time <= 0 or args.max_exchange_defect <= 0
             or args.max_relative_volume_defect <= 0):
         parser.error("time and defect limits must be positive")
     compare(args.output_dir, args.cases, args.final_time,
             args.max_exchange_defect, args.max_relative_volume_defect,
-            args.require_activity)
+            args.require_activity, expect_rest=args.expect_rest)
 
 
 if __name__ == "__main__":

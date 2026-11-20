@@ -1489,3 +1489,34 @@ Preserve all host-owned `sandbox/outputs`.
 Full issue #6 (including 4-rank powers/outputs,
 no races, longer-time pH energy) remains OPEN.
 GetFEM raw MPI assembly root cause remains separate #23.
+
+## 20 November — rest MPI 1/2/4 actual native results: physics PASS, comparator false FAIL corrected
+
+Original immutable host archive at source `10c5d22cd6e214b2ef9729cbc125a20769a4fab7`:
+`sandbox/outputs/v130-issue6-viscous-rest-10c5d22c-6KsOMm1G/`.
+All three native PETSc solves actually **completed** with 10 fixed
+accepted steps to `t=0.02`, zero rejected and SNES failures, and
+equal per-rank generic-port-power traces. Full-state end-point
+MPI 1 vs MPI 2/4 scaled L2 differences
+`3.58948e-17`/`3.64345e-17`.
+Relative signed Hamiltonian-balance defects over `H0`:
+MPI 1 `7.96408e-16`, MPI 2 `1.47904e-15`, MPI 4
+`2.61677e-15`; volume balances `<1.6e-15` relative.
+Height FE coefficients remain `~5`.
+The original comparator **incorrectly** applied a 5%-of-actual
+energy-exchange limit to a zero-activity rest state, where
+work `~1e-26`, dissipation `~1e-33` and `~1e-14`
+Hamiltonian variation are all roundoff-level.
+The reported 31%/58%/100% exchange ratios were therefore
+**numerically ill-conditioned, not physical energy failures**.
+
+The rest gate now has an **explicit `--expect-rest`** branch with
+near-zero physical activity, height equilibrium, strict absolute
+Hamiltonian-balance and MPI state/port-power equality, while
+the **nonzero-flow `--require-activity` branch keeps the
+original 5% relative-to-exchange acceptance**. No original
+physical equations or solver settings were changed.
+The archived rest native evidence can be passed to the
+new comparator without re-executing the physical simulations.
+The rotating open/closed MPI 1/2/4 physical gate remains
+unexecuted; issue #6 remains OPEN.

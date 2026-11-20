@@ -161,3 +161,44 @@ case or relaxing thresholds. The CLI's generic
 `plot_Hamiltonian(with_powers=True)` continues to exercise the
 collective port-power code; its **unweighted port powers must not
 be substituted** for the physical h-weighted energy identity.
+
+## 20 November 2026 — rest gate: exchange-normalization false FAIL corrected
+
+Native archive `sandbox/outputs/v130-issue6-viscous-rest-10c5d22c-6KsOMm1G/`
+(source `10c5d22cd6e214b2ef9729cbc125a20769a4fab7`)
+contains **successful** physical PETSc TS solves on MPI 1/2/4:
+10/10 accepted steps, no SNES failure, no rejected steps,
+rest equilibrium at `H0=3.90330691493384`, and a full-state
+MPI agreement at end of `~3.6e-17` scaled L2 norm.
+The previously unconditional 5% **exchange-scaled** defect gate
+was mathematically inappropriate here: true work is `~1e-26`,
+viscous dissipation `~1e-33`, and Hamiltonian differences
+`~1e-14` are floating-point cancellation on a nonzero background.
+Normalizing by `max(actual exchange,1e-14)` produced false
+31%/58%/100% failures despite `max|B|/H0` being only
+`7.96e-16`, `1.48e-15`, `2.62e-15` respectively.
+
+The comparator now **explicitly** distinguishes `--expect-rest`
+from `--require-activity`. In rest mode it **retains and reports**
+the ill-conditioned observed ratio as a diagnostic, but does not
+apply the 5% physical-exchange gate. Instead it requires relative
+rest activity (Hamiltonian change, kinetic energy, boundary power,
+dissipation, integrated work) `<=1e-10`, signed energy-balance
+residual relative to `max(1,|H0|)` `<=1e-11`, constant
+height coefficients to relative `1e-10`, true positive TS
+completion, volume balance and strict MPI parity. Nonzero-flow
+`physical` mode **retains the unchanged** 5%-of-actual-exchange
+limit and activity requirement. Synthetic tests ensure rest mode
+rejects both disguised kinetic flow and nonzero energy drift.
+
+No GetFEM/SCRIMP physics, native solver, MPI semantics, or
+previous numerical tolerance was altered. In particular a PASS
+at rest is not a PASS for 2D viscous nontrivial physics or
+long-time power balance. To reclassify the **existing** archived
+results without rerunning native computations:
+
+```bash
+python sandbox/compare_v130_issue6_viscous_mpi.py \
+    sandbox/outputs/v130-issue6-viscous-rest-10c5d22c-6KsOMm1G \
+    --cases open --final-time 0.02 --expect-rest
+```

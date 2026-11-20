@@ -89,7 +89,11 @@ for scenario in "${cases[@]}"; do
     done
 done
 compare=(--cases "${cases[@]}" --final-time "$tf")
-if [[ "$profile" == "physical" ]]; then compare+=(--require-activity); fi
+if [[ "$profile" == "physical" ]]; then
+    compare+=(--require-activity)
+else
+    compare+=(--expect-rest)
+fi
 echo "COMPARE MPI1/2/4 full-state endpoints, h, signed physical powers and each-rank port powers"
 if ! "${docker_cmd[@]}" run --rm \
     --user "$(id -u):$(id -g)" --workdir /scrimp-work \
