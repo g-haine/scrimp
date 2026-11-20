@@ -1610,3 +1610,80 @@ No general nonlinear/high-index DAE initialization,
 fully distributed GetFEM state storage, or
 automatic legacy fallback is claimed from
 this core result.
+
+## 22. First native dissipative-wave follow-up: diagnostic GetFEM region mismatch
+
+**20 November 2026 — SECOND independent model: native MPI 1 PASSED
+the core initial algebraic projection and the 10-step main CN solve;
+signed power audit FAILED to run owing to a diagnostic interface error.
+This is NOT a full physical PASS, and MPI 2 was NOT executed.**
+
+Frozen runtime: `scrimp-mpi:v1.3.0-rc3`,
+OCI source `1d6d0c90115213298047b28237a7f38087563a35`.
+Source commit at failed run:
+`29aa01dd2939c506aca8b7ba7b6be6e82c433e51`.
+Developer-owned host output:
+
+```text
+sandbox/outputs/v130-second-linear-dae-29aa01dd-ULacuhnd/
+```
+
+The original `examples/wave_dissipative.py` weak
+equations and its algebraic damping port were reused,
+with the diagnostic manufactured `p0=x*(3-x)`
+and a nonzero left drive `U_L(t)=0.08*sin(20*t)`
+on `h=0.2`. The production core
+`init_step_ts_type="algebraic"` performed two
+bounded LSQR passes and reported
+`||F_a||_2=9.99416399e-14`,
+against the unchanged `1.72506819e-9`
+feasibility threshold and `1e-11` separate
+accuracy target. The main unmodified CN TS
+accepted all **10 of 10** steps from `t=0`
+to `t=0.02`, with **0 rejected steps** and
+**0 nonlinear solver failures**. The model had
+**2,804 DOFs**. Its Hamiltonian was computed
+successfully.
+
+**Failure stage and precise source cause:** the
+post-CN diagnostic `_physical_audit()`
+called GetFEM's `gf.asm("generic",mim,0,
+flow*effort,port.get_region(),model)`
+for **every** port. The interior port
+`S.Port("Damping","f_r","e_r","scalar-field")`
+has `region=None` by design, whereas GetFEM
+generic assembly requires a scalar integer
+region argument. This produced:
+
+```text
+Getfem::InterfaceError
+Argument 5 of class GETFEM OBJECT ID is not a scalar value
+```
+
+The established `scrimp.port.Port.compute()`
+already defines the correct full-mesh convention:
+if `port.get_region() is None`, use
+`region=-1`, otherwise retain the named integer
+region. The correction is exclusively in
+`sandbox/probe_v130_dissipative_core_dae.py`,
+with a separate test checking `None -> -1`,
+boundary `13 -> 13`, and refusal of a
+non-integer region. **No production solver,
+damping brick, original example or scientific
+acceptance tolerance was changed.**
+
+**Scientific status of the second model:**
+- Projection and accepted native CN steps: **PASS at MPI 1**.
+- Signed boundary work, integrated viscous power,
+  Hamiltonian-plus-boundary-plus-damping defect,
+  and full MPI 1/2 agreement: **NOT MEASURED**.
+- Next action: rerun exactly
+  `scripts/run-v130-second-linear-dae.sh`
+  on the unchanged qualified image. This should
+  record the actual viscous dissipation and its
+  sign, **without presuming** that the eventual
+  physical balance passes.
+
+The global default remains `pseudo` until the
+independent second-model power gate and remaining
+default-migration checks are satisfied.
