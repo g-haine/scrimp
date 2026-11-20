@@ -1,9 +1,10 @@
 # SCRIMP v1.3.0 — Physical DAE initialization and full-wave-state qualification
 
-**Status (20 November 2026): diagnostic code and reproducible Ubuntu
-runner committed on `release/1.3.0-preparation`; the new 1/2-rank
-native experiment has NOT yet been executed. No scientific PASS may be
-inferred from source CI, Docker smoke or comparison with v1.2.0.**
+**Status (20 November 2026): first native Ubuntu 1/2-rank experiment
+**COMPLETED**. MPI full-trajectory parity and algebraic consistency
+**PASS**; prescribed dynamic initial data **FAIL**. The historical
+pseudo-TS is not physically qualified as a constrained projection.
+No production solver patch is approved on this evidence alone.**
 
 This is the first scientific acceptance investigation after closing
 the Ubuntu Docker BuildKit/native-stack gate. The reference production
@@ -166,3 +167,62 @@ differential data, with explicit solvability checks, and requalify
 the full trajectories and midpoint power balance. Do not silently
 replace the accepted pseudo-TS state in production until this
 projection is proven for the targeted model and MPI.
+
+## 5. Native results — 20 November 2026 (measured, not predicted)
+
+**Provenance:** exact native Ubuntu image
+`scrimp-mpi:v1.3.0-rc3` (OCI revision
+`1d6d0c90115213298047b28237a7f38087563a35`),
+diagnostic commit `b56ceedbbba17ae3d79baf36b2e4e12a78040e1c`.
+Published unchanged `wave.py`, `h=0.2`, 2,230 DOFs, fixed
+CN `dt=0.002`, five accepted steps, 1/2 MPI ranks,
+distributed GetFEM→PETSc COO, compact mode, MUMPS on_change.
+
+**User-owned host output** (never staged into the Docker build):
+
+~~~text
+sandbox/outputs/v130-dae-wave-h0p2-b56ceedb-7TyrnhWS/
+~~~
+
+| Quantity (Euclidean coefficient norm) | 1 rank | 2 ranks |
+| --- | ---: | ---: |
+| Prescribed q initial L2 norm | 0 | 0 |
+| Accepted pseudo q norm / q drift | 0.00114424447 | 0.00114424447 |
+| Prescribed p norm | 3.02730717 | 3.02730717 |
+| Accepted pseudo p norm | 3.02717936 | 3.02717936 |
+| p initial-data L2 drift | 0.00751282216 | 0.00751282216 |
+| Algebraic residual *before* pseudo-TS | 0.010689895 | 0.010689895 |
+| Algebraic residual *after* pseudo-TS | 2.44609825e-18 | 2.31888379e-18 |
+
+The maximum scaled full-state discrepancy at **every** saved
+Crank–Nicolson time point is **1.78851051e-14** for MPI 1 vs 2.
+Thus the MPI parity and post-pseudo algebraic residual tests
+**PASS**, while physical fidelity of the independently prescribed
+initial q/p **FAILS**. The printed `1.144e11` relative q change
+divides by a `1e-14` floor because q originally vanishes: it
+is **not** a physically meaningful relative percentage. The
+relative coefficient-norm p drift is about 0.00248 (0.248%).
+
+The original left port is an enforced flow input
+`U_L(t,y)=0.1 sin(4t) sin(4 pi y) exp(-10(2.5-t)^2)`; hence
+`U_L(0,y)=0`. The prescribed initial momentum is a Gaussian
+centered at x=0.5, with a **nonzero mathematical trace at x=0**.
+The constitutive constraint `e_p=p/rho` and boundary constraint
+`e_p|Gamma_Left=U_L` could therefore be **incompatible**
+when both are imposed at t=0. Discrete weak-form compatibility
+is **not yet proven** (nor disproven) by this continuous trace
+observation; a targeted algebraic-only projection solvability
+experiment is required before proposing to preserve q/p exactly.
+
+**Next scientific gate:** hold every prescribed dynamic coefficient
+q and p fixed, solve *only* the actual discrete algebraic constraint
+rows for all effort/control unknowns, evaluate the independent
+production `IFunction(t0,z,zd=0)` residual after the solve, and
+record any singularity, conditioning and nonzero minimum residual.
+If that projection is unsolvable, redesign an **admissible initial
+momentum**, not a silently altered pseudo-TS. If it is solvable,
+test exact dynamic-data preservation and subsequent full
+Crank–Nicolson power balances at 1/2 MPI ranks before any
+production integration. Never equate mathematical field traces
+with the actual tested discrete weak constraints without checking.
+
