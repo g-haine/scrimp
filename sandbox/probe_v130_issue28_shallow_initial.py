@@ -242,26 +242,69 @@ def run_audit(system, mpi):
                 np.asarray(direction.getArray(readonly=True)),
             )
         global_dir.assemble()
-        eps = 1e-6
+        # Numerical precision: e_h is O(rho*g*h) = O(1e4) in the
+        # original SI-scale model. A normalized algebraic direction with
+        # a 1e-6 finite-difference step creates perturbations of order
+        # 1e-8 per DOF, so subtracting two assembled residuals can
+        # amplify floating-point cancellation. For an AFFINE Fa, finite
+        # differences should be stable at several larger step sizes.
+        # Do NOT relax the derivative threshold on the basis of a
+        # single bad small-epsilon experiment.
+        steps = (1e-1, 1e-2, 1e-3, 1e-4, 1e-6)
         zp = keep(candidate.copy())
         zm = keep(candidate.copy())
-        zp.axpy(eps, global_dir)
-        zm.axpy(-eps, global_dir)
         Fp = keep(z.duplicate())
         Fm = keep(z.duplicate())
-        system.IFunction(None, 0., zp, zd, Fp)
-        system.IFunction(None, 0., zm, zd, Fm)
-        Fp.axpy(-1., Fm)
-        Fp.scale(1./(2.*eps))
-        fd = Fp.getSubVector(ia)
-        try:
-            exact_dir = keep(A.createVecLeft())
-            A.mult(direction, exact_dir)
-            exact_dir.axpy(-1., fd)
-            fd_error = float(exact_dir.norm())
-            fd_norm = float(fd.norm())
-        finally:
-            Fp.restoreSubVector(ia, fd)
+        exact_dir = keep(A.createVecLeft())
+        A.mult(direction, exact_dir)
+        directional_reference_norm = float(exact_dir.norm())
+        fd_scan = []
+        for eps in steps:
+            candidate.copy(zp)
+            candidate.copy(zm)
+            zp.axpy(eps, global_dir)
+            zm.axpy(-eps, global_dir)
+            system.IFunction(None, 0., zp, zd, Fp)
+            system.IFunction(None, 0., zm, zd, Fm)
+            Fp.axpy(-1., Fm)
+            Fp.scale(1./(2.*eps))
+            fd = Fp.getSubVector(ia)
+            try:
+                error = keep(exact_dir.copy())
+                error.axpy(-1., fd)
+                absolute_error = float(error.norm())
+                fd_norm = float(fd.norm())
+                error.destroy()
+                objects.pop()
+            finally:
+                Fp.restoreSubVector(ia, fd)
+            relative_error = absolute_error / max(
+                1e-12, directional_reference_norm, fd_norm
+            )
+            fd_scan.append({
+                "epsilon": float(eps),
+                "fd_norm": fd_norm,
+                "jacobian_action_norm": directional_reference_norm,
+                "absolute_error": absolute_error,
+                "relative_error": relative_error,
+            })
+        # A native FD check is qualified only when at least two
+        # independently chosen amplitudes achieve the SAME strict
+        # relative tolerance, with the native analytic affine identity
+        # checked separately. The smallest step is diagnostic-only.
+        stable_large_steps = (
+            fd_scan[0]["relative_error"] <= TOL_DERIVATIVE
+            and fd_scan[1]["relative_error"] <= TOL_DERIVATIVE
+        )
+        best_fd = min(fd_scan, key=lambda row: row["relative_error"])
+        relative_fd = best_fd["relative_error"]
+        print(
+            f"ISSUE28 SHALLOW FD SCAN MPI={mpi.size}: "
+            f"initial |Fa|={initial:.9g}, candidate |Fa|={final:.9g}, "
+            f"affine={affine_error:.9g}, "
+            f"steps={[(q['epsilon'], q['relative_error']) for q in fd_scan]}",
+            flush=True,
+        )
 
         # Trial h,p remain bitwise original; return ALL GetFEM
         # coefficients to their exact original values on all ranks.
@@ -281,21 +324,20 @@ def run_audit(system, mpi):
         state_restored = bool(mpi.allreduce(state_restored, op=MPI.LAND))
         if not h_p_preserved or not state_restored or gyro_drift_norm != 0.:
             raise RuntimeError("State or frozen explicit gyro changed in diagnostic")
-        relative_fd = fd_error / max(1e-12, fd_norm)
-        if affine_error > 1e-8 * max(1., initial):
-            raise RuntimeError("Unexpected nonlinear dependence on algebraic coefficients")
-        if relative_fd > TOL_DERIVATIVE:
-            raise RuntimeError(
-                f"GetFEM algebraic tangent FD mismatch: {relative_fd:.9g}"
-            )
-        if final > TOL_RESIDUAL:
-            raise AssertionError(
-                f"Shallow-water original fixed-state algebraic projection "
-                f"residual {final:.9g} exceeds {TOL_RESIDUAL:.9g}"
-            )
+        # Report a FAILED numerical qualification rather than throwing
+        # before writing the evidence JSON; native runner still fails.
+        affine_ok = affine_error <= 1e-8 * max(1., initial)
+        fd_ok = stable_large_steps
+        residual_ok = final <= TOL_RESIDUAL
+        status = (
+            "PASS_DIAGNOSTIC" if affine_ok and fd_ok and residual_ok
+            else "FAILED_AFFINITY" if not affine_ok
+            else "FAILED_JACOBIAN_FD" if not fd_ok
+            else "FAILED_ALGEBRAIC_RESIDUAL"
+        )
         report = {
             "schema": "scrimp-v130-issue28-shallow-fixed-dynamics-v1",
-            "status": "PASS_DIAGNOSTIC",
+            "status": status,
             "model": "unchanged examples/shallow_water.py weak forms, original h0,p0",
             "mpi_ranks": int(mpi.size),
             "dofs": int(n),
@@ -314,6 +356,10 @@ def run_audit(system, mpi):
             "after_Fa_block_l2": final_blocks,
             "one_step_affine_model_error_l2": affine_error,
             "relative_algebraic_Jacobian_FD_error": relative_fd,
+            "finite_difference_scan": fd_scan,
+            "fd_large_steps_both_pass": bool(stable_large_steps),
+            "algebraic_residual_threshold": TOL_RESIDUAL,
+            "algebraic_fd_relative_threshold": TOL_DERIVATIVE,
             "algebraic_direct_KSP_reason": reason,
             "h0_p0_bitwise_preserved": h_p_preserved,
             "getfem_initial_state_rollback_bitwise": state_restored,
@@ -330,7 +376,7 @@ def run_audit(system, mpi):
         }
         if mpi.rank == 0:
             print(
-                f"ISSUE28 SHALLOW FIXED DYNAMICS PASS MPI={mpi.size}: "
+                f"ISSUE28 SHALLOW FIXED DYNAMICS {status} MPI={mpi.size}: "
                 f"|Fa(initial)|={initial:.9g}, |Fa(after)|={final:.9g}, "
                 f"FDrel={relative_fd:.9g}, affine={affine_error:.9g}, "
                 f"gyro_frozen={gyro_norm:.9g}",
@@ -360,6 +406,13 @@ def main():
             json.dumps(result, indent=2) + "\n", encoding="utf-8"
         )
     mpi.Barrier()
+    if result["status"] != "PASS_DIAGNOSTIC":
+        raise RuntimeError(
+            "Native shallow-water algebraic diagnostic rejected: "
+            f"{result['status']}; full JSON evidence saved. "
+            f"Final |Fa|={result['after_one_direct_algebraic_Newton_Fa_l2']:.9g}; "
+            f"FD scan={result['finite_difference_scan']}"
+        )
 
 
 if __name__ == "__main__":
