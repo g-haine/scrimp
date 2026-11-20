@@ -10,6 +10,15 @@ release. No general Saint-Venant 2D tangential-velocity boundary-control
 development enters its critical path. That model is a separate,
 **post-release** project for LHMNC 2027.
 
+**DAE initialization workstream (20 November 2026):**
+the isolated **linear-wave scientific prototype** has passed all
+native 1/2-rank, fixed-CN, signed power and incompatible-data
+rejection gates. The opt-in core implementation remains **TO DO**.
+Read the focused [mathematical and architectural explanation,
+validation results and implementation contract](V130_DAE_ALGEBRAIC_INITIALIZER_DESIGN.md);
+the [full evidence log](V130_DAE_INITIAL_VALIDATION.md) retains the
+failed intermediate experiments and exact native provenance.
+
 ## 0 — Finish solver optimization and establish scientific equivalence
 
 **Already achieved (production wave, h=0.04, 47,942 unknowns):**
@@ -584,6 +593,40 @@ memory overhead and larger/other linear models
 before broadening to nonlinear DAE or Maxwell.
 **No SCRIMP production solver code was modified
 by this scientific validation.**
+
+**Next bounded engineering deliverable (separate from the already PASS
+scientific gate):** add a production-owned, opt-in
+`init_step_ts_type=algebraic` mode for certified linear DAE layouts.
+The integration must use the *existing* pre-main-TS initialization
+hook but bypass pseudo-time TS construction entirely; retain
+`init_step_ts_type=pseudo` as the default. Implement the distributed
+PETSc algebraic extraction and bounded LSQR correction in a
+testable module rather than importing `sandbox` diagnostics.
+Add guards for the complete state/port partition, algebraic
+mass rows, unsupported lumped/substituted and nonlinear
+models, and safe handling of incompatible data with native
+residual, original-state restoration and collective MPI
+cleanup. Keep the physical feasibility threshold separate
+from an independent projection accuracy target.
+
+**Acceptance for this NEW core change:**
+verify legacy default pseudo and any supported BDF
+initialization still behave identically; check
+exact initial dynamic coefficients, native
+IFunction constraints and a positive/negative
+1/2-rank MPI test; reproduce **all** CN states,
+signed boundary powers and Hamiltonian residuals
+against the independent frozen diagnostic `rc3`
+evidence. Then measure initialization wall time,
+per-rank RSS and temporary PETSc object lifetimes,
+and extend to a second independently compatible
+linear model. Do not claim general nonlinear/high-index
+or fully memory-scalable initialization until those
+separate tests pass.
+
+The method, current scope and completed scientific
+measurements are documented in
+[V130_DAE_ALGEBRAIC_INITIALIZER_DESIGN.md](V130_DAE_ALGEBRAIC_INITIALIZER_DESIGN.md).
 
 ## 1 — GetFEM 5.5 simplicial FEM contributions (SCRIMP-first)
 
