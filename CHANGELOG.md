@@ -23,7 +23,7 @@ Changes to SCRIMP are recorded here. See also the
 - Record the deferred MPI scalability, nonlinear-physics and
   experimental Schur results in `docs/V130_DEVELOPMENT_ROADMAP.md`.
 
-### Consistent DAE initialization (new default candidate; native gate pending)
+### Consistent DAE initialization (new linear default; native two-model gate PASSED)
 
 - Add a **distributed PETSc algebraic-only initialization** method for
   supported real, linear DAE models. It keeps the prescribed differential
@@ -32,12 +32,19 @@ Changes to SCRIMP are recorded here. See also the
   `IFunction` algebraic residual before starting the physical TS.
   Unsupported layouts or incompatible fixed initial data raise
   explicit errors; there is **no automatic pseudo-time fallback**.
-- **Stage `init_step_ts_type="algebraic"` as the implicit default**
-  on the development branch. This change itself has **not yet passed
-  the independent native no-option migration gate and is not released**.
+- **Use `init_step_ts_type="algebraic"` as the implicit default**
+  on the development branch for the supported linear class. The
+  native **no-option** gate **PASSED** in the qualified
+  `scrimp-mpi:v1.3.0-rc3` runtime at
+  `3a17a65b7a17fbdade82bd3ea2bd3bb8cd8a53f8`
+  on conservative and dissipative 2D acoustic pH-DAEs,
+  MPI 1/2, ten CN steps, with exact prescribed dynamic
+  states, independent full-trajectory and power references
+  and negative Gaussian rejection.
   `init_step_ts_type="pseudo"` and `init_step_ts_type="bdf"`
-  remain available explicitly; `init_step=False` remains valid
-  without an initialization strategy.
+  remain explicit alternatives; `init_step=False` remains valid.
+  This is **not yet a tagged v1.3.0 release** or a claim of
+  universal nonlinear DAE initialization.
 - Document the distinction between **exact algebraic projection**,
   historical **pseudo-time relaxation** (which can move the
   prescribed differential initial data), and **small negative-start
@@ -57,12 +64,19 @@ Changes to SCRIMP are recorded here. See also the
   both MPI ranks. The historical pseudo trajectory matched its
   frozen reference; tiny negative-time BDF2 remained usable with
   measured nonzero initial drift.
-- **Remaining release gates:** independently test the implicit
-  (no-option) new default on both models using the frozen rc3 runtime,
-  verify explicit pseudo/BDF2 regressions, complete broader example
-  compatibility and exceptional MPI cleanup/memory audits, and
-  rerun the full native source/test/doc/release qualification.
-  Do not tag or rebuild the release image before these pass.
+- **Remaining release gates:** the separate state-dependent-mass
+  Jacobian on the original shipped `examples/shallow_water.py`
+  (**#27**), MPI exceptional cleanup/memory, all shipped examples,
+  3D Maxwell, GUI, Sphinx and packaging. The corrected nonlinear
+  mass Jacobian **already defaults** to
+  `SCRIMP_NONLINEAR_MASS_JACOBIAN=finite_difference`;
+  the native directional-FD regression is pending.
+  General nonlinear fixed-data DAE initialization by
+  safeguarded Newton (**#28**) is a separate feature
+  requiring independent native qualification.
+  Do not tag or rebuild the release image before all
+  release-blocking gates pass. See
+  `docs/V130_RELEASE_SPRINT_2026W48.md`.
 
 ### Release qualification outstanding
 - Confirm native numeric and symbolic LU call counts agree with the
