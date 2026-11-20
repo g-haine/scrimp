@@ -459,8 +459,19 @@ advanced through model initialization to line 31, and
 **Locals**. `main()` appeared in **Call Stack**. This confirms
 actual VS Code breakpoint/step/inspection operation, beyond
 the integrated-terminal simulation acceptance.
-Completing a paused run after F5 resume, and debugging two or
-more concurrent MPI ranks, remain untested.
+On **20 November**, the paused simulation was resumed with
+F5 and completed normally. Multi-rank MPI debugging remains
+untested. The first-use editor exposed repeated **"No Python
+found / Install uv"** prompts and a false Pylance
+`reportMissingImports` for editable `scrimp`, even though
+the Python interpreter worked. The project template now adds
+a remote-only Micromamba environment discovery path
+(`python-envs.globalSearchPaths=/opt/conda/envs`), a
+permanently visible interpreter status, and explicit
+`python.analysis.extraPaths=/workspace/scrimp` for
+static analysis of the editable SCRIMP package. The editor
+fixes are **not yet GUI-retested**, and require a
+Dev Container **recreate**, not a numerical image rebuild.
 
 **Qualification boundary:** these results are *smokes*, not proof of
 Hamiltonian or power-balance preservation, parallel strong scaling,
