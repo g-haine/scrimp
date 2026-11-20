@@ -506,21 +506,26 @@ independent before/after `scrimp-mpi:local` image-ID `cmp`
 completed without a difference. See
 [V130_DOCKER_RC3_ACCEPTANCE.md](V130_DOCKER_RC3_ACCEPTANCE.md).
 
-**One test-harness artifact remains:** the diagnostic invocation
-used `python -c`, which PETSc then reported as an unused command-line
-option `-c`; this is not the previously fixed code-supplied
-`-info`. The smoke script now uses a disposable mounted `.py`
-file instead and **fails on any unused-option warning**. Re-run
-that corrected host smoke against **existing rc3, without rebuilding
-Docker or its native layers**, to close the final diagnostics gate.
-The metadata still reports `scrimp-1.2.0`; update v1.3.0 package
-version deliberately at the release packaging freeze.
+**Final rc3 PETSc warning-free diagnostic — PASS (20 November 2026).**
+The corrected host-side smoke now runs a temporary mounted Python
+file rather than `python -c`. The developer supplied both two-rank
+results (`PASS: PETSc import options clean (rank 1/2)` and
+`(rank 2/2)`), followed by `PASS: PETSc -info and -c absent,
+no unused-option warning.` This closes the import-time PETSc
+diagnostic without rebuilding rc3 or any native layers. The
+**Ubuntu Docker native/BuildKit and independent starter smoke
+milestone is closed**, combining the previously observed complete
+rc3 smoke and this final diagnostic excerpt; see
+[V130_DOCKER_RC3_ACCEPTANCE.md](V130_DOCKER_RC3_ACCEPTANCE.md).
 
-**Still pending:** warning-free re-run of the corrected rc3 smoke,
-base-image digest/platform and tested explicit Conda lock,
-clean-room onboarding and cross-platform installation; the
-scientific full-trajectory/DAE, Hamiltonian port-power identity,
-Maxwell 3D and memory/performance release qualifications.
+**Still pending:** reproducible clean-room build with pinned
+base-image digest/platform and tested explicit Conda lock;
+fresh-user onboarding and cross-platform installation; scientific
+full-trajectory/DAE consistency, discrete Hamiltonian/port-power
+identities, Maxwell 3D and long-time memory/performance release
+qualification. The current Python package metadata remains
+`scrimp-1.2.0`; update it during the deliberate v1.3.0 packaging
+freeze.
 No GHCR image has been published or promoted.
 The reproducible build procedure, cache boundaries, evidence paths
 and deferred lock/platform work are documented in
