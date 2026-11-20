@@ -24,6 +24,7 @@ import json
 import os
 from pathlib import Path
 import types
+from unittest.mock import patch
 
 from mpi4py import MPI
 import numpy as np
@@ -32,6 +33,35 @@ import scrimp as S
 
 from audit_v130_wave_dae_initial import _build_wave, _intervals
 from solve_v130_dae_algebraic_block import solve_algebraic_block
+
+
+# Diagnostic comparison: the published left-boundary velocity is zero
+# at t=0, whereas the initial Gaussian momentum has nonzero trace.
+# This control variant preserves EXACTLY the same q0/p0 and PDE but
+# matches U_L(0,y)=p0(0,y)/rho(0,y). Never modify examples/wave.py.
+def _build_scenario(mesh, scenario):
+    if scenario == "published":
+        return _build_wave(mesh)
+    if scenario != "matched_left_control":
+        raise ValueError(f"Unknown physical diagnostic scenario {scenario}")
+    set_control = S.DPHS.set_control
+    observed = []
+
+    def replace_left_control(system, name, expression):
+        if name == "Boundary control (left)":
+            observed.append(expression)
+            # rho=3-x, so rho(0,y)=3. The Gaussian's trace is
+            # 3**(-20*(0.25+(y-0.5)**2)) at the left boundary.
+            expression = (
+                "3**(-20*(0.25+(y-0.5)*(y-0.5)))/3."
+            )
+        return set_control(system, name, expression)
+
+    with patch.object(S.DPHS, "set_control", replace_left_control):
+        system = _build_wave(mesh)
+    if len(observed) != 1:
+        raise RuntimeError("Expected one and only one left velocity control")
+    return system
 
 
 def _algebraic_indices(algebraic):
@@ -172,6 +202,28 @@ def _collect_probe(system, before, accepted, dynamic, algebraic, mpi):
             raise RuntimeError(
                 "Algebraic-only projection modified prescribed dynamic data"
             )
+        groups = {}
+        initial_residual = result["baseline_residual"]
+        for name, (start, count) in algebraic.items():
+            mask = (aidx >= start) & (aidx < start + count)
+            if int(np.count_nonzero(mask)) != count:
+                raise RuntimeError(f"Invalid algebraic residual block {name}")
+            values = {
+                "before": initial_residual[mask],
+                "projected": r_candidate[mask],
+                "pseudo": r_accepted[mask],
+            }
+            groups[name] = {
+                "rows": count,
+                "residual_l2": {
+                    stage: float(np.linalg.norm(array))
+                    for stage, array in values.items()
+                },
+                "residual_max_abs": {
+                    stage: float(np.max(np.abs(array)))
+                    for stage, array in values.items()
+                },
+            }
         report = {
             "schema": "scrimp-v130-fixed-dynamics-algebraic-probe-v1",
             "image_source_revision": os.environ.get(
@@ -180,6 +232,7 @@ def _collect_probe(system, before, accepted, dynamic, algebraic, mpi):
             "mpi_ranks": mpi.Get_size(),
             "global_dofs": len(before),
             "algebraic_dofs": int(len(aidx)),
+            "algebraic_residual_by_unknown": groups,
             "algebraic_intervals": {
                 k: [int(v[0]), int(v[0] + v[1])]
                 for k, v in algebraic.items()
@@ -213,6 +266,12 @@ def _collect_probe(system, before, accepted, dynamic, algebraic, mpi):
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--mesh", type=float, default=0.2)
+    p.add_argument(
+        "--scenario", choices=("published", "matched_left_control"),
+        default="published",
+        help="Second scenario changes only U_L(t) to match p0/rho at t=0; "
+             "all PDE bricks and initial q/p are unchanged",
+    )
     p.add_argument("--output-dir", type=Path, required=True)
     args = p.parse_args()
     if not (0 < args.mesh <= 1.0):
@@ -220,7 +279,7 @@ def main():
     mpi = MPI.COMM_WORLD
     os.environ.setdefault("SCRIMP_INIT_FACTOR_SOLVER_TYPE", "mumps")
 
-    system = _build_wave(args.mesh)
+    system = _build_scenario(args.mesh, args.scenario)
     system.set_time_scheme(
         ts_type="cn", ts_adapt_type="none",
         ts_exact_final_time="matchstep",
@@ -263,6 +322,11 @@ def main():
             raise RuntimeError("Missing algebraic projection diagnostic")
         report = capture["result"]
         report.update({
+            "scenario": args.scenario,
+            "boundary_velocity_at_initial_time": (
+                "published U_L(0,y)=0" if args.scenario == "published"
+                else "matched U_L(0,y)=p0(0,y)/rho(0,y)"
+            ),
             "mesh_h": args.mesh, "cn_steps": 5,
             "time_step": 0.002,
             "main_ts_converged_reason": int(
@@ -270,21 +334,28 @@ def main():
             ),
         })
         args.output_dir.mkdir(parents=True, exist_ok=True)
+        suffix = (
+            "" if args.scenario == "published"
+            else f"_{args.scenario}"
+        )
         destination = args.output_dir / (
-            f"wave_algebraic_only_{mpi.Get_size()}r.json"
+            f"wave_algebraic_only_{mpi.Get_size()}r{suffix}.json"
         )
         destination.write_text(
             json.dumps(report, indent=2) + "\n",
             encoding="utf-8",
         )
         print(
-            f"DAE ALGEBRAIC-ONLY {mpi.Get_size()}r: "
+            f"DAE ALGEBRAIC-ONLY {mpi.Get_size()}r "
+            f"scenario={args.scenario}: "
             f"initial_r={report['linear_least_squares']['raw_constraint_residual_l2']:.8g}, "
             f"projected_native_r={report['independent_native_residual_after_project_l2']:.8g}, "
             f"accepted_pseudo_r={report['native_residual_after_pseudo_l2']:.8g}, "
             f"linearization_error={report['jacobian_prediction_mismatch_l2']:.8g}, "
             f"fixed_dynamic_feasibility="
-            f"{report['fixed_dynamics_actual_algebraic_feasibility']}",
+            f"{report['fixed_dynamics_actual_algebraic_feasibility']}; "
+            f"dual_lower_bound_R="
+            f"{report['linear_least_squares']['dual_lower_bound_for_corrections_within_radius_l2']:.9g}",
             flush=True,
         )
 
