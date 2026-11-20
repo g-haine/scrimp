@@ -175,7 +175,8 @@ def heat_wave_eq(heat_region=1, wave_region=2):
     hw.set_time_scheme(
         # Explicit legacy relaxation: preserve the published example's
         # original initial-data behavior when algebraic becomes default.
-        init_step_ts_type="pseudo",ts_type="bdf",
+        init_step_ts_type="pseudo",
+        ts_type="bdf",
                        ts_bdf_order=2,
                        t_f=2.,
                        dt=0.001,
