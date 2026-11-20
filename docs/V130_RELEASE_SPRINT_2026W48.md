@@ -208,3 +208,43 @@ It does not validate nonlinear DAE initialization.
 `release/1.3.0-preparation`; keep native qualification
 outputs user-owned and Docker rc3 immutable. Do not
 rebuild native dependencies for each Python-only edit.
+
+## 20 November native #27 first trial — frozen rc3 source-overlay import failure
+
+Native source under test
+`1f2698f677200eb9a3874bd0d445c7f6513d7683`,
+qualified unchanged `scrimp-mpi:v1.3.0-rc3`
+(OCI source `1d6d0c90115213298047b28237a7f38087563a35`),
+original host evidence:
+
+```text
+sandbox/outputs/v130-shallow-mass-J-1f2698f6-5OeuwCYG/
+```
+
+**Result: FAIL in Python import, before any GetFEM
+assembly, Jacobian or numerical analysis.**
+The runner mounted the updated `scrimp/dphs.py` into
+the frozen rc3 image but omitted its new companion
+`scrimp/utils/dae_initialization.py`, which the
+old image predates. Therefore the first
+`RUN SWE MASS J mode=default MPI=1` raised:
+
+```text
+ModuleNotFoundError: No module named 'scrimp.utils.dae_initialization'
+```
+
+**Fix:** mount the exact current
+`scrimp/utils/dae_initialization.py` read-only beside
+`dphs.py`, matching the previously **native-qualified**
+`scripts/run-v130-dae-default-promotion.sh` design.
+The runner now checks the helper exists and runs a
+lightweight `import scrimp.dphs` preflight before
+launching any MPI physics cases. A source-only test
+guards both the overlay and preflight against this
+exact regression.
+
+No SCRIMP production solver or mathematical
+model was modified. The same image and all FD,
+MPI and legacy control acceptance criteria remain.
+**Issue #27 stays OPEN; native shipped shallow-water
+Jacobian qualification PENDING after rerun.**
