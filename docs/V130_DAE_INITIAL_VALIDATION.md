@@ -1952,3 +1952,91 @@ No production physics bricks, boundary
 controls, original reference data or
 acceptance tolerances were changed
 to correct this initializer-default bug.
+
+## 26. Second implicit-default native attempt: stale benchmark inherited-strategy guard (20 November 2026)
+
+**Native run status: options preflight PASS; first conservative
+diagnostic STOPPED BEFORE PHYSICAL SOLVER.**
+The scientific algebraic projection has **not**
+failed: no mass/stiffness assembly or CN solve
+was attempted in this rerun.
+
+Source revision:
+`3c28e919981eda4ad464a447511e3ac870c0f012`;
+unchanged qualified Docker image
+`scrimp-mpi:v1.3.0-rc3`
+(OCI `1d6d0c90115213298047b28237a7f38087563a35`).
+Host evidence:
+
+```text
+sandbox/outputs/v130-algebraic-default-h0p2-3c28e919-WPt6Z7wP/
+```
+
+**The first PETSc.Options native smoke now PASSES:**
+- `init_step=False` with implicit materialized
+  `algebraic` remains valid after
+  `set_time_scheme()` re-entry.
+- Explicit `init_step=False`,
+  `init_step_ts_type="algebraic"`
+  is correctly rejected as contradictory.
+- Explicit historical `pseudo` remains selectable.
+
+**Next diagnostic-only failure:**
+`RUN DEFAULT CORE mode=algebraic scenario=polynomial_compatible MPI=1`
+stopped before `system.solve()` in
+`sandbox/probe_v130_core_dae_initial.py`,
+with
+
+```text
+RuntimeError: Unexpected inherited benchmark initializer mode
+```
+
+The diagnostic benchmark builder calls its
+original `set_time_scheme()` when constructing
+the wave, so the PETSc database already
+contains a materialized strategy. The diagnostic
+still **assumed** the inherited value must be
+`"pseudo"`, appropriate before the default
+promotion. After the core bug was corrected
+in section 25, the builder can naturally
+contain `"algebraic"` **before** the separate
+default-specific `set_time_scheme()` call.
+This guard was thus obsolete, not evidence
+of an incorrect algebraic projection.
+
+**Corrected diagnostic:** isolate the builder
+option reset in
+`_clear_benchmark_initializer_for_implicit_default`.
+Only for the `--use-default` case,
+accept exactly the two known builder values
+`"pseudo"` and `"algebraic"`, then
+delete the inherited `init_step_ts_type`
+from PETSc before issuing
+`set_time_scheme(**kwargs)` **without**
+any initializer strategy keyword.
+Explicit `pseudo` and BDF2 controls
+remain untouched. An unrelated `bdf`
+or unrecognized inherited builder strategy
+is still rejected instead of silently
+discarded. A new source-only unit
+test exercises both known inherited
+values, explicit controls, missing options
+and unexpected values.
+
+**The final native verifier remains strict:**
+it checks that the *caller* provided no
+initializer keyword, that PETSc's
+*effective* strategy is algebraic, and
+that the full independent frozen CN,
+signed port power and dissipative
+physics tests pass in MPI 1/2.
+No original example, physical model,
+time integrator, reference value,
+acceptance threshold or frozen Docker
+image was changed.
+
+**Next step: retry the unchanged
+`scripts/run-v130-dae-default-promotion.sh`
+on the original qualified image.**
+This implicit-default native gate
+remains **PENDING**, not PASS.
