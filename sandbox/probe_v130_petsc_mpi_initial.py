@@ -322,6 +322,12 @@ def main():
             dynamic=dynamic, verdict=verdict,
         )
         if verdict["algebraic_feasibility"] != "PASS":
+            # Reject atomically: restore the untouched prescribed
+            # GetFEM variables before aborting the physical TS.
+            # In particular, never leak an inconsistent candidate
+            # into a later solve after caller-side exception handling.
+            self.gf_model.set_time(float(self.time_scheme["t_0"]))
+            self.gf_model.to_variables(initial.copy())
             # Do NOT give physical TS a silently inconsistent start;
             # use a distinct exception/status to distinguish this
             # expected Gaussian feasibility failure from a KSP crash.
