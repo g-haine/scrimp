@@ -296,6 +296,48 @@ Container-specific settings belong in Dev Container metadata,
 native Conda interpreter must not inherit hard-coded Linux Docker
 paths.
 
+**Persistent "Invalid Python interpreter is selected" popup
+(after upgrading Dev Container settings):** the initial GUI
+retest on Ubuntu confirmed that Pylance's false ``import scrimp``
+warning disappeared with ``python.analysis.extraPaths``,
+but Python's environment-selection warning **did not**.
+
+The Python extension's ``python.defaultInterpreterPath`` is
+only applied at the **first interpreter choice** for a workspace.
+An interpreter previously selected, or an invalid entry cached in
+VS Code's workspace state, is not replaced just by updating
+``devcontainer.json``. This is documented in VS Code's
+Python settings reference. **First test a selection reset**, not
+another SCRIMP image build:
+
+1. Inside the **Dev Container** VS Code window, run
+   ``Python: Clear Workspace Interpreter Setting`` from the
+   Command Palette (``Ctrl+Shift+P``).
+2. Run ``Developer: Reload Window``.
+3. Run ``Python: Select Interpreter``, choose
+   ``Enter interpreter path``, and select the existing
+   ``/opt/conda/envs/scrimp/bin/python``.
+   Choose the SCRIMP environment directly if it appears.
+4. If the popup persists, click **Show output**. Inspect
+   **Python** and **Python Environments** output channels.
+   Run ``Python Environments: Run Python Environment Tool
+   (PET) in Terminal`` and choose **Resolve Environment**
+   for the absolute Python path. This distinguishes a stale
+   selection from a Conda/Micromamba environment-manager
+   discovery error. Keep the resulting error messages for
+   the installation qualification report.
+
+In particular, an interpreter that runs in a terminal does not
+prove its **Conda environment was classified correctly** by
+the Python Environments extension. Its Conda discovery usually
+expects a detectable ``conda`` command, whereas SCRIMP's
+image is assembled with **micromamba**. Do not silently replace
+the selected environment by a newly installed Python, disable
+all interpreter diagnostics, or pretend that a terminal PASS
+implies editor detection PASS. The actual root cause is still
+**under investigation** until the editor logs or PET result
+identify it.
+
 The host project is bind-mounted at /work. The first command
 writes MySCRIMPProject/outputs/oscillator.csv **on the host**.
 Closing VS Code or removing the container does not delete that file.
