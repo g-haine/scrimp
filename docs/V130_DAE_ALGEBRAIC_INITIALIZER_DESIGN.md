@@ -387,3 +387,100 @@ backward-compatible optional initializer, with focused
 regression tests. **Not** a change to SCRIMP's default
 DAE initialization, not a Docker rebuild of the qualified
 rc3 image, and not a release until its own native gate passes.
+
+
+## 8. First core implementation of the optional algebraic mode — native pending
+
+**Implemented on `release/1.3.0-preparation`, 20 November 2026.**
+The earlier sections describe the **qualified scientific diagnostic**.
+The initial production-owned implementation is now present in:
+
+- `scrimp/utils/dae_initialization.py`:
+  `initialize_linear_algebraic(system)`, real linear-only
+  structural checks, distributed PETSc `IS`/`K_aa`,
+  KSP LSQR with bounded true-`IFunction` defect
+  correction, explicit feasibility/rejection
+  (`InconsistentDAEInitialData`), state restoration and
+  PETSc temporary cleanup, plus `initialization_report`
+  including per-pass diagnostics.
+- `scrimp/dphs.py`:
+  `DPHS.init_step()` routes only the explicitly requested
+  `init_step_ts_type="algebraic"` to this helper,
+  **before** the legacy `init_step_dt`/TS path.
+  The current default in `set_time_scheme()` **remains
+  `pseudo`** for backward compatibility until a separate
+  native default-promotion gate passes.
+- `tests/test_dae_algebraic_initialization_core.py`:
+  lightweight source-level and isolated helper tests of
+  options, complete variable layouts, known unsupported
+  classes and the dispatch. Such checks **do not**
+  substitute for native PETSc/GetFEM qualification.
+- `sandbox/probe_v130_core_dae_initial.py` and
+  `scripts/run-v130-core-dae-initial.sh`:
+  run **the actual core implementation**, not a
+  monkeypatched `DPHS.init_step`, in the unchanged
+  qualified rc3 environment by mounting only the new
+  core files at runtime.
+- `sandbox/compare_v130_core_dae_initial.py`:
+  independently compare the *complete* CN trajectory,
+  signed per-boundary power, cumulative work, Hamiltonian
+  and initial states against the frozen, previously
+  qualified native prototype outputs; also check
+  explicit Gaussian rejection and historical pseudo
+  trajectory parity.
+
+The core regression additionally runs the optional
+**negative-time tiny-step BDF2** initializer with
+`init_step_ts_type="bdf"`,
+`init_step_bdf_order=2`,
+`init_step_dt=1e-6`,
+`init_step_from_negative_time=True`,
+to document its observed behavior and detect breakage
+of the legacy path. BDF2 is not required or expected
+to preserve differential Cauchy data exactly.
+
+**Native qualification command (not yet executed after
+the core integration):**
+
+~~~bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-core-dae-initial.sh
+~~~
+
+This command expects the original **developer-owned**
+frozen reference output folders documented in
+section 5. Do not rebuild the qualified image.
+The new option is not a release feature until
+**this core-specific native gate passes**.
+
+### Explicit user request: change the default only AFTER qualification
+
+The desired final v1.3.0 behavior is
+`init_step_ts_type="algebraic"` when the user
+does not specify an initialization strategy.
+**That change has deliberately NOT been made.**
+It would currently reject the published Gaussian
+`examples/wave.py`, and the linear-only guard rejects
+other historical examples with nonlinear mass/stiffness,
+lumped or substituted ports. Changing the default
+without a model-by-model migration plan would break
+existing simulations.
+
+The exact required default-promotion gates and the
+preliminary impact inventory are recorded in
+[V130_DAE_DEFAULT_MIGRATION.md](V130_DAE_DEFAULT_MIGRATION.md).
+They require core native MPI parity, a second
+independent linear DAE, explicit legacy choices for
+unsupported examples, compatibility tests for BDF2
+and pseudo, cleanup/memory measurements and an
+independent native no-`init_step_ts_type` test
+showing that the **new default** really does the
+algebraic projection.
+
+There is **no silent fallback to pseudo** on
+unsupported or numerically incompatible data.
+That is essential to preserve the meaning of
+“the differential initial coefficients are fixed”.
