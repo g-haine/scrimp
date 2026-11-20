@@ -1296,3 +1296,134 @@ SCRIMP_DOCKER_NO_SUDO=1 \
 SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
 bash scripts/run-v130-petsc-mpi-dae-initial.sh
 ~~~
+
+## 19. Fourth native distributed PETSc DAE run — all scientific gates PASS (20 November 2026)
+
+**Scientific status: QUALIFIED for the tested linear acoustic wave and
+the tested h=0.2 / 10-step CN / MPI 1,2 configuration.**
+This supersedes the pending results in sections 15–18, while
+retaining their original failed-run evidence for reproducibility.
+
+**Exact native provenance:**
+
+```text
+Qualified Docker: scrimp-mpi:v1.3.0-rc3
+OCI source: 1d6d0c90115213298047b28237a7f38087563a35
+Diagnostic Git source: 4d3b4d0cdee4e9b66d49170f5d128466c74e5ad8
+Host evidence:
+sandbox/outputs/v130-petsc-dae-mpi-h0p2-4d3b4d0c-gb0qNKB8/
+```
+
+The native runner executed **all four requested cases**:
+`polynomial_compatible` on 1/2 MPI ranks with ten accepted,
+fixed Crank–Nicolson steps each and
+`published` Gaussian on 1/2 MPI ranks with explicit
+initial-consistency rejection **before any main CN step**.
+
+| Actual measured criterion | MPI 1 | MPI 2 |
+| --- | ---: | ---: |
+| Polynomial initial `||F_a||_2` | 0.16250682 | 0.16250682 |
+| Polynomial projected `||F_a||_2` | **9.8141843e-14** | **9.6187779e-14** |
+| Unchanged DAE threshold | **1.7250682e-9** | **1.7250682e-9** |
+| Independent positive-case refinement goal | 1e-11 | 1e-11 |
+| Refinement goal attained | **True** | **True** |
+| Distributed LSQR correction passes | 2 | 2 |
+| Final-pass KSP iterations | 410 | 399 |
+| Final-pass PETSc KSP reason | 3 | 3 |
+| Polynomial initial-data and native DAE gate | **PASS** | **PASS** |
+| Max absolute `|H(t)-H(0)+W(t)|` | **5.6085329e-15** | **6.0526306e-15** |
+| Signed accumulated boundary work | **-5.3954589e-5** | **-5.3954589e-5** |
+| Gaussian projected `||F_a||_2` | 4.8224432e-6 | 4.8224432e-6 |
+| Gaussian unchanged threshold | 2.0689895e-10 | 2.0689895e-10 |
+| Gaussian run decision | **EXPECTED_REJECTION** | **EXPECTED_REJECTION** |
+| Initial pseudo-TS executed | **No** | **No** |
+| Global `K_aa` gathered to rank 0 | **No** | **No** |
+
+The final independent comparator additionally reported
+
+```text
+projected t0 state discrepancy, scaled full-vector L2 = 9.21579389e-13
+maximum full-CN trajectory discrepancy, scaled L2   = 9.22182758e-13
+worst CN step  = 10 at t=0.02
+unchanged full-trajectory MPI parity threshold       = 5e-8
+full-CN trajectory MPI parity                       = PASS
+signed port-power Hamiltonian identity              = PASS
+published Gaussian t0 rejection                     = PASS
+```
+
+Each compatible polynomial run preserves *every prescribed
+differential q0/p0 coefficient* **bitwise** during projection,
+publishes the projected algebraic state directly at t0, skips
+the pseudo-time TS entirely, executes the original main CN
+solver and satisfies the signed port-Hamiltonian balance
+with **nonzero** external port work. The positive-case signed
+work also matches the earlier independent SciPy
+algebraic-only physical A/B (`-5.39545892e-5`)
+within the comparator's independent tolerance.
+
+The improved 2-rank projection accuracy explains the
+previous `6.20613748944739e-8` trajectory MPI
+discrepancy: after **two** native LSQR passes,
+both projected algebraic residuals are about 1e-13,
+and t0 and all physical CN state differences are
+about 9.2e-13. This provides strong **numerical
+evidence** that the previous MPI mismatch arose
+from unequal initial projection accuracies, rather
+than from a measured defect in the main CN integrator.
+It does not prove that all nullspace/gauge ambiguities
+are absent on arbitrary meshes or DAE formulations.
+
+**Incompatible original Gaussian:** its nonzero
+residual at the requested fixed q0/p0 does not pass
+the stated threshold. The prototype refuses to
+run physical CN and never silently modifies
+the differential initial data. This is a **valid
+numerical negative-control rejection**, not an
+exact mathematical proof of global DAE
+infeasibility for arbitrarily large corrections.
+
+### Architecture gate: scientifically validated prototype, not yet core implementation
+
+The experimental PETSc `IS` + `Mat.createSubMatrix`
+and `KSP LSQR` operator are distributed:
+**the global algebraic matrix `K_aa` is not
+gathered to rank 0**. The diagnostic nevertheless
+uses SCRIMP's existing `Scatter.toAll`/replicated
+`GlobalVec` and full GetFEM variable vector
+to publish the projected state. Therefore
+**"distributed algebraic matrix" must not be
+presented as proof of fully scalable or
+constant-memory-per-rank initialization**.
+Distributed-state memory scaling, robustness
+under singular/nonunique algebraic blocks,
+performance overhead and large-MPI counts
+remain separate engineering gates.
+
+The present prototype also explicitly supports
+only a complete, disjoint dynamic/algebraic
+layout, linear mass and stiffness, zero algebraic
+mass rows, no lumped/substituted variables,
+and real-valued linear wave dynamics.
+It does **not** qualify arbitrary nonlinear,
+high-index, Maxwell, Saint-Venant, or other
+DAE models, nor every admissible boundary control.
+
+**Production candidate contract (NEXT workstream,
+not yet measured):** expose an opt-in
+`init_step_ts_type=algebraic` while retaining
+historical `pseudo` by default. Extract the
+distributed PETSc projected initializer behind
+the established `init_step` dispatch, with
+explicit model/linear-structure guards, native
+residual verification, atomic rejection and
+reproducible diagnostics. Require a separate,
+tight, user-configurable accuracy target distinct
+from physical algebraic feasibility, with
+bounded LSQR passes and no automatic pseudo-TS
+fallback. Keep `init_step_dt` semantics
+limited to the legacy pseudo/BDF code path:
+the algebraic initializer must not create a
+pseudo-time PETSc TS or change the actual CN/BDF
+main time integration. Compare the option to
+the **immutable native diagnostic reference**
+before considering any release or default change.
