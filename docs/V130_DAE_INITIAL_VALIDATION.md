@@ -594,3 +594,87 @@ of the theoretical DAE constraint structure).
 No change to `scrimp/dphs.py`, `examples/wave.py`,
 the qualified Docker image, or user local files is
 authorized by this A/B result alone.
+
+## 10. Native exactly FE-compatible positive-control probe — ready, pending
+
+The completed A/B evidence in section 9 rejects the simple
+hypothesis that prescribing the **analytic** trace of the
+Gaussian's p/rho at the left edge is sufficient to remove the
+**discrete** algebraic obstruction. The smaller residual in the
+published control is **not** proof that the original Gaussian
+is an admissible DAE initial state. A different mathematical
+experiment is needed to discriminate inconsistent data from a
+fault in the extraction/projection algorithm.
+
+The new source-only manufactured input to the otherwise
+*unchanged published wave equations* is:
+
+```text
+q0 = [0., 0.]
+p0 = x*(3-x)          (CG2 polynomial; nonzero)
+rho = 3-x
+e_p = p0/rho = x     (CG2 polynomial)
+U_L(0,y) = 0         (unchanged published control)
+```
+
+This defines an explicit feasible **continuous and FE** candidate
+for the constitutive and left-boundary algebraic constraints:
+`p0` has degree two, `e_p=x` degree one, and
+`e_p|Gamma_Left = 0`. The other three ports
+are the unchanged force-driven ports. Unlike the
+Gaussian A/B comparison, this deliberately changes
+the initial data `p0`, but *only inside a runtime diagnostic
+monkeypatch while constructing the same model*. It does
+**not** change `examples/wave.py`, `dphs.py`, or
+the qualified `scrimp-mpi:v1.3.0-rc3` image.
+
+This test is intentionally a **positive control**, not
+a prescription to replace the published Gaussian model.
+
+The existing `sandbox/probe_v130_wave_fixed_dynamics.py`
+now supports `--scenario polynomial_compatible` and
+reports separately:
+
+- actual algebraic-only feasibility and residual with
+  prescribed q/p coefficients *exactly frozen*;
+- named weak-form constitutive and boundary residuals;
+- exact GetFEM `IFunction` vs extracted PETSc `K_aa`
+  algebraic linearization;
+- the **drift of prescribed dynamic variables in the
+  historical pseudo-TS**, even when the original dynamic
+  data are already algebraically consistent;
+- MPI 1/2 parity and successful unchanged main CN solve.
+
+The new runner executes **only 1 and 2 rank runs of this
+polynomial positive control**, not the previously validated
+four original/matched-control runs:
+
+~~~bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-exact-fe-initial-probe.sh
+~~~
+
+It first builds the model with prescribed polynomial data
+as a native GetFEM construction preflight, then runs two
+complete small fixed-step CN simulations with the
+unchanged production pseudo initializer. The feasibility
+projection is **measured but never substituted** into the
+production physical time integrator. It writes a unique
+user-owned output directory under
+`sandbox/outputs/v130-dae-fe-positive-h0p2-.../`.
+Existing Docker tags, native layers, user workspace edits,
+and the `sandbox/outputs` history remain unchanged.
+
+**Interpretation depends on actual native evidence:**
+
+| Positive control observation | Consequence |
+| --- | --- |
+| FE polynomial fixed-data algebraic residual <= 1e-10 + 1e-8 × initial residual | Strong evidence that the original Gaussian and boundary input, not general K_aa extraction/LSMR, cause its nonzero least-squares obstruction |
+| FE polynomial residual above threshold | Investigate residuals by field, mesh interpolation and possible source/constraint implementation issues; do not assume incompatibility of Gaussian was proven |
+| Pseudo-TS changes q/p even for exactly compatible data | The default pseudo-TS is not a pure algebraic projection; the accepted physical start must be reconsidered, independently of MPI parity |
+
+No expected PASS is represented as measured until this
+**new native experiment runs**.
