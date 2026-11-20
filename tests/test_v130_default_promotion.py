@@ -142,9 +142,16 @@ class TestV130DefaultPromotion(unittest.TestCase):
         wave=CORE_PROBE.read_text(encoding="utf-8")
         diss=DISSIPATIVE_PROBE.read_text(encoding="utf-8")
         self.assertIn('if not args.use_default:',wave)
+        self.assertIn(
+            'system.time_scheme.delValue("init_step_ts_type")',
+            wave,
+        )
         self.assertIn('kwargs["init_step_ts_type"] = option',wave)
         self.assertIn('if not use_default:',diss)
         self.assertIn('kwargs["init_step_ts_type"] = "algebraic"',diss)
+        self.assertIn(
+            'kwargs.pop("init_step_ts_type", None)',diss
+        )
         self.assertIn(
             "system.time_scheme.hasName(\"init_step_ts_type\")",diss
         )
