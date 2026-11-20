@@ -1618,3 +1618,69 @@ historical pseudo TS. Do NOT silently enable
 this path for the rotating viscous disk, where
 `Y` is an algebraic null-column and differentiated
 boundary constraints are required. #28 stays open.
+
+
+## 20 November 2026 — next gate staged: opt-in *production* nonlinear-state / affine-algebraic DAE initialization
+
+After the **original native diagnostic** of
+`examples/shallow_water.py` passed at MPI1/2
+(`||F_a||=2.20e-12`/`2.33e-12` after a
+single direct algebraic correction), production code
+now exposes an **opt-in**, distinct initializer
+`init_step_ts_type="nonlinear_affine"`.
+
+- Existing default linear `algebraic` and historical
+  `pseudo`/`bdf` behavior remain unchanged.
+- Original differential FE coefficients `q0=(h0,p0)`
+  remain bitwise unchanged. Only a **regular,
+  affine-in-algebraic-variables** block is eligible.
+- True native `IFunction` initial and final residuals
+  and analytic `J_aa` are used, not a manufactured proxy;
+  nonlinear mass and stiffness are allowed at fixed `q0`.
+- The initializer freezes the original accepted-state
+  explicit forcing, performs **one direct PETSc
+  PREONLY+MUMPS algebraic solve**, checks the true
+  affine identity and strict algebraic accuracy,
+  and commits only accepted algebraic coefficients.
+- Zero algebraic Jacobian columns are rejected before
+  factorization, with full state rollback on failure:
+  this **explicitly excludes** the original rotating
+  viscous disk multiplier `Y` whose full `J_aa` is
+  singular. It does NOT handle high-index initial
+  differentiated boundary constraints.
+- It does not implement or claim a general nonlinear
+  algebraic Newton; it is a new narrow regular
+  nonlinear-*state* DAE class.
+- No automatic default migration or physical TS
+  release gate is claimed.
+
+New production implementation:
+`scrimp/utils/nonlinear_affine_dae.py`,
+with narrowly scoped dispatch in `scrimp/dphs.py`.
+New native harness:
+`sandbox/probe_v130_issue28_production_nonlinear_affine.py`
+and `scripts/run-v130-issue28-production-nonlinear-affine.sh`.
+The runner uses the original rectangular shallow-water
+model, its actual production `DPHS.init_step()`,
+and the immutable rc3 Docker image, MPI 1/2.
+It explicitly verifies the **published** updated
+algebraic GetFEM coefficients via native `IFunction`,
+original differential coefficients, and caches.
+No main physical TS is executed in this stage.
+
+**SOURCE ONLY / NATIVE PRODUCTION GATE STILL PENDING.**
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+SCRIMP_DOCKER_NO_SUDO=1 SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+  bash scripts/run-v130-issue28-production-nonlinear-affine.sh
+```
+
+After this native gate, separate negative controls
+(singular/high-index disk and incompatible fixed
+differential data), normal TS short-run with power
+balance, MPI parity, and h-refinement remain release
+dependencies. This production stage should not be
+listed as fully qualified until user-supplied native
+evidence is checked.
