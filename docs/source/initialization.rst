@@ -121,6 +121,14 @@ its signed Hamiltonian/port-power identity: conserving
 power from a **modified** initial state does not
 recover the original prescribed Cauchy problem.
 
+**Core native result (20 November 2026):**
+the historical ``pseudo`` main physical CN
+trajectory is identical to its independently
+frozen baseline (maximum scaled difference **0**).
+The nonzero dynamic drift values above therefore
+represent the actual accepted historical method,
+not a regression caused by the new opt-in code.
+
 Explicit `pseudo` is useful for reproducing old SCRIMP
 trajectories and when its relaxation behavior is intended.
 Reducing the pseudo-time step alone cannot guarantee
@@ -162,6 +170,30 @@ Roundoff, stiffness, bootstrap behavior and
 the DAE index matter. A tiny BDF2 step is **not**
 a universal nonlinear or high-index DAE
 initialization method.
+
+**Core native result (20 November 2026):** on the
+same compatible polynomial acoustic wave, the
+explicit negative-time BDF2 ``init_step_dt=1e-6``
+produced coefficient-vector drift
+:math:`\|\Delta q_0\|_2=1.9595912757338825\cdot10^{-5}`
+and
+:math:`\|\Delta p_0\|_2=8.680599894760661\cdot10^{-10}`.
+The maximum defect in the signed physical
+Hamiltonian plus boundary-work balance
+was :math:`4.74270349\cdot10^{-15}`.
+Although smaller than the measured pseudo-TS
+drift, this is **nonzero**: the tiny BDF2 step
+is not an exact fixed-differential-data projection.
+
+The opt-in **production core** algebraic method
+was also qualified on the same 1/2-MPI positive
+wave, matching all eleven frozen CN states
+to a maximum scaled error of ``0`` on MPI 1
+and ``5.30974918e-18`` on MPI 2, while
+preserving every prescribed dynamic coefficient.
+See section 21 of
+``docs/V130_DAE_INITIAL_VALIDATION.md``
+for the complete experiment and provenance.
 
 Without `init_step_from_negative_time=True`,
 the historical BDF initialization starts at
