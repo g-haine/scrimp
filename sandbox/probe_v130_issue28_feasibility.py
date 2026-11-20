@@ -208,6 +208,15 @@ def _audit(system, mpi):
             else "INCOMPATIBLE_AT_TOLERANCE" if certifiable
             else "INCONCLUSIVE_LSQR"
         )
+        # Independent confirmation of the actual GetFEM geometric
+        # mapping, NOT just the number of nodes in a Gmsh .msh file.
+        # A curved mesh must retain a nonlinear GeoTrans after import.
+        gt_raw = system.domain.get_mesh()[0].geotrans()
+        geotrans = gt_raw[0] if isinstance(gt_raw, tuple) else gt_raw
+        if not isinstance(geotrans, (list, tuple, np.ndarray)):
+            geotrans = [geotrans]
+        gt_names = [gt.char() for gt in geotrans]
+        gt_has_curve = any(not bool(gt.is_linear()) for gt in geotrans)
         report = {
             "schema": "scrimp-v130-issue28-fixed-state-feasibility-v1",
             "status": status,
@@ -222,9 +231,9 @@ def _audit(system, mpi):
             "getfem_imported_element_count": int(
                 system.domain.get_mesh()[0].nbcvs()
             ),
-            "getfem_imported_geotransform_summary": str(
-                system.domain.get_mesh()[0].geotrans()
-            )[:2000],
+            "getfem_imported_geotransform_descriptors": gt_names,
+            "getfem_import_has_nonlinear_geometric_transform":
+                bool(gt_has_curve),
             "compatibility_advice": [
                 "The field FEM degree and the mesh GEOMETRIC order are independent.",
                 "For rotating data on a circular physical boundary, first test "

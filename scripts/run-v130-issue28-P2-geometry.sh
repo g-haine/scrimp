@@ -88,6 +88,9 @@ for scenario in ("rest","original"):
     two=json.loads((p/f"result_{scenario}_2/feasibility.json").read_text())
     for x in (one,two):
         assert x["geometry_order_requested"]==2
+        assert x["getfem_import_has_nonlinear_geometric_transform"], (
+            "P2 requested, but GetFEM did not preserve curved geometry",
+            x["getfem_imported_geotransform_descriptors"])
         assert x["differential_h0_p0_bitwise_preserved"]
         assert x["entire_initial_state_rollback_bitwise"]
         assert x["linear_dependence_verified"]
@@ -105,7 +108,7 @@ for scenario in ("rest","original"):
           f"|Fa|={one['least_squares_final_Fa_l2']:.9g}, "
           f"GetFEM nodes={one['getfem_imported_geometry_nodes']}, "
           f"elements={one['getfem_imported_element_count']}")
-    print(" GetFEM transformations:",one["getfem_imported_geotransform_summary"][:180])
+    print(" GetFEM transformations:",one["getfem_imported_geotransform_descriptors"])
     if scenario=="original":
         reference=0.02656138  # prior P1 original, supplied native evidence
         ratio=one["least_squares_final_Fa_l2"]/reference
