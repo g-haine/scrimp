@@ -31,7 +31,13 @@ def compare(root):
                 or not r["nonlinear_mass"] or r["main_TS_executed"]
                 or not r["independent_time_derivative"]
                 or r["dofs"]<20
-                or len(r["outcomes"])!=4):
+                or len(r["outcomes"])!=4
+                or r.get("tangent_policy")
+                   != "fully_explicit_frozen_at_accepted_state"
+                or r.get("gyro_G_explicit_restored") is not True
+                or not r.get("lagged_state_distinct_from_trial_state")
+                or float(r.get("frozen_explicit_RHS_norm",0))<=1e-13
+                or float(r.get("frozen_explicit_RHS_drift",-1))!=0.0):
                 raise RuntimeError(f"Wrong native Jacobian record: {src.name}")
             if mode=="default" and r["mass_mode_env"] is not None:
                 raise RuntimeError("Default correction was explicitly configured")
