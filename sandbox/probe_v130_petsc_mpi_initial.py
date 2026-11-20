@@ -258,10 +258,10 @@ def _project_distributed(system, mpi, *, atol=1e-10, rtol=1e-8):
             history.append({
                 "pass_number": pass_number,
                 "native_algebraic_residual_l2": norm_after,
-                "petcs_ksp_convergence_reason": reason,
+                "petsc_ksp_convergence_reason": reason,
                 "petsc_ksp_iterations": iters,
                 "petsc_ksp_reported_residual_norm": ksp_final_norm,
-                "petcs_correction_l2": float(
+                "petsc_correction_l2": float(
                     correction.norm(PETSc.NormType.NORM_2)
                 ),
             })
@@ -324,9 +324,7 @@ def _project_distributed(system, mpi, *, atol=1e-10, rtol=1e-8):
             "lsqr_success_requires_native_ifunction": True,
             "differential_state_exactly_preserved": True,
             "algebraic_state_correction_l2": float(
-                float(np.linalg.norm(
-                    candidate[aidx] - initial[aidx]
-                ))
+                np.linalg.norm(candidate[aidx] - initial[aidx])
             ),
             "algebraic_feasibility": (
                 "PASS" if norm_final <= tolerance else "UNRESOLVED"
@@ -437,15 +435,24 @@ def main():
         system.solve()
     except RuntimeError as exc:
         if (
-            args.scenario != "published"
-            or "DAE_ALGEBRAIC_INITIAL_DATA_UNRESOLVED" not in str(exc)
+            "DAE_ALGEBRAIC_INITIAL_DATA_UNRESOLVED" not in str(exc)
             or not outcome
         ):
             raise
+        # Always preserve the complete PETSc iteration history and
+        # actual IFunction results on both a positive-control FAILURE
+        # and an expected negative-control REJECTION.  This avoids
+        # losing the decisive diagnostics when the physical TS is
+        # correctly prevented from starting.
         report.update(outcome["verdict"])
-        report["expected_incompatible_gaussian_rejected"] = True
+        report["expected_incompatible_gaussian_rejected"] = (
+            args.scenario == "published"
+        )
         report["physical_cn_executed"] = False
-        report["scientific_status"] = "EXPECTED_REJECTION"
+        report["scientific_status"] = (
+            "EXPECTED_REJECTION"
+            if args.scenario == "published" else "UNRESOLVED"
+        )
     else:
         if args.scenario != "polynomial_compatible":
             raise RuntimeError(
@@ -534,14 +541,20 @@ def main():
             f"F_a={report['native_algebraic_before_l2']:.8g} -> "
             f"{report['native_algebraic_after_l2']:.8g}, "
             f"tol={report['native_residual_tolerance']:.8g}, "
+            f"LSQR passes={report['lsqr_refinement_pass_count']}, "
             f"LSQR iterations={report['ksp_iterations']}, "
+            f"KSP reason={report['ksp_convergence_reason']}, "
             f"pseudo=NEVER, global Kaa gathering=NEVER",
             flush=True,
         )
     if report["scientific_status"] not in (
         "PASS", "EXPECTED_REJECTION"
     ):
-        raise RuntimeError("PETSc distributed DAE native physics FAIL")
+        raise RuntimeError(
+            "PETSc distributed DAE positive-control initial "
+            "feasibility UNRESOLVED: diagnostic JSON archived "
+            "before main CN; acceptance threshold unchanged"
+        )
 
 
 if __name__ == "__main__":
