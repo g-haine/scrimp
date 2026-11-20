@@ -214,7 +214,17 @@ def _audit(system, mpi):
             "mpi_ranks": int(mpi.size),
             "rotation": float(getattr(system, "_issue28_rotation", 0.)),
             "original_tangent_profile": True,
-            "original_polygon_facet_boundary": True,
+            "original_polygon_facet_boundary": args.geometry_order == 1,
+            "geometry_order_requested": int(system._issue28_geometry_order),
+            "getfem_imported_geometry_nodes": int(
+                system.domain.get_mesh()[0].nbpts()
+            ),
+            "getfem_imported_element_count": int(
+                system.domain.get_mesh()[0].nbcvs()
+            ),
+            "getfem_imported_geotransform_descriptors": [
+                str(v) for v in system.domain.get_mesh()[0].geotrans()[0]
+            ],
             "dofs": n,
             "algebraic_rows": len(rows),
             "adjustable_algebraic_dofs": len(unknowns),
@@ -276,6 +286,7 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--mesh", type=float, default=.2)
     p.add_argument("--rotation", type=float, choices=None, default=.2)
+    p.add_argument("--geometry-order", type=int, choices=(1, 2), default=1)
     p.add_argument("--out", type=Path, required=True)
     args = p.parse_args()
     if not np.isfinite(args.rotation) or args.rotation not in (0., .2):
@@ -292,9 +303,10 @@ def main():
         initial_profile="tangent",
         wall_velocity_profile="facet_tangent",
         algebraic_initial_guess="zero", init_method="bdf",
-        height_order=2,
+        height_order=2, geometry_order=args.geometry_order,
     )
     system._issue28_rotation = args.rotation
+    system._issue28_geometry_order = args.geometry_order
     result = {}
 
     def intercept(self):

@@ -133,6 +133,11 @@ def Disk(parameters={"R": 1.0, "h": 0.1}, refine=0, terminal=1):
 
     h = parameters["h"]
     R = parameters["R"]
+    # Geometry degree is INDEPENDENT of the solution FEM degree.
+    # Preserve historical straight-sided P1 geometry as default.
+    geometry_order = parameters.get("geometry_order", 1)
+    if type(geometry_order) is not int or geometry_order not in (1, 2):
+        raise ValueError("Disk geometry_order must be the integer 1 or 2")
 
     # Init GMSH
     gmsh.initialize()
@@ -177,6 +182,10 @@ def Disk(parameters={"R": 1.0, "h": 0.1}, refine=0, terminal=1):
     # Refine
     for i in range(refine):
         model.mesh.refine()
+    if geometry_order == 2:
+        # Order-2 geometry is a quadratic approximation of the CAD
+        # circle, not an exact curved circle and not a change of FEM.
+        model.mesh.setOrder(2)
     # Write on disk
     if rank==0:
         gmsh.write(os.path.join(outputs_path, "mesh", "Disk.msh"))
@@ -185,7 +194,10 @@ def Disk(parameters={"R": 1.0, "h": 0.1}, refine=0, terminal=1):
     gmsh.finalize()
 
     if rank == 0:
-        logging.info(f"Disk with radius {R} has been meshed")
+        logging.info(
+            f"Disk with radius {R} has been meshed "
+            f"(geometric order={geometry_order})"
+        )
 
     # GetFEM mesh
     mesh = gf.Mesh("import", "gmsh_with_lower_dim_elt", os.path.join(outputs_path, "mesh", "Disk.msh"))

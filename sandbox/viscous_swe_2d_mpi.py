@@ -111,7 +111,9 @@ def build_system(gamma, mesh, final_time, save_dt, max_step,
                  algebraic_initial_guess="zero",
                  start_from_rest_duration=0.0,
                  init_method="bdf", init_pseudo_steps=1,
-                 height_order=2):
+                 height_order=2, geometry_order=1):
+    if type(geometry_order) is not int or geometry_order not in (1, 2):
+        raise ValueError("geometry_order must be integer 1 or 2")
     if height_order not in (2, 3):
         raise ValueError("height_order must be 2 or 3")
     if gamma not in (0.0, 0.25):
@@ -167,7 +169,9 @@ def build_system(gamma, mesh, final_time, save_dt, max_step,
     swe.gf_model.add_macro("Tangent", "(Rot*Normal)")
     swe.gf_model.add_macro("Curl2D(v)", "div(Rot*v)")
     swe.gf_model.add_macro("Gyro(v)", "Curl2D(v)*Rot")
-    swe.set_domain(S.Domain("Disk", {"R": 1.0, "h": mesh}))
+    swe.set_domain(S.Domain(
+        "Disk", {"R": 1.0, "h": mesh, "geometry_order": geometry_order}
+    ))
 
     h = S.State("h", "Fluid height", "scalar-field")
     p = S.State("p", "Linear momentum", "vector-field")
@@ -548,6 +552,12 @@ def main():
              "sandbox baseline is the default; select 3 to reproduce "
              "the paper's P3(h,e_h)/P2(p,e_p,boundary) choice.",
     )
+    parser.add_argument(
+        "--geometry-order", type=int, choices=(1, 2), default=1,
+        help="Gmsh geometric order (1=straight-sided historical disk, "
+             "2=experimental curved quadratic circle), independent of "
+             "P2/P3 field FEM. Must verify GetFEM import and constraints.",
+    )
     parser.add_argument("--final-time", type=float, default=250.0)
     parser.add_argument("--save-dt", type=float, default=1.0)
     parser.add_argument("--max-step", type=float, default=0.01)
@@ -689,6 +699,7 @@ def main():
             f"pseudo_init={not args.no_init_step}, "
             f"dt={args.max_step}, t_f={args.final_time}, "
             f"height_order={args.height_order}, "
+            f"geometry_order={args.geometry_order}, "
             f"init_dt={args.init_dt}, init_method={args.init_method}, "
             f"init_pseudo_steps={args.init_pseudo_steps}, "
             f"rotation={args.rotation}, "
@@ -713,7 +724,8 @@ def main():
                        start_from_rest_duration=args.start_from_rest_duration,
                        init_method=args.init_method,
                        init_pseudo_steps=args.init_pseudo_steps,
-                       height_order=args.height_order)
+                       height_order=args.height_order,
+                       geometry_order=args.geometry_order)
     if args.petsc_monitor:
         # PETSc's -ts_monitor/-ts_adapt_monitor are VIEWER-valued
         # command-line flags, not Boolean-valued TS settings.
