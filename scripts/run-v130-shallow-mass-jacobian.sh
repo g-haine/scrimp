@@ -27,6 +27,7 @@ if [[ "$revision" != "$expected" ]]; then
 fi
 for f in \
     scrimp/dphs.py \
+    scrimp/utils/dae_initialization.py \
     examples/shallow_water.py \
     sandbox/check_v130_shallow_water_mass_jacobian.py \
     sandbox/compare_v130_shallow_water_mass_jacobian.py; do
@@ -58,9 +59,24 @@ common=( \
     --volume "$work:/scrimp-work:rw" \
     --volume "$out:/artifacts:rw" \
     --volume "$root/scrimp/dphs.py:/workspace/scrimp/scrimp/dphs.py:ro" \
+    --volume "$root/scrimp/utils/dae_initialization.py:/workspace/scrimp/scrimp/utils/dae_initialization.py:ro" \
     --volume "$root/examples/shallow_water.py:/workspace/scrimp/examples/shallow_water.py:ro" \
     --volume "$root/sandbox/check_v130_shallow_water_mass_jacobian.py:/workspace/scrimp/sandbox/check_v130_shallow_water_mass_jacobian.py:ro" \
 )
+# Fail before any expensive GetFEM mesh/assembly if the overlay
+# cannot import the *current* production Python core against rc3.
+# rc3 itself predates scrimp/utils/dae_initialization.py; mounting
+# dphs.py without its companion module is not a valid source overlay.
+echo "PREFLIGHT: current SCRIMP core and DAE initialization import in frozen rc3"
+if ! "${docker_cmd[@]}" run --rm "${common[@]}" "$image" \
+    python -c 'from scrimp.dphs import DPHS; from scrimp.utils.dae_initialization import initialize_linear_algebraic; print("PASS: current DPHS and DAE helper import")' \
+    > "$out/import_preflight.log" 2>&1; then
+    echo "FAIL: frozen rc3 current source-overlay import" >&2
+    tail -n 100 "$out/import_preflight.log" >&2
+    echo "Evidence: $out" >&2
+    exit 1
+fi
+cat "$out/import_preflight.log"
 for ranks in 1 2; do
     for mode in default legacy; do
         echo "RUN SWE MASS J mode=$mode MPI=$ranks"
