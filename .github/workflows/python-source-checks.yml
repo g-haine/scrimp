@@ -63,8 +63,9 @@ jobs:
           python -m unittest -v tests.test_release120_scaling_plots tests.test_v130_wave_figures tests.test_v130_large_wave_scaling tests.test_initial_consistency_sync
       - name: Validate DAE initialization and full-trajectory diagnostic sources
         run: |
-          python -m py_compile sandbox/audit_v130_wave_dae_initial.py sandbox/compare_v130_wave_dae_initial.py
+          python -m py_compile sandbox/audit_v130_wave_dae_initial.py sandbox/compare_v130_wave_dae_initial.py tests/test_v130_wave_dae_audit.py
           bash -n scripts/run-v130-dae-initial-audit.sh
+          python -m unittest -v tests.test_v130_wave_dae_audit
       - name: Validate SCRIMP source headers
         run: |
           python -m unittest -v tests.test_python_headers
