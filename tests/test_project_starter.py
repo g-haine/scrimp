@@ -41,6 +41,33 @@ class StarterProjectTest(unittest.TestCase):
                ["python.defaultInterpreterPath"],
             "/opt/conda/envs/scrimp/bin/python",
         )
+        vs_settings = obj["customizations"]["vscode"]["settings"]
+        # A micromamba environment lives outside the user workspace.
+        # Python Environments must search there; the existing default
+        # interpreter path alone did not stop a false "No Python" prompt.
+        self.assertIn(
+            "/opt/conda/envs", vs_settings["python-envs.globalSearchPaths"]
+        )
+        self.assertEqual(
+            vs_settings["python.interpreter.infoVisibility"], "always"
+        )
+        # Editable SCRIMP is installed in the image at /workspace/scrimp.
+        # Pylance cannot necessarily follow setuptools import-hook .pth.
+        self.assertEqual(
+            vs_settings["python.analysis.extraPaths"], ["/workspace/scrimp"]
+        )
+        # Do not turn off missing imports globally: catch genuine errors.
+        self.assertNotIn(
+            "python.analysis.diagnosticSeverityOverrides", vs_settings
+        )
+        # Keep this container-only so native-Conda user workspaces are
+        # never forced to use paths inside an unrelated Linux image.
+        shared = json.loads(
+            (TEMPLATE / ".vscode/settings.json").read_text()
+        )
+        self.assertNotIn("python.defaultInterpreterPath", shared)
+        self.assertNotIn("python.analysis.extraPaths", shared)
+        self.assertNotIn("python-envs.globalSearchPaths", shared)
 
     def test_vscode_configs_are_parseable(self):
         for filename in ("launch.json", "settings.json", "tasks.json"):
