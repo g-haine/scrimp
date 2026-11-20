@@ -1269,3 +1269,55 @@ versions consistent, passing CI and scientifically validated demos.
   Do not close #6 before its full physical/MPI tests pass.
 - The tangential-velocity-controlled Saint-Venant 2D study for
   **LHMNC 2027 starts only after completing all gates 0–9.**
+
+## Nonlinear shallow-water gyroscopic brick: true explicit RHS (20 November 2026)
+
+**User decision:** keep `examples/shallow_water.py` gyroscopic
+`G` **fully explicit**. The previous
+`explicit=True` code only excluded `G` from
+the implicit Jacobian while still reevaluating its
+contribution at the current Newton trial state;
+this broke the actual `IFunction`-`IJacobian`
+derivative contract, producing a zero-`zd`
+relative Jacobian directional-FD error of
+`2.02366589e-5` on both MPI 1/2 ranks.
+Frozen first full native output:
+
+```text
+sandbox/outputs/v130-shallow-mass-J-c9bd39e4-3B7wkKE3/
+```
+
+The **production** `explicit=True` semantics
+have now been corrected:
+`TS.setPreStep()` assembles the original
+nonlinear weak brick at the **last accepted**
+`(t_n,z_n)`; the resulting calibrated
+distributed PETSc RHS is **frozen across all
+Newton and line-search iterations** of the
+following step. The term is excluded from
+the current implicit RHS assembly and Jacobian.
+The original (G) expression, sign and
+`explicit=True` option remain unchanged.
+This is a **lagged first-order explicit term**,
+not a discrete-energy-preserving implicit
+midpoint gyroscopic term. Unsupported
+`explicit=True` forms are rejected.
+
+**Acceptance status:** source-only isolated
+tests and CI exercise the full accepted-state
+freeze contract; **native FD/physical
+qualification is pending**. The strict
+`scripts/run-v130-shallow-mass-jacobian.sh`
+does a corrected-default/legacy comparison
+at **nonzero frozen explicit G** on MPI 1/2
+with the **original 1e-5 threshold** and
+requires zero cache drift across FD trials.
+A separate short real PETSc time integration
+and signed Hamiltonian/port-work audit must
+verify the new split before closing
+[#27](https://github.com/g-haine/scrimp/issues/27).
+See [release sprint](V130_RELEASE_SPRINT_2026W48.md).
+Do not confuse this with the already-qualified
+linear algebraic DAE default or claim that
+state-dependent mass Jacobian is universally
+correct until the new native results pass.
