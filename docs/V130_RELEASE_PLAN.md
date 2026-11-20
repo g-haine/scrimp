@@ -10,21 +10,33 @@ release. No general Saint-Venant 2D tangential-velocity boundary-control
 development enters its critical path. That model is a separate,
 **post-release** project for LHMNC 2027.
 
-**DAE initialization workstream (20 November 2026):**
-the isolated **linear-wave scientific prototype** has passed all
-native 1/2-rank, fixed-CN, signed power and incompatible-data
-rejection gates. A **production-owned opt-in implementation has
-now been committed** (`scrimp/utils/dae_initialization.py`,
-`DPHS.init_step()` dispatch), but its **native core-specific
-qualification is still PENDING**. The historical `pseudo`
-remains the default; `bdf` and tiny negative-time BDF2
-remain explicit alternatives. The user requested to
-promote `algebraic` to the global default **only after**
-this new core and compatibility migration have passed
-their own native acceptance gates. Read the
-[mathematical design and core state](V130_DAE_ALGEBRAIC_INITIALIZER_DESIGN.md),
-[default migration blockers and gates](V130_DAE_DEFAULT_MIGRATION.md)
-and [full scientific evidence log](V130_DAE_INITIAL_VALIDATION.md).
+**DAE initialization workstream (20 November 2026):
+PRODUCTION CORE OPT-IN NATIVE PASS.**
+The distributed PETSc linear algebraic initializer
+is now integrated into `scrimp/dphs.py`, and its
+**actual production native** MPI 1/2 qualification
+passes against the original independently qualified
+diagnostic: exact q0/p0 fidelity, 11 complete CN
+snapshots (0 / 5.30974918e-18 max scaled
+difference from the frozen reference), signed
+nonzero port-power balance (~5.6–6.1e-15),
+and explicit Gaussian rejection before CN.
+The historical `pseudo` retains exactly its
+frozen physical trajectory; tiny negative-start
+BDF2 also works but measurably changes initial
+q0/p0. The original eight top-level examples
+now request `init_step_ts_type="pseudo"`
+**explicitly** to retain their historical results.
+The user requested the new `algebraic` mode as
+**the global default once fully qualified**.
+The *core opt-in acoustic gate* is complete;
+a second independent linear model and the
+remaining default-migration compatibility and
+performance gates are still pending.
+Read the [technical method and native
+core evidence](V130_DAE_ALGEBRAIC_INITIALIZER_DESIGN.md),
+[default-migration plan](V130_DAE_DEFAULT_MIGRATION.md)
+and [full measured scientific log](V130_DAE_INITIAL_VALIDATION.md).
 
 ## 0 — Finish solver optimization and establish scientific equivalence
 
@@ -635,49 +647,60 @@ The method, current scope and completed scientific
 measurements are documented in
 [V130_DAE_ALGEBRAIC_INITIALIZER_DESIGN.md](V130_DAE_ALGEBRAIC_INITIALIZER_DESIGN.md).
 
-**OPT-IN CORE IMPLEMENTATION: SOURCE READY, NATIVE PENDING
+**CORE OPT-IN PHYSICAL QUALIFICATION: PASSED
 (20 November 2026).** The production entry point
-`init_step_ts_type="algebraic"` now delegates to
-`scrimp/utils/dae_initialization.py`, avoiding the
-historical pseudo-TS entirely and preserving dynamic
-DOFs in the eligible linear model. It rejects unsupported
-structures and incompatible input, preserves a
-serializable `initialization_report` on numerical
-rejection, cleans PETSc temporaries, and keeps
-`pseudo` as the unmodified default until native
-validation is returned.
+`init_step_ts_type="algebraic"` uses the distributed
+PETSc helper without pseudo-time TS and reproduces
+all eleven independent frozen acoustic CN states
+to a max scaled error **0** (MPI 1) /
+**5.30974918e-18** (MPI 2). Prescribed q0/p0
+are bitwise unchanged; true algebraic residuals
+are ~**1e-13**; signed boundary-power energy
+defects ~**6e-15**. Published Gaussian is rejected
+on MPI 1/2 at t0 with
+`4.82244319e-6` against `2.0689895e-10`.
+The explicit legacy `pseudo` physical trajectory
+matches the frozen reference exactly.
+The negative-time BDF2 `init_step_dt=1e-6`
+run has nonzero drifts
+`1.9595912757338825e-5` (q) and
+`8.680599894760661e-10` (p), despite
+a similarly accurate physical power balance.
+Native output:
+`sandbox/outputs/v130-core-dae-h0p2-66fe02c2-WykmP41Y/`.
 
-**Next concrete command** on the existing, frozen
-`scrimp-mpi:v1.3.0-rc3` runtime:
+**NEXT NATIVE GATE: second independent dissipative
+linear port-Hamiltonian model** using the actual
+`examples/wave_dissipative.py` GetFEM bricks
+with manufactured FE-compatible p0, nonzero
+boundary excitation and an independent damping
+port. The native gate requires the original
+`IFunction` residual, bitwise q0/p0 fidelity,
+10-step main CN trajectories and MPI 1/2
+parity, plus the complete signed
+**Hamiltonian + boundary work + dissipation**
+balance. The second model's results are
+**PENDING**, not PASS:
 
 ~~~bash
 cd ~/Simulations/scrimp
 git pull --ff-only
 SCRIMP_DOCKER_NO_SUDO=1 \
 SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
-bash scripts/run-v130-core-dae-initial.sh
+bash scripts/run-v130-second-linear-dae.sh
 ~~~
 
-The new launcher tests the true core code (no init
-monkeypatch) on positive and rejected Gaussian
-1/2-rank cases, then runs serial legacy `pseudo`
-and BDF2 with a negative-time `1e-6` initial step.
-The independent comparator requires frozen diagnostic
-and historical pseudo baseline outputs, and compares
-**all** CN states and signed power time series.
-Source-only GitHub CI is an additional gate,
-**not** native acceptance.
-
-**Default promotion is deliberately blocked** until
-this native gate, a second independent linear model,
-a source/native audit of unsupported examples,
-explicit migration of historical pseudo users
-(including the published Gaussian), and memory/
-cleanup criteria pass. See
+Eight historical top-level examples have been
+migrated **source-only** to explicit
+`init_step_ts_type="pseudo"` without changing
+their physics, initial data or time steps.
+Global default promotion to `algebraic`
+will follow only after the second model,
+unsupported-model audit, cleanup/memory and
+native **no-explicit-initializer** regression.
+No silent pseudo fallback; no default switch
+yet. See
 [V130_DAE_DEFAULT_MIGRATION.md](V130_DAE_DEFAULT_MIGRATION.md).
-There is no silent pseudo fallback; switching
-the global default prematurely would make nonlinear
-and lumped systems fail.
 
 ## 1 — GetFEM 5.5 simplicial FEM contributions (SCRIMP-first)
 
