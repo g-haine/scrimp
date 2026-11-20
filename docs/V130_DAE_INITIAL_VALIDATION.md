@@ -403,3 +403,106 @@ rows and possible singularity. In neither case should the
 production pseudo-TS, initial state or solver be silently
 changed from these diagnostic observations alone.
 
+
+## 8. Follow-up A/B run and GetFEM parser fix (20 November 2026)
+
+The developer ran the A/B diagnostic at immutable rc3 runtime revision
+`1d6d0c90115213298047b28237a7f38087563a35`, diagnostic
+source `7fd9c728495d98eb242778e214516519475a622c`.
+The **published-control** 1/2-rank runs and their comparison **passed**.
+The alternative `matched_left_control` run failed during the
+GetFEM source-brick **parsing phase**, before any physical solver or
+projection was executed. Its previous mathematical compatibility
+status is therefore **NOT TESTED**, not FAIL.
+
+Host evidence:
+
+```text
+sandbox/outputs/v130-algebraic-only-h0p2-7fd9c728-n2jTOuos/
+```
+
+### 8.1 What the completed published-control run proves
+
+The residual after the fixed-q/p algebraic projection is
+`4.82244319e-6` on both 1 and 2 ranks. The largest contribution
+is specifically on the **`e_p` constitutive field**:
+
+| Algebraic residual after algebraic-only projection | MPI 1 (coefficient L2) |
+| --- | ---: |
+| `e_p` | 4.82044425e-6 |
+| `U_L` | 9.81721862e-8 |
+| `Y_L` | 9.81721861e-8 |
+| `e_q` and other controls | 0 to ~1e-17 |
+
+LSMR stopped with code 2 on iterations 953/954 for MPI 1/2.
+The recomputed normal-equation residuals are
+`2.503872e-18` and `2.2877677e-18`. A computed
+bounded-radius dual witness gives `4.82243693e-6` and
+`4.82243747e-6` as lower bounds on algebraic residual norm
+when `||delta_a|| <= 12.09304`. The witness adjoint norms are
+`5.1921228e-13` and `4.744002e-13`. These are convincing
+**numerical bounded-correction obstruction measurements**,
+not exact rank-nullspace proofs and not infeasibility for all
+unbounded corrections.
+
+The pseudo-TS still reaches ~1e-18 algebraic residual **by
+changing prescribed q/p**, so it is not a valid replacement for
+the fixed-data compatibility investigation.
+
+### 8.2 Harness-only GetFEM syntax error and correction
+
+The diagnostic override had generated
+
+```text
+(3**(-20*(0.25+(y-0.5)*(y-0.5)))/3.)*Test_U_L
+   ^
+Unexpected token.
+```
+
+`3**...` was a **Python-style exponent**, whereas
+`DPHS.set_control` passes the source to **GetFEM generic
+assembly**; the parser rejected `**`. This failure occurred
+during `add_source_term_brick`, not during initial consistency,
+MUMPS, Jacobian extraction, CN, or physics. PETSc option warnings
+following this exception are cleanup artifacts, not independently
+qualified numerical regressions.
+
+The diagnostic expression is now the equivalent
+double-precision analytic trace, expressed in functions/operators
+used by GetFEM generic assembly:
+
+```text
+exp(-21.972245773362197*(0.25+(y-0.5)*(y-0.5)))/3.
+```
+
+Here `21.972245773362197` is `20*log(3)` rounded to
+double-precision. It represents `p0(0,y)/rho(0,y)`.
+It does **not guarantee exact equality of the weak discrete
+boundary trace** after FE interpolation, which remains what
+the native A/B experiment must actually decide.
+
+A regression test now checks that the diagnostic expression
+contains no `**` and matches the intended Gaussian trace
+at representative boundary points. **The test cannot replace
+GetFEM parsing.** The native runner therefore first constructs
+the **matched-control GetFEM model only**, validates its
+source-brick grammar, and stops immediately with its
+`control_preflight.log` if the parser rejects it. Only after
+this preflight passes does it execute the four small A/B
+MPI=1/2 physics/projection cases.
+
+Repeat the **existing runner** after pulling the branch; no Docker
+candidate rebuild, GitHub release, or production-code change:
+
+~~~bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-fixed-dynamics-probe.sh
+~~~
+
+**Pending:** real native GetFEM parse and the alternative
+`matched_left_control` projection outcome, followed by an
+interpreted A/B comparison. Do not mark the alternative
+compatible/incompatible on the basis of the aborted run.
