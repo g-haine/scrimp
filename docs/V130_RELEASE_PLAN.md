@@ -2386,3 +2386,69 @@ git pull --ff-only
 SCRIMP_DOCKER_NO_SUDO=1 SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
   bash scripts/run-v130-issue28-shallow-initial.sh
 ```
+
+
+## 20 November 2026 — original rectangular shallow-water fixed-dynamics algebraic diagnostic NATIVE PASS, MPI 1/2
+
+**Authoritative user-supplied native archive:**
+`v130-issue28-shallow-initial-2098e68c-4vxWCDRh.zip`.
+Source `2098e68c191662103c3a404e38b7bef53298a307`,
+Docker `scrimp-mpi:v1.3.0-rc3` with OCI
+`1d6d0c90115213298047b28237a7f38087563a35`.
+Original `examples/shallow_water.py`; original `mesh=0.1`,
+original dynamic initial coefficients `h0,p0` and wall controls,
+original explicit gyro.
+
+| Metric | MPI 1 | MPI 2 |
+|---|---:|---:|
+| Total DOFs | `4270` | `4270` |
+| Differential DOFs | `2035` | `2035` |
+| Algebraic DOFs | `2235` | `2235` |
+| Initial algebraic `||F_a||_2` | `1281.7812562535455` | `1281.7812562535455` |
+| After **one direct algebraic solve**, native `||F_a||_2` | `2.199213556173762e-12` | `2.3277177796294783e-12` |
+| Affine relation `||F_a(z+delta)-F_a(z)-J_aa delta||_2` | `1.571067363774428e-13` | `1.590053793547698e-13` |
+| Best FD/Jacobian relative error | `4.246216760258867e-10` | `4.607378233546647e-10` |
+| Algebraic mass-row max | `0` | `0` |
+| PETSc MUMPS direct reason | `4` | `4` |
+
+**The previously suspicious FD error at epsilon=1e-6
+was a numerical differencing artifact, not a GetFEM
+Jacobian defect.** At `epsilon=0.1` the relative
+difference is `4.25e-10` (MPI 1), at `0.01` it is
+`4.93e-9`, at `0.001` `4.73e-8`,
+at `0.0001` `5.59e-7` and at
+`1e-6` `5.5359e-5`. MPI 2 shows the same
+loss-of-precision trend. Both sufficiently sized
+perturbations pass the original unchanged `1e-7`
+FD requirement; the native algebraic residual
+passes the unchanged `1e-9` threshold by more
+than 400x. Diagnostic status `PASS_DIAGNOSTIC`.
+
+Native JSON further confirms: `h0,p0` bitwise
+preserved, entire GetFEM model bitwise restored,
+explicit gyroscopic RHS frozen and unchanged
+(its norm is **zero** for original `p0=0`);
+both initial/physical TS remain unexecuted.
+
+**Qualified scope:** one direct algebraic correction
+in the original full **nonlinear-state-dependent DAE**
+with **affine-in-algebraic-unknowns** constraints,
+fixed prescribed differential data and nonlinear mass.
+This is a **read-only diagnostic only**: no
+production nonlinear DAE initializer, general
+nonlinear algebraic Newton, physical integration
+or power balance has yet been qualified.
+
+**Next gate:** extend SCRIMP's opt-in consistent
+initializer to nonlinear *state-dependent* DAE
+systems with **regular algebraic blocks affine
+in algebraic unknowns**, ensuring the same
+real production `IFunction` and Jacobian,
+no hidden changes to initial dynamic coefficients,
+explicit-gyro accepted-state freezing, robust
+MPI 1/2 error/rollback paths, numerical/physical
+acceptance separation, and no fallthrough to
+historical pseudo TS. Do NOT silently enable
+this path for the rotating viscous disk, where
+`Y` is an algebraic null-column and differentiated
+boundary constraints are required. #28 stays open.
