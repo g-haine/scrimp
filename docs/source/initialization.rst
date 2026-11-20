@@ -8,18 +8,21 @@ DAE initial conditions and initialization
    The default strategy is now `algebraic` **when `init_step=True`
    and no initialization strategy is explicitly supplied**.
    Its support is limited to qualifying real, linear DAE layouts.
-   This **source-level default switch is not yet native-qualified
-   and is not a released API guarantee**. Incompatible initial
-   conditions and unsupported models are rejected explicitly,
-   never silently relaxed with `pseudo`.
+   The true **implicit-default native gate PASSED on 20 November
+   2026**: two independent compatible linear acoustic pH-DAEs
+   (conservative and dissipative), MPI 1/2, full physical CN state
+   and signed power checks. The original Gaussian is rejected
+   before CN, and explicit pseudo/BDF2 still work. See section 27
+   of `docs/V130_DAE_INITIAL_VALIDATION.md`.
 
-   The historical `pseudo` and tiny-step `bdf` methods remain
-   available through explicit `init_step_ts_type`. The historical
-   examples, notebooks and published Maxwell script request
-   `pseudo` explicitly to preserve their previous behavior.
-   The native two-model scientific opt-in checks PASSED, but
-   the independent no-option default acceptance and broader
-   memory/compatibility release gates remain pending.
+   The method still **does not support arbitrary nonlinear,
+   higher-index, substituted or lumped DAE layouts**, and
+   v1.3.0 as a complete release is not yet qualified.
+   Unsupported/incompatible conditions raise explicit errors;
+   there is no silent relaxation with `pseudo`.
+   Original examples, notebooks and published Maxwell explicitly
+   retain `pseudo` for historical compatibility. Broader
+   memory, MPI and example gates remain pending.
 
 Mathematical motivation
 =======================
