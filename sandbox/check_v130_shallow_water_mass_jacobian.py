@@ -120,9 +120,32 @@ def _distributed_vec(template, global_data):
     return v
 
 
-def _directional_check(system, ts, z, zd, direction, shift, epsilon):
+def _directional_check(
+    system, ts, z, zd, direction, shift, epsilon, *,
+    diagnostic_full_tangent=False,
+):
     m = system.J
-    system.IJacobian(ts, 0., z, zd, shift, m, m)
+    if diagnostic_full_tangent:
+        # The original shallow_water.py registers the gyroscopic
+        # G brick as explicit=True. Its term is present in IFunction
+        # but excluded from assemble_nl_stiffness. Temporarily ask
+        # the ORIGINAL assembled GetFEM brick for its tangent too.
+        # Its form/sign is unchanged, and the flag is restored before
+        # evaluating the original residual. This is a diagnostic
+        # hypothesis only, NOT a production solver change.
+        gyro = system.bricks.get("G")
+        if gyro is None or not gyro.get_explicit() or gyro.get_linear():
+            raise RuntimeError(
+                "Original explicitly-marked nonlinear gyroscopic G "
+                "brick not found: cannot diagnose missing tangent"
+            )
+        gyro._explicit = False
+        try:
+            system.IJacobian(ts, 0., z, zd, shift, m, m)
+        finally:
+            gyro._explicit = True
+    else:
+        system.IJacobian(ts, 0., z, zd, shift, m, m)
     jv = z.duplicate()
     zplus, zminus = z.copy(), z.copy()
     zdplus, zdminus = zd.copy(), zd.copy()
@@ -164,6 +187,14 @@ def main():
     ap.add_argument("--state-perturb", type=float, default=.01)
     ap.add_argument(
         "--mode", choices=("default", "legacy"), default="default"
+    )
+    ap.add_argument(
+        "--tangent-policy",
+        choices=("production", "diagnostic_full"),
+        default="production",
+        help="Temporarily include original explicit gyroscopic G in "
+             "GetFEM nonlinear tangent ONLY for diagnostic A/B; "
+             "the original weak-form residual remains unchanged",
     )
     ap.add_argument("--output-dir", type=Path, required=True)
     args = ap.parse_args()
@@ -208,13 +239,18 @@ def main():
         for derivative in (zero, zd):
             for shift in (0., 1.):
                 outcomes.append(_directional_check(
-                    system, audit_ts, z, derivative, v, shift, args.epsilon
+                    system, audit_ts, z, derivative, v, shift, args.epsilon,
+                    diagnostic_full_tangent=(
+                        args.tangent_policy == "diagnostic_full"
+                    ),
                 ))
         residual_max = max(row["relative_error"] for row in outcomes)
         report = {
             "schema":"scrimp-v130-shipped-shallow-water-mass-jacobian-v1",
             "model":"original examples/shallow_water.py weak bricks",
             "mode":args.mode,
+            "tangent_policy":args.tangent_policy,
+            "gyro_G_explicit_restored":system.bricks["G"].get_explicit(),
             "ranks":mpi.Get_size(),
             "dofs":n,
             "initial_state_perturbation":args.state_perturb,
@@ -228,11 +264,16 @@ def main():
         }
         if mpi.Get_rank()==0:
             args.output_dir.mkdir(parents=True,exist_ok=True)
-            (args.output_dir/f"shallow_{args.mode}_{mpi.Get_size()}r.json").write_text(
+            tag = (
+                args.mode if args.tangent_policy == "production"
+                else f"{args.mode}_diagnostic_full"
+            )
+            (args.output_dir/f"shallow_{tag}_{mpi.Get_size()}r.json").write_text(
                 json.dumps(report, indent=2)+"\n",encoding="utf-8"
             )
             print(
-                f"SHALLOW MASS JACOBIAN mode={args.mode} MPI={mpi.Get_size()} "
+                f"SHALLOW MASS JACOBIAN mode={args.mode} "
+                f"tangent={args.tangent_policy} MPI={mpi.Get_size()} "
                 f"DOFs={n} max_rel={residual_max:.9g} "
                 f"nonzero_zd_rel={[r['relative_error'] for r in outcomes[2:]]}",
                 flush=True,
