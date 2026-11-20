@@ -16,6 +16,7 @@
 from scrimp.utils.linalg import convert_gmm_to_petsc, extract_gmm_to_scipy
 from scrimp.utils.profiling import TimingProfiler
 from scrimp.utils.initial_state import publish_accepted_pseudo_state
+from scrimp.utils.dae_initialization import initialize_linear_algebraic
 from scrimp.utils.matrix_memory import (
     alias_readonly_linear_tangent, add_mass_hessian_fd_reused,
 )
@@ -1946,6 +1947,26 @@ class DPHS:
         for key, value in kwargs.items():
             self.time_scheme[key] = value
 
+        # The opt-in algebraic mode is validated in the core
+        # initializer, not as a PETSc TS type. Preserve pseudo as the
+        # backward-compatible default until the native integration
+        # qualification and explicit default-promotion gate pass.
+        init_strategy = self.time_scheme.getString(
+            "init_step_ts_type", "pseudo"
+        ).strip().lower()
+        if init_strategy not in ("algebraic", "pseudo", "bdf"):
+            raise ValueError(
+                "init_step_ts_type must be algebraic, pseudo or bdf"
+            )
+        if init_strategy == "algebraic":
+            disabled = self.time_scheme.getString(
+                "init_step", "true"
+            ).strip().lower() in ("false", "0", "no")
+            if disabled:
+                raise ValueError(
+                    "init_step_ts_type=algebraic requires init_step=true"
+                )
+
         if not self.time_scheme.hasName("ts_equation_type"):
             self.time_scheme[
                 "ts_equation_type"
@@ -2504,19 +2525,48 @@ class DPHS:
             )
 
     def init_step(self):
-        """Construct DAE-consistent initial data with a tiny TS solve.
+        """Establish a DAE-consistent physical initial state.
 
-        By default this retains SCRIMP's historical pseudo initial solve.
-        For `init_step_ts_type=bdf`, `init_step_bdf_order=2` and
-        `init_step_from_negative_time=True`, take one fixed BDF2 step
-        from t0-dt to t0. PETSc BDF internally bootstraps its BDF2
-        history with a half-step on its first accepted step (v3.21).
-        The physical TS is still initialized at t0 with fresh history.
+        During the qualification phase, `pseudo` remains the historical
+        default: it integrates a tiny pseudo-time PETSc TS and can move
+        prescribed differential initial coefficients. The alternative
+        `bdf` also uses a short time integration, optionally from a
+        negative initial time with `init_step_bdf_order=2` and
+        `init_step_from_negative_time=True`. PETSc BDF2 bootstraps
+        its history internally with a half-step (PETSc 3.21).
+
+        Opt-in `init_step_ts_type=algebraic` instead directly projects
+        only algebraic variables with a distributed PETSc LSQR solve.
+        It preserves prescribed differential DOFs bitwise and performs
+        no pseudo-time integration; it rejects unsupported/incompatible
+        cases explicitly. The main physical TS remains unchanged.
+
+        See docs/V130_DAE_ALGEBRAIC_INITIALIZER_DESIGN.md.
         """
 
         init_type = self.time_scheme.getString(
             "init_step_ts_type", "pseudo"
-        )
+        ).strip().lower()
+        if init_type == "algebraic":
+            with self.profiler.measure("initial.petsc.algebraic_projection"):
+                self.initialization_report = initialize_linear_algebraic(self)
+            if rank == 0:
+                result = self.initialization_report
+                logging.info(
+                    "Algebraic DAE initial projection: "
+                    "true ||F_a||=%.9g, feasibility tol=%.9g, "
+                    "accuracy goal=%.9g, accuracy_met=%s, passes=%d",
+                    result["native_final_residual_l2"],
+                    result["feasibility_tolerance"],
+                    result["accuracy_target"],
+                    result["accuracy_target_met"],
+                    len(result["passes"]),
+                )
+            return
+        if init_type not in ("pseudo", "bdf"):
+            raise ValueError(
+                "init_step_ts_type must be algebraic, pseudo or bdf"
+            )
         init_dt = float(self.time_scheme["init_step_dt"])
         if not np.isfinite(init_dt) or init_dt <= 0:
             raise ValueError("init_step_dt must be finite and positive")
