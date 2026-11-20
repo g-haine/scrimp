@@ -493,6 +493,42 @@ rebuild or production change.
 See sections 14–17 of
 [V130_DAE_INITIAL_VALIDATION.md](V130_DAE_INITIAL_VALIDATION.md).
 
+**Third native fully distributed PETSc DAE run, 20 November
+2026 — FOUR CASES COMPLETE, strict MPI physics gate NOT YET PASS.**
+The polynomial positive case passes its
+`1.7250682e-9` DAE feasibility limit at MPI 1
+(`F_a=9.8141843e-14`, two LSQR passes) and
+MPI 2 (`F_a=1.7163317e-9`, **one** LSQR
+pass). Both published Gaussian runs are
+explicitly rejected at t0 with residual
+`4.8224432e-6` versus threshold
+`2.0689895e-10`; no pseudo-TS was
+executed anywhere. Both positive runs complete
+the 10-step physical CN and independently satisfy
+the non-vacuous port-power Hamiltonian gate.
+The final comparator nonetheless correctly
+**FAILS** the unrelaxed MPI full-trajectory
+gate: `6.20613748944739e-8 > 5e-8`.
+Host: `sandbox/outputs/v130-petsc-dae-mpi-h0p2-6005b09f-8kuP5pGk/`.
+
+**New controlled diagnostic — NATIVE PENDING:**
+distinguish the unchanged DAE feasibility criterion
+from a *stricter optional positive-control
+refinement goal* `min(tolerance,1e-11)`.
+This avoids stopping MPI 2 after one only-marginally
+accurate correction and may make both projected
+initial efforts comparable. No feasibility or
+MPI parity tolerance is relaxed. The same small
+launcher `scripts/run-v130-petsc-mpi-dae-initial.sh`
+now saves t0 projection discrepancy and per-CN-step
+errors to `distributed_dae_parity_diagnostics.json`
+even on comparator FAIL, so a residual-accuracy
+explanation can be tested against a possible
+nullspace ambiguity. Do not promote code to
+`scrimp/dphs.py` until the full strict physical
+MPI gate passes. See section 18 of
+[V130_DAE_INITIAL_VALIDATION.md](V130_DAE_INITIAL_VALIDATION.md).
+
 ## 1 — GetFEM 5.5 simplicial FEM contributions (SCRIMP-first)
 
 **Scope decision (19 November 2026):** support only **triangles and
