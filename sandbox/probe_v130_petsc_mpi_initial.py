@@ -189,6 +189,20 @@ def _project_distributed(system, mpi, *, atol=1e-10, rtol=1e-8):
         ksp.setFromOptions()
 
         tolerance = float(atol + rtol*norm_initial)
+        # SCIENTIFIC distinction: feasibility of the algebraic state
+        # is governed ONLY by the unchanged 'tolerance'.  The full-CN
+        # MPI trajectory comparison is more sensitive than this
+        # residual tolerance.  In particular, MPI=2 previously stopped
+        # after one pass at 1.7163317e-9 while MPI=1 refined to
+        # 9.8141843e-14.  Continue improving a *compatible* positive
+        # state toward this smaller, diagnostic-only fidelity target
+        # even after the physical feasibility gate has passed.
+        # Never weaken either the feasibility or full-CN MPI criteria.
+        diagnostic_accuracy_target = (
+            min(tolerance, 1.e-11)
+            if getattr(system, "_v130_fe_polynomial_diagnostic", False)
+            else tolerance
+        )
         # PETSc LSQR may stop when its normal-equation/iterative
         # criterion has converged, even when the original weak
         # constraint rows are just above our stricter physical gate.
@@ -272,7 +286,12 @@ def _project_distributed(system, mpi, *, atol=1e-10, rtol=1e-8):
             if norm_after < best_norm:
                 best_norm = norm_after
                 best_candidate = candidate.copy()
-            if norm_after <= tolerance:
+            # The physical feasibility threshold is unchanged.
+            # Do not truncate a positive-model refinement merely
+            # because it passed the looser DAE feasibility gate:
+            # the MPI full-state comparison remains independently
+            # strict and needs a reproducibly accurate initial state.
+            if norm_after <= diagnostic_accuracy_target:
                 break
             if reason <= 0:
                 # An iterative KSP failure is not proof that the
@@ -313,6 +332,10 @@ def _project_distributed(system, mpi, *, atol=1e-10, rtol=1e-8):
             "native_algebraic_before_l2": norm_initial,
             "native_algebraic_after_l2": norm_final,
             "native_residual_tolerance": tolerance,
+            "diagnostic_accuracy_target": diagnostic_accuracy_target,
+            "diagnostic_accuracy_target_met": bool(
+                norm_final <= diagnostic_accuracy_target
+            ),
             "ksp_type": str(ksp.getType()),
             "ksp_pc_type": str(ksp.getPC().getType()),
             "ksp_iterations": iters,
@@ -383,6 +406,13 @@ def main():
         )
     else:
         system = _build_scenario(args.mesh, "published")
+    # This marker is confined to this freshly built experimental
+    # DPHS instance; never change the published example or production
+    # solver.  The tighter iteration goal is a diagnostic fidelity
+    # goal, NOT an acceptance-tolerance relaxation.
+    system._v130_fe_polynomial_diagnostic = (
+        args.scenario == "polynomial_compatible"
+    )
     system.set_time_scheme(
         ts_type="cn", ts_adapt_type="none",
         ts_exact_final_time="matchstep",
@@ -542,6 +572,8 @@ def main():
             f"{report['native_algebraic_after_l2']:.8g}, "
             f"tol={report['native_residual_tolerance']:.8g}, "
             f"LSQR passes={report['lsqr_refinement_pass_count']}, "
+            f"accuracy_goal={report['diagnostic_accuracy_target']:.8g}, "
+            f"accuracy_goal_met={report['diagnostic_accuracy_target_met']}, "
             f"LSQR iterations={report['ksp_iterations']}, "
             f"KSP reason={report['ksp_convergence_reason']}, "
             f"pseudo=NEVER, global Kaa gathering=NEVER",
