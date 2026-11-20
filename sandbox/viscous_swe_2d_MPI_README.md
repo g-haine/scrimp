@@ -395,3 +395,62 @@ git pull --ff-only
 SCRIMP_DOCKER_NO_SUDO=1 SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
   bash scripts/run-v130-issue28-P2-geometry.sh
 ```
+
+## 20 November 2026 — correct tangent sign on Gmsh P1/P2, GetFEM check PENDING
+
+The user asked whether the initial rotation and imposed wall tangent
+have accidentally opposite orientations. **Static source reading says
+NO:** `Rot=[[0,1],[-1,0]]`, `Tangent=Rot*Normal`, and
+`p0/rho=omega*(y,-x)/(sqrt(x*x+y*y)+1e-6)` all rotate clockwise.
+For an outward unit radial normal at (1,0), both point down.
+
+Independently computed from the native user archives
+`v130-issue28-feasibility-9082bbee-1vi0TtA9.zip` and
+`v130-issue28-P2-geometry-7286bec2-Rp90btp3.zip`:
+3-point / 2-point P2/P1 curved/straight Gmsh edge map,
+12-point Gaussian integration per boundary element,
+outward radial-choice geometric normal from the boundary
+parametric derivative, all **33 original boundary edges**.
+For omega=.2 original circular `p0`, the relative boundary
+`L2` norm `||p0/rho-omega*Rot*n||/||p0/rho||` is:
+
+- **P1 geometry:** `0.0550176860263` (~5.50%).
+- **P2 geometry:** `0.0000696599723462` (~0.00697%).
+- For the **opposite tangent sign**, the corresponding relative
+  mismatch is nearly **2.0 (200%)** on both meshes.
+
+Thus curved Gmsh P2 reduces the **geometric** initial
+tangential-trace mismatch by ~790x, whereas the previous
+GetFEM native algebraic LSQR residual increased from
+`0.0265613800268` (P1) to `0.0277336388365` (P2).
+The latter is **not explained by a reversed analytic tangent**
+or simply by the straight-sided polygon approximation.
+Note: Gmsh-based geometry normals are **not** the same thing as
+measuring the actual GetFEM GWFL `Normal` used in the weak bricks.
+
+New read-only native sign diagnostic
+`sandbox/probe_v130_issue28_normal_orientation.py` +
+`scripts/run-v130-issue28-native-normal.sh`:
+uses the **actual GetFEM generic boundary integral** on the
+original model, with original rotating p0 and the production
+`Tangent` macro. Directly measures both signs,
+`(p/rho).Normal`, `X.Normal` and the imported P1/P2
+geometry in MPI 1/2. No LSQR or TS time stepping.
+It can isolate a GetFEM mesh-region normal sign/assembly issue
+which is not visible from the exported Gmsh coordinates.
+The native GetFEM normal test is **PENDING**; do not claim
+that the Gmsh geometry-only numbers prove the sign seen
+by the actual weak-form assembler.
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+SCRIMP_DOCKER_NO_SUDO=1 SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+  bash scripts/run-v130-issue28-native-normal.sh
+```
+
+**Sequence retained:** complete this boundary/GWFL normal sign
+and geometry investigation first; *afterwards* use original
+`examples/shallow_water.py` for a separate nonlinear fixed-dynamic
+initialization study, as requested. No changes to model physics,
+initial p0, existing LSQR thresholds, or BDF2 safety guard.
