@@ -58,6 +58,30 @@ def solve_algebraic_block(matrix, residual, *, atol=1e-10, rtol=1e-8):
             or not np.isfinite(norm_after)):
         raise FloatingPointError("Non-finite algebraic LSMR candidate")
 
+    # A diagnostic left-nullspace witness does not require an SVD:
+    # w = residual_after / ||residual_after|| is almost orthogonal to
+    # range(A) when LSMR has approached the least-squares minimum.
+    # For every correction d with ||d|| <= R, Cauchy-Schwarz gives:
+    #   ||A d + r|| >= |<w, r>| - ||A^H w|| * R.
+    # This is a *rigorous floating-point-computed bounded-correction
+    # inequality*, not a certificate over unbounded corrections or
+    # an exact arithmetic proof of rank deficiency.
+    normal_residual = float(np.linalg.norm(A.conj().T @ corrected_linear))
+    if norm_after > 0:
+        witness = corrected_linear / norm_after
+        pairing = float(abs(np.vdot(witness, r)))
+        adjoint_norm = float(np.linalg.norm(A.conj().T @ witness))
+        radius = 10.0 * max(1.0, float(np.linalg.norm(correction)))
+        lower_bound = max(0.0, pairing - adjoint_norm * radius)
+        matrix_frob = float(np.linalg.norm(A.data))
+        normalized_adjoint = (
+            adjoint_norm / matrix_frob if matrix_frob else float("inf")
+        )
+    else:
+        pairing = adjoint_norm = normalized_adjoint = 0.0
+        radius = 10.0 * max(1.0, float(np.linalg.norm(correction)))
+        lower_bound = 0.0
+
     qualified = bool(norm_after <= tolerance)
     if qualified:
         decision = "LINEAR_COMPATIBLE"
@@ -79,6 +103,21 @@ def solve_algebraic_block(matrix, residual, *, atol=1e-10, rtol=1e-8):
         "lsmr_operator_norm_estimate": float(normA),
         "lsmr_condition_estimate": float(condA),
         "algebraic_correction_l2": float(normx),
+        "normal_equation_residual_l2_recomputed": normal_residual,
+        "residual_left_witness_pairing_with_initial": pairing,
+        "residual_left_witness_adjoint_l2": adjoint_norm,
+        "residual_left_witness_adjoint_scaled_by_matrix_frobenius": (
+            normalized_adjoint
+        ),
+        "bounded_correction_radius_l2": radius,
+        "dual_lower_bound_for_corrections_within_radius_l2": lower_bound,
+        "dual_witness": (
+            "For any correction d with Euclidean norm <= radius, "
+            "||A d+r|| >= max(0, |w^H r| - ||A^H w||*radius), "
+            "with w the unit computed least-squares residual. "
+            "This does not prove infeasibility for unbounded d "
+            "or exact matrix rank."
+        ),
         "linear_feasibility_decision": decision,
         "interpretation": (
             "Iterative feasibility evidence; a nonzero residual "
