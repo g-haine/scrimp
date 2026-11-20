@@ -71,6 +71,8 @@ jobs:
           python -m py_compile sandbox/compare_v130_issue6_viscous_mpi.py tests/test_v130_issue6_viscous_mpi.py
           bash -n scripts/run-v130-issue6-viscous-mpi.sh
           bash -n scripts/run-v130-issue6-init-probe.sh
+          python -m py_compile sandbox/probe_v130_issue28_structure.py
+          bash -n scripts/run-v130-issue28-structure.sh
           python -m unittest -v tests.test_v130_issue6_viscous_mpi
       - name: Validate SCRIMP source headers
         run: |

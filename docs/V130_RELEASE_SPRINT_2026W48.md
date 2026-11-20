@@ -685,3 +685,44 @@ If it cannot be natively qualified within release scope, retain
 the linear-only algebraic default and explicitly reject unsupported
 nonlinear initializations; do not weaken the scientific gate to
 meet a date.
+
+## 20 November 2026 — issue #28.0 structural audit: source ready, NATIVE PENDING
+
+Source-only, independently reviewable diagnostic:
+`sandbox/probe_v130_issue28_structure.py` and
+`scripts/run-v130-issue28-structure.sh`.
+It uses the exact published experimental viscous-SWE weak bricks,
+physical `p0=tangent`, faceted wall and unchanged `h0=5`.
+The runner pins `scrimp-mpi:v1.3.0-rc3` and overlays only Python
+modules; no Docker rebuild and no pseudo/BDF or physical time step.
+
+Mathematical audit: dynamic state intervals `h,p`, algebraic intervals
+`e_h,e_p,Y_n,U_n,Y,U`, exact DOF coverage, nonlinear tangent mass
+algebraic rows, initial native `F_a`, actual GetFEM stiffness
+`K(z0)=dF(t0,z0,zdot=0)/dz`, its `K_aa` algebraic block and
+`K_{a,Y}` / `K_{d,Y}` subblocks, plus a central directional
+`IFunction` difference when perturbing `Y` alone. Original dynamic
+coefficients are checked bitwise unchanged after the probe.
+
+**Static prediction from the open-loop weak forms:** the boundary
+traction multiplier `Y` appears in `h*Y.Test_p` (dynamic momentum
+row), but in no algebraic weak-form row when `gamma=0`.
+Thus `dF_a/dY` is an identically zero block and `J_aa` is
+structurally singular. A naive Newton that solves only `F_a=0`
+cannot determine `Y`, regardless of the initial algebraic guess.
+This does **not** by itself prove differentiation index 2;
+differentiated boundary constraints and the coupled mass system
+must still be examined before designing a supported initializer.
+
+Runner requires **native MPI 1 and 2** and compares pinned
+diagnostics, but **has NOT yet been executed on the user host**.
+Any failure is diagnostic evidence, not permission to change the
+original PDE or relax the norm guard. The qualified linear default
+initializer and the closed #27 Jacobian are unaffected.
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+SCRIMP_DOCKER_NO_SUDO=1 SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+  bash scripts/run-v130-issue28-structure.sh
+```
