@@ -380,21 +380,47 @@ without excluding weak/discrete compatibility effects.
 Full scientific interpretation: section 9 of
 [V130_DAE_INITIAL_VALIDATION.md](V130_DAE_INITIAL_VALIDATION.md).
 
-**Next source-ready scientific positive control (native pending):**
-replace only the *diagnostically constructed* initial
-Gaussian momentum by **`p0=x*(3-x)`**, for which the exact
-FE-representable coenergy is `e_p=p0/rho=x`, hence
-`e_p|Gamma_Left=0=U_L(0)` in the original published
-control. This isolates whether a demonstrably compatible
-nonzero initial momentum permits machine-accurate
-algebraic-only projection in the same FE formulation.
-The diagnostic also measures **pseudo-TS drift of q/p
-even with initially compatible data**. Run only
-`scripts/run-v130-exact-fe-initial-probe.sh` (native
-1/2 ranks) on the existing rc3 after pulling. It
-does not rerun already qualified A/B, change production
-`wave.py`/`dphs.py`, rebuild Docker or alter
-`scrimp-mpi:local`. See section 10 of
+**Native nonzero FE-compatible positive control COMPLETED
+and PASS, 20 November 2026:** with manufactured
+`p0=x*(3-x)`, `e_p=x`, `q0=0`,
+`U_L(0)=0`, the algebraic-only correction passes the
+original PETSc `IFunction` residual at
+**7.06518655e-12 / 7.13966896e-12** (MPI 1/2),
+starting from **0.162506819**, while **exactly
+preserving every prescribed q/p coefficient**.
+The original unchanged pseudo-TS reaches ~1.8e-16
+algebraic residual **but changes q by
+0.00195958812 and p by 1.30196443e-5**
+at both ranks, despite the existence of a fully
+compatible algebraic-only state.
+Host evidence:
+`sandbox/outputs/v130-dae-fe-positive-h0p2-1dfbc184-MEYxdCWf/`.
+The issue is therefore not simply an inability of the
+algebraic projection procedure to solve the actual
+weak-form constraints; pseudo-time integration is not
+a fixed-differential-data DAE projection.
+It is still premature to enable a production initializer
+or generalize to nonlinear/high-index DAE models.
+See section 11 of
+[V130_DAE_INITIAL_VALIDATION.md](V130_DAE_INITIAL_VALIDATION.md).
+
+**Next scientific A/B: source-ready, native evidence pending.**
+Compare the **same** manufactured wave, same time-varying
+left drive `U_L(t)=0.08*sin(20*t)`, fixed CN dt=0.002
+through 10 accepted steps, MPI 1/2, using the
+**existing accepted pseudo-TS state** or a diagnostic
+**algebraic-only replacement before physical TS**.
+Archive **all complete time states**, Hamiltonian,
+signed midpoint boundary powers and accumulated
+port work for both initializations; require nonzero
+boundary work and independent pH balance within
+specified tolerance in every run.
+Run only `scripts/run-v130-wave-initializer-physics.sh`
+on the qualified rc3 image, after pulling this
+branch. No v1.2.0 or strong-scaling reruns, no
+changes to production `scrimp/dphs.py`,
+`examples/wave.py`, Docker tags or user's
+`sandbox/sloshing_tank.py`. See section 12 of
 [V130_DAE_INITIAL_VALIDATION.md](V130_DAE_INITIAL_VALIDATION.md).
 
 ## 1 — GetFEM 5.5 simplicial FEM contributions (SCRIMP-first)
