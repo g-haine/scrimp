@@ -42,12 +42,12 @@ class StarterProjectTest(unittest.TestCase):
             "/opt/conda/envs/scrimp/bin/python",
         )
         vs_settings = obj["customizations"]["vscode"]["settings"]
-        # A micromamba environment lives outside the user workspace.
-        # Python Environments must search there; the existing default
-        # interpreter path alone did not stop a false "No Python" prompt.
-        self.assertIn(
-            "/opt/conda/envs", vs_settings["python-envs.globalSearchPaths"]
-        )
+        # The actual Ubuntu GUI log identifies the fault: the Python
+        # extension sees the interpreter but Python Environments says
+        # "No Python environment is set for this resource". Disable
+        # only that manager, not Python, Pylance or debugpy.
+        self.assertIs(vs_settings["python.useEnvironmentsExtension"], False)
+        self.assertNotIn("python-envs.globalSearchPaths", vs_settings)
         self.assertEqual(
             vs_settings["python.interpreter.infoVisibility"], "always"
         )
@@ -68,6 +68,7 @@ class StarterProjectTest(unittest.TestCase):
         self.assertNotIn("python.defaultInterpreterPath", shared)
         self.assertNotIn("python.analysis.extraPaths", shared)
         self.assertNotIn("python-envs.globalSearchPaths", shared)
+        self.assertNotIn("python.useEnvironmentsExtension", shared)
 
     def test_vscode_configs_are_parseable(self):
         for filename in ("launch.json", "settings.json", "tasks.json"):
