@@ -191,7 +191,8 @@ def wave_eq():
     wave_diss.set_time_scheme(
         # Explicit legacy relaxation: preserve the published example's
         # original initial-data behavior when algebraic becomes default.
-        init_step_ts_type="pseudo",ts_type="cn",
+        init_step_ts_type="pseudo",
+        ts_type="cn",
                               t_f=t_f,
                               dt_save=0.01,
                               )
