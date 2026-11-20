@@ -23,7 +23,7 @@ Changes to SCRIMP are recorded here. See also the
 - Record the deferred MPI scalability, nonlinear-physics and
   experimental Schur results in `docs/V130_DEVELOPMENT_ROADMAP.md`.
 
-### Truly explicit nonlinear weak-form bricks (native validation pending)
+### Truly explicit nonlinear weak-form bricks (Jacobian native PASS; actual TS gate pending)
 
 - Correct `Brick(explicit=True)` semantics: previously SCRIMP
   excluded such a nonlinear term from `IJacobian` while
@@ -56,13 +56,32 @@ Changes to SCRIMP are recorded here. See also the
   Hamiltonian power balance** or BDF2 order for
   the lagged term. Validate its consequences
   separately on the short nonlinear SWE time test.
-- **Native default-vs-legacy nonlinear-mass
-  Jacobian and actual explicit time-stepping gates
-  remain PENDING**; the previously measured
-  `2e-5` full-Newton discrepancy must not be
-  misattributed to a missing mass Hessian.
-  See issue #27 and
-  `docs/V130_RELEASE_SPRINT_2026W48.md`.
+- **Full nonlinear mass-Jacobian directional-FD native gate PASSED**
+  on original `examples/shallow_water.py` (1,246 DOFs),
+  MPI 1 and 2, at source
+  `fae066a64b649131351e686ac9383ea11c13c0a6`,
+  immutable `scrimp-mpi:v1.3.0-rc3`:
+  default maximal relative `IFunction`/`IJacobian`
+  error **1.06105781e-8** versus
+  **3.84378444e-6** for explicit `legacy`
+  (~362× improvement). The gyroscopic explicit
+  RHS was nonzero (`0.00536124096`) and
+  exactly unchanged through all FD/Newton trials.
+  The acceptance threshold was not relaxed.
+  Host evidence:
+  `sandbox/outputs/v130-shallow-mass-J-fae066a6-VvvbTRp4/`.
+- **Actual physical time integration remains PENDING**:
+  the numerical Jacobian gate explicitly reports
+  `main_TS_executed=False`. A separate four-case
+  short BDF2 native regression covering real accepted
+  PETSc steps, original and manufactured initial
+  data, MPI parity and signed Hamiltonian drift
+  is provided by
+  `scripts/run-v130-shallow-explicit-physical-ts.sh`.
+  A first-order lag of `G` does not certify
+  exact Hamiltonian conservation or BDF2 order.
+  Issue #27 remains open until its original
+  acceptance criteria pass.
 
 ### Consistent DAE initialization (new linear default; native two-model gate PASSED)
 
