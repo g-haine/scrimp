@@ -20,7 +20,9 @@ def main():
         raise RuntimeError(
             "No-init model unexpectedly acquired an explicit strategy"
         )
-    if noinit.time_scheme.getString("init_step", "") != "false":
+    if noinit.time_scheme.getString(
+        "init_step", ""
+    ).strip().lower() != "false":
         raise RuntimeError("init_step=False was not preserved")
     print("PASS: implicit default + init_step=False is allowed")
 
