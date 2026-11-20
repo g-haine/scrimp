@@ -2040,3 +2040,97 @@ image was changed.
 on the original qualified image.**
 This implicit-default native gate
 remains **PENDING**, not PASS.
+
+## 27. Final true implicit algebraic default — FULL NATIVE ACCEPTANCE PASS (20 November 2026)
+
+**PASS: the new v1.3.0 implicit default `algebraic` has been
+qualified natively on two independent port-Hamiltonian linear DAE
+systems (conservative and dissipative 2D acoustic waves), MPI 1/2.**
+Unlike sections 21 and 23, these tests *omit*
+`init_step_ts_type` in the actual
+`set_time_scheme(**kwargs)` call, verify PETSc's
+materialized effective value is `algebraic`,
+and use the production-owned
+`DPHS.init_step` (not a monkeypatch).
+
+**Native run provenance:**
+
+- Development commit:
+  `3a17a65b7a17fbdade82bd3ea2bd3bb8cd8a53f8`.
+- Qualified image: `scrimp-mpi:v1.3.0-rc3`,
+  immutable OCI source:
+  `1d6d0c90115213298047b28237a7f38087563a35`.
+- Developer-owned host evidence:
+  `sandbox/outputs/v130-algebraic-default-h0p2-3a17a65b-H38miGDO/`.
+- Independent frozen reference folders:
+  `sandbox/outputs/v130-petsc-dae-mpi-h0p2-4d3b4d0c-gb0qNKB8/`
+  and `sandbox/outputs/v130-wave-init-power-h0p2-62e31d9b-zDa95p5J/`.
+
+**Preflight PASS:** implicit `algebraic` registered in PETSc,
+`init_step=False` permitted through repeated `set_time_scheme`,
+explicit contradictory algebraic/disabled initialization rejected,
+and explicit `pseudo` available.
+
+**Conservative wave (10 fixed CN steps, independently frozen 11-state
+reference):**
+
+| Metric | MPI 1 | MPI 2 |
+| --- | ---: | ---: |
+| True initial algebraic residual | **9.81418431e-14** | **9.61877785e-14** |
+| Initial dynamic `q0,p0` drift | **0,0** | **0,0** |
+| Max scaled L2 full CN reference discrepancy | **0** | **5.30974918e-18** |
+| Max signed Hamiltonian + boundary work defect | **5.60853295e-15** | **6.05263063e-15** |
+| Nonzero integrated signed port work | **-5.39545892e-5** | **-5.39545892e-5** |
+| Original Gaussian rejected before CN | **YES** | **YES** |
+
+For the original published Gaussian, both ranks report
+`||F_a||=4.82244319e-6` against
+`2.0689895e-10` feasibility threshold;
+rejection does **not** modify prescribed initial values.
+
+**Dissipative wave (original `wave_dissipative` bricks,
+2,804 DOFs, ten fixed CN steps):**
+
+| Metric | MPI 1 | MPI 2 |
+| --- | ---: | ---: |
+| True initial algebraic residual | **9.99416399e-14** | **9.93812525e-14** |
+| Initial `q0,p0` drift | **0,0** | **0,0** |
+| Positive internal dissipative work | **0.0132790026** | **0.0132790026** |
+| Integrated signed boundary work | **-5.40249757e-5** | **-5.40249757e-5** |
+| Max signed `H-H0+W+D` defect | **2.64805539e-15** | **3.55097896e-15** |
+| Max full CN state MPI 1/2 scaled L2 difference | **6.3717319e-14** | **6.3717319e-14** |
+
+**Historical explicit-mode controls PASS:** pseudo-TS
+reproduces its frozen physical trajectory with max
+scaled reference difference **0**; its initial-data
+drift is `||Delta q0||=0.0019595881156396905`,
+`||Delta p0||=1.3019644341244006e-5`.
+Tiny negative-time BDF2 at
+`init_step_dt=1e-6` executes successfully
+and has **nonzero** `||Delta q0||=1.9595912757338825e-5`,
+`||Delta p0||=8.680599894760661e-10`.
+Both histories preserve signed Hamiltonian+port-power
+to the already-qualified tolerances.
+
+**The dedicated final comparator ended with:**
+
+```text
+PASS: no init_step_ts_type option on 2 linear models, MPI 1/2
+PASS: published Gaussian rejected without change to q0/p0
+PASS: independent complete CN, signed boundary and damping power
+PASS: historical pseudo and tiny negative-time BDF2 still explicit
+PASS: strict native gate of staged default candidate
+```
+
+**Gate CLOSED/PASS:** the implicit-default source behavior is
+genuinely selected and physically qualified on these two
+linear systems; the earlier failed attempts documented in
+sections 25/26 were preparatory, not failures of the final
+physics.
+
+**Not implied by this PASS:** universal nonlinear or higher-index
+DAE initialization, support for all lumped/substituted-port
+models, distributed memory scaling without full GetFEM state
+replication, general example compatibility, or an approved
+v1.3.0 release. Keep separate packaging/other-model/MPI
+cleanup gates in the authoritative release plan.
