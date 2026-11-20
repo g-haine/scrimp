@@ -180,6 +180,9 @@ def shallow_water_eq():
     ## Solve in time
     # Define the time scheme
     swe.set_time_scheme(
+        # Explicit legacy relaxation: preserve the published example's
+        # original initial-data behavior when algebraic becomes default.
+        init_step_ts_type="pseudo",
         ts_type="bdf",
         ts_bdf_order=2,
         t_f=0.5,
