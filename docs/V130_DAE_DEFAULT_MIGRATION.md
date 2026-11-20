@@ -433,3 +433,46 @@ scientific opt-in tests for the
 conservative and dissipative waves
 remain PASSED. See section 25 of
 [V130_DAE_INITIAL_VALIDATION.md](V130_DAE_INITIAL_VALIDATION.md).
+
+## Second native implicit-default retry: options PASS, inherited diagnostic guard corrected
+
+**20 November 2026.** Native retry on source
+`3c28e919...` and unchanged qualified
+`scrimp-mpi:v1.3.0-rc3`, host evidence
+`sandbox/outputs/v130-algebraic-default-h0p2-3c28e919-WPt6Z7wP/`:
+
+- **PASS:** PETSc registers `algebraic` by default.
+  `init_step=False` remains legal across a
+  no-argument `set_time_scheme` re-entry;
+  the explicitly contradictory
+  `init_step=False,init_step_ts_type="algebraic"`
+  is rejected; explicit `pseudo`
+  remains selectable.
+- **NOT RUN:** the main conservative/dissipative
+  MPI physics experiments. The first conservative
+  probe stopped **before assembly or CN**
+  because it expected an inherited `pseudo`
+  from the wave builder and rejected
+  SCRIMP's now correctly materialized
+  `algebraic` option.
+- **Diagnostic correction:** only the
+  `--use-default` harness clears a
+  known inherited builder option, whether
+  `pseudo` or `algebraic`. It rejects
+  unexpected inherited options. The
+  subsequent real
+  `set_time_scheme(**kwargs)` call
+  must still **omit** `init_step_ts_type`
+  and then register `algebraic` in PETSc.
+  Explicit historical mode controls
+  are unchanged.
+- **New source regression:** isolate and test
+  the builder-option reset for both known
+  strategies, missing options, unexpected
+  values and all explicit-mode cases.
+
+No test thresholds or production solver
+code were changed for this second failure.
+**Native default physics qualification
+remains pending a new rerun.** See section 26
+of [V130_DAE_INITIAL_VALIDATION.md](V130_DAE_INITIAL_VALIDATION.md).
