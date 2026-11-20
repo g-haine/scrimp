@@ -23,6 +23,47 @@ Changes to SCRIMP are recorded here. See also the
 - Record the deferred MPI scalability, nonlinear-physics and
   experimental Schur results in `docs/V130_DEVELOPMENT_ROADMAP.md`.
 
+### Consistent DAE initialization (new default candidate; native gate pending)
+
+- Add a **distributed PETSc algebraic-only initialization** method for
+  supported real, linear DAE models. It keeps the prescribed differential
+  initial coefficients unchanged, solves only for algebraic efforts/ports
+  with bounded LSQR refinements, and verifies the *actual*
+  `IFunction` algebraic residual before starting the physical TS.
+  Unsupported layouts or incompatible fixed initial data raise
+  explicit errors; there is **no automatic pseudo-time fallback**.
+- **Stage `init_step_ts_type="algebraic"` as the implicit default**
+  on the development branch. This change itself has **not yet passed
+  the independent native no-option migration gate and is not released**.
+  `init_step_ts_type="pseudo"` and `init_step_ts_type="bdf"`
+  remain available explicitly; `init_step=False` remains valid
+  without an initialization strategy.
+- Document the distinction between **exact algebraic projection**,
+  historical **pseudo-time relaxation** (which can move the
+  prescribed differential initial data), and **small negative-start
+  BDF2** (which also changes them, even with a very small step).
+  See `docs/source/initialization.rst`.
+- Preserve the historical pseudo behavior explicitly in the
+  original top-level examples, legacy notebooks, published Maxwell
+  example, GUI-generated legacy scripts and selected sandbox workloads.
+  Their physical initial data and equations are not modified.
+- **Native core opt-in qualification PASSED** on two independent
+  port-Hamiltonian linear acoustic models, conservative and dissipative,
+  on MPI 1/2 with ten fixed CN steps. Native algebraic residuals
+  were about `1e-13`, initial dynamic drift zero, and full
+  signed Hamiltonian + nonzero boundary work (+ positive internal
+  damping on the dissipative model) defects about `1e-15`.
+  The incompatible original Gaussian was explicitly rejected on
+  both MPI ranks. The historical pseudo trajectory matched its
+  frozen reference; tiny negative-time BDF2 remained usable with
+  measured nonzero initial drift.
+- **Remaining release gates:** independently test the implicit
+  (no-option) new default on both models using the frozen rc3 runtime,
+  verify explicit pseudo/BDF2 regressions, complete broader example
+  compatibility and exceptional MPI cleanup/memory audits, and
+  rerun the full native source/test/doc/release qualification.
+  Do not tag or rebuild the release image before these pass.
+
 ### Release qualification outstanding
 - Confirm native numeric and symbolic LU call counts agree with the
   exact operator coefficient/graph changes detected collectively by
