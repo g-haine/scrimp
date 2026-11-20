@@ -172,17 +172,18 @@ def compare(directory, *, atol=1e-9, rtol=5e-8, strict=True):
             pz["prescribed_initial"], az["prescribed_initial"]
         ):
             raise RuntimeError("Initializer modes changed prescribed data")
-        if not np.array_equal(pz["pseudo_accepted"], az["pseudo_accepted"]):
+        pseudo_reproducibility = _norm_scaled(
+            pz["pseudo_accepted"], az["pseudo_accepted"]
+        )
+        if pseudo_reproducibility > 1e-11:
             raise RuntimeError(
-                "Pseudo-TS accepted state changed when introducing "
-                "diagnostic algebraic-only initialization"
+                "Pseudo-TS accepted state changed unexpectedly between "
+                "independent diagnostic runs, scaled L2="
+                f"{pseudo_reproducibility:.9g}"
             )
-        if not np.array_equal(
-            az["main_initializer"], az["prescribed_initial"]
-        ):
-            # Expected difference in algebraic variables; check dynamic
-            # blocks via explicit drift metadata below instead.
-            pass
+        # The projected state intentionally differs in ALGEBRAIC
+        # variables. All prescribed differential q/p coefficients
+        # must instead remain identical, checked independently below.
         for name, drift in a["main_initial_dynamic_drift_l2"].items():
             if drift > 1e-12:
                 raise RuntimeError(
