@@ -404,23 +404,47 @@ or generalize to nonlinear/high-index DAE models.
 See section 11 of
 [V130_DAE_INITIAL_VALIDATION.md](V130_DAE_INITIAL_VALIDATION.md).
 
-**Next scientific A/B: source-ready, native evidence pending.**
-Compare the **same** manufactured wave, same time-varying
-left drive `U_L(t)=0.08*sin(20*t)`, fixed CN dt=0.002
-through 10 accepted steps, MPI 1/2, using the
-**existing accepted pseudo-TS state** or a diagnostic
-**algebraic-only replacement before physical TS**.
-Archive **all complete time states**, Hamiltonian,
-signed midpoint boundary powers and accumulated
-port work for both initializations; require nonzero
-boundary work and independent pH balance within
-specified tolerance in every run.
-Run only `scripts/run-v130-wave-initializer-physics.sh`
-on the qualified rc3 image, after pulling this
-branch. No v1.2.0 or strong-scaling reruns, no
-changes to production `scrimp/dphs.py`,
-`examples/wave.py`, Docker tags or user's
-`sandbox/sloshing_tank.py`. See section 12 of
+**Full CN and signed Hamiltonian/port-power A/B
+native qualification PASSED on both 1 and 2 MPI ranks
+(20 November 2026).** With exactly the same manufactured
+wave and nonzero left drive `U_L(t)=0.08*sin(20*t)`,
+10 fixed CN steps, the pseudo-TS changes
+`q0=0` by **0.00195958812** and `p0` by
+**1.30196443e-5**. The algebraic-only initializer
+changes neither prescribed state. Both methods satisfy
+the non-vacuous port-Hamiltonian balance to ~
+**4e-15–6e-15** (actual defects), and reproduce
+all 11 full states between MPI 1 and 2 to
+max scaled L2 ~**1.76e-14** (pseudo) and
+**2.05e-12** (algebraic). Measured absolute
+port work is **5.41131226e-5** and
+**5.39545892e-5**, respectively. This establishes
+the desired physical distinction on the qualified
+linear, compatible acoustic example, not a
+generic nonlinear/Maxwell DAE proof.
+Host result:
+`sandbox/outputs/v130-wave-init-power-h0p2-62e31d9b-zDa95p5J/`.
+See section 13 of
+[V130_DAE_INITIAL_VALIDATION.md](V130_DAE_INITIAL_VALIDATION.md).
+
+**Next engineering gate: scalable PETSc-distributed
+algebraic projection — SOURCE READY, NATIVE PENDING.**
+The validated diagnostic used rank-0 SciPy LSMR
+and ran the old pseudo-TS before replacing its
+state; it is **not** production-ready. A separate
+PETSc `IS`/distributed `Mat.createSubMatrix` /
+`KSP LSQR` prototype now performs a
+fixed-dynamic algebraic correction **without
+running pseudo-time TS at all**. Its native
+control cases are the same compatible nonzero
+polynomial wave (require real CN/power PASS)
+and the published Gaussian with incompatible
+constraints (require explicit t0 rejection),
+on MPI 1 and 2, frozen rc3.
+Run only `scripts/run-v130-petsc-mpi-dae-initial.sh`
+after pulling. No production `dphs.py`
+change, Docker rebuild, v1.2.0 or scaling rerun.
+See sections 14–15 of
 [V130_DAE_INITIAL_VALIDATION.md](V130_DAE_INITIAL_VALIDATION.md).
 
 ## 1 — GetFEM 5.5 simplicial FEM contributions (SCRIMP-first)
