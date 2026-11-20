@@ -164,7 +164,10 @@ def heat_eq():
 
     ## Solve in time
     # Define the time scheme ("bdf" is backward differentiation formula)
-    heat.set_time_scheme(t_f=5.,
+    heat.set_time_scheme(
+        # Explicit legacy relaxation: preserve the published example's
+        # original initial-data behavior when algebraic becomes default.
+        init_step_ts_type="pseudo",t_f=5.,
                          ts_type="bdf", 
                          ts_bdf_order=2, 
                          dt=0.01,
