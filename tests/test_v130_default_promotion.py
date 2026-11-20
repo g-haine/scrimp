@@ -11,6 +11,7 @@
 No source-only test proves GetFEM/PETSc physics or memory correctness.
 """
 
+import ast
 import json
 import subprocess
 import sys
@@ -159,12 +160,81 @@ class TestV130DefaultPromotion(unittest.TestCase):
         self.assertNotEqual(result.returncode,0)
         self.assertIn("historical",result.stderr.lower())
 
+    def test_builder_defaults_are_cleared_without_touching_explicit_controls(self):
+        # Execute only the pure guard function from its AST: no
+        # GetFEM, PETSc, mpi4py or physical solver in source-only CI.
+        tree = ast.parse(CORE_PROBE.read_text(encoding="utf-8"))
+        node = next(
+            x for x in tree.body
+            if isinstance(x, ast.FunctionDef)
+            and x.name == (
+                "_clear_benchmark_initializer_for_implicit_default"
+            )
+        )
+        code = compile(
+            ast.Module(body=[node], type_ignores=[]),
+            str(CORE_PROBE), "exec",
+        )
+        scope = {}
+        exec(code, scope)
+        reset = scope[
+            "_clear_benchmark_initializer_for_implicit_default"
+        ]
+
+        class Options:
+            def __init__(self, value=None):
+                self.value = value
+                self.deleted = False
+
+            def hasName(self, name):
+                if name != "init_step_ts_type":
+                    raise AssertionError(name)
+                return self.value is not None
+
+            def getString(self, name, default=""):
+                return self.value if self.value is not None else default
+
+            def delValue(self, name):
+                if name != "init_step_ts_type":
+                    raise AssertionError(name)
+                self.deleted = True
+                self.value = None
+
+        for inherited in ("pseudo", "algebraic"):
+            with self.subTest(inherited=inherited):
+                opts = Options(inherited)
+                reset(opts, enabled=True)
+                self.assertIsNone(opts.value)
+                self.assertTrue(opts.deleted)
+        for inherited in ("pseudo", "algebraic", "bdf"):
+            with self.subTest(explicit=inherited):
+                opts = Options(inherited)
+                reset(opts, enabled=False)
+                self.assertEqual(opts.value, inherited)
+                self.assertFalse(opts.deleted)
+        opts = Options()
+        reset(opts, enabled=True)
+        self.assertFalse(opts.deleted)
+        for bad in ("bdf", "unrecognized"):
+            with self.subTest(unsupported_builder=bad):
+                opts = Options(bad)
+                with self.assertRaisesRegex(
+                    RuntimeError, "Unexpected inherited benchmark"
+                ):
+                    reset(opts, enabled=True)
+                self.assertEqual(opts.value, bad)
+                self.assertFalse(opts.deleted)
+
     def test_probes_actually_omit_default_option_in_native_mode(self):
         wave=CORE_PROBE.read_text(encoding="utf-8")
         diss=DISSIPATIVE_PROBE.read_text(encoding="utf-8")
         self.assertIn('if not args.use_default:',wave)
         self.assertIn(
-            'system.time_scheme.delValue("init_step_ts_type")',
+            "_clear_benchmark_initializer_for_implicit_default(",
+            wave,
+        )
+        self.assertIn(
+            'options.delValue("init_step_ts_type")',
             wave,
         )
         self.assertIn('kwargs["init_step_ts_type"] = option',wave)
