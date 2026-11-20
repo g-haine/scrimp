@@ -228,5 +228,23 @@ Hamiltonian/port/dissipation balance or replace
 the example's constitutive equations to force
 a success**.
 
+**First second-model native attempt (20 November 2026):** the
+production algebraic initializer **PASSED** the dissipative
+wave's MPI-1 initial constraint gate in two passes, with
+`||F_a||=9.99416399e-14`. All ten main CN steps
+were accepted, with no rejections or nonlinear solver
+failures, for 2,804 DOFs. The experiment then stopped
+inside the *diagnostic* GetFEM power integration because
+the interior damping port has `region=None`, while
+`gf.asm` expects the full-domain integer
+`region=-1`. This convention is already implemented
+in SCRIMP's `Port.compute()`; the test harness is now
+corrected to match it. **No dissipative energy balance
+or MPI-2 result is yet qualified.** Original host
+evidence:
+`sandbox/outputs/v130-second-linear-dae-29aa01dd-ULacuhnd/`.
+See section 22 of
+[V130_DAE_INITIAL_VALIDATION.md](V130_DAE_INITIAL_VALIDATION.md).
+
 **Default remains `pseudo` until the remaining
 native migration gates are satisfied.**
