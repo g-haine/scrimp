@@ -373,10 +373,30 @@ Here are the difficult part. We need to define the weak form of each
 block matrices, and take non-linearities into account. To do so, the
 GFWL of GetFEM is transparent, but it is mandatory to say to **SCRIMP**
 that the ``Brick`` is non-linear, using the keyword ``linear=False``. It
-is also possible to ask for this block to be considered *explicitly* in
-the time scheme (*i.e.* it will be computed with the previous time step
-values and be considered as a right-hand side), as done for the
-gyroscopic term below, using the keyword ``explicit=True``.
+is also possible to ask for a nonlinear weak-form brick to be
+**fully explicit**: SCRIMP evaluates its entire weak-form contribution
+at the **last accepted time/state** :math:`(t_n,z_n)` before starting
+the following PETSc TS step. The resulting distributed PETSc RHS is
+then held fixed during **all** Newton and line-search trials at
+:math:`t_{n+1}`. In particular, this term has zero derivative with
+respect to the implicit trial state and is absent from the Jacobian.
+The gyroscopic `G` term below uses ``explicit=True`` for this
+purpose.
+
+This is deliberately a **one-step lag**, not a partially implicit
+evaluation with a current Newton trial effort. Its time accuracy
+is generally **first order**, even if the implicit subsystem uses
+BDF2. In addition, the skew-symmetry of the instantaneous
+gyroscopic operator does **not** by itself guarantee exact
+discrete Hamiltonian conservation when the entire G term is
+evaluated at the previous state. Exact discrete energy preservation
+requires a suitable implicit/midpoint or specialized geometric split.
+
+The v1.3.0 fully explicit mode supports **nonlinear `dt=False`
+non-source weak forms**. Other explicit bricks raise a clear
+error rather than silently entering the implicit matrix.
+The original gyroscopic weak-form expression and sign
+are preserved.
 
 .. code:: python
 
