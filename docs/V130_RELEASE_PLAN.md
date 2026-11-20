@@ -460,6 +460,9 @@ host-persistent output, launching 2 MPI ranks, using F5/F10
 breakpoints and variables, resuming to completion, resolving
 editable imports in Pylance and selecting the preinstalled
 Python interpreter without errors after applying the setting.
+The full acceptance matrix, image provenance, exact Dev Container
+settings and limitations are recorded in
+[V130_UBUNTU_VSCODE_ACCEPTANCE.md](V130_UBUNTU_VSCODE_ACCEPTANCE.md).
 A further fresh-project / fresh-user onboarding acceptance is
 desirable, but this developer's observed blocking issue is
 closed. This does not validate multi-process MPI debugging.
