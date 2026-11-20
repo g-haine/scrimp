@@ -13,6 +13,7 @@ non-physical damping, energy defects, and MPI trajectory mismatch.
 They do not qualify the native GetFEM/PETSc formulation.
 """
 
+import ast
 import json
 import subprocess
 import sys
@@ -112,6 +113,53 @@ class V130DissipativeCoreDAETest(unittest.TestCase):
         )
         self.assertIn(
             'cumulative_dissipation', src
+        )
+
+    def test_getfem_port_region_conventions(self):
+        # Execute only the isolated pure helper through its AST,
+        # not the native GetFEM/PETSc import unavailable in source CI.
+        # The real failure was an unlabelled (region=None) damping
+        # port passed to GetFEM asm's scalar integer region argument.
+        src = PROBE.read_text(encoding="utf-8")
+        tree = ast.parse(src)
+        funcs = [
+            node for node in tree.body
+            if isinstance(node, ast.FunctionDef)
+            and node.name == "_getfem_region"
+        ]
+        self.assertEqual(len(funcs), 1)
+        isolated = ast.Module(body=funcs, type_ignores=[])
+        ns = {"np": np}
+        exec(compile(isolated, str(PROBE), "exec"), ns)
+        get_region = ns["_getfem_region"]
+
+        class Port:
+            def __init__(self, name, region):
+                self.name = name
+                self.region = region
+
+            def get_region(self):
+                return self.region
+
+            def get_name(self):
+                return self.name
+
+        self.assertEqual(
+            get_region(Port("Damping", None)), -1
+        )
+        self.assertEqual(
+            get_region(Port("Boundary control (left)", 13)), 13
+        )
+        self.assertEqual(
+            get_region(Port("Boundary control (top)", np.int64(12))), 12
+        )
+        with self.assertRaisesRegex(TypeError, "noninteger region"):
+            get_region(Port("invalid", [1]))
+        self.assertIn(
+            "region = _getfem_region(port)", src
+        )
+        self.assertIn(
+            "], 0, exp, region, model", src
         )
 
     def test_synthetic_positive_mpi_parity(self):
