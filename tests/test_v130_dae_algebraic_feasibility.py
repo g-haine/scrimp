@@ -62,6 +62,40 @@ class DAEAlgebraicFeasibilityTests(unittest.TestCase):
         self.assertTrue(status["linearized_compatible_within_tolerance"])
         np.testing.assert_allclose(Kaa @ correction, -r, atol=1e-11)
 
+    def test_left_nullspace_witness_positive_for_inconsistent_block(self):
+        Kaa = csr_matrix(np.diag([1.0, 0.0]))
+        residual = np.array([1.0, 1.0])
+        correction, status = solve_algebraic_block(Kaa, residual)
+        self.assertFalse(status["linearized_compatible_within_tolerance"])
+        self.assertAlmostEqual(
+            status["residual_left_witness_adjoint_l2"], 0.0,
+            delta=1e-10,
+        )
+        self.assertGreater(
+            status["dual_lower_bound_for_corrections_within_radius_l2"],
+            0.9,
+        )
+        self.assertGreater(
+            status["residual_left_witness_pairing_with_initial"],
+            0.9,
+        )
+        self.assertAlmostEqual(
+            status["normal_equation_residual_l2_recomputed"], 0.0,
+            delta=1e-10,
+        )
+
+    def test_dual_bound_zero_when_exact_linear_solution_exists(self):
+        Kaa = csr_matrix(np.eye(2))
+        residual = np.array([3.0, -2.0])
+        _correction, status = solve_algebraic_block(
+            Kaa, residual
+        )
+        self.assertTrue(status["linearized_compatible_within_tolerance"])
+        self.assertLess(
+            status["dual_lower_bound_for_corrections_within_radius_l2"],
+            1e-9,
+        )
+
     def test_nonfinite_inputs_refused(self):
         with self.assertRaises(ValueError):
             solve_algebraic_block(
