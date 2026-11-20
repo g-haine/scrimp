@@ -4,13 +4,22 @@ DAE initial conditions and initialization
 
 .. important::
 
-   On the v1.3.0 development branch, the new `algebraic` mode
-   is **opt-in and restricted to qualifying linear systems**.
-   The current default remains `pseudo`. It will be changed
-   only after native tests of the production integration,
-   compatibility checks of the examples and a separate
-   default-promotion decision. Do not conflate the qualified
-   *diagnostic prototype* with a qualified production feature.
+   **v1.3.0 development branch (default-migration candidate):**
+   The default strategy is now `algebraic` **when `init_step=True`
+   and no initialization strategy is explicitly supplied**.
+   Its support is limited to qualifying real, linear DAE layouts.
+   This **source-level default switch is not yet native-qualified
+   and is not a released API guarantee**. Incompatible initial
+   conditions and unsupported models are rejected explicitly,
+   never silently relaxed with `pseudo`.
+
+   The historical `pseudo` and tiny-step `bdf` methods remain
+   available through explicit `init_step_ts_type`. The historical
+   examples, notebooks and published Maxwell script request
+   `pseudo` explicitly to preserve their previous behavior.
+   The native two-model scientific opt-in checks PASSED, but
+   the independent no-option default acceptance and broader
+   memory/compatibility release gates remain pending.
 
 Mathematical motivation
 =======================
@@ -60,7 +69,8 @@ preserves every prescribed dynamic coefficient, and
 **rejects** unsupported or incompatible initial data
 instead of silently changing them.
 
-For the v1.3.0 experimental opt-in:
+For the **explicit algebraic mode**, or to override
+its tolerances while using the default:
 
 .. code-block:: python
 
@@ -214,11 +224,11 @@ Quick comparison
    * - `algebraic`
      - **Yes**, for qualified linear cases
      - **No**
-     - Explicit opt-in; rejects unsupported/incompatible data
+     - Default candidate for supported linear DAE; rejects unsupported/incompatible data
    * - `pseudo`
      - **Not guaranteed**
      - **Yes**
-     - Historical default, reproduces legacy relaxation
+     - Explicit historical relaxation; reproduces legacy trajectories
    * - `bdf`, order 2 and tiny step
      - **Not guaranteed**
      - **Yes**
@@ -259,8 +269,22 @@ and production acceptance contract are retained in:
 * `docs/V130_DAE_INITIAL_VALIDATION.md`
 * `docs/V130_RELEASE_PLAN.md`
 
-A change of default from `pseudo` to `algebraic`
-must be accompanied by an explicit audit of
-examples and unsupported models, separate
-native regression evidence and updated
-release documentation.
+**Current source migration (20 November 2026):**
+The development branch now selects `algebraic` as
+the implicit default. The qualified core opt-in
+projection and a second dissipative model both
+PASSED their native MPI 1/2 physics gates.
+A dedicated frozen-image no-explicit-initializer
+regression and the wider examples/memory audit
+must pass **before this behavior is released**.
+The published Maxwell example and historical
+notebooks now explicitly retain `pseudo`.
+
+With `init_step=False`, omitting the initializer
+choice remains valid: SCRIMP performs no
+initialization step. An explicit contradictory
+request `init_step_ts_type="algebraic"` together
+with `init_step=False` raises an error.
+
+See `scripts/run-v130-dae-default-promotion.sh`
+for the native migration acceptance test.
