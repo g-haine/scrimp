@@ -70,7 +70,16 @@ state-dependent mass tangent and adding `sigma*M`. The current
 `SCRIMP_NONLINEAR_MASS_JACOBIAN=finite_difference`; it computes
 the contracted term by a centered finite difference in
 the `zd` direction of the GetFEM tangent mass, with bounded
-perturbations and PETSc storage reuse.
+perturbations and PETSc storage reuse. **This symmetry-based
+construction assumes the GetFEM nonlinear dt brick really
+defines a smooth weak-form primitive `Q(z)` whose derivative
+is `M(z)=DQ(z)`**. For an arbitrary non-variational
+state-dependent mass operator there is no general
+`D M(z)[v] zd = D M(z)[zd] v` identity; such models
+would need their true contracted derivative assembled
+directly or a matrix-free Jacobian action.
+Therefore qualify the supported GetFEM representation,
+not an unrestricted mathematical class of `M(z)`.
 `SCRIMP_NONLINEAR_MASS_JACOBIAN=legacy` is available for
 the negative-control A/B. The previous viscous SWE full-Jacobian
 directional checks reported relative errors ~1e-11 on MPI 1/2
