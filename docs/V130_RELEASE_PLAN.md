@@ -1755,3 +1755,66 @@ a differentiated constraint (schematically
 and multiplier traction. If prescribed data are incompatible,
 fail explicitly rather than alter `p0` or prescribe an
 nonphysical polygon-wall trace. Keep #28 and nontrivial #6 OPEN.
+
+## 20 November 2026 — #28.1 fixed-h,p compatibility diagnostic: SOURCE ONLY / NATIVE PENDING
+
+After the fully native #28.0 MPI 1/2 PASS the actual per-rank
+`structure.json` files show the following identical structure:
+3,300 total DOFs, 1,452 differential (`h=484`, `p=968`),
+1,848 algebraic and 132 traction `Y` DOFs.
+`max|M_a|=0`, `max|dF_a/dY|=0`,
+`max|dF_d/dY|=0.5069655658773655`.
+The independent directional FD for the full dynamic `Y` block
+has norm `0.5009893370080248`, absolute Jacobian discrepancy
+`5.003707553108401e-17`; algebraic FD sensitivity is exactly zero.
+Original `||F_a||=0.2500610865473142` for MPI1
+(`0.25006108654731424` on MPI2) with zero initial algebraic
+guesses. Per-block initial `||F_a||`:
+`e_h=0.0880456422545`, `e_p=0.1682909140783`,
+`U=0.1626550955977`, and `Y,Y_n,U_n=0`.
+**These initial-zero-guess residuals do not establish boundary
+incompatibility.** In particular `F_Y=0` with `e_p=U=0` is vacuous.
+
+New source-only, no-state-acceptance feasibility audit:
+`sandbox/probe_v130_issue28_feasibility.py` and
+`scripts/run-v130-issue28-feasibility.sh`.
+At the unchanged original `h0,p0` it builds the true
+`F_a(z0)` and `J=dF/dz` using production GetFEM/PETSc,
+then removes ONLY the 132 *known null* traction `Y` columns
+from the otherwise algebraic unknown set. The resulting
+`1848 x 1716` rectangular native algebraic Jacobian
+defines a **diagnostic** distributed PETSc LSQR least-squares
+problem for the 1716 remaining algebraic unknowns.
+The candidate is strictly read-only: `h0,p0` and original
+`Y` coefficients are checked bitwise unchanged, and every
+GetFEM unknown is restored even on error.
+
+The audit recomputes the true `IFunction` at the projected
+algebraic candidate, reports **all six** algebraic block
+residual norms, and checks actual `F_a(z0+delta)` against
+`F_a(z0)+J_{a,*}delta` (the original open-loop algebraic
+forms are affine in algebraic unknowns for fixed `h,p`).
+It reports LSQR convergence, normal-equation residual
+`||J^T F_a||`, and distinguishes:
+`FEASIBLE_AT_TOLERANCE`,
+`INCOMPATIBLE_AT_TOLERANCE` (only with independently
+certified LSQR and normal-equation stationarity), and
+`INCONCLUSIVE_LSQR`. A mathematical incompatibility
+claim must **not** be inferred from an unconverged
+or rank-deficient numerical attempt alone.
+
+The native harness compares MPI 1/2 on
+**both** the original rotation `omega=0.2` and
+a separate zero-rotation `omega=0` positive control.
+Both use the same physical weak forms and polygon wall;
+the zero-rotation case is **not** the original rotating
+experiment. No BDF2 pseudo-step or physical TS is launched;
+no nonlinear Newton, higher-index method or v1.3.0
+release gate has been qualified by the source-only commit.
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+SCRIMP_DOCKER_NO_SUDO=1 SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+  bash scripts/run-v130-issue28-feasibility.sh
+```
