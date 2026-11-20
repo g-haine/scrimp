@@ -246,9 +246,14 @@ integration problems, even though SCRIMP executed and debugged:
   environment manager fails to associate it with the workspace.
   SCRIMP uses Micromamba rather than a standard Conda executable.
 
-**Candidate correction (20 Nov 2026):** opt out of the new Python
-Environments integration **in this Dev Container only**, while
-retaining Microsoft's Python extension, Pylance and debugpy.
+**Confirmed correction on Ubuntu (20 Nov 2026):** opt out of the
+new Python Environments integration **in this Dev Container only**,
+while retaining Microsoft's Python extension, Pylance and debugpy.
+When the user added the missing
+``"python.useEnvironmentsExtension": false`` setting to their
+*existing local project* they reported that the interpreter
+warning disappeared. Pylance's missing-import warning had
+already been eliminated independently by ``extraPaths``.
 The Python extension documents its supported legacy setting
 ``python.useEnvironmentsExtension=false``. Similar invalid
 interpreter reports have been filed against Python Environments.
@@ -293,13 +298,16 @@ independent files):
    ``Python: Select Interpreter``. The already validated
    F5 debugger and ``import scrimp`` should remain functional.
 
-**Acceptance remains pending** until a new GUI session confirms
-that the invalid-interpreter warning disappears and does not
-return after closing/reopening VS Code. If it persists, inspect
-both Python and Python Environments output channels before
-adding more settings. Do not install ``uv``, install a second
-Python, suppress Pylance errors, or replace the qualified SCRIMP
-image merely to fix editor discovery.
+**Observed Ubuntu Dev Containers acceptance: PASS.** After the
+setting was added to the user's existing project, VS Code stopped
+reporting the invalid interpreter. The serial simulation, 2-rank
+MPI startup and F5/debugpy run had already passed. The template
+contains the same settings for future projects. This is not
+yet a clean-room test on a new machine or a cross-platform
+compatibility claim. If a future extension update reintroduces
+the prompt, inspect the Python extension logs; do not install
+``uv``, suppress real Pylance errors or modify the numerical
+image to work around an editor-only problem.
 
 All container-only absolute paths remain in Dev Container
 metadata, **not** the shared ``.vscode/settings.json``: native
@@ -405,12 +413,12 @@ Known limitations / release gates
   to the host, and started SCRIMP on two MPI ranks.
   **Serial Python debugging has also passed** with F5,
   a breakpoint, F10 stepping, Locals, Call Stack and normal
-  completion on resume. Source-level settings now address
-  automatic interpreter discovery and editable-SCRIMP imports;
-  their actual fresh-window GUI retest remains open. Native
-  compatibility, Windows/macOS/Apple Silicon, MPI multi-process
-  debugging and power-balance/physics qualification remain
-  separate gates.
+  completion on resume. The developer also confirmed that
+  ``python.useEnvironmentsExtension=false`` fixes editor
+  interpreter recognition, while Pylance resolves SCRIMP via
+  ``python.analysis.extraPaths``. Native compatibility,
+  Windows/macOS/Apple Silicon, MPI multi-process debugging and
+  power-balance/physics qualification remain separate gates.
 - The public GHCR v1.3.0 tag and starter project ZIP are not
   published; both require an accepted release.
 - The introductory oscillator is a serial model; use validated
