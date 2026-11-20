@@ -34,7 +34,9 @@ class PythonHeaderTest(unittest.TestCase):
         invalid = []
         for path in paths:
             contents = (ROOT / path).read_text(encoding="utf-8-sig")
-            if not contents.startswith(HEADER + "\n"):
+            # An executable Python script must retain its shebang on line 1.
+            text = contents.split("\n", 1)[1] if contents.startswith("#!") else contents
+            if not text.startswith(HEADER + "\n"):
                 invalid.append(path)
         self.assertFalse(invalid, "Invalid SCRIMP headers:\n" + "\n".join(invalid))
 
