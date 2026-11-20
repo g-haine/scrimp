@@ -484,3 +484,60 @@ There is **no silent fallback to pseudo** on
 unsupported or numerically incompatible data.
 That is essential to preserve the meaning of
 “the differential initial coefficients are fixed”.
+
+
+## 9. Production-owned opt-in core successfully qualified on the wave
+
+**The native core gate previously pending in section 8 has
+now PASSED** (20 November 2026). With the qualified
+`scrimp-mpi:v1.3.0-rc3` runtime, the
+`DPHS.init_step(init_step_ts_type="algebraic")`
+implementation reproduces all eleven *independent
+frozen diagnostic* Crank–Nicolson states on MPI 1
+and 2 to a maximum scaled error of **0** and
+**5.30974918e-18**, respectively. The actual
+native initial algebraic residuals are
+**9.81418431e-14** and **9.61877785e-14**,
+with exactly unchanged prescribed dynamic
+coefficients, nonzero signed boundary work
+`-5.39545892e-5` and Hamiltonian+work defects
+`5.60853295e-15` / `6.05263063e-15`.
+
+The Gaussian published initial data are rejected
+before main CN at MPI 1 and 2 with measured
+`||F_a||=4.82244319e-6` against
+`2.0689895e-10` tolerance. In that case,
+the GetFEM initial variables are restored.
+
+**Native historical control measurements:**
+
+- `pseudo`: coefficient norms
+  `||Delta q0||=0.0019595881156396905`,
+  `||Delta p0||=1.3019644341244006e-5`.
+  The complete main CN trajectory is **bit-for-bit
+  identical to the independent frozen pseudo
+  physical reference** at the tested mesh/time/MPI.
+- `bdf` (BDF2, negative start at `t0-1e-6`,
+  fixed tiny step ending at `t0`):
+  `||Delta q0||=1.9595912757338825e-5`,
+  `||Delta p0||=8.680599894760661e-10`.
+  This is a smaller, **nonzero** drift — not an
+  exact initial data projection. Its maximum
+  signed energy/work defect remains
+  `4.74270349e-15`.
+
+Exact native result:
+`sandbox/outputs/v130-core-dae-h0p2-66fe02c2-WykmP41Y/`;
+the exhaustive experiment and its independently
+compared source baselines are archived in
+[section 21 of the validation log](V130_DAE_INITIAL_VALIDATION.md).
+
+**Scope:** the opt-in method is qualified
+for *this* linear acoustic wave configuration,
+including negative control and legacy regressions.
+The requested global default promotion is a
+**separate migration gate**:
+[V130_DAE_DEFAULT_MIGRATION.md](V130_DAE_DEFAULT_MIGRATION.md).
+Changing the default would otherwise break
+currently unsupported examples and the
+published incompatible Gaussian.
