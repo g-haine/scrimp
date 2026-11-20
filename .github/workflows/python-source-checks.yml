@@ -63,9 +63,9 @@ jobs:
           python -m unittest -v tests.test_release120_scaling_plots tests.test_v130_wave_figures tests.test_v130_large_wave_scaling tests.test_initial_consistency_sync
       - name: Validate DAE initial-state, algebraic projection and CN physical power diagnostics
         run: |
-          python -m py_compile sandbox/audit_v130_wave_dae_initial.py sandbox/compare_v130_wave_dae_initial.py sandbox/probe_v130_wave_fixed_dynamics.py sandbox/compare_v130_wave_fixed_dynamics.py sandbox/compare_v130_wave_control_compatibility.py sandbox/solve_v130_dae_algebraic_block.py sandbox/audit_v130_wave_initializers.py sandbox/compare_v130_wave_initializers.py tests/test_v130_wave_dae_audit.py tests/test_v130_dae_algebraic_feasibility.py tests/test_v130_wave_initializers.py
-          bash -n scripts/run-v130-dae-initial-audit.sh scripts/run-v130-fixed-dynamics-probe.sh scripts/run-v130-exact-fe-initial-probe.sh scripts/run-v130-wave-initializer-physics.sh
-          python -m unittest -v tests.test_v130_wave_dae_audit tests.test_v130_dae_algebraic_feasibility tests.test_v130_wave_initializers
+          python -m py_compile sandbox/audit_v130_wave_dae_initial.py sandbox/compare_v130_wave_dae_initial.py sandbox/probe_v130_wave_fixed_dynamics.py sandbox/compare_v130_wave_fixed_dynamics.py sandbox/compare_v130_wave_control_compatibility.py sandbox/solve_v130_dae_algebraic_block.py sandbox/audit_v130_wave_initializers.py sandbox/compare_v130_wave_initializers.py sandbox/probe_v130_petsc_mpi_initial.py sandbox/compare_v130_petsc_mpi_initial.py tests/test_v130_wave_dae_audit.py tests/test_v130_dae_algebraic_feasibility.py tests/test_v130_wave_initializers.py tests/test_v130_petsc_mpi_dae_initial.py
+          bash -n scripts/run-v130-dae-initial-audit.sh scripts/run-v130-fixed-dynamics-probe.sh scripts/run-v130-exact-fe-initial-probe.sh scripts/run-v130-wave-initializer-physics.sh scripts/run-v130-petsc-mpi-dae-initial.sh
+          python -m unittest -v tests.test_v130_wave_dae_audit tests.test_v130_dae_algebraic_feasibility tests.test_v130_wave_initializers tests.test_v130_petsc_mpi_dae_initial
       - name: Validate SCRIMP source headers
         run: |
           python -m unittest -v tests.test_python_headers
