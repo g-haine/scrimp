@@ -1502,3 +1502,76 @@ balance, MPI parity, and h-refinement remain release
 dependencies. This production stage should not be
 listed as fully qualified until user-supplied native
 evidence is checked.
+
+## 20 November 2026 — Production `nonlinear_affine` initial projection: NATIVE MPI1/2 PASS; host-only comparator typo fixed
+
+The user ran the *actual* production `DPHS.init_step()` with
+`init_step_ts_type="nonlinear_affine"` on the original
+`examples/shallow_water.py` with original mesh `0.1`,
+prescribed `h0,p0`, homogeneous boundary controls and
+original explicit gyroscopic term, **without any physical TS**.
+Source **`de76ff77b9ab33a0bded5b78096025511211589a`**
+and pinned immutable image `scrimp-mpi:v1.3.0-rc3`
+(OCI revision `1d6d0c90115213298047b28237a7f38087563a35`).
+
+**Evidence archive personally supplied by the user:**
+`v130-issue28-production-na-de76ff77-l7JjFNvy.zip`
+(manifest, native MPI1/MPI2 logs and separately saved
+`production_nonlinear_affine.json` for each rank).
+
+| Metric | Native MPI 1 | Native MPI 2 |
+|---|---:|---:|
+| Total, differential, algebraic DOFs | 4270, 2035, 2235 | 4270, 2035, 2235 |
+| Original `||F_a||` | `1281.7812562535455` | `1281.7812562535455` |
+| **Published** true `||F_a||` | **`2.199213556173762e-12`** | **`2.3277177796294783e-12`** |
+| Accuracy target | `1e-11` | `1e-11` |
+| Affine identity error | `1.571067363774428e-13` | `1.590053793547698e-13` |
+| PETSc MUMPS convergence reason | `4` | `4` |
+| `max_abs_algebraic_mass_rows` | `0` | `0` |
+| Algebraic Jacobian null columns | `0` | `0` |
+| Prescribed differential `h0,p0` preserved bitwise | `true` | `true` |
+| Algebraic corrections **published** to GetFEM | `true` | `true` |
+| Accepted original-state explicit gyro cache | `ready` | `ready` |
+
+Both reports have `status=PASS_NATIVE_PRODUCTION_INITIALIZER`,
+with native final residual below the strict target.
+
+**Host-only end-of-script mistake, not a native solver failure:**
+after both runs printed `PASS`, the runner called
+`math.isclose(a,b,rtol=...,abs_tol=...)`; the Python standard
+library expects **`rel_tol`**, not `rtol`, so this final
+comparison raised `TypeError` and made the shell exit nonzero.
+Independent replay **directly against the supplied archive**
+confirms that the two final residuals differ by only
+`1.2850422345571612e-13` and satisfy the intended tolerance.
+
+Commit **`e389cd8bbf419b182f58b420e45e496f30fd6a19`**
+fixes this by extracting a pure-Python archived native
+evidence comparator:
+`sandbox/compare_v130_issue28_production_nonlinear_affine.py`,
+adds positive and negative source-only regression tests,
+and supports **offline revalidation without rerunning Docker**:
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+bash scripts/run-v130-issue28-production-nonlinear-affine.sh --compare-only \
+  sandbox/outputs/v130-issue28-production-na-de76ff77-l7JjFNvy
+```
+
+**Qualified scope:** the single opt-in real production initial
+algebraic projection for an original **nonlinear-state**
+but **affine-algebraic** DAE with rectangular geometry,
+distributed MPI 1/2, strict residuals, bitwise fixed
+differential data, published algebraic coefficients,
+and native PETSc MUMPS convergence. No actual physical TS
+step was taken, no numerical power balance was checked,
+no nonlinear-in-algebraic Newton was exercised, and the
+rotating viscous disk traction `Y0` remains **UNINITIALIZED**.
+
+**Next qualification gates:** explicit native negative control
+for original rotating open-loop `Y` null columns,
+negative/rollback on genuinely incompatible original
+initial data, short physical-time integration with
+power/Hamiltonian budget, and mesh-refinement /
+physically scaled residual norms. Keep issue #28 OPEN.
