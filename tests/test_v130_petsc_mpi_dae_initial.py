@@ -175,6 +175,27 @@ class PETScDAEScientificComparatorTests(unittest.TestCase):
             "differential_state_exactly_preserved", source
         )
 
+    def test_fe_positive_refines_beyond_physical_gate_without_relaxing_it(self):
+        source = (
+            ROOT / "sandbox" / "probe_v130_petsc_mpi_initial.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn("min(tolerance, 1.e-11)", source)
+        self.assertIn(
+            "if norm_after <= diagnostic_accuracy_target:", source
+        )
+        self.assertIn('"native_residual_tolerance": tolerance', source)
+        self.assertIn(
+            '"diagnostic_accuracy_target": diagnostic_accuracy_target',
+            source,
+        )
+        self.assertIn(
+            'args.scenario == "polynomial_compatible"', source
+        )
+        self.assertIn(
+            '"PASS" if norm_final <= tolerance else "UNRESOLVED"',
+            source,
+        )
+
     def test_source_fixture_positive_negative_mpi_pass(self):
         r = self._run()
         self.assertEqual(r.returncode, 0, r.stderr)
@@ -197,6 +218,18 @@ class PETScDAEScientificComparatorTests(unittest.TestCase):
         r = self._run()
         self.assertNotEqual(r.returncode, 0)
         self.assertIn("trajectory MPI disparity", r.stderr)
+        # Scientific failure must leave evidence for diagnosing
+        # error in the projected t0 state versus later CN steps.
+        diag = json.loads(
+            (self.root / "distributed_dae_parity_diagnostics.json"
+             ).read_text(encoding="utf-8")
+        )
+        self.assertEqual(diag["state_parity_tolerance"], 5e-8)
+        self.assertEqual(diag["max_difference_step"], 10)
+        self.assertAlmostEqual(diag["max_difference_time"], .02)
+        self.assertGreater(
+            diag["max_scaled_trajectory_difference"], 5e-8
+        )
 
     def test_nonvacuous_but_unbalanced_power_must_fail(self):
         self._write(fail_balance=True)
