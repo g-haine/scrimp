@@ -300,3 +300,81 @@ with `init_step=False` raises an error.
 
 See `scripts/run-v130-dae-default-promotion.sh`
 for the native migration acceptance test.
+
+Mesh dependence of the algebraic residual criterion
+=================================================
+
+.. important::
+
+   The present algebraic-initializer acceptance threshold is applied
+   to the Euclidean norm of a **finite-element coefficient residual**.
+   It is **not mesh independent**, even though its formula has
+   no explicit mesh-size parameter. Do not interpret a lower raw
+   residual on a finer mesh as a smaller physical constraint defect.
+
+At a fixed mesh, the current diagnostic checks
+
+.. math::
+
+   \|F_{a,h}\|_2 \leq \varepsilon_{\rm abs}
+   + \varepsilon_{\rm rel}\|F_{a,h}^{(0)}\|_2.
+
+Here :math:`h` means the spatial mesh step, **not** the
+fluid-height state named ``h`` in the shallow-water model.
+The residual entries, number of FE basis functions, weak
+integration weights, conditioning and units change on refinement.
+For instance, a smooth volume load in two dimensions can yield
+a Euclidean residual that scales like the mesh step even when
+the underlying physical defect does not decrease.
+
+A future mesh-aware acceptance test must distinguish:
+
+* Algebraic convergence and native GetFEM/PETSc residuals at
+  each fixed mesh, with solver accuracy checked separately.
+* **Per-constraint physical residuals**, measured with
+  suitable dual norms. For an appropriate Riesz/Gram
+  matrix :math:`R_{a,h}`, one possible norm is
+
+  .. math::
+
+     \|F_{a,h}\|_{V_{a,h}\u0027}
+       =\sqrt{F_{a,h}^{\mathsf T}R_{a,h}^{-1}F_{a,h}}.
+
+  Volume and boundary blocks require their own Gram matrices
+  and physically meaningful characteristic scales.
+* Boundary compatibility measured through
+  :math:`L^2(\Gamma_h)` velocity/traction defects, with
+  appropriate nonzero reference scales.
+* Refinement studies using consistent physical initial data,
+  tracking these errors over several spatial mesh sizes.
+
+A physically incompatible *discrete* initial condition must
+not be accepted simply because its residual vector becomes
+small under refinement. Conversely, finite precision or
+a poorly scaled coefficient norm is not a proof of physical
+incompatibility.
+
+Finite-difference perturbations and roundoff
+===========================================
+
+The original rectangular shallow-water example has
+fluid heights of order three, density :math:`\rho=1000`
+and gravity :math:`g=10`, so the pressure/coenergy variable
+is of order :math:`3\times10^4`. When a normalized
+algebraic direction is perturbed with a very small
+step :math:`\delta=10^{-6}`, subtracting nearly equal
+assembled residual vectors may amplify roundoff.
+
+The first native #28 shallow-water Jacobian check returned
+a relative difference of :math:`5.53585698\times10^{-5}`
+for this single small perturbation. This is a numerical
+**failure at that perturbation**, not yet proof of
+an incorrect assembled Jacobian.
+
+The follow-up source-only diagnostic evaluates central
+differences for several step sizes, maintains the
+**original strict tolerance**, checks the independent
+affine algebraic identity, and retains a JSON report
+even on numerical rejection. Native evidence remains
+pending. No production nonlinear initializer is
+qualified by this diagnostic alone.
