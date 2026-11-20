@@ -124,6 +124,25 @@ def _build(h, dt, steps):
     return system
 
 
+def _getfem_region(port):
+    """Return the scalar region expected by GetFEM generic assembly.
+
+    SCRIMP Port(region=None) means the entire interior mesh.
+    This mirrors scrimp.port.Port.compute(), which maps None to -1.
+    Unlike a boundary control, an interior dissipative port has
+    no named region; passing None directly to GetFEM is invalid.
+    """
+    region = port.get_region()
+    if region is None:
+        return -1
+    if isinstance(region, (int, np.integer)):
+        return int(region)
+    raise TypeError(
+        f"Port {port.get_name()} has a noninteger region "
+        f"{region!r}; cannot pass it to gf.asm"
+    )
+
+
 def _physical_audit(system, mpi):
     t = np.asarray(system.solution["t"], dtype=float)
     z = np.asarray(system.solution["z"], dtype=float)
@@ -162,8 +181,7 @@ def _physical_audit(system, mpi):
             # GetFEM's integer region argument (the native run failed
             # with "argument 5 ... is not a scalar value").
             # Boundary control ports keep their explicit integer region.
-            port_region = port.get_region()
-            region = -1 if port_region is None else int(port_region)
+            region = _getfem_region(port)
             val = gf.asm(
                 "generic", system.domain._int_method[
                     port.get_mesh_id()
