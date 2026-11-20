@@ -478,10 +478,36 @@ and test were corrected and require confirmation by a new green run.
 The Ubuntu/VS Code acceptance stays qualified only for the previously
 tested image and editor workflow. Preserve `scrimp-mpi:local`.
 
-**Still pending:** warm-cache image rebuild including the
-source-only ComplexWarning fix; a clean-room onboarding test;
-cross-platform installation; full 1/2/4/6-rank physics/scaling
-and port-Hamiltonian power-balance qualification.
+**20 November Ubuntu Docker rc2 native/cache acceptance — PASS:**
+two BuildKit builds at fixed commit `ae96cb7334d7c88cd2e0dbd4d9615af66f1f4a61`
+staged 190 tracked files (1.54 MiB; transfer 1.62 MB), reused
+all Conda, PETSc/SLEPc and GetFEM 5.5 native layers on the first
+build and all Dockerfile layers on the warm rebuild. Native GetFEM
+MPI level 2, complex PETSc/SLEPc, RT/BDM/Nédélec constrained
+constructors, MUMPS at 1/2 ranks, 10-step independent oscillator,
+strict ComplexWarning, 11-sample persistent Hamiltonian CSV and
+2-rank project MPI startup **all pass**. Exact evidence and
+attestation-vs-runtime digest distinction:
+[V130_DOCKER_RC2_ACCEPTANCE.md](V130_DOCKER_RC2_ACCEPTANCE.md).
+The two exports have identical main image manifests and configs
+but different BuildKit attestation/manifests-list digests; this
+does **not** certify clean-room reproducibility.
+
+**PETSc `-info` origin identified:** a global
+`PETSc.Options().setValue('info', None)` in `scrimp/utils/linalg.py`
+injects an unused option on import-only MPI runs. Removed in a
+**post-rc2 source patch**, with source + two-rank smoke regression
+gates. The patched behavior requires a separately tagged **rc3**
+runtime rebuild before marking the warning fixed in the image.
+Also preserve the packaging-version gate: the rc2 wheel metadata
+still reports `scrimp-1.2.0`; freeze v1.3.0 package metadata later.
+
+**Still pending:** rc3 native smoke for PETSc `-info` removal,
+actual before/after `scrimp-mpi:local` ID evidence, pinned platform
+/ base-image digest and explicit tested Conda lock; a clean-room
+onboarding test; cross-platform installation; full 1/2/4/6-rank
+scientific trajectory/DAE and port-Hamiltonian power qualification,
+Maxwell 3D and long-time memory tests.
 No GHCR image has been published or promoted.
 The reproducible build procedure, cache boundaries, evidence paths
 and deferred lock/platform work are documented in
