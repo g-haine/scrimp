@@ -1275,3 +1275,98 @@ a general production nonlinear DAE initializer or
 the nonlinear algebraic Newton class, and does
 not replace accepted physical-time/energy-power
 qualification. These must remain explicit future gates.
+
+## 20 November 2026 — #28 shallow-water first native FD FAIL; mesh-aware criteria and rotating DAE design
+
+The original rectangular `examples/shallow_water.py` fixed-state
+diagnostic at native MPI 1, original mesh 0.1, source
+`63bb31b27ef5af720f9ba4d83be823271245a394`,
+failed at its directional finite-difference Jacobian test:
+`relative_error=5.53585698e-5` using only `epsilon=1e-6`.
+Raw host evidence: `v130-issue28-shallow-initial-63bb31b2-28COqKkK.zip`.
+This is a **numerical test failure, not proof** of a faulty
+production Jacobian or a failed algebraic solve.
+The initial published model has `rho=1000`, `g=10`
+and fluid height about 3, so coenergy pressure
+`e_h` is O(30000), and the tiny epsilon may suffer
+severe subtraction cancellation.
+
+New source-only native diagnostic commits `86faa546` and
+`c7e3cd05`: scan central FD steps 0.1, 0.01, 0.001,
+0.0001 and 0.000001, record both absolute and relative
+errors and the native `IFunction` algebraic residual.
+Require BOTH the 0.1 and 0.01 steps to satisfy the
+original unchanged `1e-7` relative FD tolerance;
+also require true post-correction algebraic residual
+`<=1e-9` and the independently assembled affine identity.
+The model, dynamic initial data, frozen explicit gyro,
+FE families and control ports are **unmodified**.
+Crucially, write diagnostic JSON even on a numerical
+rejection so the next failure is interpretable.
+New native run has NOT been executed.
+
+### Mesh size changes how to interpret `||F_a||_2`
+
+The present implementation uses
+`||F_{a,h}||_2 <= atol + rtol ||F_{a,h}^{(0)}||_2`.
+It does **not** explicitly mention spatial mesh step,
+but the residual is a coefficient vector from weak
+forms, so its Euclidean norm changes with FE basis,
+DOF count, shape regularity, integration weights
+and conditioning. On a quasiuniform 2D mesh, a
+fixed smooth volumetric defect with nodal load
+components O(h²) and O(h⁻²) unknowns can show
+Euclidean residual O(h), *without any improvement*
+in physical compatibility. Volume and boundary
+residuals have different natural scalings and units.
+
+Future release acceptance must combine original
+GetFEM/PETSc residuals and numerical backward errors
+with **blockwise dual/Riesz norms**
+`sqrt(F_a^T R_a^{-1} F_a)` using suitable Gram
+operators, physical relative boundary
+`L²(Γ_h)` constraint errors, and h-refinement
+studies. This has **not** been implemented as
+a generic production criterion; do NOT loosen
+current DAE thresholds just to force a PASS.
+The user-facing treatment is in
+`docs/source/initialization.rst`.
+
+### Original rotating viscous SWE: still NOT initialized
+
+Fixing the GWFL matrix sign and validating the
+exact P1/P2 stationary equilibrium do not determine
+the rotating initial traction `Y0`. Native
+structure confirms `∂F_a/∂Y=0` and nonzero
+`∂F_d/∂Y`; naive square Jaa Newton cannot determine
+this boundary multiplier. The next intended
+mathematical work, after the simpler rectangular
+shallow-water nonlinear DAE gate:
+
+1. Verify compatibility of the **reduced discrete**
+   algebraic boundary constraints for fixed h0,p0.
+   Reject rather than silently modify prescribed data.
+2. Compute regular algebraic variables (efforts and
+   boundary controls) at the fixed original h0,p0.
+3. Differentiate the reduced discrete trace
+   constraints `C(q,t)=0`: `C_q qdot + C_t=0`.
+4. Assess rank/solvability of a bordered linearized
+   system coupling dynamic mass equations to
+   unknown `qdot0,Y0`, with gyroscopic, viscous
+   and prescribed-control contributions intact.
+5. Verify original boundary power, dissipation,
+   MPI 1/2 and spatial refinement before claiming
+   a physical rotating DAE initializer.
+
+This is a **planned** possible index-aware
+initialization method, not an established index
+class or a native-qualified production algorithm.
+
+**Native next command:**
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+SCRIMP_DOCKER_NO_SUDO=1 SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+  bash scripts/run-v130-issue28-shallow-initial.sh
+```
