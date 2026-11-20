@@ -155,10 +155,66 @@ def compare(root, *, max_scaled_state_discrepancy=5e-8):
         for x, y in zip(a["states"], b["states"])
     ]
     maximum = max(errors)
+    worst_step = int(np.argmax(errors))
+    projected_difference = a["projected"] - b["projected"]
+    projected_max_component = int(np.argmax(
+        np.abs(projected_difference)
+    ))
+    projected_scaled_gap = float(
+        np.linalg.norm(projected_difference)
+        / max(1.0, np.linalg.norm(a["projected"]))
+    )
+    diagnostics = {
+        "schema": "scrimp-v130-petsc-mpi-disparity-diagnostics-v1",
+        "state_parity_tolerance": max_scaled_state_discrepancy,
+        "max_scaled_trajectory_difference": maximum,
+        "max_difference_step": worst_step,
+        "max_difference_time": float(a["times"][worst_step]),
+        "scaled_differences_by_step": errors,
+        "projected_initial_scaled_l2_discrepancy": projected_scaled_gap,
+        "projected_initial_max_difference_index": projected_max_component,
+        "projected_initial_max_abs_component_difference": float(
+            abs(projected_difference[projected_max_component])
+        ),
+        "initial_algebraic_residual_1r": positive[1][
+            "native_algebraic_after_l2"
+        ],
+        "initial_algebraic_residual_2r": positive[2][
+            "native_algebraic_after_l2"
+        ],
+        "diagnostic_target_1r": positive[1].get(
+            "diagnostic_accuracy_target"
+        ),
+        "diagnostic_target_2r": positive[2].get(
+            "diagnostic_accuracy_target"
+        ),
+        "diagnostic_target_met_1r": positive[1].get(
+            "diagnostic_accuracy_target_met"
+        ),
+        "diagnostic_target_met_2r": positive[2].get(
+            "diagnostic_accuracy_target_met"
+        ),
+    }
+    # The four native runs may each have passed their *own* physics
+    # and constraint gates even when their full state parity fails.
+    # Persist actual failure diagnostics BEFORE enforcing parity.
+    (root / "distributed_dae_parity_diagnostics.json").write_text(
+        json.dumps(diagnostics, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    print(
+        "INITIALIZER MPI PARITY DIAGNOSTICS: "
+        f"projected t0 scaled L2={projected_scaled_gap:.9g}, "
+        f"full trajectory maximum scaled L2={maximum:.9g}, "
+        f"worst step={worst_step} t={a['times'][worst_step]:.9g}, "
+        f"threshold={max_scaled_state_discrepancy:.9g}",
+        flush=True,
+    )
     if maximum > max_scaled_state_discrepancy:
         raise RuntimeError(
             "Distributed DAE full CN trajectory MPI disparity: "
-            f"{maximum}"
+            f"{maximum} > {max_scaled_state_discrepancy}; "
+            "see distributed_dae_parity_diagnostics.json"
         )
     for quantity in (
         "hamiltonian", "port_work_integral", "step_balance_defects",
@@ -195,6 +251,9 @@ def compare(root, *, max_scaled_state_discrepancy=5e-8):
         "power_balance_with_nonzero_port_work": "PASS",
         "full_CN_trajectory_MPI_1_2": "PASS",
         "max_scaled_full_trajectory_MPI_discrepancy": maximum,
+        "projected_initial_MPI_scaled_l2_discrepancy": (
+            projected_scaled_gap
+        ),
         "reproduces_independent_scientific_signed_port_work": True,
     }
     (root / "distributed_dae_comparison.json").write_text(
