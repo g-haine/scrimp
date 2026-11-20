@@ -270,6 +270,39 @@ Retain those as documented scientific/memory limitations and
 dedicated follow-up tests. The v1.3.0 release itself remains
 gated by the remaining workstreams below.
 
+### 20 November — physical DAE initial-data diagnostic is ready, not yet run
+
+The Ubuntu Docker BuildKit/native/PETSc import qualification is
+closed. Scientific qualification resumes with **two separate**
+initialization obligations: (1) algebraic DAE constraint
+consistency, (2) fidelity to prescribed differential initial data
+`q(0)=0`, `p(0)=3**(-20*((x-0.5)^2+(y-0.5)^2))`.
+The historical accepted pseudo-TS changed the initial q field
+(norm ~4.71761e-3 in an earlier production wave diagnosis).
+Matching v1.2.0 is therefore **not** a scientific initial-data PASS.
+
+A source-level diagnostic and reproducible, small, **rc3 image**
+native runner now exist. They measure GetFEM pre/post pseudo-TS
+full states, physical-field q/p drift, owned algebraic rows of the
+actual PETSc `IFunction`, zero algebraic mass-row entries,
+the first physical CN state and **all six saved complete state
+vectors** across MPI 1/2. They never modify production solvers,
+the accepted pseudo-state or any Docker native image. The
+diagnostic **reports** a physical fidelity FAIL separately
+rather than hiding it behind a numerical MPI PASS.
+
+Procedure and explicit acceptance criteria:
+[V130_DAE_INITIAL_VALIDATION.md](V130_DAE_INITIAL_VALIDATION.md).
+**Run status: pending native Ubuntu evidence.** The next
+step is the small h=0.2, five-step 1/2-rank diagnostic; study the
+algebraic residual and dynamic-field drift before implementing
+any algebraic-only projection. After a mathematically defensible
+initialization, use the existing driven-wave
+`check_acoustic_energy_mpi.py` /`analyze_acoustic_power_balance.py`
+and coenergy physical-power tests, then Maxwell 3D. The ~3M-DoF
+strong-scaling campaign need not be repeated just to perform
+this initial physics diagnosis.
+
 ## 1 — GetFEM 5.5 simplicial FEM contributions (SCRIMP-first)
 
 **Scope decision (19 November 2026):** support only **triangles and
