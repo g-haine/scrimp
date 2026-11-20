@@ -946,3 +946,82 @@ boundary couplings may require compatible derivatives.
 Do not advertise this linear procedure as a generic
 high-index/nonlinear initializer, and do not change
 SCRIMP's default time scheme without separate evidence.
+
+## 15. Next native gate: distributed PETSc algebraic projector (pending)
+
+The full CN A/B power gate **PASSED** (section 13), but its
+source-only diagnostic projection used rank-0 SciPy LSMR
+on a gathered algebraic block and executed the old
+pseudo-TS first. This validated physics, **not**
+production-grade scalability or initialization lifecycle.
+
+A new **diagnostic-only** candidate is staged:
+
+- `sandbox/probe_v130_petsc_mpi_initial.py`: uses
+  distributed PETSc `IS` index sets for algebraic
+  DOFs and `Mat.createSubMatrix` on the **actual
+  assembled PETSc stiffness**; solves
+  `K_aa delta_a=-F_a` with PETSc `KSP LSQR`,
+  `PC NONE`, and the `scrimp_dae_trial_`
+  options prefix. No complete K_aa is gathered
+  on rank 0. Linear mass and stiffness,
+  complete disjoint flow/effort intervals, no
+  lumped or substituted variables, and zero
+  algebraic mass rows are required.
+- The full production `IFunction(t0,z,0)` is
+  recomputed after the correction, the
+  exact prescribed differential coefficients
+  are checked **bitwise**, and the model is
+  synchronized via existing global PETSc Scatter.
+  A KSP reason indicating least-squares stopping
+  does **not** substitute for a true DAE residual PASS.
+- **No initial pseudo-TS is executed at all**
+  in this diagnostic: a temporary method
+  intercepts `DPHS.init_step` before the
+  production main CN TS. The actual immutable
+  rc3 `dphs.py` and solver are unchanged.
+- Positive control:
+  `p0=x*(3-x)`, `q0=0`, driven left
+  `U_L(t)=0.08*sin(20*t)`; require
+  native algebraic feasibility, complete 10-step
+  CN time series, MPI 1/2 parity, nonzero
+  power and Hamiltonian+signed work balance.
+  Cross-check the measured signed work against
+  section 13's independent diagnostic.
+- Negative control: the *published Gaussian*
+  with original `U_L(0)=0`; the native
+  algebraic residual must reject the
+  incompatible-data test **before** any CN
+  step. An expected residual rejection is not
+  confused with a PETSc failure or claimed
+  proof of global algebraic infeasibility.
+- `sandbox/compare_v130_petsc_mpi_initial.py`
+  checks both scenarios against MPI 1 and 2.
+  Source-only tests inject power, late trajectory
+  and incompatible-data acceptance failures.
+
+**Next Ubuntu command** (same frozen rc3; runtime bind mounts
+of diagnostic Python files only):
+
+~~~bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-petsc-mpi-dae-initial.sh
+~~~
+
+The runner creates a new isolated host output under
+`sandbox/outputs/v130-petsc-dae-mpi-h0p2-.../`
+with four logs, a manifest, positive JSON/full
+trajectories, negative JSON rejections and a
+strict comparison. Previous full wave simulations
+and the nearly 3M-DOF scaling tests are **not rerun**.
+
+**STATUS: native PETSc submatrix and LSQR API paths
+not yet exercised; do not claim numerical PASS.**
+The next run may expose version/layout or convergence
+issues, which must be resolved using real logs before
+any production implementation. This is deliberately
+a prototype, not a general linear/nonlinear DAE
+initialization option in `scrimp/dphs.py`.
