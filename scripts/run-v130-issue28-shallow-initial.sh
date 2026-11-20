@@ -28,7 +28,6 @@ if [[ "$rev" != "$expected" ]]; then
 fi
 for f in scrimp/dphs.py scrimp/port.py scrimp/utils/dae_initialization.py \
     examples/shallow_water.py sandbox/check_v130_shallow_water_mass_jacobian.py \
-    sandbox/probe_v130_issue28_structure.py \
     sandbox/probe_v130_issue28_shallow_initial.py; do
     [[ -s "$f" ]] || { echo "Missing source $f" >&2; exit 2; }
 done
@@ -66,7 +65,6 @@ for ranks in 1 2; do
         --volume "$root/scrimp/utils/dae_initialization.py:/workspace/scrimp/scrimp/utils/dae_initialization.py:ro" \
         --volume "$root/examples/shallow_water.py:/workspace/scrimp/examples/shallow_water.py:ro" \
         --volume "$root/sandbox/check_v130_shallow_water_mass_jacobian.py:/workspace/scrimp/sandbox/check_v130_shallow_water_mass_jacobian.py:ro" \
-        --volume "$root/sandbox/probe_v130_issue28_structure.py:/workspace/scrimp/sandbox/probe_v130_issue28_structure.py:ro" \
         --volume "$root/sandbox/probe_v130_issue28_shallow_initial.py:/workspace/scrimp/sandbox/probe_v130_issue28_shallow_initial.py:ro" \
         "$image" timeout -k 5s "$(printenv SCRIMP_ISSUE28_TIMEOUT || echo 240s)" \
         mpiexec --oversubscribe --bind-to none -n "$ranks" \
