@@ -1157,3 +1157,50 @@ nonlinear DAE initialization qualification. This model has
 state-dependent mass and a nonlinear pressure function;
 first check whether its algebraic residual is actually
 nonlinear in the *algebraic* variables at fixed h,p.
+
+## 20 November 2026 — #28 exact stationary baseline NATIVE PASSED (MPI 1/2, geometry P1/P2)
+
+**Host evidence:** `v130-issue28-exact-rest-b556f2ea-3E78L59H.zip`.
+Source `b556f2ead84397b7158b1755d2dfa72ede8122df`,
+immutable `scrimp-mpi:v1.3.0-rc3` OCI revision
+`1d6d0c90115213298047b28237a7f38087563a35`.
+
+The diagnostic inserted the independently known exact **algebraic**
+stationary state WITHOUT LSQR, pseudo initialization or a physical TS:
+`h0=5` and `p0=0` (prescribed original differential coefficients),
+`e_h=0.5`, `Y_n=-0.5`, `e_p=U_n=U=Y=0`. It evaluated the
+real production `IFunction(t0,z,zdot=0)` and rolled back all states.
+
+| Geometry | MPI | `||F_a||_2` | `||F_d||_2` | Wrong `Y_n=+0.5`: `||F_a||_2` |
+|---|---:|---:|---:|---:|
+| P1 | 1 | `1.4633950546719204e-17` | `2.6084923555407635e-16` | `4.0700566141663` |
+| P1 | 2 | `1.470126998300503e-17` | `2.6084923555407635e-16` | `4.0700566141663` |
+| P2 | 1 | `1.4763422151112202e-17` | `2.699640468033266e-16` | `4.075223213705125` |
+| P2 | 2 | `1.4744250640694402e-17` | `2.699640468033266e-16` | `4.075223213705125` |
+
+**The stationary reference passes** (all < `1e-11`), with a
+nonvacuous negative control. This proves that previous resting
+`INCOMPATIBLE_AT_TOLERANCE` classifications (`||F_a||~4.7e-9`)
+were **numerical LSQR false negatives**: identical fixed h0,p0
+have an exact solution of the assembled FE constraints.
+Do not loosen production tolerances merely to hide the LSQR failure.
+
+**The #28 boundary geometry/sign *subgate* is closed as a
+diagnosed and corrected GWFL literal error**, including true
+P1/P2, MPI 1/2 sign and resting-equilibrium validation.
+This does NOT close issue #28: for original nonzero rotation,
+the corrected fixed-h,p algebraic LSQR residual remains
+`~4.18e-8`, above the strict diagnostic threshold; the
+traction `Y` is a null algebraic Jacobian column and consistent
+initial `Y0` may require differentiated boundary constraints.
+No complete rotating DAE initializer has been qualified.
+
+**Next, as explicitly ordered by the user:** study the original
+`examples/shallow_water.py` for nonlinear consistent
+initialization on a straight-edged rectangular domain.
+Verify the algebraic Jacobian and the existing
+`explicit=True` frozen gyroscopic treatment. Preserve h0,p0.
+Nonlinearity in h,p and state-dependent mass do not
+automatically mean that the algebraic equations are
+nonlinear in their algebraic unknowns; distinguish the
+two levels before claiming a nonlinear algebraic Newton.
