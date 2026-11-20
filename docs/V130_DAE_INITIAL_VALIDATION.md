@@ -226,3 +226,75 @@ Crank–Nicolson power balances at 1/2 MPI ranks before any
 production integration. Never equate mathematical field traces
 with the actual tested discrete weak constraints without checking.
 
+
+## 6. Follow-up: algebraic-only feasibility with frozen differential initial data
+
+**Source staged; native run pending.** The first measured wave test
+proves an important trade-off (algebraic residual ~1e-18 versus
+changed q/p), but does not tell us whether the *discrete algebraic
+system* can be solved with the originally prescribed q/p held fixed.
+The nonzero pointwise left-boundary trace of the Gaussian gives a
+**potential incompatibility**, not a conclusive discrete result.
+
+The next experiment is **diagnostic only**, with identical published
+`wave.py` equations, original `rc3` Docker image, h=0.2,
+1/2 MPI ranks, and unchanged physical Crank–Nicolson solver. It does
+not alter `DPHS.init_step`, the default initialization policy,
+physical CN start state, sources or MUMPS configuration.
+
+- `sandbox/probe_v130_wave_fixed_dynamics.py`: intercepts the
+  initial step only to capture prescribed and accepted states;
+  evaluates the actual distributed `IFunction(t0,z,zd=0)` on
+  algebraic residual rows with prescribed dynamic coefficients
+  held fixed; obtains the same rows/columns of the **assembled
+  PETSc stiffness** as `K_aa`; gathers owned rows once; and
+  forms `K_aa delta_a=-F_a`. All dynamic coefficients are left
+  **bitwise unchanged**.
+- `sandbox/solve_v130_dae_algebraic_block.py`: a pure-SciPy LSMR
+  attempt on the (possibly rank-deficient) algebraic block, with
+  explicit iteration, norm, condition and nonzero-minimum-residual
+  diagnostics. A large residual with poor conditioning is **not**
+  called a mathematical proof of incompatibility.
+- The candidate is checked against the **original full production
+  `IFunction`**, not just the extracted linear equation, to ensure
+  the discrete Jacobian truly represents the algebraic rows.
+  The source also measures the original accepted pseudo-TS residual
+  and restores that state before the ordinary main physical solve.
+- `sandbox/compare_v130_wave_fixed_dynamics.py` verifies
+  1/2-rank agreement in the feasibility conclusion and actual
+  residual, while requiring **zero change** in the originally
+  prescribed differential coefficients and rejecting a failed
+  Jacobian prediction.
+
+Launch on the tested Ubuntu workstation, using its existing rc3
+image and its existing no-sudo Docker permission:
+
+~~~bash
+cd ~/Simulations/scrimp
+git switch release/1.3.0-preparation
+git pull --ff-only
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-fixed-dynamics-probe.sh
+~~~
+
+The runner verifies the immutable **rc3 image source label**;
+stages no extra image layers; bind-mounts only the explicitly
+named diagnostic Python files into the *runtime* container; writes
+the reports under an isolated new directory in
+`sandbox/outputs/v130-algebraic-only-h0p2-.../`.
+The host's modified `sandbox/sloshing_tank.py` is not touched.
+
+**Interpretation before changing SCRIMP:**
+
+| Observation | Permitted inference | Next step |
+| --- | --- | --- |
+| `native F_a` near zero with q/p unchanged, validated `K_aa` | Algebraic-only projection is numerically feasible for **this** discrete wave | Verify uniqueness/conditioning, compare CN trajectories and port power before considering an opt-in initializer |
+| `native F_a` remains nonzero with LSMR normal equations converged and acceptable conditioning | Strong evidence that **these** initial data do not satisfy all discretized algebraic constraints with q/p frozen | Inspect constitutive and boundary rows, identify admissible p0 and test with correct physical boundary traces |
+| LSMR iteration/conditioning issues or mismatch between `K_aa` and native `IFunction` | Inconclusive; neither compatibility nor incompatibility established | Diagnose rank/nullspace or Jacobian/model assembly before deciding |
+
+In all cases, an ordinary after-pseudo-TS CN solve must still
+converge, and **no production code is patched on the basis of
+these unexecuted diagnostics**. Source-only CI and synthetic tests
+prove the probe's shape/decision semantics, not the actual
+native wave result.
