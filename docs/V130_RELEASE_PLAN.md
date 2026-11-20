@@ -493,21 +493,34 @@ The two exports have identical main image manifests and configs
 but different BuildKit attestation/manifests-list digests; this
 does **not** certify clean-room reproducibility.
 
-**PETSc `-info` origin identified:** a global
-`PETSc.Options().setValue('info', None)` in `scrimp/utils/linalg.py`
-injects an unused option on import-only MPI runs. Removed in a
-**post-rc2 source patch**, with source + two-rank smoke regression
-gates. The patched behavior requires a separately tagged **rc3**
-runtime rebuild before marking the warning fixed in the image.
-Also preserve the packaging-version gate: the rc2 wheel metadata
-still reports `scrimp-1.2.0`; freeze v1.3.0 package metadata later.
+**20 November rc3 targeted native qualification — PASS:**
+`scrimp-mpi:v1.3.0-rc3` built on Ubuntu from immutable
+`1d6d0c90115213298047b28237a7f38087563a35`,
+with only source-layer rebuilding and full native GetFEM/PETSc
+cache hits. The strict `ComplexWarning` oscillator, 1/2-rank
+distributed MUMPS, RT/BDM/Nédélec constructors, host-persistent
+Hamiltonian CSV and independently scaffolded two-rank MPI startup
+passed. The **PETSc `-info` source fix is confirmed at runtime**:
+neither rank's import-only test contained that option. The
+independent before/after `scrimp-mpi:local` image-ID `cmp`
+completed without a difference. See
+[V130_DOCKER_RC3_ACCEPTANCE.md](V130_DOCKER_RC3_ACCEPTANCE.md).
 
-**Still pending:** rc3 native smoke for PETSc `-info` removal,
-actual before/after `scrimp-mpi:local` ID evidence, pinned platform
-/ base-image digest and explicit tested Conda lock; a clean-room
-onboarding test; cross-platform installation; full 1/2/4/6-rank
-scientific trajectory/DAE and port-Hamiltonian power qualification,
-Maxwell 3D and long-time memory tests.
+**One test-harness artifact remains:** the diagnostic invocation
+used `python -c`, which PETSc then reported as an unused command-line
+option `-c`; this is not the previously fixed code-supplied
+`-info`. The smoke script now uses a disposable mounted `.py`
+file instead and **fails on any unused-option warning**. Re-run
+that corrected host smoke against **existing rc3, without rebuilding
+Docker or its native layers**, to close the final diagnostics gate.
+The metadata still reports `scrimp-1.2.0`; update v1.3.0 package
+version deliberately at the release packaging freeze.
+
+**Still pending:** warning-free re-run of the corrected rc3 smoke,
+base-image digest/platform and tested explicit Conda lock,
+clean-room onboarding and cross-platform installation; the
+scientific full-trajectory/DAE, Hamiltonian port-power identity,
+Maxwell 3D and memory/performance release qualifications.
 No GHCR image has been published or promoted.
 The reproducible build procedure, cache boundaries, evidence paths
 and deferred lock/platform work are documented in
