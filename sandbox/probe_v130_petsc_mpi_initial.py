@@ -173,12 +173,6 @@ def _project_distributed(system, mpi, *, atol=1e-10, rtol=1e-8):
                 "PETSc extracted K_aa ownership differs from local "
                 "algebraic index-set selection"
             )
-        owned_f = np.asarray(
-            residual.getArray(readonly=True)
-        )
-        rhs.getArray()[:] = -owned_f[local-lo]
-        rhs.assemble()
-
         ksp = PETSc.KSP().create(
             comm=system.stiffness.getComm()
         )
@@ -186,61 +180,131 @@ def _project_distributed(system, mpi, *, atol=1e-10, rtol=1e-8):
         ksp.setOperators(kaa)
         ksp.setType(PETSc.KSP.Type.LSQR)
         ksp.getPC().setType(PETSc.PC.Type.NONE)
+        # Do not relax the independently specified native
+        # algebraic IFunction acceptance tolerance.
         ksp.setTolerances(
             rtol=1e-13, atol=1e-13,
             max_it=max(1000, 5*int(aidx.size)),
         )
         ksp.setFromOptions()
-        ksp.solve(rhs, correction)
-        reason = int(ksp.getConvergedReason())
-        iters = int(ksp.getIterationNumber())
-        ksp_final_norm = float(ksp.getResidualNorm())
 
-        # Do not treat KSP's convergence of least-squares normal
-        # equations as satisfaction of the actual DAE constraints.
-        if not np.all(np.isfinite(correction.getArray(readonly=True))):
-            raise RuntimeError("Non-finite PETSc algebraic correction")
-
+        tolerance = float(atol + rtol*norm_initial)
+        # PETSc LSQR may stop when its normal-equation/iterative
+        # criterion has converged, even when the original weak
+        # constraint rows are just above our stricter physical gate.
+        # Solve at most two additional distributed defect-correction
+        # problems Kaa * d = -F_a(t0, z, 0), re-evaluating the real
+        # native IFunction after EACH pass. This is NOT a nonlinear
+        # solver or a relaxation of the compatibility requirement.
+        max_refinement_passes = 3
+        history = []
+        best_norm = norm_initial
+        best_candidate = initial.copy()
+        previous_norm = norm_initial
+        reason = 0
+        iters = 0
+        ksp_final_norm = float("nan")
         # Each rank inserts ONLY its original owned algebraic DOFs.
-        # No correction is ever applied to a differential variable.
+        # GetFEM/NumPy indices are int64 while the qualified rc3
+        # PETSc build uses 32-bit PetscInt.
         if len(local):
-            # GetFEM/NumPy variable intervals use int64, while this
-            # qualified rc3 PETSc build uses 32-bit PetscInt.  Vec.setValues
-            # requires PETSc.IntType (unlike IS.createGeneral's already
-            # correctly cast indices above).  Reject overflow explicitly.
             if (
                 np.min(local) < np.iinfo(PETSc.IntType).min
                 or np.max(local) > np.iinfo(PETSc.IntType).max
             ):
                 raise OverflowError("DAE index outside PETSc.IntType range")
-            owned_petsc_indices = np.asarray(
-                local, dtype=PETSc.IntType
-            )
-            z.setValues(
-                owned_petsc_indices,
-                correction.getArray(readonly=True).copy(),
-                addv=PETSc.InsertMode.ADD_VALUES,
-            )
-        z.assemble()
-        system.Scatter[0].scatter(z, system.GlobalVec)
-        candidate = np.array(
-            system.GlobalVec.getArray(readonly=True).real,
-            dtype=np.float64, copy=True,
+        owned_petsc_indices = np.asarray(
+            local, dtype=PETSc.IntType
         )
-        for name, (start, count) in dynamic.items():
-            if not np.array_equal(
-                initial[start:start+count],
-                candidate[start:start+count],
-            ):
-                raise RuntimeError(
-                    f"Distributed projected DAE initializer changed {name}"
+
+        for pass_number in range(1, max_refinement_passes+1):
+            # PETSc submatrix row ownership must match the original
+            # local algebraic ordering selected by the distributed IS.
+            owned_f = np.asarray(residual.getArray(readonly=True))
+            rhs.getArray()[:] = -owned_f[local-lo]
+            rhs.assemble()
+            correction.set(0)
+            ksp.solve(rhs, correction)
+            reason = int(ksp.getConvergedReason())
+            iters = int(ksp.getIterationNumber())
+            ksp_final_norm = float(ksp.getResidualNorm())
+            if not np.all(np.isfinite(correction.getArray(readonly=True))):
+                raise RuntimeError("Non-finite PETSc algebraic correction")
+            if len(local):
+                z.setValues(
+                    owned_petsc_indices,
+                    correction.getArray(readonly=True).copy(),
+                    addv=PETSc.InsertMode.ADD_VALUES,
                 )
-        system.gf_model.set_time(t0)
-        system.gf_model.to_variables(candidate.copy())
+            z.assemble()
+            system.Scatter[0].scatter(z, system.GlobalVec)
+            candidate = np.array(
+                system.GlobalVec.getArray(readonly=True).real,
+                dtype=np.float64, copy=True,
+            )
+            for name, (start, count) in dynamic.items():
+                if not np.array_equal(
+                    initial[start:start+count],
+                    candidate[start:start+count],
+                ):
+                    raise RuntimeError(
+                        f"Distributed projected DAE initializer changed {name}"
+                    )
+            system.gf_model.set_time(t0)
+            system.gf_model.to_variables(candidate.copy())
+            norm_after = _native_algebraic_residual(
+                system, z, z_dot, residual, isalg
+            )
+            history.append({
+                "pass_number": pass_number,
+                "native_algebraic_residual_l2": norm_after,
+                "petcs_ksp_convergence_reason": reason,
+                "petsc_ksp_iterations": iters,
+                "petsc_ksp_reported_residual_norm": ksp_final_norm,
+                "petcs_correction_l2": float(
+                    correction.norm(PETSc.NormType.NORM_2)
+                ),
+            })
+            if not np.isfinite(norm_after):
+                raise RuntimeError(
+                    "Non-finite actual DAE algebraic IFunction residual"
+                )
+            if norm_after < best_norm:
+                best_norm = norm_after
+                best_candidate = candidate.copy()
+            if norm_after <= tolerance:
+                break
+            if reason <= 0:
+                # An iterative KSP failure is not proof that the
+                # prescribed initial data are incompatible.
+                break
+            if norm_after >= previous_norm * (1. - 1.e-6):
+                # Abort stagnating/oscillating refinement rather than
+                # manufacturing a PASS by unbounded iterations.
+                break
+            previous_norm = norm_after
+
+        # Only publish the best actually evaluated native residual.
+        # In particular, a final unsuccessful refinement must never
+        # replace a more accurate preceding projected state.
+        if not np.array_equal(candidate, best_candidate):
+            z.getArray()[:] = best_candidate[lo:hi]
+            z.assemble()
+            system.Scatter[0].scatter(z, system.GlobalVec)
+            candidate = np.array(
+                system.GlobalVec.getArray(readonly=True).real,
+                dtype=np.float64, copy=True,
+            )
+            system.gf_model.set_time(t0)
+            system.gf_model.to_variables(candidate.copy())
         norm_final = _native_algebraic_residual(
             system, z, z_dot, residual, isalg
         )
-        tolerance = float(atol + rtol*norm_initial)
+        if abs(norm_final - best_norm) > max(1e-13, 1e-6*best_norm):
+            raise RuntimeError(
+                "Restored PETSc state does not reproduce the best "
+                "original IFunction residual"
+            )
         # Check consistent across ranks, not just the printed root.
         verdict = {
             "global_dofs": n,
@@ -254,9 +318,15 @@ def _project_distributed(system, mpi, *, atol=1e-10, rtol=1e-8):
             "ksp_iterations": iters,
             "ksp_convergence_reason": reason,
             "ksp_reported_residual_norm": ksp_final_norm,
+            "lsqr_refinement_passes": history,
+            "lsqr_refinement_pass_count": len(history),
+            "lsqr_max_refinement_passes": max_refinement_passes,
+            "lsqr_success_requires_native_ifunction": True,
             "differential_state_exactly_preserved": True,
             "algebraic_state_correction_l2": float(
-                correction.norm(PETSc.NormType.NORM_2)
+                float(np.linalg.norm(
+                    candidate[aidx] - initial[aidx]
+                ))
             ),
             "algebraic_feasibility": (
                 "PASS" if norm_final <= tolerance else "UNRESOLVED"
