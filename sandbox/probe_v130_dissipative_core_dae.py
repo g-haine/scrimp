@@ -102,6 +102,12 @@ def _build(h, dt, steps, *, use_default=False):
                 )
         else:
             kwargs["init_step_ts_type"] = "algebraic"
+        # Distinguish caller kwargs from SCRIMP's materialized PETSc
+        # default. PETSc.Options.hasName() is *not* an explicitness
+        # signal: it reports both explicit and inserted defaults.
+        self._v130_default_probe_explicit_keyword = (
+            "init_step_ts_type" in kwargs
+        )
         return original_set_time(self, **kwargs)
 
     def skip_solve(self):
@@ -128,16 +134,26 @@ def _build(h, dt, steps, *, use_default=False):
         p.get_name() == "Damping" for p in system.ports.values()
     ):
         raise RuntimeError("Independent dissipative port was lost")
-    if use_default:
-        if system.time_scheme.hasName("init_step_ts_type"):
-            raise RuntimeError(
-                "Default-mode dissipative test supplied an explicit "
-                "init_step_ts_type"
-            )
-    elif system.time_scheme.getString(
+    explicit_kwarg = getattr(
+        system, "_v130_default_probe_explicit_keyword", None
+    )
+    if explicit_kwarg is None:
+        raise RuntimeError("Dissipative test did not intercept time scheme")
+    if bool(explicit_kwarg) == bool(use_default):
+        raise RuntimeError(
+            "Dissipative probe initializer keyword presence contradicts "
+            "requested implicit/explicit mode"
+        )
+    if system.time_scheme.getString(
         "init_step_ts_type", ""
-    ) != "algebraic":
-        raise RuntimeError("Production algebraic option not selected")
+    ).strip().lower() != "algebraic":
+        raise RuntimeError(
+            "Production PETSc.Options did not select algebraic initializer"
+        )
+    if not system.time_scheme.hasName("init_step_ts_type"):
+        raise RuntimeError(
+            "SCRIMP did not materialize the effective default"
+        )
     return system
 
 
@@ -313,7 +329,10 @@ def main():
         "rank_count": mpi.Get_size(),
         "implicit_default_requested": bool(args.use_default),
         "explicit_init_step_ts_type_present": bool(
-            sys.time_scheme.hasName("init_step_ts_type")
+            sys._v130_default_probe_explicit_keyword
+        ),
+        "effective_PETSc_initial_strategy": sys.time_scheme.getString(
+            "init_step_ts_type", ""
         ),
         "mesh": args.mesh, "dt": args.dt, "steps": args.steps,
         "model": "original examples/wave_dissipative.py weak bricks",
