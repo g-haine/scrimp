@@ -1291,3 +1291,51 @@ needs a different, possibly constraint-differentiated formulation.
 As agreed with the user, test `examples/shallow_water.py` as a
 separate nonlinear-initializer experiment **only after** the current
 boundary/geometric work is concluded.
+
+## 20 November 2026 — #28 resting LSQR false-negative: exact-reference native gate PENDING
+
+The corrected original curved-P2 fixed-state LSQR audit returned
+`||F_a||=4.746567828624845e-9` (MPI 1) at `omega=0`, exceeding
+its own strict numerical threshold `9.507859931505774e-10`,
+even though a true resting equilibrium is known to exist.
+An LSQR stop at relative tolerance does **not** certify a positive
+best-residual lower bound in an ill-conditioned algebraic projection.
+Do NOT interpret `INCOMPATIBLE_AT_TOLERANCE` as mathematical
+infeasibility without an independent reference/certificate.
+
+New independent native reference (source only, NOT YET RUN):
+`sandbox/probe_v130_issue28_exact_rest.py` with
+`scripts/run-v130-issue28-exact-rest.sh`.
+This benchmark does **not use LSQR**. It holds the ORIGINAL
+`h0=5,p0=0`, original physical wall controls and all weak forms.
+It sets only algebraic unknowns to the exact expected stationary
+values `e_h=rho*g*h0=0.5`, `e_p=0`, `U_n=U=Y=0`,
+`Y_n=-e_h=-0.5`, reflecting the SCRIMP flow-brick sign
+convention (`M_n[h]` registers `-h*Y_n*Test_Y_n`
+and `-B_n[h]^T` registers `-h*e_h*Test_Y_n`).
+Native `IFunction(t0,z,zdot=0)` checks **both**
+`||F_a||` and `||F_d|| <= 1e-11` on P1 and P2 geometric
+disks, MPI 1 and 2. The diagnostic includes a
+wrong-sign `Y_n=+0.5` negative control, verifies exact
+prescribed dynamic coefficients and complete GetFEM rollback.
+No physical/initialization TS is run and no model/solver changes
+are made. If the reference passes, the previous LSQR
+`INCOMPATIBLE_AT_TOLERANCE` **rest label was a numerical
+false negative** and numerical conditioning/termination must
+be addressed independently from physical incompatibility.
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+SCRIMP_DOCKER_NO_SUDO=1 SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+  bash scripts/run-v130-issue28-exact-rest.sh
+```
+
+**Next order:** close the geometry/sign audit on the evidence
+once the known solution is calibrated (do not claim the
+original rotating DAE is fully initialized), then and only
+then start the separately planned `examples/shallow_water.py`
+nonlinear DAE initialization qualification. This model has
+state-dependent mass and a nonlinear pressure function;
+first check whether its algebraic residual is actually
+nonlinear in the *algebraic* variables at fixed h,p.
