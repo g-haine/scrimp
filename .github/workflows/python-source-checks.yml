@@ -64,7 +64,7 @@ jobs:
       - name: Validate DAE initial-state and fixed-dynamics algebraic feasibility probes
         run: |
           python -m py_compile sandbox/audit_v130_wave_dae_initial.py sandbox/compare_v130_wave_dae_initial.py sandbox/probe_v130_wave_fixed_dynamics.py sandbox/compare_v130_wave_fixed_dynamics.py sandbox/compare_v130_wave_control_compatibility.py sandbox/solve_v130_dae_algebraic_block.py tests/test_v130_wave_dae_audit.py tests/test_v130_dae_algebraic_feasibility.py
-          bash -n scripts/run-v130-dae-initial-audit.sh scripts/run-v130-fixed-dynamics-probe.sh
+          bash -n scripts/run-v130-dae-initial-audit.sh scripts/run-v130-fixed-dynamics-probe.sh scripts/run-v130-exact-fe-initial-probe.sh
           python -m unittest -v tests.test_v130_wave_dae_audit tests.test_v130_dae_algebraic_feasibility
       - name: Validate SCRIMP source headers
         run: |
