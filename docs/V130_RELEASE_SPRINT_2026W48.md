@@ -248,3 +248,93 @@ model was modified. The same image and all FD,
 MPI and legacy control acceptance criteria remain.
 **Issue #27 stays OPEN; native shipped shallow-water
 Jacobian qualification PENDING after rerun.**
+
+## 20 November 2026 — fully explicit gyroscopic correction (native pending)
+
+**Decision clarified by user:** the `G` gyroscopic brick
+in `examples/shallow_water.py` must be treated
+**completely explicitly**, NOT converted into a
+fully implicit gyroscopic term merely to make the
+Jacobian directional test pass. The previous
+`explicit=True` was internally inconsistent:
+`IFunction` reevaluated `G` at each *current*
+Newton trial state while `IJacobian` omitted
+its derivative. At `zd=0` the shipped model
+exposed a common directional-FD discrepancy
+`2.02366589e-5` in both corrected-mass and
+legacy modes, while the corrected mass
+Jacobian improved the nonzero-`zd` result
+only slightly to that baseline. The
+MPI1/2 results agreed to floating-point
+roundoff. First full native output:
+
+```text
+sandbox/outputs/v130-shallow-mass-J-c9bd39e4-3B7wkKE3/
+```
+
+**Production change, not a tolerance relaxation:**
+
+- The original published `S.Brick("G", "(Gyro(p) * e_p) . Test_p",
+  ..., linear=False, explicit=True, position="effort")`
+  expression/sign is restored unchanged.
+- For each PETSc main or pseudo/BDF initialization step,
+  `TS.setPreStep()` now assembles the **entire** nonlinear
+  explicit GetFEM weak-form RHS at the **previously accepted**
+  time and state `(t_n,z_n)` and stores it in a distributed
+  PETSc vector. Its value stays *constant* for every
+  `IFunction` Newton and line-search evaluation of the
+  following step, including step rejection/retry, and
+  is **not included in `IJacobian`**.
+- Ordinary `assemble_rhs` excludes explicit bricks,
+  `assemble_rhs(explicit_only=True)` computes only
+  the cached lagged contribution, and the direct residual
+  adds it once with its historical GetFEM sign.
+  Generic-term MPI calibration is retained,
+  including when source-RHS policy is `raw`.
+- Unsupported `explicit=True` usages (linear, `dt=True`,
+  or source bricks) now raise an error rather than
+  silently receiving only half-explicit semantics.
+  Explicit-source handling and full-IMEX splitting
+  for those unsupported classes are **not** claimed.
+- Source-only tests cover accepted-state freezing,
+  non-recomputation at Newton trial states, update at
+  new accepted times, original (G) form/sign,
+  inclusion of both PETSc initial and physical TS
+  PreStep hooks and strict comparator controls.
+
+The strict native directional-FD gate
+`scripts/run-v130-shallow-mass-jacobian.sh`
+now freezes a **nonzero** explicit `G` at a
+state deliberately different from the Jacobian
+trial state. The diagnostic asserts the cache's
+norm is nonzero and its coefficient drift is
+**exactly zero** through all finite-difference
+and Jacobian trials, and the original
+`1e-5` maximum relative FD threshold
+and default-vs-legacy negative control
+are **unchanged**. Native physics remains
+**PENDING** on this new production code.
+
+**Important mathematical tradeoff:** fully lagging
+the entire gyroscopic contribution is generally
+a **first-order approximation for that term**,
+even if the implicit integrator is BDF2.
+A skew-symmetric continuous Dirac structure
+does not automatically ensure exact discrete
+Hamiltonian conservation when this complete
+term is evaluated at the preceding state.
+A suitable skew/energy-preserving implicit or
+specialized split would be a *different* numerical
+scheme. We must not claim unchanged old
+shallow-water trajectories or exact Hamiltonian
+balance from this modification without native
+time-integration and power evidence.
+
+**Issue #27** (and wider MPI issue #6) remains
+open until both native directional FD and
+actual short accepted-step TS/explicit-RHS
+tests are satisfied. The previously passed
+**linear DAE default** qualification is
+unaffected by this narrow nonlinear-only change,
+but the general release-wide regression
+suite is still required.
