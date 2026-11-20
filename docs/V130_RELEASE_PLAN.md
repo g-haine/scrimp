@@ -427,10 +427,31 @@ the `main()` **Call Stack**. This qualifies interactive
 serial Python breakpoints, stepping and variable inspection,
 **not** multiprocess MPI debugging or completion after resuming.
 
-**Still pending:** warm-cache rebuild with the source-only
-ComplexWarning fix, final F5 **resume-to-completion** check,
-cross-platform onboarding, full 1/2/4/6-rank physics/scaling,
-and port-Hamiltonian power-balance qualification.
+**F5 resume-to-completion PASS (20 Nov):** the developer
+resumed the paused and stepped-through `first_simulation.py`
+with F5. The numerical run finished normally inside VS Code.
+
+**Remaining VS Code UX issues (20 Nov):** Python executes and
+debugs correctly, but each fresh VS Code session still proposes
+**"No Python found / Install uv and Python"**, and Pylance
+flags a false `reportMissingImports` for `import scrimp`.
+The template now configures `python-envs.globalSearchPaths`
+with `/opt/conda/envs`, keeps the exact
+`python.defaultInterpreterPath`, always displays the Python
+interpreter, and adds `/workspace/scrimp` only to the
+Dev Container `python.analysis.extraPaths`. SCRIMP is installed
+via `pip install -e .`, whose dynamic editable import hooks
+may not be resolved by Pylance. **Missing-import diagnostics are
+not globally disabled**. These source-level fixes still require
+an actual close/reopen Dev Containers GUI check, and any earlier
+user project needs its own `.devcontainer/devcontainer.json`
+updated.
+
+**Still pending:** GUI retest of Python discovery and Pylance
+after the config fix, warm-cache image rebuild including the
+source-only ComplexWarning fix, cross-platform onboarding, full
+1/2/4/6-rank physics/scaling, and port-Hamiltonian power-balance
+qualification.
 No GHCR image has been published or promoted.
 The reproducible build procedure, cache boundaries, evidence paths
 and deferred lock/platform work are documented in
@@ -448,8 +469,10 @@ startup task. A short port-Hamiltonian oscillator exports a persistent
 host CSV. **Both host-mounted CLI and a real Ubuntu VS Code Dev
 Container integrated-terminal run have passed**, including
 the simulation and 2-rank MPI startup. **Serial Python F5/debugpy
-breakpoints, F10 stepping and inspection of DPHS/State objects
-have now also passed**. Cross-platform onboarding and
+breakpoints, F10 stepping, inspection of DPHS/State objects
+and F5 resume-to-completion have now all passed**.
+The new interpreter-discovery and Pylance settings await a
+clean-window GUI retest. Cross-platform onboarding and
 multi-rank debugging remain pending.
 See the [VS Code onboarding guide](source/vscode.rst).
 
