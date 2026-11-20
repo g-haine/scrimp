@@ -60,6 +60,29 @@ See section 25 of
 [V130_DAE_INITIAL_VALIDATION.md](V130_DAE_INITIAL_VALIDATION.md).
 **Native rerun of the default gate remains REQUIRED.**
 
+**Second native retry (source 3c28e919, 20 November
+2026):** PETSc.Options smoke **PASS** (actual
+default `algebraic`, `init_step=False` and
+explicit `pseudo` compatibility). The first
+conservative wave diagnostic then failed
+**before solver assembly** because its
+pre-run benchmark guard still expected
+the inherited strategy to be `pseudo`,
+whereas the corrected library now
+materializes `algebraic` before the
+diagnostic reconfigures time integration.
+This diagnostic-only guard now clears
+either of the two known inherited choices
+for the no-keyword test, and a pure unit
+test checks this behavior. **The 1/2-rank
+conservative and dissipative default
+physics gates remain NOT EXECUTED in the
+second attempt.** Native evidence:
+`sandbox/outputs/v130-algebraic-default-h0p2-3c28e919-WPt6Z7wP/`.
+See section 26 of
+[V130_DAE_INITIAL_VALIDATION.md](V130_DAE_INITIAL_VALIDATION.md).
+No release/acceptance gate was weakened.
+
 **This staged default is not yet release-qualified.**
 A separate native no-option default test,
 broader example/exceptional MPI cleanup
