@@ -84,6 +84,21 @@ class TestDefaultMigration(unittest.TestCase):
         self.assertGreaterEqual(
             src.count('"init_step_ts_type", "algebraic"'), 2
         )
+        # PETSc.Options materializes the default. A fallback string
+        # alone is insufficient: the old pseudo assignment silently
+        # defeated the intended default in native runtime.
+        self.assertIn(
+            'self.time_scheme["init_step_ts_type"] = "algebraic"',
+            src,
+        )
+        self.assertNotIn(
+            'self.time_scheme["init_step_ts_type"] = "pseudo"',
+            src,
+        )
+        self.assertIn(
+            'explicitly_selected_initializer = "init_step_ts_type" in kwargs',
+            src,
+        )
         self.assertIn(
             'if init_type == "algebraic":', src
         )
