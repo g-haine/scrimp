@@ -25,7 +25,9 @@ def main():
     parser.add_argument("--rtol", type=float, default=1e-7)
     parser.add_argument(
         "--scenario",
-        choices=("published", "matched_left_control"),
+        choices=(
+            "published", "matched_left_control", "polynomial_compatible",
+        ),
         default="published",
     )
     args = parser.parse_args()
@@ -137,6 +139,13 @@ def main():
             f"||K_aa^H w||={witness['residual_left_witness_adjoint_l2']:.8g}; "
             f"bounded lower bound={witness['dual_lower_bound_for_corrections_within_radius_l2']:.8g} "
             f"for ||delta_a||<={witness['bounded_correction_radius_l2']:.8g}"
+        )
+    for ranks, record in sorted(reports.items()):
+        changes = record["pseudo_dynamic_initial_data_drift_l2"]
+        p0 = record["prescribed_momentum_expression"]
+        print(
+            f"Physical pseudo-TS differential drift at MPI={ranks}: "
+            f"q={changes['q']:.9g}, p={changes['p']:.9g}; p0={p0}"
         )
     print(
         "FIXED-DYNAMICS ALGEBRAIC FEASIBILITY: "
