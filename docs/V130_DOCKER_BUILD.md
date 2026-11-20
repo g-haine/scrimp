@@ -1,6 +1,15 @@
 # SCRIMP v1.3.0 — Docker candidate build and cache qualification
 
 **Status (19 November 2026): candidate image `scrimp-mpi:v1.3.0-rc1` built successfully from Git revision `96961d647c2caf41dd77d2a7b5926e86e86c4b69`. GetFEM 5.5 native compilation, FEM constructors, MPI-2 GetFEM, complex PETSc/SLEPc 3.26.1, distributed MUMPS (1/2 MPI ranks), a real serial SCRIMP model with host-persistent CSV, and a two-rank user-project MPI startup all PASS. The full scientific physics/scaling and actual VS Code Dev Containers acceptance gates remain open; no GHCR release or qualified-image replacement has occurred.**
+**Latest candidate status (20 November 2026): native stack and
+warm-cache qualification of `scrimp-mpi:v1.3.0-rc2` at
+`ae96cb7334d7c88cd2e0dbd4d9615af66f1f4a61` **PASS**.
+The targeted ComplexWarning, host CSV and GetFEM/MPI 1/2-rank smoke
+passed, and the second build reused all Dockerfile stages. See the
+[formal rc2 acceptance report](V130_DOCKER_RC2_ACCEPTANCE.md).
+The post-rc2 PETSc `-info` source fix is **not** included in rc2
+and will require rc3 qualification; no GHCR release occurred.
+
 This document is part of [v1.3.0 release point 2](V130_RELEASE_PLAN.md).
 Always build/test a **new tag**. The existing qualified
 `scrimp-mpi:local` image must not be retagged, overwritten, pruned
@@ -620,6 +629,58 @@ obtain its own green source CI run; that older failure is not a
 native GetFEM or physics failure.
 
 
+### 4b. Actual rc2 host results and next candidate (20 Nov 2026)
+
+The requested exact-SHA rebuild and second identical build have now
+been run natively on the Ubuntu developer host: **PASS** for physical
+context isolation, native GetFEM/PETSc layer cache reuse and the
+strictened runtime smoke. Read
+[V130_DOCKER_RC2_ACCEPTANCE.md](V130_DOCKER_RC2_ACCEPTANCE.md)
+for the full matrix, exact revision, numerical checks and image
+hashes. The `-info` diagnostic investigation in 4a is **closed at
+the source level**: `scrimp/utils/linalg.py` was explicitly
+injecting the PETSc option at import. The post-rc2 source
+fix removes that side effect, and the two-rank Docker smoke now
+asserts `not PETSc.Options().hasName("info")`.
+
+The rc2 runtime manifestation is **not fixed retroactively**:
+build a separate `scrimp-mpi:v1.3.0-rc3` candidate from an exact
+Git commit and run the new smoke, retaining rc1/rc2 and
+`scrimp-mpi:local`:
+
+~~~bash
+cd ~/Simulations/scrimp
+git switch release/1.3.0-preparation
+git pull --ff-only
+mkdir -p sandbox/outputs
+export SCRIMP_GITHUB_REF="$(git rev-parse HEAD)"
+export SCRIMP_DOCKER_CANDIDATE_IMAGE=scrimp-mpi:v1.3.0-rc3
+# Set SCRIMP_DOCKER_NO_SUDO=1 only if Docker runs without sudo.
+bash scripts/build-v130-docker-candidate.sh
+bash scripts/smoke-v130-docker-candidate.sh
+~~~
+
+**Before the build**, save the `scrimp-mpi:local` image ID;
+afterwards compare it with the new ID using the same Docker identity
+(sudo or non-sudo) to establish tag preservation. Keep all logs.
+No long physics/performance campaign is justified solely by
+removing an import-time optional PETSc diagnostic.
+
+**BuildKit manifest nuance:** the first and warm rc2 exports
+share the exact same main OCI manifest digest
+(`sha256:82a74c8e35fa49a1f447a97184c666745e8ead4d96390708c13522ac167d59a8`)
+and image config
+(`sha256:08d06d2b7317e4a2f10ddfd6d3fe08e4ae35714e47fda7bed62d7fd5d7368fce`).
+Their BuildKit attestation manifests and resulting manifest-list IDs
+**differ**, so the log proves runtime-cache reuse, *not* a stable
+OCI manifest-list digest across builds. Do not claim bitwise image
+reproducibility until attestation behavior and the clean-room
+base-image + Conda lock are qualified.
+
+**Packaging observation:** `pip` still reports `scrimp-1.2.0`
+for the candidate, matching the current `setup.py`. The version
+change is intentionally gated with the release packaging freeze.
+
 ## 5. Reproducibility and work not done yet
 
 - **Pinned today:** base image *version tag*, PETSc/SLEPc native
@@ -643,6 +704,8 @@ native GetFEM or physics failure.
   For k>=3 extension work see
   [the deferred higher-order plan](V130_GETFEM_HIGHER_ORDER_TODO.md).
 
-**Next action:** run the new candidate build and the two-rank smoke
-on the Linux workstation, review both logs, then decide whether to
-freeze the complete environment lock and continue with distribution.
+**Next action:** rebuild a separate rc3 for the now-identified
+PETSc `-info` fix, confirm the two-rank opt-in regression gate,
+then pursue the remaining scientific and clean-room reproducibility
+workstreams. Do not rebuild all large wave benchmarks merely to
+revalidate a source-only diagnostic option change.
