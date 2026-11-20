@@ -43,7 +43,7 @@ Do not silently delete a committed gate to make the deadline.
 | 1 — GetFEM 5.5 simplex FE | **Lean native PASS** | Integrate supported patches consistently into final image; test Maxwell FE spaces. |
 | 2 — Docker/native/VS Code | **rc3 native PASS** | Final source revision image/wheel smoke and provenance; do not rebuild on every Python edit. |
 | DAE default (new) | **FULL native PASS, two linear pH-DAEs** | Preserve explicit pseudo/BDF2, documented incompatible Gaussian, and short memory/exceptional MPI cleanup gate. |
-| **#27** state-dependent mass Jacobian | **Corrected code already default**; native original shallow-water gate **PENDING** | Run `scripts/run-v130-shallow-mass-jacobian.sh`, verify real `examples/shallow_water.py` residual/Jacobian FD vs legacy, MPI 1/2, and archive evidence. |
+| **#27** state-dependent mass Jacobian | **Native original shallow-water directional FD PASS (MPI 1/2)**; short physical TS **PENDING** | Do **not** repeat the passing FD campaign. Run `scripts/run-v130-shallow-explicit-physical-ts.sh` to check real accepted BDF2 steps, nonvacuous frozen G, MPI trajectory parity and measured Hamiltonian drift before closing the complete issue. |
 | 3 — New 3D Maxwell | **NOT QUALIFIED** | Minimal scientifically meaningful 3D H(curl)/H(div) example with boundary energy/Poynting power, element orientation and MPI correctness. **Largest new-model schedule risk.** |
 | 4 — Performance figures | **Wave evidence PASS; publication figures incomplete** | Curate reproducible plots and metadata; Maxwell scaling only if Maxwell physics qualifies. |
 | 5 / **#26** — Sphinx and research docs | **Partially complete** | HTML and LaTeX/PDF green on final source, accurately scoped MPI/jacobian/DAE/default, usable first-run path. |
@@ -184,8 +184,9 @@ environment provenance and explicit scope/remaining limits.
 
 ## Immediate next native command
 
-Use the **unchanged qualified rc3 image** to close the
-nonlinear-mass Jacobian question without a long SWE run:
+**Historical command — ALREADY PASSED (20 November):** this frozen
+Jacobian FD run is retained for reproducibility; do not
+rerun it just to close the remaining physical-step gate:
 
 ```bash
 cd ~/Simulations/scrimp
@@ -195,14 +196,15 @@ SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
 bash scripts/run-v130-shallow-mass-jacobian.sh
 ```
 
-This runner will produce four *short, assembly/FD-only*
-runs: production Jacobian default and explicit legacy,
-each on MPI 1 and 2. It **must** compare the true
-`IFunction` directional derivative with the production
-`IJacobian` action at zero and nonzero independent
-time derivative and shifts 0 and 1, then quantify
-the legacy defect. Source-only CI is not a substitute.
-It does not validate nonlinear DAE initialization.
+**Native FD result PASSED**, source
+`fae066a64b649131351e686ac9383ea11c13c0a6`,
+host output `sandbox/outputs/v130-shallow-mass-J-fae066a6-VvvbTRp4/`.
+The corrected default vs historical legacy
+max errors were `1.06105781e-8` vs `3.84378444e-6`
+in BOTH MPI 1 and 2. The remaining gate is the
+ACTUAL short physical PETSc TS test, not another
+Jacobian FD campaign. No nonlinear DAE
+consistent-initialization claim is implied.
 
 **Commit discipline:** keep one integration branch
 `release/1.3.0-preparation`; keep native qualification
@@ -393,3 +395,35 @@ feasible, final-state MPI parity and a carefully scoped
 Hamiltonian/port-work comparison. If the initial data prevent
 a safe short solve, report that explicitly rather than
 mark #27 fully closed or relaxing the Jacobian tolerances.
+
+## Next native command — short *real* shallow-water PETSc TS (still pending)
+
+The previously PASSED native Jacobian FD gate is frozen.
+Run only the remaining physical-step test on the unchanged
+qualified rc3 image. It uses original weak forms and
+the published initial data, plus a separately labeled
+manufactured rotating initial momentum to ensure
+a **nonzero** explicit gyroscopic contribution.
+It limits the physical solve to four BDF2 steps, logs
+accepted-state explicit cache refresh and Newton
+cache invariance, computes the actual Hamiltonian
+and checks complete MPI 1/2 state/energy parity.
+It **records**, rather than forces to zero, the
+signed Hamiltonian drift of first-order lagged `G`.
+
+~~~bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-shallow-explicit-physical-ts.sh
+~~~
+
+As with other source/native qualification gates, keep
+issue #27 OPEN if native TS fails, diverges, the
+explicit RHS is vacuous or not frozen, or MPI parity
+fails. No release threshold is loosened to meet
+the calendar deadline. Successful short-TS
+evidence is **not** a proof of order 2 or exact
+discrete Hamiltonian balance; a dedicated
+time-refinement/energy study is separate.
