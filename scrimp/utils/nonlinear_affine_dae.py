@@ -74,6 +74,11 @@ def initialize_nonlinear_affine_algebraic(system):
     t0 = float(system.time_scheme["t_0"])
     objects = []
     accepted = False
+    # A rejected candidate must not remain in either the GetFEM model
+    # OR the PETSc sequential GlobalVec used by later SCRIMP routines.
+    # The candidate is scattered to GlobalVec *before* the final native
+    # residual/accuracy acceptance checks; save the pretrial vector.
+    global_snapshot = system.GlobalVec.copy()
     report = {
         "strategy": "nonlinear_affine",
         "status": "REJECTED",
@@ -290,6 +295,9 @@ def initialize_nonlinear_affine_algebraic(system):
         raise
     finally:
         if not accepted:
+            # Restore both representations, even when final validation
+            # rejects a *computed* (but unaccepted) algebraic candidate.
+            global_snapshot.copy(system.GlobalVec)
             system.gf_model.set_time(t0)
             system.gf_model.to_variables(original.copy())
             system._explicit_rhs_ready = explicit_old_ready
@@ -300,5 +308,6 @@ def initialize_nonlinear_affine_algebraic(system):
                 system._explicit_rhs_ready = False
         for obj in reversed(objects):
             obj.destroy()
+        global_snapshot.destroy()
         if explicit_snapshot is not None:
             explicit_snapshot.destroy()
