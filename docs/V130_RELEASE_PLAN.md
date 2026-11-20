@@ -10,33 +10,48 @@ release. No general Saint-Venant 2D tangential-velocity boundary-control
 development enters its critical path. That model is a separate,
 **post-release** project for LHMNC 2027.
 
-**DAE initialization workstream (20 November 2026):
-PRODUCTION CORE OPT-IN NATIVE PASS.**
-The distributed PETSc linear algebraic initializer
-is now integrated into `scrimp/dphs.py`, and its
-**actual production native** MPI 1/2 qualification
-passes against the original independently qualified
-diagnostic: exact q0/p0 fidelity, 11 complete CN
-snapshots (0 / 5.30974918e-18 max scaled
-difference from the frozen reference), signed
-nonzero port-power balance (~5.6–6.1e-15),
-and explicit Gaussian rejection before CN.
-The historical `pseudo` retains exactly its
-frozen physical trajectory; tiny negative-start
-BDF2 also works but measurably changes initial
-q0/p0. The original eight top-level examples
-now request `init_step_ts_type="pseudo"`
-**explicitly** to retain their historical results.
-The user requested the new `algebraic` mode as
-**the global default once fully qualified**.
-The *core opt-in acoustic gate* is complete;
-a second independent linear model and the
-remaining default-migration compatibility and
-performance gates are still pending.
-Read the [technical method and native
-core evidence](V130_DAE_ALGEBRAIC_INITIALIZER_DESIGN.md),
-[default-migration plan](V130_DAE_DEFAULT_MIGRATION.md)
-and [full measured scientific log](V130_DAE_INITIAL_VALIDATION.md).
+**DAE initialization (20 November 2026):
+TWO NATIVE SCIENTIFIC MODELS PASS; NEW IMPLICIT DEFAULT
+STAGED IN SOURCE, NATIVE MIGRATION PENDING.**
+The production linear algebraic initializer
+has passed native MPI 1/2 tests for both the
+conservative acoustic wave and the internally
+dissipative acoustic wave. The second model
+returned `||F_a||~1e-13`, zero drift of q0/p0,
+`D=0.0132790026>0`,
+`W=-5.40249757e-5`, maximum signed
+energy-defect `3.55e-15` and full
+CN MPI1/2 trajectory discrepancy
+`6.37e-14` (native host:
+`sandbox/outputs/v130-second-linear-dae-7eec0172-Ostu9LKD/`).
+The historical `pseudo` and tiny-step BDF2
+methods remain available explicitly and
+retain their measured nonzero initial-data drift.
+
+**Development-branch source candidate:** the
+implicit `init_step_ts_type` fallback has
+now been changed to `algebraic` in both
+`DPHS.set_time_scheme()` and
+`DPHS.init_step()`. Original top-level
+examples, notebooks, published Maxwell code,
+GUI-generated scripts and selected sandbox
+simulations explicitly request historical
+`pseudo` to avoid accidental physics changes.
+
+**This staged default is not yet release-qualified.**
+A separate native no-option default test,
+broader example/exceptional MPI cleanup
+and memory measurements must pass before
+v1.3.0 is tagged. The qualification script
+`scripts/run-v130-dae-default-promotion.sh`
+is source-ready and compares both wave
+models against previous frozen references,
+checks published Gaussian rejection, and
+rechecks explicit pseudo/BDF2. No Docker
+rebuild or released default change yet.
+See [technical design](V130_DAE_ALGEBRAIC_INITIALIZER_DESIGN.md),
+[default migration](V130_DAE_DEFAULT_MIGRATION.md),
+and [chronological evidence](V130_DAE_INITIAL_VALIDATION.md).
 
 ## 0 — Finish solver optimization and establish scientific equivalence
 
