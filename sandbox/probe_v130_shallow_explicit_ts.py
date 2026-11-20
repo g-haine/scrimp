@@ -187,7 +187,7 @@ def run_case(mesh, dt, steps, manufactured, mpi):
         "TS_converged_reason":system.last_ts_converged_reason,
         "TS_accepted_steps":system.last_ts_steps,
         "TS_rejected_steps":system.last_ts_rejections,
-        "TS_SN​​ES_failures":system.last_ts_snes_failures,
+        "TS_SNES_failures":system.last_ts_snes_failures,
         "main_explicit_prestep":events,
         "main_IFunction_checks":state["main_residual_checks"],
         "max_frozen_explicit_RHS_drift":state["max_main_cache_drift"],
