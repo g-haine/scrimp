@@ -14,6 +14,7 @@ only checks syntax and intent, not numerical behavior.
 """
 
 import ast
+import json
 from pathlib import Path
 import unittest
 
@@ -73,20 +74,81 @@ class TestDefaultMigration(unittest.TestCase):
         )
         self.assertIn('wave.set_initial_value("p", p_0)', src)
 
-    def test_default_promotion_is_not_premature(self):
+    def test_candidate_default_is_algebraic_and_legacy_is_explicit(self):
         src=(ROOT / "scrimp/dphs.py").read_text(
             encoding="utf-8"
         )
-        # Gate intentionally pinned to current opt-in-only source;
-        # when second native model and full migration pass, this
-        # test MUST be updated in the same commit that changes the
-        # global default and adds the new no-option native test.
-        self.assertIn(
-            '"init_step_ts_type", "pseudo"', src
+        # Source candidate is promoted only to prepare independent
+        # *native* no-option verification. A green source check alone
+        # cannot certify the final default in a release.
+        self.assertGreaterEqual(
+            src.count('"init_step_ts_type", "algebraic"'), 2
         )
         self.assertIn(
             'if init_type == "algebraic":', src
         )
+        self.assertIn(
+            'if init_type not in ("pseudo", "bdf"):', src
+        )
+        self.assertIn(
+            '"init_step_ts_type must be algebraic, pseudo or bdf"',
+            src,
+        )
+        # init_step=False must remain legal if no strategy was explicitly
+        # selected. The explicit but contradictory opt-in is rejected.
+        self.assertIn(
+            'and explicitly_selected_initializer:', src
+        )
+        self.assertIn(
+            'when no initialization is intended', src
+        )
+
+    def test_published_maxwell_keeps_legacy_pseudo(self):
+        src=(ROOT / "examples/published/COMPEL_2025/Maxwell_2D.py"
+             ).read_text(encoding="utf-8")
+        self.assertIn('init_step_ts_type="pseudo"', src)
+
+    def test_legacy_notebooks_keep_pseudo_explicitly(self):
+        for name, expected in (
+            ("Heat_2D.ipynb", 1),
+            ("Heat_Wave_2D.ipynb", 1),
+            ("Shallow_water_2D.ipynb", 1),
+            ("Wave_2D.ipynb", 2),
+            ("Wave_2D_CoEnergy.ipynb", 1),
+        ):
+            with self.subTest(notebook=name):
+                j=json.loads((
+                    ROOT / "examples/notebooks" / name
+                ).read_text(encoding="utf-8"))
+                cells=[
+                    "".join(cell.get("source", []))
+                    for cell in j.get("cells", [])
+                    if cell.get("cell_type") == "code"
+                ]
+                source="\n".join(cells)
+                self.assertEqual(
+                    source.count("set_time_scheme("), expected
+                )
+                self.assertEqual(
+                    source.count('init_step_ts_type="pseudo"'), expected
+                )
+
+    def test_legacy_benchmark_and_lumped_sandbox_explicit(self):
+        for path in (
+            "sandbox/bench_acoustic_2d.py",
+            "sandbox/sloshing_tank.py",
+        ):
+            with self.subTest(path=path):
+                src=(ROOT / path).read_text(encoding="utf-8")
+                self.assertIn('init_step_ts_type="pseudo"', src)
+
+    def test_gui_script_generator_does_not_duplicate_strategy(self):
+        src=(ROOT / "scrimp/utils/GUI.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("has_initializer_choice",src)
+        self.assertIn('file.write(\'init_step_ts_type="pseudo",\')',src)
+        self.assertIn('"init_step_ts_type")',src)
 
     def test_sphinx_documents_legacy_modes(self):
         src=(ROOT / "docs/source/initialization.rst").read_text(
