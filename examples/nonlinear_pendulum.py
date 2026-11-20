@@ -90,6 +90,9 @@ def nonlinear_pendulum(final_time=12.0, time_step=0.01,
     pend.set_initial_value("p", 0.0)
 
     pend.set_time_scheme(
+        # Explicit legacy relaxation: preserve the published example's
+        # original initial-data behavior when algebraic becomes default.
+        init_step_ts_type="pseudo",
         ts_type="bdf", ts_bdf_order=2,
         ts_exact_final_time="matchstep",
         ts_adapt_type="none",
