@@ -105,6 +105,39 @@ class PETScDAEScientificComparatorTests(unittest.TestCase):
             text=True, capture_output=True,
         )
 
+    def test_distributed_correction_uses_PETSc_integer_width(self):
+        # This guard reproduces the real 2026-11-20 rc3 failure:
+        # NumPy int64 PETSc indices cannot be safely downcast by
+        # Vec.setValues on a 32-bit PetscInt build.  Runtime PETSc
+        # is not available in the Python-only source CI.
+        source = (
+            ROOT / "sandbox" / "probe_v130_petsc_mpi_initial.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn(
+            "owned_petsc_indices = np.asarray(\n"
+            "                local, dtype=PETSc.IntType\n"
+            "            )",
+            source,
+        )
+        self.assertIn(
+            "z.setValues(\n"
+            "                owned_petsc_indices,",
+            source,
+        )
+        self.assertIn(
+            "np.iinfo(PETSc.IntType).max", source
+        )
+        local = np.array([0, 17, 2229], dtype=np.int64)
+        corrected = np.asarray(local, dtype=np.int32)
+        self.assertEqual(corrected.dtype, np.dtype("int32"))
+        np.testing.assert_array_equal(corrected, local)
+        with self.assertRaises(OverflowError):
+            value = np.array(
+                [np.iinfo(np.int32).max + 1], dtype=np.int64
+            )
+            if np.any(value > np.iinfo(np.int32).max):
+                raise OverflowError("Out-of-range PetscInt")
+
     def test_source_fixture_positive_negative_mpi_pass(self):
         r = self._run()
         self.assertEqual(r.returncode, 0, r.stderr)
