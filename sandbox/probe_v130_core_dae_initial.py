@@ -42,6 +42,35 @@ def _dynamic_intervals(system):
     }
 
 
+def _clear_benchmark_initializer_for_implicit_default(
+    options, *, enabled
+):
+    """Clear builder-side options so the next call tests SCRIMP's default.
+
+    PETSc.Options.hasName() reports both materialized defaults and
+    explicitly selected values: it cannot distinguish their origin.
+    Accept the only two known builder outcomes, historical pseudo
+    and the newly materialized algebraic default. An unexpected BDF
+    or misspelled choice remains an error. Never alter options for
+    explicit-mode control runs.
+    """
+    if not enabled or not options.hasName("init_step_ts_type"):
+        return
+    inherited = options.getString(
+        "init_step_ts_type", ""
+    ).strip().lower()
+    if inherited not in ("pseudo", "algebraic"):
+        raise RuntimeError(
+            "Unexpected inherited benchmark initializer mode: "
+            f"{inherited!r}"
+        )
+    options.delValue("init_step_ts_type")
+    if options.hasName("init_step_ts_type"):
+        raise RuntimeError(
+            "Unable to clear builder's PETSc initializer choice"
+        )
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument(
@@ -80,22 +109,16 @@ def main():
     else:
         system = _build_scenario(args.mesh, "published")
 
-    # The benchmark builder reuses the published wave example,
-    # now deliberately pinned to its historical pseudo initializer.
-    # For this *separate, default-specific diagnostic*, remove the
-    # builder's inherited legacy strategy before calling the real
-    # DPHS.set_time_scheme() without ANY initializer keyword.
-    # The original published example remains unchanged.
-    if args.use_default and system.time_scheme.hasName(
-        "init_step_ts_type"
-    ):
-        if system.time_scheme.getString(
-            "init_step_ts_type", ""
-        ) != "pseudo":
-            raise RuntimeError(
-                "Unexpected inherited benchmark initializer mode"
-            )
-        system.time_scheme.delValue("init_step_ts_type")
+    # These diagnostic builders construct a wave by calling an
+    # existing example's set_time_scheme(), which already populates
+    # PETSc.Options with either an explicitly selected historical
+    # pseudo initializer or SCRIMP's materialized algebraic default.
+    # Neither is a keyword in the *new* set_time_scheme() call below.
+    # Clear the inherited builder configuration only for the true
+    # no-keyword diagnostic. Explicit pseudo/BDF controls are unchanged.
+    _clear_benchmark_initializer_for_implicit_default(
+        system.time_scheme, enabled=args.use_default
+    )
 
     original = np.asarray(
         system.gf_model.from_variables(), dtype=np.float64
