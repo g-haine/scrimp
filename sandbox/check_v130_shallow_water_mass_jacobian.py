@@ -1,7 +1,7 @@
 # SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
 #
 # Copyright (C) 2015-2026 ISAE-SUPAERO -- GNU GPLv3
-#
+# 
 # See the LICENSE file for license information.
 #
 # github: https://github.com/g-haine/scrimp
@@ -64,9 +64,6 @@ def _build_original(mesh):
         patch.object(S.DPHS, "export_to_pv", no_export),
     ):
         system = module.shallow_water_eq()
-    if not system.linear_mass and not system.linear_stiffness:
-        # set_linear_flags is called only after builder returns.
-        pass
     system.set_linear_flags()
     if system.linear_mass:
         raise RuntimeError(
