@@ -33,6 +33,7 @@ case "$profile" in
     physical) cases=(open closed); rotation=0.2; initial_profile=tangent ;;
     *) echo "Usage: $0 [rest|physical]" >&2; exit 2 ;;
 esac
+mkdir -p "$root/sandbox/outputs"
 sha="$(git rev-parse HEAD)"
 out="$(mktemp -d "$root/sandbox/outputs/v130-issue6-viscous-${profile}-${sha:0:8}-XXXXXXXX")"
 tf=0.02
