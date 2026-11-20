@@ -112,6 +112,7 @@ User's guide
     install
     vscode
     started
+    getfem_gwfl
     initialization
     explicit_bricks
     performance

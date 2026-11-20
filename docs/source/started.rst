@@ -523,6 +523,16 @@ the associated port.
 It is now possible to write the weak forms defining the system. *Only
 the non-zero blocks* are mandatory. Furthermore, the place of the block
 is automatically determined by GetFEM. The syntax follow a simple rule:
+
+.. important::
+
+   Weak-form and macro strings use GetFEM's **GWFL** syntax,
+   not Python/NumPy syntax. In particular, nested explicit
+   GWFL matrices list **columns**, not rows. This can reverse
+   a rotation or boundary control without causing an assembly error.
+   Read :doc:`getfem_gwfl` for an illustrated example and
+   a link to the official GetFEM manual.
+
 the unknown trial function ``q`` is automatically associated to the test
 function ``Test_q`` (note the capital T on ``Test``), and so on.
 

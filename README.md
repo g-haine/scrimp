@@ -8,6 +8,17 @@ The main objective of a **structure-preserving discretization** in the port-Hami
 
 **See the website for more information and documentation: https://g-haine.github.io/scrimp/**
 
+## Important: GWFL matrices are not NumPy matrices
+
+SCRIMP is a **Python** package, but the weak-form strings passed to
+GetFEM use its **Generic Weak-Form Language (GWFL)**. In nested
+GWFL matrices, inner lists are **columns**, not the rows one expects
+from Python/NumPy. Confusing these conventions can reverse the
+direction of a physical boundary control.
+
+See the [SCRIMP matrix notation and sign-check guide](docs/source/getfem_gwfl.rst)
+and the [official GetFEM GWFL documentation ("Explicit matrices")](https://getfem.org/userdoc/gasm_high.html#explicit-matrices).
+
 # How to install
 The easiest way to install SCRIMP is to use a conda environment.
 

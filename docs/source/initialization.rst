@@ -24,6 +24,15 @@ DAE initial conditions and initialization
    retain `pseudo` for historical compatibility. Broader
    memory, MPI and example gates remain pending.
 
+.. important::
+
+   Before blaming a nonlinear initializer for a boundary mismatch,
+   check the GetFEM GWFL **matrix orientation**. Unlike Python/NumPy,
+   nested matrices in GWFL are constructed from **column vectors**.
+   See :doc:`getfem_gwfl` for the official upstream reference,
+   correct rotation syntax and native Saint-Venant evidence.
+   Correct sign conventions alone do not establish DAE consistency.
+
 Mathematical motivation
 =======================
 
