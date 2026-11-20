@@ -97,8 +97,11 @@ for order in (1,2):
           f"reversed mismatch={one['relative_reversed_trace_error']:.9g}, "
           f"normal leakage={one['relative_normal_leakage']:.9g}")
     if one["normal_orientation_result"]!="ALIGNED":
-        print("WARNING: original tangent sign is not aligned with "
-              "actual GetFEM Normal. Investigate boundary region/mesh tags.")
-print("COMPLETE: native GetFEM sign diagnosis; this is NOT a DAE compatibility certificate")
+        raise SystemExit(
+            "FAIL: GetFEM native tangent sign remains reversed/ambiguous "
+            "after GWFL column-order correction"
+        )
+print("PASS: native GetFEM p0/tangent signs ALIGNED in P1 and P2, MPI 1/2.")
+print("Not a DAE compatibility certificate or physical TS qualification.")
 PY
 echo "Evidence preserved: $out"

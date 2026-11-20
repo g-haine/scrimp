@@ -78,6 +78,7 @@ jobs:
           bash -n scripts/run-v130-issue28-P2-geometry.sh
           python -m py_compile sandbox/probe_v130_issue28_normal_orientation.py
           bash -n scripts/run-v130-issue28-native-normal.sh
+          python -m unittest -v tests.test_v130_issue28_rot_convention
           python -m unittest -v tests.test_v130_issue28_geometry_report
           python -m unittest -v tests.test_v130_issue6_viscous_mpi
       - name: Validate SCRIMP source headers

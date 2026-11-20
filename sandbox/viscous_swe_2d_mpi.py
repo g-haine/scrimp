@@ -165,7 +165,13 @@ def build_system(gamma, mesh, final_time, save_dt, max_step,
     swe = S.DPHS("real")
     swe.gf_model.add_macro("div(v)", "Trace(Grad(v))")
     swe.gf_model.add_macro("D(v)", "Sym(Grad(v))")
-    swe.gf_model.add_macro("Rot", "[[0,1],[-1,0]]")
+    # IMPORTANT: GetFEM GWFL nested matrices list COLUMNS, not ROWS.
+    # [[0,-1],[1,0]] means the actual matrix [[0,1],[-1,0]],
+    # clockwise Rot*n=(n_y,-n_x) for an outward boundary normal.
+    # The prior [[0,1],[-1,0]] acted counterclockwise and
+    # imposed the OPPOSITE boundary velocity to the prescribed
+    # clockwise initial momentum p0, as proven natively in #28.
+    swe.gf_model.add_macro("Rot", "[[0,-1],[1,0]]")
     swe.gf_model.add_macro("Tangent", "(Rot*Normal)")
     swe.gf_model.add_macro("Curl2D(v)", "div(Rot*v)")
     swe.gf_model.add_macro("Gyro(v)", "Curl2D(v)*Rot")
@@ -274,11 +280,13 @@ def build_system(gamma, mesh, final_time, save_dt, max_step,
 
     # Full boundary velocity: U = U_n*n + rotation*f(t)*Rot*n.
     # The ramp is DECREASING: f(0)=1 for the default start=75 s.
-    # Rot=[[0,1],[-1,0]] is CLOCKWISE. Match the initial p sign,
+    # The intended clockwise Rot is encoded column-first in GetFEM:
+    # Rot=[[0,-1],[1,0]]. Match the initial p sign,
     # but beware: on a faceted disk, the imposed Rot*Normal is not
     # exactly the trace of rigid-body p/rho=rotation*(y,-x).
-    # A small geometric mismatch can create an extremely large
-    # traction multiplier Y during a tiny BDF2 initialization step.
+    # Curved P2 geometry reduces the remaining normal-trace mismatch.
+    # Even after correcting the Rot sign, an initial DAE consistency
+    # solve must still check feasibility; do not infer from geometry.
     #
     # DIAGNOSTIC-ONLY 'rigid_trace': match the initial rigid p/rho
     # exactly on the polygonal mesh, using omega*Rot*X instead of
@@ -298,7 +306,8 @@ def build_system(gamma, mesh, final_time, save_dt, max_step,
                           [REGION_WALL], linear=False))
 
     swe.set_initial_value("h", str(H_INITIAL))
-    # Tangent=Rot*Normal, Rot=[[0,1],[-1,0]]. On the unit circle
+    # Tangent=Rot*Normal, Rot=[[0,-1],[1,0]] in GWFL column syntax.
+    # On the unit circle
     # Tangent=(y,-x). With e_p=p/rho the boundary condition needs
     # p/rho to point in this SAME direction; the old (-y,+x)
     # initialization was opposite to the imposed wall velocity.
@@ -318,7 +327,7 @@ def build_system(gamma, mesh, final_time, save_dt, max_step,
         # not the finite-element disk's facetwise Rot*Normal exactly.
         p_x = f"({amplitude})*y"
         p_y = f"-({amplitude})*x"
-    else:  # legacy_opposite for diagnosing the prior sign error
+    else:  # legacy_opposite preserves the earlier, opposite p0 sign
         p_x = f"-({amplitude})*y/({radius}+{eps})"
         p_y = f"({amplitude})*x/({radius}+{eps})"
     swe.set_initial_value("p", f"[{p_x}, {p_y}]")
