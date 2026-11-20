@@ -120,32 +120,14 @@ def _distributed_vec(template, global_data):
     return v
 
 
-def _directional_check(
-    system, ts, z, zd, direction, shift, epsilon, *,
-    diagnostic_full_tangent=False,
-):
+def _directional_check(system, ts, z, zd, direction, shift, epsilon):
+    # The previous accepted-state explicit RHS MUST ALREADY BE frozen.
+    # Newton and all finite-difference trials must use that same value.
+    # Its differential is zero, so the production Jacobian excludes G.
+    if not system._explicit_rhs_ready:
+        raise RuntimeError("No accepted-state explicit RHS frozen")
     m = system.J
-    if diagnostic_full_tangent:
-        # The original shallow_water.py registers the gyroscopic
-        # G brick as explicit=True. Its term is present in IFunction
-        # but excluded from assemble_nl_stiffness. Temporarily ask
-        # the ORIGINAL assembled GetFEM brick for its tangent too.
-        # Its form/sign is unchanged, and the flag is restored before
-        # evaluating the original residual. This is a diagnostic
-        # hypothesis only, NOT a production solver change.
-        gyro = system.bricks.get("G")
-        if gyro is None or not gyro.get_explicit() or gyro.get_linear():
-            raise RuntimeError(
-                "Original explicitly-marked nonlinear gyroscopic G "
-                "brick not found: cannot diagnose missing tangent"
-            )
-        gyro._explicit = False
-        try:
-            system.IJacobian(ts, 0., z, zd, shift, m, m)
-        finally:
-            gyro._explicit = True
-    else:
-        system.IJacobian(ts, 0., z, zd, shift, m, m)
+    system.IJacobian(ts, 0., z, zd, shift, m, m)
     jv = z.duplicate()
     zplus, zminus = z.copy(), z.copy()
     zdplus, zdminus = zd.copy(), zd.copy()
@@ -188,14 +170,6 @@ def main():
     ap.add_argument(
         "--mode", choices=("default", "legacy"), default="default"
     )
-    ap.add_argument(
-        "--tangent-policy",
-        choices=("production", "diagnostic_full"),
-        default="production",
-        help="Temporarily include original explicit gyroscopic G in "
-             "GetFEM nonlinear tangent ONLY for diagnostic A/B; "
-             "the original weak-form residual remains unchanged",
-    )
     ap.add_argument("--output-dir", type=Path, required=True)
     args = ap.parse_args()
     if args.mesh <= 0 or args.epsilon <= 0 or args.state_perturb < 0:
@@ -225,32 +199,59 @@ def main():
         1., np.linalg.norm(origin)
     ) * vdata
     zddata = .05 * max(1., np.linalg.norm(origin)) * wdata
+    # Manufacture a distinct, already accepted state to evaluate
+    # the entire G term explicitly. The FD trial state zdata and
+    # directional zdata +/- epsilon*v do NOT refresh that forcing.
+    lagged_data = zdata + 0.1 * max(
+        1., np.linalg.norm(origin)
+    ) * wdata
     template = system.J.createVecRight()
     z = _distributed_vec(template, zdata)
     zd = _distributed_vec(template, zddata)
     zero = template.duplicate()
     zero.set(0.)
     v = _distributed_vec(template, vdata)
+    accepted = _distributed_vec(template, lagged_data)
     ksp = PETSc.KSP().create(comm=PETSc.COMM_WORLD)
     ksp.getPC().setType(PETSc.PC.Type.NONE)
     audit_ts = _AuditTS(ksp)
     try:
+        if not system.bricks["G"].get_explicit():
+            raise RuntimeError("Published gyroscopic G was not explicit")
+        if system.bricks["G"].get_form() != (
+            "(Gyro(p) * e_p) . Test_p"
+        ):
+            raise RuntimeError("Published gyroscopic form/sign changed")
+        system._freeze_explicit_rhs(0., accepted)
+        frozen_norm = float(system._explicit_rhs.norm())
+        if not np.isfinite(frozen_norm) or frozen_norm <= 1e-13:
+            raise RuntimeError(
+                "Non-vacuous explicit gyroscopic G forcing not achieved"
+            )
+        cached = system._explicit_rhs.copy()
         outcomes = []
         for derivative in (zero, zd):
             for shift in (0., 1.):
                 outcomes.append(_directional_check(
                     system, audit_ts, z, derivative, v, shift, args.epsilon,
-                    diagnostic_full_tangent=(
-                        args.tangent_policy == "diagnostic_full"
-                    ),
                 ))
+        cached.axpy(-1., system._explicit_rhs)
+        explicit_drift = float(cached.norm())
+        if explicit_drift != 0.:
+            raise RuntimeError(
+                "Fully explicit gyroscopic RHS changed during Newton/FD "
+                f"trials: drift={explicit_drift:.9g}"
+            )
         residual_max = max(row["relative_error"] for row in outcomes)
         report = {
             "schema":"scrimp-v130-shipped-shallow-water-mass-jacobian-v1",
             "model":"original examples/shallow_water.py weak bricks",
             "mode":args.mode,
-            "tangent_policy":args.tangent_policy,
+            "tangent_policy":"fully_explicit_frozen_at_accepted_state",
             "gyro_G_explicit_restored":system.bricks["G"].get_explicit(),
+            "frozen_explicit_RHS_norm":frozen_norm,
+            "frozen_explicit_RHS_drift":explicit_drift,
+            "lagged_state_distinct_from_trial_state":True,
             "ranks":mpi.Get_size(),
             "dofs":n,
             "initial_state_perturbation":args.state_perturb,
@@ -264,24 +265,23 @@ def main():
         }
         if mpi.Get_rank()==0:
             args.output_dir.mkdir(parents=True,exist_ok=True)
-            tag = (
-                args.mode if args.tangent_policy == "production"
-                else f"{args.mode}_diagnostic_full"
-            )
-            (args.output_dir/f"shallow_{tag}_{mpi.Get_size()}r.json").write_text(
+            (args.output_dir/f"shallow_{args.mode}_{mpi.Get_size()}r.json").write_text(
                 json.dumps(report, indent=2)+"\n",encoding="utf-8"
             )
             print(
                 f"SHALLOW MASS JACOBIAN mode={args.mode} "
-                f"tangent={args.tangent_policy} MPI={mpi.Get_size()} "
-                f"DOFs={n} max_rel={residual_max:.9g} "
+                f"explicit_G=frozen MPI={mpi.Get_size()} "
+                f"DOFs={n} explicit_norm={frozen_norm:.9g} "
+                f"max_rel={residual_max:.9g} "
                 f"nonzero_zd_rel={[r['relative_error'] for r in outcomes[2:]]}",
                 flush=True,
             )
         if not np.isfinite(residual_max):
             raise FloatingPointError("Nonfinite production Jacobian error")
     finally:
-        for obj in (v,zero,zd,z,template,ksp):
+        if "cached" in locals():
+            cached.destroy()
+        for obj in (accepted,v,zero,zd,z,template,ksp):
             obj.destroy()
 
 
