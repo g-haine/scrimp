@@ -1847,3 +1847,108 @@ Do not interpret a source CI pass as native
 physics, initial-state, cleanup or memory
 qualification. No release tag or Docker
 rebuild has been made.
+
+## 25. First implicit-default native trial: PETSc options materialization bug (2026-11-20)
+
+**Native result: FAIL before any physical simulation, cause localized and
+core/diagnostic correction committed.** The failure is a real
+implicit-default integration defect and was **not** a scientific failure
+of the already-qualified opt-in algebraic projector.
+
+Run on source
+`973842a3257781969330893263f71c55dd480721`,
+qualified unchanged image `scrimp-mpi:v1.3.0-rc3`
+(OCI source `1d6d0c90115213298047b28237a7f38087563a35`):
+
+```text
+sandbox/outputs/v130-algebraic-default-h0p2-973842a3-rV7dnIEX/
+```
+
+The very first `sandbox/check_v130_default_options.py`
+test invoked only
+`DPHS("real").set_time_scheme(init_step=False)`.
+It raised
+`RuntimeError: No-init model unexpectedly acquired an explicit strategy`
+because it had incorrectly interpreted
+`PETSc.Options.hasName("init_step_ts_type")`
+as evidence of a **caller-supplied** keyword. In
+fact `hasName` reports any option already
+present in the PETSc database, including
+SCRIMP's **automatically inserted default**.
+
+Inspection revealed a second, substantive **core bug**:
+the strategy validation and
+`DPHS.init_step()` fallback had both been
+changed to `"algebraic"`, but at the end
+of `DPHS.set_time_scheme()` the preexisting
+assignment still read:
+
+```python
+if not self.time_scheme.hasName("init_step_ts_type"):
+    self.time_scheme["init_step_ts_type"] = "pseudo"
+```
+
+This line silently defeated the new implicit
+default before any physical DAE projection.
+
+**Correction to the actual core**, not a
+workaround that merely weakens the test:
+
+1. The materialized PETSc default in
+   `DPHS.set_time_scheme()` is now
+   `"algebraic"`, consistent with both
+   validation and `DPHS.init_step()`.
+2. Whether the user explicitly requested a
+   strategy is measured via the
+   `kwargs` passed to `set_time_scheme()`,
+   **not** via `PETSc.Options.hasName()`.
+   This preserves the legal call
+   `set_time_scheme(init_step=False)` even
+   though PETSc may register the *unused*
+   effective default `"algebraic"`.
+3. The native options-only smoke checks that
+   `init_step=False` remains legal even through
+   the internal no-kwargs `set_time_scheme()`
+   re-entry, while a contradictory **explicit**
+   `init_step=False,init_step_ts_type="algebraic"`
+   raises a clear error.
+4. Both conservative and dissipative native
+   probes now record **two distinct facts**:
+   whether their caller's actual kwargs
+   included `init_step_ts_type`, and the
+   **effective** strategy stored by PETSc
+   after `set_time_scheme()`. The default
+   run must omit the keyword **and** register
+   `"algebraic"`. The final comparator
+   rejects either accidentally explicit or
+   silently pseudo-initialized "default" tests.
+5. Regression tests now reject the exact
+   earlier core pseudo assignment and negative
+   control JSON in which the apparent default
+   was actually `"pseudo"`.
+
+**Scientific gate status:** both previous
+opt-in native scientific models remain
+qualified (sections 21, 23). The **new
+implicit default is NOT YET native-qualified**:
+the initial native run stopped before
+the first physics test. Its previous
+status is not converted into a pass.
+The same acceptance thresholds,
+frozen references and unchanged rc3
+image are retained for the next attempt.
+
+**Next native run:**
+
+~~~bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-dae-default-promotion.sh
+~~~
+
+No production physics bricks, boundary
+controls, original reference data or
+acceptance tolerances were changed
+to correct this initializer-default bug.
