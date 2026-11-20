@@ -669,18 +669,30 @@ a similarly accurate physical power balance.
 Native output:
 `sandbox/outputs/v130-core-dae-h0p2-66fe02c2-WykmP41Y/`.
 
-**NEXT NATIVE GATE: second independent dissipative
-linear port-Hamiltonian model** using the actual
-`examples/wave_dissipative.py` GetFEM bricks
-with manufactured FE-compatible p0, nonzero
-boundary excitation and an independent damping
-port. The native gate requires the original
-`IFunction` residual, bitwise q0/p0 fidelity,
-10-step main CN trajectories and MPI 1/2
-parity, plus the complete signed
-**Hamiltonian + boundary work + dissipation**
-balance. The second model's results are
-**PENDING**, not PASS:
+**SECOND MODEL NATIVE STATUS (20 November 2026):
+MPI-1 PROJECTION AND CN PASS; COMPLETE PHYSICAL POWER/MPI
+QUALIFICATION STILL PENDING.**
+The original `examples/wave_dissipative.py` model
+and its physical damping bricks were constructed on
+`h=0.2`, 2,804 DOFs. The production algebraic
+initializer reached true
+`||F_a||=9.99416399e-14` in two passes
+and the unchanged main CN TS accepted 10/10 steps
+with no rejections or nonlinear failures.
+Power diagnostics then failed at GetFEM
+`gf.asm` argument 5 because the interior
+damping port's `get_region()` is `None`.
+The existing SCRIMP `Port.compute()` convention
+maps whole-domain ports to `region=-1`;
+the independent audit is now corrected and a
+source regression was added.
+**The actual signed Hamiltonian + boundary work +
+dissipation balance and MPI 1/2 parity have
+NOT YET BEEN MEASURED**, so this gate does
+not yet PASS. Failed native evidence:
+`sandbox/outputs/v130-second-linear-dae-29aa01dd-ULacuhnd/`.
+
+**NEXT NATIVE RETRY:**
 
 ~~~bash
 cd ~/Simulations/scrimp
