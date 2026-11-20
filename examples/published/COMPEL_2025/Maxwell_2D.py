@@ -249,6 +249,10 @@ def Maxwell_2D():
 
     # Define the time scheme
     M.set_time_scheme(
+                     # Historical relaxation for the published Maxwell
+                     # benchmark; algebraic linear-wave initialization
+                     # is not qualified for this formulation.
+                     init_step_ts_type="pseudo",
                      t_f=10.0, 
                      dt=0.01, 
                      dt_save=0.01,
