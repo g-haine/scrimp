@@ -119,13 +119,44 @@ PY
     --entrypoint /opt/conda/envs/scrimp/bin/mpiexec \
     "$IMAGE" --oversubscribe -n 2 \
       /opt/conda/envs/scrimp/bin/python simulations/mpi_check.py
+  echo "=== PETSc optional diagnostics: no implicit -info under two MPI ranks ==="
+  # Run an actual .py script, not python -c: PETSc sees Python -c as an
+  # unused command-line option and emits a false-positive warning at exit.
+  # This script is created only inside the disposable USER workspace and
+  # mounted at RUNTIME; it never enters the Docker build context/image.
+  cat > "$USER_TEST_ROOT/project/petsc_options_check.py" <<'PY'
+import scrimp  # Exercise the real package import and linalg initialization.
+from petsc4py import PETSc
+
+comm = PETSc.COMM_WORLD
+assert comm.getSize() == 2, f"Expected two MPI ranks, got {comm.getSize()}"
+options = PETSc.Options()
+assert not options.hasName("info"), (
+    "SCRIMP must not implicitly enable PETSc -info", options.getAll()
+)
+assert not options.hasName("c"), (
+    "PETSc received a stray Python -c option", options.getAll()
+)
+print(f"PASS: PETSc import options clean (rank {comm.getRank() + 1}/2)",
+      flush=True)
+comm.barrier()
+PY
+  PETSC_OPTIONS_LOG="$ROOT/sandbox/outputs/v130-petsc-options-smoke.log"
+  "${DOCKER[@]}" run --rm --user "$(id -u):$(id -g)" \
+    --env HOME=/tmp --env XDG_CACHE_HOME=/tmp/.cache \
+    --volume "$USER_TEST_ROOT/project:/work:rw" --workdir /work \
+    --entrypoint /opt/conda/envs/scrimp/bin/mpiexec \
+    "$IMAGE" --oversubscribe -n 2 \
+      /opt/conda/envs/scrimp/bin/python petsc_options_check.py \
+    2>&1 | tee "$PETSC_OPTIONS_LOG"
+  if grep -Eq "There are options you set that were not used|Option left:" \
+      "$PETSC_OPTIONS_LOG"; then
+    echo "ERROR: unused PETSc option warning in import-only MPI run." >&2
+    exit 2
+  fi
+  echo "PASS: PETSc -info and -c absent, no unused-option warning."
   rm -rf -- "$USER_TEST_ROOT"
   trap - EXIT
-
-  echo "=== PETSc optional diagnostics: no implicit -info under two MPI ranks ==="
-  "${DOCKER[@]}" run --rm "$IMAGE" \
-    mpiexec --oversubscribe -n 2 python -c \
-    'import scrimp; from petsc4py import PETSc; assert not PETSc.Options().hasName("info"), "SCRIMP injected an unexpected PETSc -info option"; print("PASS: PETSc -info not forced by SCRIMP import", flush=True)'
 
   echo "=== Persist explicit Conda spec and approved GetFEM patch checksums ==="
   "${DOCKER[@]}" run --rm "$IMAGE" \
