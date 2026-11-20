@@ -441,10 +441,26 @@ polynomial wave (require real CN/power PASS)
 and the published Gaussian with incompatible
 constraints (require explicit t0 rejection),
 on MPI 1 and 2, frozen rc3.
-Run only `scripts/run-v130-petsc-mpi-dae-initial.sh`
-after pulling. No production `dphs.py`
-change, Docker rebuild, v1.2.0 or scaling rerun.
-See sections 14–15 of
+**First native distributed probe failed at the PETSc API
+boundary before a physical solve:** the positive
+polynomial MPI=1 test constructed the FE model,
+created the PETSc algebraic submatrix and returned
+from LSQR, but `Vec.setValues` rejected
+NumPy `int64` indices on an rc3 build whose
+`PetscInt` is `int32`. No DAE feasibility
+result or Hamiltonian/port balance was measured
+in that abort. The diagnostic now inserts
+algebraic indices as `PETSc.IntType`, checks
+integer range, and includes a source-only
+regression. Re-run the same launcher
+`scripts/run-v130-petsc-mpi-dae-initial.sh`
+after pulling; do **not** qualify PETSc LSQR
+physics until native positive/negative MPI 1/2
+output is received. Host failed attempt:
+`sandbox/outputs/v130-petsc-dae-mpi-h0p2-62d92b6a-3urxt6Di/`.
+No production `dphs.py` change, Docker
+rebuild, v1.2.0 or scaling rerun.
+See sections 14–16 of
 [V130_DAE_INITIAL_VALIDATION.md](V130_DAE_INITIAL_VALIDATION.md).
 
 ## 1 — GetFEM 5.5 simplicial FEM contributions (SCRIMP-first)
