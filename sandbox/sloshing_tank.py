@@ -189,6 +189,9 @@ def sloshing_tank(
         dt=float(time_step),
         dt_save=float(save_step),
         init_step=True,
+        # Preserve the original nonlinear/lumped tank initialization.
+        # The linear algebraic projector does not support this DAE yet.
+        init_step_ts_type="pseudo",
     )
     if not adaptive:
         time_options["ts_adapt_type"] = "none"
