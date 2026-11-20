@@ -460,7 +460,37 @@ output is received. Host failed attempt:
 `sandbox/outputs/v130-petsc-dae-mpi-h0p2-62d92b6a-3urxt6Di/`.
 No production `dphs.py` change, Docker
 rebuild, v1.2.0 or scaling rerun.
-See sections 14–16 of
+**Second native distributed PETSc trial (20 November):
+positive polynomial FAIL at the *unchanged* physical
+acceptance threshold, after passing PETSc index insertion.**
+True algebraic residual measured
+`1.88801542e-9` against
+`1.72506819e-9` threshold, with original
+`0.162506819`. This is ~9.45% above threshold;
+LSQR termination reason/iterations were not
+emitted by the old failure path. No main
+CN step was taken, no 2-rank or Gaussian
+result is claimed. Failed native host evidence:
+`sandbox/outputs/v130-petsc-dae-mpi-h0p2-ce6e8edf-yuonmmPp/`.
+
+The diagnostic is now extended with **up to
+three bounded distributed LSQR defect-correction
+passes on the actual native F_a**, preserving
+q/p bitwise and keeping the original acceptance
+threshold unchanged. Every pass records true
+`IFunction` residual, KSP reason, iterations,
+internal reported residual and correction norm.
+Stagnation/divergence terminates refinement;
+the best actual state is kept and verified.
+Positive rejection now archives its JSON before
+returning FAIL, rather than losing the decisive
+KSP diagnostics on exception.
+**Next action:** rerun only
+`scripts/run-v130-petsc-mpi-dae-initial.sh`
+after pulling. PETSc MPI projector validation
+remains **PENDING**, not PASS. No Docker
+rebuild or production change.
+See sections 14–17 of
 [V130_DAE_INITIAL_VALIDATION.md](V130_DAE_INITIAL_VALIDATION.md).
 
 ## 1 — GetFEM 5.5 simplicial FEM contributions (SCRIMP-first)
