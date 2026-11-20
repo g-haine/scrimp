@@ -42,6 +42,11 @@ class TestMassJacobianQualification(unittest.TestCase):
                     results[1]["relative_error"]=1e-9
                 report={
                     "mode":mode, "ranks":ranks,
+                    "tangent_policy":"fully_explicit_frozen_at_accepted_state",
+                    "gyro_G_explicit_restored":True,
+                    "frozen_explicit_RHS_norm":.01,
+                    "frozen_explicit_RHS_drift":0.,
+                    "lagged_state_distinct_from_trial_state":True,
                     "nonlinear_mass":not missing_mass,
                     "main_TS_executed":False,
                     "independent_time_derivative":True,
@@ -79,6 +84,15 @@ class TestMassJacobianQualification(unittest.TestCase):
         x=self._run()
         self.assertNotEqual(x.returncode,0)
         self.assertIn("explicitly configured",x.stderr)
+
+    def test_rejects_a_newton_varying_explicit_forcing(self):
+        path=self.out/"shallow_default_1r.json"
+        report=json.loads(path.read_text(encoding="utf-8"))
+        report["frozen_explicit_RHS_drift"]=1e-7
+        path.write_text(json.dumps(report),encoding="utf-8")
+        result=self._run()
+        self.assertNotEqual(result.returncode,0)
+        self.assertIn("Wrong native Jacobian",result.stderr)
 
     def test_rejects_missing_nonlinear_mass(self):
         self._write(missing_mass=True)
