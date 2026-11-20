@@ -13,11 +13,18 @@ development enters its critical path. That model is a separate,
 **DAE initialization workstream (20 November 2026):**
 the isolated **linear-wave scientific prototype** has passed all
 native 1/2-rank, fixed-CN, signed power and incompatible-data
-rejection gates. The opt-in core implementation remains **TO DO**.
-Read the focused [mathematical and architectural explanation,
-validation results and implementation contract](V130_DAE_ALGEBRAIC_INITIALIZER_DESIGN.md);
-the [full evidence log](V130_DAE_INITIAL_VALIDATION.md) retains the
-failed intermediate experiments and exact native provenance.
+rejection gates. A **production-owned opt-in implementation has
+now been committed** (`scrimp/utils/dae_initialization.py`,
+`DPHS.init_step()` dispatch), but its **native core-specific
+qualification is still PENDING**. The historical `pseudo`
+remains the default; `bdf` and tiny negative-time BDF2
+remain explicit alternatives. The user requested to
+promote `algebraic` to the global default **only after**
+this new core and compatibility migration have passed
+their own native acceptance gates. Read the
+[mathematical design and core state](V130_DAE_ALGEBRAIC_INITIALIZER_DESIGN.md),
+[default migration blockers and gates](V130_DAE_DEFAULT_MIGRATION.md)
+and [full scientific evidence log](V130_DAE_INITIAL_VALIDATION.md).
 
 ## 0 — Finish solver optimization and establish scientific equivalence
 
@@ -627,6 +634,50 @@ separate tests pass.
 The method, current scope and completed scientific
 measurements are documented in
 [V130_DAE_ALGEBRAIC_INITIALIZER_DESIGN.md](V130_DAE_ALGEBRAIC_INITIALIZER_DESIGN.md).
+
+**OPT-IN CORE IMPLEMENTATION: SOURCE READY, NATIVE PENDING
+(20 November 2026).** The production entry point
+`init_step_ts_type="algebraic"` now delegates to
+`scrimp/utils/dae_initialization.py`, avoiding the
+historical pseudo-TS entirely and preserving dynamic
+DOFs in the eligible linear model. It rejects unsupported
+structures and incompatible input, preserves a
+serializable `initialization_report` on numerical
+rejection, cleans PETSc temporaries, and keeps
+`pseudo` as the unmodified default until native
+validation is returned.
+
+**Next concrete command** on the existing, frozen
+`scrimp-mpi:v1.3.0-rc3` runtime:
+
+~~~bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-core-dae-initial.sh
+~~~
+
+The new launcher tests the true core code (no init
+monkeypatch) on positive and rejected Gaussian
+1/2-rank cases, then runs serial legacy `pseudo`
+and BDF2 with a negative-time `1e-6` initial step.
+The independent comparator requires frozen diagnostic
+and historical pseudo baseline outputs, and compares
+**all** CN states and signed power time series.
+Source-only GitHub CI is an additional gate,
+**not** native acceptance.
+
+**Default promotion is deliberately blocked** until
+this native gate, a second independent linear model,
+a source/native audit of unsupported examples,
+explicit migration of historical pseudo users
+(including the published Gaussian), and memory/
+cleanup criteria pass. See
+[V130_DAE_DEFAULT_MIGRATION.md](V130_DAE_DEFAULT_MIGRATION.md).
+There is no silent pseudo fallback; switching
+the global default prematurely would make nonlinear
+and lumped systems fail.
 
 ## 1 — GetFEM 5.5 simplicial FEM contributions (SCRIMP-first)
 
