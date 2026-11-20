@@ -41,6 +41,7 @@ for p in \
     sandbox/probe_v130_dissipative_core_dae.py \
     sandbox/compare_v130_dissipative_core_dae.py \
     sandbox/verify_v130_default_promotion.py \
+    sandbox/check_v130_default_options.py \
     examples/wave_dissipative.py; do
     [[ -s "$p" ]] || { echo "Missing required source $p" >&2; exit 2; }
 done
@@ -95,7 +96,17 @@ common=( \
     --volume "$root/sandbox/check_acoustic_energy_mpi.py:/workspace/scrimp/sandbox/check_acoustic_energy_mpi.py:ro" \
     --volume "$root/examples/wave_dissipative.py:/workspace/scrimp/examples/wave_dissipative.py:ro" \
     --volume "$root/sandbox/probe_v130_dissipative_core_dae.py:/workspace/scrimp/sandbox/probe_v130_dissipative_core_dae.py:ro" \
+    --volume "$root/sandbox/check_v130_default_options.py:/workspace/scrimp/sandbox/check_v130_default_options.py:ro" \
 )
+echo "NATIVE OPTIONS: implicit default with init_step=False, explicit legacy and conflict"
+if ! "${docker_cmd[@]}" run --rm "${common[@]}" "$image" \
+    python -u /workspace/scrimp/sandbox/check_v130_default_options.py \
+    > "$out/default_options.log" 2>&1; then
+    tail -n 110 "$out/default_options.log" >&2
+    echo "FAIL: PETSc.Options default/no-init compatibility, see $out" >&2
+    exit 1
+fi
+cat "$out/default_options.log"
 run_case() {
     local mode="$1" scenario="$2" ranks="$3"
     local -a extra_args=()
