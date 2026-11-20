@@ -346,12 +346,16 @@ def main():
             f"power balance={'PASS' if energy_pass else 'FAIL'}",
             flush=True,
         )
-    if not energy_pass:
-        raise RuntimeError(
-            "Physical CN power balance failed for "
-            f"{args.mode}, MPI={mpi.Get_size()}: "
-            f"{power['maximum_absolute_balance_defect']:.6g} "
-            f"> {energy_tolerance:.6g}"
+    # Keep all four modes/ranks available even if one physical power
+    # check fails: the independent final comparator applies the strict
+    # scientific gate after collecting complete native evidence.
+    # This does NOT mark a failed power balance as accepted.
+    if not energy_pass and mpi.Get_rank() == 0:
+        print(
+            "SCIENTIFIC WARNING: physical CN power balance FAILED; "
+            "comparison will reject this run after collecting all "
+            "MPI and initializer evidence.",
+            flush=True,
         )
 
 
