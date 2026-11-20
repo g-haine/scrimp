@@ -223,7 +223,7 @@ def _audit(system, mpi):
             "mpi_ranks": int(mpi.size),
             "rotation": float(getattr(system, "_issue28_rotation", 0.)),
             "original_tangent_profile": True,
-            "original_polygon_facet_boundary": args.geometry_order == 1,
+            "original_polygon_facet_boundary": int(system._issue28_geometry_order) == 1,
             "geometry_order_requested": int(system._issue28_geometry_order),
             "getfem_imported_geometry_nodes": int(
                 system.domain.get_mesh()[0].nbpts()

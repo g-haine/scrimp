@@ -932,3 +932,30 @@ git pull --ff-only
 SCRIMP_DOCKER_NO_SUDO=1 SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
   bash scripts/run-v130-issue28-P2-geometry.sh
 ```
+
+## 20 November 2026 — corrected P2 geometry report NameError; follow-up queued
+
+The first native order-2 attempt at source `40303b1` produced a
+**genuine Gmsh P2 mesh** (225 type-9 six-node triangles and 33 type-8
+three-node boundary edges). Native GetFEM reported 485 geometry points
+for 225 elements (versus 131 P1 points); direct inspection of the
+archived `Disk.msh` shows all 33 mid-edge boundary nodes lie on the
+unit circle, ~0.004528 units away from their straight chord midpoints.
+The test stopped on MPI 1 at zero rotation **after assembly**, when
+constructing the JSON report: `_audit()` incorrectly referenced the
+CLI-local name `args.geometry_order` and raised `NameError`.
+This is a probe bookkeeping bug, NOT an observed GetFEM/PETSc physical
+failure or a P2 compatibility conclusion. Source corrected to use
+`system._issue28_geometry_order` and a dependency-free AST regression
+suite now tests that the reporting function cannot reference the
+out-of-scope CLI `args`. No residual from this aborted P2 run is valid.
+
+**Sequencing explicitly agreed:** finish and interpret the P1/P2
+geometric compatibility experiment **first**. **AFTER that**, return
+to #28 with the original `examples/shallow_water.py` as a distinct
+nonlinear-initialization test **without the additional curved-boundary
+complication**. Do not launch that example or infer its suitability
+before the present native geometry gate is resolved. Review whether
+its algebraic subsystem is structurally regular before choosing a
+Newton method; hold its prescribed dynamic state fixed. This deferred
+task is recorded here and in issue #28 so it is not forgotten.
