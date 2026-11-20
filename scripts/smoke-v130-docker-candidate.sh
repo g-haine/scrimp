@@ -76,13 +76,41 @@ PY
     --env HOME=/tmp --env XDG_CACHE_HOME=/tmp/.cache \
     --volume "$USER_TEST_ROOT/project:/work:rw" --workdir /work \
     --entrypoint /opt/conda/envs/scrimp/bin/python \
-    "$IMAGE" simulations/first_simulation.py
+    "$IMAGE" -c '
+import runpy
+import warnings
+import numpy as np
+# NumPy 2: do not accept a mere logged ComplexWarning.
+warnings.simplefilter("error", np.exceptions.ComplexWarning)
+runpy.run_path("simulations/first_simulation.py", run_name="__main__")
+'
   test -s "$USER_TEST_ROOT/project/outputs/oscillator.csv" || {
     echo "ERROR: first simulation did not create a persistent HOST CSV." >&2
     exit 2
   }
-  head -n 2 "$USER_TEST_ROOT/project/outputs/oscillator.csv"
-  echo "PASS: user simulation output exists on host, not only inside Docker."
+  # Check the host CSV using only Python's standard library (CI host need
+  # not have NumPy). Validate the actual equation, not just file existence.
+  python3 - "$USER_TEST_ROOT/project/outputs/oscillator.csv" <<'PY'
+import csv
+import math
+import sys
+
+with open(sys.argv[1], newline="", encoding="utf-8") as stream:
+    reader = csv.DictReader(stream)
+    assert reader.fieldnames == ["time", "q", "p", "H"], reader.fieldnames
+    rows = list(reader)
+assert len(rows) == 11, f"Expected 11 saved samples, got {len(rows)}"
+t = [float(row["time"]) for row in rows]
+assert abs(t[0]) < 1e-12 and abs(t[-1] - 0.1) < 1e-10, t
+assert all(b > a for a, b in zip(t, t[1:])), t
+for row in rows:
+    q, p, H = (float(row[k]) for k in ("q", "p", "H"))
+    assert all(math.isfinite(x) for x in (q, p, H))
+    assert math.isclose(H, 0.5 * 5.0 * q * q + p * p / (2.0 * 1.5),
+                        rel_tol=1e-10, abs_tol=1e-12), row
+print("PASS: 11 finite host CSV samples, t=0..0.1, H(q,p) consistency")
+PY
+  echo "PASS: no NumPy ComplexWarning; user output exists on host."
 
   echo "=== Independent user workspace: two-rank MPI startup ==="
   "${DOCKER[@]}" run --rm --user "$(id -u):$(id -g)" \
