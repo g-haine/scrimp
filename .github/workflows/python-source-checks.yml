@@ -19,6 +19,9 @@ jobs:
       - name: Validate native GetFEM MPI timing patch
         run: |
           python -m unittest -v tests.test_getfem_timing_patch
+      - name: Validate PETSc optional -info default (source-only)
+        run: |
+          python -m unittest -v tests.test_petsc_option_defaults
       - name: Validate candidate context, shell entry points and user project template
         run: |
           python3 scripts/audit-v130-docker-context.py
