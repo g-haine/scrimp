@@ -1519,3 +1519,94 @@ modes (`algebraic`, historical `pseudo`,
 and tiny-step negative-start `bdf` order 2),
 see [the Sphinx user guide](source/initialization.rst)
 and the [technical method note](V130_DAE_ALGEBRAIC_INITIALIZER_DESIGN.md).
+
+
+## 21. NATIVE core opt-in DAE qualification — PASS (20 November 2026)
+
+**Actual production `DPHS.init_step(init_step_ts_type="algebraic")`
+native qualification PASSED**, not merely the sandbox prototype.
+The core code was overlaid read-only onto the original qualified
+`scrimp-mpi:v1.3.0-rc3` container image, unchanged OCI source
+`1d6d0c90115213298047b28237a7f38087563a35`.
+The run used Git diagnostic/core revision
+`66fe02c20614164aafdd5c8d5812c57c7c0d4541`.
+
+**Host evidence:**
+
+```text
+sandbox/outputs/v130-core-dae-h0p2-66fe02c2-WykmP41Y/
+```
+
+The independent comparator loaded both frozen science
+reference directories:
+
+```text
+sandbox/outputs/v130-petsc-dae-mpi-h0p2-4d3b4d0c-gb0qNKB8/
+sandbox/outputs/v130-wave-init-power-h0p2-62e31d9b-zDa95p5J/
+```
+
+Six native physical/negative-control runs **completed**:
+
+| Measured native quantity | MPI 1 | MPI 2 |
+| --- | ---: | ---: |
+| Core algebraic initial residual after projection | **9.81418431e-14** | **9.61877785e-14** |
+| Exactly preserved prescribed dynamic q0/p0 | **Yes; zero drift** | **Yes; zero drift** |
+| Max scaled full CN trajectory difference against *frozen independently qualified PETSc projection* | **0** | **5.30974918e-18** |
+| Maximum signed Hamiltonian+port-work defect | **5.60853295e-15** | **6.05263063e-15** |
+| Integrated signed port work | **-5.39545892e-5** | **-5.39545892e-5** |
+| Published Gaussian true algebraic residual after correction | **4.82244319e-6** | **4.82244319e-6** |
+| Published Gaussian acceptance threshold | **2.0689895e-10** | **2.0689895e-10** |
+| Published Gaussian rejected before CN | **Yes** | **Yes** |
+
+**Separate serial historical-mode controls:**
+
+| Legacy initializer | Native drift `||Delta q0||_2` | Native drift `||Delta p0||_2` | Signed energy+work maximum defect | Signed integrated port work |
+| --- | ---: | ---: | ---: | ---: |
+| Historical `pseudo` | **0.0019595881156396905** | **1.3019644341244006e-5** | **4.19642484e-15** | **-5.41131226e-5** |
+| Tiny negative-start `bdf` order 2, `init_step_dt=1e-6` | **1.9595912757338825e-5** | **8.680599894760661e-10** | **4.74270349e-15** | **-5.39561745e-5** |
+
+The legacy `pseudo` physical time trajectory matched the
+**independent frozen baseline exactly** (comparator max scaled
+difference **0**). The tiny-step BDF2 strategy also runs and
+preserves its distinction from fixed-data projection:
+it produces *nonzero* differential-state drift even with a
+very small initialization interval. The signed physical
+Hamiltonian/port-power balance remains excellent for
+all three initializers, **but from their different
+physical t0 states**. This is why power conservation by
+itself is not evidence of faithful Cauchy initialization.
+
+**Scientific conclusion:** for the qualified
+**linear acoustic positive control**, the new
+production-owned `scrimp/utils/dae_initialization.py`
+with opt-in dispatch in `scrimp/dphs.py`
+reproduces the independently measured algebraic
+projection and complete main Crank–Nicolson
+physical trajectories, including MPI 1/2 parity,
+exact prescribed state, nonzero boundary-port
+work and native DAE constraint checks.
+The published Gaussian is rejected **atomically**
+before starting the physical CN integration.
+The explicit legacy pseudo and tiny-BDF2 modes
+remain executable.
+
+**Current default is STILL `pseudo`:**
+the user requested promoting `algebraic` to the
+default after qualification. While the *core
+opt-in acoustic gate* is now PASSED, this is
+not a scientific validation of all SCRIMP
+systems. Models with nonlinearity, substituted
+costates, lumped variables or incompatible
+prescribed data currently cannot be silently
+migrated to fixed-differential-data algebraic
+projection. The separate **global default
+migration gate** (example audit, second
+independent linear model, performance/memory
+checks, and post-switch native no-option test)
+is recorded in
+[V130_DAE_DEFAULT_MIGRATION.md](V130_DAE_DEFAULT_MIGRATION.md).
+
+No general nonlinear/high-index DAE initialization,
+fully distributed GetFEM state storage, or
+automatic legacy fallback is claimed from
+this core result.
