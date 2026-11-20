@@ -464,14 +464,26 @@ F5 and completed normally. Multi-rank MPI debugging remains
 untested. The first-use editor exposed repeated **"No Python
 found / Install uv"** prompts and a false Pylance
 `reportMissingImports` for editable `scrimp`, even though
-the Python interpreter worked. The project template now adds
-a remote-only Micromamba environment discovery path
-(`python-envs.globalSearchPaths=/opt/conda/envs`), a
-permanently visible interpreter status, and explicit
+the Python interpreter worked. The initially attempted Micromamba discovery path
+(`python-envs.globalSearchPaths=/opt/conda/envs`) was
+**insufficient**. The Python log knew the absolute interpreter,
+but `ms-python.vscode-python-envs` reported no environment for
+the workspace. The project template now explicitly selects
+`/opt/conda/envs/scrimp/bin/python`, opts out of that
+new environment manager using
+`"python.useEnvironmentsExtension": false` (keeping Python,
+Pylance and debugpy), and configures
 `python.analysis.extraPaths=/workspace/scrimp` for
-static analysis of the editable SCRIMP package. The editor
-fixes are **not yet GUI-retested**, and require a
-Dev Container **recreate**, not a numerical image rebuild.
+editable-package source analysis.
+
+**GUI retest PASS (20 Nov):** the user reported that adding the
+missing opt-out setting to their *existing personal project*
+removed the interpreter error; the Pylance import warning had
+already disappeared. The development container retained all
+previous runtime, MPI and F5 functionality. This was an editor
+configuration repair, **not** a numerical image rebuild.
+A fresh-user onboarding run is still required before broad
+cross-platform distribution claims.
 
 **Qualification boundary:** these results are *smokes*, not proof of
 Hamiltonian or power-balance preservation, parallel strong scaling,
