@@ -155,6 +155,8 @@ def main():
     # Fixed-step Crank-Nicolson. Petsc LU/MUMPS settings are the
     # same for all ranks, so speedups are not time-adapt artifacts.
     system.set_time_scheme(
+        # Preserve historical benchmark setup across initializer-default migration.
+        init_step_ts_type="pseudo",
         ts_type="cn",
         ts_adapt_type="none",
         ts_exact_final_time="matchstep",
