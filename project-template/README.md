@@ -99,6 +99,44 @@ Dev Container**, reload VS Code, and re-select that interpreter.
 Do **not** rebuild SCRIMP or create an `uv` environment to
 address this editor prompt.
 
+### Python and Pylance are preconfigured for Dev Containers
+
+SCRIMP is installed in the named Conda/Micromamba environment
+`/opt/conda/envs/scrimp`, and its Python package is installed
+**editably** from `/workspace/scrimp` inside the image. These
+locations are **not your personal simulations folder**.
+
+The starter's `.devcontainer/devcontainer.json` now includes:
+
+```json
+"python.defaultInterpreterPath": "/opt/conda/envs/scrimp/bin/python",
+"python-envs.globalSearchPaths": ["/opt/conda/envs"],
+"python.interpreter.infoVisibility": "always",
+"python.analysis.extraPaths": ["/workspace/scrimp"]
+```
+
+The extra search path helps Pylance resolve `import scrimp`
+when the runtime editable installation uses an import hook.
+**Do not disable missing-import diagnostics:** a truly
+missing package must still be reported. The explicit discovery
+root should help VS Code find the installed environment instead
+of offering to install an unrelated Python via `uv`.
+The latter still needs a successful clean-window GUI retest;
+the terminal and Python debugger already work.
+
+**If your project was created before this fix**, update *its own*
+`.devcontainer/devcontainer.json` with the three additional
+settings (keep the existing image tag), then choose
+**Dev Containers: Rebuild and Reopen in Container**.
+That recreates the VS Code container **without rebuilding the
+SCRIMP Docker image**, and does not erase the local simulations
+or results. Restart the Python language server if Pylance
+still displays stale errors.
+
+The absolute container paths are deliberately not part of the
+shared `.vscode/settings.json`: native Conda users must be able
+to select their own local interpreter.
+
 The first command is a **real, short serial port-Hamiltonian
 mass–spring–damper simulation**. It saves `outputs/oscillator.csv`.
 The second only checks MPI startup. To test MPI physics use a
@@ -112,9 +150,9 @@ breakpoint at `system = S.DPHS("real")` suspends execution;
 **F10** steps through state initialization; the `system` and
 `q` objects are visible in **Locals**, and `main()` appears
 in **Call Stack**. Resume with **F5** or stop with
-**Shift+F5**. The *resume-to-completion* check has not yet been
-recorded. Parallel MPI Python debugging needs a different
-multi-process configuration and has not been qualified.
+**Shift+F5**. The *resume-to-completion* check **passed
+on 20 November 2026**. Parallel MPI Python debugging needs
+a different multi-process configuration and has not been qualified.
 
 **All output is persistent on your computer**: Dev Containers mounts
 this directory read-write at `/work`. SCRIMP uses the current working
@@ -161,6 +199,8 @@ The **Linux VS Code Dev Container terminal run** passed the actual
 first SCRIMP simulation, host-persistent CSV and two-rank MPI
 startup on 19 November 2026. On **20 November**, Python
 debugging with **F5/debugpy**, breakpoints, F10 stepping,
-Locals and Call Stack also passed. Resume-to-completion,
-multi-rank debugging and cross-platform VS Code behavior
-remain separate acceptance checks.
+Locals, Call Stack and successful **resume-to-completion** passed.
+Automatic Python discovery and Pylance editable-install
+configuration have been improved but still need a fresh-window
+editor acceptance check. Multi-rank debugging and cross-platform
+VS Code behavior remain separate acceptance checks.
