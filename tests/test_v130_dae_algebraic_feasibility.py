@@ -12,6 +12,8 @@ These tiny synthetic matrices are tests of the decision/reporting
 semantics, not evidence of the actual finite-element wave physics.
 """
 
+import ast
+import math
 import sys
 from pathlib import Path
 import unittest
@@ -95,6 +97,42 @@ class DAEAlgebraicFeasibilityTests(unittest.TestCase):
             status["dual_lower_bound_for_corrections_within_radius_l2"],
             1e-9,
         )
+
+    def test_matched_left_source_uses_getfem_not_python_power_syntax(self):
+        # Do not import the probe: that requires native PETSc/GetFEM.
+        # Check its literal diagnostic control independently of the
+        # production wave example and verify its mathematical trace.
+        source = (
+            SANDBOX / "probe_v130_wave_fixed_dynamics.py"
+        ).read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        assigned = [
+            node.value for node in tree.body
+            if isinstance(node, ast.Assign)
+            and any(
+                isinstance(target, ast.Name)
+                and target.id == "MATCHED_LEFT_VELOCITY_EXPRESSION"
+                for target in node.targets
+            )
+        ]
+        self.assertEqual(len(assigned), 1)
+        expression = ast.literal_eval(assigned[0])
+        self.assertNotIn("**", expression)
+        self.assertIn("exp(", expression)
+        for y in (0.0, 0.125, 0.25, 0.5, 0.75, 0.875, 1.0):
+            value = eval(
+                expression,
+                {"__builtins__": {}, "exp": math.exp},
+                {"y": y},
+            )
+            expected = (
+                3.0 ** (-20.0 * (0.25 + (y - 0.5) ** 2))
+                / 3.0
+            )
+            self.assertAlmostEqual(
+                value, expected,
+                delta=2e-14 * max(1.0, abs(expected)),
+            )
 
     def test_nonfinite_inputs_refused(self):
         with self.assertRaises(ValueError):
