@@ -849,3 +849,75 @@ git pull --ff-only
 SCRIMP_DOCKER_NO_SUDO=1 SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
   bash scripts/run-v130-issue28-structure.sh
 ```
+
+## 20 November 2026 — #28.0 true native MPI 1/2 structural audit PASSED
+
+The original single- and two-rank GetFEM/PETSc assembly audit
+`scripts/run-v130-issue28-structure.sh` has now passed natively at
+`bc0b42846a1fd86c58952def9a0c9163c9bf7307`, unchanged image
+`scrimp-mpi:v1.3.0-rc3` (OCI revision
+`1d6d0c90115213298047b28237a7f38087563a35`).
+Host-owned evidence:
+`sandbox/outputs/v130-issue28-structure-bc0b4284-UkXgPXar/`.
+The user-visible native output reports:
+
+```text
+AUDIT MPI=1: original h0,p0, mass rows, Jacobian Y and IFunction FD
+ISSUE28 STRUCTURE PASS: Y absent from Fa, present in Fd
+AUDIT MPI=2: original h0,p0, mass rows, Jacobian Y and IFunction FD
+ISSUE28 STRUCTURE PASS: Y absent from Fa, present in Fd
+PASS: original SWE structural MPI 1/2 parity; no time step/initialization performed
+```
+
+The actual production-assembled operator exhibits a traction `Y`
+**null algebraic column** and **nonzero dynamic coupling**.
+The gate checked zero mass in algebraic rows, independent
+`IFunction` directional finite differences in the traction direction,
+bitwise preservation of prescribed `h0,p0` and MPI parity.
+It did **not** execute a nonlinear DAE initializer or claim an
+index classification or compatible rotating initial data.
+No numerical block norms or detailed matrix extrema were printed
+in the shared console; these remain in the per-rank native
+`result_1/structure.json` and `result_2/structure.json` records.
+
+### Implication: the naive nonlinear algebraic Newton is insufficient
+
+The weak forms of the **open-loop** model contain the following
+algebraic conditions (signs follow the stored bricks and SCRIMP
+`position=flow` convention):
+
+- Interior velocity constitutive relation:
+  `F_{e_p} = <h*(p/rho-e_p), Test_e_p> = 0`.
+- Boundary traction-test relation:
+  `F_Y = <h*(e_p-U), Test_Y>_Gamma = 0`.
+- Prescribed wall velocity:
+  `F_U = <-U + U_n*Normal + omega*f(t)*Rot*Normal, Test_U>_Gamma = 0`,
+  with normal control `U_n=0` for `gamma=0`.
+
+Eliminating `e_p,U,U_n` therefore yields a **weak boundary constraint
+on the prescribed initial differential variable**
+`p0/rho|Gamma = omega*Rot*Normal` for the faceted polygon boundary.
+The initial circular rotating field agrees with the ideal circular
+tangent but does not exactly satisfy this faceted trace in general.
+This mismatch is independently plausible from the geometry
+measurements, but the rank/size of the actual **discrete weak
+compatibility defect has not yet been measured**.
+
+The traction `Y` is a multiplier associated with this boundary
+velocity constraint: it appears in the dynamic momentum equation
+through `B_Y^T Y`, but not in any open-loop algebraic residual.
+Hence `J_aa=dF_a/dz_a` has a zero `Y` column and cannot be inverted
+as proposed for a regular index-1 nonlinear DAE. This alone
+**does not establish index 2**, nor prove existence/uniqueness
+of a differentiated-constraint solution.
+
+**Next gate #28.1 (not yet implemented/qualified):** extract the
+native algebraic-block norms and full intervals from both
+`structure.json` files, assess algebraic constitutive projection
+and the remaining boundary weak residual at fixed `h0,p0`.
+Only if those constraints are feasible should the team attempt
+a differentiated constraint (schematically
+`C_q(q,t)*dot(q)+C_t(q,t)=0`) coupled to the dynamic mass
+and multiplier traction. If prescribed data are incompatible,
+fail explicitly rather than alter `p0` or prescribe an
+nonphysical polygon-wall trace. Keep #28 and nontrivial #6 OPEN.
