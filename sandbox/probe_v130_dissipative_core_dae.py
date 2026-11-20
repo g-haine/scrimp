@@ -43,7 +43,7 @@ def _scalar(value, mpi):
     return float(maximum)
 
 
-def _build(h, dt, steps):
+def _build(h, dt, steps, *, use_default=False):
     # Import the actual example, without copying/re-implementing the
     # viscous constitutive port or the underlying pH weak bricks.
     import_path = (
@@ -83,7 +83,6 @@ def _build(h, dt, steps):
             ts_exact_final_time="matchstep",
             t_f=dt*steps, dt=dt, dt_save=dt,
             init_step=True,
-            init_step_ts_type="algebraic",
             init_algebraic_atol=1.e-10,
             init_algebraic_rtol=1.e-8,
             init_algebraic_accuracy=1.e-11,
@@ -91,6 +90,8 @@ def _build(h, dt, steps):
             ksp_type="preonly", pc_type="lu",
             pc_factor_mat_solver_type="mumps",
         )
+        if not use_default:
+            kwargs["init_step_ts_type"] = "algebraic"
         return original_set_time(self, **kwargs)
 
     def skip_solve(self):
@@ -117,7 +118,13 @@ def _build(h, dt, steps):
         p.get_name() == "Damping" for p in system.ports.values()
     ):
         raise RuntimeError("Independent dissipative port was lost")
-    if system.time_scheme.getString(
+    if use_default:
+        if system.time_scheme.hasName("init_step_ts_type"):
+            raise RuntimeError(
+                "Default-mode dissipative test supplied an explicit "
+                "init_step_ts_type"
+            )
+    elif system.time_scheme.getString(
         "init_step_ts_type", ""
     ) != "algebraic":
         raise RuntimeError("Production algebraic option not selected")
@@ -237,11 +244,18 @@ def main():
     parser.add_argument("--dt", type=float, default=.002)
     parser.add_argument("--steps", type=int, default=10)
     parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument(
+        "--use-default", action="store_true",
+        help="Do not set init_step_ts_type, validate library default",
+    )
     args = parser.parse_args()
     if args.mesh <= 0 or args.dt <= 0 or args.steps < 2:
         parser.error("Positive mesh, dt and at least two steps required")
     mpi = MPI.COMM_WORLD
-    sys = _build(args.mesh, args.dt, args.steps)
+    sys = _build(
+        args.mesh, args.dt, args.steps,
+        use_default=args.use_default,
+    )
     prescribed = np.asarray(
         sys.gf_model.from_variables(), dtype=float
     ).copy()
@@ -287,6 +301,10 @@ def main():
     report = {
         "schema": "scrimp-v130-dissipative-second-linear-dae-v1",
         "rank_count": mpi.Get_size(),
+        "implicit_default_requested": bool(args.use_default),
+        "explicit_init_step_ts_type_present": bool(
+            sys.time_scheme.hasName("init_step_ts_type")
+        ),
         "mesh": args.mesh, "dt": args.dt, "steps": args.steps,
         "model": "original examples/wave_dissipative.py weak bricks",
         "initial_p0": "x*(3-x)",
