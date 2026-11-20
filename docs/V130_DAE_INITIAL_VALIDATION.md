@@ -595,7 +595,7 @@ No change to `scrimp/dphs.py`, `examples/wave.py`,
 the qualified Docker image, or user local files is
 authorized by this A/B result alone.
 
-## 10. Native exactly FE-compatible positive-control probe — ready, pending
+## 10. Native exactly FE-compatible positive-control probe — completed
 
 The completed A/B evidence in section 9 rejects the simple
 hypothesis that prescribing the **analytic** trace of the
@@ -676,5 +676,67 @@ and the `sandbox/outputs` history remain unchanged.
 | FE polynomial residual above threshold | Investigate residuals by field, mesh interpolation and possible source/constraint implementation issues; do not assume incompatibility of Gaussian was proven |
 | Pseudo-TS changes q/p even for exactly compatible data | The default pseudo-TS is not a pure algebraic projection; the accepted physical start must be reconsidered, independently of MPI parity |
 
-No expected PASS is represented as measured until this
-**new native experiment runs**.
+**Native execution completed and positive-control PASS observed
+at MPI 1 and 2.** See section 11 for measured evidence and interpretation.
+
+## 11. Completed nonzero FE-compatible positive control — native evidence
+
+**Run date:** 20 November 2026. Image:
+`scrimp-mpi:v1.3.0-rc3`, immutable solver source
+`1d6d0c90115213298047b28237a7f38087563a35`.
+Diagnostic Git revision:
+`1dfbc184bf82c3b859a64a95f9bbf950bb7f5af4`.
+2,230 global DOFs, 1,175 algebraic, unchanged 2D-wave
+bricks/FE/boundaries/MUMPS, `h=0.2`, CN `dt=0.002`,
+five steps, MPI 1 and 2.
+`p0=x*(3-x)`, `q0=0`, `U_L(0)=0`, `e_p=x`.
+
+**Original host evidence (not committed/generated again):**
+
+```text
+sandbox/outputs/v130-dae-fe-positive-h0p2-1dfbc184-MEYxdCWf/
+```
+
+| Measured coefficient Euclidean L2 | 1 rank | 2 ranks |
+| --- | ---: | ---: |
+| Initial algebraic residual | 0.162506819 | 0.162506819 |
+| After algebraic-only LSMR, q/p exactly frozen | **7.06518655e-12** | **7.13966896e-12** |
+| After historical pseudo-TS | 1.88022801e-16 | 1.79232771e-16 |
+| Original `IFunction` vs extracted linear predictor | 2.1793999e-17 | 2.2685362e-17 |
+| q drift **caused by pseudo-TS**, despite FE-compatible data | **0.00195958812** | **0.00195958812** |
+| p drift **caused by pseudo-TS**, despite FE-compatible data | **1.30196443e-5** | **1.30196443e-5** |
+
+The fixed-dynamics projection **passes** the source-defined
+algebraic tolerance at MPI 1 and MPI 2. The `e_p` row residual
+after projection is ~`7.06e-12`; the other algebraic
+fields remain at ~`1e-14` or less. The LSMR
+correction is therefore not generically incapable of
+solving SCRIMP's true weak constraints. This supports
+diagnosing the Gaussian/left-boundary/control combination
+**as the source of the earlier projection obstruction**,
+but does not establish its exact mathematical nullspace or
+rule out other numerical details for other DAE models.
+
+The **separate pseudo-TS branch** still changes q and p
+even when the same prescribed differential data are
+known to admit an algebraically consistent state with
+no such changes. Its role is time evolution, not
+a projection that fixes differential initial data.
+This is a reproducible physical initialization defect
+relative to the stated requirement that explicitly
+prescribed q/p are preserved. It does **not**
+establish that PETSc or the actual full CN integrator
+has a defect.
+
+**Next independent gate:** from exactly the same
+manufactured wave initial data, compare an unchanged
+pseudo-TS initialization versus a **diagnostic-only
+algebraic projection published as the main physical
+start state**. Verify the full CN trajectories, 1/2-rank
+parity and, independently, the **Hamiltonian plus signed
+boundary power at every CN midpoint** with a driven
+(non-vacuous) left port. Confirm the original physical
+initial q/p are exactly preserved by the projected
+branch. Do not enable a production option or change
+`scrimp/dphs.py` until this gate passes; large
+performance runs and Maxwell are not needed here.
