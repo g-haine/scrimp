@@ -1,11 +1,16 @@
 # SCRIMP v1.3.0 — DAE consistent initialization: mathematical method, PETSc implementation, and integration contract
 
-**Document status (20 November 2026):** the **diagnostic**, opt-in-by-script,
-MPI-distributed PETSc algebraic initialization method has passed its
-native scientific acceptance tests for the specified **linear 2D acoustic
-wave**. This document describes what is actually implemented, which
-properties are measured, and what remains to turn it into a supported
-SCRIMP option. **This is not yet a production feature.**
+**Current state (20 November 2026):** the PETSc-distributed
+algebraic DAE initializer is **implemented in production code and
+scientifically qualified as an explicit option** on two independent
+linear 2D port-Hamiltonian models: a conservative acoustic wave and
+an internally dissipative wave, both in native MPI 1/2.
+The branch now **stages `algebraic` as the implicit library default**
+while preserving `pseudo` and tiny-step `bdf` explicitly.
+**This new default is a source candidate, NOT yet native-tested as
+an implicit default or approved for the v1.3.0 release.**
+Unsupported/nonlinear systems are rejected explicitly, with no
+silent pseudo fallback. See the separate default migration gate.
 
 See [the complete, chronological scientific evidence](V130_DAE_INITIAL_VALIDATION.md)
 (section 19 for the final four-case PASS), and
@@ -541,3 +546,77 @@ The requested global default promotion is a
 Changing the default would otherwise break
 currently unsupported examples and the
 published incompatible Gaussian.
+
+## 10. Second dissipative pH-DAE passed and default migration candidate staged
+
+The native dissipative wave gate has now **PASSED**
+(section 23 of
+[V130_DAE_INITIAL_VALIDATION.md](V130_DAE_INITIAL_VALIDATION.md)).
+It reuses the original `examples/wave_dissipative.py`
+weak equations and resistive interior port, with a
+manufactured FE-compatible `p0=x*(3-x)`,
+driven boundary `U_L(t)=0.08*sin(20*t)`,
+mesh `h=0.2`, 2,804 DOFs, ten fixed
+Crank–Nicolson steps and MPI 1/2.
+
+Measured native `||F_a(t0)||_2` after the
+production algebraic projection:
+`9.99416399e-14` and `9.93812525e-14`;
+the prescribed differential state drift remains
+exactly zero. The integrated dissipative work
+was `D=0.0132790026>0`, and the signed boundary
+work `W=-5.40249757e-5`. The maximum defects
+of `H-H0+W+D` were `2.64805539e-15` and
+`3.55097896e-15`. Complete CN MPI1/2
+state parity reached max scaled L2
+`6.3717319e-14`, well below the unchanged
+`5e-8` threshold.
+
+Frozen native output:
+
+```text
+sandbox/outputs/v130-second-linear-dae-7eec0172-Ostu9LKD/
+```
+
+With these **two independent models qualified**,
+the development branch now selects `algebraic`
+as the *default candidate* in both
+`DPHS.set_time_scheme()` and `DPHS.init_step()`.
+The published top-level examples, historical
+notebooks, Maxwell paper code, legacy GUI script
+generation and selected sandbox simulations
+are pinned to `pseudo` explicitly where
+their published behavior requires relaxation.
+BDF2 with a tiny negative-time step is also
+still available explicitly, and remains
+documented as changing initial Cauchy data
+by a small but nonzero amount.
+
+**This is a candidate default in SOURCE ONLY.**
+Before it is released, native tests must
+call `set_time_scheme` *without*
+`init_step_ts_type`, prove the compatible
+models select the algebraic method, verify
+the Gaussian is rejected without modifying
+initial data, compare complete CN trajectories
+and signed conservative/dissipative power
+against independent frozen outputs, and run
+legacy explicit pseudo and BDF2 controls.
+Additionally, `init_step=False` must remain
+valid without a strategy choice.
+
+Run the staged native default acceptance gate:
+
+~~~bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-dae-default-promotion.sh
+~~~
+
+The unchanged qualified rc3 image is used
+with read-only source overlays; no new Docker
+build or release tag. Broader example behavior,
+memory lifetime and other DAE classes remain
+separate release-quality gates.
