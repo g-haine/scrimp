@@ -1575,3 +1575,51 @@ negative/rollback on genuinely incompatible original
 initial data, short physical-time integration with
 power/Hamiltonian budget, and mesh-refinement /
 physically scaled residual norms. Keep issue #28 OPEN.
+
+## 20 November 2026 — next native gate: reject high-index rotating disk (source-only staged)
+
+The actual original rectangular shallow-water **production**
+opt-in `nonlinear_affine` initialization passed natively in
+MPI 1 and 2 (`||F_a||~2.2e-12`, original h0,p0
+bitwise fixed). Its last host-only comparator typo was fixed
+in `e389cd8` and the archived native JSON replayed
+without rerunning GetFEM/PETSc.
+
+The **next release-safety requirement** is a negative
+control using the *original rotating viscous Saint-Venant*
+open-loop disk with corrected GWFL wall velocity,
+nonzero `omega=0.2`, and **curved geometric P2**.
+Native #28 structural audit established that its
+boundary traction `Y` has **zero columns in J_aa**
+but nonzero dynamic coupling, so the new regular
+`nonlinear_affine` algorithm MUST NOT accept or modify
+its prescribed rotating h0,p0. A singular square
+algebraic solve must be rejected *before* MUMPS,
+without fallback to pseudo TS.
+
+Staged (source-only; **native run pending**):
+`sandbox/probe_v130_issue28_negative_high_index.py`
+and `scripts/run-v130-issue28-negative-high-index.sh`.
+The probe calls the real production `system.solve()`
+with only `init_step_ts_type=nonlinear_affine` overridden,
+catches **only** the expected
+`UnsupportedNonlinearAlgebraicDAE` exception containing
+`null columns`, checks at least all `Y` DOFs are detected
+as null, verifies whole original GetFEM coefficient vector
+is bitwise restored and no physical/pseudo TS ran.
+It writes independent MPI1/MPI2 JSON and checks rank parity.
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+SCRIMP_DOCKER_NO_SUDO=1 SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+  bash scripts/run-v130-issue28-negative-high-index.sh
+```
+
+A PASS here means **expected safe rejection**, not
+that the rotating high-index `Y0` has been initialized.
+The differentiable boundary-constraint/bordered
+initialization of the original rotating problem,
+negative incompatible-data rollback, short physical TS,
+energy/power budget and mesh-aware residual norms
+remain separate pending release gates.
