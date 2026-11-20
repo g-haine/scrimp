@@ -222,8 +222,20 @@ def _audit(system, mpi):
             "getfem_imported_element_count": int(
                 system.domain.get_mesh()[0].nbcvs()
             ),
-            "getfem_imported_geotransform_descriptors": [
-                str(v) for v in system.domain.get_mesh()[0].geotrans()[0]
+            "getfem_imported_geotransform_summary": str(
+                system.domain.get_mesh()[0].geotrans()
+            )[:2000],
+            "compatibility_advice": [
+                "The field FEM degree and the mesh GEOMETRIC order are independent.",
+                "For rotating data on a circular physical boundary, first test "
+                "curved geometry order 2 rather than changing the normal wall control.",
+                "An isoparametric P2 boundary still only approximates the exact circle.",
+                "If the native weak boundary residual remains inconsistent, "
+                "choose an initial momentum field that satisfies the actual "
+                "discrete no-penetration and tangential constraints, or drive "
+                "the wall smoothly from a compatible rest state.",
+                "Never silently change prescribed p0 or boundary controls, "
+                "and never use a nonphysical rigid_trace wall as a PASS."
             ],
             "dofs": n,
             "algebraic_rows": len(rows),
