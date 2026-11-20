@@ -122,6 +122,11 @@ PY
   rm -rf -- "$USER_TEST_ROOT"
   trap - EXIT
 
+  echo "=== PETSc optional diagnostics: no implicit -info under two MPI ranks ==="
+  "${DOCKER[@]}" run --rm "$IMAGE" \
+    mpiexec --oversubscribe -n 2 python -c \
+    'import scrimp; from petsc4py import PETSc; assert not PETSc.Options().hasName("info"), "SCRIMP injected an unexpected PETSc -info option"; print("PASS: PETSc -info not forced by SCRIMP import", flush=True)'
+
   echo "=== Persist explicit Conda spec and approved GetFEM patch checksums ==="
   "${DOCKER[@]}" run --rm "$IMAGE" \
     cat docker-resolved-spec.txt > "$ROOT/sandbox/outputs/v130-docker-resolved-spec.txt"
