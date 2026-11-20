@@ -145,7 +145,15 @@ def shallow_water_eq():
         # Define the second line of the right-hand side of the "Dirac structure" (position="effort")
         S.Brick("D", "- Grad(e_h) . Test_p * h", [1], linear=False, position="effort"),
         # with the gyroscopic term (beware that "Curl" is not available in the GWFL of getfem)
-        S.Brick("G", "(Gyro(p) * e_p) . Test_p", [1], linear=False, explicit=True, position="effort"),
+        # The gyroscopic term is evaluated at the current Newton state
+        # by IFunction, so it must also contribute to IJacobian.
+        # Historical explicit=True excluded its tangent, without
+        # freezing the term in IFunction. Its old registered GetFEM
+        # expression was -((Gyro(p) * e_p) . Test_p), because
+        # DPHS.add_brick negates explicit=True forms automatically.
+        # Keep EXACTLY that weak-form sign while treating G implicitly.
+        S.Brick("G", "-((Gyro(p) * e_p) . Test_p)", [1],
+                linear=False, position="effort"),
         # Define the third line of the right-hand side of the "Dirac structure" (position="effort")
         S.Brick("C_0", "- e_h * Test_Y_0", [10], position="effort"),
         S.Brick("C_1", "- e_h * Test_Y_1", [11], position="effort"),
