@@ -1,7 +1,8 @@
 # SCRIMP v1.3.0 — Promotion of algebraic DAE initialization to default
 
-**Status, 20 November 2026: CORE OPT-IN QUALIFIED;
-GLOBAL DEFAULT NOT YET APPROVED.** This is the
+**Status, 20 November 2026: CORE OPT-IN QUALIFIED ON TWO INDEPENDENT
+LINEAR pH-DAE MODELS; GLOBAL DEFAULT MIGRATION STILL REQUIRES
+ITS OWN NATIVE AND COMPATIBILITY GATE.** This is the
 **default-promotion acceptance plan**, not an assertion that the
 new mode is qualified across the whole SCRIMP API. The user has
 explicitly requested that the algebraic method become the default
@@ -248,3 +249,56 @@ See section 22 of
 
 **Default remains `pseudo` until the remaining
 native migration gates are satisfied.**
+
+## 20 November 2026 — second model fully qualified, default migration remaining
+
+The dissipative-wave native retry, on the unchanged
+qualified `scrimp-mpi:v1.3.0-rc3` image,
+**PASSED all required scientific checks**. Host:
+
+```text
+sandbox/outputs/v130-second-linear-dae-7eec0172-Ostu9LKD/
+```
+
+It reused the original 2D `wave_dissipative.py`
+weak/constitutive bricks with its independent
+interior `Damping` port. With 2,804 DOFs,
+fixed CN `dt=.002` for 10 steps, manufactured
+FE-compatible `p0=x*(3-x)` and
+`U_L(t)=0.08*sin(20*t)`, the production-owned
+algebraic initializer reached true native
+`||F_a||=9.99416399e-14` (MPI1) and
+`9.93812525e-14` (MPI2), **preserving q0/p0
+exactly** in both cases. Internal dissipated
+work was **0.0132790026**, external signed
+boundary work **-5.40249757e-5**, while
+the complete cumulative Hamiltonian + signed
+boundary work + internal dissipation defects
+were **2.64805539e-15** and
+**3.55097896e-15**. Full MPI1/2 CN
+trajectory parity reached **6.3717319e-14**
+(max scaled L2), well below **5e-8**.
+See section 23 of
+[V130_DAE_INITIAL_VALIDATION.md](V130_DAE_INITIAL_VALIDATION.md).
+
+**Consequently, the second-independent-model
+scientific acceptance gate is CLOSED / PASS.**
+The global default should still be promoted
+only together with explicit source migration,
+a native no-option test, and actual memory/
+exceptional-path checks. Changing this default
+is intentionally *not* equivalent to treating
+historical pseudo/BDF2 initialization as
+physically identical: both remain supported
+and documented as explicit relaxation choices.
+
+**Source audit scope:** the repository also
+contains `examples/published/` research
+examples, `examples/notebooks/` and
+`sandbox/` scripts which may depend on
+the historical implicit default. The top-level
+eight example protections cover only those
+eight. A global change must explicitly
+classify other production/published sources
+before deciding which scripts need an
+explicit legacy mode.
