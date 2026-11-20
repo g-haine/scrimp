@@ -1,6 +1,7 @@
 # SCRIMP v1.3.0 — Promotion of algebraic DAE initialization to default
 
-**Status, 20 November 2026: NOT APPROVED YET.** This is the
+**Status, 20 November 2026: CORE OPT-IN QUALIFIED;
+GLOBAL DEFAULT NOT YET APPROVED.** This is the
 **default-promotion acceptance plan**, not an assertion that the
 new mode is qualified across the whole SCRIMP API. The user has
 explicitly requested that the algebraic method become the default
@@ -127,3 +128,105 @@ requires them as inputs and must be executed on the
 user's existing qualified native rc3 image. A passed
 source-only CI workflow is **not** a substitute for
 the native algebraic-default migration gate.
+
+
+## 20 November 2026 — completed core gate, explicit legacy migration, second model pending
+
+The production `DPHS.init_step(init_step_ts_type="algebraic")`
+**PASSED** the full native reference qualification at
+MPI 1 and 2 with the compatible polynomial wave:
+
+- fixed original dynamic states `q0,p0` (both
+  coefficient L2 drift **0**) and native true
+  algebraic residuals `9.81418431e-14` /
+  `9.61877785e-14`;
+- complete 11-snapshot CN agreement with the
+  immutable independent reference to scaled L2
+  error **0** (MPI 1) and **5.30974918e-18** (MPI 2);
+- driven signed Hamiltonian+port work defects
+  `5.60853295e-15` / `6.05263063e-15`;
+- published Gaussian **EXPECTED_REJECTION** at t0
+  on both MPI ranks with `F_a=4.82244319e-6`
+  versus `2.0689895e-10` threshold;
+- original historical pseudo physical trajectory
+  identical to its frozen reference;
+- tiny negative-time BDF2 `init_step_dt=1e-6`
+  **PASS** with measured *nonzero* initial-data drift
+  `||Delta q0||=1.9595912757338825e-5`,
+  `||Delta p0||=8.680599894760661e-10`.
+
+Native host evidence:
+
+```text
+sandbox/outputs/v130-core-dae-h0p2-66fe02c2-WykmP41Y/
+```
+
+### Historical examples now request pseudo explicitly
+
+The top-level examples
+`heat.py`, `heat_wave.py`,
+`mass_spring_damper.py`, `nonlinear_pendulum.py`,
+`shallow_water.py`, `wave.py`,
+`wave_coenergy.py`, and `wave_dissipative.py`
+now specify **`init_step_ts_type="pseudo"`** in
+their existing `set_time_scheme` call.
+Their published physical equations, initial data
+and time steps were **not changed**.
+This is a **backward-compatibility preservation**
+for the requested future default switch, not an
+assertion that their historically relaxed initial
+states are DAE-consistent while preserving
+their prescribed differential coefficients.
+The source-only regression
+`tests/test_v130_default_migration.py`
+verifies every explicit legacy choice and that
+the published wave Gaussian remains unchanged.
+
+**Important:** this source migration does not
+establish native runtime equivalence of
+all eight historical examples, nor does it
+cover every `examples/published/`,
+notebook, `sandbox/` or third-party script
+using implicit defaults. That wider audit
+remains a global default gate.
+
+### Second independent linear port-Hamiltonian model
+
+A native test is staged **but not yet executed**:
+the *original* `examples/wave_dissipative.py`
+constitutive and Dirac bricks, with a separately
+manufactured compatible nonzero polynomial p0,
+time-varying boundary control and a distinct
+dissipative port. It evaluates the actual
+production algorithm on 1/2 MPI ranks, and
+tests the complete CN trajectories, actual
+IFunction initial constraints, exact dynamic
+coefficient preservation, and the **signed
+Hamiltonian + boundary work + damping work**
+identity. In particular, a dissipative wave
+must not be assessed by a conservative-wave
+boundary-only balance.
+
+Next native command:
+
+~~~bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+SCRIMP_DOCKER_NO_SUDO=1 \\
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \\
+bash scripts/run-v130-second-linear-dae.sh
+~~~
+
+A 1/2-rank PASS for this second model plus a
+remaining audit of default-dependent scripts,
+memory/cleanup behavior and an independent
+no-option **new-default** run are the next
+acceptance conditions. If the dissipative
+physics fails, archive the genuine diagnostics
+and investigate; **do not weaken the
+Hamiltonian/port/dissipation balance or replace
+the example's constitutive equations to force
+a success**.
+
+**Default remains `pseudo` until the remaining
+native migration gates are satisfied.**
