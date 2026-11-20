@@ -23,7 +23,10 @@ from slepc4py import SLEPc
 
 petsc4py.init(sys.argv)
 from petsc4py import PETSc
-PETSc.Options().setValue('info', None)
+# Do not force PETSc -info on every SCRIMP import. It is an optional
+# diagnostic, not a linear-algebra requirement: the unconditional database
+# injection generated an unused-option warning for two-rank import-only
+# startup. Users can request PETSc diagnostics explicitly when needed.
 
 comm = PETSc.COMM_WORLD
 import scipy.sparse as sp
