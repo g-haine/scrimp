@@ -11,8 +11,8 @@ development enters its critical path. That model is a separate,
 **post-release** project for LHMNC 2027.
 
 **DAE initialization (20 November 2026):
-TWO NATIVE SCIENTIFIC MODELS PASS; NEW IMPLICIT DEFAULT
-STAGED IN SOURCE, NATIVE MIGRATION PENDING.**
+TRUE IMPLICIT DEFAULT — FULL NATIVE MPI 1/2 PHYSICAL PASS.
+The scientific and native default-promotion gate is CLOSED.**
 The production linear algebraic initializer
 has passed native MPI 1/2 tests for both the
 conservative acoustic wave and the internally
@@ -83,17 +83,53 @@ See section 26 of
 [V130_DAE_INITIAL_VALIDATION.md](V130_DAE_INITIAL_VALIDATION.md).
 No release/acceptance gate was weakened.
 
-**This staged default is not yet release-qualified.**
-A separate native no-option default test,
-broader example/exceptional MPI cleanup
-and memory measurements must pass before
-v1.3.0 is tagged. The qualification script
-`scripts/run-v130-dae-default-promotion.sh`
-is source-ready and compares both wave
-models against previous frozen references,
-checks published Gaussian rejection, and
-rechecks explicit pseudo/BDF2. No Docker
-rebuild or released default change yet.
+**Updated final native result (20 November 2026):
+implicit algebraic DEFAULT PASSED on both
+conservative and dissipative pH-DAE waves,
+MPI 1/2.** The actual no-keyword call
+selected `algebraic`; all conservative
+11-state CN snapshots reproduce the frozen
+independent references (scaled errors
+`0` and `5.30974918e-18`), true initial
+algebraic residuals are ~`1e-13`,
+dynamic initial conditions remain exact,
+signed Hamiltonian/port power defects are
+~`6e-15`, and the original incompatible
+Gaussian is rejected before CN. The
+dissipative full-power identity has positive
+`D=0.0132790026`, nonzero signed boundary
+work and defects ~`3.6e-15`, with
+MPI 1/2 trajectory parity ~`6.37e-14`.
+Explicit historical pseudo and tiny BDF2
+both PASS. The independent strict default
+comparator ends with five PASS lines.
+Frozen native host evidence:
+`sandbox/outputs/v130-algebraic-default-h0p2-3a17a65b-H38miGDO/`.
+See section 27 of
+[V130_DAE_INITIAL_VALIDATION.md](V130_DAE_INITIAL_VALIDATION.md).
+**The library DEFAULT is therefore qualified
+for these two linear model classes**;
+broader nonlinear models, memory/exceptional
+MPI cleanup, all examples and packaging
+remain *separate release gates*.
+
+**Accelerated release week 23–27 November 2026:**
+the current dated priorities, issue-closure
+conditions, P0 Jacobian gate on the *original*
+`examples/shallow_water.py`, Maxwell 3D
+schedule risk and the precise go/no-go
+criterion are maintained in
+[V130_RELEASE_SPRINT_2026W48.md](V130_RELEASE_SPRINT_2026W48.md).
+For the actual Jacobian source code,
+`SCRIMP_NONLINEAR_MASS_JACOBIAN=finite_difference`
+is already the default: confirm its complete
+directional FD correctness on 1/2 MPI ranks
+before closing [#27](https://github.com/g-haine/scrimp/issues/27).
+The general nonlinear DAE Newton extension
+[#28](https://github.com/g-haine/scrimp/issues/28)
+is a separate, explicitly guarded future
+qualification, not a reason to make untested
+default assumptions.
 See [technical design](V130_DAE_ALGEBRAIC_INITIALIZER_DESIGN.md),
 [default migration](V130_DAE_DEFAULT_MIGRATION.md),
 and [chronological evidence](V130_DAE_INITIAL_VALIDATION.md).
