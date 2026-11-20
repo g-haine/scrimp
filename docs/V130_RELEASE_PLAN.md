@@ -38,6 +38,28 @@ GUI-generated scripts and selected sandbox
 simulations explicitly request historical
 `pseudo` to avoid accidental physics changes.
 
+**First native no-option trial (20 November 2026) FAILED
+during PETSc option preflight, before any MPI physics test.**
+The previous core code still inserted
+`init_step_ts_type="pseudo"` into
+`PETSc.Options` when no option was supplied,
+despite having changed both the fallback string
+and `DPHS.init_step()` dispatch to `algebraic`.
+The native preflight also incorrectly assumed
+`PETSc.Options.hasName()` proved caller
+explicitness. Both were fixed at the source:
+register `algebraic` in PETSc and examine
+`kwargs` for explicitness. Synthetic tests
+now reject the previous silent pseudo-default
+bug, and native conservative/dissipative probes
+verify both absence of a caller keyword and
+the actual effective PETSc strategy. Original
+native failed output:
+`sandbox/outputs/v130-algebraic-default-h0p2-973842a3-rV7dnIEX/`.
+See section 25 of
+[V130_DAE_INITIAL_VALIDATION.md](V130_DAE_INITIAL_VALIDATION.md).
+**Native rerun of the default gate remains REQUIRED.**
+
 **This staged default is not yet release-qualified.**
 A separate native no-option default test,
 broader example/exceptional MPI cleanup
