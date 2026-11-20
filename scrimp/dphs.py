@@ -1950,24 +1950,34 @@ class DPHS:
         for key, value in kwargs.items():
             self.time_scheme[key] = value
 
-        # The opt-in algebraic mode is validated in the core
-        # initializer, not as a PETSc TS type. Preserve pseudo as the
-        # backward-compatible default until the native integration
-        # qualification and explicit default-promotion gate pass.
+        # Linear fixed-state DAE projection is now the default
+        # *candidate* for v1.3.0. Its native implicit-default
+        # qualification and release-migration gates remain separate.
+        # An explicitly selected legacy 'pseudo' or 'bdf' initializer
+        # continues to use the original TS path.
+        explicitly_selected_initializer = self.time_scheme.hasName(
+            "init_step_ts_type"
+        )
         init_strategy = self.time_scheme.getString(
-            "init_step_ts_type", "pseudo"
+            "init_step_ts_type", "algebraic"
         ).strip().lower()
         if init_strategy not in ("algebraic", "pseudo", "bdf"):
             raise ValueError(
                 "init_step_ts_type must be algebraic, pseudo or bdf"
             )
-        if init_strategy == "algebraic":
+        if init_strategy == "algebraic" and explicitly_selected_initializer:
+            # A model that deliberately disables initialization
+            # must still work without specifying any strategy.
+            # However, an *explicit* request for algebraic work
+            # combined with init_step=false is contradictory.
             disabled = self.time_scheme.getString(
                 "init_step", "true"
             ).strip().lower() in ("false", "0", "no")
             if disabled:
                 raise ValueError(
-                    "init_step_ts_type=algebraic requires init_step=true"
+                    "Explicit init_step_ts_type=algebraic requires "
+                    "init_step=true; omit the initializer option "
+                    "when no initialization is intended"
                 )
 
         if not self.time_scheme.hasName("ts_equation_type"):
@@ -2533,25 +2543,30 @@ class DPHS:
     def init_step(self):
         """Establish a DAE-consistent physical initial state.
 
-        During the qualification phase, `pseudo` remains the historical
-        default: it integrates a tiny pseudo-time PETSc TS and can move
-        prescribed differential initial coefficients. The alternative
+        The v1.3.0 default candidate `algebraic` projects only
+        algebraic variables while preserving prescribed differential
+        initial coefficients. It is linear-only; unsupported or
+        inconsistent initial data raise explicit errors.
+        Historical `pseudo` remains available by explicit request;
+        it integrates a tiny pseudo-time PETSc TS and can move the
+        differential coefficients. The alternative historical
         `bdf` also uses a short time integration, optionally from a
         negative initial time with `init_step_bdf_order=2` and
         `init_step_from_negative_time=True`. PETSc BDF2 bootstraps
         its history internally with a half-step (PETSc 3.21).
 
-        Opt-in `init_step_ts_type=algebraic` instead directly projects
-        only algebraic variables with a distributed PETSc LSQR solve.
-        It preserves prescribed differential DOFs bitwise and performs
-        no pseudo-time integration; it rejects unsupported/incompatible
-        cases explicitly. The main physical TS remains unchanged.
+        `init_step_ts_type=algebraic` directly projects only
+        algebraic variables with a distributed PETSc LSQR solve, and
+        performs no pseudo-time integration. Explicit historical
+        relaxation options remain available. Changing the default
+        is subject to an independent native and migration release gate;
+        the main physical TS remains unchanged.
 
         See docs/V130_DAE_ALGEBRAIC_INITIALIZER_DESIGN.md.
         """
 
         init_type = self.time_scheme.getString(
-            "init_step_ts_type", "pseudo"
+            "init_step_ts_type", "algebraic"
         ).strip().lower()
         if init_type == "algebraic":
             with self.profiler.measure("initial.petsc.algebraic_projection"):
