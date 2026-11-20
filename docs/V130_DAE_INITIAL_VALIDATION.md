@@ -1182,3 +1182,117 @@ SCRIMP_DOCKER_NO_SUDO=1 \
 SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
 bash scripts/run-v130-petsc-mpi-dae-initial.sh
 ~~~
+
+## 18. First fully distributed native positive/negative A/B — all four cases completed, strict trajectory parity pending
+
+**Measured on 20 November 2026** with the unchanged qualified
+`scrimp-mpi:v1.3.0-rc3` image
+(`1d6d0c90115213298047b28237a7f38087563a35`),
+diagnostic source
+`6005b09f1193f04edb6915f6aefab62b23f08c96`,
+`h=0.2`, MPI 1/2, `dt=0.002`, ten fixed CN steps
+for the compatible polynomial; the original Gaussian
+is rejected *before* CN.
+
+**Host evidence:**
+
+```text
+sandbox/outputs/v130-petsc-dae-mpi-h0p2-6005b09f-8kuP5pGk/
+```
+
+| Actual native observation | MPI 1 | MPI 2 |
+| --- | ---: | ---: |
+| Compatible polynomial algebraic residual before | 0.16250682 | 0.16250682 |
+| Compatible polynomial algebraic residual after | **9.8141843e-14** | **1.7163317e-9** |
+| Unchanged physical algebraic tolerance | 1.7250682e-9 | 1.7250682e-9 |
+| Positive-control decision | **PASS** | **PASS** |
+| Positive-control LSQR passes | 2 | 1 |
+| Last reported positive-control LSQR iterations | 410 | 687 |
+| Last reported positive-control KSP reason | 3 | 1 |
+| Published Gaussian residual after | 4.8224432e-6 | 4.8224432e-6 |
+| Published Gaussian strict algebraic tolerance | 2.0689895e-10 | 2.0689895e-10 |
+| Published Gaussian decision | **EXPECTED_REJECTION** | **EXPECTED_REJECTION** |
+| Initial pseudo-TS executed | No | No |
+| Global `K_aa` gathered on rank 0 | No | No |
+
+**Four source-level/native scenario checks ran to completion**,
+including the expected negative-model rejection and
+physical CN for the positive model. The independent final
+acceptance comparator nonetheless **FAILED** its unchanged
+full-state MPI parity requirement:
+
+```text
+max scaled L2 difference across full CN states:
+6.20613748944739e-08 > 5.0e-08
+```
+
+The final comparator already checked each positive model
+for non-vacuous port work and its individual signed
+Hamiltonian balance *within the acceptance tolerance*
+before reaching this parity failure, but the overall
+multi-rank scientific result is **NOT QUALIFIED**.
+No post-parity energy/power MPI-series equivalence or
+strict final "PASS" is claimed.
+
+### Likely immediate cause and controlled next experiment
+
+The candidate now differs in an important way across
+MPI partitions: the 1-rank case needs two LSQR defect
+corrections and reaches ~`9.8e-14`, whereas the 2-rank
+case stops after **one** correction at
+`1.7163e-9`, just below the physical DAE tolerance.
+Feasibility does not guarantee sufficiently equal
+initial efforts/coenergy fields for the more stringent
+full-state MPI comparison. This is a **hypothesis**:
+the exact decomposition of the `6.2e-8` trajectory
+difference into `t0` mismatch and later integration
+has not yet been measured.
+
+**Next diagnostic change** (not a physical-tolerance
+relaxation): retain the absolute/relative DAE
+feasibility gate
+
+```text
+||F_a|| <= 1e-10 + 1e-8*||F_a(initial)||
+```
+
+while setting a separate, stricter **positive-control
+refinement target** `min(physical_tolerance,1e-11)`.
+The positive control continues bounded distributed
+LSQR iterations until it achieves that goal, diverges,
+stagnates, or reaches the existing limit of three
+passes. Published Gaussian retains its historical
+physical threshold and expected rejection. A failure
+to reach the stricter *refinement* goal is documented,
+not silently called an algebraic incompatibility.
+
+The final MPI comparator preserves the **same**
+`5e-8` maximum full-state scaled L2 gate, and
+now writes
+`distributed_dae_parity_diagnostics.json`
+**before a possible parity failure**. This file
+contains the projected state discrepancy at t0,
+all per-step trajectory differences, worst step/time,
+index/size of the largest t0 component discrepancy,
+the two true algebraic residuals, and the refinement
+targets/reached flags. A later failure therefore
+can distinguish poor residual convergence from a
+possible algebraic nullspace/gauge ambiguity.
+
+**Native follow-up not yet executed**; previous
+results remain measured, all newer outcomes pending.
+Do not qualify the distributed initializer or
+change `scrimp/dphs.py` merely because the
+separate single-rank algebraic and power gates
+have individually passed.
+
+Run only the same tiny experiment (no Docker
+rebuild, no previous large benchmarks):
+
+~~~bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-petsc-mpi-dae-initial.sh
+~~~
