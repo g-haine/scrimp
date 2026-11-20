@@ -330,10 +330,28 @@ diagnostic-only finite-element feasibility test
 actual PETSc algebraic-only block, solves it in least squares
 while freezing every q/p coefficient, and independently
 reevaluates the production `IFunction` on the candidate.
-It reports rank/conditioning limitations rather than claiming
-mathematical infeasibility from an unqualified LSMR residual.
-It runs on existing rc3 at MPI 1/2, no new image; **native
-probe outcome pending**. See section 6 of the DAE report.
+**First native result: UNRESOLVED at both 1/2 MPI ranks.**
+With all q/p coefficients fixed, the remaining algebraic
+residual is **4.82244319e-6** on both ranks, versus
+**2.4461e-18/2.2127e-18** after the original pseudo-TS.
+The extracted block's linear prediction matches the
+actual PETSc `IFunction` to ~1.9e-18; the LSMR condition
+estimates differ (167.7/126.4), which is not a rank
+certificate. Original evidence:
+`sandbox/outputs/v130-algebraic-only-h0p2-de3b2c73-RSTntEzH/`.
+
+**Next staged, not yet native-executed:** enhanced bounded dual
+residual witness, named algebraic-row residual breakdown, and
+an explicit two-scenario, same-q0/p0 **left-boundary-control
+compatibility A/B**: published `U_L(0)=0` versus a
+temporarily overridden diagnostic left control satisfying
+`U_L(0)=p_0(0,y)/rho(0,y)`. Both cases run at MPI 1/2
+with the same original rc3 solver; no image rebuild. Use
+`scripts/run-v130-fixed-dynamics-probe.sh` after pulling.
+Do not change the actual published example or production DAE
+initialization before evaluating those native results. Full
+scientific interpretation: sections 6–7 of
+[V130_DAE_INITIAL_VALIDATION.md](V130_DAE_INITIAL_VALIDATION.md).
 
 ## 1 — GetFEM 5.5 simplicial FEM contributions (SCRIMP-first)
 
