@@ -743,9 +743,11 @@ performance runs and Maxwell are not needed here.
 
 ## 12. Full CN initializer comparison with non-vacuous port power — source ready
 
-**Status (20 November 2026): diagnostic source and runner committed.
-The new native 4-run experiment has not yet been executed.**
-Section 11's initial-state findings are measured results.
+**Status (20 November 2026): four-case native A/B COMPLETED.
+Full CN trajectory MPI parity, signed non-vacuous Hamiltonian/port
+power and projected prescribed-data fidelity all PASS. Historical
+pseudo-TS fidelity FAIL remains reproducible.** See section 13
+for complete measured native results.
 
 ### Controlled same-model A/B
 
@@ -814,5 +816,133 @@ as FAIL. There is no v1.2.0 rerun, large scaling benchmark,
 Docker rebuild, GitHub release or change to the production
 wave.py, dphs.py, scrimp-mpi:local or sandbox/sloshing_tank.py.
 
-**No new physical acceptance is claimed until that native
-comparison has been executed and its logs inspected.**
+**Native evidence received and interpreted:** see section 13.
+The previous pending status is superseded by measured results.
+
+## 13. Full CN physical gate PASSED on two initializers — 20 November 2026
+
+This **completed native experiment** validates (for the
+specified manufactured, linear, FE-compatible acoustic model)
+the separation between *physically preserving initial data*
+and *preserving the port-Hamiltonian power balance*.
+
+**Provenance:** unchanged qualified image
+`scrimp-mpi:v1.3.0-rc3` with OCI source
+`1d6d0c90115213298047b28237a7f38087563a35`,
+diagnostic Git revision
+`62e31d9b5a8f65637b48e791a708bd961567cc93`.
+`p0=x*(3-x)`, `q0=0`,
+`U_L(t)=0.08*sin(20*t)`,
+`h=0.2`, `dt=0.002`, `t_f=0.02`,
+**10 accepted fixed CN steps**, 11 complete saved states
+including t0, 2,230 total DOFs, 1/2 MPI ranks.
+
+Native host evidence, retained by the developer:
+
+```text
+sandbox/outputs/v130-wave-init-power-h0p2-62e31d9b-zDa95p5J/
+```
+
+| Measured criterion (Euclidean coefficient norms where relevant) | Historical pseudo-TS | Diagnostic algebraic-only initializer |
+| --- | ---: | ---: |
+| Prescribed q0 drift | **0.00195958812** | **0** |
+| Prescribed p0 drift | **1.30196443e-5** | **0** |
+| Max cumulative `|H-H0+W|`, MPI 1 | **4.19642484e-15** | **5.6085393e-15** |
+| Max cumulative `|H-H0+W|`, MPI 2 | **3.75235596e-15** | **6.05263063e-15** |
+| Port integrated work, MPI 1 (signed) | **-5.41131226e-5** | **-5.39545892e-5** |
+| Absolute port work (non-vacuous), MPI 1 | **5.41131226e-5** | **5.39545892e-5** |
+| Complete CN 1/2-rank trajectory **max scaled L2** | **1.75624262e-14** | **2.05308545e-12** |
+| Original prescribed initial-data fidelity | **FAIL** | **PASS** |
+| Non-vacuous signed midpoint Hamiltonian/port-power balance | **PASS** | **PASS** |
+| Full trajectory MPI parity | **PASS** | **PASS** |
+
+The power gate's previously specified threshold was
+`1e-9+1e-5*balance_reference_scale`, about
+`2.00015e-5`. Although this *tolerance* is intentionally
+conservative, the actual native numerical defects were
+approximately `4e-15` to `6e-15`, **ten orders of
+magnitude below that threshold**. Port work is nonzero,
+so this is not a vacuous zero-power test.
+
+**Crucial scientific distinction:** the two main physical
+Cauchy problems differ only through their initializer-
+produced state at t0; consequently, their integrated
+boundary works need not be equal. Correct port-Hamiltonian
+power conservation from an unwanted initial state does
+not make the prescribed input data faithful. The
+algebraic-only branch verifies both relevant properties
+on this **one** linear acoustic problem.
+
+The tested algebraic branch currently uses a **diagnostic
+centralized SciPy LSMR projection** of a gathered K_aa
+block on rank 0 and, to preserve direct comparison, runs
+the old pseudo-TS first before replacing its accepted
+state. **This is NOT production-ready**: it does not
+avoid the obsolete pseudo-TS or scale as distributed
+MPI data grow. Do not promote the experimental code
+unchanged to SCRIMP's core. The next engineering
+gate is an independently validated PETSc-distributed
+algebraic subproblem implementation, with no fake
+PASS for incompatible Gaussian initial data.
+
+## 14. Production DAE initializer design constraints (not yet implemented)
+
+The next candidate must be explicit opt-in and preserve
+the current default; at this stage the qualified API
+behavior is only linear algebraic projection on models
+with verified row/unknown classification.
+
+**Algorithmic contract:**
+
+1. Accept prescribed dynamic flow/state DOFs **bitwise
+   unchanged**; determine algebraic unknowns using the
+   actual GetFEM variable intervals / port substitution
+   flags; check algebraic rows have zero derivative mass
+   support in the assembled PETSc mass. Reject incomplete
+   layouts, unsupported substituted/lumped/nonlinear
+   models, rather than implicitly treating those as
+   standard index-1 constraints.
+2. At the exact physical t0, evaluate the **native**
+   residual F(t0,z,zd=0) and its algebraic rows, using
+   the existing assembled PETSc stiffness, source and
+   GetFEM/PETSc data. The projected linearized system
+   has the form `K_aa delta_a=-F_a`.
+3. Avoid gathering global K_aa on one rank. Use a
+   genuinely **MPI-distributed PETSc** algebraic
+   submatrix and vector with ownership-defined row
+   and column index sets; support LSQR or a justified
+   rank-compatible linear solve, with a tested PETSc
+   options prefix and explicit iteration/conditioning
+   limits. Do not assume K_aa is nonsingular or
+   that `KSPPREONLY+LU` solves least squares on a
+   rank-deficient saddle-point block.
+4. Re-evaluate the **original full IFunction** on
+   the candidate. Require the actual algebraic
+   residual <= an explicitly defined absolute/relative
+   scale; verify every prescribed dynamic coefficient
+   is unchanged. Reject incompatible initial data
+   (as in the published Gaussian), **do not silently
+   modify q0/p0 or fall back to pseudo-TS**.
+5. Publish the candidate to GetFEM on all ranks
+   with existing MPI scatter machinery, at t0.
+   This occurs **instead of** running the pseudo-TS,
+   so it really removes pseudo-time work, temporary
+   TS/KSP/factorization and initial physical drift.
+   Preserve the existing main CN/BDF TS solver, its
+   options, factorization lifecycle and monitor,
+   and the default `init_step_ts_type=pseudo`.
+6. Qualify nonzero compatible wave initial data with
+   full CN trajectories and signed power (1/2 MPI
+   ranks) against the established diagnostic trace.
+   Prove failure is explicit and atomic on the
+   incompatible Gaussian. Record memory and elapsed
+   cost separately from the old pseudo-TS; source-only
+   tests never substitute for native GetFEM/PETSc.
+
+**Beyond this qualified linear scope:** a nonlinear
+DAE requires a different constrained nonlinear
+Newton/projection strategy; higher-index or implicit
+boundary couplings may require compatible derivatives.
+Do not advertise this linear procedure as a generic
+high-index/nonlinear initializer, and do not change
+SCRIMP's default time scheme without separate evidence.
