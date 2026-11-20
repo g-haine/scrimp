@@ -48,10 +48,37 @@ MATCHED_LEFT_VELOCITY_EXPRESSION = (
     "exp(-21.972245773362197*(0.25+(y-0.5)*(y-0.5)))/3."
 )
 
+# A mathematical positive control for the actual wave FE spaces:
+# rho=3-x and p0=x*(3-x) belongs to CG2, hence e_p=p0/rho=x
+# belongs to CG2 exactly, with e_p(0,y)=0=U_L(0,y).
+# Unlike the published Gaussian, this nonzero momentum has an
+# explicitly FE-representable constitutive and boundary-consistent
+# candidate. It is diagnostic-only, NOT a substitute for wave.py.
+EXACT_FE_COMPATIBLE_P0 = "x*(3-x)"
+
 
 def _build_scenario(mesh, scenario):
     if scenario == "published":
         return _build_wave(mesh)
+    if scenario == "polynomial_compatible":
+        set_initial = S.DPHS.set_initial_value
+        recorded = []
+
+        def replace_p_initial(system, name_variable, expression):
+            if name_variable == "p":
+                recorded.append(expression)
+                expression = EXACT_FE_COMPATIBLE_P0
+            return set_initial(system, name_variable, expression)
+
+        with patch.object(
+            S.DPHS, "set_initial_value", replace_p_initial
+        ):
+            system = _build_wave(mesh)
+        if len(recorded) != 1:
+            raise RuntimeError(
+                "Expected exactly one prescribed p0 in wave.py"
+            )
+        return system
     if scenario != "matched_left_control":
         raise ValueError(f"Unknown physical diagnostic scenario {scenario}")
     set_control = S.DPHS.set_control
@@ -246,6 +273,13 @@ def _collect_probe(system, before, accepted, dynamic, algebraic, mpi):
                 for k, v in algebraic.items()
             },
             "dynamic_data_change_l2": delta,
+            "pseudo_dynamic_initial_data_drift_l2": {
+                name: float(np.linalg.norm(
+                    accepted[start:start + count]
+                    - before[start:start + count]
+                ))
+                for name, (start, count) in dynamic.items()
+            },
             "prescribed_dynamic_norm_l2": {
                 name: float(np.linalg.norm(before[start:start + count]))
                 for name, (start, count) in dynamic.items()
@@ -283,10 +317,14 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--mesh", type=float, default=0.2)
     p.add_argument(
-        "--scenario", choices=("published", "matched_left_control"),
+        "--scenario",
+        choices=(
+            "published", "matched_left_control", "polynomial_compatible",
+        ),
         default="published",
-        help="Second scenario changes only U_L(t) to match p0/rho at t=0; "
-             "all PDE bricks and initial q/p are unchanged",
+        help="Published Gaussian, trace-matched left control with identical "
+             "Gaussian, or p0=x*(3-x) with the published control as an "
+             "exactly FE-compatible algebraic positive control",
     )
     p.add_argument(
         "--preflight-control-only", action="store_true",
@@ -302,12 +340,16 @@ def main():
 
     system = _build_scenario(args.mesh, args.scenario)
     if args.preflight_control_only:
-        if args.scenario != "matched_left_control":
-            raise ValueError("Preflight is only for matched_left_control")
+        if args.scenario not in (
+            "matched_left_control", "polynomial_compatible"
+        ):
+            raise ValueError(
+                "Preflight is for an alternative scientific scenario"
+            )
         if mpi.Get_rank() == 0:
             print(
-                "PASS: GetFEM parsed the matched-left prescribed control "
-                "source brick at model-construction time",
+                f"PASS: GetFEM constructed scenario={args.scenario} "
+                "including its source and initial-data expressions",
                 flush=True,
             )
         return
@@ -355,8 +397,14 @@ def main():
         report.update({
             "scenario": args.scenario,
             "boundary_velocity_at_initial_time": (
-                "published U_L(0,y)=0" if args.scenario == "published"
-                else "matched U_L(0,y)=p0(0,y)/rho(0,y)"
+                "matched U_L(0,y)=p0(0,y)/rho(0,y)"
+                if args.scenario == "matched_left_control"
+                else "published U_L(0,y)=0"
+            ),
+            "prescribed_momentum_expression": (
+                EXACT_FE_COMPATIBLE_P0
+                if args.scenario == "polynomial_compatible"
+                else "3**(-20*((x-0.5)*(x-0.5)+(y-0.5)*(y-0.5)))"
             ),
             "mesh_h": args.mesh, "cn_steps": 5,
             "time_step": 0.002,
@@ -385,6 +433,10 @@ def main():
             f"linearization_error={report['jacobian_prediction_mismatch_l2']:.8g}, "
             f"fixed_dynamic_feasibility="
             f"{report['fixed_dynamics_actual_algebraic_feasibility']}; "
+            f"pseudo_q_drift="
+            f"{report['pseudo_dynamic_initial_data_drift_l2']['q']:.9g}, "
+            f"pseudo_p_drift="
+            f"{report['pseudo_dynamic_initial_data_drift_l2']['p']:.9g}; "
             f"dual_lower_bound_R="
             f"{report['linear_least_squares']['dual_lower_bound_for_corrections_within_radius_l2']:.9g}",
             flush=True,
