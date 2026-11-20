@@ -134,6 +134,32 @@ class DAEAlgebraicFeasibilityTests(unittest.TestCase):
                 delta=2e-14 * max(1.0, abs(expected)),
             )
 
+    def test_exact_fe_momentum_positive_control_is_polynomial(self):
+        # Pure source-level regression: prove the diagnostic's p0/rho
+        # equals the polynomial effort x with exactly zero left trace.
+        # Real GetFEM FE assembly is qualified separately in native MPI.
+        source = (
+            SANDBOX / "probe_v130_wave_fixed_dynamics.py"
+        ).read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        assigned = [
+            node.value for node in tree.body
+            if isinstance(node, ast.Assign)
+            and any(
+                isinstance(target, ast.Name)
+                and target.id == "EXACT_FE_COMPATIBLE_P0"
+                for target in node.targets
+            )
+        ]
+        self.assertEqual(len(assigned), 1)
+        p0_expression = ast.literal_eval(assigned[0])
+        self.assertEqual(p0_expression, "x*(3-x)")
+        for x in (0., .125, .5, 1., 1.5, 2.):
+            p0 = x*(3.-x)
+            rho = 3.-x
+            self.assertEqual(p0/rho, x)
+        self.assertEqual(0.*(3.-0.), 0.)
+
     def test_nonfinite_inputs_refused(self):
         with self.assertRaises(ValueError):
             solve_algebraic_block(
