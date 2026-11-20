@@ -37,7 +37,15 @@ class Brick:
             linear (bool, optional): parameter to help easy identification of linear bricks. Defaults to True.
             dt (bool, optional): parameter to help easy identification of matrices applied to time-derivative of a variable (e.g. mass matrices). Defaults to False.
             position (str, optional): parameter to help easy identification of "where" is the form: in the Dirac structure ('flow' side or 'effort' side), or in the 'constitutive' relations. This serves for both the time-resolution and plotting purposes. Defaults to "constitutive".
-            explicit (str, optional): parameter to indicate wether the brick has to be treated explicitly in the time-stepping scheme.
+            explicit (bool, optional): for nonlinear, non-time-derivative,
+                non-source weak-form bricks only. When True, SCRIMP assembles
+                the entire contribution once at the last accepted PETSc TS
+                time/state (t_n, z_n), stores a distributed RHS vector, and
+                holds it fixed through all Newton/line-search trials for the
+                next step. The term is not in the implicit Jacobian. This is
+                a first-order-in-time lag for that term, even if the implicit
+                integrator is BDF2; it does not guarantee exact discrete
+                Hamiltonian balance. Defaults to False.
             mesh_id (int, optional): the id of the mesh where the form applies. Defaults to 0.
         """
 
@@ -133,10 +141,13 @@ class Brick:
         return self._position
 
     def get_explicit(self) -> bool:
-        """This function returns the boolean that defines wether the brick is explicit or not.
+        """Whether the brick is frozen on the last accepted TS step.
+
+        A nonlinear explicit term is evaluated at (t_n, z_n) once by
+        PETSc TS PreStep, not at the Newton trial state for t_{n+1}.
 
         Returns:
-            bool: parameter to help easy identification of explicit bricks.
+            bool: True for a fully lagged explicit nonlinear weak brick.
         """
 
         return self._explicit
