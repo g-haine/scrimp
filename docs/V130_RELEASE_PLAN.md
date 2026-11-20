@@ -270,7 +270,7 @@ Retain those as documented scientific/memory limitations and
 dedicated follow-up tests. The v1.3.0 release itself remains
 gated by the remaining workstreams below.
 
-### 20 November — physical DAE initial-data diagnostic is ready, not yet run
+### 20 November — physical DAE initial-data diagnostic: native result and follow-up
 
 The Ubuntu Docker BuildKit/native/PETSc import qualification is
 closed. Scientific qualification resumes with **two separate**
@@ -302,6 +302,38 @@ initialization, use the existing driven-wave
 and coenergy physical-power tests, then Maxwell 3D. The ~3M-DoF
 strong-scaling campaign need not be repeated just to perform
 this initial physics diagnosis.
+
+**New native evidence, 20 November 2026, completed.**
+The unchanged published acoustic wave (`h=0.2`, 2,230 DoFs,
+fixed CN 5 steps) was run in the qualified rc3 image at MPI 1
+and 2. Initial q was exactly zero but drifted by coefficient
+L2 **0.00114424447**; initial p drifted by **0.00751282216**
+(~0.248% of its original coefficient L2 norm).
+The algebraic residual decreased from **0.010689895** to
+**2.44609825e-18 / 2.31888379e-18** at MPI 1/2.
+Every saved full CN state agrees at scaled L2 maximum
+**1.78851051e-14**. Thus MPI parity and algebraic consistency
+**PASS**, and physical prescribed differential initial data
+**FAIL**. Native output directory:
+`sandbox/outputs/v130-dae-wave-h0p2-b56ceedb-7TyrnhWS/`.
+Full interpretation:
+[V130_DAE_INITIAL_VALIDATION.md](V130_DAE_INITIAL_VALIDATION.md),
+section 5. **No production initial-condition fix is justified yet.**
+
+**Compatibility hypothesis and next executable gate:** the left
+velocity input is `U_L(0)=0`, but the prescribed Gaussian p0
+has a nonzero left-boundary trace; with `e_p=p/rho`, the
+constraints could be incompatible if q/p are held fixed.
+This is not yet proved for the actual discretization. A
+diagnostic-only finite-element feasibility test
+(`scripts/run-v130-fixed-dynamics-probe.sh`) now forms the
+actual PETSc algebraic-only block, solves it in least squares
+while freezing every q/p coefficient, and independently
+reevaluates the production `IFunction` on the candidate.
+It reports rank/conditioning limitations rather than claiming
+mathematical infeasibility from an unqualified LSMR residual.
+It runs on existing rc3 at MPI 1/2, no new image; **native
+probe outcome pending**. See section 6 of the DAE report.
 
 ## 1 — GetFEM 5.5 simplicial FEM contributions (SCRIMP-first)
 
