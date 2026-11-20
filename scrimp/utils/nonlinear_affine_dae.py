@@ -89,8 +89,8 @@ def initialize_nonlinear_affine_algebraic(system):
     system.initialization_report = report
 
     # Preserve and restore any previous cached accepted-state explicit
-    forcing on failure; otherwise freeze it at the ORIGINAL initial
-    state, never at an algebraic Newton trial.
+    # forcing on failure; otherwise freeze it at the ORIGINAL initial
+    # state, never at an algebraic Newton trial.
     explicit_old_ready = getattr(system, "_explicit_rhs_ready", False)
     explicit_old_time = getattr(system, "_explicit_rhs_time", None)
     explicit_old = getattr(system, "_explicit_rhs", None)
