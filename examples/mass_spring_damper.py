@@ -82,6 +82,9 @@ def mass_spring_damper(final_time=8.0, time_step=0.01, plot=False):
     sys.set_initial_value("q", 0.4)
     sys.set_initial_value("p", 0.0)
     sys.set_time_scheme(
+        # Explicit legacy relaxation: preserve the published example's
+        # original initial-data behavior when algebraic becomes default.
+        init_step_ts_type="pseudo",
         ts_type="bdf", ts_bdf_order=2,
         ts_exact_final_time="matchstep",
         ts_adapt_type="none",
