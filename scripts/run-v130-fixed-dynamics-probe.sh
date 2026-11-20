@@ -29,7 +29,8 @@ for source in \
     sandbox/probe_v130_wave_fixed_dynamics.py \
     sandbox/solve_v130_dae_algebraic_block.py \
     sandbox/audit_v130_wave_dae_initial.py \
-    sandbox/compare_v130_wave_fixed_dynamics.py; do
+    sandbox/compare_v130_wave_fixed_dynamics.py \
+    sandbox/compare_v130_wave_control_compatibility.py; do
   [[ -s "$source" ]] || { echo "Missing $source" >&2; exit 2; }
 done
 revision="$("${docker_cmd[@]}" image inspect --format \
@@ -52,8 +53,10 @@ echo "No production change, no solver rewrite, no Docker rebuild."
 echo "Host output: $out"
 printf '{"schema":"scrimp-v130-algebraic-only-run-v1","image_revision":"%s","diagnostic_revision":"%s","mesh":"%s"}\n' \
   "$revision" "$head" "$mesh" > "$out/manifest.json"
-for ranks in 1 2; do
-  echo "RUN projection feasibility MPI=$ranks"
+for scenario in published matched_left_control; do
+  for ranks in 1 2; do
+  label="${ranks}r_${scenario}"
+  echo "RUN projection feasibility MPI=$ranks scenario=$scenario"
   if ! "${docker_cmd[@]}" run --rm \
     --user "$(id -u):$(id -g)" \
     --workdir /scrimp-work \
@@ -76,14 +79,15 @@ for ranks in 1 2; do
       mpiexec --oversubscribe --bind-to none -n "$ranks" \
       python -u /workspace/scrimp/sandbox/probe_v130_wave_fixed_dynamics.py \
         --mesh "$mesh" --output-dir /artifacts \
-    > "$out/probe_${ranks}r.log" 2>&1; then
-    echo "ERROR: projection feasibility run failed MPI=$ranks: $out" >&2
-    tail -n 90 "$out/probe_${ranks}r.log" >&2
+        --scenario "$scenario" \
+    > "$out/probe_${label}.log" 2>&1; then
+    echo "ERROR: projection feasibility run failed MPI=$ranks scenario=$scenario: $out" >&2
+    tail -n 90 "$out/probe_${label}.log" >&2
     exit 1
   fi
-  grep -aF "DAE ALGEBRAIC-ONLY" "$out/probe_${ranks}r.log" || true
-done
-echo "COMPARE 1/2 MPI feasibility and original solver scientific invariance"
+  grep -aF "DAE ALGEBRAIC-ONLY" "$out/probe_${label}.log" || true
+  done
+  echo "COMPARE 1/2 MPI feasibility for scenario=$scenario"
 if ! "${docker_cmd[@]}" run --rm \
   --user "$(id -u):$(id -g)" \
   --workdir /scrimp-work \
@@ -93,9 +97,26 @@ if ! "${docker_cmd[@]}" run --rm \
   --volume "$root/sandbox/compare_v130_wave_fixed_dynamics.py:/workspace/scrimp/sandbox/compare_v130_wave_fixed_dynamics.py:ro" \
   "$image" \
     python -u /workspace/scrimp/sandbox/compare_v130_wave_fixed_dynamics.py \
-      /artifacts \
-  2>&1 | tee "$out/compare.log"; then
+      /artifacts --scenario "$scenario" \
+  2>&1 | tee "$out/compare_${scenario}.log"; then
   echo "ERROR: algebraic feasibility comparison failed: $out" >&2
+  exit 1
+  fi
+done
+
+echo "COMPARE original published control vs trace-matched left boundary"
+if ! "${docker_cmd[@]}" run --rm \
+  --user "$(id -u):$(id -g)" \
+  --workdir /scrimp-work \
+  --env HOME=/tmp --env PYTHONPATH=/workspace/scrimp/sandbox \
+  --volume "$work:/scrimp-work:rw" \
+  --volume "$out:/artifacts:rw" \
+  --volume "$root/sandbox/compare_v130_wave_control_compatibility.py:/workspace/scrimp/sandbox/compare_v130_wave_control_compatibility.py:ro" \
+  "$image" \
+    python -u /workspace/scrimp/sandbox/compare_v130_wave_control_compatibility.py \
+      /artifacts \
+  2>&1 | tee "$out/compare_control_compatibility.log"; then
+  echo "ERROR: left-control compatibility contrast failed: $out" >&2
   exit 1
 fi
 echo "COMPLETE: interpretation-dependent feasibility diagnostic, logs at $out"
