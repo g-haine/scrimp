@@ -1520,3 +1520,11 @@ The archived rest native evidence can be passed to the
 new comparator without re-executing the physical simulations.
 The rotating open/closed MPI 1/2/4 physical gate remains
 unexecuted; issue #6 remains OPEN.
+
+**Comparator detail (20 Nov):** `relative_balance_exchange` is also
+excluded from MPI 1/2/4 **parity comparisons in explicit rest mode**,
+because the archive shows `0.31/0.58/1.0` for this ill-conditioned
+quantity. All physical arrays, full endpoint states, volume, absolute
+Hamiltonian/port-power balance, and individual rank-port traces are
+**still compared**. In nontrivial `physical` mode the relative-to-exchange
+metric remains mandatory for both acceptance and MPI parity.

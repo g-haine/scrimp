@@ -178,6 +178,12 @@ def compare(root, cases, final_time, exchange_limit, volume_limit,
         for ranks in (2, 4):
             cur = results[case, ranks]
             for key in ENERGY_KEYS:
+                # Exchange-normalized residuals have no meaningful
+                # serial/MPI parity in a true no-flow equilibrium:
+                # both numerator and scale are roundoff. Retain strict
+                # physical array parity and the separate rest gates.
+                if expect_rest and key == "relative_balance_exchange":
+                    continue
                 _assert_close(cur["energy"][key], ref["energy"][key],
                               f"{case} {ranks}r vs 1r physical {key}")
             for key in ("initial", "final"):

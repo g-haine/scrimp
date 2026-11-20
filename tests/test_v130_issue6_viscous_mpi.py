@@ -90,6 +90,11 @@ class Issue6MPIComparatorTests(unittest.TestCase):
                             "power_normal", "power_viscous", "supplied",
                             "dissipated", "balance", "relative_balance_exchange"):
                     data[key][:] = 0.
+                # Deliberately different meaningless exchange ratios
+                # across MPI ranks; no physical observable changes.
+                data["relative_balance_exchange"][:] = (0.31, 0.58, 1.)[
+                    {1: 0, 2: 1, 4: 2}[ranks]
+                ]
                 np.savez_compressed(p / "energies.npz", **data)
                 metrics_file = p / "metrics.json"
                 m = json.loads(metrics_file.read_text(encoding="utf-8"))

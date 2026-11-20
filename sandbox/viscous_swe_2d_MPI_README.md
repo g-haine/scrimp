@@ -202,3 +202,11 @@ python sandbox/compare_v130_issue6_viscous_mpi.py \
     sandbox/outputs/v130-issue6-viscous-rest-10c5d22c-6KsOMm1G \
     --cases open --final-time 0.02 --expect-rest
 ```
+
+**Comparator detail (20 Nov):** `relative_balance_exchange` is also
+excluded from MPI 1/2/4 **parity comparisons in explicit rest mode**,
+because the archive shows `0.31/0.58/1.0` for this ill-conditioned
+quantity. All physical arrays, full endpoint states, volume, absolute
+Hamiltonian/port-power balance, and individual rank-port traces are
+**still compared**. In nontrivial `physical` mode the relative-to-exchange
+metric remains mandatory for both acceptance and MPI parity.
