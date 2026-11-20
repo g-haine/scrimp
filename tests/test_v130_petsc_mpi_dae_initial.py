@@ -138,6 +138,44 @@ class PETScDAEScientificComparatorTests(unittest.TestCase):
             if np.any(value > np.iinfo(np.int32).max):
                 raise OverflowError("Out-of-range PetscInt")
 
+    def test_lsqr_refinement_keeps_true_residual_gate_and_archives_failures(self):
+        # No PETSc in source-only CI: assert the diagnostic's actual
+        # native IFunction is re-evaluated per bounded correction pass,
+        # and a failing positive model retains a JSON report.
+        source = (
+            ROOT / "sandbox" / "probe_v130_petsc_mpi_initial.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn("max_refinement_passes = 3", source)
+        self.assertIn(
+            "for pass_number in range(1, max_refinement_passes+1):",
+            source,
+        )
+        self.assertIn(
+            "norm_after = _native_algebraic_residual(", source
+        )
+        self.assertIn(
+            "if norm_after <= tolerance:", source
+        )
+        self.assertIn(
+            "if norm_after >= previous_norm * (1. - 1.e-6):",
+            source,
+        )
+        self.assertIn(
+            '"lsqr_refinement_passes": history', source
+        )
+        self.assertIn(
+            '"UNRESOLVED"', source
+        )
+        self.assertIn(
+            "report.update(outcome[\"verdict\"])", source
+        )
+        self.assertIn(
+            "dest.write_text(", source
+        )
+        self.assertIn(
+            "differential_state_exactly_preserved", source
+        )
+
     def test_source_fixture_positive_negative_mpi_pass(self):
         r = self._run()
         self.assertEqual(r.returncode, 0, r.stderr)
