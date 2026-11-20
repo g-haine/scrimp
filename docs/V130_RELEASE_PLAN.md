@@ -1583,3 +1583,62 @@ git pull --ff-only
 SCRIMP_DOCKER_NO_SUDO=1 SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
   bash scripts/run-v130-issue6-init-probe.sh baseline
 ```
+
+## 20 November 2026 — priority change: #28 before further nontrivial #6 MPI work
+
+The native baseline diagnostic at source `e5d4e6e32b5c912eccd15786987ab1ab79fcb7f2`
+(`sandbox/outputs/v130-issue6-initial-baseline-e5d4e6e3-KXzesS0i/`)
+confirms a defective rotating viscous-SWE **initial consistency** step,
+not a main time-stepping or MPI deadlock: the original negative-time BDF2
+initializer at `dt=1e-9` produces `||Y||=5.99949e7`, while the physical
+height stays at 5 and the prescribed initial momentum changes by
+`||p_after-p0||/||p0||=0.760984859`. SCRIMP correctly rejects the
+state with its factor-100 amplification guard.
+
+**Decision:** issue [#28](https://github.com/g-haine/scrimp/issues/28)
+is now the prerequisite to resuming the **nontrivial rotating** viscous
+Saint-Venant qualification under [#6](https://github.com/g-haine/scrimp/issues/6).
+Do not launch additional MPI physical/energy campaigns until
+fixed-differential initial feasibility and DAE index are understood.
+The already validated stationary MPI 1/2/4 gate and nonlinear
+mass-Jacobian #27 are unaffected.
+
+**Mathematical scope:** for `z=(z_d,z_a)` with prescribed `z_d(t0)=z_d0`,
+the candidate constrained solve uses
+`G(z_a)=F_a(t0,z_d0,z_a,0)=0` with the *current* native Jacobian
+`J_aa = dF_a/dz_a`. This projection is not a general-purpose cure:
+for boundary velocity constraints with Lagrange multipliers the
+semi-discrete system can be higher-index or rank deficient; hidden
+differentiated constraints may prevent a suitable algebraic-only
+projection. The faceted-wall prescribed velocity and the original
+circular rotating initial momentum are not exactly compatible;
+the solver must reject mathematically inconsistent initial data
+instead of altering `p0`, boundary conditions or Hamiltonian.
+
+**Ordered acceptance gates:**
+
+1. Structural rank/consistency audit at **unaltered** original
+   `h0,p0`: zero algebraic mass rows, index-1 eligibility, correct
+   algebraic DOF partition, rank/conditioning of `J_aa`, residual
+   after constitutive algebraic guesses, and boundary constraint
+   compatibility. Explicitly report if original data are unsatisfiable.
+2. Develop a **separate** nonlinear MPI-safe, safeguarded Newton
+   initializer for a demonstrably regular supported DAE class,
+   using production residuals/Jacobians and a fixed differential
+   initial vector; validate directional FD, descent, rollback and
+   collective rejection. **Do not** simply remove the linearity
+   guards on the existing native-qualified linear initializer.
+3. Native positive and negative nonlinear tests, MPI 1/2, exact
+   bitwise preservation of differential coefficients, nontrivial
+   physical port work and no silent fallback to pseudo/BDF.
+4. Only then resume #6 with an explicitly compatible physical
+   rotating initial condition, original weak forms, and MPI 1/2/4
+   h-weighted boundary power and viscous dissipation audits.
+
+**Release policy:** this dependency is for the problematic nontrivial
+viscous-SWE qualification. It is **not** a claim that #28 already
+works or that a full generic nonlinear initializer must enter v1.3.0.
+If it cannot be natively qualified within release scope, retain
+the linear-only algebraic default and explicitly reject unsupported
+nonlinear initializations; do not weaken the scientific gate to
+meet a date.
