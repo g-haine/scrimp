@@ -90,7 +90,17 @@ def _build(h, dt, steps, *, use_default=False):
             ksp_type="preonly", pc_type="lu",
             pc_factor_mat_solver_type="mumps",
         )
-        if not use_default:
+        if use_default:
+            # The published example is intentionally pinned to
+            # historical pseudo for compatibility. Remove that
+            # inherited choice only in this new-default diagnostic
+            # before invoking the production set_time_scheme API.
+            inherited = kwargs.pop("init_step_ts_type", None)
+            if inherited not in (None, "pseudo"):
+                raise RuntimeError(
+                    "Unexpected inherited dissipative-wave strategy"
+                )
+        else:
             kwargs["init_step_ts_type"] = "algebraic"
         return original_set_time(self, **kwargs)
 
