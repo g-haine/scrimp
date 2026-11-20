@@ -172,7 +172,7 @@ class TestCoreDAEInitialization(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     self.helper._options(s)
 
-    def test_new_path_preserves_original_pseudo_bdf_flow(self):
+    def test_candidate_default_preserves_explicit_pseudo_bdf_flow(self):
         tree = ast.parse(DPHS.read_text(encoding="utf-8"))
         cls = next(
             item for item in tree.body
@@ -191,7 +191,8 @@ class TestCoreDAEInitialization(unittest.TestCase):
         )
         self.assertIn("self.initialization_report = initialize_linear_algebraic(self)", source)
         self.assertIn('if init_type not in ("pseudo", "bdf"):', source)
-        self.assertIn('"init_step_ts_type", "pseudo"', source)
+        self.assertIn('"init_step_ts_type", "algebraic"', source)
+        self.assertIn('if init_type not in ("pseudo", "bdf"):', source)
         self.assertIn('init_step_from_negative_time', source)
         self.assertIn('TS.solve(InitVec)', source)
 
