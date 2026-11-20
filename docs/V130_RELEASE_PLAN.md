@@ -364,10 +364,37 @@ Gaussian trace, and the runner now executes a dedicated
 the four A/B cases. A source-only regression checks the
 expression's numerical boundary trace. Existing rc3
 Docker image and production equations are untouched.
-**Next action:** re-run
-`scripts/run-v130-fixed-dynamics-probe.sh` after pulling
-and interpret actual A/B residuals. Scientific details
-and exact host output: sections 7–8 of
+**Actual A/B native rerun completed:** preflight passed;
+both 1/2-rank `published` and `matched_left_control`
+simulations passed their numerical/MPI checks. Fixed-data
+algebraic-only residuals were **4.82244319e-6** and
+**9.18141097e-6**, respectively. Matching the **analytic**
+left-boundary trace increased the residual by ~90.4%;
+neither scenario is qualified as fully consistent with
+prescribed q/p. Both scenarios are accurate linear
+`IFunction` reconstructions, and q/p were unchanged by
+the attempted algebraic-only projection. Host evidence:
+`sandbox/outputs/v130-algebraic-only-h0p2-25f9bf27-DbVTy7aw/`.
+This rejects the simple continuous-trace boundary cure,
+without excluding weak/discrete compatibility effects.
+Full scientific interpretation: section 9 of
+[V130_DAE_INITIAL_VALIDATION.md](V130_DAE_INITIAL_VALIDATION.md).
+
+**Next source-ready scientific positive control (native pending):**
+replace only the *diagnostically constructed* initial
+Gaussian momentum by **`p0=x*(3-x)`**, for which the exact
+FE-representable coenergy is `e_p=p0/rho=x`, hence
+`e_p|Gamma_Left=0=U_L(0)` in the original published
+control. This isolates whether a demonstrably compatible
+nonzero initial momentum permits machine-accurate
+algebraic-only projection in the same FE formulation.
+The diagnostic also measures **pseudo-TS drift of q/p
+even with initially compatible data**. Run only
+`scripts/run-v130-exact-fe-initial-probe.sh` (native
+1/2 ranks) on the existing rc3 after pulling. It
+does not rerun already qualified A/B, change production
+`wave.py`/`dphs.py`, rebuild Docker or alter
+`scrimp-mpi:local`. See section 10 of
 [V130_DAE_INITIAL_VALIDATION.md](V130_DAE_INITIAL_VALIDATION.md).
 
 ## 1 — GetFEM 5.5 simplicial FEM contributions (SCRIMP-first)
