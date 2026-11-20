@@ -53,6 +53,34 @@ echo "No production change, no solver rewrite, no Docker rebuild."
 echo "Host output: $out"
 printf '{"schema":"scrimp-v130-algebraic-only-run-v1","image_revision":"%s","diagnostic_revision":"%s","mesh":"%s"}\n' \
   "$revision" "$head" "$mesh" > "$out/manifest.json"
+# Fail early on GetFEM grammar errors in the diagnostic control.
+# The earlier A/B run reached published 1/2 ranks then stopped while
+# parsing the matched source-brick expression; avoid repeating that.
+echo "PREFLIGHT: GetFEM parses matched-left control source (MPI=1)"
+if ! "${docker_cmd[@]}" run --rm \
+  --user "$(id -u):$(id -g)" \
+  --workdir /scrimp-work \
+  --env HOME=/tmp --env MPLBACKEND=Agg \
+  --env PYTHONPATH=/workspace/scrimp:/workspace/scrimp/sandbox \
+  --env OMP_NUM_THREADS=1 --env OPENBLAS_NUM_THREADS=1 \
+  --volume "$work:/scrimp-work:rw" \
+  --volume "$out:/artifacts:rw" \
+  --volume "$root/sandbox/probe_v130_wave_fixed_dynamics.py:/workspace/scrimp/sandbox/probe_v130_wave_fixed_dynamics.py:ro" \
+  --volume "$root/sandbox/solve_v130_dae_algebraic_block.py:/workspace/scrimp/sandbox/solve_v130_dae_algebraic_block.py:ro" \
+  --volume "$root/sandbox/audit_v130_wave_dae_initial.py:/workspace/scrimp/sandbox/audit_v130_wave_dae_initial.py:ro" \
+  "$image" \
+    python -u /workspace/scrimp/sandbox/probe_v130_wave_fixed_dynamics.py \
+      --mesh "$mesh" --scenario matched_left_control \
+      --output-dir /artifacts --preflight-control-only \
+  > "$out/control_preflight.log" 2>&1; then
+  echo "ERROR: matched-left GetFEM control source did not parse." >&2
+  tail -n 90 "$out/control_preflight.log" >&2
+  echo "Host preflight log: $out/control_preflight.log" >&2
+  exit 1
+fi
+grep -aF "PASS: GetFEM parsed the matched-left" \
+  "$out/control_preflight.log"
+
 for scenario in published matched_left_control; do
   for ranks in 1 2; do
   label="${ranks}r_${scenario}"
