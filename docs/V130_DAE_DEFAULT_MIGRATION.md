@@ -1,10 +1,14 @@
 # SCRIMP v1.3.0 — Promotion of algebraic DAE initialization to default
 
-**Status, 20 November 2026: CORE OPT-IN QUALIFIED ON TWO INDEPENDENT
-LINEAR pH-DAE MODELS; GLOBAL DEFAULT MIGRATION STILL REQUIRES
-ITS OWN NATIVE AND COMPATIBILITY GATE.** This is the
-**default-promotion acceptance plan**, not an assertion that the
-new mode is qualified across the whole SCRIMP API. The user has
+**Status, 20 November 2026: ALGEBRAIC IMPLICIT DEFAULT
+STAGED IN THE SOURCE CODE, NATIVE DEFAULT GATE PENDING.**
+Two independent linear pH-DAE models have PASSED
+their core opt-in MPI 1/2 physical tests. The
+**library default is now algebraic on this
+development branch**, but this change itself
+is **not yet native-tested or release-approved**.
+This document is the **migration acceptance
+plan**, not a claim of general DAE compatibility. The user has
 explicitly requested that the algebraic method become the default
 **after qualification**, while preserving access to the legacy
 pseudo-time and tiny-step BDF2 methods and documenting their effects.
@@ -15,21 +19,23 @@ See [mathematical design](V130_DAE_ALGEBRAIC_INITIALIZER_DESIGN.md),
 
 ## Explicit choice and non-negotiable behavior
 
-**Phase A — current branch:** keep the historical default
-`init_step_ts_type="pseudo"` while integrating and
-qualifying an explicitly requested
-`init_step_ts_type="algebraic"`. The new mode rejects unsupported
-layouts and incompatible prescribed differential initial data.
-It never silently runs pseudo-time TS or mutates differential
-initial variables.
+**Phase A — COMPLETED native opt-in qualification:**
+`init_step_ts_type="algebraic"` passes conservative
+and dissipative native MPI 1/2 physical tests,
+while leaving historical pseudo/BDF2 selectable.
+It rejects unsupported layouts and incompatible
+fixed differential data without silent fallback.
 
-**Phase B — only after independent native qualification:**
-make `algebraic` the default in `DPHS.set_time_scheme` and
-in the no-argument fallback in `DPHS.init_step`.
-Retain `pseudo` and `bdf` as explicit alternatives. In
-particular, existing projects that deliberately rely on
-pseudo-time regularization may need to specify
-`init_step_ts_type="pseudo"`.
+**Phase B — SOURCE CANDIDATE IMPLEMENTED; native PENDING:**
+`algebraic` is now the implicit fallback in both
+`DPHS.set_time_scheme` and `DPHS.init_step`
+on the development branch. `pseudo` and
+`bdf` are explicit alternatives. Historic
+models depending on pseudo relaxation must
+**explicitly opt in** to that behavior.
+The new default is **not yet accepted for
+release** until its separate native no-option
+regressions and wider migration checks pass.
 
 A *global* algebraic default is **not** safe without auditing
 examples and unsupported model classes. A silent fallback to
@@ -302,3 +308,82 @@ eight. A global change must explicitly
 classify other production/published sources
 before deciding which scripts need an
 explicit legacy mode.
+
+## Default source migration staged — native gate still required
+
+The source branch has now been updated to use
+`"algebraic"` as the implicit initializer
+in **both** the initial time-scheme validation
+and the actual `DPHS.init_step` dispatch.
+The explicit `pseudo` and `bdf` paths
+are preserved unchanged. The default does
+**not** silently fall back to pseudo on
+unsupported or numerically incompatible
+prescribed initial data.
+
+In addition to the eight top-level examples,
+the source audit identified and protected:
+the published `COMPEL_2025/Maxwell_2D.py`,
+five historical notebooks (six time-scheme
+calls), the legacy GUI-generated scripts
+when the GUI has no explicit strategy
+selection, the nonlinear/lumped
+`sandbox/sloshing_tank.py`, and the historical
+`sandbox/bench_acoustic_2d.py` timing baseline.
+They now request `pseudo` explicitly to
+preserve their previously accepted relaxed
+initial states. The explicit list and source
+tests are documented in
+`tests/test_v130_default_migration.py`.
+These migrations do **not** modify the
+mathematical model, initial functions, physical
+time integration scheme or other physical data.
+
+**Special case:**
+`set_time_scheme(init_step=False)` with no
+initializer choice must remain legal. The
+code tests the presence of an **explicit**
+initializer option before rejecting the
+contradictory combination
+`init_step=False,init_step_ts_type="algebraic"`.
+A separate lightweight native PETSc.Options
+smoke also checks these semantics.
+
+**Native default acceptance — NOT YET RUN:**
+
+~~~bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-dae-default-promotion.sh
+~~~
+
+This new runner exercises **the actual absence of
+`init_step_ts_type`** on:
+- the manufactured conservative polynomial wave,
+  MPI 1/2 and its frozen full-CN/power baselines;
+- the published incompatible Gaussian, MPI 1/2,
+  requiring atomic rejection before physical CN;
+- the second dissipative pH wave, MPI 1/2, requiring
+  complete `H-H0+W+D` balance, nonzero damping
+  and full-state MPI parity;
+- explicit historical `pseudo` and tiny-step
+  negative-time `bdf` controls, plus
+  `init_step=False` native options check.
+
+The independent comparator refuses a passing
+result if the initial-strategy keyword was
+actually provided in either default-model
+test. There is no tolerance relaxation.
+All native outputs are saved separately
+in a user-owned directory, while the
+qualified rc3 image stays unchanged.
+
+**Release still requires:** migration compatibility
+tests beyond these smoke models, safe exceptional
+MPI cleanup and memory/performance audit,
+the source/header/Sphinx checks, and a
+documented release compatibility notice.
+No Docker release rebuild or tag has
+been attempted.
