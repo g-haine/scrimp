@@ -714,9 +714,16 @@ cp sandbox/outputs/v130-petsc-options-smoke.log \
 ~~~
 
 Omit `SCRIMP_DOCKER_NO_SUDO=1` on hosts using `sudo docker`.
-The full new smoke run is **pending developer evidence**. Until
-then, the narrower observed rc3 native / `-info` result is PASS;
-the improved **warning-free smoke** gate remains open.
+**Final diagnostic evidence received (20 November 2026): PASS.**
+The developer executed the corrected host-side two-rank import
+check against existing rc3. Both ranks printed
+`PASS: PETSc import options clean`, followed by
+`PASS: PETSc -info and -c absent, no unused-option warning.`
+The excerpt confirms this targeted test; the previously supplied
+full rc3 native/MPI smoke remains the supporting evidence for
+other gates. **Ubuntu Docker native/cache qualification is closed**,
+without rebuilding rc3. Exact evidence:
+[V130_DOCKER_RC3_ACCEPTANCE.md](V130_DOCKER_RC3_ACCEPTANCE.md).
 
 ## 5. Reproducibility and work not done yet
 
@@ -741,8 +748,10 @@ the improved **warning-free smoke** gate remains open.
   For k>=3 extension work see
   [the deferred higher-order plan](V130_GETFEM_HIGHER_ORDER_TODO.md).
 
-**Next action:** re-run the corrected host-side smoke against
-the **already built rc3** without rebuilding Docker, then advance
-the independent scientific trajectory, power-balance and Maxwell
-qualification gates. Preserve rc1/rc2/rc3 and `scrimp-mpi:local`;
-do not rerun large wave benchmarks for a diagnostic harness edit.
+**Next action:** advance the remaining reproducible
+distribution (base image digest, Conda lock and fresh build) and
+scientific qualification gates (initial DAE consistency, complete
+wave trajectories, port-Hamiltonian power balance and Maxwell 3D).
+Preserve rc1/rc2/rc3 and `scrimp-mpi:local`; no rebuild or repeated
+large-wave performance campaign is justified by the now-closed
+PETSc import diagnostic.
