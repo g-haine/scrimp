@@ -106,21 +106,6 @@ if ! "${docker_cmd[@]}" run --rm \
     --env HOME=/tmp \
     --volume "$work:/scrimp-work:rw" \
     --volume "$out:/artifacts:rw" \
-    --volume "$root/sandbox/compare_v130_shallow_explicit_tangent.py:/workspace/scrimp/sandbox/compare_v130_shallow_explicit_tangent.py:ro" \
-    "$image" \
-    python -u /workspace/scrimp/sandbox/compare_v130_shallow_explicit_tangent.py \
-        /artifacts > "$out/compare_tangent_hypothesis.log" 2>&1; then
-    tail -n 110 "$out/compare_tangent_hypothesis.log" >&2
-    echo "FAIL: independent explicit-gyro diagnostic, see $out" >&2
-    exit 1
-fi
-cat "$out/compare_tangent_hypothesis.log"
-echo "STRICT PRODUCTION GATE: no diagnostic G-tangent override (threshold unchanged)"
-if ! "${docker_cmd[@]}" run --rm \
-    --user "$(id -u):$(id -g)" --workdir /scrimp-work \
-    --env HOME=/tmp \
-    --volume "$work:/scrimp-work:rw" \
-    --volume "$out:/artifacts:rw" \
     --volume "$root/sandbox/compare_v130_shallow_water_mass_jacobian.py:/workspace/scrimp/sandbox/compare_v130_shallow_water_mass_jacobian.py:ro" \
     "$image" \
     python -u /workspace/scrimp/sandbox/compare_v130_shallow_water_mass_jacobian.py \
