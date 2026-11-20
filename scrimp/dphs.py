@@ -1947,6 +1947,11 @@ class DPHS:
                 passed as keyword arguments (see examples).
         """
 
+        # Options maintained by PETSc include SCRIMP-inserted defaults.
+        # An entry in PETSc.Options() is NOT evidence that the caller
+        # explicitly requested a particular strategy. Moreover,
+        # _solve_impl() re-enters this method with zero kwargs.
+        explicitly_selected_initializer = "init_step_ts_type" in kwargs
         for key, value in kwargs.items():
             self.time_scheme[key] = value
 
@@ -1955,9 +1960,6 @@ class DPHS:
         # qualification and release-migration gates remain separate.
         # An explicitly selected legacy 'pseudo' or 'bdf' initializer
         # continues to use the original TS path.
-        explicitly_selected_initializer = self.time_scheme.hasName(
-            "init_step_ts_type"
-        )
         init_strategy = self.time_scheme.getString(
             "init_step_ts_type", "algebraic"
         ).strip().lower()
@@ -2043,7 +2045,11 @@ class DPHS:
             self.time_scheme["init_step_nb_iter"] = 1
 
         if not self.time_scheme.hasName("init_step_ts_type"):
-            self.time_scheme["init_step_ts_type"] = "pseudo"
+            # Must agree with both strategy validation above and
+            # DPHS.init_step(): the previous 'pseudo' assignment
+            # silently defeated the new default when no option was
+            # supplied. Legacy relaxation stays explicit.
+            self.time_scheme["init_step_ts_type"] = "algebraic"
 
         if not self.time_scheme.hasName("init_step_dt"):
             self.time_scheme["init_step_dt"] = float(self.time_scheme["dt"])**2
