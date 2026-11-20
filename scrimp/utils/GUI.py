@@ -961,11 +961,22 @@ def text_set_time_scheme(self, file, dphs):
         )
 
         rows = table.rowCount()
+        # Preserve the legacy GUI-generated model's old initialization
+        # when SCRIMP's global library default becomes algebraic.  A
+        # user-supplied initializer choice, if available in the table,
+        # takes precedence (no duplicate keyword is generated).
+        has_initializer_choice = any(
+            (table.item(row, 0) is not None
+             and table.item(row, 0).text() == "init_step_ts_type")
+            for row in range(rows)
+        )
+        if not has_initializer_choice:
+            file.write('init_step_ts_type="pseudo",')
         for row in range(rows):
             item = table.item(row, 0)
             if item is not None:
                 text = item.text()
-                if text in ["pc_type", "ts_type", "ksp_type"]:
+                if text in ("pc_type", "ts_type", "ksp_type", "init_step_ts_type"):
                     file.write(f'{text}="{table.item(row,1).text()}",')
                 elif row + 1 < rows:
                     file.write(f"{text}={table.item(row,1).text()},")
