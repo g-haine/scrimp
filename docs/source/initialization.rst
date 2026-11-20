@@ -337,7 +337,7 @@ A future mesh-aware acceptance test must distinguish:
 
   .. math::
 
-     \|F_{a,h}\|_{V_{a,h}\u0027}
+     \|F_{a,h}\|_{V_{a,h}^{\prime}}
        =\sqrt{F_{a,h}^{\mathsf T}R_{a,h}^{-1}F_{a,h}}.
 
   Volume and boundary blocks require their own Gram matrices
