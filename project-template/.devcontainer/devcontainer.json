@@ -17,13 +17,11 @@
         "python.defaultInterpreterPath": "/opt/conda/envs/scrimp/bin/python",
         "python.terminal.activateEnvironment": false,
         "python.testing.pytestEnabled": false,
-        "python-envs.globalSearchPaths": [
-          "/opt/conda/envs"
-        ],
         "python.interpreter.infoVisibility": "always",
         "python.analysis.extraPaths": [
           "/workspace/scrimp"
-        ]
+        ],
+        "python.useEnvironmentsExtension": false
       },
       "extensions": [
         "ms-python.python",
