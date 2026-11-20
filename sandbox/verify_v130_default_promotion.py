@@ -50,6 +50,8 @@ def verify(folder):
                 or report.get("explicit_init_step_ts_type_present")
                 or "init_step_ts_type" in report["initialization_options"]
                 or report["mode"] != "algebraic"
+                or report.get("effective_PETSc_initial_strategy")
+                   != "algebraic"
             ):
                 raise RuntimeError(
                     "A wave test supplied an explicit initializer "
@@ -85,6 +87,8 @@ def verify(folder):
             or report.get("explicit_init_step_ts_type_present")
             or report["dae_projection"]["strategy"] != "algebraic"
             or report["dae_projection"]["pseudo_ts_executed"]
+            or report.get("effective_PETSc_initial_strategy")
+               != "algebraic"
         ):
             raise RuntimeError(
                 "Dissipative wave supplied an explicit strategy or "
@@ -101,6 +105,8 @@ def verify(folder):
             or report.get("implicit_default_requested")
             or not report.get("explicit_init_step_ts_type_present")
             or report["initialization_options"]["init_step_ts_type"]
+               != ("pseudo" if mode == "pseudo" else "bdf")
+            or report.get("effective_PETSc_initial_strategy")
                != ("pseudo" if mode == "pseudo" else "bdf")
         ):
             raise RuntimeError(
