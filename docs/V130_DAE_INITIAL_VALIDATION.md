@@ -1025,3 +1025,71 @@ issues, which must be resolved using real logs before
 any production implementation. This is deliberately
 a prototype, not a general linear/nonlinear DAE
 initialization option in `scrimp/dphs.py`.
+
+## 16. First native distributed PETSc probe: PetscInt width correction
+
+**Actual native run received 20 November 2026, before patch:**
+diagnostic Git commit
+`62d92b6a53784623abd886f0b480974e66441e97`;
+unchanged rc3 source
+`1d6d0c90115213298047b28237a7f38087563a35`;
+`h=0.2`, positive nonzero polynomial initial
+`p0=x*(3-x)`, intended 10 fixed CN steps
+and MPI 1/2.
+
+Host evidence:
+
+```text
+sandbox/outputs/v130-petsc-dae-mpi-h0p2-62d92b6a-3urxt6Di/
+```
+
+**Observed stage:** the first positive MPI=1 run
+constructs GetFEM, assembles the mass/stiffness
+and advances past `PETSc.IS.createGeneral`,
+`Mat.createSubMatrix`, and `KSP.solve`.
+It fails **before evaluation of corrected residual or
+main CN** when inserting the algebraic correction:
+
+```text
+z.setValues(local, correction.getArray(readonly=True).copy(),
+            addv=PETSc.InsertMode.ADD_VALUES)
+TypeError: Cannot cast array data from dtype('int64')
+to dtype('int32') according to the rule 'safe'
+```
+
+The GetFEM index set preparation used NumPy
+`int64`, whereas qualified rc3 PETSc was built
+with 32-bit `PetscInt`. The `IS` constructor
+already cast to `PETSc.IntType`, but the subsequent
+`Vec.setValues` call did not.
+
+**Targeted source correction:** check the original
+owned global algebraic indices fit within
+`np.iinfo(PETSc.IntType)`, cast to
+`np.asarray(local,dtype=PETSc.IntType)`, and
+use those in the additive PETSc vector insertion.
+A source-only regression test exercises the 32-bit
+conversion and guards the actual call site.
+
+**Scientific status:** no qualified positive-state
+projection, PETSc LSQR convergence, CN trajectory,
+Hamiltonian/port power, or negative Gaussian
+rejection was measured by this aborted first run.
+The unused `-ts_adapt_type` and
+`-ts_exact_final_time` options warning follows
+the exception before the main TS was constructed;
+it is not evidence of a main time-integrator error.
+
+Next native command (same unchanged qualified rc3
+runtime, no rebuild):
+
+~~~bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-petsc-mpi-dae-initial.sh
+~~~
+
+A passing **source CI** alone cannot validate the
+PETSc native correction or physical properties.
