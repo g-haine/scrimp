@@ -414,8 +414,21 @@ and starter README. The template already declares the exact
 Python path. The PETSc `-info` warning and the older-image
 `ComplexWarning` are nonfatal and separately tracked.
 
+**VS Code Python debugging PASS (20 Nov):** an Ubuntu Dev
+Container session used the image's exact interpreter
+`/opt/conda/envs/scrimp/bin/python` with the `debugpy`
+launcher. F5 started the first SCRIMP simulation under the
+debugger, an active breakpoint at `system = S.DPHS("real")`
+was registered, repeated **F10 / Step Over** advanced execution
+through the initialization, and VS Code stopped at line 31,
+`p = S.State("p", "Momentum", "lumped")`. The screenshot
+shows the live `q` and `system` objects in **Locals** and
+the `main()` **Call Stack**. This qualifies interactive
+serial Python breakpoints, stepping and variable inspection,
+**not** multiprocess MPI debugging or completion after resuming.
+
 **Still pending:** warm-cache rebuild with the source-only
-ComplexWarning fix, actual **F5/debugpy** breakpoint validation,
+ComplexWarning fix, final F5 **resume-to-completion** check,
 cross-platform onboarding, full 1/2/4/6-rank physics/scaling,
 and port-Hamiltonian power-balance qualification.
 No GHCR image has been published or promoted.
@@ -434,8 +447,10 @@ VS Code Dev Containers configuration, Python debugging and MPI
 startup task. A short port-Hamiltonian oscillator exports a persistent
 host CSV. **Both host-mounted CLI and a real Ubuntu VS Code Dev
 Container integrated-terminal run have passed**, including
-the simulation and 2-rank MPI startup. Python editor/debugger
-acceptance (F5) and cross-platform onboarding remain pending.
+the simulation and 2-rank MPI startup. **Serial Python F5/debugpy
+breakpoints, F10 stepping and inspection of DPHS/State objects
+have now also passed**. Cross-platform onboarding and
+multi-rank debugging remain pending.
 See the [VS Code onboarding guide](source/vscode.rst).
 
 - Rework the Dockerfile into cache-friendly dependency layers:
