@@ -55,9 +55,14 @@ def _options(system):
     return atol, rtol, accuracy, passes, ksp_rtol, ksp_atol
 
 
-def _intervals(system):
-    """Classify every GetFEM unknown once and reject all unknown layouts."""
-    if not system.linear_mass or not system.linear_stiffness:
+def _intervals(system, *, allow_nonlinear=False):
+    """Classify every GetFEM unknown once and reject all unknown layouts.
+
+    Nonlinear mass/stiffness is permitted ONLY when explicitly requested
+    by the separate opt-in nonlinear-affine initializer. The existing
+    linear initializer keeps its previous strict admissibility guard.
+    """
+    if not allow_nonlinear and (not system.linear_mass or not system.linear_stiffness):
         raise ValueError(
             "Algebraic initializer supports only linear mass and stiffness"
         )

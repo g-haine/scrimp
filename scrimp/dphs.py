@@ -17,6 +17,9 @@ from scrimp.utils.linalg import convert_gmm_to_petsc, extract_gmm_to_scipy
 from scrimp.utils.profiling import TimingProfiler
 from scrimp.utils.initial_state import publish_accepted_pseudo_state
 from scrimp.utils.dae_initialization import initialize_linear_algebraic
+from scrimp.utils.nonlinear_affine_dae import (
+    initialize_nonlinear_affine_algebraic,
+)
 from scrimp.utils.matrix_memory import (
     alias_readonly_linear_tangent, add_mass_hessian_fd_reused,
 )
@@ -2039,11 +2042,12 @@ class DPHS:
         init_strategy = self.time_scheme.getString(
             "init_step_ts_type", "algebraic"
         ).strip().lower()
-        if init_strategy not in ("algebraic", "pseudo", "bdf"):
+        if init_strategy not in ("algebraic", "nonlinear_affine", "pseudo", "bdf"):
             raise ValueError(
-                "init_step_ts_type must be algebraic, pseudo or bdf"
+                "init_step_ts_type must be algebraic, nonlinear_affine, "
+                "pseudo or bdf"
             )
-        if init_strategy == "algebraic" and explicitly_selected_initializer:
+        if init_strategy in ("algebraic", "nonlinear_affine") and explicitly_selected_initializer:
             # A model that deliberately disables initialization
             # must still work without specifying any strategy.
             # However, an *explicit* request for algebraic work
@@ -2053,7 +2057,7 @@ class DPHS:
             ).strip().lower() in ("false", "0", "no")
             if disabled:
                 raise ValueError(
-                    "Explicit init_step_ts_type=algebraic requires "
+                    "Explicit algebraic init_step_ts_type requires "
                     "init_step=true; omit the initializer option "
                     "when no initialization is intended"
                 )
@@ -2680,9 +2684,27 @@ class DPHS:
                     len(result["passes"]),
                 )
             return
+        if init_type == "nonlinear_affine":
+            # Opt-in ONLY: full model may be nonlinear in h,p and in
+            # the mass. Algebraic block must be regular and affine in
+            # algebraic coefficients at original fixed differential q0.
+            # Singular high-index boundary multipliers are rejected.
+            with self.profiler.measure("initial.petsc.nonlinear_affine_projection"):
+                self.initialization_report = (
+                    initialize_nonlinear_affine_algebraic(self)
+                )
+            if rank == 0:
+                logging.info(
+                    "Nonlinear-state affine-algebraic initial projection: "
+                    "native ||F_a||=%.9g, target=%.9g",
+                    self.initialization_report["native_final_algebraic_residual_l2"],
+                    self.initialization_report["accuracy_target"],
+                )
+            return
         if init_type not in ("pseudo", "bdf"):
             raise ValueError(
-                "init_step_ts_type must be algebraic, pseudo or bdf"
+                "init_step_ts_type must be algebraic, nonlinear_affine, "
+                "pseudo or bdf"
             )
         init_dt = float(self.time_scheme["init_step_dt"])
         if not np.isfinite(init_dt) or init_dt <= 0:
