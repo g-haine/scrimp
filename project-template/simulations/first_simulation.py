@@ -1,7 +1,11 @@
-# SCRIMP starter project — simulation example
-# Copyright (C) 2015-2026 ISAE-SUPAERO — GNU GPLv3
-# See https://github.com/g-haine/scrimp/blob/master/LICENSE
+# SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
 #
+# Copyright (C) 2015-2026 ISAE-SUPAERO -- GNU GPLv3
+# 
+# See the LICENSE file for license information.
+#
+# github: https://github.com/g-haine/scrimp
+
 """A short, genuine SCRIMP port-Hamiltonian simulation.
 
 Mass–spring–damper with a single spatially lumped port for each state.
