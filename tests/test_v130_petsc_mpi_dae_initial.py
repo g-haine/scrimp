@@ -153,7 +153,11 @@ class PETScDAEScientificComparatorTests(unittest.TestCase):
             "norm_after = _native_algebraic_residual(", source
         )
         self.assertIn(
-            "if norm_after <= tolerance:", source
+            "if norm_after <= diagnostic_accuracy_target:", source
+        )
+        self.assertIn(
+            '"PASS" if norm_final <= tolerance else "UNRESOLVED"',
+            source,
         )
         self.assertIn(
             "if norm_after >= previous_norm * (1. - 1.e-6):",
