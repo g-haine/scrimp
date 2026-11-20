@@ -122,9 +122,22 @@ criterion are maintained in
 [V130_RELEASE_SPRINT_2026W48.md](V130_RELEASE_SPRINT_2026W48.md).
 For the actual Jacobian source code,
 `SCRIMP_NONLINEAR_MASS_JACOBIAN=finite_difference`
-is already the default: confirm its complete
-directional FD correctness on 1/2 MPI ranks
-before closing [#27](https://github.com/g-haine/scrimp/issues/27).
+is already the default, and its **full directional
+FD native gate is now PASSED** on the original
+shipped shallow-water model in MPI 1/2
+(`1.06105781e-8` vs `3.84378444e-6`
+historical legacy; independent nonzero explicit
+gyroscopic term, no tolerance relaxation).
+Frozen output:
+`sandbox/outputs/v130-shallow-mass-J-fae066a6-VvvbTRp4/`.
+The ORIGINAL issue
+[#27](https://github.com/g-haine/scrimp/issues/27)
+still requires a short **actual accepted-step
+physical PETSc TS** demonstration before closure;
+that dedicated runner is
+`scripts/run-v130-shallow-explicit-physical-ts.sh`.
+There is no need to rerun the FD campaign
+unless a relevant core change invalidates it.
 The general nonlinear DAE Newton extension
 [#28](https://github.com/g-haine/scrimp/issues/28)
 is a separate, explicitly guarded future
@@ -1321,3 +1334,42 @@ Do not confuse this with the already-qualified
 linear algebraic DAE default or claim that
 state-dependent mass Jacobian is universally
 correct until the new native results pass.
+
+## 20 November 2026 — shipped nonlinear shallow-water Jacobian native gate PASS
+
+The issue #27 *directional Jacobian* acceptance sub-gate
+is **CLOSED/PASS**, from the user's original frozen native
+2D inviscid shallow-water model, MPI 1 and 2, at source
+`fae066a64b649131351e686ac9383ea11c13c0a6`.
+Full production `IFunction` versus `IJacobian`
+directional FD with independent time derivative,
+GetFEM state-dependent mass, explicit legacy A/B
+and genuinely frozen **nonzero** gyroscopic forcing:
+
+| MPI | Default maximum relative FD error | Legacy | Explicit G RHS norm |
+| ---: | ---: | ---: | ---: |
+| 1 | 1.06105781e-8 | 3.84378444e-6 | 0.00536124096 |
+| 2 | 1.06105781e-8 | 3.84378444e-6 | 0.00536124096 |
+
+Both meet the original `1e-5` limit; default
+improves ~362×; the `explicit=True` cache
+was unchanged throughout FD/Newton probes,
+and the original gyroscopic weak form/sign
+were preserved. Native output:
+`sandbox/outputs/v130-shallow-mass-J-fae066a6-VvvbTRp4/`.
+
+**IMPORTANT:** this experiment deliberately did
+not execute a physical PETSc TS solve
+(`main_TS_executed=False`). The remaining
+original #27 acceptance gate is a separate
+bounded genuine nonlinear BDF2 simulation
+with accepted-state explicit G refresh,
+nonvacuous manufactured initial momentum,
+MPI full-state parity and measured
+(not presumed zero) Hamiltonian drift.
+`scripts/run-v130-shallow-explicit-physical-ts.sh`
+is ready for native use, but as yet
+**NOT NATIVE EXECUTED**. Keep #27 open
+until the physical smoke passes.
+General nonlinear DAE consistent
+initialization remains separate #28.
