@@ -44,6 +44,7 @@ Do not silently delete a committed gate to make the deadline.
 | 2 — Docker/native/VS Code | **rc3 native PASS** | Final source revision image/wheel smoke and provenance; do not rebuild on every Python edit. |
 | DAE default (new) | **FULL native PASS, two linear pH-DAEs** | Preserve explicit pseudo/BDF2, documented incompatible Gaussian, and short memory/exceptional MPI cleanup gate. |
 | **#27** state-dependent mass Jacobian | **FULL native gate PASS (MPI 1/2)**: directional FD plus genuine 4-step physical TS with accepted-state frozen G | Freeze the two evidenced campaigns; close #27 with explicit limitations. No automatic claims about exact energy conservation, order two, nonlinear DAE initialization or 4-rank MPI. |
+| **#6** viscous SWE MPI/port powers | **Native qualification PENDING.** Instrumented experimental runner and source-only negative controls prepared; source-check CI PASS at `8a20d551`. | Execute short 1/2/4-rank rest then nontrivial physical open/closed smokes, investigate initialization or rank mismatch on FAIL; only later pursue long-time physics, output races and full issue closure. |
 | 3 — New 3D Maxwell | **NOT QUALIFIED** | Minimal scientifically meaningful 3D H(curl)/H(div) example with boundary energy/Poynting power, element orientation and MPI correctness. **Largest new-model schedule risk.** |
 | 4 — Performance figures | **Wave evidence PASS; publication figures incomplete** | Curate reproducible plots and metadata; Maxwell scaling only if Maxwell physics qualifies. |
 | 5 / **#26** — Sphinx and research docs | **Partially complete** | HTML and LaTeX/PDF green on final source, accurately scoped MPI/jacobian/DAE/default, usable first-run path. |
@@ -474,3 +475,60 @@ checks. Compare trajectories/diagnostics to serial at
 **equal physical parameters**. Never treat
 `plot_Hamiltonian(with_powers=True)` alone as the physical
 viscous SWE power identity.
+
+## 20 November — issue #6 native harness ready, **not yet physically qualified**
+
+After completing and closing #27, a distinct issue #6 qualification
+campaign was prepared on `release/1.3.0-preparation`:
+source commits `81900e5012b293cfc679fed2f995f7630c0c0659`,
+`ceeff736525a126feca563aaa59be5f0b17496d9`,
+and `8a20d551760cb1e187f7e6911e485138ffb78fbd`.
+The *Python source checks* workflow passed on `8a20d551`
+(including negative controls for missing rank evidence, rank power
+mismatch, state mismatch, nonpositive sampled h and invalid
+Hamiltonian/physical power defects). **No native MPI scientific solve
+has yet passed this new gate.**
+
+`scripts/run-v130-issue6-viscous-mpi.sh` retains immutable
+`scrimp-mpi:v1.3.0-rc3`, overlays only current Python
+modules and independent diagnostics, enforces per-case timeouts,
+and writes per (case, rank-count) work and output directories.
+Two explicitly different modes:
+`rest` (stationary no-feedback control, good for detecting
+MPI deadlocks but scientifically vacuous as a dissipation gate);
+`physical` (rotating original-form viscous Saint-Venant,
+both open and closed loop, genuine nonzero-power requirement).
+Both check MPI 1/2/4. Each MPI rank writes its own generic
+algebraic-port-power JSON, while rank 0 saves full endpoint
+state vectors and h-weighted boundary/viscous power histories.
+`sandbox/compare_v130_issue6_viscous_mpi.py`
+checks rank-local and cross-MPI parity, positive saved height
+DOF coefficients, nonnegative measured dissipations,
+true signed physical power and volume balances, and finite
+PETSc completed time; it **does not** equate the generic
+unweighted port powers with the model's h-weighted physics.
+
+Native commands, **not run here**:
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+SCRIMP_DOCKER_NO_SUDO=1 SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+  bash scripts/run-v130-issue6-viscous-mpi.sh rest
+# Only once rest succeeds:
+SCRIMP_DOCKER_NO_SUDO=1 SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+  bash scripts/run-v130-issue6-viscous-mpi.sh physical
+```
+
+These are bounded 0.02 s / `dt=0.002`, `h=0.2`
+**diagnostic smokes**, not published 250 s reproduction.
+The numerical thresholds are provisional short-smoke gates,
+not permission to relabel failed physical tests as PASSED.
+If a nonzero-rotation run fails its initialization, first
+inspect native logs and the physical facet-tangential boundary
+compatibility; report a real FAIL rather than replace it
+with a stationary benchmark or weaken the criteria.
+Preserve all host-owned `sandbox/outputs`.
+Full issue #6 (including 4-rank powers/outputs,
+no races, longer-time pH energy) remains OPEN.
+GetFEM raw MPI assembly root cause remains separate #23.
