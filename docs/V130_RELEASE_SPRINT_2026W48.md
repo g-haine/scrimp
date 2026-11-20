@@ -1204,3 +1204,74 @@ Nonlinearity in h,p and state-dependent mass do not
 automatically mean that the algebraic equations are
 nonlinear in their algebraic unknowns; distinguish the
 two levels before claiming a nonlinear algebraic Newton.
+
+## 20 November 2026 — #28 second workstream BEGINS: shipped shallow-water nonlinear DAE, source only
+
+The requested **AFTER geometry/normal sign** gate is now scheduled:
+`examples/shallow_water.py` is the original published
+**inviscid rectangular** PFEM shallow-water example.
+The diagnosed sign convention in the separate viscous disk
+sandbox is now documented and its exact P1/P2 resting
+equilibrium has passed native MPI 1/2. This does not qualify
+the full nonzero rotating disk initial state.
+
+Source inspection of `examples/shallow_water.py`:
+
+- Rectangular domain (original mesh `h=0.1`), no curved
+  boundary geometry.
+- Differential states `h,p`, with original prescribed
+  `h0=3-(sign(x-.5)+1)/3`, `p0=0` and zero normal
+  boundary inputs on all four sides.
+- Nonlinear, h-dependent momentum mass (`M_p=h*p.Test_p`),
+  nonlinear Dirac terms and quadratic pressure contribution
+  `0.5*(p.p)/rho` in the effort constitutive relation.
+- Original `G=(Gyro(p)*e_p).Test_p` is
+  `explicit=True`; the *entire* term is frozen at
+  the previously accepted state, and is absent from the
+  implicit Jacobian, exactly as explicitly specified
+  in the shipped model. The initial original `p0=0`
+  makes its initial forcing zero; previous #27
+  nonvacuous tests qualified its different-state freezing.
+- Crucial nuance: for **fixed h,p**, the full original
+  algebraic residual is **affine in e_h,e_p,U_i,Y_i**.
+  This is a *nonlinear full DAE* with a linear
+  algebraic subproblem, not a demonstration of
+  nonlinear-in-algebraic-variables Newton.
+
+New diagnostic-only harness:
+`sandbox/probe_v130_issue28_shallow_initial.py`,
+`scripts/run-v130-issue28-shallow-initial.sh`.
+It reuses the source-proven original shallow-water model
+builder from `sandbox/check_v130_shallow_water_mass_jacobian.py`,
+which suppresses only the 5000-step physical run and plotting.
+No changes to published weak forms, original h0,p0,
+mesh or control law. It freezes the original
+`explicit=True` gyro at the accepted initial state,
+then assembles native GetFEM/PETSc `IFunction` and
+`J_aa`. It checks algebraic mass rows zero,
+a square algebraic block, then attempts **one**
+distributed PETSc direct algebraic correction via MUMPS,
+re-evaluating the true `F_a`. Independent algebraic
+directional finite differences check the native tangent,
+and the audit certifies `h0,p0` bitwise unchanged,
+frozen gyro unchanged and complete GetFEM state rollback.
+
+**Native run NOT YET EXECUTED; source-only staging.**
+Exact finite residual acceptance remains strict `1e-9`.
+The native harness compares MPI 1 and 2, pins
+immutable `scrimp-mpi:v1.3.0-rc3`, records local logs
+and JSON, rejects any missing or divergent original
+model property, and does no initial/main TS steps.
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+SCRIMP_DOCKER_NO_SUDO=1 SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+  bash scripts/run-v130-issue28-shallow-initial.sh
+```
+
+Even a successful diagnostic projection does **NOT** qualify
+a general production nonlinear DAE initializer or
+the nonlinear algebraic Newton class, and does
+not replace accepted physical-time/energy-power
+qualification. These must remain explicit future gates.
