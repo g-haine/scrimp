@@ -137,6 +137,34 @@ The absolute container paths are deliberately not part of the
 shared `.vscode/settings.json`: native Conda users must be able
 to select their own local interpreter.
 
+### If VS Code says "An Invalid Python interpreter is selected"
+
+On the **first editor retest after adding the Python Environments
+and Pylance settings**, the `import scrimp` warning **disappeared**,
+but the interpreter was still reported invalid.
+
+VS Code remembers a selected interpreter separately from
+`python.defaultInterpreterPath`. Rebuilding a Dev Container does
+not necessarily clear this cached workspace choice. Before changing
+the SCRIMP image or installing any additional Python:
+
+1. In the **Dev Container window**, use **Ctrl+Shift+P** →
+   **Python: Clear Workspace Interpreter Setting**.
+2. Run **Developer: Reload Window**.
+3. Run **Python: Select Interpreter** → **Enter interpreter path**;
+   choose `/opt/conda/envs/scrimp/bin/python` if it is not offered.
+4. If the same error reappears, use **Show output** from the popup
+   and inspect the **Python** and **Python Environments** logs.
+   The **Python Environments: Run Python Environment Tool (PET)
+   in Terminal** command can resolve the existing interpreter
+   and explain why it is classified as invalid.
+
+We use **Micromamba**, whose environment-manager discovery may
+differ from a full Conda installation. This issue is still
+being diagnosed; **do not install Python with `uv`**, suppress
+interpreter diagnostics globally or assume the editor is fixed
+merely because the terminal and F5 already work.
+
 The first command is a **real, short serial port-Hamiltonian
 mass–spring–damper simulation**. It saves `outputs/oscillator.csv`.
 The second only checks MPI startup. To test MPI physics use a
