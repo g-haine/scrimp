@@ -112,6 +112,7 @@ User's guide
     install
     vscode
     started
+    initialization
     performance
     examples
     lumped
