@@ -431,41 +431,42 @@ serial Python breakpoints, stepping and variable inspection,
 resumed the paused and stepped-through `first_simulation.py`
 with F5. The numerical run finished normally inside VS Code.
 
-**Remaining VS Code UX issues (20 Nov):** Python executes and
-debugs correctly, but each fresh VS Code session still proposes
-**"No Python found / Install uv and Python"**, and Pylance
-flags a false `reportMissingImports` for `import scrimp`.
-The template now configures `python-envs.globalSearchPaths`
-with `/opt/conda/envs`, keeps the exact
-`python.defaultInterpreterPath`, always displays the Python
-interpreter, and adds `/workspace/scrimp` only to the
-Dev Container `python.analysis.extraPaths`. SCRIMP is installed
-via `pip install -e .`, whose dynamic editable import hooks
-may not be resolved by Pylance. **Missing-import diagnostics are
-not globally disabled**. These source-level fixes still require
-an actual close/reopen Dev Containers GUI check, and any earlier
-user project needs its own `.devcontainer/devcontainer.json`
-updated.
+**VS Code interpreter and Pylance issues — resolved on Ubuntu
+(20 Nov):** the independent project initially displayed
+`No Python found / Install uv and Python`, followed by
+`An Invalid Python interpreter is selected`, despite the
+working `/opt/conda/envs/scrimp/bin/python`. The Python
+extension log confirmed the path as active but reported
+`No Python environment is set for this resource`; the
+new `ms-python.vscode-python-envs` manager was in charge.
 
-**GUI retest (20 Nov): partial PASS.** The new
-`python.analysis.extraPaths=/workspace/scrimp` removes the
-false Pylance `reportMissingImports` on `import scrimp`.
-However, even with `python.defaultInterpreterPath` and
-`python-envs.globalSearchPaths` configured, VS Code still
-reports **"An Invalid Python interpreter is selected"**.
-Runtime Python, F5 and MPI remain functional; editor interpreter
-discovery is **not yet accepted**. VS Code stores a selected
-interpreter persistently, so the next diagnostic is
-`Python: Clear Workspace Interpreter Setting`, reload,
-and explicit selection of `/opt/conda/envs/scrimp/bin/python`.
-If that fails, inspect the **Python / Python Environments** log
-and the **PET Resolve Environment** output; Micromamba-vs-Conda
-environment classification is a possible cause, not yet proved.
+The **confirmed solution on the user's existing Dev Container**
+is `"python.useEnvironmentsExtension": false` in
+`customizations.vscode.settings` of its own
+`.devcontainer/devcontainer.json`. The user reported **no
+remaining interpreter warning** after adding this missing
+line. The independent `python.analysis.extraPaths` setting
+(`/workspace/scrimp`) had already eliminated the false Pylance
+`import scrimp` diagnostic. The model template in the GitHub
+branch contains both working settings and retains the explicit
+`python.defaultInterpreterPath`. The earlier trial
+`python-envs.globalSearchPaths` was insufficient and has
+been removed from the template; it is unnecessary when the
+new environment manager is disabled.
 
-**Still pending:** successful persistent Python interpreter
-recognition on a new Dev Container session, warm-cache image
-rebuild including the source-only ComplexWarning fix,
-cross-platform onboarding, full 1/2/4/6-rank physics/scaling,
+**Ubuntu VS Code first-user workflow: PASS as reported** for
+opening the Dev Container, running a SCRIMP simulation with
+host-persistent output, launching 2 MPI ranks, using F5/F10
+breakpoints and variables, resuming to completion, resolving
+editable imports in Pylance and selecting the preinstalled
+Python interpreter without errors after applying the setting.
+A further fresh-project / fresh-user onboarding acceptance is
+desirable, but this developer's observed blocking issue is
+closed. This does not validate multi-process MPI debugging.
+
+**Still pending:** warm-cache image rebuild including the
+source-only ComplexWarning fix; a clean-room onboarding test;
+cross-platform installation; full 1/2/4/6-rank physics/scaling
 and port-Hamiltonian power-balance qualification.
 No GHCR image has been published or promoted.
 The reproducible build procedure, cache boundaries, evidence paths
@@ -486,9 +487,10 @@ Container integrated-terminal run have passed**, including
 the simulation and 2-rank MPI startup. **Serial Python F5/debugpy
 breakpoints, F10 stepping, inspection of DPHS/State objects
 and F5 resume-to-completion have now all passed**.
-The new interpreter-discovery and Pylance settings await a
-clean-window GUI retest. Cross-platform onboarding and
-multi-rank debugging remain pending.
+The interpreter-manager opt-out and Pylance paths have now
+both been validated in the developer's Ubuntu VS Code project.
+Clean-room onboarding, cross-platform behavior and multi-rank
+debugging remain pending.
 See the [VS Code onboarding guide](source/vscode.rst).
 
 - Rework the Dockerfile into cache-friendly dependency layers:
