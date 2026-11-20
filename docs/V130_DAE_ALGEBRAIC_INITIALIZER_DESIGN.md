@@ -1,16 +1,20 @@
 # SCRIMP v1.3.0 — DAE consistent initialization: mathematical method, PETSc implementation, and integration contract
 
 **Current state (20 November 2026):** the PETSc-distributed
-algebraic DAE initializer is **implemented in production code and
-scientifically qualified as an explicit option** on two independent
-linear 2D port-Hamiltonian models: a conservative acoustic wave and
-an internally dissipative wave, both in native MPI 1/2.
-The branch now **stages `algebraic` as the implicit library default**
-while preserving `pseudo` and tiny-step `bdf` explicitly.
-**This new default is a source candidate, NOT yet native-tested as
-an implicit default or approved for the v1.3.0 release.**
-Unsupported/nonlinear systems are rejected explicitly, with no
-silent pseudo fallback. See the separate default migration gate.
+algebraic DAE initializer is **implemented in production code,
+scientifically qualified as an explicit option and NATIVE
+QUALIFIED as the true implicit DEFAULT** on two independent
+linear 2D port-Hamiltonian models: conservative and dissipative
+acoustic waves, MPI 1/2. The frozen no-option acceptance
+at source `3a17a65b7a17fbdade82bd3ea2bd3bb8cd8a53f8`
+passes complete CN trajectories, signed boundary/damping
+power, exact prescribed differential initial data and
+incompatible Gaussian rejection; explicit
+`pseudo` and negative-time tiny-step BDF2 remain available.
+**This is not yet a tagged v1.3.0 release.**
+Unsupported/nonlinear systems are rejected explicitly,
+without silent pseudo fallback. Broader model, MPI/memory
+and packaging gates remain open. See the release sprint.
 
 See [the complete, chronological scientific evidence](V130_DAE_INITIAL_VALIDATION.md)
 (section 19 for the final four-case PASS), and
@@ -620,3 +624,128 @@ with read-only source overlays; no new Docker
 build or release tag. Broader example behavior,
 memory lifetime and other DAE classes remain
 separate release-quality gates.
+
+## 11. Generalization to nonlinear algebraic constraints — proposed, NOT qualified
+
+**Issue [#28](https://github.com/g-haine/scrimp/issues/28).**
+The linear-only code is not automatically an index-independent
+initializer for any nonlinear GetFEM model. The natural
+extension is **Newton on the algebraic unknowns only**,
+keeping user-prescribed dynamic coefficients exactly fixed.
+
+For the full DAE residual
+`F(t,z,zd)=0`, with `z=(z_d,z_a)`,
+seek
+
+```text
+G(z_a) := F_a(t0, z_d0, z_a, zd=0) = 0.
+```
+
+At iteration `k`, assemble the true current-state
+algebraic Jacobian (not the frozen linear
+`stiffness[I_a,I_a]`):
+
+```text
+J_aa(z_a[k]) = (dF_a/dz_a)(t0,z_d0,z_a[k],0)
+J_aa(z_a[k]) delta_a = -G(z_a[k])
+z_a[k+1] = z_a[k] + lambda_k * delta_a
+```
+
+where `lambda_k` is chosen by a line search on a
+true residual norm/merit function. The dynamic
+entries must not move, including on rejected
+Newton/line-search trials. On acceptance, the
+**original unmodified IFunction** must satisfy
+the algebraic feasibility norm, and its tolerance
+must not be confused with KSP convergence.
+The initial guess can use projected constitutive
+values; lack of a compatible solution must be
+reported rather than silently patched by pseudo-time
+evolution. Singular/redundant systems need a
+defined null-space or least-squares policy, and
+higher-index constraints may require additional
+consistency conditions. A single linearization
+at the initial guess does **not** establish
+nonlinear consistency.
+
+**Production design:** factor out the already
+tested distributed algebraic variable partition,
+PETSc index sets, collective rank-safe failures,
+rollback, exact dynamic-data checks, and
+recomputed native residuals. Add a distinct
+nonlinear constrained solve step only after
+`J_aa` has been verified against directional
+differences. Do not simply remove the
+`linear_mass/linear_stiffness` guards
+from the present linear LSQR code.
+
+**Scheduling:** this is an eligible enhancement
+for v1.3.0 only if it passes complete native
+physical positive/negative tests before
+package freeze. Otherwise preserve the
+already-qualified linear default and
+explicit legacy modes and continue #28
+in the next feature cycle. No unsupported
+nonlinear capability is advertised by
+the current default.
+
+## 12. Distinguish the separate nonlinear state-dependent mass Jacobian
+
+**Release blocker [#27](https://github.com/g-haine/scrimp/issues/27).**
+
+This is a DIFFERENT problem from t0 DAE initial consistency.
+For a time-dependent implicit DAE residual with
+state-dependent mass,
+
+```text
+F(t,z,zd)=M(z)zd+R(t,z),
+```
+
+PETSc SNES/TS requires
+
+```text
+J_TS = sigma*M(z) + dR/dz + [D_z M(z)(.)] zd.
+```
+
+Only calculating the GetFEM mass tangent `M(z)`
+and adding `sigma M(z)` misses the last
+term, which can prevent nonlinear convergence
+and corrupt the Newton step. **SCRIMP's actual
+`DPHS.IJacobian` already defaults to
+`SCRIMP_NONLINEAR_MASS_JACOBIAN=finite_difference`**,
+appending the contracted derivative via
+`_add_nonlinear_mass_hessian_fd`.
+The experimental `legacy` selection
+omits that contribution. The existing
+viscous SWE audit reported relative directional
+FD errors around 1e-11 in MPI 1/2 on the
+appropriately calibrated GetFEM MPI build.
+
+The urgent v1.3.0 task is to **qualify the
+already-implemented corrected default**
+against the **actual shipped**
+`examples/shallow_water.py` rather than
+reimplement it or assume the prior sandbox
+experiment proves the public example.
+A new independent native gate uses:
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-shallow-mass-jacobian.sh
+```
+
+The runner builds the unmodified shallow-water
+weak forms and compares the real production
+`IFunction` directional FD to the actual
+`IJacobian` on MPI 1/2, with independent
+nonzero `zd`, two shifts and explicit
+historical `legacy` as a negative control.
+It does **not** run a fake long physical
+simulation or claim to initialize a nonlinear
+DAE consistently. The result is **PENDING
+NATIVE VALIDATION**, irrespective of a
+source CI pass. See the dated critical-path
+[V130_RELEASE_SPRINT_2026W48.md](V130_RELEASE_SPRINT_2026W48.md).
