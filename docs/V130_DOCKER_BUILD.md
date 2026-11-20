@@ -447,14 +447,26 @@ SCRIMP is absent**. The user should dismiss it and, if needed,
 select the existing interpreter with **Python: Select Interpreter**.
 No extra Python installation or image rebuild is appropriate;
 see [the first-user guide](source/vscode.rst). The template's
-Dev Container already declares the path. Actual breakpoint
-debugging with **F5/debugpy** remains untested.
+Dev Container already declares the path.
 
-**Qualification boundary:** these results are a *smoke*, not proof of
+**VS Code F5/debugpy qualification (20 Nov): PASS for serial Python.**
+A real Ubuntu Dev Container debug session used the interpreter
+`/opt/conda/envs/scrimp/bin/python` and started under the
+`debugpy` launcher. The first SCRIMP simulation accepted a
+breakpoint on the DPHS constructor line, **F10 / Step Over**
+advanced through model initialization to line 31, and
+`system` (DPHS) and `q` (State) were inspectable under
+**Locals**. `main()` appeared in **Call Stack**. This confirms
+actual VS Code breakpoint/step/inspection operation, beyond
+the integrated-terminal simulation acceptance.
+Completing a paused run after F5 resume, and debugging two or
+more concurrent MPI ranks, remain untested.
+
+**Qualification boundary:** these results are *smokes*, not proof of
 Hamiltonian or power-balance preservation, parallel strong scaling,
-full Maxwell physics, F5 debugging or cross-platform VS Code
-onboarding. Follow those distinct roadmap gates before
-publishing an image.
+full Maxwell physics, MPI multi-process debugging or
+cross-platform VS Code onboarding. Follow those distinct roadmap
+gates before publishing an image.
 
 ## 4. Verify the warm-cache behavior
 
