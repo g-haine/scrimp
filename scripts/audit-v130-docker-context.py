@@ -1,4 +1,12 @@
 #!/usr/bin/env python3
+# SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
+#
+# Copyright (C) 2015-2026 ISAE-SUPAERO -- GNU GPLv3
+# 
+# See the LICENSE file for license information.
+#
+# github: https://github.com/g-haine/scrimp
+
 """Stage a physically isolated, Git-tracked SCRIMP Docker context.
 
 The *real* repository may contain enormous untracked simulation outputs.
