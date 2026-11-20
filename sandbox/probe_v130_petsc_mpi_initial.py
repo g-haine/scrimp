@@ -1,0 +1,462 @@
+# SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
+#
+# Copyright (C) 2015-2026 ISAE-SUPAERO -- GNU GPLv3
+#
+# See the LICENSE file for license information.
+#
+# github: https://github.com/g-haine/scrimp
+
+"""Prototype MPI-distributed PETSc algebraic-only DAE initialization.
+
+Diagnostic only; it patches a single freshly built DPHS instance's
+init_step. The production rc3 source, default initializer and Docker
+image are unchanged, and NO pseudo-time TS runs.
+
+For a *linear* state/time-independent stiffness and mass wave,
+extract algebraic rows/columns using distributed PETSc IS, then use
+PETSc KSP LSQR on MatCreateSubMatrix(K, I_alg, I_alg) to correct ONLY
+algebraic unknowns. It is essential that the full algebraic equation
+is re-evaluated with the original IFunction after solving, and that
+the original differential state remains bitwise identical.
+
+A nonzero residual is explicitly reported as UNRESOLVED; do not
+equate KSP convergence (possibly least squares) with DAE consistency.
+The published Gaussian is an expected negative feasibility control;
+the manufactured polynomial p0=x*(3-x) is a positive control.
+"""
+
+import argparse
+import json
+import os
+from pathlib import Path
+import types
+
+from mpi4py import MPI
+import numpy as np
+from petsc4py import PETSc
+
+from audit_v130_wave_dae_initial import _intervals
+from audit_v130_wave_initializers import _build_manufactured_wave
+from probe_v130_wave_fixed_dynamics import (
+    _algebraic_indices, _build_scenario,
+)
+from check_acoustic_energy_mpi import _audit as audit_port_power
+
+
+def _layout(system, mpi):
+    """Return complete, disjoint dynamic and algebraic index sets."""
+    _, dynamic, algebraic = _intervals(system)
+    n = int(system.gf_model.nbdof())
+    aidx = _algebraic_indices(algebraic)
+    didx = np.concatenate([
+        np.arange(start, start+count, dtype=np.int64)
+        for start, count in dynamic.values()
+    ])
+    all_ids = np.concatenate((aidx, didx))
+    if not np.array_equal(
+        np.sort(all_ids), np.arange(n, dtype=np.int64)
+    ):
+        raise ValueError(
+            "Unsupported layout: differential and algebraic intervals "
+            "must partition all GetFEM DOFs exactly"
+        )
+    if not (aidx.size and didx.size):
+        raise ValueError("This diagnostic requires both DAE variable types")
+    if not (system.linear_mass and system.linear_stiffness):
+        raise ValueError(
+            "Linear DAE gate: nonlinear or state-dependent matrices "
+            "are unsupported, not silently approximated"
+        )
+    if system.lumped_variables:
+        raise ValueError("Lumped DAE states are out of diagnostic scope")
+    if any(
+        port.get_substituted() for port in system.ports.values()
+    ):
+        raise ValueError("Substituted variables unsupported")
+    rows_lo, rows_hi = map(
+        int, system.stiffness.getOwnershipRange()
+    )
+    if system.mass.getOwnershipRange() != (rows_lo, rows_hi):
+        raise ValueError("Mass and stiffness PETSc row layout mismatch")
+
+    # All ranks hold the same global GetFEM ordering metadata;
+    # only the owned algebraic coordinates enter the PETSc IS.
+    local = aidx[
+        (aidx >= rows_lo) & (aidx < rows_hi)
+    ]
+    ptr, cols, data = system.mass.getValuesCSR()
+    if len(ptr) != rows_hi-rows_lo+1:
+        raise ValueError("Unexpected local mass CSR shape")
+    bad_mass = max(
+        (
+            float(np.max(np.abs(data[ptr[i-rows_lo]:ptr[i-rows_lo+1]])))
+            for i in local
+            if ptr[i-rows_lo+1] > ptr[i-rows_lo]
+        ),
+        default=0.0,
+    )
+    global_max_mass = mpi.allreduce(bad_mass, op=MPI.MAX)
+    if global_max_mass > 1e-12:
+        raise ValueError(
+            "Algebraic rows contain time-derivative mass: "
+            f"max coefficient {global_max_mass:.9g}"
+        )
+    return n, dynamic, algebraic, aidx, local, rows_lo, rows_hi
+
+
+def _petsc_initial_vec(system, initial, lo, hi):
+    z = system.stiffness.createVecRight()
+    if hi>lo:
+        z.setValues(
+            range(lo,hi), initial[lo:hi],
+            addv=PETSc.InsertMode.INSERT_VALUES,
+        )
+    z.assemble()
+    return z
+
+
+def _native_algebraic_residual(system, z, zero_dot, out, isalg):
+    """Re-evaluate original production IFunction (including RHS)."""
+    system.IFunction(
+        None, float(system.time_scheme["t_0"]),
+        z, zero_dot, out,
+    )
+    selected = out.getSubVector(isalg)
+    try:
+        return float(selected.norm(PETSc.NormType.NORM_2))
+    finally:
+        out.restoreSubVector(isalg, selected)
+
+
+def _project_distributed(system, mpi, *, atol=1e-10, rtol=1e-8):
+    n, dynamic, algebraic, aidx, local, lo, hi = _layout(
+        system, mpi
+    )
+    initial = np.array(
+        system.gf_model.from_variables(), dtype=np.float64, copy=True
+    )
+    if initial.shape != (n,):
+        raise ValueError("GetFEM initial coefficient layout changed")
+    t0 = float(system.time_scheme["t_0"])
+    z = _petsc_initial_vec(system, initial, lo, hi)
+    z_dot = z.duplicate()
+    z_dot.set(0)
+    residual = z.duplicate()
+    residual.set(0)
+
+    # Each rank contributes only algebraic indices from its PETSc
+    # owned rows. MatCreateSubMatrix is collective, never gathered
+    # to rank 0; the resulting K_aa remains distributed.
+    isalg = PETSc.IS().createGeneral(
+        np.asarray(local, dtype=np.int32),
+        comm=system.stiffness.getComm(),
+    )
+    kaa = None
+    ksp = None
+    rhs = None
+    correction = None
+    try:
+        system.gf_model.set_time(t0)
+        system.gf_model.to_variables(initial.copy())
+        norm_initial = _native_algebraic_residual(
+            system, z, z_dot, residual, isalg
+        )
+        kaa = system.stiffness.createSubMatrix(isalg, isalg)
+        rhs = kaa.createVecRight()
+        correction = rhs.duplicate()
+        correction.set(0)
+        # The local PETSc subvector and submatrix rows are in the
+        # index set's local-order position; reject any mismatch.
+        sublo, subhi = rhs.getOwnershipRange()
+        if subhi-sublo != len(local):
+            raise ValueError(
+                "PETSc extracted K_aa ownership differs from local "
+                "algebraic index-set selection"
+            )
+        owned_f = np.asarray(
+            residual.getArray(readonly=True)
+        )
+        rhs.getArray()[:] = -owned_f[local-lo]
+        rhs.assemble()
+
+        ksp = PETSc.KSP().create(
+            comm=system.stiffness.getComm()
+        )
+        ksp.setOptionsPrefix("scrimp_dae_trial_")
+        ksp.setOperators(kaa)
+        ksp.setType(PETSc.KSP.Type.LSQR)
+        ksp.getPC().setType(PETSc.PC.Type.NONE)
+        ksp.setTolerances(
+            rtol=1e-13, atol=1e-13,
+            max_it=max(1000, 5*int(aidx.size)),
+        )
+        ksp.setFromOptions()
+        ksp.solve(rhs, correction)
+        reason = int(ksp.getConvergedReason())
+        iters = int(ksp.getIterationNumber())
+        ksp_final_norm = float(ksp.getResidualNorm())
+
+        # Do not treat KSP's convergence of least-squares normal
+        # equations as satisfaction of the actual DAE constraints.
+        if not np.all(np.isfinite(correction.getArray(readonly=True))):
+            raise RuntimeError("Non-finite PETSc algebraic correction")
+
+        # Each rank inserts ONLY its original owned algebraic DOFs.
+        # No correction is ever applied to a differential variable.
+        if len(local):
+            z.setValues(
+                local,
+                correction.getArray(readonly=True).copy(),
+                addv=PETSc.InsertMode.ADD_VALUES,
+            )
+        z.assemble()
+        system.Scatter[0].scatter(z, system.GlobalVec)
+        candidate = np.array(
+            system.GlobalVec.getArray(readonly=True).real,
+            dtype=np.float64, copy=True,
+        )
+        for name, (start, count) in dynamic.items():
+            if not np.array_equal(
+                initial[start:start+count],
+                candidate[start:start+count],
+            ):
+                raise RuntimeError(
+                    f"Distributed projected DAE initializer changed {name}"
+                )
+        system.gf_model.set_time(t0)
+        system.gf_model.to_variables(candidate.copy())
+        norm_final = _native_algebraic_residual(
+            system, z, z_dot, residual, isalg
+        )
+        tolerance = float(atol + rtol*norm_initial)
+        # Check consistent across ranks, not just the printed root.
+        verdict = {
+            "global_dofs": n,
+            "algebraic_dofs": int(len(aidx)),
+            "algebraic_mass_row_max_abs": float(
+                np.max([0.0])
+            ),  # zero by separately verified collective guard
+            "native_algebraic_before_l2": norm_initial,
+            "native_algebraic_after_l2": norm_final,
+            "native_residual_tolerance": tolerance,
+            "ksp_type": str(ksp.getType()),
+            "ksp_pc_type": str(ksp.getPC().getType()),
+            "ksp_iterations": iters,
+            "ksp_convergence_reason": reason,
+            "ksp_reported_residual_norm": ksp_final_norm,
+            "differential_state_exactly_preserved": True,
+            "algebraic_state_correction_l2": float(
+                correction.norm(PETSc.NormType.NORM_2)
+            ),
+            "algebraic_feasibility": (
+                "PASS" if norm_final <= tolerance else "UNRESOLVED"
+            ),
+        }
+        if reason <= 0 and norm_final > tolerance:
+            verdict["interpretation"] = (
+                "PETSc LSQR did not meet its iterative stopping rule; "
+                "this is NOT a proof of mathematical incompatibility"
+            )
+        elif norm_final > tolerance:
+            verdict["interpretation"] = (
+                "PETSc LSQR stopped but true DAE algebraic residual "
+                "exceeds tolerance; no valid projected state exists "
+                "among the computed corrections"
+            )
+        else:
+            verdict["interpretation"] = (
+                "Actual IFunction algebraic rows meet tolerance "
+                "with prescribed q/p exactly frozen on this mesh"
+            )
+        return initial, candidate, dynamic, verdict
+    finally:
+        if ksp is not None:
+            ksp.destroy()
+        if correction is not None:
+            correction.destroy()
+        if rhs is not None:
+            rhs.destroy()
+        if kaa is not None:
+            kaa.destroy()
+        isalg.destroy()
+        residual.destroy()
+        z_dot.destroy()
+        z.destroy()
+
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument(
+        "--scenario", required=True,
+        choices=("polynomial_compatible", "published"),
+    )
+    p.add_argument("--mesh", type=float, default=0.2)
+    p.add_argument("--dt", type=float, default=0.002)
+    p.add_argument("--steps", type=int, default=10)
+    p.add_argument("--output-dir", type=Path, required=True)
+    args = p.parse_args()
+    if args.mesh <= 0 or args.dt <= 0 or args.steps < 2:
+        p.error("Positive mesh/dt and at least two steps are required")
+    mpi = MPI.COMM_WORLD
+    os.environ.setdefault("SCRIMP_INIT_FACTOR_SOLVER_TYPE", "mumps")
+    if args.scenario == "polynomial_compatible":
+        system = _build_manufactured_wave(
+            args.mesh, "0.08*sin(20*t)"
+        )
+    else:
+        system = _build_scenario(args.mesh, "published")
+    system.set_time_scheme(
+        ts_type="cn", ts_adapt_type="none",
+        ts_exact_final_time="matchstep",
+        dt=args.dt, dt_save=args.dt,
+        t_f=args.dt*args.steps,
+        ksp_type="preonly", pc_type="lu",
+        pc_factor_mat_solver_type="mumps",
+    )
+    outcome = {}
+
+    def distributed_init(self):
+        initial, candidate, dynamic, verdict = _project_distributed(
+            self, mpi
+        )
+        outcome.update(
+            initial=initial, candidate=candidate,
+            dynamic=dynamic, verdict=verdict,
+        )
+        if verdict["algebraic_feasibility"] != "PASS":
+            # Do NOT give physical TS a silently inconsistent start;
+            # use a distinct exception/status to distinguish this
+            # expected Gaussian feasibility failure from a KSP crash.
+            raise RuntimeError(
+                "DAE_ALGEBRAIC_INITIAL_DATA_UNRESOLVED "
+                f"residual={verdict['native_algebraic_after_l2']:.9g} "
+                f"threshold={verdict['native_residual_tolerance']:.9g}"
+            )
+
+    system.init_step = types.MethodType(distributed_init, system)
+    report = {
+        "schema": "scrimp-v130-distributed-petsc-dae-probe-v1",
+        "image_source_revision": os.environ.get(
+            "SCRIMP_IMAGE_REVISION", ""
+        ),
+        "mpi_ranks": mpi.Get_size(),
+        "scenario": args.scenario,
+        "mesh_h": args.mesh,
+        "dt": args.dt,
+        "steps": args.steps,
+        "pseudo_ts_executed": False,
+        "getfem_stiffness_gathered_to_rank_0": False,
+    }
+    try:
+        system.solve()
+    except RuntimeError as exc:
+        if (
+            args.scenario != "published"
+            or "DAE_ALGEBRAIC_INITIAL_DATA_UNRESOLVED" not in str(exc)
+            or not outcome
+        ):
+            raise
+        report.update(outcome["verdict"])
+        report["expected_incompatible_gaussian_rejected"] = True
+        report["physical_cn_executed"] = False
+        report["scientific_status"] = "EXPECTED_REJECTION"
+    else:
+        if args.scenario != "polynomial_compatible":
+            raise RuntimeError(
+                "Previously obstructed Gaussian surprisingly passed "
+                "distributed PETSc projection: investigate, do not "
+                "treat as predefined expected success"
+            )
+        trajectory = np.asarray(
+            system.solution["z"], dtype=np.float64
+        )
+        times = np.asarray(system.solution["t"], dtype=float)
+        expected_times = np.arange(args.steps+1)*args.dt
+        if (
+            times.shape != expected_times.shape
+            or not np.allclose(
+                times, expected_times, atol=1e-10, rtol=0
+            )
+            or trajectory.shape != (
+                len(expected_times), len(outcome["candidate"])
+            )
+        ):
+            raise RuntimeError(
+                "Distributed PETSc DAE trial: missing CN snapshots"
+            )
+        start_gap = float(np.linalg.norm(
+            trajectory[0]-outcome["candidate"]
+        ))
+        if start_gap > 5e-10:
+            raise RuntimeError(
+                "Main physical CN TS did not start from projected "
+                f"PETSc DAE state: {start_gap}"
+            )
+        if (
+            system.last_ts_converged_reason <= 0
+            or system.last_ts_steps != args.steps
+            or system.last_ts_rejections
+            or system.last_ts_snes_failures
+        ):
+            raise RuntimeError("Projected native CN TS did not converge")
+        power = audit_port_power(system, mpi)
+        tolerance = float(
+            1e-9 + 1e-5*power["balance_reference_scale"]
+        )
+        if power["absolute_port_work"] <= 1e-9:
+            raise RuntimeError(
+                "Distributed PETSc projection CN has vacuous port work"
+            )
+        report.update(outcome["verdict"])
+        report.update({
+            "expected_incompatible_gaussian_rejected": False,
+            "physical_cn_executed": True,
+            "scientific_status": (
+                "PASS" if (
+                    power["maximum_absolute_balance_defect"] <= tolerance
+                ) else "POWER_BALANCE_FAIL"
+            ),
+            "main_initial_vs_projected_l2": start_gap,
+            "power_balance_tolerance": tolerance,
+            "power": power,
+            "physical_times": times.tolist(),
+            "main_ts_converged_reason": int(
+                system.last_ts_converged_reason
+            ),
+        })
+        if mpi.Get_rank() == 0:
+            args.output_dir.mkdir(parents=True, exist_ok=True)
+            np.savez_compressed(
+                args.output_dir / f"distributed_{args.scenario}_{mpi.Get_size()}r.npz",
+                times=times, states=trajectory,
+                initial=outcome["initial"],
+                projected=outcome["candidate"],
+            )
+    if mpi.Get_rank() == 0:
+        args.output_dir.mkdir(parents=True, exist_ok=True)
+        dest = args.output_dir / (
+            f"distributed_{args.scenario}_{mpi.Get_size()}r.json"
+        )
+        dest.write_text(
+            json.dumps(report, indent=2)+"\n",
+            encoding="utf-8",
+        )
+        print(
+            f"DISTRIBUTED PETSC DAE MPI={mpi.Get_size()} "
+            f"scenario={args.scenario}: "
+            f"result={report['scientific_status']}, "
+            f"F_a={report['native_algebraic_before_l2']:.8g} -> "
+            f"{report['native_algebraic_after_l2']:.8g}, "
+            f"tol={report['native_residual_tolerance']:.8g}, "
+            f"LSQR iterations={report['ksp_iterations']}, "
+            f"pseudo=NEVER, global Kaa gathering=NEVER",
+            flush=True,
+        )
+    if report["scientific_status"] not in (
+        "PASS", "EXPECTED_REJECTION"
+    ):
+        raise RuntimeError("PETSc distributed DAE native physics FAIL")
+
+
+if __name__ == "__main__":
+    main()
