@@ -1,14 +1,16 @@
 # SCRIMP v1.3.0 — Promotion of algebraic DAE initialization to default
 
-**Status, 20 November 2026: ALGEBRAIC IMPLICIT DEFAULT
-STAGED IN THE SOURCE CODE, NATIVE DEFAULT GATE PENDING.**
-Two independent linear pH-DAE models have PASSED
-their core opt-in MPI 1/2 physical tests. The
-**library default is now algebraic on this
-development branch**, but this change itself
-is **not yet native-tested or release-approved**.
-This document is the **migration acceptance
-plan**, not a claim of general DAE compatibility. The user has
+**Status, 20 November 2026: IMPLICIT ALGEBRAIC DEFAULT
+NATIVE PHYSICS GATE PASSED FOR TWO LINEAR pH-DAEs (MPI 1/2).**
+The actual no-`init_step_ts_type` library path now
+passes independent complete CN trajectory,
+signed port/damping power, exact initial dynamic
+data, incompatible Gaussian rejection and
+explicit legacy pseudo/BDF2 regressions.
+**Global v1.3.0 packaging and all-model compatibility
+remain pending.** This document records both
+the closed default-physics gate and the
+remaining release acceptance conditions. The user has
 explicitly requested that the algebraic method become the default
 **after qualification**, while preserving access to the legacy
 pseudo-time and tiny-step BDF2 methods and documenting their effects.
@@ -476,3 +478,65 @@ code were changed for this second failure.
 **Native default physics qualification
 remains pending a new rerun.** See section 26
 of [V130_DAE_INITIAL_VALIDATION.md](V130_DAE_INITIAL_VALIDATION.md).
+
+## Third native implicit-default run: final two-model physical PASS (20 November 2026)
+
+**ALL scientific implicit-default acceptance assertions PASS.**
+User-native run, immutable qualified
+`scrimp-mpi:v1.3.0-rc3`
+(OCI `1d6d0c90115213298047b28237a7f38087563a35`),
+source `3a17a65b7a17fbdade82bd3ea2bd3bb8cd8a53f8`.
+Original host output:
+
+```text
+sandbox/outputs/v130-algebraic-default-h0p2-3a17a65b-H38miGDO/
+```
+
+The actual diagnostic caller omitted
+`init_step_ts_type` and checked that
+SCRIMP's **materialized PETSc default**
+was truly `algebraic`. The conservative
+wave MPI 1/2 runs preserved prescribed
+differential coefficients bitwise and
+reproduced the independent full 11-state
+CN trajectory to maximum scaled L2
+difference `0` / `5.30974918e-18`.
+The Gaussian was rejected at t0 with
+`||F_a||=4.82244319e-6` > `2.0689895e-10`;
+no physical CN was started and the
+initial data were restored.
+
+The distinct dissipative wave repeated
+the ten-step CN/port-power audit:
+`||F_a||~1e-13`, dynamic drift zero,
+positive integrated damping
+`D=0.0132790026`, signed boundary
+work `W=-5.40249757e-5` and
+max `H-H0+W+D` defects
+`2.64805539e-15` / `3.55097896e-15`.
+Full MPI1/2 trajectory parity was
+`6.3717319e-14`.
+The historical explicit `pseudo` main
+CN trajectory matched the frozen reference
+exactly, and negative-time tiny-step BDF2
+remained available with nonzero drift.
+The native PETSc options preflight,
+including `init_step=False`, also passed.
+
+**Result: the implicit-algebraic-default
+NATIVE PHYSICS gate is CLOSED/PASS** for
+the two qualified linear model classes.
+Do not reopen or rerun the expensive
+frozen acceptance unless subsequent
+core changes can affect it.
+The remaining release gates are the
+state-dependent-mass Jacobian on the
+shipped shallow-water model [#27],
+other nonlinear models, MPI cleanup/
+memory, all examples, Maxwell 3D,
+docs and packaging. The proposed
+nonlinear Newton initializer [#28]
+is *not* qualified by this result.
+The dated prioritization and issue
+closure contract are in
+[V130_RELEASE_SPRINT_2026W48.md](V130_RELEASE_SPRINT_2026W48.md).
