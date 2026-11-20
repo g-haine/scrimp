@@ -23,10 +23,19 @@ def main():
     parser.add_argument("directory", type=Path)
     parser.add_argument("--atol", type=float, default=1e-9)
     parser.add_argument("--rtol", type=float, default=1e-7)
+    parser.add_argument(
+        "--scenario",
+        choices=("published", "matched_left_control"),
+        default="published",
+    )
     args = parser.parse_args()
     reports = {}
+    suffix = (
+        "" if args.scenario == "published"
+        else f"_{args.scenario}"
+    )
     for ranks in (1, 2):
-        path = args.directory / f"wave_algebraic_only_{ranks}r.json"
+        path = args.directory / f"wave_algebraic_only_{ranks}r{suffix}.json"
         obj = json.loads(path.read_text(encoding="utf-8"))
         if obj["mpi_ranks"] != ranks:
             raise RuntimeError(f"Invalid rank count in {path}")
@@ -36,11 +45,16 @@ def main():
         "schema", "image_source_revision", "global_dofs",
         "algebraic_dofs", "algebraic_intervals",
         "mesh_h", "cn_steps", "time_step",
+        "scenario", "prescribed_dynamic_norm_l2",
     ):
         if a[key] != b[key]:
             raise RuntimeError(
                 f"Mismatching scientific problem at MPI 1/2: {key}"
             )
+    if a["scenario"] != args.scenario:
+        raise RuntimeError(
+            f"Wrong scenario in reports: {a['scenario']} != {args.scenario}"
+        )
     if not a["image_source_revision"]:
         raise RuntimeError("Source image provenance missing")
 
@@ -74,7 +88,7 @@ def main():
             )
 
     print(
-        f"DAE algebraic-only feasibility probe: "
+        f"DAE algebraic-only feasibility probe ({args.scenario}): "
         f"{a['global_dofs']} DOFs, {a['algebraic_dofs']} algebraic, "
         f"source {a['image_source_revision']}"
     )
@@ -97,6 +111,33 @@ def main():
         "PASS: same algebraic-feasibility outcome at MPI 1 and 2, "
         "dynamic q,p preserved exactly, validated linearization."
     )
+    print("| Algebraic field | Initial residual | Projected residual | Pseudo residual |")
+    print("| --- | ---: | ---: | ---: |")
+    for name, values in a["algebraic_residual_by_unknown"].items():
+        b_values = b["algebraic_residual_by_unknown"][name]
+        for stage in ("before", "projected", "pseudo"):
+            x = values["residual_l2"][stage]
+            y = b_values["residual_l2"][stage]
+            if abs(x-y) > args.atol + args.rtol * max(abs(x), abs(y)):
+                raise RuntimeError(
+                    f"Algebraic field {name} stage {stage} mismatch in MPI"
+                )
+        norm = values["residual_l2"]
+        print(
+            f"| {name} | {norm['before']:.9g} | "
+            f"{norm['projected']:.9g} | {norm['pseudo']:.9g} |"
+        )
+    for ranks, record in sorted(reports.items()):
+        witness = record["linear_least_squares"]
+        print(
+            f"MPI={ranks} LSMR stop={witness['lsmr_istop']} "
+            f"iter={witness['lsmr_iterations']} "
+            f"normal_residual={witness['normal_equation_residual_l2_recomputed']:.8g}; "
+            f"dual w^H r={witness['residual_left_witness_pairing_with_initial']:.8g}, "
+            f"||K_aa^H w||={witness['residual_left_witness_adjoint_l2']:.8g}; "
+            f"bounded lower bound={witness['dual_lower_bound_for_corrections_within_radius_l2']:.8g} "
+            f"for ||delta_a||<={witness['bounded_correction_radius_l2']:.8g}"
+        )
     print(
         "FIXED-DYNAMICS ALGEBRAIC FEASIBILITY: "
         f"{a['fixed_dynamics_actual_algebraic_feasibility']}"
