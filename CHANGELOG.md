@@ -23,6 +23,47 @@ Changes to SCRIMP are recorded here. See also the
 - Record the deferred MPI scalability, nonlinear-physics and
   experimental Schur results in `docs/V130_DEVELOPMENT_ROADMAP.md`.
 
+### Truly explicit nonlinear weak-form bricks (native validation pending)
+
+- Correct `Brick(explicit=True)` semantics: previously SCRIMP
+  excluded such a nonlinear term from `IJacobian` while
+  still reevaluating it at the *current* Newton state
+  in `IFunction`. This produced an inconsistent
+  Jacobian on `examples/shallow_water.py`
+  (native zero-time-derivative directional FD
+  discrepancy `2.02366589e-5`, MPI 1/2).
+- Now the **entire nonlinear `dt=False` non-source brick**
+  is assembled at `(t_n,z_n)`, the **last accepted**
+  PETSc TS time/state, and held as a distributed,
+  calibrated GetFEM/PETSc RHS through the following
+  Newton and line-search iterations. A `TS.setPreStep`
+  callback is installed for both the historical
+  pseudo/BDF initialization TS and the main physical TS.
+  The term has no derivative with respect to the
+  current implicit trial state, and remains excluded
+  from the implicit tangent. This is a true first-order
+  lag of that contribution, not a fully implicit or
+  midpoint evaluation.
+- Preserve the **original gyroscopic G weak-form
+  expression and sign** in the published shallow-water
+  example; its `explicit=True` flag remains set.
+  Requests for unsupported `explicit=True` brick
+  classes (linear, `dt=True`, source) now fail
+  explicitly instead of silently receiving
+  half-implicit semantics.
+- The underlying fully explicit split **does not
+  automatically preserve the exact discrete
+  Hamiltonian power balance** or BDF2 order for
+  the lagged term. Validate its consequences
+  separately on the short nonlinear SWE time test.
+- **Native default-vs-legacy nonlinear-mass
+  Jacobian and actual explicit time-stepping gates
+  remain PENDING**; the previously measured
+  `2e-5` full-Newton discrepancy must not be
+  misattributed to a missing mass Hessian.
+  See issue #27 and
+  `docs/V130_RELEASE_SPRINT_2026W48.md`.
+
 ### Consistent DAE initialization (new linear default; native two-model gate PASSED)
 
 - Add a **distributed PETSc algebraic-only initialization** method for
