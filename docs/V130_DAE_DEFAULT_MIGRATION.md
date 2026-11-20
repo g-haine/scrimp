@@ -387,3 +387,49 @@ the source/header/Sphinx checks, and a
 documented release compatibility notice.
 No Docker release rebuild or tag has
 been attempted.
+
+## First native no-option test exposed PETSc default-materialization bug (20 November 2026)
+
+The first `scripts/run-v130-dae-default-promotion.sh`
+native run at source SHA `973842a...`
+stopped **before MPI physics**, in the
+options-only preflight. Host evidence:
+
+```text
+sandbox/outputs/v130-algebraic-default-h0p2-973842a3-rV7dnIEX/
+```
+
+**Root cause:** although the `getString`
+fallback and `DPHS.init_step` dispatch
+had been changed to `"algebraic"`,
+`DPHS.set_time_scheme` still **inserted
+`init_step_ts_type="pseudo"`** into
+`PETSc.Options` for absent options.
+Furthermore, the test interpreted
+`PETSc.Options.hasName()` as a caller-
+explicitness check even though this
+method also reports inserted defaults.
+These problems could have caused a
+**false default-promotion success**
+had we not required a real no-option test.
+
+**Source correction:** materialize
+`algebraic` in the actual PETSc database;
+distinguish caller-supplied options from
+materialized defaults via kwargs; verify
+both properties independently in the
+true native default diagnostic and
+synthetic negative controls.
+The `init_step=False` no-init application
+is legal without any strategy keyword,
+even with the registered, unused default.
+Explicit `pseudo` and BDF2 continue
+unchanged. No power or MPI acceptance
+thresholds have been loosened.
+
+**Status: native default gate PENDING
+a retry**, not PASS. The original
+scientific opt-in tests for the
+conservative and dissipative waves
+remain PASSED. See section 25 of
+[V130_DAE_INITIAL_VALIDATION.md](V130_DAE_INITIAL_VALIDATION.md).
