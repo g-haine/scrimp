@@ -360,6 +360,9 @@ class DPHS:
         #: Opt-in, rank-local timing collector (SCRIMP_PROFILE=1).
         self.profiler = TimingProfiler()
         self._profile_phase = "setup"
+        #: True-residual diagnostic for the optional algebraic DAE
+        #: initializer. Reset for each solve; None for legacy modes.
+        self.initialization_report = None
         #: Clear and init `time_scheme` member, which embed PETSc TS options database
         self.get_cleared_TS_options()
         #: The dict of `states`, store many infos for display()
@@ -2107,6 +2110,9 @@ class DPHS:
         """
         self.profiler.reset()
         self._profile_phase = "setup"
+        # Avoid publishing a stale successful algebraic result when a
+        # DPHS object is solved again with pseudo/BDF or fails early.
+        self.initialization_report = None
         matrix_mode = os.environ.get(
             "SCRIMP_MATRIX_MEMORY_MODE", "legacy"
         ).strip().lower()
