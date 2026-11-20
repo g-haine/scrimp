@@ -156,10 +156,18 @@ def _physical_audit(system, mpi):
         values = {}
         for port in ports:
             exp = port.get_flow() + "*" + port.get_effort()
+            # SCRIMP Port(region=None) denotes a volume port covering
+            # the entire mesh; Port.compute() maps it to GetFEM
+            # region=-1.  Passing None to gf.asm is NOT accepted by
+            # GetFEM's integer region argument (the native run failed
+            # with "argument 5 ... is not a scalar value").
+            # Boundary control ports keep their explicit integer region.
+            port_region = port.get_region()
+            region = -1 if port_region is None else int(port_region)
             val = gf.asm(
                 "generic", system.domain._int_method[
                     port.get_mesh_id()
-                ], 0, exp, port.get_region(), model
+                ], 0, exp, region, model
             )
             values[port.get_name()] = _scalar(val, mpi)
             powers[port.get_name()].append(values[port.get_name()])
