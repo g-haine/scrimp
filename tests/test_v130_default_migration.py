@@ -105,10 +105,19 @@ class TestDefaultMigration(unittest.TestCase):
         self.assertIn(
             'if init_type not in ("pseudo", "bdf"):', src
         )
+        # New nonlinear-state/affine-algebraic initializer is
+        # explicitly opt-in; the existing *default* remains algebraic,
+        # while pseudo/BDF remain legal and unchanged.
         self.assertIn(
-            '"init_step_ts_type must be algebraic, pseudo or bdf"',
+            'if init_strategy not in ("algebraic", "nonlinear_affine", "pseudo", "bdf"):',
             src,
         )
+        self.assertIn(
+            '"init_step_ts_type must be algebraic, nonlinear_affine, "',
+            src,
+        )
+        self.assertIn('if init_type == "nonlinear_affine":', src)
+        self.assertIn('if init_type not in ("pseudo", "bdf"):', src)
         # init_step=False must remain legal if no strategy was explicitly
         # selected. The explicit but contradictory opt-in is rejected.
         self.assertIn(
