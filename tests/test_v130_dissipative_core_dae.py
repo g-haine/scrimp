@@ -103,8 +103,9 @@ class V130DissipativeCoreDAETest(unittest.TestCase):
             'examples/wave_dissipative.py', src
         )
         self.assertIn(
-            'init_step_ts_type="algebraic"', src
+            'kwargs["init_step_ts_type"] = "algebraic"', src
         )
+        self.assertIn("if not use_default:", src)
         self.assertIn(
             '"Damping"', src
         )
