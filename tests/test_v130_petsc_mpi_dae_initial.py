@@ -113,16 +113,15 @@ class PETScDAEScientificComparatorTests(unittest.TestCase):
         source = (
             ROOT / "sandbox" / "probe_v130_petsc_mpi_initial.py"
         ).read_text(encoding="utf-8")
-        self.assertIn(
-            "owned_petsc_indices = np.asarray(\n"
-            "                local, dtype=PETSc.IntType\n"
-            "            )",
+        # Match the semantic call sites across indentation changes:
+        # the correction loop is now factored across bounded passes.
+        self.assertRegex(
             source,
+            r"owned_petsc_indices\\s*=\\s*np\\.asarray\\("
+            r"\\s*local,\\s*dtype=PETSc\\.IntType\\s*\\)",
         )
-        self.assertIn(
-            "z.setValues(\n"
-            "                owned_petsc_indices,",
-            source,
+        self.assertRegex(
+            source, r"z\\.setValues\\(\\s*owned_petsc_indices,"
         )
         self.assertIn(
             "np.iinfo(PETSc.IntType).max", source
