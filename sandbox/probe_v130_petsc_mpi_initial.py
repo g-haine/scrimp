@@ -101,7 +101,7 @@ def _layout(system, mpi):
             "Algebraic rows contain time-derivative mass: "
             f"max coefficient {global_max_mass:.9g}"
         )
-    return n, dynamic, algebraic, aidx, local, rows_lo, rows_hi
+    return n, dynamic, algebraic, aidx, local, rows_lo, rows_hi, global_max_mass
 
 
 def _petsc_initial_vec(system, initial, lo, hi):
@@ -129,7 +129,7 @@ def _native_algebraic_residual(system, z, zero_dot, out, isalg):
 
 
 def _project_distributed(system, mpi, *, atol=1e-10, rtol=1e-8):
-    n, dynamic, algebraic, aidx, local, lo, hi = _layout(
+    n, dynamic, algebraic, aidx, local, lo, hi, algebraic_mass_max = _layout(
         system, mpi
     )
     initial = np.array(
@@ -148,7 +148,7 @@ def _project_distributed(system, mpi, *, atol=1e-10, rtol=1e-8):
     # owned rows. MatCreateSubMatrix is collective, never gathered
     # to rank 0; the resulting K_aa remains distributed.
     isalg = PETSc.IS().createGeneral(
-        np.asarray(local, dtype=np.int32),
+        np.asarray(local, dtype=PETSc.IntType),
         comm=system.stiffness.getComm(),
     )
     kaa = None
@@ -233,9 +233,7 @@ def _project_distributed(system, mpi, *, atol=1e-10, rtol=1e-8):
         verdict = {
             "global_dofs": n,
             "algebraic_dofs": int(len(aidx)),
-            "algebraic_mass_row_max_abs": float(
-                np.max([0.0])
-            ),  # zero by separately verified collective guard
+            "algebraic_mass_row_max_abs": float(algebraic_mass_max),
             "native_algebraic_before_l2": norm_initial,
             "native_algebraic_after_l2": norm_final,
             "native_residual_tolerance": tolerance,
