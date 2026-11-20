@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+# SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
+#
+# Copyright (C) 2015-2026 ISAE-SUPAERO -- GNU GPLv3
+#
+# See the LICENSE file for license information.
+#
+# github: https://github.com/g-haine/scrimp
+#
+# P0 native regression: exact shipped shallow_water weak forms,
+# independently FD-check actual default vs historical mass Jacobian.
+set -euo pipefail
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$root"
+if [[ "${SCRIMP_DOCKER_NO_SUDO:-0}" == 1 ]]; then
+    docker_cmd=(docker)
+else
+    docker_cmd=(sudo docker)
+fi
+image="${SCRIMP_V130_DAE_IMAGE:-scrimp-mpi:v1.3.0-rc3}"
+expected="1d6d0c90115213298047b28237a7f38087563a35"
+revision="$("${docker_cmd[@]}" image inspect --format \
+    '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$image")"
+if [[ "$revision" != "$expected" ]]; then
+    echo "Refusing unqualified frozen runtime $revision" >&2
+    exit 2
+fi
+for f in \
+    scrimp/dphs.py \
+    examples/shallow_water.py \
+    sandbox/check_v130_shallow_water_mass_jacobian.py \
+    sandbox/compare_v130_shallow_water_mass_jacobian.py; do
+    [[ -s "$f" ]] || { echo "Missing source $f" >&2; exit 2; }
+done
+sha="$(git rev-parse HEAD)"
+mkdir -p sandbox/outputs
+out="$(mktemp -d "$root/sandbox/outputs/v130-shallow-mass-J-${sha:0:8}-XXXXXXXX")"
+work="$(mktemp -d "$out/work-XXXXXXXX")"
+printf '{"image":"%s","image_source":"%s","diagnostic_source":"%s","model":"original examples/shallow_water.py"}\n' \
+    "$image" "$revision" "$sha" > "$out/manifest.json"
+echo "SCRIMP v1.3.0 default mass Jacobian native regression"
+echo "Original shallow_water weak forms, no main TS, MPI1/2"
+echo "Compare real production default (environment unset) vs legacy"
+echo "Frozen image: $image @ $revision; core: $sha"
+echo "Output: $out"
+common=( \
+    --user "$(id -u):$(id -g)" \
+    --workdir /scrimp-work --env HOME=/tmp \
+    --env PYTHONPATH=/workspace/scrimp:/workspace/scrimp/sandbox \
+    --env OMP_NUM_THREADS=1 --env OPENBLAS_NUM_THREADS=1 \
+    --env SCRIMP_GETFEM_MATRIX_MODE=distributed \
+    --env SCRIMP_GETFEM_BRIDGE_DISTRIBUTED=coo \
+    --env SCRIMP_MATRIX_MEMORY_MODE=compact \
+    --env SCRIMP_TRAJECTORY_BACKEND=memory \
+    --env SCRIMP_MUMPS_RESET_POLICY=on_change \
+    --env SCRIMP_GETFEM_RHS_MODE=auto \
+    --env SCRIMP_NONLINEAR_RESIDUAL_FORM=direct_getfem \
+    --volume "$work:/scrimp-work:rw" \
+    --volume "$out:/artifacts:rw" \
+    --volume "$root/scrimp/dphs.py:/workspace/scrimp/scrimp/dphs.py:ro" \
+    --volume "$root/examples/shallow_water.py:/workspace/scrimp/examples/shallow_water.py:ro" \
+    --volume "$root/sandbox/check_v130_shallow_water_mass_jacobian.py:/workspace/scrimp/sandbox/check_v130_shallow_water_mass_jacobian.py:ro" \
+)
+for ranks in 1 2; do
+    for mode in default legacy; do
+        echo "RUN SWE MASS J mode=$mode MPI=$ranks"
+        extra=()
+        if [[ "$mode" == legacy ]]; then
+            extra=(--env SCRIMP_NONLINEAR_MASS_JACOBIAN=legacy)
+        fi
+        if ! "${docker_cmd[@]}" run --rm "${common[@]}" "${extra[@]}" "$image" \
+            timeout -k 5s 240s \
+            mpiexec --oversubscribe --bind-to none -n "$ranks" \
+            python -u /workspace/scrimp/sandbox/check_v130_shallow_water_mass_jacobian.py \
+                --mesh .2 --epsilon 1e-6 --state-perturb .01 \
+                --mode "$mode" --output-dir /artifacts \
+            > "$out/${mode}_${ranks}r.log" 2>&1; then
+            echo "FAIL: shallow mass Jacobian mode=$mode MPI=$ranks" >&2
+            tail -n 100 "$out/${mode}_${ranks}r.log" >&2
+            echo "Evidence: $out" >&2
+            exit 1
+        fi
+        grep -a "SHALLOW MASS JACOBIAN" "$out/${mode}_${ranks}r.log" || true
+    done
+done
+if ! "${docker_cmd[@]}" run --rm \
+    --user "$(id -u):$(id -g)" --workdir /scrimp-work \
+    --env HOME=/tmp \
+    --volume "$work:/scrimp-work:rw" \
+    --volume "$out:/artifacts:rw" \
+    --volume "$root/sandbox/compare_v130_shallow_water_mass_jacobian.py:/workspace/scrimp/sandbox/compare_v130_shallow_water_mass_jacobian.py:ro" \
+    "$image" \
+    python -u /workspace/scrimp/sandbox/compare_v130_shallow_water_mass_jacobian.py \
+        /artifacts > "$out/compare.log" 2>&1; then
+    echo "FAIL: strict nonlinear mass-Jacobian qualification" >&2
+    tail -n 110 "$out/compare.log" >&2
+    echo "Evidence: $out" >&2
+    exit 1
+fi
+cat "$out/compare.log"
+echo "COMPLETE: shipped original nonlinear SWE mass Jacobian gate; $out"
+echo "This is NOT nonlinear DAE consistent-initialization qualification."
