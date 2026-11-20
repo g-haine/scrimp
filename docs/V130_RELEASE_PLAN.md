@@ -467,6 +467,17 @@ A further fresh-project / fresh-user onboarding acceptance is
 desirable, but this developer's observed blocking issue is
 closed. This does not validate multi-process MPI debugging.
 
+**20 November 2026 candidate audit:** the safe exact-SHA rc2 rebuild,
+first/warm BuildKit evidence, fatal NumPy ComplexWarning regression,
+numerically checked host CSV and PETSc `-info` diagnosis are specified
+in [V130_DOCKER_BUILD.md](V130_DOCKER_BUILD.md), section 4a.
+These are *new qualification gates*, not completed runtime results.
+Source CI failure at `170f26d1` was traced to an obsolete GetFEM
+timing helper path (not a native or physical failure); the workflow
+and test were corrected and require confirmation by a new green run.
+The Ubuntu/VS Code acceptance stays qualified only for the previously
+tested image and editor workflow. Preserve `scrimp-mpi:local`.
+
 **Still pending:** warm-cache image rebuild including the
 source-only ComplexWarning fix; a clean-room onboarding test;
 cross-platform installation; full 1/2/4/6-rank physics/scaling
