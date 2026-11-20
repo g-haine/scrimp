@@ -61,6 +61,10 @@ jobs:
           bash -n sandbox/run_release120_coo_scaling.sh sandbox/run_v130_wave_benchmark.sh sandbox/run_v130_numeric_reuse_smoke.sh sandbox/run_v130_large_wave_scaling.sh sandbox/run_wave_initial_sync_probe.sh sandbox/run_wave_initial_state_regression.sh sandbox/run_coo_factorization_probe.sh
           python -m py_compile sandbox/analyze_v130_wave_benchmark.py tests/test_mumps_numeric_reuse.py
           python -m unittest -v tests.test_release120_scaling_plots tests.test_v130_wave_figures tests.test_v130_large_wave_scaling tests.test_initial_consistency_sync
+      - name: Validate DAE initialization and full-trajectory diagnostic sources
+        run: |
+          python -m py_compile sandbox/audit_v130_wave_dae_initial.py sandbox/compare_v130_wave_dae_initial.py
+          bash -n scripts/run-v130-dae-initial-audit.sh
       - name: Validate SCRIMP source headers
         run: |
           python -m unittest -v tests.test_python_headers
