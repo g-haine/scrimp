@@ -505,6 +505,121 @@ Record the successful repeated build in the release audit before
 describing the Docker image as cache-qualified. The rebuilt candidate
 should carry the corresponding Git revision label.
 
+### 4a. Next-image qualification — exact source SHA, warm-cache evidence (20 Nov 2026)
+
+The Ubuntu/VS Code workflow was accepted with source revision
+`96961d647c2caf41dd77d2a7b5926e86e86c4b69`. The subsequent
+`DPHS._sync_lumped_trial_state` real-part / `ComplexWarning` fix is
+**not in that image**. Preserve `scrimp-mpi:local` and preferably also
+the previously accepted `scrimp-mpi:v1.3.0-rc1` tag. Use an independent
+`scrimp-mpi:v1.3.0-rc2` candidate; no GHCR publication.
+
+On the validated Ubuntu host, with Docker accessible without sudo:
+
+~~~bash
+cd ~/Simulations/scrimp
+git switch release/1.3.0-preparation
+git pull --ff-only
+mkdir -p sandbox/outputs
+export SCRIMP_GITHUB_REF="$(git rev-parse HEAD)"
+export SCRIMP_DOCKER_CANDIDATE_IMAGE=scrimp-mpi:v1.3.0-rc2
+export SCRIMP_DOCKER_NO_SUDO=1
+
+docker image inspect --format '{{.Id}}' scrimp-mpi:local \
+  > sandbox/outputs/v130-qualified-local-before.txt
+bash scripts/build-v130-docker-candidate.sh
+cp sandbox/outputs/v130-docker-build.log \
+   sandbox/outputs/v130-docker-build-first-rc2.log
+bash scripts/smoke-v130-docker-candidate.sh
+cp sandbox/outputs/v130-docker-smoke.log \
+   sandbox/outputs/v130-docker-smoke-rc2.log
+bash scripts/build-v130-docker-candidate.sh
+cp sandbox/outputs/v130-docker-build.log \
+   sandbox/outputs/v130-docker-build-warm-rc2.log
+
+docker image inspect --format '{{.Id}}' scrimp-mpi:local \
+  > sandbox/outputs/v130-qualified-local-after.txt
+cmp sandbox/outputs/v130-qualified-local-before.txt \
+    sandbox/outputs/v130-qualified-local-after.txt
+docker image inspect --format \
+  '{{.Id}} {{index .Config.Labels "org.opencontainers.image.revision"}}' \
+  scrimp-mpi:v1.3.0-rc2
+~~~
+
+If the host requires sudo, omit `SCRIMP_DOCKER_NO_SUDO=1` and
+prefix the explicit `docker image inspect` commands with `sudo`.
+The build and smoke scripts will then use sudo themselves.
+**Keep the Git SHA, `MAKE_JOBS`, Docker/Buildx builder, GetFEM
+digest and Conda inputs unchanged** across the two builds. Never
+use `--no-cache`, prune BuildKit caches or rebuild directly from
+the live tree. The driver fetches a GitHub snapshot and constructs
+a physically isolated, Git-tracked allowlisted context.
+
+**Acceptance gates and recorded evidence:**
+
+1. **Exact provenance / safety:** build stdout shows the chosen
+   full Git SHA, with the OCI `revision` label matching it.
+   BuildKit transfers a small context (previously ~1.6 MB).
+   No untracked experiments, simulations or `sandbox/outputs`
+   enter the context. Keep both complete build logs and image IDs.
+2. **Native cache reuse:** the *second* build must report `CACHED`
+   for the Conda solve/install, PETSc/SLEPc Python bindings and
+   GetFEM 5.5 compile layers. No native rebuilding or fresh source
+   download should occur. A previously interrupted native `RUN`
+   may execute again on the first build; cache mounts should still
+   preserve downloaded inputs. A miss in the warm run is a failed
+   cache gate requiring diagnosis, **not** a reason to delete caches.
+3. **Targeted numerical/warning regression:** the candidate smoke
+   runs the real starter simulation under
+   `warnings.simplefilter("error", np.exceptions.ComplexWarning)`.
+   Reappearance of the warning is fatal. Host output must contain
+   11 finite rows at t=0..0.1 and satisfy
+   `H=5*q*q/2+p*p/(2*1.5)` at each saved point to numerical
+   tolerance (`rel_tol=1e-10`, `abs_tol=1e-12`). This is an
+   **internal energy formula** check, not a power-balance proof.
+4. **Native / MPI stack:** maintain GetFEM MPI level 2,
+   NumPy 2 and complex PETSc/SLEPc; validated RT/BDM/Nédélec
+   I/II simplex k=1/2 descriptors and Nédélec-II k>=3 rejection;
+   distributed MUMPS 1/2-rank solves, independent host-mounted
+   simulation and 2-rank MPI startup.
+5. **No regression to the qualified image:** the ID of
+   `scrimp-mpi:local` is unchanged; neither `latest` nor GHCR
+   receives this candidate. The existing F5/F10/Pylance/interpreter
+   GUI acceptance remains valid for the *workflow*; it does not
+   replace this new-image numerical check.
+6. **Qualification boundary:** a warm-cache rebuild is *not*
+   bitwise-clean-room reproducibility. Base-image digest/platform
+   and exact Conda lock are still unpinned release requirements.
+   Full physical DAE/power and Maxwell 3D acceptance are separate.
+
+**PETSc unused `-info` option:** the earlier 2-rank starter
+reported an unused-option warning. Do not suppress it without
+identifying the source. Compare a bare petsc4py 2-rank process
+against the SCRIMP starter, recording stderr, exit codes, `sys.argv`,
+the PETSc option database and any `PETSC_OPTIONS` passed to the
+container. For example:
+
+~~~bash
+docker run --rm scrimp-mpi:v1.3.0-rc2 \
+  mpiexec --oversubscribe -n 2 python -c \
+  'import sys, petsc4py; petsc4py.init(sys.argv); from petsc4py import PETSc; print("argv=",sys.argv,"options=",PETSc.Options().getAll(),flush=True)' \
+  2>&1 | tee sandbox/outputs/v130-petsc-info-bare.log
+~~~
+
+Compare with the saved `v130-docker-smoke-rc2.log` and
+`project-template/simulations/mpi_check.py`. This is a diagnostic,
+not a demonstrated fix. Do not change normal PETSc option handling
+until the cause is established.
+
+**Source CI audit:** commit `170f26d1` failed in the initial
+Python compilation step because it still named the *deleted*
+`scripts/patch-getfem-mpi-timing.py`. The workflow and its test
+were corrected to target the approved
+`0000-mpi-assembly-timing.patch`. The new branch commit must
+obtain its own green source CI run; that older failure is not a
+native GetFEM or physics failure.
+
+
 ## 5. Reproducibility and work not done yet
 
 - **Pinned today:** base image *version tag*, PETSc/SLEPc native
