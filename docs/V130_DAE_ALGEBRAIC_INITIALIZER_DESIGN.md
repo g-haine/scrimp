@@ -1805,3 +1805,74 @@ initialization of the original rotating problem,
 negative incompatible-data rollback, short physical TS,
 energy/power budget and mesh-aware residual norms
 remain separate pending release gates.
+
+## 20 November 2026 — actual high-index `Y` rejection MPI 1/2 PASS; post-solve rollback gate staged
+
+**Native PASS of EXPECTED REJECTION, verified from uploaded archive:**
+`v130-issue28-negative-high-index-bfe45f1f-oLsALoUF.zip`
+(manifest, logs, P1 not involved; original *curved P2*
+viscous rotating disk `omega=0.2`, MPI1/2).
+Source `bfe45f1fdc1adf55776d6e05f7bf793ba26c374e`,
+immutable rc3 OCI `1d6d0c90115213298047b28237a7f38087563a35`.
+
+Actual `DPHS.solve()` calling production `nonlinear_affine`
+raised exactly the expected `UnsupportedNonlinearAlgebraicDAE`
+with **132 numerically null algebraic columns for 132
+traction-Y DOFs**. The model is 3300 DOFs, 1452 dynamic,
+1848 algebraic. GetFEM entire state was bitwise restored
+under both MPI ranks, no pseudo/BDF or physical time step
+executed; the report is `REJECTED`, and JSON confirms no
+high-index rotating initialization was claimed.
+Initial native `||F_a||_2 ~ 0.250963115`, tolerance
+`2.60963115021321e-9`; the rejection was **structural
+before factorization**, not a statement on numerical LSQR
+feasibility or the differentiation index. The same
+132 columns and the same exception were found in MPI1/2.
+
+**Important limitation of that safety gate:** rejection
+for singular `J_aa` occurs **before publishing an
+algebraic Newton candidate**. It therefore does not
+by itself validate rollback of PETSc `GlobalVec` when
+an algebraic trial has been computed and fails the
+final residual / precision acceptance check.
+
+Code fix `ceb0da9e9fd3bfa7f4c657537123896297a099c8`
+now snapshots the original `system.GlobalVec` before
+the nonlinear-affine trial and restores it along with
+the original GetFEM coefficients and explicit-RHS
+metadata/cache on rejection. Successful accepted
+initialization remains unchanged.
+
+New dedicated **numerical**, NOT **physical-data**,
+negative test staged:
+`sandbox/probe_v130_issue28_negative_accuracy.py`
+and `scripts/run-v130-issue28-negative-accuracy.sh`.
+It uses unchanged shipped rectangular shallow-water
+`h0,p0` and wall controls but deliberately configures
+`init_algebraic_accuracy=1e-16`, well below the
+previous native achievable `~2.2e-12` algebraic
+residual. It demands a real computed MUMPS correction,
+then an expected `InconsistentDAEInitialData` rejection;
+verifies *both* GetFEM and PETSc `GlobalVec` bitwise
+rollback, full explicit RHS metadata and previous
+contents preserved, and no time steps, in MPI1/2.
+
+**NATIVE NEGATIVE-ACCURACY TEST PENDING**, separate
+from the previously passed high-index rejection.
+This does not establish a test with genuinely
+physically incompatible fixed differential data;
+the latter remains an independent future gate.
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+SCRIMP_DOCKER_NO_SUDO=1 SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+  bash scripts/run-v130-issue28-negative-accuracy.sh
+```
+
+After these safety gates, stage short actual time
+integration on the original rectangular SWE and
+check Hamiltonian, boundary power and explicit gyro
+freeze properties before claiming physical runtime
+qualification. The rotating high-index Y0 problem
+still needs index-aware differentiated constraints.

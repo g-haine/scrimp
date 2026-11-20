@@ -86,6 +86,8 @@ jobs:
           bash -n scripts/run-v130-issue28-production-nonlinear-affine.sh
           python -m py_compile sandbox/probe_v130_issue28_negative_high_index.py
           bash -n scripts/run-v130-issue28-negative-high-index.sh
+          python -m py_compile sandbox/probe_v130_issue28_negative_accuracy.py
+          bash -n scripts/run-v130-issue28-negative-accuracy.sh
           python -m py_compile sandbox/compare_v130_issue28_production_nonlinear_affine.py tests/test_v130_issue28_production_nonlinear_affine_comparator.py
           python -m unittest -v tests.test_v130_issue28_production_nonlinear_affine_comparator
           python -m unittest -v tests.test_v130_issue28_rot_convention
