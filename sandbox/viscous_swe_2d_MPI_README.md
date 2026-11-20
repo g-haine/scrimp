@@ -454,3 +454,84 @@ and geometry investigation first; *afterwards* use original
 `examples/shallow_water.py` for a separate nonlinear fixed-dynamic
 initialization study, as requested. No changes to model physics,
 initial p0, existing LSQR thresholds, or BDF2 safety guard.
+
+## 20 November 2026 — ROOT CAUSE: GetFEM GWFL column-wise Rot reversed wall actuation
+
+**Native evidence PASS, before correction:** user uploaded
+`v130-issue28-native-normal-b903865b-91WeMgdE.zip`
+(original `b903865bee829d18a329928fa04dd68e0b536eb7`,
+unchanged image `scrimp-mpi:v1.3.0-rc3`).
+Native GetFEM integration using **the actual production
+`Normal`, `Tangent=Rot*Normal`, original p0**, MPI 1 and 2:
+
+| Geometry | `||p/rho - omega*Tangent||/||p/rho||` | `||p/rho + omega*Tangent||/||p/rho||` | `||p/rho.Normal||/||p/rho||` |
+|---|---:|---:|---:|
+| P1 straight | 1.9992482297 | 0.0549180824 | 0.0548807074 |
+| P2 curved | 2.0000023663 | 0.0000697293 | 0.0000696876 |
+
+The GetFEM outward normal itself is **correct**:
+`integral(X.Normal)` = `6.2452910639` (P1) and
+`6.2831681228` (P2), near the expected `2*pi`.
+MPI1/2 are equal to floating-point precision.
+This **overturns** the previous assumption that the old
+`Tangent` macro matched `p0` inside GetFEM. The geometric
+P1/P2 edge-normal analysis was not sufficient to determine
+the sign of the literal `Rot` as interpreted by GWFL.
+
+**Exact root cause:** GetFEM GWFL writes a matrix
+`[[a,b],[c,d]]` with the nested vectors as **COLUMNS**.
+Thus the previous `Rot = [[0,1],[-1,0]]` represents the
+**actual** linear operator `[[0,-1],[1,0]]`, i.e. CCW.
+Original `p0/rho = omega*(y,-x)/(r+1e-6)` is CW.
+The wall law therefore had the opposite tangential sign,
+regardless of P1/P2 geometric accuracy. This explains why
+curved P2 did **not** reduce the previous algebraic residual.
+Reference: https://www.getfem.org/userdoc/gasm_high.html
+(explicit matrices section).
+
+**Corrected source commit:** `6db7a79cfe6f7b20d854c4b45913922f10fda0a9`.
+The experimental viscous-SWE `Rot` macro is now written
+`[[0,-1],[1,0]]` (GWFL columns), meaning the intended
+row-wise clockwise matrix `[[0,1],[-1,0]]`.
+Original p0, h0, PDE weak forms, viscous terms, normal
+impermeability and all SCRIMP solver internals are unchanged.
+The nonlinear gyroscopic form
+`Gyro(p) = div(Rot*p) * Rot` is invariant under a **global
+`Rot -> -Rot` sign flip**: it contains two factors of Rot.
+The correction therefore flips the actual wall tangential
+velocity but leaves the gyroscopic physics invariant.
+
+A source-only test `tests/test_v130_issue28_rot_convention.py`
+checks the actual column-wise matrix representation, clockwise
+tangent at `(1,0)`, unchanged `Gyro`/`Curl2D` macro formulas
+and formal sign invariance; CI runs it. The original
+`scripts/run-v130-issue28-native-normal.sh` now rejects a
+`REVERSED` or `AMBIGUOUS` native sign instead of printing
+a warning and exiting 0.
+
+**Old LSQR numbers are obsolete as physical evidence:**
+the pre-fix `||F_a||_min` ~0.02656 (P1) and ~0.02773 (P2)
+were assembled with a *wrong-sign wall velocity*.
+Repeat fixed-state P2 feasibility with the correctly signed
+wall before concluding anything about residual boundary
+incompatibility, and retain the separate stationary control
+and MPI 1/2 check. Even if fixed-state `F_a` becomes small,
+`Y` remains a null column of `J_aa` in the open-loop system;
+a complete index-aware DAE initializer is still unqualified.
+
+**Ordered native experiments:**
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+SCRIMP_DOCKER_NO_SUDO=1 SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+  bash scripts/run-v130-issue28-native-normal.sh
+SCRIMP_DOCKER_NO_SUDO=1 SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+  bash scripts/run-v130-issue28-P2-geometry.sh
+```
+
+**Do not combine workstreams:** After the native
+geometry/initial-boundary compatibility issue is interpreted,
+and ONLY THEN, investigate nonlinear constrained
+initialization using `examples/shallow_water.py`, as
+explicitly requested. No native post-fix data yet.
