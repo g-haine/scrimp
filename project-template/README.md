@@ -107,7 +107,14 @@ separately validated SCRIMP PDE example (not this serial oscillator).
 The `.vscode/launch.json` configurations let you press **F5**
 to debug the first example or the active Python file. The task menu
 also contains an ordinary run task and a 2-rank MPI startup task.
-Parallel Python debugging needs more configuration than ordinary F5.
+**Verified on Ubuntu Dev Containers:** F5 starts `debugpy`; a red
+breakpoint at `system = S.DPHS("real")` suspends execution;
+**F10** steps through state initialization; the `system` and
+`q` objects are visible in **Locals**, and `main()` appears
+in **Call Stack**. Resume with **F5** or stop with
+**Shift+F5**. The *resume-to-completion* check has not yet been
+recorded. Parallel MPI Python debugging needs a different
+multi-process configuration and has not been qualified.
 
 **All output is persistent on your computer**: Dev Containers mounts
 this directory read-write at `/work`. SCRIMP uses the current working
@@ -152,5 +159,8 @@ This starter project is being prepared on the
 and native cross-platform installation are **not yet qualified**.
 The **Linux VS Code Dev Container terminal run** passed the actual
 first SCRIMP simulation, host-persistent CSV and two-rank MPI
-startup on 19 November 2026. Python debugging with **F5** and
-cross-platform VS Code behavior still require separate acceptance.
+startup on 19 November 2026. On **20 November**, Python
+debugging with **F5/debugpy**, breakpoints, F10 stepping,
+Locals and Call Stack also passed. Resume-to-completion,
+multi-rank debugging and cross-platform VS Code behavior
+remain separate acceptance checks.
