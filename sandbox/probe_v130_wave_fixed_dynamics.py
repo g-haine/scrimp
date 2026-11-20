@@ -39,6 +39,16 @@ from solve_v130_dae_algebraic_block import solve_algebraic_block
 # at t=0, whereas the initial Gaussian momentum has nonzero trace.
 # This control variant preserves EXACTLY the same q0/p0 and PDE but
 # matches U_L(0,y)=p0(0,y)/rho(0,y). Never modify examples/wave.py.
+#
+# IMPORTANT: GetFEM's generic assembly grammar is NOT Python syntax.
+# The source-brick expression must not use '**' (which GetFEM rejects).
+# For the published Gaussian, 20*log(3)=21.972245773362197 (17 digits).
+# Use the already-qualified 'exp' and simple arithmetic primitives.
+MATCHED_LEFT_VELOCITY_EXPRESSION = (
+    "exp(-21.972245773362197*(0.25+(y-0.5)*(y-0.5)))/3."
+)
+
+
 def _build_scenario(mesh, scenario):
     if scenario == "published":
         return _build_wave(mesh)
@@ -52,9 +62,7 @@ def _build_scenario(mesh, scenario):
             observed.append(expression)
             # rho=3-x, so rho(0,y)=3. The Gaussian's trace is
             # 3**(-20*(0.25+(y-0.5)**2)) at the left boundary.
-            expression = (
-                "3**(-20*(0.25+(y-0.5)*(y-0.5)))/3."
-            )
+            expression = MATCHED_LEFT_VELOCITY_EXPRESSION
         return set_control(system, name, expression)
 
     with patch.object(S.DPHS, "set_control", replace_left_control):
@@ -280,6 +288,11 @@ def main():
         help="Second scenario changes only U_L(t) to match p0/rho at t=0; "
              "all PDE bricks and initial q/p are unchanged",
     )
+    p.add_argument(
+        "--preflight-control-only", action="store_true",
+        help="Build only the matched GetFEM control/source brick to "
+             "verify the generic-assembly parser before solving",
+    )
     p.add_argument("--output-dir", type=Path, required=True)
     args = p.parse_args()
     if not (0 < args.mesh <= 1.0):
@@ -288,6 +301,16 @@ def main():
     os.environ.setdefault("SCRIMP_INIT_FACTOR_SOLVER_TYPE", "mumps")
 
     system = _build_scenario(args.mesh, args.scenario)
+    if args.preflight_control_only:
+        if args.scenario != "matched_left_control":
+            raise ValueError("Preflight is only for matched_left_control")
+        if mpi.Get_rank() == 0:
+            print(
+                "PASS: GetFEM parsed the matched-left prescribed control "
+                "source brick at model-construction time",
+                flush=True,
+            )
+        return
     system.set_time_scheme(
         ts_type="cn", ts_adapt_type="none",
         ts_exact_final_time="matchstep",
