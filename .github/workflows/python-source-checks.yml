@@ -105,6 +105,27 @@ jobs:
           python -m unittest -v tests.test_v130_issue28_rot_convention
           python -m unittest -v tests.test_v130_issue28_geometry_report
           python -m unittest -v tests.test_v130_issue6_viscous_mpi
+      - name: Validate #28 native spinup sandbox diagnostics before Docker (no PETSc)
+        run: |
+          # Syntax gate covers both past/preliminary and full-ramp experiments.
+          python -m py_compile \
+            sandbox/probe_v130_issue28_one_cn_spinup.py \
+            sandbox/compare_v130_issue28_one_cn_spinup.py \
+            sandbox/probe_v130_issue28_cn_refinement.py \
+            sandbox/compare_v130_issue28_cn_refinement.py \
+            sandbox/probe_v130_issue28_full_spinup.py \
+            sandbox/compare_v130_issue28_full_spinup.py \
+            tests/test_v130_issue28_one_cn_spinup.py \
+            tests/test_v130_issue28_cn_refinement.py \
+            tests/test_v130_issue28_full_spinup.py
+          bash -n \
+            scripts/run-v130-issue28-one-cn-spinup.sh \
+            scripts/run-v130-issue28-cn-refinement.sh \
+            scripts/run-v130-issue28-full-spinup.sh
+          python -m unittest -v \
+            tests.test_v130_issue28_one_cn_spinup \
+            tests.test_v130_issue28_cn_refinement \
+            tests.test_v130_issue28_full_spinup
       - name: Validate SCRIMP source headers
         run: |
           python -m unittest -v tests.test_python_headers
