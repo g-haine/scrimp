@@ -4,12 +4,14 @@
 #
 # See LICENSE for license information.
 
-"""Host comparator for native #28/#6 ONE physical CN spinup step.
+"""Host comparator for native #28/#6 one PETSc TSCN spinup step.
 
-We require real TS acceptance, original midpoint IFunction and MPI
-parity. Endpoint algebraic drift and actual exchanged-energy balance
-are measured and reported, NOT silently relabelled PASS. First-step
-power alone cannot prove refinement/conservation on a nonautonomous DAE.
+PETSc TSCN uses theta=0.5 ENDPOINT trapezoidal, NOT implicit midpoint.
+Validate its actual equation F(t1,z1,2*delta/dt)+F(t0,z0,0)=0,
+nonlinear and algebraic blocks, real TS acceptance and MPI full vectors.
+The independent midpoint norm is OUT-OF-SCHEME information only.
+PETSc warns that TSCN endpoint assumes constant linear mass whereas
+the SWE mass is nonlinear M(h); time order/power remain UNQUALIFIED.
 """
 
 import argparse
