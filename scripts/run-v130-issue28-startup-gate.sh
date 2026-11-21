@@ -7,8 +7,8 @@
 #
 # github: https://github.com/g-haine/scrimp
 #
-# #28 original curved-P2 startup gate moment/Riesz feasibility diagnostic.
-# Pure read-only original q0; immutable Docker image; no time steps.
+# #28/#6: existing nonlinear-affine reject semantics vs new compatible
+# rest-to-rotation native t0 control. No original source alteration or TS.
 set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$root"
@@ -37,6 +37,7 @@ revision="$(docker_exec image inspect --format '{{index .Config.Labels "org.open
 for f in scrimp/dphs.py scrimp/port.py scrimp/utils/mesh.py \
     scrimp/utils/dae_initialization.py scrimp/utils/nonlinear_affine_dae.py \
     sandbox/viscous_swe_2d_mpi.py sandbox/probe_v130_issue28_structure.py \
+    sandbox/probe_v130_issue28_weak_wall.py \
     sandbox/probe_v130_issue28_startup_gate.py \
     sandbox/compare_v130_issue28_startup_gate.py; do
     [[ -s "$f" ]] || { echo "Missing source $f" >&2; exit 2; }
@@ -80,8 +81,9 @@ for h in 0.2 0.1; do
                 --volume "$root/scrimp/utils/nonlinear_affine_dae.py:/workspace/scrimp/scrimp/utils/nonlinear_affine_dae.py:ro" \
                 --volume "$root/sandbox/viscous_swe_2d_mpi.py:/workspace/scrimp/sandbox/viscous_swe_2d_mpi.py:ro" \
                 --volume "$root/sandbox/probe_v130_issue28_structure.py:/workspace/scrimp/sandbox/probe_v130_issue28_structure.py:ro" \
+                --volume "$root/sandbox/probe_v130_issue28_weak_wall.py:/workspace/scrimp/sandbox/probe_v130_issue28_weak_wall.py:ro" \
                 --volume "$root/sandbox/probe_v130_issue28_startup_gate.py:/workspace/scrimp/sandbox/probe_v130_issue28_startup_gate.py:ro" \
-                "$image" timeout -k 5s "$(printenv SCRIMP_ISSUE28_WEAK_WALL_TIMEOUT || echo 420s)" \
+                "$image" timeout -k 5s "$(printenv SCRIMP_ISSUE28_STARTUP_TIMEOUT || echo 420s)" \
                 mpiexec --oversubscribe --bind-to none -n "$ranks" \
                 python -u /workspace/scrimp/sandbox/probe_v130_issue28_startup_gate.py \
                     --mesh "$h" --case "$case" --out /artifacts \
