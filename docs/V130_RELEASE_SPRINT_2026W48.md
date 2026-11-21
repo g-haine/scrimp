@@ -3083,3 +3083,33 @@ or a wall spin-up from validated rest for #6.
 Never accept physical rotating Y0 or run a physical CN/energy
 campaign until a consistent initial DAE candidate is actually
 verified. #28 remains OPEN; nontrivial rotating #6 remains blocked.
+
+### Analytical circular-wall limit of the original regularized tangent profile
+
+There is an additional **exact continuous-data observation**, distinct
+from the unqualified discrete FE elimination. The original prescribed
+momentum is
+`p0/rho = omega*(y,-x)/(sqrt(x*x+y*y)+epsilon)`, with
+`epsilon=1e-6`. On the **ideal unit circle** (`r=1`,
+`Tangent=(y,-x)`), the imposed wall is `omega*Tangent`,
+so the original continuous initial trace differs by
+
+```text
+(p0/rho - U_wall)|_{r=1}
+  = -omega*epsilon/(1+epsilon) * Tangent,
+omega=.2, epsilon=1e-6
+  => tangential deficit = 1.999998000002e-7.
+```
+
+Thus geometric P2 refinement alone cannot remove this exact
+regularization-induced tangential mismatch **in the continuum
+reference expression**: even a perfect circle retains it.
+The measured fine-mesh native tangential weak RMS
+`2.207136474e-7` is consistent with that scale, but
+its decomposition into regularization versus FE interpolation
+is not yet certified. The full original FE weak algebraic
+incompatibility is still being checked independently by
+the staged exact `F_ep/F_U/F_Y` block gate. Do **not**
+silently alter `epsilon` or `p0` in the original
+validation campaign; an explicitly new compatible-data
+experiment must be separately labelled and qualified.
