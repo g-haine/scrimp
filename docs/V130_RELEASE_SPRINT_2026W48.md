@@ -3709,3 +3709,124 @@ python tests/test_v130_issue28_spinup_first_derivative.py
 bash scripts/run-v130-issue28-spinup-first-derivative.sh \
   --compare-only sandbox/outputs/v130-issue28-spinup-first-differentiated-54bafa2c-y1es00lx
 ```
+
+## 21 November 2026 — #28/#6 first actual physical CN step: sandbox-only native gate STAGED
+
+All previous source and native qualification gates are complete:
+nine host negative/regression tests PASS and the complete archived
+native 4/4 MPI1/2 compatible rest-spinup first-differentiated
+physical RHS gate PASS at source `54bafa2` (archive
+`sandbox/outputs/v130-issue28-spinup-first-differentiated-54bafa2c-y1es00lx/`).
+The first-differentiated candidate for the **distinct compatible
+physical spinup** is `qdot0≈0,Y0≈0`, with native residuals
+~1e-24 or better; the unrelated original already rotating
+`p0` remains proven algebraically incompatible and untouched.
+
+**NEXT GATE — SOURCE STAGED / NATIVE NOT YET RUN**:
+`sandbox/probe_v130_issue28_one_cn_spinup.py`,
+`sandbox/compare_v130_issue28_one_cn_spinup.py`,
+`tests/test_v130_issue28_one_cn_spinup.py`,
+`scripts/run-v130-issue28-one-cn-spinup.sh`.
+
+The new sandbox diagnostic uses the real original curved P2
+Saint-Venant physics (unchanged SWE weak bricks, physical
+facet-tangential wall, `gamma=0,h0=5,p0=0`), original
+rotation target `omega=.2` driven by the separately
+declared rising C1 smoothstep over `.02`.
+Only within a single Python process, a temporary
+`DPHS.init_step` monkeypatch publishes the analytically
+native-verified t0 effort/traction coefficients
+`e_h=.5,Y_n=-.5,e_p=U=U_n=Y=0`.
+It evaluates the **true original IFunction** before
+publication, demands zero original initial algebraic
+and dynamic residual, keeps original q0 bitwise,
+and writes exactly the same candidate to both GetFEM
+and replicated PETSc `GlobalVec`. It never edits
+production `scrimp/dphs.py`, its initializers or
+the original incompatible experiment. This
+patch is a **sandbox test fixture**, not a
+new general high-index initializer.
+
+The original SCRIMP PETSc TS then executes
+`ts_type=cn,ts_adapt_type=none`
+from `t0=0` to `tf=.002`
+with exactly **one accepted step** and no
+SNES failure/rejection. The probe fails closed
+on wrong actual TS convergence reason, number of
+steps, final physical time or missing exact
+endpoint records.
+
+**Physical audit before any energy assertion:**
+
+- Re-evaluate the unchanged native GetFEM
+  `IFunction` at actual CN midpoint
+  `zmid=(z0+z1)/2`,
+  `zdot=(z1-z0)/dt`,
+  `tmid=dt/2`, independently of PETSc
+  KSP/SNES convergence.
+- Additionally archive original full and
+  algebraic endpoint residuals at `tf`.
+  **Subtle:** CN enforces the time-dependent
+  algebraic constraint at the midpoint,
+  not automatically at the endpoint.
+  A nonzero endpoint `Fa(tf)` cannot
+  silently be reclassified as compatibility;
+  we will evaluate its magnitude and
+  time-step sensitivity.
+- Reuse the original SWE physical diagnostic
+  `sandbox/viscous_swe_2d_mpi.py:diagnostics`,
+  which correctly measures the **h-weighted**
+  normal/viscous boundary powers and **separate**
+  grad/div volume dissipation. The generic
+  SCRIMP port power is *not* equivalent to
+  these weighted physical SWE terms.
+  Archive `H(tf)-H0`,
+  `W=int(P_normal+P_viscous)dt`,
+  `D=int(D_grad+D_div)dt`,
+  `H(tf)-H0+D-W`,
+  volume balance, and ratio of defect to
+  **actual** exchanged energy rather
+  than enormous background H0.
+- No pass/fail *convergence* threshold
+  is inferred from one dt. Physical energy
+  convergence, sustained rotation and
+  validated high-index initializer remain
+  **explicitly UNQUALIFIED** until
+  independent time refinement.
+
+Two meshes nominal h=.2/.1 × MPI1/2,
+immutable `scrimp-mpi:v1.3.0-rc3`
+OCI `1d6d0c90115213298047b28237a7f38087563a35`.
+Host-owned output stores per-rank raw logs,
+two full physical endpoint vectors,
+time traces of H and power terms and
+JSON with original TS reason/steps/false
+energy qualifiers. Comparator checks
+both native scalar parity and **full**
+initial/final FE coefficient MPI parity.
+The host negative-test fixtures are
+synthetic, not native evidence.
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+python tests/test_v130_issue28_one_cn_spinup.py
+bash -n scripts/run-v130-issue28-one-cn-spinup.sh
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-issue28-one-cn-spinup.sh
+```
+
+**STOP conditions:** if the real TS/SNES fails,
+or if the independent CN midpoint equations
+do not match the original IFunction,
+do NOT claim any physical evolution.
+If TS accepts one step, record the original
+endpoint constraint and weighted power defects
+without declaring energy conservation based
+on a single step. Next gate will use temporal
+refinement and possibly an endpoint
+DAE-consistency policy that preserves
+original physics.
+#28 OPEN; physical rotating #6 remains
+NOT YET QUALIFIED.
