@@ -262,6 +262,9 @@ def compare(directory):
                       f"Original native MPI physical diagnostic mismatch {key}")
             check(np.array_equal(a["initial"],b["initial"]),
                   "MPI1/2 published original analytic q0 differ bitwise")
+            check(np.array_equal(
+                a["dynamic_indices"],b["dynamic_indices"]
+            ),"MPI1/2 original physical h/p intervals differ")
             dscale=norm(a["final"]-a["initial"])
             diff=norm(a["final"]-b["final"])
             check(diff<=1e-11+1e-8*dscale,
@@ -275,6 +278,14 @@ def compare(directory):
                 f"volume={a['volume_defect']:.9g} MPI1/2 PASS",
                 flush=True,
             )
+        reference_indices=per_count[1]["dynamic_indices"]
+        for count in STEP_COUNTS[1:]:
+            check(np.array_equal(
+                per_count[count]["dynamic_indices"],reference_indices
+            ),"Native physical h/p FE intervals changed across temporal grids")
+            check(np.array_equal(
+                per_count[count]["initial"],per_count[1]["initial"]
+            ),"Original prescribed initial physical state changed with dt")
         # Same spatial geometry and fixed final physical time.
         # Compare ONLY original dynamic h,p coefficients, not
         # algebraic multipliers that need not converge similarly.
