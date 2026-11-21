@@ -49,8 +49,8 @@ def gathered(vec, mpi):
     ))
 
 
-def native_residual(system, mpi, values, derivative, time, iv, names):
-    """Evaluate actual original production IFunction with MPI PETSc Vecs."""
+def native_residual(system, mpi, values, derivative, time, iv, names, *, with_vector=False):
+    """Evaluate original IFunction; optionally return full native PETSc coefficients."""
     n = int(system.gf_model.nbdof())
     if values.shape != (n,) or derivative.shape != (n,):
         raise RuntimeError("Native physical residual wrong FE dimensions")
@@ -73,7 +73,7 @@ def native_residual(system, mpi, values, derivative, time, iv, names):
         full = gathered(f, mpi)
         d = indices(names[0], iv)
         a = indices(names[1], iv)
-        return {
+        stats = {
             "full_l2": float(np.linalg.norm(full)),
             "dynamic_l2": float(np.linalg.norm(full[d])),
             "algebraic_l2": float(np.linalg.norm(full[a])),
@@ -81,6 +81,7 @@ def native_residual(system, mpi, values, derivative, time, iv, names):
                 slice(iv["U"][0], sum(iv["U"]))
             ])),
         }
+        return (stats, full) if with_vector else stats
     finally:
         for obj in reversed(created):
             obj.destroy()
@@ -237,20 +238,50 @@ def main():
     d = indices(dnames, iv)
     qdot = (final-initial)/STEP
     mid = (final+initial)/2
-    # TSCN forms the implicit residual at the midpoint. An endpoint
-    # time-dependent algebraic constraint need NOT vanish under CN,
-    # even when the midpoint residual does. Record BOTH without
-    # incorrectly treating endpoint drift as a nonlinear solver failure.
-    stage = native_residual(
+    # PETSc TSCN is the ENDPOINT trapezoidal theta method (theta=.5).
+    # From PETSc's theta.c: shift=1/(theta*dt)=2/dt, and
+    # SNES receives affine RHS ((theta-1)/theta)*F(t0,z0,0)=-F0.
+    # The TRUE equation is F(t1,z1,2*(z1-z0)/dt) + F(t0,z0,0)=0.
+    # This is NOT the implicit midpoint scheme; PETSc additionally
+    # warns that its endpoint method assumes constant linear mass,
+    # while our actual Saint-Venant M(h) is state dependent.
+    zero = np.zeros(n, dtype=float)
+    initial_zero, v_initial_zero = native_residual(
+        system, mpi, initial, zero, 0., iv, (dnames, anames),
+        with_vector=True,
+    )
+    final_twice_dot, v_final_twice_dot = native_residual(
+        system, mpi, final, 2.*qdot, STEP, iv, (dnames, anames),
+        with_vector=True,
+    )
+    cn_vec = v_final_twice_dot + v_initial_zero
+    a = indices(anames, iv)
+    cn_equation = {
+        "full_l2": float(np.linalg.norm(cn_vec)),
+        "dynamic_l2": float(np.linalg.norm(cn_vec[d])),
+        "algebraic_l2": float(np.linalg.norm(cn_vec[a])),
+    }
+    # OUT-OF-SCHEME midpoint is information, never a TSCN gate.
+    midpoint_diagnostic = native_residual(
         system, mpi, mid, qdot, STEP/2, iv, (dnames, anames)
     )
-    endpoint = native_residual(
-        system, mpi, final, np.zeros(n), STEP, iv, (dnames, anames)
+    endpoint_zero_dot = native_residual(
+        system, mpi, final, zero, STEP, iv, (dnames, anames)
     )
-    if not np.isfinite(stage["full_l2"]) or stage["full_l2"] > 1e-7:
+    if (not np.isfinite(cn_equation["full_l2"])
+            or cn_equation["full_l2"] > 1e-7):
         raise RuntimeError(
-            "Accepted PETSc CN step fails independent original midpoint "
-            f"GetFEM IFunction: norm={stage['full_l2']:.9g}"
+            "Independent original IFunction does not satisfy actual PETSc "
+            "TSCN endpoint equation: "
+            f"norm={cn_equation['full_l2']:.9g} "
+            f"Fd={cn_equation['dynamic_l2']:.9g} "
+            f"Fa={cn_equation['algebraic_l2']:.9g}"
+        )
+    if (not np.isfinite(endpoint_zero_dot["algebraic_l2"])
+            or endpoint_zero_dot["algebraic_l2"] > 1e-7):
+        raise RuntimeError(
+            "Endpoint algebraic constraint fails after PETSc TSCN: "
+            f"Fa={endpoint_zero_dot['algebraic_l2']:.9g}"
         )
 
     # The independent original SWE diagnostic computes the weighted
