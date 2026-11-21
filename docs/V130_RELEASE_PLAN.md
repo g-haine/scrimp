@@ -3399,3 +3399,75 @@ report infeasibility of exactly fixed
 `h0,p0`), and only then attempt
 a physical rotating TS with power
 and mesh refinement. Issue #28 OPEN.
+
+
+## 21 November 2026 — #28 differentiated bordered P2 viscous disk: NATIVE numerical regularity MPI 1/2 PASS (not Y0!)
+
+**Authoritative native evidence uploaded and inspected:** `v130-issue28-differentiated-rank-f9e72ecc-pNH6VN8J.zip`.
+Source `f9e72ecc0a999c76c89b3504461ad3c1c1214f94`, immutable
+`scrimp-mpi:v1.3.0-rc3` OCI `1d6d0c90115213298047b28237a7f38087563a35`.
+Four separate native tests: `rest` and `rotating`, each MPI 1 and 2,
+on genuine P2 geometric disk, mesh step `0.2`, original FE weak forms
+and corrected GWFL clockwise rotation. No pseudo/physical TS,
+no physical initial traction `Y0`, no modification of initial `h0,p0`.
+
+The matrix
+
+```text
+                  q_dot     a_regular_dot     Y0
+dynamic rows        Mdd           0           JdY
+d(Fa)/dt rows       Jad          Jar           0
+```
+
+has `3300 x 3300` coefficients with `1452` differential,
+`1716` regular algebraic and `132` Y-traction unknowns.
+The actual `J_aY` is identically zero; the actual max
+absolute `J_dY` entry is `0.5072940586040593`. Algebraic
+mass rows have maximum absolute value `0`.
+
+| Native diagnostic | Rest MPI1 | Rest MPI2 | Rotating MPI1 | Rotating MPI2 |
+|---|---:|---:|---:|---:|
+| Original `||Fa||_2` at linearization | `1.4763422151112202e-17` | `1.4744250640694402e-17` | `0.250963115021321` | `0.2509631150213209` |
+| Original `||Fd(q,zdot=0)||_2` | `2.699640468033266e-16` | `2.699640468033266e-16` | `0` | `0` |
+| Maximum relative reconstruction error, two synthetic x | `4.151511441367386e-11` | `7.351843090655861e-12` | `1.7389642798601183e-10` | `2.8475843052613367e-12` |
+| Maximum relative synthetic residual | `5.579034333565234e-12` | `2.4889542225783863e-13` | `1.587544485253625e-11` | `1.1058788590821502e-12` |
+
+All eight synthetic MUMPS solves across 4 native tests converged
+(PETSc reason `4`). Each result reports
+`NUMERIC_REGULAR_AT_LINEARIZATION` and full initial GetFEM rollback.
+The exact resting control retains Fa/Fd at numerical zero.
+
+**Critical qualification boundary:** the rotating value
+`||F_a||=0.250963115` is the residual of the **original zero
+algebraic guess** at prescribed rotating `h0,p0`, not a minimized
+compatibility residual. This pilot used *synthetic* right-hand
+sides `A*x_ref` for rank diagnostics, **not the actual
+dynamic/differentiated-constraint RHS**; the reported rotating
+`||F_d||=0` is therefore not the physical force residual after
+solving efforts and boundary controls. Numerical reconstruction
+of two synthetic vectors is not proof of the differentiation index,
+global invertibility or physical consistency of rotating
+initial data. In particular, matrix invertibility at an
+**incompatible** algebraic starting point cannot create a valid
+DAE initial state.
+
+The earlier original fixed-q rotating P2 reduced-LSQR algebraic
+candidate reached a much smaller native `||F_a||≈4.18e-8`,
+but missed the strict unscaled `2.60963e-9` coefficient
+norm tolerance. This may involve numerical conditioning
+and curved boundary trace incompatibility; **neither
+physical compatibility nor nonexistence has been proven**.
+The exact resting solution at machine precision previously
+showed why a bare LSQR `INCOMPATIBLE_AT_TOLERANCE` label
+is insufficient.
+
+**NEXT:** audit the regular algebraic variables at fixed
+original rotating q0 and the reduced boundary compatibility
+in *proper physical norms*. Once and only once
+`F_a(q0,a_r0)=0` is numerically justified, assemble
+the real differentiated constraint RHS and solve for
+`qdot0,a_reg_dot0,Y0` using the original dynamics
+(gyro, viscosity, boundary law included). Keep q0
+unchanged and require MPI 1/2 parity, rollback on
+failure, no pseudo-TS, and subsequent physical energy
+and boundary-power checks. #28 OPEN.
