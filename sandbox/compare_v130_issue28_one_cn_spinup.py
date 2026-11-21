@@ -74,20 +74,40 @@ def validate(report, mesh, ranks):
             < 1e-12,
             "Real PETSc CN did not accept exactly one physical step")
     require(report.get("two_endpoint_states_archived") is True
-            and report.get("native_original_midpoint_equations_verified") is True
+            and report.get("native_original_TSCN_endpoint_equation_verified") is True
+            and report.get("implicit_midpoint_scheme_used") is False
+            and report.get("petsc_TSCN_form") ==
+            "theta_0p5_endpoint_trapezoidal"
+            and report.get("petsc_TSCN_shift") == 1000.
+            and report.get("petsc_TSCN_affine_old_F_coefficient") == -1.
+            and report.get("nonlinear_mass_PETSc_endpoint_assumption_violated") is True
+            and report.get("nonlinear_mass_time_accuracy_qualified") is False
             and report.get("production_high_index_initializer_qualified") is False
             and report.get("energy_balance_convergence_qualified") is False
             and report.get("physical_multistep_trajectory_qualified") is False,
-            "Unjustified physical production/energy/multistep qualification")
-    mid = report.get("original_IFunction_midpoint_l2", {})
-    end = report.get("original_IFunction_endpoint_l2", {})
-    require(finite(mid.get("full_l2"), "CN midpoint residual") < 1e-7
-            and finite(mid.get("algebraic_l2"), "CN midpoint algebraic") < 1e-7
-            and finite(mid.get("dynamic_l2"), "CN midpoint dynamic") < 1e-7,
-            "Accepted real CN does not satisfy original midpoint GetFEM IFunction")
-    for key in ("algebraic_l2", "dynamic_l2", "U_l2", "full_l2"):
+            "Wrong PETSc TSCN method or unjustified nonlinear mass/energy qualification")
+    cn = report.get("original_IFunction_TSCN_endpoint_equation_l2", {})
+    mid = report.get("original_IFunction_midpoint_OUT_OF_SCHEME_l2", {})
+    end = report.get("original_IFunction_endpoint_zero_dot_l2", {})
+    original = report.get("original_IFunction_t0_zero_dot_l2", {})
+    final_scaled = report.get("original_IFunction_t1_twice_difference_dot_l2", {})
+    for key in ("full_l2", "dynamic_l2", "algebraic_l2"):
+        require(finite(cn.get(key), "TSCN endpoint equation "+key) < 1e-7,
+                "Accepted real TSCN does not satisfy exact PETSc endpoint equation")
+    require(finite(end.get("algebraic_l2"), "endpoint algebraic") < 1e-7,
+            "Accepted TSCN step violates endpoint algebraic constraint")
+    for name, stats in (
+        ("old zero-dot IFunction", original),
+        ("new twice-difference-dot IFunction", final_scaled),
+        ("out-of-scheme implicit midpoint", mid),
+        ("new endpoint zero-dot IFunction", end),
+    ):
+        for key in ("algebraic_l2", "dynamic_l2", "full_l2"):
+            require(finite(stats.get(key), name+" "+key) >= 0,
+                    "Missing independent original IFunction evaluation")
+    for key in ("U_l2",):
         require(finite(end.get(key), "endpoint "+key) >= 0,
-                "Nonfinite post-CN endpoint algebraic/dynamic residual")
+                "Nonfinite original endpoint boundary constraint")
 
     for field in (
         "hamiltonian_initial", "hamiltonian_final",
@@ -136,7 +156,8 @@ def validate(report, mesh, ranks):
     ), "Actual exchanged-energy normalisation was misreported")
     return {
         "initial_Fa_l2": init_f["algebraic_l2"],
-        "midpoint_F_l2": mid["full_l2"],
+        "TSCN_endpoint_equation_l2": cn["full_l2"],
+        "midpoint_OUT_OF_SCHEME_l2": mid["full_l2"],
         "endpoint_Fa_l2": end["algebraic_l2"],
         "endpoint_U_l2": end["U_l2"],
         "physical_power_defect": err,
@@ -166,7 +187,7 @@ def compare(directory):
             ))
         a, b = by_rank
         for key in (
-            "initial_Fa_l2", "midpoint_F_l2", "endpoint_Fa_l2",
+            "initial_Fa_l2", "TSCN_endpoint_equation_l2", "endpoint_Fa_l2",
             "endpoint_U_l2", "physical_power_defect",
             "physical_volume_defect",
         ):
@@ -222,30 +243,33 @@ def compare(directory):
         }
         print(
             f"h={mesh:g}: 1 accepted physical CN step MPI1/2 PASS "
-            f"stage_F={a['midpoint_F_l2']:.9g} "
+            f"TSCN_eq={a['TSCN_endpoint_equation_l2']:.9g} "
+            f"mid_OUT_OF_SCHEME={a['midpoint_OUT_OF_SCHEME_l2']:.9g} "
             f"end_Fa={a['endpoint_Fa_l2']:.9g} "
             f"energy_exchange_defect={a['power_defect_over_actual_exchange']:.9g}",
             flush=True
         )
     result = {
         "schema": "scrimp-v130-issue28-one-cn-comparison-v1",
-        "status": "ONE_NATIVE_CN_STEP_ACCEPTED_POWER_BALANCE_UNQUALIFIED",
+        "status": "ONE_NATIVE_TSCN_STEP_ACCEPTED_NONLINEAR_MASS_AND_POWER_UNQUALIFIED",
         "cases": summary,
         "physical_energy_balance_refinement_qualified": False,
         "nontrivial_rotating_swe_trajectory_qualified": False,
         "general_high_index_initializer_qualified": False,
         "interpretation": (
-            "One native physical CN step at the new analytically compatible "
-            "spinup is accepted, and original midpoint IFunction is checked. "
-            "Both endpoint algebraic drift and physical weighted "
-            "Hamiltonian/work/dissipation defect are archived and require "
-            "separate time-refinement validation before qualification."
+            "One PETSc TSCN endpoint-trapezoidal step uses a sandbox "
+            "analytic initial state. The actual original IFunction "
+            "endpoint equation F(t1,z1,2*delta/dt)+F(t0,z0,0) is checked. "
+            "The implicit midpoint is OUT-OF-SCHEME only. PETSc documents "
+            "that this endpoint formula assumes linear constant mass, "
+            "which is NOT valid for nonlinear M(h) of SWE. No physical "
+            "time-order, power balance or general initializer is qualified."
         ),
     }
     (root/"one_cn_spinup_comparison.json").write_text(
         json.dumps(result, indent=2)+"\n", encoding="utf-8",
     )
-    print("COMPLETE: one real CN step native; energy/refinement NOT qualified.")
+    print("COMPLETE: PETSc TSCN equation checked; nonlinear-mass physical order and energy NOT qualified.")
     return result
 
 
