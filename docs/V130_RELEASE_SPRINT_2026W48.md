@@ -9,6 +9,50 @@ promise**. The authoritative scope remains
 [V130_RELEASE_PLAN.md](V130_RELEASE_PLAN.md), points 0–9.
 Do not silently delete a committed gate to make the deadline.
 
+## Binding reprioritization — Saturday 21 November 2026
+
+**New P0 release blocker: [#29 accepted-state checkpoint/restart](https://github.com/g-haine/scrimp/issues/29)**,
+necessary infrastructure for repeated LHMNC Saint-Venant experiments.
+The v1.3.0 deliverable is a **generic, fail-closed cold restart
+from a validated complete pH-DAE state**, with original absolute
+physical time, all differential + algebraic FE coefficients,
+exact mesh/global ordering, original boundary controls, MPI
+and per-step PETSc/DAE/physical energy acceptance.
+This is NOT a generic high-index initializer or a promise
+to serialize PETSc TS/BDF histories. See new release
+[gate 2C](V130_RELEASE_PLAN.md) and [technical roadmap](V130_DEVELOPMENT_ROADMAP.md).
+
+**New Maxwell 3D demonstration moves to P2/optional pre-release.**
+Only pursue after checkpoint + remaining compulsory v1.3.0
+gates pass with spare time; otherwise perform Maxwell
+immediately after the release. Keep its original
+scientific criteria, existing published examples
+and lean GetFEM RT/BDM/Nédélec checks; do not
+claim the new 3D example was completed.
+
+**Fresh scientific status** from the user's pinned original
+12-case complete physical C1 spinup archive
+(`c0b8f3d2`, `t_f=.02`,
+`v130-issue28-full-spinup-c0b8f3d2-NSdC2dDW`):
+12/12 GetFEM/PETSc native runs PASS,
+MPI1/2 full FE states, true endpoint TSCN,
+DAE and complete wall plateau.
+Observed dynamic h,p temporal order
+**1.84153 / 1.96182** (nominal h=.2/.1).
+Endpoint weighted power-balance defect relative
+to actual exchanged energy at N=40:
+**2.80e-5 / 6.94e-5**. Those are
+non-negligible compared with early-time ~1e-8;
+**the flow need not be stationary merely because the wall
+has reached its speed plateau**. Keep physical energy
+and nonlinearity caveats open (#6/#28).
+
+**Date rule:** retain Friday 27 November as the
+go/no-go planning checkpoint, **not** a reason
+to waive checkpoint/physical gates. If #29
+cannot be properly qualified, the release
+slips; Maxwell does not become a blocker.
+
 ## What is already qualified
 
 - **Gate 0 (linear solver performance, native 2D acoustic reference): PASS**;
@@ -40,13 +84,14 @@ Do not silently delete a committed gate to make the deadline.
 | Gate in master roadmap | Status as of 20 Nov | Before declaring v1.3.0 releasable |
 | --- | --- | --- |
 | 0 — Numerical solver / MPI performance | **PASS in tested wave scope** | Retain frozen benchmarks; no full repeat without relevant core change. |
-| 1 — GetFEM 5.5 simplex FE | **Lean native PASS** | Integrate supported patches consistently into final image; test Maxwell FE spaces. |
+| 1 — GetFEM 5.5 simplex FE | **Lean native PASS** | Integrate supported RT/BDM/Nédélec patches consistently into final image and retain their regressions; do not require a new Maxwell model. |
 | 2 — Docker/native/VS Code | **rc3 native PASS** | Final source revision image/wheel smoke and provenance; do not rebuild on every Python edit. |
 | DAE default (new) | **FULL native PASS, two linear pH-DAEs** | Preserve explicit pseudo/BDF2, documented incompatible Gaussian, and short memory/exceptional MPI cleanup gate. |
 | **#27** state-dependent mass Jacobian | **FULL native gate PASS (MPI 1/2)**: directional FD plus genuine 4-step physical TS with accepted-state frozen G | Freeze the two evidenced campaigns; close #27 with explicit limitations. No automatic claims about exact energy conservation, order two, nonlinear DAE initialization or 4-rank MPI. |
 | **#6** viscous SWE MPI/port powers | **Native qualification PENDING.** Instrumented experimental runner and source-only negative controls prepared; source-check CI PASS at `8a20d551`. | Execute short 1/2/4-rank rest then nontrivial physical open/closed smokes, investigate initialization or rank mismatch on FAIL; only later pursue long-time physics, output races and full issue closure. |
-| 3 — New 3D Maxwell | **NOT QUALIFIED** | Minimal scientifically meaningful 3D H(curl)/H(div) example with boundary energy/Poynting power, element orientation and MPI correctness. **Largest new-model schedule risk.** |
-| 4 — Performance figures | **Wave evidence PASS; publication figures incomplete** | Curate reproducible plots and metadata; Maxwell scaling only if Maxwell physics qualifies. |
+| **2C / #29** — Generic accepted-state checkpoint/restart (NEW P0) | **SOURCE/IMPLEMENTATION NOT STARTED**; native full-spinup states available for pilot | Before tag: atomically save full accepted FE state at absolute t*, exact mesh/DoF/control provenance, fail-closed GetFEM/PETSc cold restore, MPI 1→1/1→2/2→1/2→2 continuous-vs-split physical/DAE/power checks, and linear DAE regression. |
+| 3 — New 3D Maxwell **(P2 optional)** | **NOT QUALIFIED, DEFERRED FROM CRITICAL PATH** | Only if all P0s are done before tag; else immediately post-release. Preserve 3D H(curl)/H(div), Poynting, orientation and MPI acceptance; published Maxwell examples/FE checks remain in regressions. |
+| 4 — Performance figures | **Wave evidence PASS; publication figures incomplete** | Curate reproducible wave/MPI plots and metadata; defer new Maxwell scaling if its new model is postponed. |
 | 5 / **#26** — Sphinx and research docs | **Partially complete** | HTML and LaTeX/PDF green on final source, accurately scoped MPI/jacobian/DAE/default, usable first-run path. |
 | 6 — All shipped examples / install check | **Incomplete** | Inventory, bounded native smoke per supported model, explicitly report unsupported cases; implement or deliberately defer optional install-check CLI with a documented scope decision. |
 | 7 — GUI | **Source migration of historical pseudo PASS; full GUI smoke PENDING** | Generate/run a small script, check interactive startup and error handling; label scope accurately. |
@@ -161,29 +206,41 @@ environment provenance and explicit scope/remaining limits.
 
 ## Week 48 sequence — no unnecessary repeats
 
-- **Monday 23 Nov — correctness freeze:** retain the two
-  already native-PASSED #27 gates, close the issue with pinned
-  FD and short-TS evidence; prioritize #6 real MPI 1/2/4
-  viscous SWE power, deadlock, output-integrity qualification
-  and #23 upstream triage. Retain frozen DAE-default and wave
-  physics results.
-- **Tuesday 24 Nov — model & build gates:** GetFEM simplex
-  patch integration and a narrowly scoped 3D Maxwell
-  benchmark prototype, plus final candidate-image
-  dependency/build context checks. Escalate early if
-  Maxwell 3D cannot be physically qualified.
-- **Wednesday 25 Nov — compatibility:** representative
-  example matrix, small GUI round-trip, native test
-  classification and code/header hygiene. Do not
-  disguise nonlinear unsupported models as tested.
-- **Thursday 26 Nov — reproducibility/docs:** final
+- **Monday 23 Nov — correctness and checkpoint design:** retain
+  already native-PASSED #27 and new complete-ramp SWE results;
+  keep #6/#28 remaining caveats explicit. Define #29 format,
+  mesh/FE/absolute-time/control fingerprint and strict
+  accepted-state-only import/export; first independent
+  continuous-vs-split sandbox proof. Do not delete any
+  existing #6/#23 correctness gate.
+- **Tuesday 24 Nov — checkpoint implementation/native gates:** 
+  qualify #29 actual full-state cold restart at fixed mesh
+  first, then cross-MPI 1→2 and 2→1 plus negative controls
+  and a second linear DAE. Integrate already-qualified
+  GetFEM simplex patches and candidate Docker build/
+  dependency provenance. Do **not** spend this day
+  developing the new Maxwell 3D model while #29 is red.
+- **Wednesday 25 Nov — checkpoint generalization and compatibility:**
+  native generic accepted-state restore outside Saint-Venant,
+  documentation/test of incomplete/incorrect checkpoint rejection,
+  representative examples, small GUI round-trip, tests
+  and code/header hygiene. Preserve supported modes and
+  explicitly mark BDF/IMEX history restore as unsupported
+  until independently qualified.
+- **Thursday 26 Nov — reproducibility/docs and conditional Maxwell:**
+  final checkpoint API/docs and a copyable restart demo,
   profiling figures, Sphinx HTML/LaTeX, installation
-  and version metadata, release notes/README.
+  and release notes/README. **Only if #29 and all other
+  mandatory gates are green**, consider a separate,
+  bounded Maxwell 3D attempt; otherwise queue it
+  immediately after release without weakening gates.
 - **Friday 27 Nov — go/no-go gate:** full source/CI
-  and native smoke, wheel/sdist and candidate Docker
-  reproducibility, resolved-issue closure evidence,
-  final review/merge/tag **only if all release-blocking
-  gates are green**. Otherwise publish the blockers
+  and native smoke including **#29 cross-MPI restart**,
+  wheel/sdist and candidate Docker reproducibility,
+  resolved-issue closure evidence, final review/merge/tag
+  **only if all P0 release-blocking gates are green**.
+  Maxwell new 3D demo is optional; if deferred, list it
+  in the next-release backlog. Otherwise publish blockers
   and move the release, not the physical thresholds.
 
 ## Immediate next native command
