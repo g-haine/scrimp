@@ -78,13 +78,13 @@ assert manifest.get("accepted_Y0") is False
         "original_manifest_preserved": True,
         "existing_reports_verified_and_skipped": True,
         "no_physical_time_steps": True,
-    }, indent=2)+"\\n", encoding="utf-8"
+    }, indent=2)+"\n", encoding="utf-8"
 )
 PY
     echo "RESUME: original evidence preserved at $out"
 else
     out="$(mktemp -d "$root/sandbox/outputs/v130-issue28-exact-weak-elimination-$(git rev-parse --short=8 HEAD)-XXXXXXXX")"
-    printf '{"schema":"v130-issue28-exact-weak-elimination-v1","source":"%s","image_revision":"%s","original_fixed_h0_p0":true,"accepted_Y0":false,"no_physical_time_steps":true}\\n' \
+    printf '{"schema":"v130-issue28-exact-weak-elimination-v1","source":"%s","image_revision":"%s","original_fixed_h0_p0":true,"accepted_Y0":false,"no_physical_time_steps":true}\n' \
         "$sha" "$revision" > "$out/manifest.json"
 fi
 
