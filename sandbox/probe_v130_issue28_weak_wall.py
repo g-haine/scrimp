@@ -147,6 +147,18 @@ def audit(s, mpi, mesh, rotation):
         )
 
         omega = f"({rotation:.17g})"
+        strong_expression = (
+            f"((p/rho)-{omega}*Tangent).((p/rho)-{omega}*Tangent)"
+        )
+        strong_raw = ensure_real(gf.asm_generic(
+            s.domain._int_method[0], 0, strong_expression, 10, s.gf_model
+        ), "strong wall mismatch").reshape(-1)
+        if strong_raw.size != 1 or strong_raw[0] < -1e-12:
+            raise RuntimeError("Invalid native squared strong wall mismatch")
+        strong_total, strong_mode, strong_contributions = (
+            gather_scalar_measure(float(max(0., strong_raw[0])), mpi)
+        )
+        strong_rms = float(np.sqrt(max(0., strong_total)/perimeter))
         exprs = {
             "full": f"((p/rho)-{omega}*Tangent).Test_U",
             "normal": "((p/rho).Normal)*(Normal.Test_U)",
@@ -224,6 +236,10 @@ def audit(s, mpi, mesh, rotation):
                 "boundary_mass_is_negative_native_J_UU": True,
             }
 
+        if dual["full"]["riesz_boundary_RMS"] > strong_rms + 1e-8:
+            raise RuntimeError(
+                "Discrete boundary Riesz projection exceeds native strong L2"
+            )
         now = ensure_real(s.gf_model.from_variables(), "post-measurement state")
         unchanged = np.array_equal(now[fixed], original[fixed]) and (
             np.array_equal(now[traction], original[traction])
@@ -241,6 +257,9 @@ def audit(s, mpi, mesh, rotation):
             "raw_per_rank_perimeter": raw_perimeters,
             "boundary_perimeter": perimeter,
             "perimeter_reduction_mode": perimeter_mode,
+            "strong_wall_vector_mismatch_rms": strong_rms,
+            "raw_per_rank_strong_wall_squared_integral": strong_contributions,
+            "strong_squared_integral_reduction_mode": strong_mode,
             "moment_vectors": moments,
             "normal_tangential_decomposition_l2": decomposition_error,
             "boundary_mass_riesz": dual,
