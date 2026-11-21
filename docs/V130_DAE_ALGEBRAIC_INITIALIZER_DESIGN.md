@@ -4326,7 +4326,7 @@ GetFEM/GlobalVec t0 publication.
   pins the original immutable Docker OCI
   and uses original sandbox-only
   sources read-only; `tests/test_v130_issue28_cn_refinement.py`
-  contains ten host synthetic positive/negative
+  contains eleven host synthetic positive/negative
   checks. **Host and native results
   are still pending.**
 
