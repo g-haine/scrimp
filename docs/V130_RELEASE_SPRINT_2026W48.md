@@ -3469,3 +3469,154 @@ before accepting an initial state.
 #28 remains OPEN as an actual high-index
 production implementation; nontrivial
 physical rotating #6 remains blocked.
+
+## 21 November 2026 — #28/#6 true first-differentiated compatible C1 spinup t0 gate staged (SOURCE ONLY)
+
+**Previously NATIVELY PASSED:** the separately specified
+physical rest-to-rotation spinup state (h0=5,
+p0=0, curved P2, original facet-tangent wall,
+viscosity and gyroscopic/port-Hamiltonian
+forms preserved, omega=.2 following
+`start_from_rest_duration=.02`) satisfies
+the original full `IFunction` at
+`t0=0` to ~1e-16 on both mesh .2/.1,
+MPI1/2 (8/8 previous dual-startup cases).
+The existing opt-in `nonlinear_affine`
+initializer separately rejects the old
+already-rotating high-index negative control
+with 132 / 252 null algebraic columns
+and exact rollback. Those are **two
+distinct results**. The old rotating fixed-q0
+data were earlier proven algebraically
+incompatible by exact `F_ep,F_U,F_Y`
+elimination and remain untouched.
+
+**New diagnostic now STAGED (native not yet run)**:
+`sandbox/probe_v130_issue28_spinup_first_derivative.py`,
+`sandbox/compare_v130_issue28_spinup_first_derivative.py`,
+`scripts/run-v130-issue28-spinup-first-derivative.sh`,
+`tests/test_v130_issue28_spinup_first_derivative.py`.
+
+This is a deliberately **new** physically compatible initial
+condition, NOT a hidden projection of the original rotating
+momentum. The exact t0 candidate uses
+`e_h=rho*g*h0=.5`,
+`Y_n=-rho*g*h0=-.5`,
+`e_p=U_n=U=Y=0` and `p0=0`.
+It does NOT run the production
+`nonlinear_affine` initializer,
+which correctly declares this
+high-index structure unsupported.
+It reuses and adapts the already
+natively qualified PETSc first-
+differentiated physical-RHS MatNest
+diagnostic, with the crucial
+MPI native block IS remapping.
+
+The first differentiated candidate is computed from
+
+```text
+  [ M_dd    0     J_dY ] [ qdot0  ]   [ -F_d(t0,z0,0)  ]
+  [ J_ad   J_ar   0   ] [ a_dot0 ] = [ -partial_t F_a ]
+                           [ Y0    ]
+```
+
+where `a_regular` excludes
+the dynamic-only traction `Y`.
+GetFEM's actual `M_dd,J_dY,J_ad,J_ar`,
+original nonlinear IFunction
+and MPI-aware PETSc MatNest/AIJ
+are used; independent native
+`IFunction(t0,z_trial,zdot_trial)`
+must confirm algebraic and
+dynamic residuals. No artificial
+zero forcing is substituted for
+the actual dynamic `-F_d`.
+
+**VERY IMPORTANT C1 time derivative:** at the
+new physical control `f(t)=f_decreasing(t)*g(t)`
+with `g(t)=3s²-2s³`,
+`s=clip(t/.02,0,1)`,
+`g'(0)=0` **exactly** and
+`f_decreasing(t)=1` for
+`0<=t<.03`.
+Consequently
+`partial_t F_a(t0,z0,0)=0`
+analytically for this model.
+A naive finite difference with fixed
+`dt` at the clipped initial time
+would introduce spurious `O(dt)`
+time forcing into the differentiated
+constraints and a false `Y0`.
+The new probe therefore uses
+the mathematically exact value zero
+**and independently verifies** the
+actual native GetFEM `U`-block
+time response at `delta=1e-4`
+and `2delta` matches the
+exact `g(2delta)/g(delta)`
+to ~2e-6 relative; all other rows
+must remain time invariant under
+that frozen original t0 state.
+
+Native checks (planned):
+- nominal mesh .2 and .1, MPI1/2,
+  pinned immutable `scrimp-mpi:v1.3.0-rc3`
+  OCI `1d6d0c90115213298047b28237a7f38087563a35`;
+- exact t0 algebraic `Fa<1e-11`,
+  physical dynamic forcing below 1e-10,
+  original nonlinear/P2 discrete mass
+  and stiffness, true `J_dY` block
+  and zero algebraic mass rows;
+- MatNest global MPI row+column
+  index partition and RHS roundtrip,
+  direct MUMPS convergence and
+  independently verified original
+  `IFunction` with candidate
+  `qdot0,Y0`;
+- candidate norms `qdot0,Y0,a_dot0<1e-8`,
+  full original dynamic residual
+  <1e-10 and algebraic <1e-11;
+- MPI1/2 physical and coefficient
+  parity, bitwise preservation of
+  differential q0 and rollback,
+  no physical or pseudo/BDF TS,
+  **no accepted physical Y0**
+  and no generic index or
+  high-index production claim.
+
+The host fixture tests are synthetic
+and no substitute for native GetFEM.
+This diagnostic does **not** establish
+a globally nonsingular first
+differentiated operator for all
+models, nor an accepted production
+state or a physical Crank–Nicolson
+energy/port-power trajectory.
+
+Run:
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+python tests/test_v130_issue28_spinup_first_derivative.py
+bash -n scripts/run-v130-issue28-spinup-first-derivative.sh
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-issue28-spinup-first-derivative.sh
+```
+
+**Source-only pending native proof.**
+Next if this pilot passes: choose
+a clearly scoped high-index
+consistent-initial-state
+implementation strategy, distinguish
+it from the existing
+`nonlinear_affine` low-index
+initializer; validate full rollback
+and negative incompatible q0.
+Only then start an actual physical
+CN step, with Hamiltonian, boundary
+port work and viscous dissipation
+power-balance checks.
+#28 OPEN, #6 nontrivial rotation BLOCKED.
