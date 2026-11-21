@@ -321,7 +321,7 @@ def run():
             times=times, states=states, **traces,
         )
         print(
-            f"ISSUE28 FULL SPINUP h={args.mesh:g} MPI={mpi.size} 
+            f"ISSUE28 FULL SPINUP h={args.mesh:g} MPI={mpi.size} "
             f"n={args.steps} dt={dt:.9g} "
             f"TSCN_max={max_tscn:.9g} Fa_max={max_fa:.9g} "
             f"dH={change:.9g} W={work:.9g} D={diss:.9g} "
