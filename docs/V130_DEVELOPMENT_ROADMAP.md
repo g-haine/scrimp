@@ -2,8 +2,80 @@
 
 **Release plan (workstreams 0–9 and acceptance gates):** [V130_RELEASE_PLAN.md](V130_RELEASE_PLAN.md). The present file records the prior technical investigations and measured results; the release plan governs current scope and priorities.
 
-Status: **development branch, not yet a qualified release** (18 Nov 2026).
-Branch: feature/getfem55-mpi-container-scalability.
+Status: **development / untagged release preparation** (updated 21 Nov 2026).
+Current integration branch: `release/1.3.0-preparation`; the historical
+`feature/getfem55-mpi-container-scalability` branch supplied earlier performance work.
+
+## Binding priority update — 21 November 2026 (supersedes the earlier ordering)
+
+**P0 / before tagging v1.3.0: issue [#29](https://github.com/g-haine/scrimp/issues/29), generic checkpoint and state-based restart for pH-DAEs.**
+Required by future LHMNC simulations to avoid replaying expensive
+Saint-Venant rotation preparation. Build this as a **general SCRIMP
+feature**, not a Saint-Venant-only numerical trick. Implement a minimal
+safe `save_checkpoint`/`load_checkpoint` or equivalent after
+a sandbox proof, with native MPI acceptance and documentation.
+
+**Checkpoint design constraints:** save the *complete accepted FE coefficient
+state* (differential, coenergy, boundary/algebraic variables), physical
+time `t_*`, source/model/parameters, exact mesh topology/geometry and
+global DoF ordering, FEM layout, time-dependent control provenance,
+TS method, scientific status and checksums in an **atomically committed
+versioned format**. No serializing live PETSc TS/KSP/MUMPS factors.
+On load, verify the identical physical model and compatible mesh, restore
+GetFEM + distributed PETSc values, continue with **absolute time**
+`t_0=t_*`, reconstruct operators and **skip** pseudo/BDF
+consistency initialization for this already compatible state.
+Check original algebraic rows `F_a(t_*,z_*,0)` collectively; the full
+`F(t_*,z_*,0)` need *not* vanish for a nonstationary state.
+Reject incompatibility, corrupt files and unsupported schemes collectively
+without silently changing prescribed dynamic states or re-running spinup.
+A checkpoint of only h/p is insufficient. This MVP is a **cold
+state restart**, not an exact serialization of BDF/ARKIMEX history.
+
+**Acceptance:** native same-mesh continuous-vs-split
+`0→t_*→t_f` full-state/constraints/Hamiltonian/true weighted
+boundary-work/dissipation/mass comparison and MPI
+`1→1,1→2,2→1,2→2` restarts; negative tests for corrupted/incomplete
+files, changed mesh/FEM/control/time and unqualified TS history; one
+additional linear DAE case to establish generality. Save the actual
+mesh/order or prove identical fingerprints; do not assume a regenerated
+Gmsh mesh has the same global DoF numbering.
+
+**Maxwell 3D workstream 3: P2 / optional before v1.3.0,
+otherwise immediate post-release.** Do not remove its 3D H(curl)/H(div),
+orientation, Poynting-power and MPI scientific acceptance criteria.
+Only start the *new model/benchmarks* if #29 and all other
+release-blocking work are green and time remains.
+The previously qualified lean RT/BDM/Nédélec GetFEM simplex patches and
+existing published Maxwell examples remain supported;
+their compatibility tests stay in the release checks.
+Any release without a **new** validated 3D Maxwell demonstration must
+say so explicitly; do not silently claim that gate 3 passed.
+
+**Full C1 Saint-Venant spinup new evidence (not checkpoint qualification):**
+the user's archived native complete-ramp campaign
+`sandbox/outputs/v130-issue28-full-spinup-c0b8f3d2-NSdC2dDW/`
+(source `c0b8f3d2`, immutable rc3 Docker) contains all **12/12**
+mesh h=.2/.1 × MPI 1/2 × N=10/20/40 physical TSCN runs to
+`t_f=.02`, full original FE vectors and power traces, and strict
+MPI/full-vector comparator. True endpoint TS/DAE checks PASS
+(max `||F_TSCN||≈1.60e-10`, max `||F_a||≈3.25e-14`),
+mass defect `<1e-13`, and empirical dynamic h,p order
+**1.84153** (h=.2) / **1.96182** (h=.1).
+Relative to exchanged energy, the final physical weighted
+`ΔH + D - W` defect improves with N but remains
+about **2.80e-5** / **6.94e-5** at N=40,
+rather than the early t=.002 roundoff floor.
+Do not call the state at `t=.02` a stationary rotating solution:
+only the **wall velocity** reaches its plateau. Continued monitoring of
+interior transients and energy accuracy remains a separate LHMNC
+qualification. The original prescribed rotating-at-t0 data remain
+incompatible on tested meshes, not repaired by a checkpoint.
+
+This priority change supersedes the release-plan historical instruction
+that *all* LHMNC-enabling work starts only after gates 0–9:
+the **generic checkpoint** is now a pre-release gate; the full
+LHMNC scientific programme remains post-release.
 
 ## Confirmed results before the v1.3.0 integration
 
@@ -237,6 +309,17 @@ nonlinear-tangent invalidation and long-duration memory
 stability; these remain documented limitations/tests.
 
 ## v1.3.0 implementation and release gates
+
+- [ ] **P0 #29 — native-qualified generic checkpoint/restart** before
+  release: full accepted FE state and physical-time/mesh/control
+  provenance, atomic save, cold restart without algebraic reinitialization,
+  strict original `F_a` compatibility, same/cross MPI native split-vs-
+  continuous trajectory and physical power gates, negative controls
+  and one additional DAE. Do not mark completed by saving an NPZ alone.
+- [ ] **P2 — new Maxwell 3D model deferred conditionally**:
+  before v1.3.0 only if all P0 gates pass and time permits; else
+  immediately post-release, with the original 3D scientific tests
+  retained. Existing Maxwell examples and lean FE patches must not regress.
 
 - [x] Switch default MUMPS policy to on_change rather than inferring
   permanence from linearity alone.
