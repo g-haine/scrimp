@@ -131,52 +131,12 @@ def audit(s, mpi, mesh):
         s.IFunction(None, 0., z, zero_dot, f)
         initial_fa = norm_sub(f, ialg)
         projection = {
-            "type": "known-exact-analytical-rest" if label == "rest"
-                    else "distributed-rectangular-LSQR",
+            "type": "known-exact-analytical-spinup-rest",
             "original_zero_algebraic_Fa_l2": initial_fa,
         }
 
-        if label == "rotating":
-            s._sync_lumped_trial_state(0., z)
-            s.assemble_nl_stiffness()
-            Ar = keep(s.tangent_stiffness.createSubMatrix(ialg, ireg))
-            if Ar.getSize() != (len(a), len(regular)):
-                raise RuntimeError("Original rectangular regular-algebraic block changed")
-            rhs = keep(Ar.createVecLeft())
-            fa = f.getSubVector(ialg)
-            try:
-                rhs.getArray()[:] = -np.asarray(fa.getArray(readonly=True))
-            finally:
-                f.restoreSubVector(ialg, fa)
-            rhs.assemble()
-            dr = keep(Ar.createVecRight())
-            dr.set(0.)
-            lsqr = keep(PETSc.KSP().create(comm=Ar.getComm()))
-            lsqr.setOptionsPrefix("scrimp_issue28_true_rhs_project_")
-            lsqr.setOperators(Ar)
-            lsqr.setType("lsqr")
-            lsqr.getPC().setType("none")
-            lsqr.setTolerances(rtol=1e-12, atol=1e-13, max_it=10000)
-            lsqr.solve(rhs, dr)
-            reason = int(lsqr.getConvergedReason())
-            if reason <= 0 or not np.isfinite(dr.norm()):
-                raise RuntimeError(f"Real rotating LSQR failed: reason={reason}")
-            correction = full_vector(dr, mpi)
-            candidate = start.copy()
-            candidate[regular] += correction
-            if not np.array_equal(candidate[d], start_d):
-                raise RuntimeError("LSQR altered original differential q0")
-            if not np.array_equal(candidate[y], start_Y):
-                raise RuntimeError("LSQR altered traction Y")
-            z = keep(z.copy())
-            set_full(z, candidate)
-            projection.update({
-                "converged_reason": reason,
-                "iterations": int(lsqr.getIterationNumber()),
-                "correction_l2": float(dr.norm()),
-            })
-        else:
-            candidate = start.copy()
+        # No LSQR or algebraic fitting for the exact positive rest state.
+        candidate = start.copy()
 
         s.IFunction(None, 0., z, zero_dot, f)
         fa_candidate = norm_sub(f, ialg)
@@ -185,7 +145,7 @@ def audit(s, mpi, mesh):
         projection["native_final_algebraic_blocks_l2"] = report_block_norms(
             f, anames, iv, owned_lo, owned_hi
         )
-        projection["exact_discrete_rotating_compatibility_certified"] = False
+        projection["exact_discrete_spinup_rest_t0_candidate"] = True
         projection["raw_fixed_mesh_Fa_below_1e-9"] = bool(fa_candidate <= 1e-9)
 
         if label == "spinup" and (fa_candidate > 1e-11
