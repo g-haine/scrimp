@@ -4210,3 +4210,143 @@ and first differentiated DAE remain
 native-qualified. **No** one-step physical
 Hamiltonian/work/dissipation report has
 yet passed. Both #28 and #6 remain OPEN.
+
+## 21 November 2026 — #28/#6 true first PETSc TSCN physical step **NATIVE 4/4 PASSED**, fixed-time temporal refinement source staged
+
+**Complete immutable native evidence**: `sandbox/outputs/v130-issue28-one-cn-spinup-a8422a9b-2SJgTXLr/`,
+source `a8422a9bef09cbd370b14eea8318f09bf2598d9e`,
+`scrimp-mpi:v1.3.0-rc3` OCI
+`1d6d0c90115213298047b28237a7f38087563a35`.
+Original host regression 11/11 passed, and native GetFEM/PETSc
+h=.2/.1 × MPI1/2 **4/4 passed** with one TRUE accepted
+`ts_type=cn` (PETSc TSCN **endpoint** trapezoidal) physical
+step from `t=0` to `t=.002`; no rejections or SNES failures,
+full original `IFunction` check of the actual TSCN equation
+`F(t1,z1,2*(z1-z0)/dt)+F(t0,z0,0)=0`.
+The separate stationary initial condition and its first
+differentiation were previously qualified; this is the
+**new** original-physics-compatible rest-to-rotation experiment
+(`h0=5,p0=0`, curved P2 disk, original physical facet-tangent
+wall, rising C1 ramp over 0.02), **NOT** a silent repair of the
+original incompatible already-rotating `p0`.
+
+| Native MPI1 at dt=.002 | h=.2 | h=.1 |
+|---|---:|---:|
+| `||F_TSCN||_2` | 4.8111341749e-14 | 7.5278201713e-14 |
+| `||Fa(t1)||_2` | 2.4051939768e-17 | 1.5886709393e-17 |
+| Out-of-scheme midpoint `||F_mid||_2` (not TSCN) | .00109999032 | .000796461984 |
+| Actual `||Δ(h,p)||_2` | .04703883694 | .06471127850 |
+| `H(t1)-H0` | +8.858168969450e-6 | +4.658762096543e-6 |
+| Integrated original h-weighted boundary work `W` | +8.869969112874e-6 | +4.681283404140e-6 |
+| Integrated grad+div viscous dissipation `D` | +1.180020635604e-8 | +2.252128401310e-8 |
+| **`ΔH+D-W`** | **+6.293222880478e-14** | **−2.358338947305e-14** |
+| **`(ΔH+D-W)/max(|ΔH|,|W|,|D|)`** | **+7.094977220771e-9** | **−5.037804259447e-9** |
+| Volume-balance defect | +8.881784197001e-15 | −9.237055564881e-14 |
+
+MPI2 TSCN residuals are `4.8116952862e-14` and
+`7.5277495100e-14`, with algebraic residuals
+`2.3471244434e-17` and `1.5854092554e-17`.
+MPI2 energy errors are +6.1155871965e-14
+and −1.5589783696e-14, consistent to rounding
+with MPI1. Complete original physical endpoint
+FE vectors (3300/10272 coefficients),
+Hamiltonian and h-weighted boundary/dissipation
+traces were inspected from all four native
+archives. This is genuinely nonzero physical
+evolution; no energy terms are synthetic.
+The positive SWE height coefficients remain
+positive. No production initializer or
+original physics was changed.
+
+**NARROW qualified conclusion:** a genuinely
+accepted PETSc TSCN step reproduces its own
+original discrete endpoint residual to ~1e-13,
+keeps the full algebraic constraints to ~1e-17
+and shows physical `ΔH+D-W` ~1e-14 (relative
+to actual energy exchange ~1e-8) for the
+*first* C1-spinup step on two P2 meshes,
+MPI1/2. The out-of-scheme implicit midpoint
+residual is NOT a failure criterion.
+This is a very encouraging one-step
+port-Hamiltonian diagnostic, but it
+**DOES NOT yet prove temporal accuracy,
+energy convergence or long rotating trajectories**.
+
+**IMPORTANT scope:** PETSc `theta.c` comments
+that its endpoint TSCN equation assumes a
+*linear time-independent mass*, whereas actual
+SWE has nonlinear `M(h)`. Passing the
+native TSCN residual does NOT remove
+this methodological caveat.
+Neither #28 (general higher-index DAE)
+nor #6 (physical long-time MPI SWE) is closed.
+
+**NEXT: SOURCE-STAGED / NATIVE PENDING**
+independent temporal refinement at *fixed physical*
+`t_final=0.002` with `N=1,2,4,8`
+steps (`dt=.002/N`), for
+each nominal P2 mesh `h=.2/.1`, MPI1/2.
+16 native runs are planned, retaining the
+same original physical bricks, C1 wall,
+`h0=5,p0=0` and exact sandbox-only
+GetFEM/GlobalVec t0 publication.
+
+- `sandbox/probe_v130_issue28_cn_refinement.py`
+  evaluates **every** accepted endpoint original
+  `F(t_k,z_k,0)+F(t_{k+1},z_{k+1},
+  2Δz/Δt)` (actual TSCN), every
+  `Fa(t_{k+1})` and the *out-of-scheme*
+  midpoint for diagnostics only, while
+  checking true PETSc step count, final
+  time, MPI collective completion and
+  positive h coefficients.
+- It recomputes the original **h-weighted**
+  physical wall powers, separate grad/div
+  viscous dissipation, GetFEM mechanical H,
+  and volume balance at every saved time;
+  integrates each on the true accepted
+  time grid and archives complete original
+  physical FE vectors in `cn_refinement.npz`.
+- `sandbox/compare_v130_issue28_cn_refinement.py`
+  independently reconstructs the physical
+  power integrals from raw saved traces,
+  verifies MPI1/2 **full FE vector parity**,
+  strict same-initial-state and same
+  spatial layout across N, and compares
+  only **original dynamic h,p** terminal
+  coefficient differences:
+  `||q_N-q_{2N}||_2` for N=1,2,4,
+  with observed Richardson-style
+  `log2(error_N/error_2N)` estimates.
+  These are finite-dimensional coefficient
+  diagnostics, NOT mesh-independent norms,
+  and no order-2 gate is forced before
+  inspecting native evidence.
+- `scripts/run-v130-issue28-cn-refinement.sh`
+  pins the original immutable Docker OCI
+  and uses original sandbox-only
+  sources read-only; `tests/test_v130_issue28_cn_refinement.py`
+  contains ten host synthetic positive/negative
+  checks. **Host and native results
+  are still pending.**
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+python tests/test_v130_issue28_cn_refinement.py
+bash -n scripts/run-v130-issue28-cn-refinement.sh
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-issue28-cn-refinement.sh
+```
+
+**Remaining limitations:** the first 0.002 seconds
+are only the rising start of a 0.02-second
+wall spinup. Even if this time refinement
+shows the expected slope and near-machine
+power defect, it cannot by itself certify
+production high-index initialization,
+stability during full wall-rotation ramp,
+or accurate/discrete-gradient pH balance
+on long trajectories. Review actual
+time-refinement evidence first.
