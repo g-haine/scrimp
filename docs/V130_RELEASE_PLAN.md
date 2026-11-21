@@ -10,6 +10,59 @@ release. No general Saint-Venant 2D tangential-velocity boundary-control
 development enters its critical path. That model is a separate,
 **post-release** project for LHMNC 2027.
 
+## Binding release-scope change — 21 November 2026 (supersedes older gate ordering)
+
+**P0 NEW pre-release gate: [#29 — generic checkpoint/restart](https://github.com/g-haine/scrimp/issues/29).**
+LHMNC simulations require repeated reuse of a validated compatible
+rotating Saint-Venant field without restarting each wall-rotation ramp.
+The **feature** is generic SCRIMP checkpoint/restart of a complete
+accepted pH-DAE state, **not** a general high-index DAE initializer
+and not the full LHMNC model-development project. Its narrow native
+qualification, fail-closed MPI/mesh/control-provenance implementation,
+and a second linear DAE regression are now required **before
+tagging v1.3.0**. Initial sandbox proof before production code;
+refer to gate **2C** below. If this P0 gate cannot be qualified
+by the original planning date, **defer the release**, not the
+checkpoint correctness or physical acceptance thresholds.
+
+**P2 NEW 3D Maxwell example (original workstream 3) is removed
+from the v1.3.0 critical path.** Do it before tagging **only if**
+checkpoint and all remaining release gates pass with spare time.
+Otherwise schedule immediately after release. The original
+3D H(curl)/H(div), Nédélec/RT/BDM orientation,
+Poynting-power, convergence and MPI demonstration criteria
+remain recorded under workstream 3, **not silently dropped or
+marked PASS**. Already-qualified lean GetFEM simplex FE
+patches, existing published Maxwell examples and packaging
+regression tests remain mandatory where applicable.
+Workstream 4 must not demand Maxwell performance plots if
+Maxwell's new model is deferred.
+
+**New native scientific input:** user's completed
+`t_f=.02` C1 wall-spinup archive
+`sandbox/outputs/v130-issue28-full-spinup-c0b8f3d2-NSdC2dDW/`
+at source `c0b8f3d2e4fe7f1ea8466020f1bdf163afa764da`
+and immutable `scrimp-mpi:v1.3.0-rc3` contains **12/12
+native PASS** (mesh .2/.1, N=10/20/40, MPI1/2), full FE
+coefficient parity, all per-step TSCN/DAE and wall plateau
+gates, mass balance and actual h-weighted work/viscous
+power. Empirical dynamic coefficient order is **1.84153
+(h=.2), 1.96182 (h=.1)**. At N=40, the relative
+`ΔH+D-W` defect to exchanged energy is still about
+**2.799e-5 / 6.942e-5**, rather than the earlier
+`t_f=.002` ~1e-8 floor. This is a real completed
+wall-velocity ramp, **not** proof of a stationary
+interior rotating solution or of general nonlinear-mass
+TSCN accuracy. Both issue #6 and #28 remain open.
+Checkpoint qualification will explicitly use this
+accepted state **without** labeling it a steady state.
+
+This 21-Nov decision supersedes historical dated prose below
+calling Maxwell a mandatory new release gate and declaring
+all LHMNC-enabling work post-release; the full LHMNC scientific
+study remains post-release, but its generic checkpoint
+infrastructure is now P0 pre-release.
+
 **DAE initialization (20 November 2026):
 TRUE IMPLICIT DEFAULT — FULL NATIVE MPI 1/2 PHYSICAL PASS.
 The scientific and native default-promotion gate is CLOSED.**
@@ -1142,7 +1195,78 @@ See the [VS Code onboarding guide](source/vscode.rst).
 Exit: a reproducible clean image, repeatable warm-cache build
 and documented cross-platform entry points. This covers #25.
 
-## 3 — New 3D Maxwell structure-preserving example
+## 2C — P0 generic accepted-state checkpoint/restart (#29; new v1.3.0 gate)
+
+**Release-blocking, explicitly scoped**: checkpoint and **cold
+restart from a fully accepted state** of a generic pH-DAE.
+A physical state checkpoint is not a PETSc TS/MUMPS factor
+snapshot, and a fresh TSCN after restart is **not**
+guaranteed bitwise identical to continuous integration.
+BDF2/IMEX stage or multistep history must be retained
+and separately qualified for exact-history restart;
+otherwise explicitly reject that claim.
+
+- Add a stable, versioned model-independent API
+  (`DPHS.save_checkpoint(path)`,
+  `DPHS.load_checkpoint(path)` or equivalent),
+  with a sandbox pilot preceding a narrow production change.
+- Save original `t_*`, exact accepted **full** FE global
+  coefficients (dynamic **and** algebraic, including coenergy
+  and boundary variables), consistent model/parameters/
+  actual wall control, mesh geometry/topology and global
+  ordering/FEM signatures, source/format/version,
+  physical scheme, MPI provenance, and checksums.
+  Atomic commit ensures no partial checkpoint is accepted.
+  Prefer reuse of existing binary trajectory/manifest
+  machinery where appropriate; avoid serializing live
+  PETSc/solver objects.
+- Restore the same FE topology, same global DoF
+  mapping and physical clock `t_0=t_*`; verify all
+  metadata, load GetFEM full variables, consistently
+  prepare distributed PETSc initial vector on each
+  rank, **skip initial pseudo/BDF projection**, and
+  reassemble/reinitialize operator factors for
+  the new physical TS. Revalidate actual original
+  `F_a(t_*,z_*,0)`, control boundary conditions
+  and numerical invariants before continuing.
+  Do not require `F_d(t_*,z_*,0)=0` for a
+  nonstationary flow.
+- **Fail closed** on mesh/FEM/ordering mismatch,
+  missing or corrupted data, incorrect control/
+  absolute-time origin, unconverged/incomplete
+  source run, incompatible DAE constraints,
+  unsupported integrator history, or MPI partition
+  disagreement. No silent fallback to the old
+  incompatible rotating prescribed q0.
+- Native acceptance: original true GetFEM/PETSc
+  physical `0→t_*→t_f` split vs continuous
+  Saint-Venant trajectory with same controls,
+  full-state/DAE/energy/physical work+dissipation/
+  mass checks; restart ranks **1→1, 1→2,
+  2→1, 2→2** on the *same verified* FE mesh
+  and global ordering, plus one simpler linear
+  DAE proof of model independence. Include
+  negative tests, docs, and an artifact
+  readable after a new process/container starts.
+
+**Exit:** actual native cold-restart correctness
+and MPI cross-rank qualification, not merely
+successful serialization. Full LHMNC long-time
+physics and a general high-index initializer
+remain independent, post-release-scientific
+gates. See [#29](https://github.com/g-haine/scrimp/issues/29).
+
+## 3 — New 3D Maxwell structure-preserving example (P2 OPTIONAL before release; otherwise next release)
+
+**Scope decision 21 November:** this new example is **no longer
+a v1.3.0 release blocker**. Its technical acceptance criteria
+below are preserved for a spare-time pre-release attempt
+or immediate post-release work. Lack of a new qualified 3D
+Maxwell example must be disclosed in release notes; it
+must not block the newly prioritized checkpoint,
+nor be misrepresented as achieved.
+
+
 
 - Develop a scientifically meaningful 3D electromagnetic
   port-Hamiltonian/PFEM formulation with compatible **H(curl)**
@@ -1165,7 +1289,10 @@ its Hamiltonian is positive.
 
 - Compare *equivalent* v1.2.0 serial and v1.3 serial wave cases
   only after gate 0; separately report current 1/2/4/6 MPI scaling.
-- Repeat comparable 3D Maxwell workloads. Scale by mesh resolution,
+- **Conditional only if a new 3D Maxwell demo passes before
+  release:** repeat comparable 3D Maxwell workloads; otherwise
+  defer these figures to the post-release Maxwell workstream.
+  Scale by mesh resolution,
   DOF count, number of timesteps and polynomial degree.
 - Report setup, GetFEM assembly, GetFEM→PETSc bridge, initial
   consistency, main CN step times, symbolic/numeric LU,
@@ -1290,8 +1417,14 @@ versions consistent, passing CI and scientifically validated demos.
   #23 is a distinct GetFEM MPI-2 root-cause investigation,
   not automatically solved by implementing new element families.
   Do not close #6 before its full physical/MPI tests pass.
-- The tangential-velocity-controlled Saint-Venant 2D study for
-  **LHMNC 2027 starts only after completing all gates 0–9.**
+- **Updated 21 Nov:** the *generic accepted-state checkpoint*
+  (#29, gate 2C) is a required **pre-release** dependency
+  for future LHMNC simulations. The broader
+  tangential-velocity-controlled Saint-Venant 2D
+  research study for LHMNC 2027 remains post-release.
+  The new Maxwell 3D demonstration (gate 3) is
+  **conditional before release, otherwise immediately after**;
+  its scientific acceptance list is not discarded.
 
 ## Nonlinear shallow-water gyroscopic brick: true explicit RHS (20 November 2026)
 
