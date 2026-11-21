@@ -105,6 +105,12 @@ def check_case(report, case, mesh, ranks):
         mode = e.get("mpi_vector_reduction_mode")
         require(mode in ("serial", "replicated-global", "summed-local"),
                 "Wrong native weak vector assembly mode")
+        if mode == "replicated-global":
+            require(all(
+                difference(v, each[0]) <=
+                max(1e-12, 1e-7*l2(each[0]))
+                for v in each[1:]
+            ), f"Replicated GetFEM MPI weak vector mismatch: {component}")
         computed = each[0] if mode == "replicated-global" else [
             sum(x) for x in zip(*each)
         ]
