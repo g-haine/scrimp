@@ -100,4 +100,4 @@ for h in 0.2 0.1; do
     done
 done
 python3 sandbox/compare_v130_issue28_cn_refinement.py --evidence "$out"
-echo "COMPLETE: archived native one-step physical CN power evidence $out"
+echo "COMPLETE: archived native fixed-final-time PETSc TSCN refinement evidence $out"
