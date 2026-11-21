@@ -130,7 +130,7 @@ class WeakWallNativeComparatorTest(unittest.TestCase):
         r = self.fixture(.1, "rotating", 2)
         r["moment_vectors"]["full"]["per_rank_native_vector"][1] = [0.3, 0.2]
         self.store(.1, "rotating", 2, r)
-        with self.assertRaisesRegex(ValueError, "reduction mismatch"):
+        with self.assertRaisesRegex(ValueError, "Replicated GetFEM MPI weak vector mismatch"):
             compare(self.root)
 
     def test_rejects_false_Riesz_norm(self):
