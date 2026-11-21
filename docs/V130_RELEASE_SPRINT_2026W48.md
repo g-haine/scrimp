@@ -1807,3 +1807,74 @@ modify source initial values, mesh, control laws or
 the explicit-gyro accepted-state contract merely
 to force an energy PASS. Keep rank-1/rank-2
 comparison and explicit actual time-step counts.
+
+
+## 21 November 2026 — staged first SHORT PHYSICAL TS qualification after nonlinear_affine (NATIVE PENDING)
+
+The original published `examples/shallow_water.py` passed
+native `nonlinear_affine` production algebraic initialization
+on MPI1/2 with `||F_a||~2.2e-12` and bitwise fixed original h0,p0.
+The independent **numerical post-solve rejection** and
+full GetFEM/PETSc/explicit-cache rollback have now also
+passed native MPI1/2, evidence archive
+`v130-issue28-negative-accuracy-20b39eb2-d3D8JQf1.zip`.
+See the preceding qualification record.
+
+**NEXT physical gate** is a deliberately short 3-step run,
+rather than another projection-only check:
+`sandbox/probe_v130_issue28_shallow_short_physical.py`,
+`scripts/run-v130-issue28-shallow-short-physical.sh`.
+
+Test design:
+- Load the original shipped model **without changing its weak
+  forms**, rectangular mesh `h=0.1`, P2 h / discontinuous P1 p,
+  original physical h0,p0, four prescribed **zero** wall controls,
+  original `explicit=True` gyroscopic term, original energy terms.
+- Suppress **only** the published 5000-step solve and
+  plotting/export during model construction.
+- Opt into `init_step_ts_type=nonlinear_affine` and run the
+  **actual** production `system.solve()` and main PETSc BDF2
+  integrator for `dt=1e-4` through `t_f=3e-4`.
+  Use distributed PETSc/MUMPS, identical compiled pinned
+  `scrimp-mpi:v1.3.0-rc3` image, MPI 1 and 2.
+- Require accepted/converged TS, no rejected steps/SNES
+  failures, correct final timestamp and initial saved h0,p0
+  **bitwise**; original production initialization status PASS.
+- Independently calculate each saved-sample total mass
+  `int_Omega h`, kinetic `int h|p|²/(2rho)` and
+  potential `int rho*g*h²/2`. Compare against SCRIMP's
+  registered original Hamiltonian and measure drift.
+- Independently calculate boundary powers `int_{Gamma_i}
+  U_i*Y_i` on all four regions. With homogeneous imposed
+  controls, supplied boundary power must be ~0.
+- First *pilot* sanity gates: mass relative drift `<=1e-5`,
+  Hamiltonian relative drift `<=5e-3`, absolute boundary
+  power `<=1e-7`. Record full timeseries and defects.
+  These values are **initial pilot thresholds**, not
+  inferred spatial/temporal convergence certificates.
+- **IMPORTANT:** BDF2 is **not symplectic/energy-preserving**
+  in general. This run can check small short-time drift,
+  but must never be labelled an exact discrete
+  port-Hamiltonian power-preservation proof. A proper
+  refinement/energy-exchange convergence study is a
+  separate release gate.
+- Retain rank-specific JSON/logs on failure and assert
+  MPI1/2 trajectory parity. If the first full TS fails,
+  diagnose actual TS reason and physical operator
+  assembly; do not silently switch to pseudo TS.
+
+**Source-only staged; native physical qualification PENDING.**
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+SCRIMP_DOCKER_NO_SUDO=1 SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+  bash scripts/run-v130-issue28-shallow-short-physical.sh
+```
+
+This is the original **rectangular** inviscid shallow-water
+problem. The original rotating **viscous, curved P2** case
+has a different high-index constraint structure; its
+initial traction `Y0` still requires an independent
+index-aware differentiated-constraint algorithm,
+and is NOT qualified by this test.
