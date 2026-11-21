@@ -2052,3 +2052,116 @@ physical `T` and track the signed
 mass as well as full-state changes,
 rather than this self-normalized
 closed-system ratio.
+
+
+## 21 November 2026 — Original shallow-water 4-step BDF2 after production nonlinear_affine: MPI 1/2 NATIVE PASS
+
+**Actual user-uploaded native ZIP:**
+`v130-issue28-production-short-ts-f36c6042-3Fpcl3DV.zip`,
+source `f36c6042181470688f29fd4c1a75d1640f2d0c08`,
+immutable `scrimp-mpi:v1.3.0-rc3` OCI revision
+`1d6d0c90115213298047b28237a7f38087563a35`.
+
+Original published `examples/shallow_water.py`,
+rectangular physical mesh `h_mesh=0.1`, original
+h0,p0 and zero boundary controls, unchanged
+weak forms and original explicit gyro.
+Production opt-in `DPHS.init_step()` with
+`init_step_ts_type=nonlinear_affine` followed
+by **four genuine physical BDF2 PETSc TS**
+steps (`dt=1e-4`, `T=4e-4`).
+
+| Actual native result | MPI 1 | MPI 2 |
+|---|---:|---:|
+| Post-projection original `||F_a||_2` | `2.199213556173762e-12` | `2.3277177796294783e-12` |
+| Accepted/rejected steps | `4 / 0` | `4 / 0` |
+| SNES failures / IFunction evaluations | `0 / 15` | `0 / 15` |
+| Signed final Hamiltonian change | `-0.0046648074239783455` | `-0.004664807369408663` |
+| Relative Hamiltonian drift / H0 | `1.474512951914752e-7` | `1.4745129346656575e-7` |
+| Explicit gyro RHS drift within Newton | `0` | `0` |
+| Max nonzero explicit gyro RHS norm | `2.9865184694522523e-5` | `2.9865184694484807e-5` |
+
+The gyro is **not vacuous**: norms at accepted
+step times 0, `1e-4`, `2e-4`, `3e-4` were
+`0`, `4.866269214e-7`, `6.474541182e-6`,
+`2.986518469e-5`, while its value remained
+bitwise unchanged throughout Newton.
+Native MPI1/2 full **4270 coefficient** trajectory
+relative difference was `3.235700308035909e-16`;
+Hamiltonian relative difference
+`2.529867524588143e-15`.
+All five sample timestamps `[0,1e-4,2e-4,3e-4,4e-4]`
+were actually saved in this experiment, unlike
+the earlier three-step pilot which missed
+one intermediate saved time.
+
+**Native qualified scope:** real production
+nonlinear-state affine-algebraic initialization,
+short physical BDF2 integration, nonvacuous
+accepted-step explicit gyro freeze, full-state
+MPI1/2 parity and measured Hamiltonian.
+**Not qualified:** exact BDF2 power balance,
+physical energy-defect temporal convergence,
+general nonlinear algebraic Newton, or
+original rotating viscous Y0.
+
+### Next native gate: fixed T temporal refinement (SOURCE ONLY; PENDING)
+
+To test the *actual* signed defect
+`D_H(T)=H(T)-H(0)-integral_0^T P_boundary dt`,
+NOT the self-normalized closed-system
+ratio that equals 1 whenever
+`P_boundary=0` but H drifts, stage
+a fixed-final-time original physics campaign:
+
+| dt | Required physical BDF2 steps | MPI ranks |
+|---:|---:|---|
+| `0.0001` | `4` | `1,2` |
+| `0.00005` | `8` | `1,2` |
+| `0.000025` | `16` | `1,2` |
+
+All cases use original `h_mesh=0.1`,
+exactly `T=0.0004`, original h0,p0
+and homogeneous controls.
+`sandbox/probe_v130_issue28_shallow_short_physical.py`
+now supports `--dt` and `--final-time`
+with **unchanged legacy default three-step
+runtime**. It records actual accepted TS counts,
+signed/relative final energy defects,
+mass and all boundary powers,
+and **actual** saved sample timestamps.
+New runner
+`scripts/run-v130-issue28-shallow-energy-refinement.sh`
+retains native JSON/logs and MPI rank separation.
+New host comparator
+`sandbox/compare_v130_issue28_shallow_energy_refinement.py`
+validates authentic 6-run evidence and outputs
+adjacent refinement ratios and *observed*
+log2 estimates, WITHOUT enforcing a
+theoretical second-order convergence rate.
+Unit tests guard missing or inconsistent
+native data without expensive Docker runs.
+
+The original h0 is discontinuous at x=0.5
+and the gyro is lagged explicitly: do
+not assume the formal smooth-solution BDF2
+convergence rate or exact power conservation.
+A monotonically smaller absolute energy
+defect is a **measurement**, not itself
+a complete proof of consistent physical
+port-Hamiltonian integration.
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+SCRIMP_DOCKER_NO_SUDO=1 SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+  bash scripts/run-v130-issue28-shallow-energy-refinement.sh
+```
+
+The runner provides `--compare-only <folder>` to
+revalidate existing saved native evidence
+without executing GetFEM/PETSc again.
+Issue #28 remains OPEN for
+differentiated-constraint Y0 on the original
+rotating viscous disk and the remaining
+mesh-dependent/physical power gates.
