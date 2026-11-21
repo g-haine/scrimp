@@ -1,0 +1,370 @@
+# SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
+#
+# Copyright (C) 2015-2026 ISAE-SUPAERO -- GNU GPLv3
+#
+# See LICENSE for license information.
+#
+# github: https://github.com/g-haine/scrimp
+
+"""#28/#6: sandbox-only analytic startup and ONE physical CN step.
+
+Original viscous SWE weak bricks and physically facet-tangential wall.
+Explicitly NEW compatible rest-to-rotation experiment (h0=5,p0=0).
+Intercept only the sandbox DPHS.init_step hook: no production initializer
+is changed. Publish the already native-qualified analytic initial efforts
+in BOTH GetFEM and the PETSc replicated GlobalVec, preserving h0,p0
+bitwise, then let the REAL unmodified SCRIMP TS integrate one step.
+Fail closed on missing/incorrect accepted PETSc TS or midpoint residual.
+
+Record (do not yet certify) physical Hamiltonian, weighted boundary
+port work, viscous dissipation and endpoint constraint drift. The
+midpoint/endpoint distinction matters for CN on a non-autonomous DAE.
+No extrapolation to a general high-index initializer or trajectory.
+"""
+
+import argparse
+import json
+from pathlib import Path
+from unittest.mock import patch
+
+import numpy as np
+from mpi4py import MPI
+from petsc4py import PETSc
+import scrimp as S
+
+from viscous_swe_2d_mpi import (
+    build_system, diagnostics, H_INITIAL, RHO, GRAVITY,
+    ROTATION,
+)
+from probe_v130_issue28_structure import indices, layout
+from probe_v130_issue28_weak_wall import ensure_real
+
+STEP = 0.002
+RAMP_DURATION = 0.02
+
+
+def gathered(vec, mpi):
+    return np.concatenate(mpi.allgather(
+        ensure_real(vec.getArray(readonly=True), "native PETSc vector").copy()
+    ))
+
+
+def native_residual(system, mpi, values, derivative, time, iv, names):
+    """Evaluate actual original production IFunction with MPI PETSc Vecs."""
+    n = int(system.gf_model.nbdof())
+    if values.shape != (n,) or derivative.shape != (n,):
+        raise RuntimeError("Native physical residual wrong FE dimensions")
+    created = []
+    try:
+        z = system.tangent_stiffness.createVecRight()
+        created.append(z)
+        zd = z.duplicate()
+        created.append(zd)
+        f = z.duplicate()
+        created.append(f)
+        lo, hi = z.getOwnershipRange()
+        if hi > lo:
+            ids = np.arange(lo, hi, dtype=PETSc.IntType)
+            z.setValues(ids, values[lo:hi])
+            zd.setValues(ids, derivative[lo:hi])
+        z.assemble()
+        zd.assemble()
+        system.IFunction(None, float(time), z, zd, f)
+        full = gathered(f, mpi)
+        d = indices(names[0], iv)
+        a = indices(names[1], iv)
+        return {
+            "full_l2": float(np.linalg.norm(full)),
+            "dynamic_l2": float(np.linalg.norm(full[d])),
+            "algebraic_l2": float(np.linalg.norm(full[a])),
+            "U_l2": float(np.linalg.norm(full[
+                slice(iv["U"][0], sum(iv["U"]))
+            ])),
+        }
+    finally:
+        for obj in reversed(created):
+            obj.destroy()
+
+
+def publish_sandbox_rest(system, mpi, stored):
+    dynamic, algebraic, iv, n = layout(system)
+    if dynamic != ("h", "p"):
+        raise RuntimeError("Unexpected original SWE dynamic partition")
+    original = ensure_real(
+        system.gf_model.from_variables(), "original prescribed initial state"
+    ).copy()
+    orig_global = ensure_real(
+        system.GlobalVec.getArray(readonly=True), "GetFEM replicated GlobalVec"
+    ).copy()
+    if original.shape != (n,) or orig_global.shape != (n,):
+        raise RuntimeError("Unexpected original replicated P2 state size")
+    d = indices(dynamic, iv)
+    pfirst, psize = iv["p"]
+    hfirst, hsize = iv["h"]
+    if not np.array_equal(original[pfirst:pfirst+psize],
+                          np.zeros(psize)):
+        raise RuntimeError("Physical spinup p0 must be identically zero")
+    if not np.array_equal(original[hfirst:hfirst+hsize],
+                          np.full(hsize, H_INITIAL)):
+        raise RuntimeError("Physical spinup h0 must equal constant 5")
+    candidate = original.copy()
+    for name, value in (
+        ("e_h", RHO*GRAVITY*H_INITIAL),
+        ("Y_n", -RHO*GRAVITY*H_INITIAL),
+    ):
+        first, width = iv[name]
+        candidate[first:first+width] = value
+    if not np.array_equal(original[d], candidate[d]):
+        raise RuntimeError("Sandbox analytic startup modified dynamic q0")
+    if np.any(candidate[indices(("Y", "e_p", "U", "U_n"), iv)]):
+        raise RuntimeError("Unexpected initially nonzero spinup port state")
+
+    initial = native_residual(
+        system, mpi, candidate, np.zeros(n), 0., iv, (dynamic, algebraic)
+    )
+    if initial["full_l2"] > 1e-10 or not np.isfinite(initial["full_l2"]):
+        raise RuntimeError("Candidate analytic t0 is not native DAE-compatible")
+
+    system.gf_model.set_time(0.)
+    system.gf_model.to_variables(candidate.copy())
+    system.GlobalVec.getArray()[:] = candidate
+    gf_published = ensure_real(
+        system.gf_model.from_variables(), "published native GetFEM"
+    ).copy()
+    global_published = ensure_real(
+        system.GlobalVec.getArray(readonly=True), "published GlobalVec"
+    ).copy()
+    if not mpi.allreduce(
+        bool(np.array_equal(gf_published, candidate)
+             and np.array_equal(global_published, candidate)
+             and np.array_equal(gf_published[d], original[d])),
+        op=MPI.LAND,
+    ):
+        raise RuntimeError("Sandbox startup publication is not bitwise exact")
+    system.initialization_report = {
+        "strategy": "sandbox_exact_stationary_spinup_only",
+        "status": "SANDBOX_ONLY_PUBLISHED_NOT_GENERAL_INITIALIZER",
+        "initial_native_IFunction": initial,
+        "differential_q0_preserved_bitwise": True,
+        "getfem_globalvec_published_bitwise": True,
+        "no_pseudo_or_BDF_initialization": True,
+        "analytic_gprime_t0_exact_zero": True,
+        "physical_time_step_not_yet_accepted": True,
+    }
+    stored["original"] = original
+    stored["candidate"] = candidate
+    stored["initial_residual"] = initial
+    if mpi.rank == 0:
+        print(
+            "ISSUE28 ONE CN STARTUP "
+            f"MPI={mpi.size} native_Fa={initial['algebraic_l2']:.9g} "
+            f"Fd={initial['dynamic_l2']:.9g} "
+            "q0_preserved=PASS published=PASS",
+            flush=True
+        )
+
+
+def _series(values, size, field):
+    v = np.asarray(values, dtype=float)
+    if v.shape != (size,) or not np.all(np.isfinite(v)):
+        raise RuntimeError(f"Invalid physical {field} trace")
+    return v
+
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("--mesh", type=float, choices=(.2, .1), required=True)
+    p.add_argument("--out", type=Path, required=True)
+    args = p.parse_args()
+    mpi = PETSc.COMM_WORLD.tompi4py()
+    # Use the same original physical weak model and geometry. Only
+    # the *declared* physical initial experiment is different.
+    system = build_system(
+        gamma=0., mesh=args.mesh, geometry_order=2, height_order=2,
+        final_time=STEP, save_dt=STEP, max_step=STEP,
+        ramp_start=.03, ramp_end=.06,
+        init_step=True, ts_type="cn", adapt_type="none",
+        init_dt=1e-9, rotation=ROTATION, initial_profile="rigid",
+        wall_velocity_profile="facet_tangent",
+        algebraic_initial_guess="zero",
+        start_from_rest_duration=RAMP_DURATION,
+        init_method="bdf",
+    )
+    published = {}
+
+    def sandbox_initializer(self):
+        publish_sandbox_rest(self, mpi, published)
+
+    # Patching applies ONLY within this isolated diagnostic Python
+    # process. The production source is mounted read-only by the runner.
+    with patch.object(S.DPHS, "init_step", sandbox_initializer):
+        system.solve()
+
+    report = getattr(system, "initialization_report", None)
+    if not isinstance(report, dict) or not report.get(
+        "getfem_globalvec_published_bitwise", False
+    ):
+        raise RuntimeError("CN run lost its exact sandbox startup report")
+    reason = int(getattr(system, "last_ts_converged_reason", 0))
+    accepted_steps = int(getattr(system, "last_ts_steps", -1))
+    rejected_steps = int(getattr(system, "last_ts_rejections", -1))
+    snes_failures = int(getattr(system, "last_ts_snes_failures", -1))
+    actual_end = float(getattr(system, "last_ts_time", float("nan")))
+    if (reason <= 0 or accepted_steps != 1
+            or rejected_steps != 0 or snes_failures != 0
+            or not np.isfinite(actual_end) or abs(actual_end-STEP) > 1e-12):
+        raise RuntimeError(
+            f"Real CN did not accept exactly one physical step: "
+            f"reason={reason}, steps={accepted_steps}, "
+            f"rejections={rejected_steps}, SNESfail={snes_failures}, "
+            f"actual_t={actual_end:.12g}"
+        )
+    times = np.asarray(system.solution["t"], dtype=float)
+    samples = [ensure_real(z, "stored physical state").copy()
+               for z in system.solution["z"]]
+    if (times.shape != (2,) or len(samples) != 2
+            or abs(times[0]) > 1e-12
+            or abs(times[1] - STEP) > 1e-12):
+        raise RuntimeError(
+            f"One-step CN did not archive two physical endpoints: {times}"
+        )
+    initial, final = samples
+    candidate = published["candidate"]
+    if not mpi.allreduce(bool(np.array_equal(initial, candidate)), op=MPI.LAND):
+        raise RuntimeError("First stored physical state differs from published t0")
+
+    dnames, anames, iv, n = layout(system)
+    d = indices(dnames, iv)
+    qdot = (final-initial)/STEP
+    mid = (final+initial)/2
+    # TSCN forms the implicit residual at the midpoint. An endpoint
+    # time-dependent algebraic constraint need NOT vanish under CN,
+    # even when the midpoint residual does. Record BOTH without
+    # incorrectly treating endpoint drift as a nonlinear solver failure.
+    stage = native_residual(
+        system, mpi, mid, qdot, STEP/2, iv, (dnames, anames)
+    )
+    endpoint = native_residual(
+        system, mpi, final, np.zeros(n), STEP, iv, (dnames, anames)
+    )
+    if not np.isfinite(stage["full_l2"]) or stage["full_l2"] > 1e-7:
+        raise RuntimeError(
+            "Accepted PETSc CN step fails independent original midpoint "
+            f"GetFEM IFunction: norm={stage['full_l2']:.9g}"
+        )
+
+    # The independent original SWE diagnostic computes the weighted
+    # physical wall powers, NOT generic (unweighted) port power.
+    powers = diagnostics(system, gamma=0.)
+    for key in (
+        "H", "kinetic", "potential", "p_normal", "p_viscous",
+        "d_grad", "d_div", "volume", "volume_balance",
+        "supplied", "dissipated", "balance",
+        "relative_balance_exchange",
+    ):
+        powers[key] = _series(powers[key], 2, key)
+    h = powers["H"]
+    change = float(h[1]-h[0])
+    work = float(powers["supplied"][1])
+    diss = float(powers["dissipated"][1])
+    defect = float(change + diss-work)
+    scale = max(abs(change), abs(work), abs(diss), 1e-14)
+    if not np.all(np.isfinite(
+        [change, work, diss, defect, scale]
+    )) or diss < -1e-12:
+        raise RuntimeError("Nonfinite or negative physical viscous dissipation")
+    hstart, nh = iv["h"]
+    height = final[hstart:hstart+nh]
+    if not np.isfinite(height).all() or float(height.min()) <= 0:
+        raise RuntimeError("Nonpositive/invalid physical SWE height coefficients")
+
+    # DO NOT claim physical power-balance convergence from one dt.
+    # The defect is measured relative to actual exchanged energy;
+    # h-weighted wall work and separate grad/div dissipation are saved.
+    result = {
+        "schema": "scrimp-v130-issue28-one-cn-spinup-v1",
+        "status": "NATIVE_SINGLE_PHYSICAL_CN_STEP_DIAGNOSTIC_ONLY",
+        "source_mesh": args.mesh, "mpi_ranks": mpi.size,
+        "new_physical_rest_spinup_experiment": True,
+        "original_incompatible_rotation_initial_state_unchanged": True,
+        "geometry_order": 2, "height_order": 2,
+        "physical_facet_tangent_wall": True, "rotation_after_spinup": ROTATION,
+        "spinup_duration": RAMP_DURATION,
+        "physical_scheme": "cn", "physical_time_step": STEP,
+        "initial": report,
+        "ts_converged_reason": reason,
+        "ts_accepted_steps": accepted_steps,
+        "ts_rejected_steps": rejected_steps,
+        "ts_snes_failures": snes_failures,
+        "ts_actual_final_time": actual_end,
+        "original_IFunction_midpoint_l2": stage,
+        "original_IFunction_endpoint_l2": endpoint,
+        "first_physical_state_changed": bool(
+            not np.array_equal(final[d], initial[d])
+        ),
+        "dynamic_step_change_l2": float(np.linalg.norm(final[d]-initial[d])),
+        "first_step_minimum_height_coefficient": float(height.min()),
+        "hamiltonian_initial": float(h[0]),
+        "hamiltonian_final": float(h[1]),
+        "hamiltonian_change": change,
+        "physical_boundary_normal_work": float(
+            STEP * powers["p_normal"][1]
+        ),
+        "physical_boundary_viscous_work": float(
+            STEP * powers["p_viscous"][1]
+        ),
+        "integrated_boundary_work": work,
+        "integrated_viscous_dissipation": diss,
+        "integrated_dissipation_grad": float(
+            STEP * powers["d_grad"][1]
+        ),
+        "integrated_dissipation_div": float(
+            STEP * powers["d_div"][1]
+        ),
+        "physical_power_balance_defect": defect,
+        "physical_power_balance_defect_over_actual_exchange":
+            float(defect/scale),
+        "physical_volume_balance_defect":
+            float(powers["volume_balance"][1]),
+        "two_endpoint_states_archived": True,
+        "native_original_midpoint_equations_verified": True,
+        "energy_balance_convergence_qualified": False,
+        "physical_multistep_trajectory_qualified": False,
+        "production_high_index_initializer_qualified": False,
+        "interpretation": (
+            "The exact t0 analytic physical state was published by "
+            "an isolated sandbox patch, and one real CN step was accepted. "
+            "Independent original midpoint GetFEM equations were tested. "
+            "Original physical weighted boundary powers, dissipation, "
+            "Hamiltonian/volume changes and endpoint algebraic residual "
+            "are RECORDED, but not yet claimed converged or physical "
+            "energy balance accurate without a dt refinement check."
+        ),
+    }
+    if mpi.rank == 0:
+        args.out.mkdir(parents=True, exist_ok=True)
+        (args.out/"one_cn_spinup.json").write_text(
+            json.dumps(result, indent=2)+"\n", encoding="utf-8"
+        )
+        np.savez_compressed(
+            args.out/"one_cn_spinup_endpoints.npz",
+            times=times, initial=initial, final=final,
+            H=powers["H"], p_normal=powers["p_normal"],
+            p_viscous=powers["p_viscous"],
+            d_grad=powers["d_grad"], d_div=powers["d_div"],
+        )
+        print(
+            f"ISSUE28 ONE CN PHYSICAL mesh={args.mesh:g} MPI={mpi.size} "
+            f"TS_reason={reason} accepted=1 "
+            f"mid_F={stage['full_l2']:.9g} "
+            f"end_Fa={endpoint['algebraic_l2']:.9g} "
+            f"dH={change:.9g} W={work:.9g} D={diss:.9g} "
+            f"balance={defect:.9g} "
+            f"balance/exchange={defect/scale:.9g}",
+            flush=True,
+        )
+    mpi.Barrier()
+
+
+if __name__ == "__main__":
+    main()
