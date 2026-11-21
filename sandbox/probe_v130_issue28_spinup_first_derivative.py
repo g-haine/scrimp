@@ -43,7 +43,7 @@ from probe_v130_issue28_weak_wall import ensure_real
 
 
 def full_vector(vector, mpi):
-    """Collect only the small diagnostic (3300 DOF) PETSc distributed vector."""
+    """Gather distributed native PETSc diagnostic coefficients with real-value validation."""
     return np.concatenate(mpi.allgather(
         ensure_real(vector.getArray(readonly=True), "PETSc native vector").copy()
     ))
@@ -87,28 +87,26 @@ def audit(s, mpi, mesh):
     initial = ensure_real(s.gf_model.from_variables(), "original physical q0").copy()
     if initial.shape != (n,) or not np.isfinite(initial).all():
         raise RuntimeError("Invalid original prescribed GetFEM state")
+    if np.any(initial[indices(("p",), iv)]):
+        raise RuntimeError("Original physical spinup p0 must be exactly zero")
     start_d = initial[d].copy()
     start_Y = initial[y].copy()
     if not np.array_equal(start_Y, np.zeros_like(start_Y)):
         raise RuntimeError("Original Y0 initial guess was changed")
-    if label == "spinup":
-        start = initial.copy()
-        for name, value in (
-            ("e_h", float(RHO*GRAVITY*H_INITIAL)),
-            ("Y_n", -float(RHO*GRAVITY*H_INITIAL)),
-        ):
-            first, count = iv[name]
-            start[first:first+count] = value
-    elif label == "rotating":
-        start = initial.copy()
-    else:
-        raise ValueError("Unknown physical case")
+    start = initial.copy()
+    for name, value in (
+        ("e_h", float(RHO*GRAVITY*H_INITIAL)),
+        ("Y_n", -float(RHO*GRAVITY*H_INITIAL)),
+    ):
+        first, count = iv[name]
+        start[first:first+count] = value
 
     snapshot_ready = getattr(s, "_explicit_rhs_ready", False)
     snapshot_time = getattr(s, "_explicit_rhs_time", None)
     snap_rhs = getattr(s, "_explicit_rhs", None)
     snap_rhs_copy = snap_rhs.copy() if snap_rhs is not None else None
     snap_global = s.GlobalVec.copy()
+    global_original = full_vector(s.GlobalVec, mpi)
     owned_lo, owned_hi = s.tangent_stiffness.getOwnershipRange()
     objects = []
 
@@ -483,6 +481,12 @@ def audit(s, mpi, mesh):
         s.gf_model.set_time(0.)
         s.gf_model.to_variables(initial.copy())
         snap_global.copy(s.GlobalVec)
+        if not mpi.allreduce(
+            bool(np.array_equal(full_vector(s.GlobalVec, mpi),
+                                global_original)),
+            op=MPI.LAND,
+        ):
+            raise RuntimeError("Read-only physical-RHS pilot failed GlobalVec rollback")
         s._explicit_rhs_ready = snapshot_ready
         s._explicit_rhs_time = snapshot_time
         if snap_rhs_copy is not None and snap_rhs is not None:
