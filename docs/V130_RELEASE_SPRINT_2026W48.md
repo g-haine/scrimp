@@ -2765,3 +2765,122 @@ actual fixed-q normal/tangential trace errors, LSQR stopping
 sensitivity and mesh trend *before* deciding whether rotating
 constraints are numerically/physically feasible.
 **#28 remains OPEN; nontrivial rotating #6 remains blocked.**
+
+## 21 November 2026 — #28 original curved-P2 physical compatibility: NATIVE MPI 1/2 PASSED (TRACE DIAGNOSTIC ONLY)
+
+Source `c1988939be5bd3836628295fe88ad6d59f385547`,
+immutable `scrimp-mpi:v1.3.0-rc3` with OCI
+`1d6d0c90115213298047b28237a7f38087563a35`.
+Host evidence directory:
+`sandbox/outputs/v130-issue28-physical-compatibility-c1988939-WqmfWd2x/`;
+matching archive `v130-issue28-physical-compatibility-c1988939-WqmfWd2x.zip`.
+**All 7 host-side negative/fixture tests passed** and all
+8 genuine GetFEM runs (original rest/rotation, geometry P2,
+nominal mesh 0.2/0.1, MPI1/2) completed. The host
+comparator returned:
+`COMPLETE_PHYSICAL_TRACE_DIAGNOSTIC_NOT_INITIALIZER`.
+
+### Fixed original rotating physical momentum: native boundary RMS
+
+| `omega=0.2`, independent GetFEM boundary measure | h=0.2, 3,300 DOFs | h=0.1, 10,272 DOFs | h-refinement factor |
+|---|---:|---:|---:|
+| `RMS((p0/rho).n)` | 1.3937491763e-5 | 2.0057694048e-6 | 0.1439117912 |
+| `RMS((p0/rho).t-omega)` | 4.8200908963e-7 | 2.2071385559e-7 | 0.4579039282 |
+| `RMS(p0/rho-omega*t)` | 1.3945824085e-5 | 2.0178764857e-6 | 0.1446939581 |
+| `RMS((p0/rho).t)` | 0.1999995260 | 0.1999997794 | — |
+
+Here `t=Rot*Normal` with the unchanged original clockwise GWFL
+sign and wall law. MPI1 and MPI2 physically normalized RMS values
+agree to rounding for **every** case; both rest meshes give exact
+zero normal and tangential defects. Comparison against nominal mesh
+halving gives descriptive two-point slopes `~2.797` (normal),
+`~1.127` (tangential), `~2.789` (full vector), **not**
+established convergence orders. These nonzero **strong**
+boundary mismatch integrals are independent of the LSQR projection.
+They are consistent with geometric/trace approximation effects
+and show that the original rotating `q0` does not satisfy the
+imposed trace **pointwise/L2-exactly** at these mesh sizes.
+They do **NOT** by themselves prove failure of the *weak finite-
+element* algebraic compatibility equations: an L2 nonzero field
+can still have zero moments against the discrete test space.
+
+**MPI scalar-integration convention independently checked:**
+on all four case/mesh combinations GetFEM returns the same
+**already global** scalar integral on both MPI processes.
+The comparator correctly classifies MPI2 as
+`replicated-global` after calibration against the actual
+area and perimeter from MPI1. Never sum those two copies when
+performing physical power, boundary or area audits.
+
+### h=0.2 rotating algebraic LSQR sensitivity, actual native F_a
+
+| Native quantity | MPI1 standard | MPI1 tight | MPI2 standard | MPI2 tight |
+|---|---:|---:|---:|---:|
+| LSQR iterations | 5171 | 5852 | 5101 | 5723 |
+| `||Fa||_2` | 4.1794109732e-8 | 4.1573736753e-8 | 4.1929570788e-8 | 4.1576937032e-8 |
+| `||A^T Fa||_2` | 5.0372e-11 | 5.4445e-12 | 4.3682e-11 | 5.3671e-12 |
+| `||delta_a||_2` | 13.0655182281 | 13.0655182281 | 13.0655182283 | 13.0655182280 |
+| relative `delta_a` change from standard | 0 | 3.01744e-7 | 0 | 3.90119e-7 |
+
+Both KSP runs returned convergence reason 1. The smallest
+rotating `Fa` remains `~4.157e-8`, **above**
+the earlier unscaled `2.60963e-9` raw-coefficient threshold.
+Tightening LSQR decreases the normal-equation gradient by
+nearly an order of magnitude but only reduces `||Fa||`
+by ~0.5%. The dominant tight residual block is `e_p`
+(`~4.10055e-8`), followed by `U` (`~6.704e-9`).
+This suggests a nonzero discrete least-squares floor,
+but neither proves impossibility of exact weak algebraic
+compatibility nor establishes the spectrum/conditioning
+of the rectangular problem. Raw `Fa` Euclidean
+coefficient norms must **not** be compared across
+meshes without a consistent physical/dual scaling.
+
+At the MPI1 tight projection, separately measured *strong*
+physical RMS were `||e_p-p/rho||_Omega/√|Omega| =
+1.36311987e-7`, weighted velocity constitutive RMS
+`3.04802869e-7`,
+`||e_p-U||_Gamma/√|Gamma|=6.10108e-10`,
+`||U-U_n*n-omega*t||_Gamma/√|Gamma|=
+1.39334856e-5`, `||U_n||_Gamma/√|Gamma|=
+3.63294e-11`, and pressure constitutive RMS
+`||e_h-rho*g*h-|p|²/(2rho)||_Omega/√|Omega|=
+5.11671926e-4`.
+The latter strong pressure error is **not**
+itself evidence of an inconsistent *weak* constitutive
+equation: the non-polynomial kinetic expression need
+not belong to the P2 co-energy space even when its
+Galerkin projection satisfies the test equations.
+
+**QUALIFIED:** immutable native #28 diagnostic probe,
+true original curved P2 strong boundary mismatch
+and constitutive measures, calibrated MPI scalar
+assembly, exact-rest positive control and MPI1/2
+parity on both meshes, read-only original `h0,p0`.
+There were no BDF/pseudo/physical time steps, no
+accepted traction `Y0`, and no changed wall law.
+The prior first-differentiated true-physical-RHS
+MPI diagnostic remains separately qualified.
+
+**NOT QUALIFIED:** weak discrete compatibility
+`Fa(q0,a0)=0` for original rotation, unique consistent
+`Y0`, differentiation index, physical rotating
+time evolution or its Hamiltonian/port-power balance.
+Original #28 and nontrivial rotating #6 remain OPEN.
+
+**NEXT DISCIMINATING GATE:** independently measure the
+*moments of the prescribed wall mismatch* against the
+actual GetFEM boundary test space, using a verified
+MPI-consistent boundary Riesz mass matrix / dual norm
+rather than inferring weak inconsistency from a
+strong L2 mismatch. In parallel, check a *properly
+scaled* h=0.1 regular-algebraic projection to separate
+the stationary LSQR residual floor from the
+geometry-dependent mismatch. Compare nonlinear
+`IFunction Fa` blockwise after both projections,
+including the interior co-energy weak projection.
+Only if both algebraic feasibility and first-
+differentiated consistency are independently verified
+may a diagnostic `Y0` be promoted toward a DAE
+initializer. Do not alter original `p0`, geometry
+or imposed physical wall velocity to obtain a PASS.
