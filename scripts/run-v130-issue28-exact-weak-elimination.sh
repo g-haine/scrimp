@@ -62,15 +62,18 @@ from pathlib import Path
 
 path = Path(sys.argv[1])
 manifest = json.loads(path.read_text(encoding="utf-8"))
-assert manifest.get("schema") == "v130-issue28-exact-weak-elimination-v1"
-assert manifest.get("image_revision") == sys.argv[2]
-assert manifest.get("source") in (
-    "a28aee142b2d1798e225535f9dab217a91938a0c",
-    sys.argv[3],
-), "Original run must be the known already-validated P2 diagnostic"
-assert manifest.get("original_fixed_h0_p0") is True
-assert manifest.get("no_physical_time_steps") is True
-assert manifest.get("accepted_Y0") is False
+if not (
+    manifest.get("schema") == "v130-issue28-exact-weak-elimination-v1"
+    and manifest.get("image_revision") == sys.argv[2]
+    and manifest.get("source") in (
+        "a28aee142b2d1798e225535f9dab217a91938a0c",
+        sys.argv[3],
+    )
+    and manifest.get("original_fixed_h0_p0") is True
+    and manifest.get("no_physical_time_steps") is True
+    and manifest.get("accepted_Y0") is False
+):
+    raise SystemExit("Refusing mismatched/unchecked native P2 resume manifest")
 (path.parent/"resume_metadata.json").write_text(
     json.dumps({
         "original_native_run_source": manifest["source"],
