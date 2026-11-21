@@ -68,7 +68,7 @@ def run():
     # gyroscopic weak bricks remain the original ones.
     system = build_system(
         gamma=0., mesh=args.mesh, geometry_order=2, height_order=2,
-        final_time=FINAL_TIME, save_dt=dt, max_step=dt,
+        final_time=FINAL_TIME, save_dt=dt*(1.-1e-9), max_step=dt,
         ramp_start=.03, ramp_end=.06,
         init_step=True, ts_type="cn", adapt_type="none",
         init_dt=1e-9, rotation=ROTATION, initial_profile="rigid",
