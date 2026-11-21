@@ -2265,3 +2265,121 @@ native MPI 1/2 parity; avoid changing original
 physical data or introducing a pseudo TS.
 Only then attempt a qualified consistent
 high-index initialization.
+
+
+## 21 November 2026 — #28 rotating viscous disk: first-differentiated discrete-constraint rank pilot (SOURCE ONLY)
+
+The previous native six-run fixed-T shallow-water
+`dt`-refinement has passed in MPI 1/2:
+closed-system signed energy defect ratios
+`3.9611253522` and `4.0525883790`,
+observed orders `1.9859103569` and
+`2.0188436485` at original h_mesh `0.1`
+and final time `0.0004`.
+This **empirical** result does not solve the
+original rotating *viscous* P2 disk initial
+traction. Focus returns to #28 high-index
+initialization.
+
+**Original native structural fact**:
+`dF_a/dY=0` for the **132 traction-Y DOFs**,
+while `dF_d/dY` is nonzero, so a square
+ordinary `J_aa` Newton is invalid. The
+rotating original `q0=(h0,p0)` is NOT
+yet proven to satisfy the *exact discrete*
+algebraic boundary constraints, even after
+the GWFL orientation correction and curved
+geometric P2 refinement. The post-correction
+rotating reduced LSQR residual `~4.18e-8`
+is not a mathematical nonexistence certificate:
+the very same LSQR had a false-negative rest
+classification, whereas the exact resting state
+was subsequently verified at `~1e-17`.
+
+At a **consistent** stationary or rotating
+algebraic initial state, differentiate
+`F_a(q,a_r,t)=0` once, with
+`q=(h,p)`, `a_r=(e_h,e_p,Y_n,U_n,U)`
+and `Y` the **unconstrained** traction.
+The candidate first-differentiated block
+operator is
+
+```text
+             columns: qdot      a_regular_dot      Y0
+rows F_d :           M_dd           0             J_dY
+rows dF_a/dt :       J_aq         J_a,a_reg          0
+```
+
+Its expected size on the original
+P2 geometry `mesh=0.2` is `3300 x 3300`:
+1452 original differential DOFs,
+1716 regular-algebraic DOFs and
+132 traction-Y DOFs.
+The lower row represents
+`J_aq*qdot+J_ar*a_r_dot+F_a,t=0`.
+The dynamic right-hand side must
+eventually include **all original**
+gyro, viscosity, pressure and wall
+terms; it is **NOT computed in this pilot**.
+
+New source-only native audit:
+`sandbox/probe_v130_issue28_differentiated_rank.py`
+and `scripts/run-v130-issue28-differentiated-rank.sh`.
+They build the *real* P2 GetFEM mass and
+nonlinear tangent blocks and a PETSc sparse
+two-row/three-column MatNest converted to
+AIJ; perform two independent MUMPS
+**synthetic** linear reconstruction tests,
+reporting both x-recovery and residual
+accuracy. Actual base cases:
+(1) *exact resting equilibrium* `omega=0`
+with only known algebraic values set to
+`e_h=0.5` and `Y_n=-0.5`;
+(2) original `omega=0.2` rotating physical
+`h0,p0` with the original **zero**
+algebraic guess and corrected wall
+`Rot`. Both MPI1/2 native runs measure
+`F_a` at the linearization point and
+restore **all** GetFEM coefficients bitwise.
+No pseudo TS, physical TS, artificial
+physical forcing, algebraic projection or
+actual initial Y0 solve is performed.
+
+**Interpretation is intentionally narrow:**
+successful inversion on two synthetic
+right-hand sides is **a numerical
+regularity diagnostic at that linearization**;
+it does not rigorously prove full rank,
+the differentiation index, or existence
+of a compatible rotating initial state.
+If the original rotating `F_a(q0,a0,t0)`
+cannot be driven to the required
+physically scaled tolerance **without
+modifying the prescribed q0**, there
+is no consistent DAE start at those exact
+discrete data, regardless of the
+bordered matrix rank.
+Rank inference must therefore always be
+reported alongside the native initial
+algebraic residual.
+
+**NATIVE RUN NOT YET EXECUTED.**
+A numerically singular or inconclusive
+bordered operator is a legitimate
+diagnostic observation, **not a PASS of
+rotating Y0 initialization**.
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+SCRIMP_DOCKER_NO_SUDO=1 SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+  bash scripts/run-v130-issue28-differentiated-rank.sh
+```
+
+After inspecting native MPI1/2 rank/compatibility
+data, design a mathematically defensible
+consistent initial traction `Y0` (or
+report infeasibility of exactly fixed
+`h0,p0`), and only then attempt
+a physical rotating TS with power
+and mesh refinement. Issue #28 OPEN.
