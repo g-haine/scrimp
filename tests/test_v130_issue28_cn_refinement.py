@@ -197,7 +197,10 @@ class TestFixedPhysicalTimeCNRefinement(unittest.TestCase):
 
     def test_rejects_MPI_full_FEM_vector_mismatch(self):
         def bad(report,traces):
-            traces["states"][-1,42] += 5e-4
+            # Corrupt an ALGEBRAIC coefficient, keeping the original
+            # h/p dynamic change norm and scalar reports identical.
+            # This must reach the full MPI final FE vector gate.
+            traces["states"][-1,DYNAMIC_DOFS[.1]+20] += 5e-4
         self.mutate(.1,8,2,bad)
         with self.assertRaisesRegex(ValueError,"full final FE coefficient"):
             compare(self.root)
