@@ -164,6 +164,12 @@ def compare(evidence):
                     for trial in trials:
                         number(trial.get("native_Fa_l2"), "LSQR Fa")
                         number(trial.get("normal_equation_AT_Fa_l2"), "LSQR normal")
+                        require(number(trial.get("algebraic_correction_l2"),
+                                       "LSQR correction") >= 0.
+                                and number(trial.get(
+                                    "relative_coefficient_change_from_standard"
+                                ), "LSQR sensitivity") >= 0.,
+                                "Invalid algebraic LSQR coefficient sensitivity")
                         require(isinstance(trial.get("iterations"), int)
                                 and trial["iterations"] >= 0,
                                 "Invalid LSQR iteration count")
