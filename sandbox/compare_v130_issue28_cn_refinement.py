@@ -82,6 +82,22 @@ def validate(data, mesh, ranks, count):
     check(finite(init.get("initial_native_IFunction", {}).get("full_l2"),
                  "initial exact DAE full residual") < 1e-10,
           "Initial pH-DAE constraints were not exactly compatible")
+    intervals = data.get("dynamic_variable_intervals")
+    check(isinstance(intervals, dict) and set(intervals)=={"h","p"},
+          "Missing native original GetFEM dynamic intervals")
+    selected = []
+    for name in ("h","p"):
+        iv=intervals[name]
+        check(isinstance(iv,list) and len(iv)==2
+              and all(type(x) is int for x in iv)
+              and 0 <= iv[0] < DOFS[mesh]
+              and 0 < iv[1] <= DOFS[mesh]-iv[0],
+              f"Invalid native {name} GetFEM interval")
+        selected.extend(range(iv[0],iv[0]+iv[1]))
+    check(len(set(selected))==DYNAMIC_DOFS[mesh]
+          and data.get("actual_total_dofs")==DOFS[mesh]
+          and data.get("differential_dofs")==DYNAMIC_DOFS[mesh],
+          "Native GetFEM dynamic h/p variable layout changed")
     check(data.get("requested_steps") == count
           and data.get("ts_accepted_steps") == count
           and data.get("ts_rejected_steps") == 0
@@ -206,16 +222,21 @@ def load_native_case(root, mesh, ranks, count):
     check(math.isclose(balance[-1],metrics["balance_defect"],
                        rel_tol=1e-7,abs_tol=2e-12),
           "Native archived h-weighted physical balance contradicts JSON")
+    ii=np.asarray([
+        k for name in ("h","p")
+        for k in range(
+            report["dynamic_variable_intervals"][name][0],
+            sum(report["dynamic_variable_intervals"][name])
+        )
+    ],dtype=np.int64)
+    diff=norm(states[-1,ii]-states[0,ii])
     check(math.isclose(
-        norm(states[-1,:DYNAMIC_DOFS[mesh]]-states[0,:DYNAMIC_DOFS[mesh]]),
-        float(report["final_dynamic_state_change_l2"]),
+        diff,float(report["final_dynamic_state_change_l2"]),
         rel_tol=1e-10,abs_tol=1e-12
-    ) is False or True, "placeholder")
-    # Dynamic DOF slices are obtained from actual GetFEM layout in the
-    # native report, rather than trusting the leading vector segment
-    # when the variable order can change in future SCRIMP versions.
+    ),"Original dynamic physical state change differs from native FE trace")
     return {**metrics, "times":times, "states":states, "traces":traces,
-            "final":states[-1], "initial":states[0]}
+            "final":states[-1], "initial":states[0],
+            "final_dynamic":states[-1,ii].copy(), "dynamic_indices":ii}
 
 
 def compare(directory):
@@ -254,13 +275,14 @@ def compare(directory):
                 f"volume={a['volume_defect']:.9g} MPI1/2 PASS",
                 flush=True,
             )
-        # Same spatial geometry and fixed final physical time across
-        # the entire temporal grid. Euclidean full-vector endpoint
-        # differences measure accuracy changes, not an exact PDE norm.
+        # Same spatial geometry and fixed final physical time.
+        # Compare ONLY original dynamic h,p coefficients, not
+        # algebraic multipliers that need not converge similarly.
+        # These coefficient norms are not continuum L2 error norms.
         errors={}
         for low,high in zip(STEP_COUNTS[:-1],STEP_COUNTS[1:]):
             errors[f"{low}_vs_{high}"]=norm(
-                per_count[low]["final"]-per_count[high]["final"]
+                per_count[low]["final_dynamic"]-per_count[high]["final_dynamic"]
             )
         orders={}
         vals=list(errors.values())
@@ -271,7 +293,7 @@ def compare(directory):
             orders[f"{STEP_COUNTS[i]}_{STEP_COUNTS[i+1]}_"
                    f"vs_{STEP_COUNTS[i+1]}_{STEP_COUNTS[i+2]}"]=value
         summary[f"h{mesh:g}"]={
-            "final_state_full_vector_temporal_differences":errors,
+            "final_dynamic_h_p_temporal_differences":errors,
             "observed_order_estimates_not_general_certificates":orders,
             "n1_balance_over_exchange":per_count[1]["balance_over_exchange"],
             "n8_balance_over_exchange":per_count[8]["balance_over_exchange"],
