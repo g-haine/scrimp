@@ -6,20 +6,23 @@
 #
 # github: https://github.com/g-haine/scrimp
 
-"""#28/#6: sandbox-only analytic startup and ONE physical CN step.
+"""#28/#6: sandbox-only analytic startup and one real PETSc TSCN step.
 
-Original viscous SWE weak bricks and physically facet-tangential wall.
-Explicitly NEW compatible rest-to-rotation experiment (h0=5,p0=0).
-Intercept only the sandbox DPHS.init_step hook: no production initializer
-is changed. Publish the already native-qualified analytic initial efforts
-in BOTH GetFEM and the PETSc replicated GlobalVec, preserving h0,p0
-bitwise, then let the REAL unmodified SCRIMP TS integrate one step.
-Fail closed on missing/incorrect accepted PETSc TS or midpoint residual.
+New compatible rest-to-spinup experiment, original viscous SWE bricks.
+Publish already native-qualified rest coefficients in the isolated
+sandbox init hook, preserving differential q0 and production source.
 
-Record (do not yet certify) physical Hamiltonian, weighted boundary
-port work, viscous dissipation and endpoint constraint drift. The
-midpoint/endpoint distinction matters for CN on a non-autonomous DAE.
-No extrapolation to a general high-index initializer or trajectory.
+PETSc ts_type=cn is ENDPOINT theta=0.5 TRAPEZOIDAL, not implicit
+midpoint. Exact PETSc equation at one step:
+F(t1,z1,2*(z1-z0)/dt) + F(t0,z0,0) = 0.
+Check this equation with the original unmodified IFunction; retain
+the midpoint residual as OUT-OF-SCHEME diagnostic only.
+
+PETSc explicitly cautions that TSCN endpoint assumes linear
+time-independent mass, unlike nonlinear SWE M(h). A small
+TSCN equation residual is a solver qualification ONLY, not
+a proof of physical order, Hamiltonian/power balance or
+general high-index DAE initialisation.
 """
 
 import argparse
@@ -328,8 +331,17 @@ def main():
         "ts_rejected_steps": rejected_steps,
         "ts_snes_failures": snes_failures,
         "ts_actual_final_time": actual_end,
-        "original_IFunction_midpoint_l2": stage,
-        "original_IFunction_endpoint_l2": endpoint,
+        "petsc_TSCN_form": "theta_0p5_endpoint_trapezoidal",
+        "petsc_TSCN_shift": 2.0/STEP,
+        "petsc_TSCN_affine_old_F_coefficient": -1.0,
+        "nonlinear_mass_PETSc_endpoint_assumption_violated": True,
+        "nonlinear_mass_time_accuracy_qualified": False,
+        "original_IFunction_t0_zero_dot_l2": initial_zero,
+        "original_IFunction_t1_twice_difference_dot_l2": final_twice_dot,
+        "original_IFunction_TSCN_endpoint_equation_l2": cn_equation,
+        "original_IFunction_midpoint_OUT_OF_SCHEME_l2":
+            midpoint_diagnostic,
+        "original_IFunction_endpoint_zero_dot_l2": endpoint_zero_dot,
         "first_physical_state_changed": bool(
             not np.array_equal(final[d], initial[d])
         ),
@@ -358,18 +370,20 @@ def main():
         "physical_volume_balance_defect":
             float(powers["volume_balance"][1]),
         "two_endpoint_states_archived": True,
-        "native_original_midpoint_equations_verified": True,
+        "native_original_TSCN_endpoint_equation_verified": True,
+        "implicit_midpoint_scheme_used": False,
         "energy_balance_convergence_qualified": False,
         "physical_multistep_trajectory_qualified": False,
         "production_high_index_initializer_qualified": False,
         "interpretation": (
             "The exact t0 analytic physical state was published by "
-            "an isolated sandbox patch, and one real CN step was accepted. "
-            "Independent original midpoint GetFEM equations were tested. "
-            "Original physical weighted boundary powers, dissipation, "
-            "Hamiltonian/volume changes and endpoint algebraic residual "
-            "are RECORDED, but not yet claimed converged or physical "
-            "energy balance accurate without a dt refinement check."
+            "an isolated sandbox patch, and one actual PETSc TSCN "
+            "endpoint trapezoidal step was accepted. Original IFunction "
+            "was tested against F(t1,z1,2*delta/dt)+F(t0,z0,0)=0. "
+            "The implicit-midpoint evaluation is OUT-OF-SCHEME only. "
+            "PETSc's TSCN endpoint assumes time-independent linear mass, "
+            "not satisfied by the nonlinear SWE M(h), so no order, "
+            "physical power or high-index production claim is made."
         ),
     }
     if mpi.rank == 0:
@@ -387,8 +401,9 @@ def main():
         print(
             f"ISSUE28 ONE CN PHYSICAL mesh={args.mesh:g} MPI={mpi.size} "
             f"TS_reason={reason} accepted=1 "
-            f"mid_F={stage['full_l2']:.9g} "
-            f"end_Fa={endpoint['algebraic_l2']:.9g} "
+            f"TSCN_F={cn_equation['full_l2']:.9g} "
+            f"mid_OUT_OF_SCHEME={midpoint_diagnostic['full_l2']:.9g} "
+            f"end_Fa={endpoint_zero_dot['algebraic_l2']:.9g} "
             f"dH={change:.9g} W={work:.9g} D={diss:.9g} "
             f"balance={defect:.9g} "
             f"balance/exchange={defect/scale:.9g}",
