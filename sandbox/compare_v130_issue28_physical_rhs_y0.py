@@ -36,7 +36,7 @@ def compare(evidence):
     folder = Path(evidence)
     require(folder.is_dir(), "Missing saved host evidence directory")
     manifest = json.loads((folder/"manifest.json").read_text(encoding="utf-8"))
-    require(manifest.get("schema") == "v130-issue28-physical-rhs-Y0-pilot-v1",
+    require(manifest.get("schema") == "v130-issue28-physical-rhs-Y0-pilot-v2",
             "Wrong native campaign schema")
     require(manifest.get("image_revision") == EXPECTED_IMAGE,
             "Wrong immutable Docker revision")
@@ -50,7 +50,7 @@ def compare(evidence):
             path = folder/f"result_{case}_{ranks}"/"physical_rhs_y0_pilot.json"
             require(path.is_file(), f"Missing native report {path}")
             r = json.loads(path.read_text(encoding="utf-8"))
-            require(r.get("schema") == "scrimp-v130-issue28-physical-RHS-Y0-pilot-v1",
+            require(r.get("schema") == "scrimp-v130-issue28-physical-RHS-Y0-pilot-v2",
                     f"Native schema wrong {case}/{ranks}")
             require(r.get("status") == "DIAGNOSTIC_TRUE_RHS_SOLVED_NOT_INITIALIZED",
                     f"Physical Y0 improperly accepted {case}/{ranks}")
@@ -66,6 +66,29 @@ def compare(evidence):
                     f"Original P2 geometry or physical initial q0 changed {case}/{ranks}")
             require(r.get("bordered_KSP_reason", 0) > 0,
                     f"Physical-RHS bordered solver failed {case}/{ranks}")
+            require(r.get("matnest_original_row_and_column_IS_used") is True
+                    and r.get("matnest_solution_reconstructed_by_block_IS") is True,
+                    f"Native MatNest IS ordering not verified {case}/{ranks}")
+            require(finite(r.get("matnest_physical_rhs_roundtrip_l2"),
+                           "MatNest RHS packing") <= 1e-13,
+                    f"Physical RHS packing failed in MatNest {case}/{ranks}")
+            for field, expected_length, norm_field in (
+                ("candidate_qdot_coefficients", 1452, "candidate_qdot_l2"),
+                ("candidate_regular_algebraic_derivative_coefficients",
+                 1716, "candidate_regular_algebraic_derivative_l2"),
+                ("candidate_traction_Y0_coefficients", 132,
+                 "candidate_traction_Y0_l2"),
+            ):
+                values = r.get(field)
+                require(isinstance(values, list)
+                        and len(values) == expected_length,
+                        f"Incomplete physical block vector {field} {case}/{ranks}")
+                require(all(math.isfinite(finite(v, field)) for v in values),
+                        f"Nonfinite physical block vector {field} {case}/{ranks}")
+                length = math.sqrt(math.fsum(v*v for v in values))
+                require(math.isclose(length, r[norm_field],
+                                     rel_tol=1e-9, abs_tol=1e-12),
+                        f"Physical {field} vector norm mismatch {case}/{ranks}")
             require(finite(r.get("bordered_relative_true_rhs_residual"), "linear residual")
                     < 1e-8,
                     f"Original bordered physical RHS not numerically solved {case}/{ranks}")
@@ -104,6 +127,25 @@ def compare(evidence):
                 f"MPI algebraic projection mismatch {case}: {fa1},{fa2}")
         Y1=a["candidate_traction_Y0_l2"]
         Y2=b["candidate_traction_Y0_l2"]
+        def relative_block_parity(field):
+            v1=a[field]
+            v2=b[field]
+            norms=(
+                math.sqrt(math.fsum(x*x for x in v1)),
+                math.sqrt(math.fsum(x*x for x in v2)),
+            )
+            return (
+                math.sqrt(math.fsum((x-y)**2 for x,y in zip(v1,v2)))
+                /max(1.,*norms)
+            )
+        qdot_parity=relative_block_parity("candidate_qdot_coefficients")
+        y_vector_parity=relative_block_parity("candidate_traction_Y0_coefficients")
+        # Compare complete physical vectors, NOT merely their norms.
+        # For a rotating state with nonzero Fa, this checks numerical
+        # reproducibility of a diagnostic candidate, not admissibility.
+        require(qdot_parity <= 1e-3 and y_vector_parity <= 1e-3,
+                f"MPI original physical candidate vector parity failure "
+                f"{case}: qdot={qdot_parity:.9g}, Y0={y_vector_parity:.9g}")
         # Record Y0 rank sensitivity, but DO NOT accept a physical
         # rotating Y0 based on rank parity at an incompatible state.
         parity=abs(Y1-Y2)/max(1.,abs(Y1),abs(Y2))
@@ -113,6 +155,8 @@ def compare(evidence):
             "MPI1_candidate_Y0_l2":Y1,
             "MPI2_candidate_Y0_l2":Y2,
             "candidate_Y0_norm_MPI_relative_difference":parity,
+            "candidate_qdot_full_vector_MPI_relative_difference":qdot_parity,
+            "candidate_Y0_full_vector_MPI_relative_difference":y_vector_parity,
             "candidate_Y0_norm_MPI_parity_below_1e-3":bool(parity <= 1e-3),
             "physical_rotating_compatibility_established":False,
         }
@@ -120,11 +164,13 @@ def compare(evidence):
             f"{case}: native physical RHS diagnostic MPI1/2 complete; "
             f"Fa=({fa1:.9g},{fa2:.9g}), "
             f"candidate |Y0|=({Y1:.9g},{Y2:.9g}), "
-            f"Y0 norm relative MPI difference={parity:.9g}",
+            f"Y0 norm relative MPI difference={parity:.9g}; "
+            f"full Y0 vector MPI difference={y_vector_parity:.9g}; "
+            f"full qdot MPI difference={qdot_parity:.9g}",
             flush=True,
         )
     result={
-        "schema":"scrimp-v130-issue28-physical-rhs-Y0-comparator-v1",
+        "schema":"scrimp-v130-issue28-physical-rhs-Y0-comparator-v2",
         "status":"COMPLETE_DIAGNOSTIC_NOT_INITIALIZER",
         "cases":summary,
         "rotating_physical_initial_Y0_qualified":False,

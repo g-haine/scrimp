@@ -400,7 +400,7 @@ def audit(s, mpi, label):
         # a tiny candidate Fa raw coefficient norm cannot replace
         # mesh-aware physical boundary compatibility measurements.
         report = {
-            "schema":"scrimp-v130-issue28-physical-RHS-Y0-pilot-v1",
+            "schema":"scrimp-v130-issue28-physical-RHS-Y0-pilot-v2",
             "status":"DIAGNOSTIC_TRUE_RHS_SOLVED_NOT_INITIALIZED",
             "case":label,"mpi_ranks":int(mpi.size),
             "original_q0_preserved_bitwise":True,

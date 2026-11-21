@@ -2559,3 +2559,24 @@ boundary-constraint compatibility,
 including mesh-scaled norms of the
 true discrete normal/tangential traces,
 before *accepting* any computed Y0.
+
+## 21 November 2026 — #28 true physical Y0 RHS: MPI2 MatNest ordering bug discovered and fixed in source (native PENDING)
+
+**Failed original native diagnostic archive** `v130-issue28-physical-rhs-Y0-64eb6b2b-DB2mNSvT.zip`, source `64eb6b2b76007f4417c22bccd37df4f85e9d1ef5`, immutable rc3 OCI. The **exact rest reference passes**: native `||F_a||~1.47e-17`, `||Y0||~1e-15`, full dynamic residual `~1e-15`. With the **original rotating** P2 physical profile, both MPI ranks have identical original fixed-q initial states and nearly identical LSQR-projected `||F_a||~4.18e-8`, with actual physical `||F_d||~0.08654` at zero derivative and traction. But:
+
+| Native rotating trial | MPI 1 | MPI 2 |
+|---|---:|---:|
+| Bordered linear KSP relative residual | `3.37e-13` | `1.68e-12` |
+| Candidate `||qdot0||` | `6.57793` | `17.41334` |
+| Candidate `||Y0||` | `0.0063778555` | `0.460843533` |
+| **Original native GetFEM dynamic `||F_d(qdot0,Y0)||`** | **`1.65e-14`** | **`0.398585756`** |
+
+The old runner stopped at the *correct* host safeguard: original GetFEM MPI2 `F_d` did not satisfy the actual PDE. **This is a real diagnostic MPI error**: small PETSc KSP residuals did not mean the correct physical RHS was assigned or the correct traction read.
+
+**Source diagnosis and fix:** the old physical-RHS diagnostic creates a PETSc parallel `MatNest`, converts it to `AIJ`, then erroneously assumes the global converted row and column ordering is the serial block concatenation `[d; a]` and `[qdot; a_reg_dot; Y0]`. In MPI, MatNest block ranges follow its **native IS** permutations and can be interleaved across ranks; using `np.concatenate` for its RHS and slicing the globally gathered solution at fixed contiguous block offsets is invalid. The previous **synthetic** rank pilot was unaffected since it always inverted an internal `A*x_ref` without interpreting physics in GetFEM variable order.
+
+The new native probe reads `matnest.getNestISs()` **before conversion** and uses its original parallel **row IS** to scatter the actual dynamic and differentiated-algebraic RHS. It checks a complete rank-local IS partition and a numerical RHS round-trip after assembly. It uses the **column IS**, plus the original compact subblock PETSc ownership ranges, to reconstruct `qdot0`, `a_regular_dot0`, and `Y0`, rather than naive global slices. It rejects trials if the injected candidate does not satisfy the **original full nonlinear native `IFunction` dynamics** at `1e-8`, even if PETSc's converted-matrix KSP reported convergence. The schema is incremented to **v2** so an old, incorrectly indexed archive cannot be silently relabelled as a success.
+
+The comparator additionally checks **full physical qdot and Y0 coefficients**, not just the norm of Y0, with independent synthetic corruption unit tests for mapping and MPI parity. Original `h0,p0`, gyroscopic/viscous and boundary weak forms and frozen-gyro semantics are **unchanged**. No Y0 state is accepted, no pseudo/physical TS is performed.
+
+**NATIVE RE-RUN PENDING:** `scripts/run-v130-issue28-physical-rhs-y0.sh`, MPI1/2 rest/rotating, from the current source. Only if the new *native* MPI2 original IFunction is below tolerance and true physical-vector parity passes can we qualify the **index-mapping diagnostic**. Even then rotating algebraic `||F_a||~4e-8` is still not a certified constraint-compatible initial DAE state; **no qualified rotating Y0 or time integration yet**.

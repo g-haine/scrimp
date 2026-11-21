@@ -50,7 +50,7 @@ done
 mkdir -p sandbox/outputs
 sha="$(git rev-parse HEAD)"
 out="$(mktemp -d "$root/sandbox/outputs/v130-issue28-physical-rhs-Y0-$(git rev-parse --short=8 HEAD)-XXXXXXXX")"
-printf '{"schema":"v130-issue28-physical-rhs-Y0-pilot-v1","source":"%s","image_revision":"%s","geometry_order":2,"original_fixed_h0_p0":true,"physical_Y0_accepted":false,"no_physical_time_steps":true}\n' \
+printf '{"schema":"v130-issue28-physical-rhs-Y0-pilot-v2","source":"%s","image_revision":"%s","geometry_order":2,"original_fixed_h0_p0":true,"physical_Y0_accepted":false,"no_physical_time_steps":true}\n' \
     "$sha" "$revision" > "$out/manifest.json"
 echo "#28 original disk P2: physical RHS after regular algebraic projection"
 echo "Source=$sha, pinned image=$image OCI=$revision"
