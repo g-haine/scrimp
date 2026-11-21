@@ -2766,3 +2766,60 @@ the higher-index rotating DAE.
 The original rotating viscous P2 case remains an open
 high-index *differentiated-constraint* initialization
 problem. #28 remains OPEN.
+
+
+## 21 November 2026 — native MPI1/2 PASS: rejected computed algebraic trial fully rolled back
+
+**Native user evidence archive:**
+`v130-issue28-negative-accuracy-20b39eb2-d3D8JQf1.zip`,
+source `20b39eb2e4a512b7536324331802c223dc924849`,
+immutable image `scrimp-mpi:v1.3.0-rc3` OCI
+`1d6d0c90115213298047b28237a7f38087563a35`.
+This is the **unchanged original physical rectangular**
+`examples/shallow_water.py` with an **artificially strict
+numerical accuracy** `init_algebraic_accuracy=1e-16`
+(no changes to physical `h0,p0` or wall conditions).
+
+| Native metric | MPI 1 | MPI 2 |
+|---|---:|---:|
+| Original `||F_a||_2` | `1281.7812562535455` | `1281.7812562535455` |
+| Computed algebraic candidate `||F_a||_2` | `2.199213556173762e-12` | `2.3277177796294783e-12` |
+| Required accuracy | `1e-16` | `1e-16` |
+| Native algebraic MUMPS convergence reason | `4` | `4` |
+| Rejected computed correction norm | `643262.3257684928` | `643262.3257684928` |
+| Algebraic affine-identity error | `1.571067363774428e-13` | `1.590053793547698e-13` |
+| Initial/GetFEM rollback bitwise | PASS | PASS |
+| PETSc `GlobalVec` rollback bitwise | PASS | PASS |
+| Frozen explicit RHS previous ready/time/contents restored | PASS | PASS |
+
+Both ranks returned `PASS_EXPECTED_NUMERICAL_REJECTION`
+via the intended `InconsistentDAEInitialData` exception
+**after** successfully computing an algebraic Newton
+correction. The production report is `REJECTED` with
+`accuracy_target_met=false`, no pseudo-initialization
+TS and no physical time step.
+
+**Qualified:** accepted production affine-algebraic projection
+on the original nonlinear-state shallow water (earlier MPI 1/2);
+safe structural rejection of rotating high-index `Y`
+(earlier P2 MPI 1/2); **and now safe post-solve numerical
+rejection with complete model, PETSc and explicit cache rollback**.
+
+**Not qualified:** rejection due to genuinely physically
+incompatible prescribed differential initial data;
+general nonlinear-in-algebraic-variable Newton;
+a physical-time run, Hamiltonian/power budget and mesh
+independent physical acceptance; and the *original*
+rotating viscous SWE initial multiplier `Y_0`.
+Issue #28 remains OPEN.
+
+**Next independent native gate:** a deliberately short
+physical-time simulation of the original rectangular
+`examples/shallow_water.py` using explicit opt-in
+`nonlinear_affine` initialization. Compare full native
+Hamiltonian and port-power balance with the original
+inviscid homogeneous-boundary equations. Do not
+modify source initial values, mesh, control laws or
+the explicit-gyro accepted-state contract merely
+to force an energy PASS. Keep rank-1/rank-2
+comparison and explicit actual time-step counts.
