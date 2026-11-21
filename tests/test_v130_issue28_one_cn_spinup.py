@@ -73,16 +73,34 @@ class OneCNHostTests(unittest.TestCase):
             "ts_rejected_steps": 0,
             "ts_snes_failures": 0,
             "ts_actual_final_time": .002,
-            "original_IFunction_midpoint_l2": {
+            "petsc_TSCN_form": "theta_0p5_endpoint_trapezoidal",
+            "petsc_TSCN_shift": 1000.,
+            "petsc_TSCN_affine_old_F_coefficient": -1.,
+            "nonlinear_mass_PETSc_endpoint_assumption_violated": True,
+            "nonlinear_mass_time_accuracy_qualified": False,
+            "original_IFunction_t0_zero_dot_l2": {
+                "full_l2": 1e-16, "algebraic_l2": 1e-17,
+                "dynamic_l2": 1e-16,
+            },
+            "original_IFunction_t1_twice_difference_dot_l2": {
+                "full_l2": 1e-16, "algebraic_l2": 1e-17,
+                "dynamic_l2": 1e-16,
+            },
+            "original_IFunction_TSCN_endpoint_equation_l2": {
                 "full_l2": 2e-12, "algebraic_l2": 1e-12,
                 "dynamic_l2": 1e-12,
             },
-            "original_IFunction_endpoint_l2": {
-                "full_l2": 1e-4, "algebraic_l2": 1e-4,
-                "dynamic_l2": 1e-5, "U_l2": 1e-4,
+            "original_IFunction_midpoint_OUT_OF_SCHEME_l2": {
+                "full_l2": 203.27337, "algebraic_l2": 20.,
+                "dynamic_l2": 200.,
+            },
+            "original_IFunction_endpoint_zero_dot_l2": {
+                "full_l2": 1e-5, "algebraic_l2": 1e-12,
+                "dynamic_l2": 1e-5, "U_l2": 1e-12,
             },
             "two_endpoint_states_archived": True,
-            "native_original_midpoint_equations_verified": True,
+            "native_original_TSCN_endpoint_equation_verified": True,
+            "implicit_midpoint_scheme_used": False,
             "first_physical_state_changed": True,
             "dynamic_step_change_l2": 1e-3,
             "first_step_minimum_height_coefficient": 4.9,
@@ -133,7 +151,7 @@ class OneCNHostTests(unittest.TestCase):
         r = compare(self.root)
         self.assertEqual(
             r["status"],
-            "ONE_NATIVE_CN_STEP_ACCEPTED_POWER_BALANCE_UNQUALIFIED",
+            "ONE_NATIVE_TSCN_STEP_ACCEPTED_NONLINEAR_MASS_AND_POWER_UNQUALIFIED",
         )
         self.assertFalse(r["physical_energy_balance_refinement_qualified"])
 
@@ -151,11 +169,35 @@ class OneCNHostTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Unsafe"):
             compare(self.root)
 
-    def test_rejects_bad_original_midpoint_IFunction(self):
+    def test_rejects_bad_actual_PETSc_TSCN_endpoint_equation(self):
         record = self.fixture(.1, 2)
-        record["original_IFunction_midpoint_l2"]["full_l2"] = 1e-2
+        record["original_IFunction_TSCN_endpoint_equation_l2"][
+            "full_l2"
+        ] = 1e-2
         self.store(.1, 2, record)
-        with self.assertRaisesRegex(ValueError, "midpoint GetFEM"):
+        with self.assertRaisesRegex(ValueError, "exact PETSc endpoint"):
+            compare(self.root)
+
+    def test_large_out_of_scheme_midpoint_is_not_a_PETSc_TSCN_failure(self):
+        # This deliberately reproduces the observed 203.27337 residual.
+        # It is not the PETSc TSCN endpoint method's discrete equation.
+        record = self.fixture(.2, 1)
+        record["original_IFunction_midpoint_OUT_OF_SCHEME_l2"][
+            "full_l2"
+        ] = 203.27337
+        self.store(.2, 1, record)
+        self.assertEqual(
+            compare(self.root)["status"],
+            "ONE_NATIVE_TSCN_STEP_ACCEPTED_NONLINEAR_MASS_AND_POWER_UNQUALIFIED",
+        )
+
+    def test_rejects_endpoint_algebraic_inconsistency(self):
+        record = self.fixture(.2, 1)
+        record["original_IFunction_endpoint_zero_dot_l2"][
+            "algebraic_l2"
+        ] = 1e-3
+        self.store(.2, 1, record)
+        with self.assertRaisesRegex(ValueError, "endpoint algebraic"):
             compare(self.root)
 
     def test_rejects_corrupted_boundary_power_bookkeeping(self):
