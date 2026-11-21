@@ -37,6 +37,7 @@ revision="$(docker_exec image inspect --format '{{index .Config.Labels "org.open
 for f in scrimp/dphs.py scrimp/port.py scrimp/utils/mesh.py \
     scrimp/utils/dae_initialization.py scrimp/utils/nonlinear_affine_dae.py \
     sandbox/viscous_swe_2d_mpi.py sandbox/probe_v130_issue28_structure.py \
+    sandbox/probe_v130_issue28_weak_wall.py \
     sandbox/probe_v130_issue28_exact_weak_elimination.py \
     sandbox/compare_v130_issue28_exact_weak_elimination.py; do
     [[ -s "$f" ]] || { echo "Missing source $f" >&2; exit 2; }
@@ -44,7 +45,7 @@ done
 mkdir -p sandbox/outputs
 sha="$(git rev-parse HEAD)"
 out="$(mktemp -d "$root/sandbox/outputs/v130-issue28-exact-weak-elimination-$(git rev-parse --short=8 HEAD)-XXXXXXXX")"
-printf '{"schema":"v130-issue28-exact-weak-elimination-moments-v1","source":"%s","image_revision":"%s","original_fixed_h0_p0":true,"physical_initial_Y0_accepted":false,"no_physical_time_steps":true}\n' \
+printf '{"schema":"v130-issue28-exact-weak-elimination-v1","source":"%s","image_revision":"%s","original_fixed_h0_p0":true,"accepted_Y0":false,"no_physical_time_steps":true}\n' \
     "$sha" "$revision" > "$out/manifest.json"
 
 echo "#28 original curved P2 EXACT WEAK ELIMINATION: Native exact e_p=p/rho, F_U=0, residual F_Y vs independent weak moments"
@@ -80,6 +81,7 @@ for h in 0.2 0.1; do
                 --volume "$root/scrimp/utils/nonlinear_affine_dae.py:/workspace/scrimp/scrimp/utils/nonlinear_affine_dae.py:ro" \
                 --volume "$root/sandbox/viscous_swe_2d_mpi.py:/workspace/scrimp/sandbox/viscous_swe_2d_mpi.py:ro" \
                 --volume "$root/sandbox/probe_v130_issue28_structure.py:/workspace/scrimp/sandbox/probe_v130_issue28_structure.py:ro" \
+                --volume "$root/sandbox/probe_v130_issue28_weak_wall.py:/workspace/scrimp/sandbox/probe_v130_issue28_weak_wall.py:ro" \
                 --volume "$root/sandbox/probe_v130_issue28_exact_weak_elimination.py:/workspace/scrimp/sandbox/probe_v130_issue28_exact_weak_elimination.py:ro" \
                 "$image" timeout -k 5s "$(printenv SCRIMP_ISSUE28_EXACT_ELIM_TIMEOUT || echo 420s)" \
                 mpiexec --oversubscribe --bind-to none -n "$ranks" \
