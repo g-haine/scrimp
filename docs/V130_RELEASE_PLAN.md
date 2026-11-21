@@ -3884,7 +3884,7 @@ MPI diagnostic remains separately qualified.
 time evolution or its Hamiltonian/port-power balance.
 Original #28 and nontrivial rotating #6 remain OPEN.
 
-**NEXT DISCIMINATING GATE:** independently measure the
+**NEXT DISCRIMINATING GATE:** independently measure the
 *moments of the prescribed wall mismatch* against the
 actual GetFEM boundary test space, using a verified
 MPI-consistent boundary Riesz mass matrix / dual norm
@@ -3900,3 +3900,99 @@ differentiated consistency are independently verified
 may a diagnostic `Y0` be promoted toward a DAE
 initializer. Do not alter original `p0`, geometry
 or imposed physical wall velocity to obtain a PASS.
+
+## 21 November 2026 — #28 direct *weak* U-trace obstruction diagnostic staged (SOURCE ONLY)
+
+The successful native **strong** physical-compatibility gate
+`v130-issue28-physical-compatibility-c1988939-WqmfWd2x`
+does **not** by itself establish weak finite-element inconsistency.
+A nonzero `L2(Gamma)` strong mismatch can be orthogonal to the
+actual discrete boundary test space. The tight LSQR residual
+`~4.157e-8` provides circumstantial evidence only; it is
+not a rigorously scaled or independently corroborated
+minimum-distance certificate.
+
+New read-only native diagnostic:
+`sandbox/probe_v130_issue28_weak_wall.py`,
+`sandbox/compare_v130_issue28_weak_wall.py`,
+`scripts/run-v130-issue28-weak-wall.sh` and host
+negative controls `tests/test_v130_issue28_weak_wall.py`.
+It retains the original `h0=5,p0` tangent,
+`omega=0.2` (with exact rest `omega=0` positive control),
+P2 geometry/P2 unknowns, `gamma=0`, physical
+`wall_velocity_profile=facet_tangent`, and pinned
+immutable rc3 OCI. It runs on original nominal meshes
+`h=0.2/0.1` and MPI1/2 with **no physical/initialization TS**,
+LSQR or accepted traction.
+
+At the *exact prescribed initial FE momentum*, assemble
+with the actual GetFEM **order-one test** `Test_U`:
+
+```text
+b_full(v) = int_Gamma (p0/rho - omega*Tangent).v
+b_n(v)    = int_Gamma ((p0/rho).Normal)*(Normal.v)
+b_tau(v)  = int_Gamma (((p0/rho).Tangent)-omega)*(Tangent.v)
+```
+
+The probe checks `b_full=b_n+b_tau` in the actual vector
+of U test-function moments. It also extracts the assembled
+native `J_UU` block from the original `IFunction` tangent.
+The physical control law contains `-U.Test_U`, so its
+negative is the native boundary `U` mass matrix
+`M_U=-J_UU`. Solve `M_U x=b` with MUMPS and report the
+**discrete Riesz-projected physical boundary RMS**
+
+```text
+||Pi_U(p0/rho - omega*Tangent)||_{L2(Gamma)}/sqrt(|Gamma|)
+  = sqrt(b^T M_U^{-1} b / |Gamma|).
+```
+
+For the exact rest state both strong and weak mismatch
+should be numerically zero. In rotation, a nonzero
+Riesz norm demonstrates nonvanishing moments against the
+actual U test space and rules out the special explanation
+that *all* of the original strong wall mismatch lies in
+its discrete orthogonal complement. It still does NOT
+alone establish full algebraic DAE incompatibility:
+that conclusion additionally needs a verified statement
+that exact interior `F_ep=0` enforces `e_p=p0/rho`,
+exact `F_Y=0` enforces the matching U trace,
+`F_Un=0` fixes `U_n=0`, and that the corresponding
+FE/test/trace mass maps are nondegenerate, without any
+unmodelled kernel.
+
+The native comparator checks archived full first-order
+U moment vectors, MPI rank assembly/reduction modes,
+normal/tangential recomposition, serial-vs-parallel
+coefficients, positive boundary mass Riesz solve,
+Riesz RMS `<=` independently integrated strong RMS,
+exact rest, bitwise read-only rollback, and strict
+**NO Y0 INITIALIZATION**. It records diagnostic
+moment size and mesh trend, never claims exact
+DAE admissibility from a numerical threshold alone.
+Host comparator fixtures are synthetic and must
+not be confused with native quantitative results.
+
+**SOURCE ONLY / NATIVE PENDING:** do not claim this
+order-one GetFEM form, Riesz block, or MPI semantics have
+yet been tested on the host. No change to production
+SCRIMP solver, original weak bricks, initial state,
+controls, or published release guarantees.
+
+Run next native qualification:
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+python tests/test_v130_issue28_weak_wall.py
+bash -n scripts/run-v130-issue28-weak-wall.sh
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-issue28-weak-wall.sh
+```
+
+If the Python host comparator alone later needs a replay,
+`bash scripts/run-v130-issue28-weak-wall.sh --compare-only
+<saved-evidence-directory>` does not repeat GetFEM/MPI work.
+Preserve original rotating `q0` and no physical time
+integration: #28 and nontrivial rotating #6 remain OPEN.
