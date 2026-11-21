@@ -2662,3 +2662,103 @@ strict real/imaginary-value check should establish whether any
 imaginary content exists instead of silently discarding it.
 Unused PETSc BDF options arise because the probe intercepts the
 initializer before TS; neither warning changes the gate result.
+
+## 21 November 2026 — #28 physical constraint / LSQR-sensitivity gate staged (SOURCE ONLY)
+
+**Next scientific prerequisite after the successful native physical-RHS MPI1/2
+diagnostic**: distinguish an actual incompatibility of the *prescribed*
+rotating momentum from inaccurate algebraic least squares and geometric
+discretization. New independent, read-only probe
+`sandbox/probe_v130_issue28_physical_compatibility.py`,
+comparator `sandbox/compare_v130_issue28_physical_compatibility.py`,
+negative controls `tests/test_v130_issue28_physical_compatibility.py`,
+and pinned-Docker runner
+`scripts/run-v130-issue28-physical-compatibility.sh`.
+
+Using the unchanged `sandbox/viscous_swe_2d_mpi.py`,
+`gamma=0`, `initial_profile=tangent`,
+`wall_velocity_profile=facet_tangent`,
+`geometry_order=height_order=2`, original clockwise GWFL
+`Rot`, and `omega=0.2` (plus the `omega=0` rest control),
+the probe evaluates **actual GetFEM integration-region scalar
+integrals**, not the Euclidean norm of a PETSc RHS. At `t=0`
+the original wall ramp is identically one. For
+`v_0=p_0/rho` and `t=Rot*n`, it records:
+
+- the domain area `|Omega|` and boundary length `|Gamma|`,
+  for native MPI scalar assembly calibration;
+- `||v_0.n||_{L2(Gamma)}` and
+  `||v_0.t-omega||_{L2(Gamma)}`,
+  plus the full `||v_0-omega*t||_{L2(Gamma)}`.
+  These are measured at *prescribed* original `q0` **before
+  any algebraic projection**; they are therefore independent
+  of LSQR conditioning, `e_p` or `Y0`.
+- at the analytic resting control, or projected rotating baseline,
+  the physically scaled interior
+  `||e_p-p/rho||_{L2(Omega)}`,
+  `||sqrt(h)(e_p-p/rho)||_{L2(Omega)}`,
+  `||e_h-rho*g*h-0.5*(p.p)/rho||_{L2(Omega)}`,
+  and boundary `||e_p-U||_{L2(Gamma)}`,
+  `||U-U_n*n-omega*t||_{L2(Gamma)}`, `||U_n||_{L2(Gamma)}`.
+  Actual native algebraic `IFunction Fa` residual per block
+  and `||A^T Fa||_2` are reported separately.
+
+Each squared integral is archived with raw individual MPI-rank
+GetFEM scalars and the raw sum. The RMS norm is normalized by
+its **corresponding assembled domain/boundary measure**, so it
+is invariant whether GetFEM scalar assembly is rank-local or
+globally replicated. The host comparator independently identifies
+which scalar MPI reduction convention applies by calibrating
+area **and** perimeter against the MPI1 reference; it does
+not silently sum a replicated global scalar. It checks the
+vector/normal/tangent squared-norm decomposition and MPI1/2
+physical RMS parity.
+
+Physical mesh comparison: nominal `h=0.2` and `h=0.1`,
+both curved P2, rest/rotating and MPI1/2. At `h=0.2`
+the original rotating `h0,p0` and zero `Y` are fixed,
+and regular algebraic variables are projected twice on the same
+actual rectangular native PETSc system:
+`LSQR(rtol=1e-12,atol=1e-13,max_it=10000)` and
+`LSQR(rtol=1e-13,atol=1e-14,max_it=20000)`.
+This is a **stopping-tolerance sensitivity test**; iteration
+counts alone are NOT a spectral condition number estimate.
+At refined `h=0.1` the rotating audit measures ONLY the
+unprojected fixed-q boundary data, explicitly avoiding
+conflation with a more expensive/different LSQR projection.
+
+The harness rejects changed physical data, altered geometry,
+nonzero exact-rest residual, bad MPI physical assembly, missing
+independent trace diagnostics, and any claimed accepted
+rotating `Y0` or time stepping. It intentionally does **not**
+assert that mesh refinement must improve the mismatch or that
+a small physical RMS implies exact weak DAE compatibility:
+those are questions to answer from native evidence.
+The physical FE trace diagnostic is not a proof of a unique
+constraint-compatible initial state, nonlinear/high-index
+initializer, KSP conditioning, or physical CN integration.
+
+**SOURCE STAGED / NATIVE PENDING:** neither native GetFEM
+`asm_generic` expressions nor MPI1/2 physical results have been
+qualified by this source commit. No modification was made to
+SCRIMP's production initializers, original SWE weak forms,
+original `h0,p0`, the faceted wall law, or the image.
+
+Run on the existing immutable image:
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+python tests/test_v130_issue28_physical_compatibility.py
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-issue28-physical-compatibility.sh
+```
+
+Use `bash scripts/run-v130-issue28-physical-compatibility.sh
+--compare-only <saved-evidence-directory>` to replay archived evidence
+without restarting expensive native runs. On completion, interpret
+actual fixed-q normal/tangential trace errors, LSQR stopping
+sensitivity and mesh trend *before* deciding whether rotating
+constraints are numerically/physically feasible.
+**#28 remains OPEN; nontrivial rotating #6 remains blocked.**
