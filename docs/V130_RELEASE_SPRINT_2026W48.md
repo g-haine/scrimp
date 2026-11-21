@@ -3620,3 +3620,92 @@ CN step, with Hamiltonian, boundary
 port work and viscous dissipation
 power-balance checks.
 #28 OPEN, #6 nontrivial rotation BLOCKED.
+
+## 21 November 2026 — #28/#6 compatible rest-spinup: physical differentiated t0 MatNest MPI 1/2 **NATIVE 4/4 PASSED**
+
+**Native archive:** `sandbox/outputs/v130-issue28-spinup-first-differentiated-54bafa2c-y1es00lx/`,
+original diagnostic source `54bafa2c10b50eb195d92c6a4b00b53970487d5a`,
+immutable `scrimp-mpi:v1.3.0-rc3`, OCI
+`1d6d0c90115213298047b28237a7f38087563a35`.
+All four native runs and the strict full-vector MPI comparator **PASSED**:
+two curved-P2 meshes h=.2/.1 × MPI1/2.
+The archived native comparator status is
+`COMPLETE_DIFFERENTIATED_SPINUP_T0_DIAGNOSTIC_NO_TS`.
+
+The *deliberately new* physical rest-to-rotation experiment is distinct
+from the original incompatible rotating q0. Here `h0=5, p0=0`,
+the original nonlinear conservative/viscous Saint-Venant weak bricks
+are intact, `gamma=0`, and the **physical facet-tangent boundary
+velocity** starts from rest with a C1 rising smoothstep
+`start_from_rest_duration=.02`; `g(0)=g'(0)=0`.
+At `t0` the exact initial algebraic candidate is
+`e_h=.5, Y_n=-.5, e_p=U_n=U=Y=0`.
+
+**Actual native values (NOT synthetic host fixtures):**
+
+| Native quantities | h=.2 MPI1 | h=.2 MPI2 | h=.1 MPI1 | h=.1 MPI2 |
+|---|---:|---:|---:|---:|
+| `||F_a(t0,z0,0)||_2` | 1.476342215e-17 | 1.474425064e-17 | 8.003382455e-18 | 8.005717192e-18 |
+| `||-F_d(t0,z0,0)||_2` | 2.699640468e-16 | 2.699640468e-16 | 2.628092804e-16 | 2.628092804e-16 |
+| **`||candidate qdot0||_2`** | 1.256514249e-14 | 1.256514249e-14 | 4.150424431e-14 | 4.150424433e-14 |
+| `||candidate regular a_dot0||_2` | 1.256514249e-14 | 1.256514249e-14 | 4.150424432e-14 | 4.150424433e-14 |
+| **`||candidate Y0||_2`** | 2.257984145e-16 | 2.257984145e-16 | 3.044205831e-16 | 3.044205831e-16 |
+| `||F_d(t0,z0,qdot0,Y0)||_2` | 1.005343326e-26 | 3.579807531e-30 | 3.335370174e-24 | 1.139478072e-29 |
+| `||F_a(t0,z0,qdot0,Y0)||_2` | 1.476342215e-17 | 1.474425064e-17 | 8.003382455e-18 | 8.005717192e-18 |
+
+Native direct PETSc/MUMPS bordered solve reports converged reason 4 for
+all four runs, very small independent bordered residuals
+(`1.57e-26`, `2.52e-28`, `3.76e-24`, `2.57e-27`);
+full original `IFunction` verifies the resulting physical qdot0/Y0.
+Native MatNest block index mappings/RHS roundtrips are exact, MPI1/2
+coefficient parity passed, and original differential data and PETSc/
+GetFEM state were restored after diagnostic. No accepted Y0 was
+published and **no pseudo/BDF or physical TS step** occurred.
+
+The true `partial_t F_a(t0,z0,0)=0` is analytically exact for
+this new C1 wall onset: the original decreasing envelope is flat
+for `t<.03`, and `g'(0)=0`.
+Independently, the actual original GetFEM wall U control at
+`delta=1e-4` and `2delta` has native ratio
+`3.9866220735785958`, equal to the exact smoothstep quotient;
+the other row temporal variation is **exactly zero**.
+No spurious fixed-step derivative was substituted.
+
+**Host fixture regression NOTE:** the original eight synthetic host
+tests had 7 successes and one **test assertion mismatch only**:
+`test_rejects_corrupt_MPI2_solution` perturbed the **scalar
+norm** of MPI2 Y0, so the independent comparator correctly rejected
+it at `Original native MPI first-differentiated mismatch in Y0`
+*before* reaching the intended `vector MPI parity` exception.
+This is NOT a native solver/MatNest failure.
+A new source-only host fix at `f4c2303` separates
+(1) scalar Y0 norm discrepancy from (2) a deliberate MPI1/MPI2
+**coefficient permutation at matching norm**, ensuring the full-vector
+gate is genuinely exercised. Now nine synthetic host controls
+are expected; **host rerun pending**. No native output or numerical
+acceptance criterion was modified.
+
+**Qualified narrow conclusion:** the explicitly new physical
+rest-to-spinup curved-P2 SWE has an exact t0 FE algebraic candidate
+and a compatible first-differentiated *physical* qdot0/Y0 candidate
+to near-machine precision for both meshes, MPI1/2.
+The original already-rotating q0 remains proven algebraically
+incompatible and was NOT altered.
+**NOT qualified:** general high-index DAE initializer, generic
+differentiation index, first **physical CN** step, sustained rotating
+time evolution, port-Hamiltonian energy / boundary-work / viscous-
+dissipation balance. The existing production nonlinear-affine
+initializer still correctly rejects high-index layouts.
+#28 OPEN, nontrivial rotating #6 physical time stepping BLOCKED
+pending safe accepted-state publication and full physical CN audit.
+
+**Host regression rerun (no native repeat required):**
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+python tests/test_v130_issue28_spinup_first_derivative.py
+# Optional pure host recheck of UNMODIFIED archived native evidence:
+bash scripts/run-v130-issue28-spinup-first-derivative.sh \
+  --compare-only sandbox/outputs/v130-issue28-spinup-first-differentiated-54bafa2c-y1es00lx
+```
