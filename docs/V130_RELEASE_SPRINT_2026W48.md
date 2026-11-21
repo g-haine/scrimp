@@ -3943,3 +3943,54 @@ and first differentiated DAE remain
 native-qualified. **No** one-step physical
 Hamiltonian/work/dissipation report has
 yet passed. Both #28 and #6 remain OPEN.
+
+## 21 November 2026 — native one physical PETSc TSCN step PASSED 4/4; fixed-time dt refinement pending
+
+At source `a8422a9bef09cbd370b14eea8318f09bf2598d9e`
+and pinned `scrimp-mpi:v1.3.0-rc3` OCI,
+the **new compatible** curved-P2 Saint-Venant
+rest-to-rotation C1 wall experiment `h0=5,p0=0`
+has now completed **one real accepted** PETSc
+TSCN endpoint-trapezoidal step `dt=.002`
+on h=.2/.1 MPI1/2, **4/4 native PASS**.
+The original IFunction endpoint TSCN residual
+is ~4.81e-14 / 7.53e-14 and endpoint algebraic
+~2.4e-17 / 1.6e-17 (h=.2/.1);
+full original physical FEM coefficients change
+(`||Δ(h,p)||=.047/.065`).
+The **h-weighted physical** Hamiltonian/work/
+grad+div viscosity balance has absolute defects
++6.293e-14 and −2.358e-14, respectively,
+or +7.095e-9 and −5.038e-9 relative to
+actual exchanged energy, with strict
+MPI1/2 parity and volume defect <=1e-13.
+Archived native evidence:
+`sandbox/outputs/v130-issue28-one-cn-spinup-a8422a9b-2SJgTXLr/`.
+The large implicit-midpoint residual is
+out-of-scheme and not a PETSc TSCN criterion.
+
+**Still not qualified:** nonlinear-mass TSCN
+time accuracy (PETSc theta endpoint
+assumes linear constant mass), long-time
+spinup trajectory, general high-index
+initialization or energy convergence.
+Do NOT close #28/#6 on one step.
+
+**SOURCE STAGED / NATIVE PENDING:** full
+original fixed-time `t_f=.002`,
+`N=1,2,4,8` TSCN steps,
+h=.2/.1 and MPI1/2 (16 native cases).
+New files:
+`sandbox/probe_v130_issue28_cn_refinement.py`,
+`sandbox/compare_v130_issue28_cn_refinement.py`,
+`scripts/run-v130-issue28-cn-refinement.sh`,
+`tests/test_v130_issue28_cn_refinement.py`.
+Each step checks true original GetFEM
+TSCN/DAE residual; endpoint states
+and full h-weighted energy/port/volume
+traces are archived. Host comparator
+checks MPI full FE vectors and
+h,p terminal coefficient differences
+across dt; no premature order claim.
+Original physical data and production
+SCRIMP sources are unchanged.
