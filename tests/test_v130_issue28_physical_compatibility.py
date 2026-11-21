@@ -90,6 +90,9 @@ class OriginalPhysicalCompatibilityTest(unittest.TestCase):
                 "trials": [
                     {"kind": kind, "native_Fa_l2": fa,
                      "normal_equation_AT_Fa_l2": 1e-10,
+                     "algebraic_correction_l2": 13.,
+                     "relative_coefficient_change_from_standard":
+                         (0. if kind == "standard" else 1e-7),
                      "iterations": 5100,
                      "physical_integrals": cls.sample(h, case, ranks)}
                     for kind in ("standard", "tight")
