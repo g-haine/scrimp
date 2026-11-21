@@ -4097,3 +4097,116 @@ DAE-consistency policy that preserves
 original physics.
 #28 OPEN; physical rotating #6 remains
 NOT YET QUALIFIED.
+
+## 21 November 2026 — First physical CN pilot: PETSc TSCN midpoint false gate corrected, nonlinear-mass caution (SOURCE ONLY)
+
+**Original native attempt at `d46c0302ba11a5cd4179998a37b71f5ba0577061`:**
+host synthetic regression **9/9 PASS**; pinned
+`scrimp-mpi:v1.3.0-rc3` OCI
+`1d6d0c90115213298047b28237a7f38087563a35`.
+First native case h=.2 MPI1 published the exact
+compatible physical `h0=5,p0=0`,
+`e_h=.5,Y_n=-.5` state with
+`Fa=1.47634222e-17,Fd=2.69964047e-16`,
+then PETSc reported **1 ACCEPTED TSCN step**
+`t=.002`, `0` rejected, `0` nonlinear solver
+failures, 2 Newton and 2 linear iterations (elapsed ~.76s).
+The sandbox then **incorrectly rejected** this actual
+PETSc step because it evaluated an **implicit MIDPOINT
+method** residual
+`F(t=.001, (z0+z1)/2, (z1-z0)/.002)`
+and found `||F_mid||_2=203.27337`.
+This is a **wrong verification equation**, not
+native evidence of failed PETSc TS or of physical correctness.
+Only h=.2 MPI1 ran; h=.2 MPI2/h=.1 MPI1/2
+were not started. The original incomplete evidence
+archive is
+`sandbox/outputs/v130-issue28-one-cn-spinup-d46c0302-q5YBlZXK/`
+(log and manifest, **no accepted report or
+power traces**).
+
+**Authoritative PETSc source analysis**
+([TSCN](https://petsc.org/release/manualpages/TS/TSCN/),
+[TSTHETA](https://petsc.org/release/manualpages/TS/TSTHETA/),
+`src/ts/impls/implicit/theta/theta.c`):
+`ts_type=cn` is PETSc **ENDPOINT
+trapezoidal theta=0.5**, *not* implicit midpoint.
+In the source `shift=1/(theta*dt)=2/dt`,
+`stage_time=t0+dt`, and the PETSc SNES
+right-hand side is
+`((theta-1)/theta)*F(t0,z0,0)=-F(t0,z0,0)`.
+SNES thus solves the **actual** original
+discrete equation
+
+```text
+F(t0+dt, z1, 2*(z1-z0)/dt) + F(t0, z0, 0) = 0.
+```
+
+**IMPORTANT: the sign is PLUS**; the earlier
+verbal formula using a minus sign was corrected
+after checking the actual PETSc source.
+
+The updated native probe checks the **full
+coefficient vector** from two independent calls
+to the real SCRIMP `IFunction` for
+both the dynamic and algebraic rows, with
+`||F_TSCN||<1e-7`. It also measures
+`||F_a(t1,z1,0)||<1e-7`, records
+the old midpoint residual under
+`OUT_OF_SCHEME` as a *nonacceptance diagnostic*,
+and separately records original
+`F(t0,z0,0)` and `F(t1,z1,2Δz/dt)`.
+No production integrator or SWE weak form
+has been modified.
+
+**Independent methodological caution:**
+PETSc's `theta.c` explicitly comments
+`This formulation assumes linear time-independent mass matrix`
+inside the **endpoint branch**. SCRIMP's
+viscous Saint-Venant has actual nonlinear
+`M(z)=M(h)`. Therefore even if the
+correct PETSc TSCN equation passes,
+that only qualifies what the native
+*implementation* solved; it **does
+NOT** qualify expected time order,
+discrete pH power/energy balance,
+general nonlinear-mass DAE suitability,
+or sustained rotating time evolution.
+An independent proper nonlinear-mass
+and energy time-refinement study will
+be mandatory. The PETSc implicit
+midpoint method is a DIFFERENT method
+(and per PETSc not stiffly accurate
+for a general DAE), so must not be
+silently substituted.
+
+**Source-only corrections now staged:**
+`sandbox/probe_v130_issue28_one_cn_spinup.py`,
+`sandbox/compare_v130_issue28_one_cn_spinup.py`,
+`tests/test_v130_issue28_one_cn_spinup.py`.
+Tests now accept an arbitrary `203.27337`
+*OUT_OF_SCHEME* midpoint residual but
+fail on true TSCN endpoint inconsistency,
+endpoint algebraic drift, incorrect
+method metadata, incorrect boundary
+power book-keeping, or MPI vector mismatch.
+The previous h=.2 MPI1 failed gate needs
+a **fresh native run**; it cannot be
+relabelled PASS from PETSc's accepted-step
+printout alone.
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+python tests/test_v130_issue28_one_cn_spinup.py
+bash -n scripts/run-v130-issue28-one-cn-spinup.sh
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-issue28-one-cn-spinup.sh
+```
+
+**Status:** original `t0` compatible state
+and first differentiated DAE remain
+native-qualified. **No** one-step physical
+Hamiltonian/work/dissipation report has
+yet passed. Both #28 and #6 remain OPEN.
