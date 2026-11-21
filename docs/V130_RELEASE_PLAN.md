@@ -2971,3 +2971,100 @@ On host-side comparator issues, **replay saved
 native results without Docker** using
 `--compare-only <evidence-directory>` rather
 than rerunning expensive physical steps.
+
+
+## 21 November 2026 — TRUE shallow-water physical BDF2 after nonlinear_affine: MPI 1/2 NATIVE PASS
+
+**User native evidence:** `v130-issue28-shallow-short-physical-d0cde0af-4DlgCMdU.zip`.
+Source `d0cde0af5190290e0567bb06424d4ce8e1d2bfae`,
+pinned Docker `scrimp-mpi:v1.3.0-rc3` OCI
+`1d6d0c90115213298047b28237a7f38087563a35`.
+Original shipped `examples/shallow_water.py` and original
+rectangular mesh step `0.1`, weak forms, FEM, initial
+`h0=3-(sign(x-0.5)+1)/3`, `p0=0` and all four
+homogeneous boundary controls. Production
+`init_step_ts_type="nonlinear_affine"`; **no
+pseudo-initialization**, followed by true BDF2 PETSc
+TS with `dt=1e-4, t_f=3e-4`.
+
+| Genuine native observable | MPI 1 | MPI 2 |
+|---|---:|---:|
+| TS convergence reason | `1` | `1` |
+| Physical accepted / rejected steps / SNES failures | `3 / 0 / 0` | `3 / 0 / 0` |
+| Original initial projection `||F_a||_2` | `2.199213556173762e-12` | `2.3277177796294783e-12` |
+| Mass-relative drift | `2.310153069550858e-15` | `3.1986734809165835e-15` |
+| Hamiltonian-relative drift / H0 | `1.437729942579708e-7` | `1.4377299161310965e-7` |
+| Homogeneous boundary power (each edge and total) | `0` | `0` |
+| Original H0 | `31636.2594029492` | `31636.259402949203` |
+| Final H | `31636.254854509458` | `31636.254854509545` |
+| Signed final H-H0 | `-0.0045484397414838895` | `-0.004548439657810377` |
+
+Registered Hamiltonian agrees with native kinetic/potential
+integrals. MPI absolute Hamiltonian sample discrepancy
+`<=8.73115e-11`; relative `<=2.76e-15`.
+The true mass is `~2.49903774955191` and stays at
+floating-point precision. Both MPI implementations retain
+original dynamic initial data exactly.
+
+**Critical interpretation: the returned
+`relative_energy_defect_exchanged=1` is an
+UNINFORMATIVE metric for this closed problem, neither
+a 100% failure nor a preservation certificate.**
+Here the boundary work `W(t)=∫Σ_i U_iY_i dt≡0`,
+hence the balance defect `D_H(t)=H(t)-H(0)-W(t)`
+equals `H(t)-H(0)`. The chosen denominator is
+`max(max|H-H0|,max|W|,1e-14)`, which equals
+`max|D_H|` whenever the energy drifts and no
+input work occurs. The ratio equals **1 by definition**.
+The scientifically informative measurements are
+`ΔH=-4.54844e-3` and `|ΔH|/H0≈1.43773e-7`,
+plus their change under refinement in **time**.
+For BDF2, exact discrete energy conservation
+is NOT guaranteed; no exact pH power balance
+can be claimed from this short smoke test.
+
+**Sampling caveat:** native TS accepted `3` steps
+but the stored trajectory has only timestamps
+`[0,1e-4,3e-4]`, missing `2e-4`.
+This does not invalidate the actual accepted
+steps or final total energy and mass. However
+subsequent power integration with nonzero
+controls MUST use actual saved intervals,
+not assume every accepted time was recorded.
+
+**Qualified:** opt-in production nonlinear-affine
+initialization followed by **real** short nonlinear
+PETSc BDF2 physical-time integration,
+mass to rounding, correct zero boundary power,
+computed Hamiltonian and native MPI 1/2 parity.
+
+**Not yet qualified:** exact time-discrete power
+conservation, quantitative energy time/mesh
+convergence, general nonlinear-in-algebraic
+Newton, physically inconsistent fixed differential
+data rejection, or the higher-index rotating
+viscous disk initial traction `Y0`.
+**Issue #28 remains OPEN.**
+
+**Next independent pre-existing gate (already staged):**
+four real physical BDF2 steps on original
+`examples/shallow_water.py` using opt-in
+`nonlinear_affine`, requiring complete full-state
+MPI1/2 parity and checking freeze of original
+explicit gyro throughout the implicit Newton
+iterations. It measures Hamiltonian drift but
+does not assert exact conservation.
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+SCRIMP_DOCKER_NO_SUDO=1 SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+  bash scripts/run-v130-issue28-production-short-physical.sh
+```
+
+Afterward, time-refine BDF2 at fixed
+physical `T` and track the signed
+`H(T)-H(0)-∫P_boundary dt`, energy and
+mass as well as full-state changes,
+rather than this self-normalized
+closed-system ratio.
