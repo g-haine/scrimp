@@ -226,7 +226,17 @@ def audit(s, mpi, label):
             comm=z.getComm(),
         ))
         matnest.assemble()
-        bordered = keep(matnest.convert("aij"))
+        if matnest.getType() != PETSc.Mat.Type.NEST:
+            raise RuntimeError("Differentiated operator is not a PETSc MatNest")
+
+        # PETSc Mat.convert("aij") WITHOUT an explicit out= converts
+        # the input in place, destroying its native MatNest index sets.
+        # Preserve the original nest AND its row/column maps for MPI
+        # RHS packing and solution reconstruction.
+        nest_row_is, nest_col_is = matnest.getNestISs()
+        bordered = keep(matnest.convert("aij", out=PETSc.Mat()))
+        if matnest.getType() != PETSc.Mat.Type.NEST:
+            raise RuntimeError("Original MatNest lost during AIJ conversion")
         if bordered.getSize() != (n,n):
             raise RuntimeError("Unexpected differentiated operator dimensions")
 
@@ -237,8 +247,7 @@ def audit(s, mpi, label):
         # Writing a naive np.concatenate(forcing) or slicing a gathered
         # solution at global block sizes works in serial but silently
         # changes the physical RHS and variable meaning in MPI > 1.
-        # Retrieve the global index maps of the ACTUAL original Nest.
-        nest_row_is, nest_col_is = matnest.getNestISs()
+        # Use the global index maps retrieved from the preserved Nest.
         if len(nest_row_is) != 2 or len(nest_col_is) != 3:
             raise RuntimeError("Unexpected native MatNest row/column blocks")
 
