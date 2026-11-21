@@ -298,13 +298,13 @@ def compare(directory):
                 f"volume={a['volume_defect']:.9g} MPI1/2 PASS",
                 flush=True,
             )
-        reference_indices=per_count[1]["dynamic_indices"]
+        reference_indices=per_count[10]["dynamic_indices"]
         for count in STEP_COUNTS[1:]:
             check(np.array_equal(
                 per_count[count]["dynamic_indices"],reference_indices
             ),"Native physical h/p FE intervals changed across temporal grids")
             check(np.array_equal(
-                per_count[count]["initial"],per_count[1]["initial"]
+                per_count[count]["initial"],per_count[10]["initial"]
             ),"Original prescribed initial physical state changed with dt")
         # Same spatial geometry and fixed final physical time.
         # Compare ONLY original dynamic h,p coefficients, not
