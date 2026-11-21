@@ -2762,3 +2762,85 @@ The new native probe reads `matnest.getNestISs()` **before conversion** and uses
 The comparator additionally checks **full physical qdot and Y0 coefficients**, not just the norm of Y0, with independent synthetic corruption unit tests for mapping and MPI parity. Original `h0,p0`, gyroscopic/viscous and boundary weak forms and frozen-gyro semantics are **unchanged**. No Y0 state is accepted, no pseudo/physical TS is performed.
 
 **NATIVE RE-RUN PENDING:** `scripts/run-v130-issue28-physical-rhs-y0.sh`, MPI1/2 rest/rotating, from the current source. Only if the new *native* MPI2 original IFunction is below tolerance and true physical-vector parity passes can we qualify the **index-mapping diagnostic**. Even then rotating algebraic `||F_a||~4e-8` is still not a certified constraint-compatible initial DAE state; **no qualified rotating Y0 or time integration yet**.
+
+## 21 November 2026 — #28 true physical-RHS/Y0 MPI 1/2 native gate PASSED (diagnostic, NOT initialized)
+
+**Host evidence:** `sandbox/outputs/v130-issue28-physical-rhs-Y0-d937cdc6-pl0yI36l/`
+(archived as `v130-issue28-physical-rhs-Y0-d937cdc6-pl0yI36l.zip`).
+**Source:** `d937cdc6855b815fabc4108c4cad76d980271d3a`;
+**immutable image:** `scrimp-mpi:v1.3.0-rc3`, OCI revision
+`1d6d0c90115213298047b28237a7f38087563a35`.
+The host comparator returns `COMPLETE_DIAGNOSTIC_NOT_INITIALIZER`.
+All 7 host regression tests passed. All four genuine
+PETSc/GetFEM MPI runs (rest/rotating × 1/2 ranks) completed.
+
+Before this run, the probe incorrectly called
+`matnest.convert("aij")` without `out=`, which performs a
+petsc4py **in-place** conversion and destroys the native Nest IS;
+this caused PETSc error 56 when `getNestISs()` was called.
+The source fix at `e27c47f` uses
+`matnest.convert("aij", out=PETSc.Mat())` and retains
+the original Nest plus its row/column IS for parallel physical
+RHS packaging and solution reconstruction. A host AST regression
+test at `d937cdc` guards against repeating the in-place conversion.
+
+| Real native diagnostic | Rest MPI1 | Rest MPI2 | Rotating MPI1 | Rotating MPI2 |
+|---|---:|---:|---:|---:|
+| Native projected `||Fa||_2` | 1.47634e-17 | 1.47443e-17 | 4.18508716e-8 | 4.18369529e-8 |
+| Physical `||Fd(q0,a_r0,Y=0,zdot=0)||_2` | 2.69964e-16 | 2.69964e-16 | 0.0865426750 | 0.0865426757 |
+| Solved `||qdot0||_2` | 1.25651e-14 | 1.25651e-14 | 6.57792793 | 6.57792791 |
+| Diagnostic `||Y0||_2` | 2.25798e-16 | 2.25798e-16 | 0.00637785550 | 0.00637785651 |
+| **Unmodified GetFEM native dynamic `||Fd(qdot0,Y0)||_2`** | **1.00534e-26** | **3.57982e-30** | **3.37799e-14** | **2.74326e-15** |
+| Bordered relative linear residual | 1.56896e-26 | 2.52383e-28 | 1.46053e-13 | 2.85171e-14 |
+
+The rotating LSQR projection used **5,149 / 5,154** iterations
+(MPI1/2), with convergence reason 1, and reduced its unprojected
+`||Fa||≈0.250963115` to `≈4.18e-8`. The residual is mainly
+`e_p` (`4.10174e-8` MPI1, `4.10164e-8` MPI2), followed by
+`U` (`≈6.72e-9`). This is **above** the previously imposed raw
+fixed-mesh `2.60963e-9` coefficient-norm tolerance. It is not an
+independent proof of exact discrete or physically scaled boundary
+compatibility; it is also not sufficient to prove incompatibility,
+given conditioning and projection accuracy.
+
+The reconstructed full rotating `qdot0` and `Y0` coefficient
+vectors agree between MPI1/2 to relative scales `6.00659e-7`
+and `6.68769e-8`, respectively; the relative difference in
+their `Y0` norms is `1.00769e-9`. Native MatNest RHS
+round-trip errors are exactly zero for all four cases.
+The prescribed physical `h0,p0` are unchanged bitwise,
+and the GetFEM state is restored. No pseudo, BDF initialization
+or true physical time step was executed. The previous bad MPI2
+physical dynamic residual `0.398585756` has disappeared.
+
+**QUALIFIED:** on this original P2 model and mesh, the true
+post-projection physical RHS is packaged and solved consistently
+with the native GetFEM/PETSc dynamics for MPI1/2, including
+the exact rest control, correct MPI index mapping and MPI parity.
+This **does not** prove first-differentiated full rank, generic
+nonlinear DAE initialization, a consistent rotating `Y0`,
+nor a physically admissible rotating trajectory.
+
+**NEXT GATE (#28 remains OPEN, #6 nontrivial rotation blocked):**
+at fixed original rotating `h0,p0`, independently measure actual
+boundary normal/tangential velocity mismatch and interior
+constitutive residuals using *physically scaled mesh-dependent
+L2/dual norms* rather than only raw algebraic coefficient norms;
+check residual sensitivity to LSQR stopping tolerance,
+conditioning and mesh refinement. Separate numerical projection
+error from any genuine incompatibility with the exact original
+wall ramp and weak constraints. Preserve curved P2 geometry,
+full viscous/gyro physics, fixed `h0,p0`, original controls,
+rollback and MPI1/2 comparisons. If algebraic feasibility can be
+established independently, only then promote the differentiated
+solution toward an actual consistent initial state, followed by
+a physical CN energy/port-power validation. Do not introduce
+pseudo-time correction or alter the prescribed rotating state
+merely to force acceptance.
+
+The host logs still emit a petsc4py `ComplexWarning` when
+reading the nominally real vectors into float arrays; a future
+strict real/imaginary-value check should establish whether any
+imaginary content exists instead of silently discarding it.
+Unused PETSc BDF options arise because the probe intercepts the
+initializer before TS; neither warning changes the gate result.
