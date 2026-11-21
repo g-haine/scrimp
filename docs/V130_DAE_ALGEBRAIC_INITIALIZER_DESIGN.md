@@ -3162,3 +3162,106 @@ If the Python host comparator alone later needs a replay,
 <saved-evidence-directory>` does not repeat GetFEM/MPI work.
 Preserve original rotating `q0` and no physical time
 integration: #28 and nontrivial rotating #6 remain OPEN.
+
+## 21 November 2026 — #28 original weak U boundary moments: NATIVE MPI1/2 PASSED; exact elimination gate STAGED
+
+**Native source:** `538f7e92bcda072594e6e13409a964c4bb4a415a`,
+immutable `scrimp-mpi:v1.3.0-rc3` OCI
+`1d6d0c90115213298047b28237a7f38087563a35`.
+Archived host evidence:
+`sandbox/outputs/v130-issue28-weak-wall-538f7e92-86jIvI0n/`.
+All six host regression tests passed and all eight native cases
+(rest/rotation × P2 mesh nominal 0.2/0.1 × MPI 1/2) passed,
+followed by the independently archived comparator:
+`COMPLETE_WEAK_WALL_DIAGNOSTIC_NOT_INITIALIZER`.
+
+The original `p0`, `h0=5`, `gamma=0` and prescribed
+`U=U_n*n+omega*Rot*n` with `U_n=0` are unchanged.
+For the actual GetFEM port-U functions `Test_U`, integrate
+`b(v)=int_Gamma (p0/rho - omega*Tangent).v`.
+Use the native `M_U=-J_UU` to measure
+`sqrt(b^T M_U^{-1}b/|Gamma|)` (full and normal/tangential
+components). No accepted Y0, no pseudo/BDF or physical time step.
+
+| Native original rotating `omega=.2` | h=0.2, U=132 DOFs | h=0.1, U=252 DOFs |
+|---|---:|---:|
+| Strong wall mismatch RMS | 1.394582408498e-5 | 2.017876485655e-6 |
+| **Native weak Riesz RMS** | **5.867041664403e-7** | **2.221552966076e-7** |
+| Normal weak Riesz RMS | 2.598473916159e-7 | 1.969987243180e-8 |
+| Tangential weak Riesz RMS | 4.819480885555e-7 | 2.207136474009e-7 |
+| Full GetFEM wall moment coefficient `||b||_2` | 3.679724232681e-7 | 1.276350903720e-7 |
+| `h0*||b||_2` expected Y-equation coefficient defect (conditional) | 1.839862116341e-6 | 6.381754518600e-7 |
+
+Both MPI configurations have identical native vector moments to
+printing precision; the parallel native order-one vectors and
+scalar perimeter are **replicated globally**. The independent
+full/normal/tangent moment decomposition errors are
+`2.2213e-17` (coarse) and `1.3382e-17` (fine).
+Riesz mass solves have relative residuals `<=9e-23`.
+At rest, strong and weak residuals vanish exactly on both meshes.
+
+**Qualified conclusion:** the **original prescribed rotating
+momentum has a nonzero weak mismatch against the actual finite-
+element wall U test space**, not only a strong L2 mismatch
+orthogonal to that space. Its Riesz RMS falls only by a factor
+`~2.641` between these nominal meshes; the weak tangential
+component dominates on the fine mesh. The initial expression
+`omega*(y,-x)/(sqrt(x*x+y*y)+1e-6)` includes an intentional
+`1e-6` center regularization that also slightly changes the
+trace near `r=1`; the contribution of this regularization
+versus geometric interpolation has **not** been isolated.
+Two mesh sizes do not establish asymptotic convergence.
+
+**Important remaining logical step:** a nonzero `b` alone
+does not prove the **full original algebraic system** inconsistent.
+At constant `h0=5`, the original `p` and `e_p` FEM are
+identical P2 spaces, so the interior weak constitutive
+constraint `F_ep=0` should force `e_p=p0/rho` by the
+nondegenerate h-weighted mass. Original `F_U=0` should
+force the port U coefficients via its boundary mass
+`M_U=-J_UU`. If `F_Y` in this unique joint solution is
+`+/-h0*b != 0`, exact simultaneous satisfaction of
+`F_ep,F_U,F_Y` is impossible for that fixed rotating q0
+on the tested meshes. This is a **conditional finite-dimensional
+block elimination argument**, not a generic DAE index theorem.
+
+To verify this chain independently in the actual **unmodified
+GetFEM IFunction**, new source-only diagnostic
+`sandbox/probe_v130_issue28_exact_weak_elimination.py`
+copies original `p0/rho` FE coefficients directly to
+`e_p`, solves the native `F_U` with `-J_UU` (MUMPS),
+checks native `F_ep=0`, `F_U=0`, and compares actual
+`F_Y` coefficient by coefficient to the independently
+assembled signed `h0*b`. Its companion
+`sandbox/compare_v130_issue28_exact_weak_elimination.py`
+checks MPI1/2 parity, original fixed q0, the previously
+frozen full `||b||_2` values, positivity of the rotating
+defect, and zero-rest positive controls. Paired host
+negative tests:
+`tests/test_v130_issue28_exact_weak_elimination.py`.
+The pinned-Docker runner is
+`scripts/run-v130-issue28-exact-weak-elimination.sh`.
+Source changes do not touch the production initializers
+or original PDE. **SOURCE STAGED / NATIVE NOT YET RUN**;
+the block identity remains a hypothesis pending this gate.
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+python tests/test_v130_issue28_exact_weak_elimination.py
+bash -n scripts/run-v130-issue28-exact-weak-elimination.sh
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-issue28-exact-weak-elimination.sh
+```
+
+Even if the three native blocks prove inconsistent at original
+rotating q0, do **not** change the original prescribed
+initial momentum or physical wall control to force acceptance.
+This evidence would justify explicitly rejecting that
+original incompatible DAE initial condition and designing a
+**separate, explicitly specified compatible physical state**
+or a wall spin-up from validated rest for #6.
+Never accept physical rotating Y0 or run a physical CN/energy
+campaign until a consistent initial DAE candidate is actually
+verified. #28 remains OPEN; nontrivial rotating #6 remains blocked.
