@@ -2165,3 +2165,103 @@ Issue #28 remains OPEN for
 differentiated-constraint Y0 on the original
 rotating viscous disk and the remaining
 mesh-dependent/physical power gates.
+
+
+## 21 November 2026 — ORIGINAL shallow-water fixed-T energy-defect temporal refinement: NATIVE MPI 1/2 PASS
+
+**Authoritative user-supplied archive inspected:** `v130-issue28-shallow-energy-refine-ae1146b8-wnHbWYHn.zip`.
+Source `ae1146b89217e2ebaad5a876a9f755569aeae18e`,
+immutable Docker `scrimp-mpi:v1.3.0-rc3` OCI
+`1d6d0c90115213298047b28237a7f38087563a35`.
+
+Six independently logged **real** native GetFEM/PETSc
+BDF2 time integrations, using the original published
+rectangular `examples/shallow_water.py` (unchanged
+weak forms, original `h0,p0`, physical boundary
+controls all zero, explicitly lagged gyro, and
+production opt-in `nonlinear_affine` initial
+projection). The **spatial mesh is fixed**
+`h_mesh=0.1`, the **physical final time is fixed**
+`T=0.0004`; only temporal resolution changes.
+All six reports independently confirm unchanged
+prescribed initial data, true accepted step count,
+no rejected steps or SNES failures, and original
+algebraic initial projection `||F_a||=2.1992e-12`
+(MPI 1) / `2.3277e-12` (MPI 2).
+
+The closed-system port-power defect is computed from
+the **actual signed** quantity
+`D_H(T)=H(T)-H(0)-W_boundary(T)` with
+`W_boundary(T)=integral_0^T Σ_i U_iY_i dt=0`
+since all four original boundary controls vanish.
+
+| `dt` | Actual steps | MPI1 signed `D_H(T)` | MPI2 signed `D_H(T)` | MPI1 final `|D_H|/H0` | MPI1 max relative mass drift |
+|---:|---:|---:|---:|---:|---:|
+| `1e-4` | `4` | `-0.0046648074239783455` | `-0.004664807369408663` | `1.474512951914752e-7` | `4.2648979745554295e-15` |
+| `5e-5` | `8` | `-0.0011776470091717783` | `-0.0011776469655160327` | `3.7224597073002744e-8` | `3.198673480916572e-15` |
+| `2.5e-5` | `16` | `-0.0002905913206632249` | `-0.0002905912660935428` | `9.185388100469784e-9` | `3.198673480916572e-15` |
+
+At fixed `T`, the absolute signed-defect refinement
+ratios are `3.9611253522046774` (4 to 8 steps)
+and `4.0525883790472506` (8 to 16 steps),
+giving **observed log2 orders `1.985910356921035`
+and `2.018843648450496`**. Thus the evidence
+strongly supports **approximately second-order
+temporal decrease of this particular closed-system
+energy defect over these dt values**. No BDF2
+*exact* energy-conservation claim is justified:
+the energy actually decreases for each finite step.
+
+The native MPI rank-1/rank-2 maximum relative
+Hamiltonian discrepancy is
+`3.449818887630128e-15`, and the maximum
+mass discrepancy `3.55408164546286e-15`.
+Boundary power is exactly zero throughout
+all reports; all original h0,p0 remain
+unchanged at initialization.
+
+**Sampling caveat:** 4 accepted steps
+saved 5 states, 8 accepted steps saved 9,
+16 accepted steps saved **16**, not 17.
+The 16-step saved series includes both
+`t=0` and `t=T` but is missing at least
+one intermediate accepted step (`t=0.000375`).
+The comparator validates actual saved timestamps,
+not an imaginary uniform sample count. For
+nonzero future boundary controls, numerically
+integrating power requires the true saved time
+intervals (or appropriate per-step accounting).
+
+**Release qualification now passed:** nonlinear-state /
+affine-algebraic *production* initial projection,
+short true physical BDF2 integration,
+nonvacuous accepted-step explicit gyro freeze
+(previous run), MPI parity, mass conservation to
+roundoff, and **fixed-spatial-mesh temporal
+convergence of the closed-system signed Hamiltonian
+defect with observed order close to two**.
+
+**Scientific scope limitations:** the original
+initial height is nonsmooth, so this short
+empirical sequence does not prove a general BDF2
+energy-error theorem. It does not qualify
+nonzero boundary-work quadrature, mesh-independent
+spatial acceptance/convergence, general nonlinear
+algebraic Newton, or original viscous **rotating**
+high-index traction `Y0`. The previously reported
+self-normalized `relative_energy_defect_exchanged=1`
+remains tautological in this closed system; use
+the **signed `D_H(T)`** and the `H0`-scaled
+quantity instead.
+
+**Next substantive priority:** return to original
+rotating viscous P2 disk issue #28: at fixed original
+`h0,p0`, identify the *reduced discrete* boundary
+compatibility constraints and determine whether their
+time derivative coupled to dynamic FE equations has
+sufficient rank to solve for initial `Y0`. Include
+corrected GWFL rotation, full gyro/viscosity and
+native MPI 1/2 parity; avoid changing original
+physical data or introducing a pseudo TS.
+Only then attempt a qualified consistent
+high-index initialization.
