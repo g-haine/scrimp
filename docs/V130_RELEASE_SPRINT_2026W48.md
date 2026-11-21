@@ -3994,3 +3994,37 @@ h,p terminal coefficient differences
 across dt; no premature order claim.
 Original physical data and production
 SCRIMP sources are unchanged.
+
+## 21 November 2026 — #28/#6 NATIVE fixed-final-time PETSc TSCN refinement **16/16 PASS** (t_f=.002, N=1/2/4/8, curved P2 MPI1/2)
+
+**COMPLETE original native evidence**: `sandbox/outputs/v130-issue28-cn-refinement-a9cc2d21-hhcttZc6/`, source `a9cc2d21ead982e5582ae77813a5f0558a1f694f`, pinned `scrimp-mpi:v1.3.0-rc3` OCI `1d6d0c90115213298047b28237a7f38087563a35`. Independently inspected the original uploaded 3.1 MB ZIP: all 16 native JSON and NPZ files, all 16 time/physical coefficient trajectories and original weighted power traces, original manifest and strict `cn_refinement_comparison.json` are present. All 11 host regression/negative tests PASS. Original comparator returns `NATIVE_TSCN_FIXED_FINAL_TIME_REFINEMENT_DIAGNOSTIC_ONLY`.
+
+Experiment is the **NEW** explicitly compatible C1 rest-to-rotation physical SWE (`h0=5,p0=0`, original curved P2 weak physics, original physical facet-tangent wall, target `omega=.2`, rising `g(t)` over .02 seconds, current observation `t_f=.002`). The original incompatible *already rotating* initial p0 and production initializers are **not** modified. Temporary sandbox exact-effort/traction publication from earlier native qualified t0 is used for all runs. Each real PETSc TSCN (endpoint trapezoidal, `theta=.5`) step is independently evaluated using the TRUE original GetFEM IFunction equation `F(t_{k+1},z_{k+1},2(z_{k+1}-z_k)/dt)+F(t_k,z_k,0)=0`; the implicit-midpoint residual remains explicitly out-of-scheme.
+
+**Native MPI1 raw data (MPI2 also PASS):**
+
+| mesh | N | dt | max original TSCN residual | max endpoint Fa | ΔH | original h-weighted W | viscous D | ΔH+D−W | defect / actual exchange |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| .2 | 1 | .002 | 4.81e-14 | 2.41e-17 | 8.85816897e-6 | 8.86996911e-6 | 1.18002064e-8 | +6.29e-14 | +7.09e-9 |
+| .2 | 2 | .001 | 9.99e-14 | 2.64e-17 | 8.85815305e-6 | 8.86790635e-6 | 9.75341625e-9 | +1.12e-13 | +1.26e-8 |
+| .2 | 4 | .0005 | 1.95e-13 | 3.60e-17 | 8.85814976e-6 | 8.86781724e-6 | 9.66759114e-9 | +1.09e-13 | +1.23e-8 |
+| .2 | 8 | .00025 | 3.96e-13 | 4.75e-17 | 8.85814897e-6 | 8.86782170e-6 | 9.67282062e-9 | +9.71e-14 | +1.10e-8 |
+| .1 | 1 | .002 | 7.53e-14 | 1.59e-17 | 4.65876210e-6 | 4.68128340e-6 | 2.25212840e-8 | −2.36e-14 | −5.04e-9 |
+| .1 | 2 | .001 | 5.26e-14 | 1.43e-17 | 4.65871765e-6 | 4.67735698e-6 | 1.86392535e-8 | −7.69e-14 | −1.64e-8 |
+| .1 | 4 | .0005 | 1.07e-13 | 1.89e-17 | 4.65870844e-6 | 4.67719184e-6 | 1.84833457e-8 | −5.62e-14 | −1.20e-8 |
+| .1 | 8 | .00025 | 2.11e-13 | 2.52e-17 | 4.65870624e-6 | 4.67720172e-6 | 1.84954129e-8 | −5.92e-14 | −1.27e-8 |
+
+Max endpoint algebraic residual over all native MPI and temporal cases **<4.93e-17**, max TSCN residual **<3.97e-13**, max absolute mass balance defect **<1.60e-13**, and absolute relative power balance defect **<1.65e-8** of the *actually exchanged* physical energy, not of background H0. Independent raw trace reintegration reproduces all weighted wall/viscosity and Hamiltonian balances. MPI1/2 full FE vector parity and identical initial prescribed q0 PASS.
+
+**Temporal original dynamic h,p FE coefficient differences** at fixed final physical time, same mesh:
+
+| mesh | `||q1−q2||` | `||q2−q4||` | `||q4−q8||` | `p(1,2,4)` | `p(2,4,8)` |
+|---|---:|---:|---:|---:|---:|
+| .2 | 1.11668109484e-4 | 2.79155203799e-5 | 6.97878678223e-6 | **2.0000778803** | **2.0000192900** |
+| .1 | 2.35596039991e-4 | 5.88720774443e-5 | 1.47163414212e-5 | **2.0006598472** | **2.0001644850** |
+
+This is compelling evidence of **second-order temporal behavior for this specific early C1 spinup trajectory**, in the original physical dynamic FE coefficients on both tested spatial meshes. These are coefficient norms (not mesh-independent continuum norms) and numerical order estimates (not a general theorem). The power defect is near numerical roundoff, not systematically decreasing with dt, so **no energy-defect order** is inferred.
+
+**Important still-open caveat:** PETSc endpoint TSCN implementation documents its assumption of linear time-independent mass; physical SWE `M(h)` is nonlinear. Empirical early-time order ≈2 does not remove the possible loss of general order/structure over other data, longer times, or generic DAE index. No general nonlinear-mass TSCN theorem/production initializer, nor full spinup/high-index long-time validation is claimed.
+
+**Next physically meaningful gate:** keep original C1 ramp, original nonlinear weak bricks, h0=5,p0=0, but integrate THROUGH the full ramp `t_f=.02` (20 ms), with fixed dt .002/.001/.0005 = N=10/20/40, nominal meshes .2/.1 and MPI1/2. Check true original TSCN and Fa **at every step**, real TS acceptance, full FE coefficient parity, mass and h-weighted physical work+dissipation, and temporal endpoint differences/observed orders. Require positive h throughout; compare energy balance without arbitrary absolute tolerance masquerading as a proof. At t=.02 the rising C1 wall reaches full prescribed rotation `omega=.2` for the first time; the existing decreasing envelope starts only at t=.03, so the physical control remains comparable. **This longer gate is not yet native qualified.**
