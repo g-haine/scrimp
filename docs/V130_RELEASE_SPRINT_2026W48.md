@@ -1878,3 +1878,80 @@ has a different high-index constraint structure; its
 initial traction `Y0` still requires an independent
 index-aware differentiated-constraint algorithm,
 and is NOT qualified by this test.
+
+
+## 21 November 2026 — #28 opt-in production DAE initial projection + real short BDF2 TS staged (native PENDING)
+
+**Previously native qualified (immutable `scrimp-mpi:v1.3.0-rc3`):**
+
+- True `nonlinear_affine` initial projection on the
+  original rectangular `examples/shallow_water.py`:
+  `||F_a||=2.1992e-12` (MPI1) and `2.3277e-12`
+  (MPI2), original differential h0,p0 unmodified.
+- Native structural **expected rejection** of all 132
+  algebraic null columns for rotating P2 traction Y.
+- Native expected **post-computed-correction**
+  numerical rejection at `accuracy=1e-16`,
+  including exact rollback of all GetFEM fields,
+  PETSc `GlobalVec`, and accepted-state explicit RHS
+  metadata/content in true MPI1/2.
+
+**Next source-only staged gate, NOT YET NATIVE PASSED:**
+`sandbox/probe_v130_issue28_production_short_physical.py`
+and `scripts/run-v130-issue28-production-short-physical.sh`,
+with a separate archived JSON comparator
+`sandbox/compare_v130_issue28_production_short_physical.py`.
+This deliberately reuses the already tested original
+weak-form, explicit-gyro and actual PETSc TS harness
+`sandbox/probe_v130_shallow_explicit_ts.py`.
+
+It retains the **original** `examples/shallow_water.py`
+inviscid rectangular physical weak forms,
+original `mesh=0.1`, original `h0=3-(sign(x-.5)+1)/3`,
+original `p0=0`, and zero controls on all four
+boundaries. Only the short-test time scheme
+(BDF2 with four physical steps `dt=1e-4`)
+and explicit selection of production
+`init_step_ts_type="nonlinear_affine"` are test
+overrides; there is **no manufactured nonzero
+momentum**, no pseudo-initialization TS, and
+no changed physical coefficients.
+
+The probe calls the actual production `init_step()`
+from within `solve()`, captures its original-state
+publication report, then verifies:
+- exactly four genuine accepted PETSc BDF2 physical
+  steps, with no TS rejections or SNES failures;
+- native `IFunction` actually evaluated throughout;
+- accepted-time explicit gyro forcing frozen during
+  all implicit Newton residual iterations;
+- complete finite full-state trajectory and
+  positive finite mechanical Hamiltonian;
+- MPI1/MPI2 relative **full-state** and Hamiltonian
+  parity `<=5e-8`, with identical sample times;
+- the original h0,p0 unchanged by initialization and
+  original published physical boundary controls.
+
+**Important scientific boundary:** this test will
+only **measure** the signed Hamiltonian drift.
+BDF2 with a lagged explicit gyroscopic brick does
+not guarantee an exact time-discrete
+port-Hamiltonian power balance. The test must
+not assert zero signed drift as a physics theorem.
+A physically scaled energy, integrated boundary
+power and time/mesh convergence study is a
+**separate** subsequent release gate. No claim
+of full rotating viscous DAE `Y0` consistency
+or mesh-independent initialization follows.
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+SCRIMP_DOCKER_NO_SUDO=1 SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+  bash scripts/run-v130-issue28-production-short-physical.sh
+```
+
+On host-side comparator issues, **replay saved
+native results without Docker** using
+`--compare-only <evidence-directory>` rather
+than rerunning expensive physical steps.
