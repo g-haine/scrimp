@@ -4530,3 +4530,60 @@ Only if all pass, run the same immutable
 The earlier **16/16 native PASSED** refinement at `t_f=.002` and
 its empirical order-two result remain valid and unaffected.
 #28 and #6 remain OPEN.
+
+## 21 November 2026 — Full-ramp native 12/12 PASS; accepted-state checkpoint becomes v1.3.0 P0 (#29)
+
+The **separate new compatible** rest-to-rotation
+Saint-Venant curved-P2 experiment has now successfully
+advanced through the complete physical **C1
+wall acceleration to t=.02**. User archive
+`sandbox/outputs/v130-issue28-full-spinup-c0b8f3d2-NSdC2dDW/`
+at source `c0b8f3d2e4fe7f1ea8466020f1bdf163afa764da`
+and pinned `scrimp-mpi:v1.3.0-rc3` OCI
+`1d6d0c90115213298047b28237a7f38087563a35`
+was inspected: **12 native JSON/NPZ cases**, h=.2/.1,
+N=10/20/40 TSCN steps, MPI1/2, accepted physical
+times, full original FE coefficients and original
+h-weighted boundary work/viscous dissipation/Hamiltonian
+traces. Strict comparator
+`NATIVE_TSCN_FULL_C1_RAMP_REFINEMENT_DIAGNOSTIC_ONLY`
+PASS, complete wall target control plateau verified.
+Maximum `||F_TSCN||=1.598370025e-10`,
+maximum endpoint `||F_a||=3.242346397e-14`,
+maximum absolute volume defect
+`9.414691249e-14`, full MPI1/2
+FE parity PASS. Observed original dynamic
+h,p coefficient order is **1.84153** (h=.2)
+and **1.96182** (h=.1).
+
+**Important:** h-weighted `ΔH+D-W` relative
+to actual exchanged energy at t=.02 with N=40
+is **+2.79935e-5** (h=.2) and
+**+6.94182e-5** (h=.1), not the earlier
+t=.002 ~1e-8 roundoff floor. The
+defect reduces only modestly over this
+temporal grid. No claim of general
+nonlinear-mass TSCN pH power preservation,
+stationary interior rotation, or general
+index-two/high-index DAE initializer
+follows from this native experiment.
+The original already-rotating t0 differential
+data are still infeasible on the tested meshes.
+
+**New P0 #29:** preserve a previously
+accepted complete DAE state (including all
+efforts and boundary variables), its physical
+time and verifiable actual FE mesh/DoF
+ordering, and **restart without a new
+pseudo-time initial consistency solve**.
+The cold restarted state must satisfy the
+original algebraic rows of `IFunction`
+at `t=t_*` and unchanged physical control.
+This is a safe workaround for repeatedly
+preparing LHMNC initial data; it is NOT
+a method to repair an inconsistent prescribed
+initial differential state and does not
+replace issue #28's independent nonlinear/
+high-index feasibility and initializer work.
+See [release gate 2C](V130_RELEASE_PLAN.md)
+and [checkpoint issue #29](https://github.com/g-haine/scrimp/issues/29).
