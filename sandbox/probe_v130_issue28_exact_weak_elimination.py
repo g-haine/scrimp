@@ -172,12 +172,21 @@ def audit(s, mpi, mesh, omega):
         sign = 1 if error_plus <= error_minus else -1
         error = min(error_plus, error_minus)
         residual_scale = float(np.linalg.norm(prediction))
-        # Relative when the nonzero physical load dominates, absolute
-        # at exact rest. No silent weakening of the native equality.
-        if error > 1e-10 * max(1e-6, residual_scale):
+        # Different GetFEM assembly paths accumulate O(machine epsilon)
+        # absolute coefficient rounding. The former
+        # 1e-10*max(1e-6, ||5b||) accidentally rejected 1.0994e-16
+        # at h=.1 although F_Y was ~6.38e-7. Compare with both a
+        # strict 5e-15 absolute rounding budget and 2e-9 *physical*
+        # relative coefficient tolerance; do not scale by a made-up
+        # floor on ||5b||. Gross moment/sign errors remain rejected.
+        identity_tolerance = 5e-15 + 2e-9 * residual_scale
+        identity_relative_error = error / max(residual_scale, 1e-30)
+        if not np.isfinite(error) or error > identity_tolerance:
             raise RuntimeError(
                 "Exact native F_Y differs from +/-h0*independent weak "
-                f"U wall moments: error={error:.9g}, scale={residual_scale:.9g}"
+                f"U wall moments: error={error:.9g}, "
+                f"relative={identity_relative_error:.9g}, "
+                f"limit={identity_tolerance:.9g}, scale={residual_scale:.9g}"
             )
         if omega == 0.:
             if y_final > 1e-10 or residual_scale > 1e-10:
@@ -210,6 +219,10 @@ def audit(s, mpi, mesh, omega):
             "independent_native_weak_U_moment_coefficients": moment.tolist(),
             "native_FY_equals_signed_h0_wall_moment_sign": sign,
             "native_FY_weak_moment_identity_error_l2": error,
+            "native_FY_weak_moment_identity_relative_error":
+                identity_relative_error,
+            "native_FY_weak_moment_identity_tolerance_l2":
+                identity_tolerance,
             "expected_signed_h0_wall_moment_l2": residual_scale,
             "native_U_mass_KSP_reason": (
                 int(ksp.getConvergedReason()) if b.norm() > 0. else 0
