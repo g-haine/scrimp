@@ -234,6 +234,7 @@ def audit(system, mpi, mesh, rotation):
                 f.restoreSubVector(ia, sub)
             rhs.assemble()
             trials = []
+            standard_delta = None
             for kind, rtol, atol, max_it in (
                 ("standard", 1e-12, 1e-13, 10000),
                 ("tight", 1e-13, 1e-14, 20000),
@@ -248,6 +249,16 @@ def audit(system, mpi, mesh, rotation):
                 ksp.setTolerances(rtol=rtol, atol=atol, max_it=max_it)
                 ksp.solve(rhs, delta)
                 reason = int(ksp.getConvergedReason())
+                correction_norm = float(delta.norm())
+                if standard_delta is None:
+                    standard_delta = keep(delta.copy())
+                    coefficient_change = 0.
+                else:
+                    difference = keep(delta.copy())
+                    difference.axpy(-1., standard_delta)
+                    coefficient_change = float(
+                        difference.norm() / max(1., standard_delta.norm())
+                    )
                 corr_local = real_array(
                     delta.getArray(readonly=True), "LSQR correction"
                 )
@@ -291,6 +302,8 @@ def audit(system, mpi, mesh, rotation):
                     "converged_reason": reason,
                     "iterations": int(ksp.getIterationNumber()),
                     "reported_residual": float(ksp.getResidualNorm()),
+                    "algebraic_correction_l2": correction_norm,
+                    "relative_coefficient_change_from_standard": coefficient_change,
                     "native_Fa_l2": fa, "native_Fa_blocks_l2": blocks,
                     "normal_equation_AT_Fa_l2": stationarity,
                     "physical_integrals": integrals,
