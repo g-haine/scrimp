@@ -83,6 +83,7 @@ class OneCNHostTests(unittest.TestCase):
             },
             "two_endpoint_states_archived": True,
             "native_original_midpoint_equations_verified": True,
+            "first_physical_state_changed": True,
             "dynamic_step_change_l2": 1e-3,
             "first_step_minimum_height_coefficient": 4.9,
             "hamiltonian_initial": 4.,
