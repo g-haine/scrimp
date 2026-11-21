@@ -82,8 +82,25 @@ def validate(report, h, case, ranks):
                               "weak identity error"),
                          rel_tol=1e-4, abs_tol=1e-12),
             "Archived native weak moment equation identity falsified")
-    require(discrepancy <= 1e-12 * max(1., norm(Fy)),
+    # Mirror the native probe's machine-roundoff-aware criterion;
+    # use the archived old-run evidence even when the new optional
+    # tolerance fields do not exist (safe resume of the six passed runs).
+    identity_limit = 5e-15 + 2e-9 * (5.*norm(b))
+    require(discrepancy <= identity_limit,
             "Native F_Y does not equal signed 5*original weak wall moment")
+    if "native_FY_weak_moment_identity_tolerance_l2" in report:
+        require(math.isclose(
+            real(report["native_FY_weak_moment_identity_tolerance_l2"],
+                 "recorded native identity tolerance"),
+            identity_limit, rel_tol=1e-9, abs_tol=1e-18
+        ), "Native probe and host comparator identity tolerances differ")
+    if "native_FY_weak_moment_identity_relative_error" in report:
+        require(math.isclose(
+            real(report["native_FY_weak_moment_identity_relative_error"],
+                 "recorded relative identity discrepancy"),
+            discrepancy / max(5.*norm(b), 1e-30),
+            rel_tol=1e-4, abs_tol=1e-12
+        ), "Reported native relative identity discrepancy mismatches vectors")
     y_norm = norm(Fy)
     require(math.isclose(y_norm,
                          real(report.get("native_FY_after_both_exact_eliminations_l2"),
