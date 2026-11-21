@@ -2710,3 +2710,59 @@ check Hamiltonian, boundary power and explicit gyro
 freeze properties before claiming physical runtime
 qualification. The rotating high-index Y0 problem
 still needs index-aware differentiated constraints.
+
+
+## 21 November 2026 — #28 native numerical-rejection rollback gate PASS (MPI 1/2)
+
+**User-supplied immutable native evidence**:
+`v130-issue28-negative-accuracy-20b39eb2-d3D8JQf1.zip`
+including manifest, rank-specific JSON and complete logs.
+Source `20b39eb2e4a512b7536324331802c223dc924849`;
+Docker image `scrimp-mpi:v1.3.0-rc3`,
+OCI revision `1d6d0c90115213298047b28237a7f38087563a35`.
+
+The original `examples/shallow_water.py` rectangle/mesh=0.1,
+original differential h0,p0 and zero boundary controls
+were **not modified**. On the real production
+`nonlinear_affine` initializer, `init_algebraic_accuracy`
+was deliberately set to `1e-16`, substantially below
+the independently verified attainable ~`2.2e-12`
+native floating-point residual.
+
+| Metric | MPI 1 | MPI 2 |
+|---|---:|---:|
+| Native candidate `||F_a||_2` after successful MUMPS correction | `2.199213556173762e-12` | `2.3277177796294783e-12` |
+| Strict imposed accuracy | `1e-16` | `1e-16` |
+| PETSc linear solver converged reason | `4` | `4` |
+| Production status | `REJECTED` | `REJECTED` |
+| Exception | `InconsistentDAEInitialData` | `InconsistentDAEInitialData` |
+| Bitwise GetFEM rollback | PASS | PASS |
+| Bitwise PETSc `GlobalVec` rollback | PASS | PASS |
+| Explicit forcing cache ready/time/content restoration | PASS | PASS |
+| No physical/pseudo TS | PASS | PASS |
+
+**PASS_EXPECTED_NUMERICAL_REJECTION** in MPI1 and MPI2.
+This specifically validates rollback **after a candidate has
+actually been computed**, complementing the separate native
+high-index rotating `Y` rejection (132 null columns), which
+occurs before attempting the algebraic solve.
+
+The test demonstrates *numerical accuracy rejection*, **NOT**
+physical incompatibility of prescribed differential initial
+data, and does not determine the rotating viscous `Y0`.
+
+Next release gate: a **short physical-time trajectory**
+from the now qualified positive production initialization
+on the **original rectangular** shallow-water model,
+keeping original h0,p0 and controls. Independently measure
+mass, Hamiltonian and zero-control boundary power;
+track accepted TS steps, nonlinear failures and MPI
+1/2 parity. BDF2 is **not** a discrete energy-preserving
+scheme: any measured energy drift must be reported rather
+than declared exactly power-preserving. Do not invent
+a conservation certificate or automatically approve
+the higher-index rotating DAE.
+
+The original rotating viscous P2 case remains an open
+high-index *differentiated-constraint* initialization
+problem. #28 remains OPEN.
