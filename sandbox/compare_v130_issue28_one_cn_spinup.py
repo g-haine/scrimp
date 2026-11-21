@@ -1,0 +1,213 @@
+# SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
+#
+# Copyright (C) 2015-2026 ISAE-SUPAERO -- GNU GPLv3
+#
+# See LICENSE for license information.
+
+"""Host comparator for native #28/#6 ONE physical CN spinup step.
+
+We require real TS acceptance, original midpoint IFunction and MPI
+parity. Endpoint algebraic drift and actual exchanged-energy balance
+are measured and reported, NOT silently relabelled PASS. First-step
+power alone cannot prove refinement/conservation on a nonautonomous DAE.
+"""
+
+import argparse
+import json
+import math
+from pathlib import Path
+
+OCI_REV = "1d6d0c90115213298047b28237a7f38087563a35"
+MESHES = (.2, .1)
+
+
+def require(predicate, message):
+    if not predicate:
+        raise ValueError(message)
+
+
+def finite(value, name):
+    require(type(value) in (int, float) and math.isfinite(value),
+            f"Invalid nonfinite {name}: {value!r}")
+    return float(value)
+
+
+def validate(report, mesh, ranks):
+    require(report.get("schema") == "scrimp-v130-issue28-one-cn-spinup-v1"
+            and report.get("status") ==
+            "NATIVE_SINGLE_PHYSICAL_CN_STEP_DIAGNOSTIC_ONLY",
+            "Wrong native single-step diagnostic schema")
+    require(report.get("source_mesh") == mesh
+            and report.get("mpi_ranks") == ranks
+            and report.get("new_physical_rest_spinup_experiment") is True
+            and report.get("original_incompatible_rotation_initial_state_unchanged") is True
+            and report.get("geometry_order") == 2
+            and report.get("height_order") == 2
+            and report.get("physical_facet_tangent_wall") is True
+            and report.get("rotation_after_spinup") == .2
+            and report.get("spinup_duration") == .02,
+            "Original physical P2 or rest-spinup source changed")
+    initial = report.get("initial", {})
+    require(initial.get("strategy") ==
+            "sandbox_exact_stationary_spinup_only"
+            and initial.get("status") ==
+            "SANDBOX_ONLY_PUBLISHED_NOT_GENERAL_INITIALIZER"
+            and initial.get("differential_q0_preserved_bitwise") is True
+            and initial.get("getfem_globalvec_published_bitwise") is True
+            and initial.get("no_pseudo_or_BDF_initialization") is True
+            and initial.get("analytic_gprime_t0_exact_zero") is True,
+            "Unsafe/non-analytic initial-state publication")
+    init_f = initial.get("initial_native_IFunction", {})
+    require(finite(init_f.get("algebraic_l2"), "initial Fa") < 1e-10
+            and finite(init_f.get("dynamic_l2"), "initial Fd") < 1e-10,
+            "Physical t0 was not truly algebraically/dynamically consistent")
+    require(report.get("physical_scheme") == "cn"
+            and report.get("physical_time_step") == .002
+            and report.get("ts_accepted_steps") == 1
+            and report.get("ts_rejected_steps") == 0
+            and report.get("ts_snes_failures") == 0
+            and type(report.get("ts_converged_reason")) is int
+            and report["ts_converged_reason"] > 0
+            and abs(finite(report.get("ts_actual_final_time"), "TS time")-.002)
+            < 1e-12,
+            "Real PETSc CN did not accept exactly one physical step")
+    require(report.get("two_endpoint_states_archived") is True
+            and report.get("native_original_midpoint_equations_verified") is True
+            and report.get("production_high_index_initializer_qualified") is False
+            and report.get("energy_balance_convergence_qualified") is False
+            and report.get("physical_multistep_trajectory_qualified") is False,
+            "Unjustified physical production/energy/multistep qualification")
+    mid = report.get("original_IFunction_midpoint_l2", {})
+    end = report.get("original_IFunction_endpoint_l2", {})
+    require(finite(mid.get("full_l2"), "CN midpoint residual") < 1e-7
+            and finite(mid.get("algebraic_l2"), "CN midpoint algebraic") < 1e-7
+            and finite(mid.get("dynamic_l2"), "CN midpoint dynamic") < 1e-7,
+            "Accepted real CN does not satisfy original midpoint GetFEM IFunction")
+    for key in ("algebraic_l2", "dynamic_l2", "U_l2", "full_l2"):
+        require(finite(end.get(key), "endpoint "+key) >= 0,
+                "Nonfinite post-CN endpoint algebraic/dynamic residual")
+
+    for field in (
+        "hamiltonian_initial", "hamiltonian_final",
+        "hamiltonian_change", "physical_boundary_normal_work",
+        "physical_boundary_viscous_work", "integrated_boundary_work",
+        "integrated_viscous_dissipation", "integrated_dissipation_grad",
+        "integrated_dissipation_div", "physical_power_balance_defect",
+        "physical_power_balance_defect_over_actual_exchange",
+        "physical_volume_balance_defect", "dynamic_step_change_l2",
+        "first_step_minimum_height_coefficient",
+    ):
+        finite(report.get(field), field)
+    require(report["first_step_minimum_height_coefficient"] > 0,
+            "Physical h coefficients nonpositive")
+    require(report["integrated_viscous_dissipation"] >= -1e-12,
+            "Physical viscous dissipation negative")
+    require(math.isclose(
+        report["integrated_boundary_work"],
+        report["physical_boundary_normal_work"]
+        + report["physical_boundary_viscous_work"],
+        rel_tol=1e-7, abs_tol=1e-13,
+    ), "Physical SWE wall power does not match weighted port work")
+    require(math.isclose(
+        report["integrated_viscous_dissipation"],
+        report["integrated_dissipation_grad"]
+        + report["integrated_dissipation_div"],
+        rel_tol=1e-7, abs_tol=1e-13,
+    ), "SWE viscous dissipation components do not sum")
+    dh = report["hamiltonian_change"]
+    dw = report["integrated_boundary_work"]
+    diss = report["integrated_viscous_dissipation"]
+    err = dh + diss - dw
+    require(math.isclose(
+        err, report["physical_power_balance_defect"],
+        rel_tol=1e-7, abs_tol=1e-12,
+    ), "Physical balance defect cannot be reproduced from saved terms")
+    exchanged = max(abs(dh), abs(dw), abs(diss), 1e-14)
+    require(math.isclose(
+        err/exchanged,
+        report["physical_power_balance_defect_over_actual_exchange"],
+        rel_tol=1e-7, abs_tol=1e-8,
+    ), "Actual exchanged-energy normalisation was misreported")
+    return {
+        "initial_Fa_l2": init_f["algebraic_l2"],
+        "midpoint_F_l2": mid["full_l2"],
+        "endpoint_Fa_l2": end["algebraic_l2"],
+        "endpoint_U_l2": end["U_l2"],
+        "physical_power_defect": err,
+        "power_defect_over_actual_exchange": err/exchanged,
+        "physical_volume_defect": report["physical_volume_balance_defect"],
+        "accepted_steps": 1,
+    }
+
+
+def compare(directory):
+    root = Path(directory)
+    manifest = json.loads((root/"manifest.json").read_text(encoding="utf-8"))
+    require(manifest.get("schema") == "v130-issue28-one-cn-spinup-v1"
+            and manifest.get("image_revision") == OCI_REV
+            and manifest.get("physical_spinup_only") is True
+            and manifest.get("production_source_unchanged") is True
+            and manifest.get("one_physical_step_expected") is True,
+            "Invalid single-step native gate provenance")
+    summary = {}
+    for mesh in MESHES:
+        by_rank = []
+        for ranks in (1, 2):
+            f = root/f"result_h{str(mesh).replace('.', 'p')}_mpi{ranks}"/"one_cn_spinup.json"
+            require(f.is_file(), f"Missing native one-CN evidence {f}")
+            by_rank.append(validate(
+                json.loads(f.read_text(encoding="utf-8")), mesh, ranks,
+            ))
+        a, b = by_rank
+        for key in (
+            "initial_Fa_l2", "midpoint_F_l2", "endpoint_Fa_l2",
+            "endpoint_U_l2", "physical_power_defect",
+            "physical_volume_defect",
+        ):
+            va, vb = finite(a[key], key), finite(b[key], key)
+            require(abs(va-vb) <= 1e-9*max(1., abs(va), abs(vb)),
+                    f"Native MPI parity mismatch in {key}")
+        key = f"h{mesh:g}"
+        summary[key] = {
+            "native_mpi1": a, "native_mpi2": b,
+            "native_mpi_parity": True,
+            "energy_balance_verified_with_dt_refinement": False,
+        }
+        print(
+            f"h={mesh:g}: 1 accepted physical CN step MPI1/2 PASS "
+            f"stage_F={a['midpoint_F_l2']:.9g} "
+            f"end_Fa={a['endpoint_Fa_l2']:.9g} "
+            f"energy_exchange_defect={a['power_defect_over_actual_exchange']:.9g}",
+            flush=True
+        )
+    result = {
+        "schema": "scrimp-v130-issue28-one-cn-comparison-v1",
+        "status": "ONE_NATIVE_CN_STEP_ACCEPTED_POWER_BALANCE_UNQUALIFIED",
+        "cases": summary,
+        "physical_energy_balance_refinement_qualified": False,
+        "nontrivial_rotating_swe_trajectory_qualified": False,
+        "general_high_index_initializer_qualified": False,
+        "interpretation": (
+            "One native physical CN step at the new analytically compatible "
+            "spinup is accepted, and original midpoint IFunction is checked. "
+            "Both endpoint algebraic drift and physical weighted "
+            "Hamiltonian/work/dissipation defect are archived and require "
+            "separate time-refinement validation before qualification."
+        ),
+    }
+    (root/"one_cn_spinup_comparison.json").write_text(
+        json.dumps(result, indent=2)+"\n", encoding="utf-8",
+    )
+    print("COMPLETE: one real CN step native; energy/refinement NOT qualified.")
+    return result
+
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("--evidence", type=Path, required=True)
+    args = p.parse_args()
+    compare(args.evidence)
+
+
+if __name__ == "__main__":
+    main()
