@@ -2455,3 +2455,107 @@ the real differentiated constraint RHS and solve for
 unchanged and require MPI 1/2 parity, rollback on
 failure, no pseudo-TS, and subsequent physical energy
 and boundary-power checks. #28 OPEN.
+
+
+## 21 November 2026 — #28 ORIGINAL rotating disk: first genuine physical RHS / diagnostic Y0 pilot (NATIVE PENDING)
+
+This follows the passed native P2 MPI 1/2 rank audit
+(`3300 x 3300`, 132 traction Y variables, synthetic
+MUMPS x-recovery at relative `~1e-10` or better).
+**The rank audit did not compute the actual
+physical forcing or a compatible rotating
+algebraic initial state**. In particular
+its `F_d=0` at rotation was evaluated at the
+**original zero-algebraic guess**, not at
+the physical constitutive efforts and
+prescribed nonzero wall velocity.
+
+Next source-only stage:
+`sandbox/probe_v130_issue28_physical_rhs_y0.py`,
+`scripts/run-v130-issue28-physical-rhs-y0.sh`,
+`sandbox/compare_v130_issue28_physical_rhs_y0.py`
+with host-only negative regression tests.
+It uses the **unchanged original model**
+`sandbox/viscous_swe_2d_mpi.py`,
+real curved geometric P2 disk mesh `0.2`,
+physical initial `q0=(h0,p0)`, corrected
+clockwise GWFL convention, unmodified normal
+and tangential boundary controls and full gyro
+and viscous terms. There are **no accepted
+physical or pseudo-initialization time steps**.
+
+- **Known rest baseline (`omega=0`)**:
+  initialize only the known analytical
+  algebraic efforts `e_h=0.5`,
+  `Y_n=-0.5`, with the exact original
+  `h0=5,p0=0`, and require real
+  GetFEM `F_a,F_d` at numerical zero.
+- **Original rotating case (`omega=0.2`)**:
+  hold original `h0,p0` and traction
+  `Y=0` exactly fixed; compute only
+  regular algebraic efforts/control fields
+  `a_r0` with the true *rectangular*
+  PETSc distributed LSQR, then evaluate
+  the actual original `F_a` and
+  per-block residuals. The previous
+  comparable pilot got `||F_a||≈4.18e-8`:
+  this does **not** establish exact
+  discrete boundary compatibility.
+- At that **projected** regular algebraic
+  candidate, evaluate the **actual**
+  differential residual `F_d(q0,a_r0,Y=0,zdot=0)`
+  rather than taking the meaningless
+  zero-algebraic-guess dynamic RHS.
+  Independently finite-difference
+  `partial_t F_a` within the actual
+  wall ramp's flat initial interval.
+- Assemble original GetFEM
+  `Mdd, JdY, Jad, Jar` and solve
+  the actual first-differentiated
+  bordered system
+
+  `Mdd qdot0 + JdY Y0 = -F_d`,
+
+  `Jad qdot0 + Jar a_r_dot0 = -partial_t F_a`.
+
+  Confirm the original full nonlinear
+  `IFunction` at the resulting
+  `qdot0,Y0` and the original
+  `F_a(q0,a_r0,0)`. Never silently
+  alter original `h0,p0` or the
+  prescribed wall control, and restore
+  all GetFEM/PETSc/cache state.
+- Report actual `||Y0||_2` and
+  `||qdot0||_2` as **DIAGNOSTIC
+  ONLY**. Until independent,
+  physically scaled rotating
+  `F_a=0` compatibility is established,
+  even a tiny dynamic residual does
+  **NOT** qualify `Y0` as consistent.
+
+The archived native evidence comparator
+enforces this separation and supports
+`--compare-only <saved-evidence-directory>`
+to avoid rerunning MPI after a pure
+host comparison failure.
+
+**THIS PILOT IS SOURCE-ONLY. Native MPI1/2
+execution and all Y0 candidate values PENDING.**
+No claim of definite DAE index,
+a physical high-index initializer,
+a viable rotating trajectory,
+or exact energy/power conservation.
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+SCRIMP_DOCKER_NO_SUDO=1 SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+  bash scripts/run-v130-issue28-physical-rhs-y0.sh
+```
+
+The critical **next gate after seeing this
+pilot** remains physical rotating
+boundary-constraint compatibility,
+including mesh-scaled norms of the
+true discrete normal/tangential traces,
+before *accepting* any computed Y0.

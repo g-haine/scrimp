@@ -96,6 +96,9 @@ jobs:
           bash -n scripts/run-v130-issue28-shallow-energy-refinement.sh
           python -m py_compile sandbox/probe_v130_issue28_differentiated_rank.py
           bash -n scripts/run-v130-issue28-differentiated-rank.sh
+          python -m py_compile sandbox/probe_v130_issue28_physical_rhs_y0.py sandbox/compare_v130_issue28_physical_rhs_y0.py tests/test_v130_issue28_physical_rhs_comparator.py
+          bash -n scripts/run-v130-issue28-physical-rhs-y0.sh
+          python -m unittest -v tests.test_v130_issue28_physical_rhs_comparator
           python -m unittest -v tests.test_v130_issue28_shallow_energy_refinement
           python -m py_compile sandbox/compare_v130_issue28_production_nonlinear_affine.py tests/test_v130_issue28_production_nonlinear_affine_comparator.py
           python -m unittest -v tests.test_v130_issue28_production_nonlinear_affine_comparator
