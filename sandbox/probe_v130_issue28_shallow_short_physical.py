@@ -12,7 +12,9 @@ Load the published original examples/shallow_water.py, suppress ONLY its
 original long TS and figures during construction; retain its original
 rectangle, physical FEM, weak forms, initial h0,p0, four zero normal
 controls, and explicit gyro. Then opt into the now native-qualified
-production nonlinear_affine initialization and run 3 short BDF2 steps.
+production nonlinear_affine initialization and run a configurable
+number of short genuine BDF2 steps at a fixed physical final time.
+The default remains the original 3-step smoke (dt=1e-4, tf=3e-4).
 
 This is a first actual physical-time diagnostic, not an exact discrete
 Hamiltonian-conservation theorem and not qualification of the higher-index
@@ -81,7 +83,20 @@ def quantities(model, expression, region=DOMAIN_REGION):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--dt", type=float, default=DT)
+    parser.add_argument("--final-time", type=float, default=TF)
     args = parser.parse_args()
+    dt = float(args.dt)
+    tf = float(args.final_time)
+    if dt <= 0. or tf <= 0.:
+        parser.error("dt and final-time must both be positive")
+    expected_steps = int(round(tf / dt))
+    if (expected_steps < 3
+            or not np.isclose(expected_steps*dt, tf, atol=1e-13, rtol=0.)):
+        parser.error(
+            "Need at least 3 exact equal-size time steps; "
+            "final-time must be an integer multiple of dt"
+        )
     mpi = PETSc.COMM_WORLD.tompi4py()
 
     model = build_original_without_published_long_run()
@@ -103,10 +118,10 @@ def main():
         # Preserve original BDF2 family, physical FEM and zero controls.
         # Only shorten the temporal horizon to a small, recorded pilot.
         ts_type="bdf", ts_bdf_order=2,
-        t_0=0., t_f=TF, dt=DT, dt_save=DT,
+        t_0=0., t_f=tf, dt=dt, dt_save=dt,
         ts_adapt_type="none",
         ts_adapt_dt_min=1e-12,
-        ts_adapt_dt_max=DT,
+        ts_adapt_dt_max=dt,
         ksp_type="preonly", pc_type="lu",
         pc_factor_mat_solver_type="mumps",
     )
@@ -128,8 +143,8 @@ def main():
     snes_failures = int(model.last_ts_snes_failures)
     actual_tf = float(model.last_ts_time)
     times = np.asarray(model.solution["t"], dtype=float)
-    if (reason <= 0 or not 2 <= steps <= 6 or rejected or snes_failures
-            or abs(actual_tf-TF) > 1e-12):
+    if (reason <= 0 or steps != expected_steps or rejected or snes_failures
+            or abs(actual_tf-tf) > 1e-12):
         raise RuntimeError(
             "Physical BDF2 TS did not complete required short-run gate: "
             f"reason={reason}, steps={steps}, rejected={rejected}, "
@@ -137,7 +152,7 @@ def main():
         )
     if (len(times) < 3 or not np.all(np.isfinite(times))
             or abs(times[0]) > 1e-12
-            or abs(times[-1]-TF) > 1e-12
+            or abs(times[-1]-tf) > 1e-12
             or not np.all(np.diff(times) > 0)):
         raise RuntimeError(f"Bad initial/final physical trajectory timestamps: {times}")
 
@@ -218,8 +233,9 @@ def main():
         "model": "original shipped examples/shallow_water.py",
         "mpi_ranks": int(mpi.size),
         "mesh_h": 0.1,
-        "t_final_requested": TF,
-        "time_step_requested": DT,
+        "t_final_requested": tf,
+        "time_step_requested": dt,
+        "expected_accepted_steps": expected_steps,
         "t_final_actual": actual_tf,
         "saved_times": times.tolist(),
         "ts_converged_reason": reason,
@@ -243,6 +259,11 @@ def main():
         "maximum_abs_boundary_power": max_abs_power,
         "cumulative_boundary_power": cumulative_power.tolist(),
         "energy_balance_defect": energy_balance_defect.tolist(),
+        "signed_final_energy_balance_defect": float(energy_balance_defect[-1]),
+        "relative_abs_final_energy_balance_defect_to_H0": float(
+            abs(energy_balance_defect[-1]) / max(abs(H0), 1e-14)
+        ),
+        "saved_sample_count": int(len(times)),
         "max_relative_energy_balance_to_H0": relative_balance_to_H0,
         "max_relative_energy_balance_to_exchanged_energy": relative_balance_to_exchange,
         "physical_sanity_gate_failures": physical_gate_failures,
