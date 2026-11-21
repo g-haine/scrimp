@@ -4028,3 +4028,105 @@ This is compelling evidence of **second-order temporal behavior for this specifi
 **Important still-open caveat:** PETSc endpoint TSCN implementation documents its assumption of linear time-independent mass; physical SWE `M(h)` is nonlinear. Empirical early-time order ≈2 does not remove the possible loss of general order/structure over other data, longer times, or generic DAE index. No general nonlinear-mass TSCN theorem/production initializer, nor full spinup/high-index long-time validation is claimed.
 
 **Next physically meaningful gate:** keep original C1 ramp, original nonlinear weak bricks, h0=5,p0=0, but integrate THROUGH the full ramp `t_f=.02` (20 ms), with fixed dt .002/.001/.0005 = N=10/20/40, nominal meshes .2/.1 and MPI1/2. Check true original TSCN and Fa **at every step**, real TS acceptance, full FE coefficient parity, mass and h-weighted physical work+dissipation, and temporal endpoint differences/observed orders. Require positive h throughout; compare energy balance without arbitrary absolute tolerance masquerading as a proof. At t=.02 the rising C1 wall reaches full prescribed rotation `omega=.2` for the first time; the existing decreasing envelope starts only at t=.03, so the physical control remains comparable. **This longer gate is not yet native qualified.**
+
+## 21 November 2026 — #28/#6 FULL C1 SPINUP to t_f=.02: separate 12-run native gate STAGED (source only)
+
+The prior **16/16 native** fixed-time early-spinup TSCN
+campaign at `t_f=.002` (source `a9cc2d21`) is fully
+qualified as a *specific empirical* second-order
+dynamic h,p coefficient convergence study, with
+max original TSCN residual <3.97e-13,
+endpoint Fa<4.93e-17,
+physical h-weighted H+D-W defect absolute <1.12e-13,
+and full MPI1/2 FE-vector parity. Original raw
+archive `sandbox/outputs/v130-issue28-cn-refinement-a9cc2d21-hhcttZc6/`.
+
+**New scientifically distinct gate (no native result yet):**
+advance through the **entire rising C1 physical
+wall rotation** by holding `t_final=.02`
+instead of .002 and taking `N=10,20,40`
+(`dt=.002,.001,.0005`), on each original
+curved P2 nominal h=.2/.1 mesh with MPI1/2.
+Total **12 planned native configurations**,
+pinned original `scrimp-mpi:v1.3.0-rc3`
+OCI `1d6d0c90115213298047b28237a7f38087563a35`.
+This preserves original physical SWE viscous,
+gyroscopic and boundary forms, `h0=5,p0=0`,
+original `start_from_rest_duration=.02`
+and the earlier native-qualified exact
+sandbox-only initial GetFEM/GlobalVec publication.
+It never fixes the incompatible already-rotating q0.
+
+At `t=.02`, `g(t)=3s²-2s³`, clipped
+`s=t/.02`, is exactly `g=1`;
+`g'(t)=0` there. The original descending
+envelope remains 1 until t=.03, so the
+physical facet-tangent wall reaches full
+target `omega=.2` exactly at the
+end of the new simulation. New probe
+independently re-evaluates original GetFEM
+`U` port forcing with original frozen
+stationary q0 at t=.02 and t=.02001,
+requires `||F_U||>0` and matching
+terminal plateau values to relative
+<1e-10. This catches an accidentally
+absent/mis-timed spinup control.
+
+**Source files staged:**
+- `sandbox/probe_v130_issue28_full_spinup.py`:
+  original actual per-step TSCN endpoint
+  IFunction, Fa(t_k), real accepted TS
+  step counts/no SNES failure,
+  strictly positive h coefficients,
+  complete FE vector trajectory, original
+  h-weighted wall normal/tangent work,
+  grad/div dissipation, Hamiltonian
+  and mass trace, and independent
+  original physical wall plateau check.
+- `sandbox/compare_v130_issue28_full_spinup.py`:
+  strict 12-case provenance, original
+  h,p FE intervals, fixed physical
+  initial q0, same time horizon,
+  weighted work/dissipation reintegration,
+  full FE MPI1/2 parity and terminal
+  dynamic h,p coefficient time differences
+  `||q10-q20||`, `||q20-q40||`
+  and **one empirical** observed order
+  `log2(E10/E20)`.
+- `tests/test_v130_issue28_full_spinup.py`:
+  **12** synthetic host regression/negative
+  cases; synthetic log numbers do
+  not qualify native PETSc.
+- `scripts/run-v130-issue28-full-spinup.sh`:
+  12 native runs, pinned immutable
+  original OCI, source code mounted
+  read-only, host-owned evidence/logs,
+  fail-closed native comparison.
+  No production `scrimp/dphs.py` or
+  original SWE weak physics changed.
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+python tests/test_v130_issue28_full_spinup.py
+bash -n scripts/run-v130-issue28-full-spinup.sh
+
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-issue28-full-spinup.sh
+```
+
+**Scope:** This next gate tests one **completed
+boundary acceleration ramp** but does NOT
+cover the original descending envelope
+after t=.03, a long-time rotating
+Saint-Venant trajectory, general high-index
+initialization, proof of temporal order
+or discrete-gradient pH structure.
+PETSc endpoint TSCN assumes linear
+time-independent mass, unlike M(h);
+continued empirical success does
+not remove this documented caveat.
+No native or host PASS has been
+reported for the new full-spinup
+source until the user runs it.
