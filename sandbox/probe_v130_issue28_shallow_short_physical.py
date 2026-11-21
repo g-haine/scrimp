@@ -173,18 +173,48 @@ def main():
     relative_mass_drift = float(np.max(np.abs(mass-m0))/max(abs(m0),1e-15))
     relative_H_drift = float(np.max(np.abs(H-H0))/max(abs(H0),1e-15))
     max_abs_power = float(np.max(np.abs(power_sum)))
-    # BDF2 is NOT exactly energy preserving. These are generous
-    # SHORT-TIME physical sanity gates, not a full convergence proof.
+    cumulative_power = np.zeros(len(times), dtype=float)
+    cumulative_power[1:] = np.cumsum(
+        0.5*(power_sum[1:]+power_sum[:-1])*np.diff(times)
+    )
+    # No viscosity in this original inviscid model. Total input power
+    # is zero under homogeneous boundary controls. BDF2 is not exactly
+    # energy preserving, so record its *actual* discrete energy defect,
+    # including its normalization by energy CHANGES rather than only H0.
+    energy_balance_defect = H - H0 - cumulative_power
+    exchanged_energy_scale = max(
+        float(np.max(np.abs(H-H0))),
+        float(np.max(np.abs(cumulative_power))),
+        1e-14,
+    )
+    relative_balance_to_exchange = float(
+        np.max(np.abs(energy_balance_defect))/exchanged_energy_scale
+    )
+    relative_balance_to_H0 = float(
+        np.max(np.abs(energy_balance_defect))/max(abs(H0), 1e-14)
+    )
+    physical_gate_failures = []
+    # BDF2 is NOT exactly energy preserving. These are initial SHORT
+    # physical sanity gates, NOT an exact power-balance certification.
     if relative_mass_drift > 1e-5:
-        raise AssertionError(f"Excessive relative mass drift: {relative_mass_drift:.9g}")
+        physical_gate_failures.append(
+            f"relative mass drift {relative_mass_drift:.9g} > 1e-5"
+        )
     if relative_H_drift > 5e-3:
-        raise AssertionError(f"Excessive short BDF2 energy drift: {relative_H_drift:.9g}")
+        physical_gate_failures.append(
+            f"relative H drift {relative_H_drift:.9g} > 5e-3"
+        )
     if max_abs_power > 1e-7:
-        raise AssertionError(f"Nonzero homogeneous boundary control power: {max_abs_power:.9g}")
+        physical_gate_failures.append(
+            f"max abs homogeneous boundary power {max_abs_power:.9g} > 1e-7"
+        )
 
     result = {
         "schema": "scrimp-v130-issue28-original-shallow-short-physical-v1",
-        "status": "PASS_SHORT_PHYSICAL_TIME_GATE",
+        "status": (
+            "FAILED_SHORT_PHYSICAL_SANITY" if physical_gate_failures
+            else "PASS_SHORT_PHYSICAL_TIME_GATE"
+        ),
         "model": "original shipped examples/shallow_water.py",
         "mpi_ranks": int(mpi.size),
         "mesh_h": 0.1,
@@ -211,6 +241,11 @@ def main():
         "relative_mass_drift": relative_mass_drift,
         "relative_hamiltonian_drift": relative_H_drift,
         "maximum_abs_boundary_power": max_abs_power,
+        "cumulative_boundary_power": cumulative_power.tolist(),
+        "energy_balance_defect": energy_balance_defect.tolist(),
+        "max_relative_energy_balance_to_H0": relative_balance_to_H0,
+        "max_relative_energy_balance_to_exchanged_energy": relative_balance_to_exchange,
+        "physical_sanity_gate_failures": physical_gate_failures,
         "Hamiltonian_GetFEM_and_registered_agree": True,
         "BDF2_exact_power_conservation_claimed": False,
         "physical_spatial_convergence_qualified": False,
@@ -223,13 +258,19 @@ def main():
         )
         print(
             f"ISSUE28 SHALLOW SHORT PHYSICAL MPI={mpi.size} "
-            f"PASS steps={steps} t={actual_tf:.9g} "
+            f"{result['status']} steps={steps} t={actual_tf:.9g} "
             f"mass_drift={relative_mass_drift:.9g} "
             f"H_drift={relative_H_drift:.9g} "
+            f"relative_energy_defect_exchanged={relative_balance_to_exchange:.9g} "
             f"max_boundary_power={max_abs_power:.9g}",
             flush=True,
         )
     mpi.Barrier()
+    if physical_gate_failures:
+        raise AssertionError(
+            "Native short-time physical sanity gate failed (report retained): "
+            + "; ".join(physical_gate_failures)
+        )
 
 
 if __name__ == "__main__":
