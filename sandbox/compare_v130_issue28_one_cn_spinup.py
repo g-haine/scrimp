@@ -17,6 +17,8 @@ import json
 import math
 from pathlib import Path
 
+import numpy as np
+
 OCI_REV = "1d6d0c90115213298047b28237a7f38087563a35"
 MESHES = (.2, .1)
 
@@ -165,8 +167,49 @@ def compare(directory):
             "physical_volume_defect",
         ):
             va, vb = finite(a[key], key), finite(b[key], key)
-            require(abs(va-vb) <= 1e-9*max(1., abs(va), abs(vb)),
+            # Norms can be ~1e-16; a blanket absolute tolerance 1e-9
+            # would never detect a corrupt rank on the audited scale.
+            floor = 5e-13 if "power" in key or "volume" in key else 5e-15
+            require(abs(va-vb) <= floor + 1e-5*max(abs(va), abs(vb)),
                     f"Native MPI parity mismatch in {key}")
+        endpoints = []
+        for ranks in (1, 2):
+            filename = root/(
+                f"result_h{str(mesh).replace('.', 'p')}_mpi{ranks}"
+            )/"one_cn_spinup_endpoints.npz"
+            require(filename.is_file(),
+                    f"Missing original native CN endpoints {filename}")
+            with np.load(filename, allow_pickle=False) as z:
+                require(set(z.files) >= {
+                    "times", "initial", "final",
+                    "H", "p_normal", "p_viscous", "d_grad", "d_div"
+                }, "Missing archived original physical one-step states/powers")
+                require(z["times"].shape == (2,)
+                        and abs(float(z["times"][0])) < 1e-12
+                        and abs(float(z["times"][1])-.002) < 1e-12,
+                        "Invalid original physical two endpoint times")
+                for key in ("initial", "final"):
+                    require(z[key].ndim == 1
+                            and z[key].size > 0
+                            and np.all(np.isfinite(z[key])),
+                            f"Invalid original physical {key} coefficients")
+                endpoints.append({
+                    key: np.asarray(z[key], dtype=float).copy()
+                    for key in ("initial", "final")
+                })
+        for key in ("initial", "final"):
+            x1, x2 = endpoints[0][key], endpoints[1][key]
+            require(x1.shape == x2.shape,
+                    "Native CN MPI endpoint dimensions changed")
+            distance = float(np.linalg.norm(x1-x2))
+            step_scale = float(np.linalg.norm(
+                endpoints[0]["final"]-endpoints[0]["initial"]
+            ))
+            require(distance <= 1e-10+1e-5*step_scale,
+                    f"Native CN MPI full {key} coefficient vector parity failed")
+        require(np.array_equal(
+            endpoints[0]["initial"], endpoints[1]["initial"]
+        ), "MPI original published initial physical coefficients differ")
         key = f"h{mesh:g}"
         summary[key] = {
             "native_mpi1": a, "native_mpi2": b,
