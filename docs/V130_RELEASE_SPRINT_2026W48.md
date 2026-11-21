@@ -3215,3 +3215,124 @@ wall law, geometric P2, or run any TS.
 #28 and rotating #6 remain OPEN until the full
 native archive and an explicitly compatible
 initial-condition strategy are reviewed.
+
+## 21 November 2026 — #28 native 8/8 qualified: exact weak block obstruction at the prescribed rotating q0
+
+**FINAL NATIVE GATE PASSED:** original finite-element curved-P2 disk, original
+`h0=5`, original regularized `p0/rho = omega*(y,-x)/(r+1e-6)`,
+original imposed rotating wall `U=U_n*n+omega*Rot*n` and
+`U_n=0`, `omega=.2` (plus exact-rest `omega=0` control),
+nominal mesh `h=.2/.1`, MPI1/2, immutable
+`scrimp-mpi:v1.3.0-rc3` OCI
+`1d6d0c90115213298047b28237a7f38087563a35`.
+Completed mixed-provenance (strictly preserved) native evidence
+`sandbox/outputs/v130-issue28-exact-weak-elimination-a28aee14-p8XVIVz0/`.
+Six validated native reports originate from source
+`a28aee142b2d1798e225535f9dab217a91938a0c`;
+the two `h=.1` rotating reports originate from resumed source
+`9e4dd40ec36482484641ae35fc510df9bf3c6e7b`,
+with **only** the absolute/relative roundoff guard corrected.
+The original manifest was not relabelled, and
+`resume_metadata.json` records the resumed source.
+All **eight** native reports now pass the independent host comparator,
+and all **eight** host regression/negative controls pass.
+
+### Certified original weak block elimination (fixed q0)
+
+At constant `h0=5`, `p` and `e_p` use the same P2
+FE basis and the `h0`-weighted positive-definite interior
+mass. Therefore the native interior constitutive block
+`F_ep=0` uniquely implies `e_p=p0/rho`;
+this was implemented by direct coefficient copy, **without
+altering original p0**. Solving the original native
+`F_U=0` equation using its boundary mass `M_U=-J_UU`
+fixes U uniquely on the filtered U trace space. The
+original `Y`-row residual after these two eliminations
+is then independently identified coefficient-by-coefficient
+as the unchanged weak wall-mismatch functional:
+
+```text
+b(v) = int_Gamma (p0/rho - omega*Rot*Normal).v,
+F_Y = sign * h0 * b,  sign validated from actual IFunction.
+```
+
+| Original diagnostic | h=.2 rotating MPI1 | h=.2 rotating MPI2 | h=.1 rotating MPI1 | h=.1 rotating MPI2 |
+|---|---:|---:|---:|---:|
+| `||F_ep||_2` | 5.91914125e-18 | 5.91914125e-18 | 3.21638724e-18 | 3.21638724e-18 |
+| `||F_U||_2` | 2.75511808e-17 | 2.91411181e-17 | 2.10639674e-17 | 2.14560291e-17 |
+| **`||F_Y||_2`** | **1.83986212e-6** | **1.83986212e-6** | **6.38175452e-7** | **6.38175452e-7** |
+| independent `h0||b||_2` | 1.83986212e-6 | 1.83986212e-6 | 6.38175452e-7 | 6.38175452e-7 |
+| `||F_Y-sign*h0*b||_2` | 1.58918079e-16 | 1.70370660e-16 | 1.09940161e-16 | 1.15389289e-16 |
+
+All four rest/MPI/mesh control cases have
+`F_ep=F_U=F_Y=0` exactly. No numerical iteration
+or nonlinear mass approximation was needed for
+`e_p=p0/rho`; U was solved with the native
+boundary mass. The independent weak wall
+moment agrees with the unchanged native IFunction
+to absolute `~1e-16`, while the rotating residual
+is `~1e-6..1e-7`. The verified
+roundoff criterion is
+`||F_Y-sign*h0*b|| <= 5e-15+2e-9*||h0*b||`;
+the former `1e-16` accidental false failure
+at `h=.1` is resolved.
+
+**VALIDATED MATHEMATICAL/NATIVE CONCLUSION (scope restricted
+to this original discretization):** for the **fixed
+original rotating h0,p0**, there is no simultaneous zero
+of the three original algebraic constraint blocks
+`F_ep,F_U,F_Y` on the two P2 meshes considered,
+given the verified nondegenerate same-basis interior
+and boundary mass operators. The contradiction
+is **independent of LSQR stopping tolerances** and
+is not a PETSc/MUMPS breakdown; it arises from
+the prescribed initial data and wall actuation.
+Even the ideal geometric unit circle retains
+a `~1.999998e-7` tangential mismatch because the
+original regularization uses `r+1e-6`.
+
+**NOT qualified:** a global proof for arbitrary meshes
+or initial states, general nonlinear DAE differentiation
+index, physical rotating `Y0`, physical rotating
+CN time evolution, or Hamiltonian/port-power balance.
+No accepted initial state, no TS initialization or
+physical time step was performed. Production SWE
+weak bricks, geometry, physical initial values, and
+SCRIMP production initializer were **not changed**.
+
+### Implementation decision after this completed gate
+
+The *scientific* obstruction for the **original** rotating
+q0 is now resolved: do **not** continue iterating LSQR
+or force a physical `Y0` on inconsistent original data.
+The software issue #28 remains **OPEN** until SCRIMP
+has a safe, explicit and verified numerical pathway:
+
+1. **Failure semantics:** fail-fast informative diagnostics
+   for incompatible prescribed differential data rather
+   than accepting an ill-defined algebraic Y0 or an
+   initialization transient. Develop a general interface
+   and tests using the original rotating model as the
+   negative control, the exact rest state as the
+   positive control; do not unconditionally hard-code
+   SWE-specific tolerances or turn the mass diagnostic
+   into an undocumented solver default.
+2. **Compatible experiment, deliberately separate:**
+   construct explicitly specified physically compatible
+   initial data and wall actuation (e.g. fully validated
+   rest-to-rotation ramp, or a separately labelled
+   constrained FE projection of rotating momentum),
+   with exact all-block `Fa=0` **before** a differentiated
+   physical RHS/Y0 consistency test. Never overwrite
+   original `p0` or smooth wall law silently.
+3. **Once accepted:** recheck true physical RHS
+   (including `qdot0,Y0`), MPI parity, then validate
+   actual physical Crank–Nicolson power/energy
+   balances and eventually dissipative rotating
+   Saint-Venant #6.
+
+**Release status:** original rotating q0 algebraic
+incompatibility is **qualified**; no generic
+initialization or physical rotation is qualified.
+#28 remains OPEN as an implementation item.
+Nontrivial rotating #6 is still BLOCKED.
