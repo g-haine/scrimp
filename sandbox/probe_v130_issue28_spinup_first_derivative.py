@@ -500,7 +500,6 @@ def audit(s, mpi, mesh):
                 "general high-index initializer."
             ),
         }
-        if label == "rest" and        }
         if label == "spinup" and (
             fd_verified > 1e-10 or fa_verified > 1e-11
             or np.linalg.norm(y0) > 1e-8
