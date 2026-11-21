@@ -3113,3 +3113,105 @@ the staged exact `F_ep/F_U/F_Y` block gate. Do **not**
 silently alter `epsilon` or `p0` in the original
 validation campaign; an explicitly new compatible-data
 experiment must be separately labelled and qualified.
+
+## 21 November 2026 — #28 exact F_ep/F_U elimination: native 6/8 passed; h=.1 floating-roundoff false rejection fixed
+
+**Archived partial native campaign:**
+`sandbox/outputs/v130-issue28-exact-weak-elimination-a28aee14-p8XVIVz0/`,
+original source `a28aee142b2d1798e225535f9dab217a91938a0c`,
+immutable `scrimp-mpi:v1.3.0-rc3` OCI
+`1d6d0c90115213298047b28237a7f38087563a35`.
+**Six of eight native results completed and are preserved**, all
+six host-only comparator fixture tests passed. The original
+analytic resting state passes MPI1/2 at both mesh 0.2 and 0.1.
+The original rotating P2 mesh 0.2 passes native MPI1/2:
+
+| Native diagnostic at fixed original rotating h0=5,p0, zero Y | h=.2 MPI1 | h=.2 MPI2 |
+|---|---:|---:|
+| `||F_ep||_2` after exact coefficient copy and U elimination | 5.91914e-18 | 5.91914e-18 |
+| `||F_U||_2` after unmodified wall mass solve | 2.75512e-17 | 2.91411e-17 |
+| **`||F_Y||_2`** | **1.839862116389e-6** | **1.839862116390e-6** |
+| **Independent `h0*||b||_2`** | **1.839862116341e-6** | **1.839862116341e-6** |
+| `||F_Y-h0*b||_2` | 1.58918e-16 | 1.70371e-16 |
+
+The *seventh* native case, original rotating **h=0.1
+MPI1**, computed the expected nonzero
+`h0*||b||_2=6.38175452e-7` and
+an independent `F_Y` agreeing **to
+`1.09940161e-16` coefficient-norm error**, but
+the old source incorrectly rejected the identity at
+`error > 1e-10 * max(1e-6, ||h0*b||)`,
+which is precisely `1e-16` on this small load.
+The error exceeded the fixed arbitrary threshold by
+`9.94e-18`; there is **no PETSc/GetFEM/MUMPS solver
+failure** and no evidence of a different physical
+solution. The seventh run did not write a JSON report;
+the eighth, h=.1 rotating MPI2, did not start because
+the shell runner correctly stopped on the false rejection.
+
+**Source-only rounding fix:** the independent native
+`F_Y=+/-h0*b` comparison now uses a
+strict floating-roundoff-aware bound
+
+```text
+||F_Y - sign*h0*b||_2 <=
+    5e-15 + 2e-9 * ||h0*b||_2
+```
+
+and archives the *actual* absolute and relative
+coefficient errors and the tested tolerance. The
+host comparator independently enforces this same
+bound and remains backwards-compatible with the
+six original native reports, which were verified
+against the new bound *from their original saved
+coefficient vectors*, not fabricated. Two new
+host negative controls distinguish a valid
+`~1.10e-16` rounding discrepancy from
+an intentionally corrupted `2e-12` identity.
+
+**Recover, do not repeat:** the native runner
+`scripts/run-v130-issue28-exact-weak-elimination.sh`
+now accepts `--resume <existing evidence directory>`.
+It checks the immutable OCI revision, the exact
+old/current source provenance, the existing original
+manifest and its no-time-step/no-Y0 invariants;
+each old report is independently validated before
+it is **skipped**. Only the two missing h=.1 rotating
+MPI1/2 native cases are rerun, with current source.
+The original manifest `source` remains untouched;
+`resume_metadata.json` separately records the
+original versus resumed source commits. No
+numerical result is silently relabelled as a
+new native execution.
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+python tests/test_v130_issue28_exact_weak_elimination.py
+bash -n scripts/run-v130-issue28-exact-weak-elimination.sh
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-issue28-exact-weak-elimination.sh \
+  --resume sandbox/outputs/v130-issue28-exact-weak-elimination-a28aee14-p8XVIVz0
+```
+
+**NATIVE RE-RUN PENDING** for the last two cases.
+The pre-existing h=.2 rotating evidence provides
+strong native support for **incompatibility at
+fixed original q0** of the original
+`F_ep,F_U,F_Y` block triple: exact P2
+`e_p=p0/rho` and original control-port U
+elimination leave a nonzero independently
+verified weak `F_Y=h0*b` remainder.
+The continuum regularized original tangent
+profile has the independent nonzero
+`~2e-7` tangential wall deficit even on
+the ideal circle. These facts **do not**
+qualify a general DAE index, a physical Y0
+for this inconsistent initial state, nor a
+time-integrated rotating trajectory.
+Do not alter original h0,p0/epsilon,
+wall law, geometric P2, or run any TS.
+#28 and rotating #6 remain OPEN until the full
+native archive and an explicitly compatible
+initial-condition strategy are reviewed.
