@@ -4352,3 +4352,37 @@ incompatibility is **qualified**; no generic
 initialization or physical rotation is qualified.
 #28 remains OPEN as an implementation item.
 Nontrivial rotating #6 is still BLOCKED.
+
+## 21 November 2026 — staged #28/#6 safe startup gate (SOURCE ONLY)
+
+The original fixed-q0 P2 rotating incompatibility is now natively
+qualified 8/8 with exact `F_ep,F_U,F_Y` elimination (see
+`docs/V130_DAE_ALGEBRAIC_INITIALIZER_DESIGN.md`).
+Next native experiment, **not yet run**, adds
+`sandbox/probe_v130_issue28_startup_gate.py`,
+`sandbox/compare_v130_issue28_startup_gate.py`,
+`scripts/run-v130-issue28-startup-gate.sh`, and
+`tests/test_v130_issue28_startup_gate.py`.
+Pinned `scrimp-mpi:v1.3.0-rc3` OCI as before.
+At original already-rotating q0, opt-in
+`DPHS.init_step(... nonlinear_affine ...)` must
+raise typed `UnsupportedNonlinearAlgebraicDAE`
+for higher-index null algebraic columns with
+full rollback and no TS. Separately, the explicitly
+new physical rest-to-rotation experiment
+(`start_from_rest_duration=.02`,
+P2 curved disk, facet-tangential physical
+wall, `omega=.2`, `p0=0`,
+`e_h=.5,Y_n=-.5,e_p=U_n=U=Y=0`)
+must satisfy the **full native IFunction**
+at `t0` with `zdot=0` and the original
+smoothstep `g(0)=g'(0)=0` must appear
+as `O(t²)` in native boundary control.
+Runs: two cases × mesh .2/.1 × MPI1/2,
+read-only, no Y0/TS acceptance.
+The original physical experiment and production
+SCRIMP initializers are not modified.
+Remaining release gates: new positive t0
+native feasibility; differentiated
+initial Y0/qdot and real CN
+energy/port power. #28 OPEN, #6 blocked.
