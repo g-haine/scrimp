@@ -4130,3 +4130,47 @@ not remove this documented caveat.
 No native or host PASS has been
 reported for the new full-spinup
 source until the user runs it.
+
+## 21 November 2026 — Full C1 spinup staging syntax repair; native gate still pending
+
+User's first `scripts/run-v130-issue28-full-spinup.sh` run at source `e2ec401`
+**did not execute PETSc at all**: both the host unittest importer
+(`sandbox/compare_v130_issue28_full_spinup.py:346`) and the first native
+probe (`sandbox/probe_v130_issue28_full_spinup.py:324`) failed Python
+parse with an unterminated literal/f-string introduced while cloning the
+0.002-second refinement scripts. Docker launched the first case but the
+Python interpreter stopped before importing GetFEM or constructing a
+simulation; all 12 native configurations remain **UNTESTED**. The
+partial output directory
+`sandbox/outputs/v130-issue28-full-spinup-e2ec401f-hCnrFHWt/`
+is a *failed syntax-gate artifact*, not physical evidence.
+
+The two literals have been repaired without modifying original SWE
+physics, boundary control, PETSc TSCN solver, time-grid design, numeric
+thresholds, or comparator mathematical tests. To prevent recurrence,
+`.github/workflows/python-source-checks.yml` now compiles the newer
+#28 native probes and runs the synthetic host comparison tests. A
+separate fast workflow,
+`.github/workflows/v130-issue28-full-spinup-host.yml`, executes
+full-spinup Python compilation, `bash -n` and the 12 host tests
+without requiring GetFEM/PETSc. These are source-only safety checks,
+**not native qualification**.
+
+Before any Docker rerun, perform the explicit local fail-fast checks:
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+python -m py_compile \
+    sandbox/probe_v130_issue28_full_spinup.py \
+    sandbox/compare_v130_issue28_full_spinup.py \
+    tests/test_v130_issue28_full_spinup.py
+python tests/test_v130_issue28_full_spinup.py
+bash -n scripts/run-v130-issue28-full-spinup.sh
+```
+
+Only if all pass, run the same immutable
+`scrimp-mpi:v1.3.0-rc3` 12-case full-spinup campaign.
+The earlier **16/16 native PASSED** refinement at `t_f=.002` and
+its empirical order-two result remain valid and unaffected.
+#28 and #6 remain OPEN.
