@@ -230,9 +230,104 @@ def audit(s, mpi, label):
         if bordered.getSize() != (n,n):
             raise RuntimeError("Unexpected differentiated operator dimensions")
 
-        forcing = np.concatenate((dynamic_rhs, algebraic_time_rhs))
+        # CRITICAL MPI DETAIL:
+        # MATNEST defaults to the *per-rank* block order, not to the
+        # global concatenation [dynamic, regular algebraic, Y].
+        # Its converted AIJ uses the original MATNEST IS permutations.
+        # Writing a naive np.concatenate(forcing) or slicing a gathered
+        # solution at global block sizes works in serial but silently
+        # changes the physical RHS and variable meaning in MPI > 1.
+        # Retrieve the global index maps of the ACTUAL original Nest.
+        nest_row_is, nest_col_is = matnest.getNestISs()
+        if len(nest_row_is) != 2 or len(nest_col_is) != 3:
+            raise RuntimeError("Unexpected native MatNest row/column blocks")
+
+        # These prototype Vec ownership ranges describe the compact,
+        # per-block PETSc ordering used by Mat.createSubMatrix.
+        dyn_row_template = keep(Mdd.createVecLeft())
+        alg_row_template = keep(Jar.createVecLeft())
+        dyn_col_template = keep(Mdd.createVecRight())
+        reg_col_template = keep(Jar.createVecRight())
+        y_col_template = keep(JdY.createVecRight())
+        row_blocks = (
+            (nest_row_is[0], dyn_row_template, dynamic_rhs, "dynamic RHS"),
+            (nest_row_is[1], alg_row_template, algebraic_time_rhs,
+             "differentiated algebraic RHS"),
+        )
+        col_blocks = (
+            (nest_col_is[0], dyn_col_template, len(d), "qdot"),
+            (nest_col_is[1], reg_col_template, len(regular), "a_regular_dot"),
+            (nest_col_is[2], y_col_template, len(y), "Y0"),
+        )
+
+        def local_native_nest_indices(iset, template, length, kind):
+            # This is a mapping between two *different* parallel Vec
+            # layouts. The returned IS indices are in the converted
+            # AIJ coordinates, while template owns compact block
+            # coordinates. Do not assume their global offsets coincide.
+            mapped = np.asarray(iset.getIndices(), dtype=PETSc.IntType)
+            first, stop = template.getOwnershipRange()
+            if len(mapped) != stop-first or template.getSize() != length:
+                raise RuntimeError(
+                    f"Native MatNest {kind} ownership differs from subblock "
+                    f"({len(mapped)} mapped vs {stop-first} owned)"
+                )
+            if np.any(mapped < 0) or np.any(mapped >= n):
+                raise RuntimeError(f"Native MatNest {kind} mapping out of bounds")
+            return mapped, first, stop
+
+        def check_is_partition(blocks, expected):
+            allids = []
+            for iset, template, size, name in blocks:
+                mapped, _, _ = local_native_nest_indices(
+                    iset, template, size, name
+                )
+                allids.append(np.concatenate(
+                    mpi.allgather(np.asarray(mapped, dtype=np.int64))
+                ))
+            union = np.concatenate(allids)
+            if (len(union) != expected
+                    or not np.array_equal(np.sort(union),
+                                          np.arange(expected))):
+                raise RuntimeError(
+                    "MatNest global index sets do not partition converted AIJ"
+                )
+            return allids
+
+        check_is_partition(
+            ((iset, template, len(values), name)
+             for iset, template, values, name in row_blocks), n
+        )
+        check_is_partition(col_blocks, n)
+
         rhs_true = keep(bordered.createVecLeft())
-        set_full(rhs_true, forcing)
+        rhs_true.set(0.)
+        for iset, template, values, name in row_blocks:
+            mapped, first, stop = local_native_nest_indices(
+                iset, template, len(values), name
+            )
+            if len(mapped):
+                rhs_true.setValues(mapped, values[first:stop],
+                                   addv=PETSc.InsertMode.INSERT_VALUES)
+        rhs_true.assemble()
+
+        # Independently undo the IS permutation before factorization:
+        # this also catches mistakes in RHS placement on TWO ranks.
+        rhs_ai_full = full_vector(rhs_true, mpi)
+        rhs_remapped = []
+        for iset, template, values, name in row_blocks:
+            mapped = np.asarray(iset.getIndices(), dtype=np.int64)
+            rhs_remapped.append(np.concatenate(
+                mpi.allgather(rhs_ai_full[mapped])
+            ))
+        rhs_roundtrip = np.concatenate(rhs_remapped)
+        forcing = np.concatenate((dynamic_rhs, algebraic_time_rhs))
+        rhs_layout_error = float(np.linalg.norm(rhs_roundtrip - forcing))
+        if rhs_layout_error > 1e-13:
+            raise RuntimeError(
+                f"MatNest row IS mispackaged physical RHS: {rhs_layout_error}"
+            )
+
         x = keep(bordered.createVecRight())
         x.set(0.)
         direct = keep(PETSc.KSP().create(comm=bordered.getComm()))
@@ -243,16 +338,22 @@ def audit(s, mpi, label):
         direct.getPC().setFactorSolverType("mumps")
         direct.solve(rhs_true, x)
         reason = int(direct.getConvergedReason())
-        correction = full_vector(x, mpi)
-        if reason <= 0 or not np.all(np.isfinite(correction)):
+        if reason <= 0:
             raise RuntimeError(f"True RHS bordered solve failed (reason={reason})")
 
-        # x contains, in MATNEST column-block order, qdot, ardot, Y0.
-        qdot = correction[:len(d)]
-        ardot = correction[len(d):len(d)+len(regular)]
-        y0 = correction[len(d)+len(regular):]
-        if len(y0) != len(y):
-            raise RuntimeError("Wrong Y0 size in bordered solution")
+        solution_ai_full = full_vector(x, mpi)
+        recovered = []
+        for iset, template, size, name in col_blocks:
+            mapped, first, stop = local_native_nest_indices(
+                iset, template, size, name
+            )
+            local_values = solution_ai_full[np.asarray(mapped, dtype=np.int64)]
+            recovered.append(np.concatenate(mpi.allgather(local_values)))
+        qdot, ardot, y0 = recovered
+        correction = np.concatenate(recovered)
+        if (len(qdot) != len(d) or len(ardot) != len(regular)
+                or len(y0) != len(y) or not np.all(np.isfinite(correction))):
+            raise RuntimeError("MatNest IS physical solution reconstruction failed")
         z_trial = keep(z.copy())
         localY = y[(y >= owned_lo) & (y < owned_hi)]
         if len(localY):
@@ -278,6 +379,15 @@ def audit(s, mpi, label):
             raise RuntimeError("True RHS trial moved the prescribed physical q0")
         if abs(fa_verified - fa_candidate)>1e-9:
             raise RuntimeError("Injecting traction Y0 modified algebraic Fa")
+        # The *original* native PDE equations are the acceptance gate
+        # for this diagnostic. Do not rely on the KSP residual alone:
+        # the previous MPI bug gave a perfect KSP residual but
+        # 0.3985857557 on the actual dynamic GetFEM IFunction.
+        if fd_verified > 1e-8:
+            raise RuntimeError(
+                "Physical RHS MatNest candidate does not satisfy original "
+                f"GetFEM dynamics: |Fd|={fd_verified:.9g}"
+            )
 
         rec = keep(bordered.createVecLeft())
         bordered.mult(x,rec)
@@ -307,6 +417,12 @@ def audit(s, mpi, label):
             "bordered_true_rhs_l2":float(rhs_true.norm()),
             "bordered_KSP_reason":reason,
             "bordered_relative_true_rhs_residual":bordered_relative_residual,
+            "matnest_original_row_and_column_IS_used":True,
+            "matnest_physical_rhs_roundtrip_l2":rhs_layout_error,
+            "matnest_solution_reconstructed_by_block_IS":True,
+            "candidate_qdot_coefficients":qdot.tolist(),
+            "candidate_regular_algebraic_derivative_coefficients":ardot.tolist(),
+            "candidate_traction_Y0_coefficients":y0.tolist(),
             "candidate_qdot_l2":float(np.linalg.norm(qdot)),
             "candidate_regular_algebraic_derivative_l2":float(np.linalg.norm(ardot)),
             "candidate_traction_Y0_l2":float(np.linalg.norm(y0)),
