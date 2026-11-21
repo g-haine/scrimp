@@ -144,6 +144,12 @@ def compare(evidence):
                     require(number(projection.get("native_Fa_l2"), "rest Fa")
                             < 1e-10, "Exact rest algebraic reference failed")
                     checked_integrals(projection["physical_integrals"], ranks)
+                    for name in r["boundary_at_prescribed_q0"]["rms"]:
+                        require(close(
+                            projection["physical_integrals"]["rms"][name],
+                            r["boundary_at_prescribed_q0"]["rms"][name],
+                            rel=2e-8, absolute=1e-11),
+                            "Rest projection altered physical initial trace")
                     for name in ("initial_p_normal_rms",
                                  "initial_p_tangent_mismatch_rms"):
                         require(r["boundary_at_prescribed_q0"]["rms"][name] < 1e-9,
@@ -162,6 +168,12 @@ def compare(evidence):
                                 and trial["iterations"] >= 0,
                                 "Invalid LSQR iteration count")
                         checked_integrals(trial["physical_integrals"], ranks)
+                        for name in r["boundary_at_prescribed_q0"]["rms"]:
+                            require(close(
+                                trial["physical_integrals"]["rms"][name],
+                                r["boundary_at_prescribed_q0"]["rms"][name],
+                                rel=2e-8, absolute=1e-11),
+                                "LSQR trial altered prescribed physical trace")
                 else:
                     require(projection.get("type") ==
                             "not-run-refinement-boundary-only",
