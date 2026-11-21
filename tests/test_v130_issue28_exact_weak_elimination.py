@@ -108,6 +108,38 @@ class NativeExactWeakEliminationComparatorTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "falsified|does not equal"):
             compare(self.root)
 
+    def test_fine_mesh_native_1e_minus_16_roundoff_is_not_rejected(self):
+        # Regression: old native gate failed at h=.1 because 1.0994e-16
+        # was just above an arbitrary 1e-16 coefficient threshold.
+        r = self.fixture(.1, "rotating", 1)
+        r["native_FY_coefficients"][0] += 1.09940161e-16
+        r["native_FY_after_both_exact_eliminations_l2"] = abs(
+            r["native_FY_coefficients"][0]
+        )
+        r["native_FY_weak_moment_identity_error_l2"] = abs(
+            r["native_FY_coefficients"][0]
+            + 5*r["independent_native_weak_U_moment_coefficients"][0]
+        )
+        self.store(.1, "rotating", 1, r)
+        self.assertEqual(
+            compare(self.root)["status"],
+            "COMPLETE_BLOCK_ELIMINATION_DIAGNOSTIC_NOT_INITIALIZER"
+        )
+
+    def test_rejects_actual_wall_identity_corruption(self):
+        r = self.fixture(.1, "rotating", 1)
+        r["native_FY_coefficients"][0] += 2e-12
+        r["native_FY_after_both_exact_eliminations_l2"] = abs(
+            r["native_FY_coefficients"][0]
+        )
+        r["native_FY_weak_moment_identity_error_l2"] = abs(
+            r["native_FY_coefficients"][0]
+            + 5*r["independent_native_weak_U_moment_coefficients"][0]
+        )
+        self.store(.1, "rotating", 1, r)
+        with self.assertRaisesRegex(ValueError, "does not equal"):
+            compare(self.root)
+
     def test_rejects_missing_MPI2_evidence(self):
         f = self.root/"result_h0p1_rotating_2"/"exact_weak_elimination.json"
         f.unlink()
