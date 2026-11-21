@@ -188,6 +188,15 @@ class TestFixedPhysicalTimeCNRefinement(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"step 3"):
             compare(self.root)
 
+    def test_rejects_mutated_original_physical_q0_in_archive(self):
+        def bad(report,traces):
+            # Rank1's source metadata still claims original h0=5,
+            # but archived physical t0 contains a different height.
+            traces["states"][0,0] += 1e-5
+        self.mutate(.2,2,1,bad)
+        with self.assertRaisesRegex(ValueError,"h0=5,p0=0"):
+            compare(self.root)
+
     def test_rejects_wrong_physical_final_time(self):
         def bad(report,traces):
             report["actual_TS_time"]=.0019
