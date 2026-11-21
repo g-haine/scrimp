@@ -8,6 +8,7 @@
 
 """Host-only negative controls for archived physical RHS rotating #28 pilot."""
 
+import ast
 import json
 from pathlib import Path
 import sys
@@ -78,6 +79,26 @@ class OriginalPhysicalRHSAuditTest(unittest.TestCase):
         path.mkdir(exist_ok=True)
         (path/"physical_rhs_y0_pilot.json").write_text(
             json.dumps(self.cases[case,ranks]),encoding="utf-8",
+        )
+
+    def test_native_matnest_conversion_preserves_original(self):
+        # Host-only regression guard: petsc4py Mat.convert("aij")
+        # without out= mutates the source MatNest in place, so its
+        # getNestISs() access fails with PETSc error 56.
+        probe = ROOT / "sandbox" / "probe_v130_issue28_physical_rhs_y0.py"
+        tree = ast.parse(probe.read_text(encoding="utf-8"))
+        conversions = [
+            node for node in ast.walk(tree)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "convert"
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "matnest"
+        ]
+        self.assertEqual(len(conversions), 1)
+        self.assertTrue(
+            any(kw.arg == "out" for kw in conversions[0].keywords),
+            "MatNest->AIJ conversion must supply out= to retain native IS",
         )
 
     def test_complete_but_not_qualified(self):
