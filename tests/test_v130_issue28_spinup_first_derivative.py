@@ -127,12 +127,29 @@ class SpinupFirstDifferentiatedHostTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "C1 smoothstep"):
             compare(self.root)
 
-    def test_rejects_corrupt_MPI2_solution(self):
-        r = self.fixture(.1, 2)
-        r["candidate_traction_Y0_coefficients"][0] = 2e-9
-        r["candidate_traction_Y0_l2"] = 2e-9
-        self.store(.1, 2, r)
+    def test_rejects_MPI_vector_permutation_with_matching_norms(self):
+        # Both ranks report the SAME Y0 norm, so scalar MPI parity
+        # passes. Only the full native-vector comparison can detect
+        # the inconsistent coefficient locations.
+        r1 = self.fixture(.1, 1)
+        r2 = self.fixture(.1, 2)
+        r1["candidate_traction_Y0_coefficients"][0] = 2e-9
+        r2["candidate_traction_Y0_coefficients"][1] = 2e-9
+        r1["candidate_traction_Y0_l2"] = 2e-9
+        r2["candidate_traction_Y0_l2"] = 2e-9
+        self.store(.1, 1, r1)
+        self.store(.1, 2, r2)
         with self.assertRaisesRegex(ValueError, "vector MPI parity"):
+            compare(self.root)
+
+    def test_rejects_MPI_traction_norm_mismatch(self):
+        # Deliberately fail the earlier scalar gate instead. These
+        # are two separate invariants and should have separate tests.
+        r2 = self.fixture(.1, 2)
+        r2["candidate_traction_Y0_coefficients"][0] = 2e-9
+        r2["candidate_traction_Y0_l2"] = 2e-9
+        self.store(.1, 2, r2)
+        with self.assertRaisesRegex(ValueError, "mismatch in Y0"):
             compare(self.root)
 
     def test_rejects_incompatible_initial_Fa(self):
