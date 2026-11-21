@@ -343,7 +343,7 @@ def compare(directory):
         "long_time_power_balance_qualified":False,
         "interpretation":(
             "Same physical final time and original nonlinear SWE on 2 meshes; "
-            10,20,40 accepted PETSc TSCN steps independently verified "
+            "10, 20, 40 accepted PETSc TSCN steps independently verified "
             "against original per-step endpoint residuals and algebraic "
             "constraints. MPI1/2 full FE parity; true h-weighted work and "
             "viscous dissipation integrated independently. Endpoint "
