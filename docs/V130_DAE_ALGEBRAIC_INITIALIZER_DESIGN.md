@@ -2903,8 +2903,11 @@ and regular algebraic variables are projected twice on the same
 actual rectangular native PETSc system:
 `LSQR(rtol=1e-12,atol=1e-13,max_it=10000)` and
 `LSQR(rtol=1e-13,atol=1e-14,max_it=20000)`.
-This is a **stopping-tolerance sensitivity test**; iteration
-counts alone are NOT a spectral condition number estimate.
+This is a **stopping-tolerance sensitivity test** that records
+`||A^T Fa||`, individual native `Fa` blocks, correction
+`||delta_a||` and the relative coefficient change between
+the two LSQR tolerances; iteration counts alone are NOT a
+spectral condition number estimate.
 At refined `h=0.1` the rotating audit measures ONLY the
 unprojected fixed-q boundary data, explicitly avoiding
 conflation with a more expensive/different LSQR projection.
