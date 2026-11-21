@@ -222,6 +222,12 @@ def run():
         "final_time_fixed": FINAL_TIME,
         "fixed_step": dt,
         "requested_steps": args.steps,
+        "actual_total_dofs": n,
+        "differential_dofs": int(len(d)),
+        "dynamic_variable_intervals": {
+            name: [int(iv[name][0]), int(iv[name][1])]
+            for name in dnames
+        },
         "actual_TS_time": reached,
         "ts_reason": reason,
         "ts_accepted_steps": steps,
