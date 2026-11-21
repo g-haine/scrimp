@@ -18,7 +18,16 @@ if [[ "${1:-}" == "--compare-only" ]]; then
     python3 sandbox/compare_v130_issue28_exact_weak_elimination.py --evidence "$2"
     exit 0
 fi
-[[ "$#" == 0 ]] || { echo "Usage: $0 [--compare-only <native-evidence-directory>]" >&2; exit 2; }
+if [[ "${1:-}" == "--resume" ]]; then
+    [[ "$#" == 2 ]] || { echo "Usage: $0 --resume <previous-evidence-directory>" >&2; exit 2; }
+    resume_dir="$(realpath -e -- "$2")"
+    [[ -d "$resume_dir" && -s "$resume_dir/manifest.json" ]] || {
+        echo "Refusing --resume without original manifest" >&2; exit 2;
+    }
+elif [[ "$#" != 0 ]]; then
+    echo "Usage: $0 [--resume <previous-evidence-directory> | --compare-only <evidence-directory>]" >&2
+    exit 2
+fi
 
 docker_exec() {
     if [[ "$(printenv SCRIMP_DOCKER_NO_SUDO || true)" == 1 ]]; then
@@ -44,9 +53,40 @@ for f in scrimp/dphs.py scrimp/port.py scrimp/utils/mesh.py \
 done
 mkdir -p sandbox/outputs
 sha="$(git rev-parse HEAD)"
-out="$(mktemp -d "$root/sandbox/outputs/v130-issue28-exact-weak-elimination-$(git rev-parse --short=8 HEAD)-XXXXXXXX")"
-printf '{"schema":"v130-issue28-exact-weak-elimination-v1","source":"%s","image_revision":"%s","original_fixed_h0_p0":true,"accepted_Y0":false,"no_physical_time_steps":true}\n' \
-    "$sha" "$revision" > "$out/manifest.json"
+if [[ -n "${resume_dir:-}" ]]; then
+    out="$resume_dir"
+    python3 - "$out/manifest.json" "$revision" "$sha" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+manifest = json.loads(path.read_text(encoding="utf-8"))
+assert manifest.get("schema") == "v130-issue28-exact-weak-elimination-v1"
+assert manifest.get("image_revision") == sys.argv[2]
+assert manifest.get("source") in (
+    "a28aee142b2d1798e225535f9dab217a91938a0c",
+    sys.argv[3],
+), "Original run must be the known already-validated P2 diagnostic"
+assert manifest.get("original_fixed_h0_p0") is True
+assert manifest.get("no_physical_time_steps") is True
+assert manifest.get("accepted_Y0") is False
+(path.parent/"resume_metadata.json").write_text(
+    json.dumps({
+        "original_native_run_source": manifest["source"],
+        "recovered_results_with_source": sys.argv[3],
+        "original_manifest_preserved": True,
+        "existing_reports_verified_and_skipped": True,
+        "no_physical_time_steps": True,
+    }, indent=2)+"\\n", encoding="utf-8"
+)
+PY
+    echo "RESUME: original evidence preserved at $out"
+else
+    out="$(mktemp -d "$root/sandbox/outputs/v130-issue28-exact-weak-elimination-$(git rev-parse --short=8 HEAD)-XXXXXXXX")"
+    printf '{"schema":"v130-issue28-exact-weak-elimination-v1","source":"%s","image_revision":"%s","original_fixed_h0_p0":true,"accepted_Y0":false,"no_physical_time_steps":true}\\n' \
+        "$sha" "$revision" > "$out/manifest.json"
+fi
 
 echo "#28 original curved P2 EXACT WEAK ELIMINATION: Native exact e_p=p/rho, F_U=0, residual F_Y vs independent weak moments"
 echo "Source=$sha, image=$image OCI=$revision"
@@ -60,6 +100,22 @@ for h in 0.2 0.1; do
         for ranks in 1 2; do
             mkdir -p "$out/work_${label}_${case}_${ranks}" \
                      "$out/result_${label}_${case}_${ranks}"
+            result_file="$out/result_${label}_${case}_${ranks}/exact_weak_elimination.json"
+            if [[ -n "${resume_dir:-}" && -s "$result_file" ]]; then
+                # Fail closed on a tampered/incomplete old JSON: never
+                # silently relabel an invalid report as a successful run.
+                python3 - "$result_file" "$h" "$case" "$ranks" <<'PY'
+import json
+import sys
+from pathlib import Path
+sys.path.insert(0, "sandbox")
+from compare_v130_issue28_exact_weak_elimination import validate
+r = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+validate(r, float(sys.argv[2]), sys.argv[3], int(sys.argv[4]))
+PY
+                echo "REUSE VALIDATED previous native result h=$h case=$case MPI=$ranks"
+                continue
+            fi
             echo "RUN exact-block elimination h=$h case=$case MPI=$ranks"
             if ! docker_exec run --rm \
                 --user "$(id -u):$(id -g)" --workdir /scrimp-work \
