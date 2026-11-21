@@ -210,6 +210,12 @@ def _positive_rest_gate(system, mpi, mesh):
         system.gf_model.set_time(0.)
         system.gf_model.to_variables(original.copy())
         snap_global.copy(system.GlobalVec)
+        _all_reduced_exact(
+            mpi, np.array_equal(
+                _global_values(system.GlobalVec, mpi),
+                _global_values(snap_global, mpi),
+            ), "PETSc GlobalVec restored coefficients",
+        )
         system._explicit_rhs_ready = cache_ready
         system._explicit_rhs_time = cache_time
         if cache_rhs is not None and cache_saved is not None:
