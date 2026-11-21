@@ -4386,3 +4386,102 @@ Remaining release gates: new positive t0
 native feasibility; differentiated
 initial Y0/qdot and real CN
 energy/port power. #28 OPEN, #6 blocked.
+
+## 21 November 2026 — #28/#6 native dual startup gate: **8/8 PASSED** (compatible spin-up t0 + production typed rejection)
+
+**Native qualification:** source
+`fee8626b4634070e4e20686bc7033d9795351e20`,
+image `scrimp-mpi:v1.3.0-rc3` OCI
+`1d6d0c90115213298047b28237a7f38087563a35`,
+archived
+`sandbox/outputs/v130-issue28-startup-gate-fee8626b-0LcChumB/`.
+All eight host-only negative/fixture tests PASSED; all
+eight genuine GetFEM/PETSc probes PASSED
+(two cases × nominal mesh 0.2/0.1 × MPI1/2),
+and independent comparator returned
+`NATIVE_STARTUP_SAFETY_AND_T0_FEASIBILITY_DIAGNOSTIC_ONLY`.
+**DO NOT** confuse synthetic test displays
+(`Fa=1e-17,Fd=1e-17,null_cols=8`)
+with actual native measurements below.
+
+The deliberately **new**, physically distinct open
+Saint-Venant experiment (`h0=5,p0=0`,
+P2 curved disk, original physical
+facet-tangential wall, `omega=0.2`,
+`start_from_rest_duration=.02`,
+original viscous/gyro bricks) has
+the analytic t0 algebraic candidate
+`e_h=0.5, Y_n=-0.5, e_p=U=U_n=Y=0`
+and `qdot0=0`.
+Native full original GetFEM `IFunction`
+with `zdot=0` evaluates:
+
+| Positive spin-up t0 | h=.2 MPI1 | h=.2 MPI2 | h=.1 MPI1 | h=.1 MPI2 |
+|---|---:|---:|---:|---:|
+| `||Fa||_2` | 1.4763422151e-17 | 1.4744250641e-17 | 8.0033824547e-18 | 8.0057171923e-18 |
+| `||Fd||_2` | 2.6996404680e-16 | 2.6996404680e-16 | 2.6280928039e-16 | 2.6280928039e-16 |
+| `||F_U(.0002)|| / ||F_U(.0001)||` | 3.98662207358 | 3.98662207358 | 3.98662207358 | 3.98662207358 |
+
+The physical rising smoothstep
+`g(s)=3s²-2s³` with `s=t/.02`
+satisfies `g(0)=g'(0)=0`,
+and the **native wall form** ratio exactly
+matches its two-time analytical ratio.
+The full original `F(t0,z0,zdot0=0)`
+is thus numerically zero in **both dynamic
+and algebraic rows**, with MPI1/2 parity.
+This qualifies a **t0-compatible FE state**,
+not a computed high-index index analysis,
+nor differentiated `Y0`, nor physical
+time integration.
+
+For the **unchanged incompatible original**
+already-rotating tangent data (f(0)=1),
+the existing opt-in production
+`init_step_ts_type=nonlinear_affine`
+path was called through the **real**
+`DPHS.init_step` dispatch and threw
+the expected typed
+`UnsupportedNonlinearAlgebraicDAE`
+on null algebraic columns:
+132 (h=.2), 252 (h=.1),
+identical MPI1/2. The native
+`initialization_report.status` is
+`REJECTED`, all original coefficients
+and `GlobalVec` are restored bitwise,
+and no pseudo/BDF/physical TS executed.
+This is a **structural refusal of a
+higher-index class**, NOT a generalized
+runtime physical infeasibility diagnosis;
+the earlier exact FE elimination is
+the independent proof for the original
+rotating q0. Importantly the same
+structural limitation also applies to
+some **physically compatible** states;
+the high-index initializer remains
+unimplemented.
+
+**Next stringent gate:** verify the
+first-differentiated DAE constraint system
+at the **new compatible spin-up t0** with
+correct true physical `-Fd` and correct
+`-partial_t Fa`. Critical numerical
+caveat: a naive finite difference of the
+C1 smoothstep at its clipped start
+`g(0)=g'(0)=0` produces a spurious
+nonzero `O(dt)` derivative despite
+the exact derivative being zero.
+Use verified analytic `partial_t Fa(0)=0`
+and an independent one-sided `dt`
+convergence check rather than
+reusing an unqualified fixed central
+difference. Then compare MPI1/2
+the genuine differentiated bordered
+GetFEM/PETSc solve for `qdot0,Y0`,
+and recheck native full `IFunction`
+and differential-state preservation
+before accepting an initial state.
+**NO physical TS until this check passes.**
+#28 remains OPEN as an actual high-index
+production implementation; nontrivial
+physical rotating #6 remains blocked.
