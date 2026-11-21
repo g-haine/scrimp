@@ -102,6 +102,10 @@ def validate(report, mesh, ranks):
         finite(report.get(field), field)
     require(report["first_step_minimum_height_coefficient"] > 0,
             "Physical h coefficients nonpositive")
+    require(report.get("first_physical_state_changed") is True
+            and report["dynamic_step_change_l2"] > 1e-12,
+            "Accepted physical TS did not actually change dynamic h/p")
+
     require(report["integrated_viscous_dissipation"] >= -1e-12,
             "Physical viscous dissipation negative")
     require(math.isclose(
