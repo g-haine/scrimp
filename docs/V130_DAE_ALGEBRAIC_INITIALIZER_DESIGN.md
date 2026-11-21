@@ -3518,3 +3518,122 @@ incompatibility is **qualified**; no generic
 initialization or physical rotation is qualified.
 #28 remains OPEN as an implementation item.
 Nontrivial rotating #6 is still BLOCKED.
+
+## 21 November 2026 — #28/#6 dual native startup gate staged: typed high-index refusal and compatible rest-to-spinup t0 (SOURCE ONLY)
+
+**Context:** the independent original P2 weak-block elimination native
+campaign completed 8/8 tests (source `a28aee1` + roundoff-only
+resumption `9e4dd40`). For prescribed rotating `h0=5,p0`,
+the interior `F_ep=0` and original `F_U=0` are uniquely
+eliminated, but `F_Y=+/-h0*b` remains nonzero; neither
+LSQR convergence tweaks nor pseudo-time can make those
+prescribed data algebraically feasible. This original
+negative-control evidence remains unchanged.
+
+**Two separate goals, neither a new production algorithm:**
+
+1. **Existing software refusal.** Exercise the actual
+   `DPHS.init_step` dispatch with explicit
+   `init_step_ts_type=nonlinear_affine` on the *unchanged*
+   original rotating `initial_profile=tangent` and
+   `wall_velocity_profile=facet_tangent` (f(0)=1).
+   The production `nonlinear_affine` initializer already
+   has an opt-in `UnsupportedNonlinearAlgebraicDAE`
+   guard for algebraic null columns (higher-index
+   multipliers). The native test demands this exact
+   **typed structural refusal**, a report with
+   positive `algebraic_null_columns`,
+   both GetFEM and PETSc GlobalVec rolled back
+   bitwise, and **NO** pseudo/physical TS. This is
+   a structural unsupported-class rejection, NOT
+   a numerical certificate of incompatible q0 by itself:
+   the earlier exact elimination supplies the
+   independent mathematical incompatibility argument.
+   The new test does **not** change SCRIMP's default
+   initializer, nor does it assert that the nonlinear-affine
+   guard solves the general #28 problem.
+
+2. **Distinct compatible physical experiment at t0.**
+   Keep the *same* curved P2 disk, original
+   dissipative/gyro/viscous SWE bricks, `gamma=0`,
+   `h0=5`, original physical
+   `wall_velocity_profile=facet_tangent`,
+   and `rotation=0.2` after ramp.
+   Use the already implemented, opt-in
+   `initial_profile=rigid` with
+   `start_from_rest_duration=0.02` to prescribe
+   **p0=0** and a genuinely stationary wall at t0.
+   The physical wall actuation is the original
+   decreasing envelope times a smoothstep rising
+   `g(t)=3s²-2s³`, `s=clip(t/.02,0,1)`,
+   with `g(0)=g'(0)=0`. This is an explicitly
+   **new initial-value experiment**; it must never
+   be conflated with or overwrite the incompatible
+   original rotating experiment. The analytic
+   t0 algebraic candidate is:
+   ```text
+   e_h = rho*g*h0 = 0.5
+   e_p = 0
+   Y_n = -rho*g*h0 = -0.5
+   U_n = U = Y = 0
+   z_dot(t0) = 0
+   ```
+   Evaluate **the original production IFunction** on
+   this full candidate at t=0 and require **both**
+   the differential and algebraic rows to have
+   near-machine-zero residual, then check
+   native `F_U(delta)`, `F_U(2delta)` on
+   the same stationary frozen state for
+   `delta=1e-4` so the ratio agrees with the
+   exact `g(2delta)/g(delta)` of the wall
+   smoothstep. This independently verifies the
+   absence of an instantaneous boundary ramp impulse
+   in the original GetFEM control law.
+   This is **t0 compatibility only**:
+   no differentiated Y0 solve, no nonlinear/high-index
+   production initializer, and NO physical time step.
+
+**Source staged now**, pending all native executions:
+
+- `sandbox/probe_v130_issue28_startup_gate.py`;
+- `sandbox/compare_v130_issue28_startup_gate.py`;
+- `scripts/run-v130-issue28-startup-gate.sh`;
+- `tests/test_v130_issue28_startup_gate.py`.
+
+Harness keeps image `scrimp-mpi:v1.3.0-rc3`
+and checks immutable OCI
+`1d6d0c90115213298047b28237a7f38087563a35`.
+It runs **8** native cases:
+rest-spinup and original-incompatible × nominal
+P2 mesh `h=.2,.1` × MPI 1,2, and records native
+reports, original source SHA, image revision,
+host-owned working directory, and strict
+independent host comparator. Host test fixtures
+are **synthetic**, never native evidence.
+Existing production `dphs.py`, default
+linear-only `algebraic`, opt-in `nonlinear_affine`
+and all SWE bricks remain UNCHANGED.
+
+Run on the host:
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+python tests/test_v130_issue28_startup_gate.py
+bash -n scripts/run-v130-issue28-startup-gate.sh
+
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-issue28-startup-gate.sh
+```
+
+**Qualification gates after this diagnostic:** if all native
+checks pass, we may claim the existing opt-in
+high-index structural fail-fast and the new spinup
+full IFunction t0 positive-control candidate.
+Neither finding is yet a general consistent-state
+initializer. Before the first physical CN step,
+separately verify the full differentiated DAE
+initial equations including qdot0 and traction Y0,
+and explicit energy / port-power balances.
+#28 remains OPEN; rotating #6 remains BLOCKED.
