@@ -222,6 +222,15 @@ def load_native_case(root, mesh, ranks, count):
     check(math.isclose(balance[-1],metrics["balance_defect"],
                        rel_tol=1e-7,abs_tol=2e-12),
           "Native archived h-weighted physical balance contradicts JSON")
+    hfirst, hwidth = report["dynamic_variable_intervals"]["h"]
+    pfirst, pwidth = report["dynamic_variable_intervals"]["p"]
+    check(np.array_equal(
+        states[0,hfirst:hfirst+hwidth],
+        np.full(hwidth,5.,dtype=float)
+    ) and np.array_equal(
+        states[0,pfirst:pfirst+pwidth],
+        np.zeros(pwidth,dtype=float)
+    ),"Original prescribed native h0=5,p0=0 differs from archived physical state")
     ii=np.asarray([
         k for name in ("h","p")
         for k in range(
