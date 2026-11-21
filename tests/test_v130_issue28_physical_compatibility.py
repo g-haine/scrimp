@@ -8,6 +8,7 @@
 
 """Host negative controls for #28 native FE physical compatibility evidence."""
 
+import ast
 import json
 from pathlib import Path
 import sys
@@ -117,6 +118,11 @@ class OriginalPhysicalCompatibilityTest(unittest.TestCase):
         (p/"physical_compatibility.json").write_text(
             json.dumps(data), encoding="utf-8"
         )
+
+    def test_new_native_probe_is_valid_python_source(self):
+        # Python syntax check without requiring PETSc/GetFEM on the host.
+        source = ROOT/"sandbox"/"probe_v130_issue28_physical_compatibility.py"
+        ast.parse(source.read_text(encoding="utf-8"))
 
     def test_complete_diagnostic_not_initializer(self):
         r = compare(self.root)
