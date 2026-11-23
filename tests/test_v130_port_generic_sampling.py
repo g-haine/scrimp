@@ -88,6 +88,7 @@ class GenericPortSamplingTests(unittest.TestCase):
         cls.set_is_computed=lambda self:setattr(self,"_Port__is_computed",True)
         self.port=cls()
         self.port._Port__is_computed=False
+        self.port._Port__name="synthetic-port"
         self.port._Port__power_sampling="unknown"
         self.port._Port__power=[]
         self.model=FakeGetFEM()
