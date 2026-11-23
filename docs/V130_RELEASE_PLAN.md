@@ -5490,3 +5490,93 @@ The fixes were committed to the source branch; **post-fix host tests
 and 16 native cold-restart cases have not yet been rerun**. No
 physics, PETSc/GetFEM or numerical tolerances changed. #29 remains
 OPEN and the public DPHS checkpoint API is still unimplemented.
+
+### 23 Nov 2026 — #29 first native pilot: original script silent exit traced to grep; checkpoint intact; verified evidence resume staged
+
+**User second independent native attempt** at source `d3c269304cf0fe7fe6b46d45844f50b1120a84c2`,
+immutable `scrimp-mpi:v1.3.0-rc3` OCI
+`1d6d0c90115213298047b28237a7f38087563a35`,
+archive `sandbox/outputs/v130-issue29-cold-restart-d3c26930-nRhUY0qA/`,
+returned to the shell immediately after printing
+`RUN mesh=0.2 phase=seed MPI=1` with no
+`FAIL` or `COMPLETE`. The uploaded ZIP was
+inspected directly: it **does** contain the
+original complete native `h0p2_seed_mpi1.log`,
+`segment_report.json`, full
+`segment_states.npz` and an accepted full
+`h0p2_source_mpi1/accepted_state.npz`.
+The actual 10-step curved-P2 original PETSc
+TSCN spinup `0→.02` completed successfully,
+no TS rejections or failed SNES steps,
+`max||F_TSCN||≈8.1411e-11`,
+`max||Fa||≈3.2423e-14`, original physical
+weighted power defect `≈3.4775e-7`.
+The seed's 3300-vector is byte-identical to
+the accepted checkpoint and matches
+the reported SHA-256 and model fingerprint.
+**No native restart is yet present in this archive.**
+
+**Exact root cause: launcher-only grep.**
+`scripts/run-v130-checkpoint-restart.sh` used
+`grep -aE 'CHECKPOINT (PHASE|RESTORE) ' "$log"`
+after successful Docker completion. Actual
+success line is `CHECKPOINT PHASE=seed ...`
+(**equals** after PHASE), which did not match.
+Under `set -euo pipefail`, grep exit code
+1 aborted the entire runner silently and
+prevented the other 15 configurations.
+This was **not** a GetFEM, PETSc, DAE,
+checkpoint serialization, or boundary-power
+failure. The original complete seed remains
+qualified as **creation only**.
+
+**Source fix staged**: correctly match
+`CHECKPOINT (PHASE=|RESTORE )`, but
+**never rely on an unvalidated grep as proof
+of a successful physical case**.
+New `sandbox/validate_v130_checkpoint_case.py`
+independently checks each native JSON,
+NPZ original complete FE vectors, per-step
+TS/DAE/power metrics, mandatory success
+log line, original source checkpoint
+hash/time/physical control provenance
+and FE fingerprint before a case may
+be skipped or accepted. The runner now
+also supports `--resume <existing-host-evidence-dir>`.
+For resume, it **preserves original manifest,
+source SHA, log and checkpoint** and
+accepts the old evidence only if the
+source commit is an ancestor and original
+production physics + pilot checkpoint
+schema/probe files are identical. An
+existing partial/corrupted case FAILS
+CLOSED (no overwrite). Missing cases are
+then executed and independently validated.
+The new host synthetic fixture covers all
+16 phase-skipping scenarios and rejects
+missing PHASE=, wrong checkpoint source and
+incomplete seed evidence. CI compiles the
+validator and runs the amended host tests.
+
+**Next user run should REUSE the already
+computed seed, not discard it:**
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+python tests/test_v130_checkpoint_state.py
+python tests/test_v130_checkpoint_restart.py
+bash -n scripts/run-v130-checkpoint-restart.sh
+
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-checkpoint-restart.sh --resume \
+  sandbox/outputs/v130-issue29-cold-restart-d3c26930-nRhUY0qA
+```
+
+**All post-fix host cases and native
+cross-MPI restarts are still PENDING** until
+the user executes them. Do not close #29,
+claim a production DPHS checkpoint API,
+or claim a successful native MPI restart
+from the existing single-seed evidence.
