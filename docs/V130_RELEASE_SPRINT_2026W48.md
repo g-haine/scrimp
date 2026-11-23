@@ -4369,3 +4369,32 @@ no generic linear second model proven
 and no claim of exact BDF/IMEX history
 restoration. The #29 P0 release gate
 therefore remains **OPEN**.
+
+### 23 Nov 2026 — #29 first host preflight: 25/26 tests passed, two fixes staged (native still not run)
+
+At checkpoint pilot source `7715c538`, the user confirmed `py_compile`
+of all new Python files and `bash -n` of the launcher succeeded.
+`tests/test_v130_checkpoint_state.py` executed **16 tests, 15 passed,
+1 failed**. The only failure was a synthetic fake MPI rank whose
+`allgather()` returned malformed evidence flagged as *invalid source*;
+the test incorrectly expected the *valid but divergent source* error
+`MPI inconsistent`. The actual fail-closed rejection occurred correctly.
+`tests/test_v130_checkpoint_restart.py` ran **9/9 PASS** (synthetic
+host fixtures, not native GetFEM).
+
+The checkpoint schema tests now separate two cases explicitly:
+(1) two structurally valid ranks with different accepted data must
+raise `MPI inconsistent`;
+(2) one malformed/invalid MPI rank must raise
+`MPI checkpoint source rejected`.
+The corrupted-NPZ read path now explicitly owns the file descriptor
+using `with open(..., 'rb')` around NumPy loading so a deliberately
+truncated file raises without `ResourceWarning: unclosed file`.
+The native launcher now executes **both** host suites, in addition
+to compiling all Python source, BEFORE starting Docker. There are
+now **17 checkpoint-format + 9 replay = 26 synthetic host tests**.
+
+The fixes were committed to the source branch; **post-fix host tests
+and 16 native cold-restart cases have not yet been rerun**. No
+physics, PETSc/GetFEM or numerical tolerances changed. #29 remains
+OPEN and the public DPHS checkpoint API is still unimplemented.
