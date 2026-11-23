@@ -42,6 +42,9 @@ class Mesh:
 class Fem:
     def basic_dof_nodes(self):
         return np.array([[0., 1., 0.], [0., 0., 1.]])
+    def basic_dof_from_cvid(self):
+        return np.array([0,1,2],dtype=np.int32), np.array([0,3],dtype=np.int32)
+    def char(self): return "FEM_PK(2,1) on 1 convex"
     def nbdof(self): return 3
 
 
