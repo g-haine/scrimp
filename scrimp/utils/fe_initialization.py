@@ -173,6 +173,25 @@ def real_getfem_projection_coefficients(values, *, tolerance=1e-12):
     return np.ascontiguousarray(a, dtype=np.float64)
 
 
+def scale_getfem_projection_rhs(values, rhs_scale):
+    """Apply SCRIMP's *multiplicative* calibrated GetFEM RHS factor.
+
+    _getfem_mpi_rhs_scale() returns 1/P when an MPI-enabled GetFEM
+    assembly already duplicated a fully-reduced RHS P times. A
+    division here would amplify the duplication rather than fix it.
+    """
+    scale = float(rhs_scale)
+    if not np.isfinite(scale) or scale <= 0:
+        raise ValueError("Invalid GetFEM projection RHS normalization")
+    rhs = np.asarray(values, dtype=np.float64)
+    if rhs.ndim != 1 or not np.all(np.isfinite(rhs)):
+        raise ValueError("GetFEM projection RHS must be a finite 1D vector")
+    result = np.ascontiguousarray(rhs * scale)
+    if not np.all(np.isfinite(result)):
+        raise ValueError("Non-finite normalized GetFEM projection RHS")
+    return result
+
+
 def project_fe_initial_value(
     name, expression, fem, region, mim, *,
     rhs_scale=1.0, relative_tolerance=1e-9,
@@ -223,7 +242,9 @@ def project_fe_initial_value(
                 f"Filtered FE DOF count mismatch for {name}: "
                 f"GetFEM model {n} vs mesh fem {region_dofs}"
             )
-    gf_rhs = np.asarray(model.rhs(), dtype=float).reshape(-1)
+    gf_rhs = scale_getfem_projection_rhs(
+        np.asarray(model.rhs(), dtype=float).reshape(-1), rhs_scale
+    )
     if gf_rhs.size != n or not np.all(np.isfinite(gf_rhs)):
         raise ValueError(f"Invalid GetFEM projection right-hand side for {name}")
 
@@ -239,7 +260,7 @@ def project_fe_initial_value(
         if hi > lo:
             b.setValues(
                 np.arange(lo, hi, dtype=PETSc.IntType),
-                gf_rhs[lo:hi] / float(rhs_scale),
+                gf_rhs[lo:hi],
                 addv=PETSc.InsertMode.INSERT_VALUES,
             )
         b.assemble()

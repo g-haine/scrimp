@@ -199,3 +199,19 @@ full pH-DAE simulations, Heat-Wave, MPI2 and general PDE energy/power
 acceptance are **not** qualified by that archive. No v1.3.0 release
 tagging is authorized by the initial-state FE tests. All eight
 published research sources remain byte-for-byte immutable.
+
+## 23 November 2026 — MPI RHS scaling correction before parallel gate
+
+The SCRIMP GetFEM calibration helper `_getfem_mpi_rhs_scale()`
+returns a **multiplicative** factor: `1` for an already-correct
+GetFEM RHS or `1/P` if the MPI-enabled GetFEM build duplicates
+a fully reduced RHS `P` times. The initial `method="l2"`
+implementation incorrectly **divided** its RHS by this factor,
+which was invisible in all MPI1 tests (`P=1`). The projection
+now applies this factor by **multiplication**, matching SCRIMP's
+existing PDE RHS bridge. A source-only regression checks
+`[2,4,-6] * 0.5 = [1,2,-3]` and verifies the production call site.
+
+This corrects the direction of normalization, but the full MPI2
+GetFEM/PETSc mass-assembly and physical reconstructed-field gate is
+still required before claiming parallel initial-value support.

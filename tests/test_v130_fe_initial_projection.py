@@ -34,6 +34,16 @@ def actual_real_coefficient_bridge():
     return env["real_getfem_projection_coefficients"]
 
 
+def actual_rhs_scaler():
+    tree = ast.parse(PROJECTION.read_text(encoding="utf-8"))
+    method = next(n for n in tree.body if isinstance(n, ast.FunctionDef)
+                  and n.name == "scale_getfem_projection_rhs")
+    env = {"np": np}
+    exec(compile(ast.Module(body=[method], type_ignores=[]),
+                 str(PROJECTION), "exec"), env)
+    return env["scale_getfem_projection_rhs"]
+
+
 def actual_expression_translator():
     tree = ast.parse(PROJECTION.read_text(encoding="utf-8"))
     method = next(n for n in tree.body if isinstance(n, ast.FunctionDef)
@@ -45,6 +55,40 @@ def actual_expression_translator():
     exec(compile(ast.Module(body=[method], type_ignores=[]),
                  str(PROJECTION), "exec"), env)
     return env["python_expression_to_gwfl"]
+
+
+class GetFEMMPIProjectionRHSScaleTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.scale_rhs = staticmethod(actual_rhs_scaler())
+
+    def test_normal_scale_unchanged(self):
+        np.testing.assert_array_equal(
+            self.scale_rhs(np.array([1., -2., 3.]), 1.0),
+            [1., -2., 3.],
+        )
+
+    def test_duplicate_rhs_is_multiplied_not_divided(self):
+        # Known SCRIMP GetFEM MPI-2 calibration returns 1/P
+        # for P-fold duplicated RHS; never invert this factor.
+        np.testing.assert_array_equal(
+            self.scale_rhs(np.array([2., 4., -6.]), 0.5),
+            [1., 2., -3.],
+        )
+
+    def test_bad_scale_and_rhs_rejected(self):
+        for factor in (0., -1., float("inf"), float("nan")):
+            with self.subTest(factor=factor):
+                with self.assertRaises(ValueError):
+                    self.scale_rhs(np.array([1.]), factor)
+        with self.assertRaises(ValueError):
+            self.scale_rhs(np.array([float("nan")]), 1.)
+
+    def test_production_uses_the_calibrated_rhs(self):
+        source = PROJECTION.read_text(encoding="utf-8")
+        self.assertIn("gf_rhs = scale_getfem_projection_rhs(", source)
+        self.assertIn("gf_rhs[lo:hi],", source)
+        self.assertNotIn("gf_rhs[lo:hi] / float(rhs_scale)", source)
 
 
 class RealGetFEMCoefficientBridgeTests(unittest.TestCase):
