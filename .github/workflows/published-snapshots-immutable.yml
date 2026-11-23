@@ -1,0 +1,31 @@
+name: Protect immutable published scientific snapshots
+
+on:
+  push:
+    paths:
+      - 'examples/published/**'
+      - 'scripts/check-v130-published-immutable.py'
+      - 'tests/test_v130_published_immutable.py'
+      - '.github/workflows/published-snapshots-immutable.yml'
+  pull_request:
+    paths:
+      - 'examples/published/**'
+      - 'scripts/check-v130-published-immutable.py'
+      - 'tests/test_v130_published_immutable.py'
+      - '.github/workflows/published-snapshots-immutable.yml'
+
+jobs:
+  published-immutable:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Syntax
+        run: |
+          python -m py_compile scripts/check-v130-published-immutable.py tests/test_v130_published_immutable.py
+      - name: Negative controls for modified/deleted/added snapshots
+        run: python tests/test_v130_published_immutable.py
+      - name: Verify original Git blob IDs and exact working-tree bytes
+        run: python scripts/check-v130-published-immutable.py

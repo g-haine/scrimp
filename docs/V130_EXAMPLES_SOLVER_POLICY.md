@@ -1,6 +1,6 @@
 # SCRIMP v1.3.0 — solver policy and systematic example qualification
 
-**23 November 2026 — source preflight prepared; actual MPI direct-solver runs PENDING.**
+**23 November 2026 — actual MPI sparse LU preflight 7/7 PASS; all archived publication code protected by an immutable, byte-for-byte Git baseline.**
 
 ## Decision: stable release now, optional solver science later
 
@@ -11,12 +11,11 @@ has been queried with the **actual native** `PETSc.Sys.hasExternalPackage`:
 |---|---|---|
 | `mumps` | True | Qualified default, serial and distributed |
 | `superlu` | True | Sequential LU only |
-| `superlu_dist` | True | MPI distributed LU, runtime test pending |
+| `superlu_dist` | True | MPI distributed LU: MPI1/2/4 tested PASS |
 
 **No PETSc, GetFEM or Docker rebuild is necessary** to test
-`superlu_dist` in the existing image. These checks prove native
-package registration, **not** successful factorization or runtime
-stability. The qualified solver policy remains `mumps` by default.
+`superlu_dist` in the existing image. Package detection and real seven-case LU accuracy are now PASS;
+this is still **not** a SCRIMP/GetFEM model-level qualification. The qualified solver policy remains `mumps` by default.
 SCRIMP `DPHS.set_time_scheme()` already sets MUMPS only if no
 user `pc_factor_mat_solver_type` was given, preserving user choice.
 
@@ -51,17 +50,42 @@ Eight top-level executable examples:
 | `examples/wave_coenergy.py` | no override; MUMPS default | Run physics + I/O |
 | `examples/wave_dissipative.py` | no override; MUMPS default | Run physics + I/O |
 
-**Published/research scripts:** `examples/published/MCSS_2024/shallow_water.py`
-also hardcodes `superlu`, alongside historic BDF2, control
-and integrator settings. Preserve published/archival defaults;
-qualify an opt-in solver override separately so historical
-science is not silently rewritten. Other published examples
-and notebooks require a separate inventory of dependencies,
-entry points and feasible MPI contracts; helpers such as
-`u_tangent.py` are not blindly classified as executable
-standalone solvers.
+### ABSOLUTE IMMUTABILITY RULE — `examples/published/`
 
-### Stage A — minimal actual PETSc backend preflight (PENDING)
+All **eight Git-tracked files** inside `examples/published/`
+are historical research snapshots exactly as they existed for
+their associated articles. **NEVER edit, reformat, relocate,
+delete, overwrite, add import shims, change solver options, or
+add files to this directory.** No automatic conversion,
+`ruff/black` rewrite, license/header update, new entrypoint,
+numerical hotfix or solver migration is permitted there.
+The original `MCSS_2024/shallow_water.py` explicitly chooses
+`superlu`; leave that exact choice intact even if it does
+not execute with multiple ranks in the current Docker image.
+
+Snapshot preservation is enforced by
+`python scripts/check-v130-published-immutable.py` and
+a dedicated pull-request/push CI. The guard checks the
+**eight pinned Git blob IDs, the Git index, file permissions,
+and the actual file bytes**, and rejects omissions, additions,
+renames and untracked new code. Its lock baseline is
+`b6fe4933415fb19eb02a8448a9fc587432196227`.
+The pinned contents are also verified by negative unit tests.
+The guard is mandatory for release and must never be
+bypassed or weakened to make an archive edit pass.
+
+If a publication example needs modern API adaptations or
+MUMPS/SuperLU_DIST experiments, construct a **new, clearly
+named independent script outside `examples/published/`**
+(e.g. under `scripts/`, `tests/`, or a dedicated modernized
+examples directory). Link to the original source and record
+the changes explicitly. Execute legacy scripts unchanged
+where technically possible; otherwise record the historical
+incompatibility without changing the snapshots.
+The notebooks and helper scripts are inventoried separately;
+do not blindly treat every helper as an executable model.
+
+### Stage A — minimal actual PETSc backend preflight (7/7 NATIVE PASS)
 
 ```bash
 cd ~/Simulations/scrimp
@@ -84,6 +108,31 @@ non-convergence, wrong result and mismatched MPI matrix
 format are hard failures. It stores the original host logs
 and JSON for each case in a unique, immutable output
 directory and makes a standalone ZIP.
+
+**Stage A NATIVE PASS (user host; full original archive independently
+read):** `scrimp-mpi:v1.3.0-rc3` at OCI revision
+`1d6d0c90115213298047b28237a7f38087563a35`;
+source `b6fe4933415fb19eb02a8448a9fc587432196227`.
+Original ZIP `v130-petsc-lu-preflight-b6fe4933-0LlCfedE.zip`
+contains 7 native PETSc JSON results, 7 corresponding
+native logs, manifest and summary. All entries pass CRC.
+Actual results:
+
+| PETSc LU backend | MPI ranks accepted | Largest relative solution error | Largest relative Ax-b residual |
+|---|---|---:|---:|
+| `mumps` | 1, 2, 4 | 1.9386099094915744e-16 | 3.244033106455509e-16 |
+| `superlu` (sequential) | 1 | 1.523376208552414e-16 | 2.449694660886362e-16 |
+| `superlu_dist` | 1, 2, 4 | 1.7609301536061955e-16 | 2.947112437963227e-16 |
+
+All 7 actual factorization paths returned PETSc KSP
+convergence reason 4, correct requested factor backend,
+and the two- and four-rank cases used genuine `mpiaij`
+matrices. Largest relative error
+`1.9386099094915744e-16`, largest relative
+residual `3.244033106455509e-16`; threshold
+`1e-11` was met with margin. This is **not** a
+timing benchmark: the 384-dimensional test problem is
+far too small to draw speed or scaling conclusions.
 
 A successful Stage A means **PETSc native backend LU
 compatibility on one small test matrix**. It does NOT mean
@@ -112,10 +161,11 @@ non-MUMPS path.
    Investigate/mark original model issues, not just
    factorization timings. `superlu` can remain an
    optional serial reference where supported.
-4. Treat original published simulations separately:
-   preserve their parameter provenance and do not
-   confuse an unbounded 5-second, 50k-step historical
-   scenario with a quick installation acceptance.
+4. The original `examples/published/` snapshots are **NEVER
+   edited**. If a historical scenario must be compared,
+   write an independent modernized reproduction OUTSIDE that
+   directory with all departures recorded. Keep its large
+   original time horizon separate from short acceptance tests.
 5. Keep #30's `Port.compute` typed sampling policy and
    #6's genuine physical MPI and checkpoint fidelity
    tests unchanged; no exact BDF2 port-power identity
