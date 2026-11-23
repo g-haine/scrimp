@@ -20,6 +20,7 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/"sandbox"))
 from compare_v130_checkpoint_restart import compare
+from validate_v130_checkpoint_case import verify_one
 from v130_checkpoint_state import (
     canonical, sha256, write_checkpoint,
 )
@@ -52,7 +53,13 @@ class CheckpointReplayHostTest(unittest.TestCase):
                 write_checkpoint(
                     path,z=self.zstar,t=.02,
                     provenance=self.model,ts_type="cn",
-                    accepted=True
+                    accepted=True,
+                    extra={
+                        "source_mpi_ranks":r,
+                        "nominal_mesh_size":mesh,
+                        "physical_control_clock":"absolute",
+                        "physical_rotation_target":.2,
+                    }
                 )
             for source in (1,2):
                 for target in (1,2):
@@ -101,7 +108,8 @@ class CheckpointReplayHostTest(unittest.TestCase):
             {"status":"SANDBOX_CHECKPOINT_COLD_RESTORED_NOT_PRODUCTION",
              "getfem_globalvec_published_bitwise":True,
              "pseudo_or_bdf_initialization_performed":False,
-             "original_algebraic_residual_l2":1e-13}
+             "original_algebraic_residual_l2":1e-13,
+             "checkpoint_sha256":sha256(z0.tobytes())}
             if phase=="resume"
             else {"strategy":"sandbox_exact_stationary_spinup_only"}
         )
@@ -109,6 +117,8 @@ class CheckpointReplayHostTest(unittest.TestCase):
             "schema":"scrimp-v130-issue29-native-cold-restart-pilot-v1",
             "status":"SANDBOX_NATIVE_SEGMENT_DIAGNOSTIC_NOT_PRODUCTION",
             "phase":phase,"mesh":mesh,"mpi_ranks":rank,
+            "model_fingerprint_sha256":self.model["fingerprint_sha256"],
+            "complete_final_state_sha256":sha256(Z[-1].tobytes()),
             "source_time":begin,"actual_final_time":end,
             "actual_ts_steps":n,"actual_ts_reason":1,
             "actual_ts_rejections":0,"actual_ts_snes_failures":0,
@@ -125,7 +135,50 @@ class CheckpointReplayHostTest(unittest.TestCase):
         (folder/"segment_report.json").write_text(
             json.dumps(record),encoding="utf-8")
         np.savez_compressed(folder/"segment_states.npz",**arrays)
+        (self.root/f"{folder.name}.log").write_text(
+            f"CHECKPOINT PHASE={phase} mesh={mesh:g} MPI={rank} "
+            f"steps={n} synthetic host fixture only\\n",
+            encoding="utf-8",
+        )
         return record,arrays
+
+    def test_synthetic_individual_case_resumption_gate(self):
+        for mesh in (.2,.1):
+            for ranks in (1,2):
+                verify_one(self.root,mesh,"seed",ranks)
+                verify_one(self.root,mesh,"continuous",ranks)
+                for source in (1,2):
+                    verify_one(
+                        self.root,mesh,"resume",ranks,source_ranks=source
+                    )
+
+    def test_rejects_existing_case_without_expected_success_log(self):
+        label=self.root/"h0p2_seed_mpi1.log"
+        label.write_text(
+            "CHECKPOINT PHASE seed (old broken grep test)\\n",
+            encoding="utf-8"
+        )
+        with self.assertRaisesRegex(ValueError,"success marker absent"):
+            verify_one(self.root,.2,"seed",1)
+
+    def test_rejects_existing_seed_from_wrong_checkpoint_source(self):
+        path=self.root/"h0p1_source_mpi2"/"accepted_state.npz"
+        with np.load(path, allow_pickle=False) as data:
+            arr=data["state"].copy()
+            manifest=json.loads(data["manifest"].tobytes().decode("utf-8"))
+        manifest["extra"]["source_mpi_ranks"]=1
+        np.savez_compressed(
+            path,state=arr,
+            manifest=np.frombuffer(canonical(manifest),dtype=np.uint8)
+        )
+        with self.assertRaisesRegex(ValueError,"source/provenance"):
+            verify_one(self.root,.1,"seed",2)
+
+    def test_rejects_existing_restart_without_complete_source_case(self):
+        path=self.root/"h0p2_source_mpi1"/"accepted_state.npz"
+        path.unlink()
+        with self.assertRaisesRegex(ValueError,"accepted-state file"):
+            verify_one(self.root,.2,"resume",2,source_ranks=1)
 
     def test_synthetic_complete_cross_rank_replay(self):
         response=compare(self.root)
