@@ -110,7 +110,17 @@ class MPI1:
 
 
 class MPI2Mismatch(MPI1):
-    def allgather(self,v): return [v,("different-state", "other", .03, True)]
+    def allgather(self, v):
+        # Both sources are structurally valid, but the second MPI
+        # rank has different accepted-state/time/model information.
+        return [v, (True, "different-state", "other", .03, True)]
+
+
+class MPI2InvalidSource(MPI1):
+    def allgather(self, v):
+        # A corrupted rank must be rejected collectively, before
+        # comparing otherwise valid fingerprints.
+        return [v, (False, "ValueError: nonfinite rank-1 state")]
 
 
 class CheckpointSchemaTests(unittest.TestCase):
@@ -247,11 +257,20 @@ class CheckpointSchemaTests(unittest.TestCase):
         np.testing.assert_array_equal(z,self.z)
 
     def test_collective_mpi_state_mismatch_rejected(self):
-        with self.assertRaisesRegex(ValueError,"MPI inconsistent"):
+        with self.assertRaisesRegex(ValueError, "MPI inconsistent"):
             collective_write(
                 self.file,mpi=MPI2Mismatch(),z=self.z,t=.02,
                 provenance=self.provenance,ts_type="cn",accepted=True
             )
+        self.assertFalse(self.file.exists())
+
+    def test_collective_invalid_MPI_source_rejected_before_write(self):
+        with self.assertRaisesRegex(ValueError, "MPI checkpoint source rejected"):
+            collective_write(
+                self.file,mpi=MPI2InvalidSource(),z=self.z,t=.02,
+                provenance=self.provenance,ts_type="cn",accepted=True
+            )
+        self.assertFalse(self.file.exists())
 
     def test_corrupted_schema_rejected(self):
         self.save()
