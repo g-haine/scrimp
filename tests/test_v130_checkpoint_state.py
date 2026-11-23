@@ -144,6 +144,30 @@ class CheckpointSchemaTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"mesh, FE numbering"):
             read_checkpoint(self.file,current_provenance=other)
 
+    def test_same_FE_nodes_but_different_basis_is_rejected(self):
+        self.save()
+        from copy import deepcopy
+        from v130_checkpoint_state import canonical, sha256
+        other=deepcopy(self.provenance)
+        other["detail"]["ports"][0]["fem_descriptor"]="FEM_OTHER_SAME_NODES"
+        other["fingerprint_sha256"]=sha256(canonical(other["detail"]))
+        with self.assertRaisesRegex(ValueError,"mesh, FE numbering"):
+            read_checkpoint(self.file,current_provenance=other)
+
+    def test_atomic_checkpoint_cannot_overwrite_accepted_evidence(self):
+        original=self.save()
+        with self.assertRaises(FileExistsError):
+            write_checkpoint(
+                self.file,z=self.z+1.,t=.03,
+                provenance=self.provenance,ts_type="cn",accepted=True
+            )
+        t,z,header=read_checkpoint(
+            self.file,current_provenance=self.provenance
+        )
+        self.assertEqual(t,.02)
+        self.assertEqual(header,original)
+        np.testing.assert_array_equal(z,self.z)
+
     def test_physical_boundary_law_must_match(self):
         self.save()
         other=model_provenance(System(control="omega*Tangent"))
