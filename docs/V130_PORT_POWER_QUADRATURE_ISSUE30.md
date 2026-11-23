@@ -185,6 +185,45 @@ a negative control deliberately distinguishing the wrong
 legacy trapezoid. It never edits or rewrites original
 scientific data and requires no GetFEM/PETSc/Docker reruns.
 
+### New independent public plotting native smoke (PENDING on qualified host)
+
+The generic Port.compute AST tests are necessary but do not
+exercise real GetFEM assemblies, PETSc BDF solves or Matplotlib
+artists. Source-only tests must NOT be described as a native PASS.
+
+A **separate** qualified-host gate now invokes the existing
+original 2-D linear wave DAE with the same domain, constitutive
+parameters, time-dependent physical input and original rest
+initial condition. For each of genuine PETSc `CN` and `BDF2`
+at MPI 1 and MPI 2 (four actual solves, 12 steps each), it
+verifies the original full FE state, algebraic constraints,
+all rank-generic algebraic port samples, exact declared
+`get_power_sampling()`, every public `DPHS.plot_powers()`
+Matplotlib line versus an **independent** `integrate_port_power()`
+numerical result, the legacy signed Balance plot, and
+root-only PNG and full original NPZ publication. It
+compares the complete MPI1/MPI2 paths and port powers for
+each scheme. CN additionally checks the exact original
+wave per-step Hamiltonian/port identity; BDF explicitly
+**does not** assert a nonexistent exact stage work identity.
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-issue30-port-generic-native.sh
+```
+
+The driver pins the previously qualified `rc3` OCI
+revision, overlays only the updated Python source, and
+creates a unique host-owned
+`sandbox/outputs/v130-issue30-port-generic-native-.../`
+folder and a standalone ZIP of native logs, JSON, full FE
+traces, port samples and public plots. It never overwrites
+or deletes previous evidence. Its status is PENDING until
+real native results are supplied and examined.
+
 **Do not mark issue #30 CLOSED until:** the new generic sampling
 dispatch and at least one genuine end-to-end public
 `plot_powers()` native plotting smoke have been checked on

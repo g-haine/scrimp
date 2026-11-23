@@ -162,6 +162,22 @@ class GenericPortSamplingTests(unittest.TestCase):
         with self.assertRaises(AssertionError):
             self.port.get_power()
 
+    def test_native_public_plot_smoke_is_fail_closed_and_qualified_image(self):
+        runner=(ROOT/"scripts"/"run-v130-issue30-port-generic-native.sh").read_text(
+            encoding="utf-8"
+        )
+        probe=(ROOT/"sandbox"/"probe_v130_issue30_port_sampling_native.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("scrimp-mpi:v1.3.0-rc3",runner)
+        self.assertIn("original_physical_wave_power.npz",probe)
+        self.assertIn("system.plot_powers(ax=ax,HamTot=H)",probe)
+        self.assertIn('if args.scheme=="bdf":',probe)
+        self.assertIn('if args.scheme=="cn":',probe)
+        self.assertIn('for scheme in cn bdf;',runner)
+        self.assertIn('for ranks in 1 2;',runner)
+        self.assertIn("BDF_nodal_plot_is_approximate_not_discrete_quadrature",probe)
+
     def test_original_dphs_dispatch_uses_sampling_not_embedded_cn(self):
         source=(ROOT/"scrimp"/"dphs.py").read_text(encoding="utf-8")
         self.assertIn(
