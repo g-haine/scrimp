@@ -507,9 +507,8 @@ class Port:
             return self.__power
         except AssertionError as err:
             logging.error(
-                "Power for port",
+                "Power for port %s has not been computed yet",
                 self.__name,
-                "has not been computed yet",
             )
             raise err
 

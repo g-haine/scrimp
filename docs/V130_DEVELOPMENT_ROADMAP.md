@@ -15,6 +15,19 @@
 >
 > **Updated 23 November 2026:** issue #29's **qualified cold checkpoint/restart** criterion has passed (production SWE and second linear pH-DAE; cross-MPI 1↔2; CN energy/work at roundoff). Refer to [V130_CHECKPOINT_ISSUE29_QUALIFICATION.md](V130_CHECKPOINT_ISSUE29_QUALIFICATION.md). This does not imply a general DAE initializer or historical TS state restoration; release v1.3.0 remains untagged pending other gates.
 
+**Port-power issue #30 COMPLETE (23 November):** original
+GetFEM/PETSc 2-D wave DAE CN and BDF2 × MPI1/2,
+4/4 genuine native public `Port.compute` and
+`DPHS.plot_powers` qualification PASS and original ZIP
+independently recomputed. Max whole-path MPI FE discrepancy
+6.7117e-13 (CN) and 2.6174e-14 (BDF2);
+CN model-specific discrete energy step residual 2.10e-19.
+`instantaneous` generic nodal sampling and `cn_step`
+conventions explicit; BDF trapezoid is an approximation,
+not an exact scheme-specific stage integral.
+Evidence `v130-issue30-port-generic-native-883b428f-N4zJAtcX`;
+see [V130_PORT_POWER_QUADRATURE_ISSUE30.md](V130_PORT_POWER_QUADRATURE_ISSUE30.md).
+
 **Native MPI4 qualification (23 November):** 14/14 original rotating
 Saint-Venant PETSc runs on h=.2/.1, MPI 1/2/4 original
 full-trajectory/power parity and cold checkpoint 1↔4 **PASS**.

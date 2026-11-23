@@ -160,8 +160,13 @@ class GenericPortSamplingTests(unittest.TestCase):
         with self.assertRaisesRegex(FloatingPointError,"Injected native"):
             self.port.compute(self.solution,self.model,self.domain)
         self.assertEqual(self.port.get_power_sampling(),"unknown")
-        with self.assertRaises(AssertionError):
-            self.port.get_power()
+        with self.assertLogs(level="ERROR") as messages:
+            with self.assertRaises(AssertionError):
+                self.port.get_power()
+        self.assertEqual(
+            messages.output,
+            ["ERROR:root:Power for port synthetic-port has not been computed yet"],
+        )
 
     def test_native_public_plot_smoke_is_fail_closed_and_qualified_image(self):
         runner=(ROOT/"scripts"/"run-v130-issue30-port-generic-native.sh").read_text(

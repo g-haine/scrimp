@@ -1,8 +1,6 @@
 # SCRIMP v1.3.0 — Issue #30: physical CN port-power plotting quadrature
 
-**23 November 2026: original 8-segment native data re-audit PASS;
-generic Port.compute source extension STAGED, true native
-Port.compute sampling/plotting smoke PENDING.**
+**23 November 2026: COMPLETE — original 8-segment CN data re-audit PASS; generic `Port.compute()` and public `plot_powers()` CN/BDF2 × MPI1/2 4/4 native PASS, independently re-audited.**
 
 The separate checkpoint issue #29 has **already** passed. It exposed
 a real SCRIMP postprocessing defect, not a problem with PETSc, the
@@ -185,11 +183,57 @@ a negative control deliberately distinguishing the wrong
 legacy trapezoid. It never edits or rewrites original
 scientific data and requires no GetFEM/PETSc/Docker reruns.
 
-### New independent public plotting native smoke (PENDING on qualified host)
+### Reproducible original native results — 23 November 2026
 
-The generic Port.compute AST tests are necessary but do not
-exercise real GetFEM assemblies, PETSc BDF solves or Matplotlib
-artists. Source-only tests must NOT be described as a native PASS.
+Source `883b428febe5a317ab1832d57d02d2ad121765d4`; pinned
+`scrimp-mpi:v1.3.0-rc3`, original host evidence:
+`sandbox/outputs/v130-issue30-port-generic-native-883b428f-N4zJAtcX/`
+and ZIP of identical name. The uploaded ZIP has 18 members,
+all with valid CRC. Every original NPZ array and all four
+PNG figures independently re-opened and checked; PNGs
+measure 1350 × 750 pixels. Each physical wave simulation
+used 426 complete FE/DAE DoFs and 12 accepted time steps.
+
+| PETSc integrator | MPI ranks | Actual sampling | Max full-FE-trajectory MPI L2 difference | Max raw port power difference | Max cumulative port integral difference |
+|---|---|---|---:|---:|---:|
+| CN | 1, 2 | `cn_step` | 6.711684736112862e-13 | 3.191891195797325e-16 | 4.336808689942018e-19 |
+| BDF2 | 1, 2 | `instantaneous` | 2.6174007281914428e-14 | 1.700029006457271e-16 | 1.0842021724855044e-19 |
+
+All four original GetFEM/PETSc runs PASS, with zero
+MPI intra-run generic port-power discrepancies, and
+original DAE algebraic residuals <=3.02e-17. The physical
+ports are nontrivial (max raw generic port-power magnitude
+0.02836248 in CN and 0.02945672 in BDF2).
+Independently recomputing every element of each signed
+port integral from the original NPZ reproduces the archived
+values exactly (maximum numerical difference **0.0**).
+
+For CN, the genuine original wave step identity satisfies
+`max |ΔH+Δt*P|=2.1006417091906648e-19`
+(MPI1) and `9.147955830346444e-20` (MPI2);
+the final model-specific supplied work balances the change
+in Hamiltonian at roundoff.
+
+For BDF2, the **approximate** signed nodal trapezoidal
+integral differs from the final Hamiltonian change by
+`-2.1638336660092855e-07` (MPI1). This is **not**
+a checkpoint, MPI, GetFEM or plot coding failure, and is
+not presented as an exact BDF stage-work discretization.
+Such a property would require capture of the actual PETSc
+time-stepping stages. The original physics, FE model,
+and solver are unchanged.
+
+The real native public plotting method was exercised in
+each case; every Matplotlib port curve and the historical
+model-dependent `Balance` curve were checked against
+independent integrals in the original native process.
+A separately encountered `Port.get_power()` malformed
+logging call on the deliberately tested *failure* path
+was fixed subsequently, without changing numerical outputs.
+
+### New independent public plotting native smoke (PASS on qualified host)
+
+The generic Port.compute AST tests alone did not constitute native evidence. The complementary real GetFEM/PETSc BDF2/CN solves and public Matplotlib artist checks have now been run and archived.
 
 A **separate** qualified-host gate now invokes the existing
 original 2-D linear wave DAE with the same domain, constitutive
@@ -221,13 +265,9 @@ creates a unique host-owned
 `sandbox/outputs/v130-issue30-port-generic-native-.../`
 folder and a standalone ZIP of native logs, JSON, full FE
 traces, port samples and public plots. It never overwrites
-or deletes previous evidence. Its status is PENDING until
-real native results are supplied and examined.
+or deletes previous evidence. All four native runs completed successfully, and the original ZIP was independently checked on 23 November 2026.
 
-**Do not mark issue #30 CLOSED until:** the new generic sampling
-dispatch and at least one genuine end-to-end public
-`plot_powers()` native plotting smoke have been checked on
-the qualified GetFEM/PETSc host. The native #29 re-audit is
+**Issue #30's scoped acceptance conditions are now satisfied:** the generic sampling dispatch and genuine end-to-end native public `plot_powers()` checks passed on the qualified GetFEM/PETSc host. The native #29 re-audit is
 already complete; preserve the honest "approximate" description
 for other BDF/IMEX time integrators.
 This targeted fix does not replace the separate #6

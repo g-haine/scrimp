@@ -20,10 +20,17 @@
 > adaptive TS history restoration or mathematical energy accuracy:
 > [V130_ROTATING_CONTROLLED_INITIAL_STATE.md](V130_ROTATING_CONTROLLED_INITIAL_STATE.md).
 >
-> **Issue #30 (23 November): original 8-segment CN power-data
-> re-audit PASS (2.44e-19 per-step, 7.05e-19 split-work parity).
-> Generic Port.compute sampling API source STAGED; native
-> end-to-end plot/port smoke remains PENDING.**
+> **Issue #30 (23 November): COMPLETE, 4/4 native CN/BDF2
+> generic-port/plotting tests PASS; independently checked ZIP.**
+> Original 8-segment CN work re-audit passed (2.44e-19);
+> additional original wave DAE on MPI1/2, PETSc CN and BDF2,
+> each 426 full FE DoFs. Max cross-MPI whole-trajectory L2
+> 6.7117e-13 CN / 2.6174e-14 BDF2, raw power parity
+> 3.1919e-16 CN / 1.7000e-16 BDF2. Four public Matplotlib
+> figures verified. Evidence source 883b428f, ZIP
+> v130-issue30-port-generic-native-883b428f-N4zJAtcX.
+> BDF nodal trapezoidal integration is approximate,
+> not a proven BDF stage-power identity.
 > Port.compute now declares instantaneous vs CN-step samples
 > explicitly, instead of silently using CN state means for
 > all PETSc integrators. Other TS use actual nodal powers
@@ -67,8 +74,9 @@
 > multi-platform native gate. Next pilot: compatible, rotating
 > dissipative SWE controlled initial state
 > [V130_ROTATING_CONTROLLED_INITIAL_STATE.md](V130_ROTATING_CONTROLLED_INITIAL_STATE.md);
-> native result **PENDING**. None of these decisions alters the already
-> qualified #29 checkpoint API or authorizes premature v1.3.0 tagging.
+> qualification **PASS** on its tested short-time MPI1/2/4 scope.
+> None of these decisions alters the already qualified #29
+> checkpoint API or authorizes premature v1.3.0 tagging.
 >
 > **Qualification update — 23 November 2026:** issue #29 / gate 2C has passed the narrow **scientific/native** acceptance: production API Saint-Venant 16/16 native cases; independent linear wave pH-DAE 8/8 native segments, all four cross-MPI restarts, 13/13 host tests, and per-step CN power balance at roundoff. See [V130_CHECKPOINT_ISSUE29_QUALIFICATION.md](V130_CHECKPOINT_ISSUE29_QUALIFICATION.md). This does **not** certify unrelated v1.3.0 release gates or integrator-history restoration.
 
