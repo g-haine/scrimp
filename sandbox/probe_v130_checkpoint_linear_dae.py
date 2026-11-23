@@ -164,7 +164,10 @@ def original_IFunction(system, mpi, t, state, state_dot):
     try:
         lo,hi=vec.getOwnershipRange()
         if hi>lo:
-            owned=np.arange(lo,hi,dtype=int)
+            # PETSc can be compiled with 32-bit PetscInt even on
+            # 64-bit Python/NumPy, where dtype=int is int64. Index
+            # arrays passed to Vec.setValues MUST use PETSc.IntType.
+            owned=np.arange(lo,hi,dtype=PETSc.IntType)
             vec.setValues(owned,state[lo:hi],addv=PETSc.InsertMode.INSERT_VALUES)
             vel.setValues(owned,state_dot[lo:hi],addv=PETSc.InsertMode.INSERT_VALUES)
         vec.assemble()
