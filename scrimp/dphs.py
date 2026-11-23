@@ -17,6 +17,11 @@ from scrimp.utils.linalg import convert_gmm_to_petsc, extract_gmm_to_scipy
 from scrimp.utils.profiling import TimingProfiler
 from scrimp.utils.initial_state import publish_accepted_pseudo_state
 from scrimp.utils.dae_initialization import initialize_linear_algebraic
+from scrimp.utils.dae_checkpoint import (
+    model_provenance as _checkpoint_model_provenance,
+    collective_read as _checkpoint_collective_read,
+    collective_write as _checkpoint_collective_write,
+)
 from scrimp.utils.nonlinear_affine_dae import (
     initialize_nonlinear_affine_algebraic,
 )
@@ -429,6 +434,11 @@ class DPHS:
         self._explicit_rhs_time = None
         #: To check if the system has been solved
         self.solve_done = False
+        # A verified full accepted state pending a cold restart. It is
+        # applied only AFTER GetFEM/PETSc matrix allocation and assembly,
+        # BEFORE the first main physical PETSc TS step. No BDF history.
+        self._checkpoint_pending = None
+        self.last_checkpoint_report = None
         #: To stop TS integration by keeping already computed timesteps if one step fails
         self.stop_TS = False
         #: To speed-up IFunction calls for linear systems
@@ -453,6 +463,215 @@ class DPHS:
 
         if rank == 0:
             logging.info(f"A model with {basis_field} unknowns has been initialized")
+
+    def _checkpoint_provenance_collective(self):
+        """Reject a missing or divergent full GetFEM model on all MPI ranks."""
+        mpi = comm.tompi4py()
+        provenance = None
+        local_error = None
+        try:
+            provenance = _checkpoint_model_provenance(self)
+        except Exception as exc:
+            local_error = f"{type(exc).__name__}: {exc}"
+        errors = mpi.allgather(local_error)
+        if any(error is not None for error in errors):
+            raise ValueError(
+                "Complete native GetFEM checkpoint provenance cannot be "
+                "established collectively: " + repr(errors)
+            )
+        hashes = mpi.allgather(provenance["fingerprint_sha256"])
+        if any(value != hashes[0] for value in hashes):
+            raise ValueError(
+                "MPI ranks disagree on physical mesh/FEM/DAE model fingerprint"
+            )
+        return provenance
+
+    def save_checkpoint(self, path, *, extra=None):
+        """Save a complete accepted final state for a later COLD restart.
+
+        Only supported for completed, accepted PETSc TSCN simulations.
+        Includes differential and algebraic GetFEM variables and the
+        absolute physical time. The file is atomic and never overwritten.
+        This is NOT a snapshot of PETSc TS/KSP/MUMPS or BDF history.
+        This operation is collective: call it on every MPI rank.
+        """
+        mpi = comm.tompi4py()
+        error = None
+        state = None
+        final_time = None
+        try:
+            if not self.solve_done:
+                raise ValueError("Cannot checkpoint before a completed solve")
+            if int(self.last_ts_converged_reason) <= 0:
+                raise ValueError("Cannot checkpoint a nonconverged PETSc TS")
+            if int(self.last_ts_rejections) or int(self.last_ts_snes_failures):
+                raise ValueError(
+                    "Cold checkpoint MVP refuses TS with rejected/failed steps"
+                )
+            if self.time_scheme.getString("ts_type", "").lower() != "cn":
+                raise ValueError("Only PETSc TSCN cold state restart is supported")
+            final_time = float(self.last_ts_time)
+            horizon = float(self.time_scheme["t_f"])
+            if not np.isfinite(final_time) or abs(final_time-horizon) > (
+                1e-12*max(1.,abs(horizon))
+            ):
+                raise ValueError("Actual accepted TS time differs from t_f")
+            if not len(self.solution["t"]) or not len(self.solution["z"]):
+                raise ValueError("No complete accepted final state was archived")
+            if abs(float(self.solution["t"][-1])-final_time) > (
+                1e-12*max(1.,abs(final_time))
+            ):
+                raise ValueError(
+                    "Archived final state is not the accepted PETSc TS endpoint"
+                )
+            state = np.asarray(self.solution["z"][-1], dtype=float).copy()
+            if state.ndim != 1 or state.size != int(self.gf_model.nbdof()):
+                raise ValueError("Archived final state lacks full FE coefficients")
+            if not np.all(np.isfinite(state)):
+                raise ValueError("Archived final FE state is not finite")
+        except Exception as exc:
+            error = f"{type(exc).__name__}: {exc}"
+        errors = mpi.allgather(error)
+        if any(item is not None for item in errors):
+            raise ValueError("Collective accepted-state checkpoint rejected: "+
+                             repr(errors))
+        provenance = self._checkpoint_provenance_collective()
+        return _checkpoint_collective_write(
+            path, mpi=mpi, z=state, t=final_time, provenance=provenance,
+            ts_type="cn", accepted=True, extra=extra,
+        )
+
+    def load_checkpoint(self, path):
+        """Stage a verified full DAE state for a new, cold PETSc CN solve.
+
+        Call after building the identical FE model and before solve().
+        Sets absolute physical t_0 from checkpoint, forces init_step=false
+        (no pseudo/BDF or algebraic consistency reinitialization), then
+        rechecks original full GetFEM algebraic equations after assembly.
+        The future physical boundary law must be the SAME as the saved
+        model. Collective on all MPI ranks. Returns checkpoint metadata.
+        """
+        if self.solve_done or self._checkpoint_pending is not None:
+            raise ValueError(
+                "Loading an accepted-state checkpoint requires a fresh DPHS"
+            )
+        if not self.time_scheme.getBool("isset"):
+            raise ValueError("Set a physical PETSc time scheme before restart")
+        if self.time_scheme.getString("ts_type", "").lower() != "cn":
+            raise ValueError("Only PETSc TSCN cold state restart is supported")
+        provenance = self._checkpoint_provenance_collective()
+        mpi = comm.tompi4py()
+        t_saved, state, header = _checkpoint_collective_read(
+            path, mpi=mpi, current_provenance=provenance, ts_type="cn",
+        )
+        t_final = float(self.time_scheme["t_f"])
+        t_initial = float(self.time_scheme["t_0"])
+        if not (np.isfinite(t_final) and t_final > t_saved):
+            raise ValueError("Checkpoint must precede future physical t_f")
+        if abs(t_initial) > 1e-12 and abs(t_initial-t_saved) > 1e-12:
+            raise ValueError(
+                "Configured absolute t_0 conflicts with checkpoint time"
+            )
+        self.set_time_scheme(t_0=t_saved, init_step=False)
+        self._checkpoint_pending = (t_saved, state.copy(), header)
+        return header
+
+    def _publish_pending_checkpoint_after_assembly(self):
+        """Verify native DAE algebraic rows before mutating the initial FE state.
+
+        Called after original physical GetFEM/PETSc assembly but before
+        PETSc TS is created. Validates F_a(t*,z*,0), NOT full F(t*,z*,0):
+        a moving physical state may have nonzero differential derivatives.
+        """
+        pending = self._checkpoint_pending
+        if pending is None:
+            return
+        time_saved, state, header = pending
+        mpi = comm.tompi4py()
+        n = int(self.gf_model.nbdof())
+        if len(state) != n or abs(
+            float(self.time_scheme["t_0"])-time_saved
+        ) > 1e-12:
+            raise ValueError(
+                "Checkpoint full FE vector or absolute physical clock changed"
+            )
+        if self.time_scheme.getString("init_step", "true").lower() != "false":
+            raise ValueError(
+                "Cold checkpoint may not run a pseudo/BDF initializer"
+            )
+        dynamic = []
+        for dynamic_state in self.states.values():
+            name = dynamic_state.get_name()
+            lo, count = map(int, self.gf_model.interval_of_variable(name))
+            dynamic.extend(range(lo, lo + count))
+        if not dynamic or len(set(dynamic)) != len(dynamic):
+            raise ValueError(
+                "Full DAE state has no valid original differential variables"
+            )
+        algebraic = np.ones(n, dtype=bool)
+        algebraic[np.asarray(dynamic, dtype=int)] = False
+        vec = self.tangent_stiffness.createVecRight()
+        zd = vec.duplicate()
+        residual = self.F.duplicate()
+        previous_time = float(self.time_scheme["t_0"])
+        previous = np.asarray(
+            self.gf_model.from_variables(), dtype=float
+        ).copy()
+        errors = None
+        fa_norm = None
+        try:
+            lo, hi = vec.getOwnershipRange()
+            if hi > lo:
+                vec.setValues(
+                    range(lo, hi), state[lo:hi],
+                    addv=PETSc.InsertMode.INSERT_VALUES,
+                )
+            vec.assemble()
+            zd.set(0.0)
+            residual.set(0.0)
+            self.gf_model.set_time(time_saved)
+            self.IFunction(None, time_saved, vec, zd, residual)
+            owned = np.asarray(residual.getArray(readonly=True), dtype=float)
+            relevant = owned[algebraic[lo:hi]]
+            local_square = float(np.dot(relevant, relevant))
+            fa_norm = float(np.sqrt(mpi.allreduce(local_square, op=MPI.SUM)))
+            if not np.isfinite(fa_norm) or fa_norm >= 1e-9:
+                raise ValueError(
+                    f"Original GetFEM algebraic checkpoint incompatible: "
+                    f"||F_a||={fa_norm:.9g}"
+                )
+            # No adjustment to the prescribed differential variables:
+            # the original complete native state is published bitwise.
+            self.gf_model.set_time(time_saved)
+            self.gf_model.to_variables(state.copy())
+            self.GlobalVec.getArray()[:] = state
+            exact = np.array_equal(
+                np.asarray(self.gf_model.from_variables(), dtype=float),
+                state
+            ) and np.array_equal(
+                np.asarray(self.GlobalVec.getArray(readonly=True),
+                           dtype=float), state
+            )
+            if not mpi.allreduce(exact, op=MPI.LAND):
+                raise ValueError("Cold FE state publication changed coefficients")
+        except Exception:
+            self.gf_model.to_variables(previous)
+            self.gf_model.set_time(previous_time)
+            raise
+        finally:
+            residual.destroy()
+            zd.destroy()
+            vec.destroy()
+        self.last_checkpoint_report = {
+            "status": "COMPLETE_DAE_STATE_COLD_RESTORED_IN_DHPS",
+            "physical_time": time_saved,
+            "original_algebraic_residual_l2": fa_norm,
+            "model_sha256": header["model"]["fingerprint_sha256"],
+            "no_pseudo_BDF_or_projection": True,
+            "all_GetFEM_and_GlobalVec_coefficients_restored_bitwise": True,
+            "PETSc_TS_history_restored": False,
+        }
+        self._checkpoint_pending = None
 
     def get_profile(self):
         """Collect per-rank timings, call counts and MPI min/mean/max.
@@ -2393,7 +2612,11 @@ class DPHS:
         self._memory_phase("after_jacobian_and_vector_duplicates")
 
         self.ts_start = time.perf_counter()
-        if (
+        if self._checkpoint_pending is not None:
+            _mpi_trace("solve: before accepted-state cold checkpoint publication")
+            self._publish_pending_checkpoint_after_assembly()
+            _mpi_trace("solve: verified original DAE cold checkpoint published")
+        elif (
             self.time_scheme["init_step"] == "true"
         ):  # Because PETSc DB store everything as str
             _mpi_trace("solve: before initial consistency step")
