@@ -4855,3 +4855,37 @@ SCRIMP_DOCKER_NO_SUDO=1 \
 SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
 bash scripts/run-v130-checkpoint-linear-dae.sh
 ```
+
+### 23 Nov — #29 second independent native DAE: 10/10 physical steps, PETSc integer ABI audit fix; restart PENDING
+
+Uploaded native partial ZIP
+`v130-issue29-linear-DAE-36aca531-aJYhtX7N.zip`
+(source `36aca5319a9770bc72157cf4978c18ab3d05f852`):
+9/9 new linear wave host tests PASS, native
+`wave_seed_mpi1` true 426-DOF GetFEM/
+PETSc CN integration reached t=.02
+with 10/10 accepted steps, 0 rejections,
+0 SNES failures. The run failed
+**after TS** before checkpoint creation:
+the independent original `IFunction`
+audit supplied `np.arange(lo,hi,dtype=int)`
+int64 indices to a native PETSc build
+expecting 32-bit `PetscInt`;
+`Vec.setValues` rejected unsafe
+int64→int32 conversion. Source fixed
+to `dtype=PETSc.IntType` for both
+state and derivative vectors, plus
+host AST regression. No original
+wave physics, public checkpoint API
+or tolerances modified.
+
+New 10/10 host and the eight real
+linear wave DAE seed/continuous/
+cross-MPI replay campaigns still need
+to run. The aborted case is partial;
+start a **fresh evidence directory**
+rather than using `--resume`,
+which correctly rejects invalid case
+artifacts. Saint-Venant 16/16
+public API validation remains PASS
+and unaffected; issue #29 stays OPEN.
