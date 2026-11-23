@@ -13,6 +13,8 @@ on:
       - scripts/run-v130-intrinsic-fem-initialization.sh
       - scripts/run-v130-intrinsic-l2-projection.sh
       - sandbox/probe_v130_intrinsic_l2_projection.py
+      - sandbox/probe_v130_intrinsic_affine_projection.py
+      - scripts/run-v130-intrinsic-affine-projection.sh
       - .github/workflows/v130-direct-linear-feedback.yml
   pull_request:
     paths:
@@ -24,6 +26,8 @@ on:
       - scripts/run-v130-intrinsic-fem-initialization.sh
       - scripts/run-v130-intrinsic-l2-projection.sh
       - sandbox/probe_v130_intrinsic_l2_projection.py
+      - sandbox/probe_v130_intrinsic_affine_projection.py
+      - scripts/run-v130-intrinsic-affine-projection.sh
       - .github/workflows/v130-direct-linear-feedback.yml
 
 jobs:
@@ -39,9 +43,10 @@ jobs:
       - name: Syntax
         run: |
           python -m py_compile scrimp/dphs.py scrimp/utils/dae_initialization.py tests/test_v130_direct_linear_feedback.py tests/test_v130_dae_substituted_intervals.py sandbox/probe_v130_intrinsic_vector_fem_initialization.py
-          python -m py_compile sandbox/probe_v130_intrinsic_l2_projection.py
+          python -m py_compile sandbox/probe_v130_intrinsic_l2_projection.py sandbox/probe_v130_intrinsic_affine_projection.py
           bash -n scripts/run-v130-intrinsic-fem-initialization.sh
           bash -n scripts/run-v130-intrinsic-l2-projection.sh
+          bash -n scripts/run-v130-intrinsic-affine-projection.sh
       - name: Actual DPHS control classification and GetFEM assembly routing
         run: python tests/test_v130_direct_linear_feedback.py
       - name: Source-only production substituted DAE interval classification

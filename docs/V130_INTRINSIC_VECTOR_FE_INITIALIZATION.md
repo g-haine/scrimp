@@ -86,3 +86,33 @@ bash scripts/run-v130-intrinsic-l2-projection.sh
 
 No published article-era source, tagged version, or original native
 output is changed by this work.
+
+## 23 November 2026 — independent constant-field native results
+
+The original user's archive `v130-intrinsic-l2-d962c541-9SZWntuI.zip`
+contains a genuine reconstructed field L2 measurement for every
+available intrinsic vector family at one rank:
+
+| FE | Projected field relative L2 | Prior production relative L2 |
+| --- | ---: | ---: |
+| RT0 | 2.15444e-16 | throws |
+| RT1 | 4.78909e-16 | **1.109684848487606** |
+| RT2 | 1.81245e-15 | throws |
+| BDM1 | 8.57524e-16 | **0.6116317226873789** |
+| BDM2 | 4.50044e-14 | throws |
+| lowest Nedelec | 2.45184e-16 | throws |
+
+The RT1 and BDM1 measurements are **physical field L2 errors**,
+not a heuristic about coefficient lengths. Therefore the old
+`MeshFem.eval` method must not remain silently accepted as an
+intrinsic-vector initialization mechanism. The existing DAE
+consistency extension is a separate change.
+
+The next *source-only / native diagnostic* is a family-compatible,
+nonconstant affine field (`[X(1);X(2)]` for RT/BDM and
+`[-X(2);X(1)]` for lowest Nedelec), all expressed using GetFEM
+GWFL. These are exact members of their respective spaces.
+Run `scripts/run-v130-intrinsic-affine-projection.sh`. Even a
+six-family pass does not qualify arbitrary NumPy expression syntax,
+sparse PETSc or distributed MPI. Do not integrate the small dense
+diagnostic as production `set_initial_value`.
