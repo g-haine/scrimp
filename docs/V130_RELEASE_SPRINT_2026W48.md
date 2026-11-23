@@ -4231,3 +4231,141 @@ Only if all pass, run the same immutable
 The earlier **16/16 native PASSED** refinement at `t_f=.002` and
 its empirical order-two result remain valid and unaffected.
 #28 and #6 remain OPEN.
+
+## 23 November 2026 — #29 accepted-state checkpoint/restart: source-only sandbox pilot staged
+
+**New source staged on `release/1.3.0-preparation`, NOT yet native-qualified**:
+`sandbox/v130_checkpoint_state.py`,
+`sandbox/probe_v130_checkpoint_restart.py`,
+`sandbox/compare_v130_checkpoint_restart.py`,
+`tests/test_v130_checkpoint_state.py`,
+`tests/test_v130_checkpoint_restart.py`,
+`scripts/run-v130-checkpoint-restart.sh`,
+`.github/workflows/v130-issue29-checkpoint-host.yml`.
+Production `scrimp/dphs.py`, native SWE weak bricks,
+original wall velocity and original DAE initializers
+have **not** changed.
+
+**Checkpoint format pilot:** one versioned
+`np.savez_compressed` file containing
+the complete real IEEE64 GetFEM coefficient vector
+and canonical SHA-256 JSON manifest.
+Manifest records accepted physical time, PETSc
+TSCN cold-state-only contract, full state checksum,
+and original model signature. Signature hashes
+actual GetFEM mesh point IDs, convex-order
+geometry/connectivity, native MeshFem
+`char()` element definition, per-convex
+basic DOF ordering, ordered FE DOF positions,
+full variable intervals, weak-form expressions,
+parameter values, regions, port types
+and physical boundary controls. Unlike checking
+only h/p DOFs or mesh element counts,
+this refuses mismatched algebraic variables or
+a different FE basis. Source provenance is
+compared on all MPI ranks.
+
+**Atomic publishing:** rank 0 creates an
+fsynced temporary NPZ in the target directory
+and commits using `os.link` to avoid
+overwriting an existing accepted checkpoint.
+MPI rank state/time/model SHA parity is
+checked collectively; rank 0 errors are
+broadcast to all. No pickle, old PETSc
+TS/KSP/MUMPS factor matrices, or BDF2
+history are saved. Corruption, incomplete
+payload, wrong physical time or different
+model/control/mesh must fail closed.
+This is a **cold restart**, not bitwise
+restoration of an integrator's internal stage
+history; only PETSc endpoint CN is
+supported by this first pilot.
+
+**Native pilot** (new, independent from the
+already-qualified ramp evidence): same original
+curved-P2 physical SWE `h0=5,p0=0`,
+same `gamma=0`, `omega=.2`,
+C1 rising ramp over .02, original
+decreasing envelope after .03,
+original actual full nonlinear mass.
+For each mesh h=.2/.1:
+- **seed**: exactly 10 accepted real
+  `ts_type=cn` PETSc steps `0→.02`,
+  actual original `Fa` and TSCN checks,
+  save entire accepted original FE z(t*).
+- **continuous**: exactly 12 accepted
+  physical steps `0→.024`.
+- **resume**: reconstruct a new model
+  and fresh TS on ranks 1/2 from a
+  verified checkpoint saved on ranks
+  1/2, set absolute `t0=.02`,
+  restore all algebraic and dynamic
+  GetFEM and replicated PETSc GlobalVec
+  coefficients **bitwise** in the
+  sandbox-only initialization hook,
+  check original `Fa(.02,z*,0)`
+  before physical time integration,
+  execute precisely two accepted
+  steps to `.024`. No pseudo/BDF
+  or algebraic re-initialization is
+  called in this pilot.
+
+The native runner schedules **16 actual
+independent GetFEM/PETSc executions**
+(2 meshes × [2 seeds + 2 continuous
++ 4 cross-rank resumes]), using the
+existing immutable original
+`scrimp-mpi:v1.3.0-rc3` image
+OCI `1d6d0c90115213298047b28237a7f38087563a35`.
+The comparator independently checks all
+original FE state coefficients and
+their continuity at the source checkpoint,
+original per-step TSCN and DAE constraints,
+MPI1→1,1→2,2→1,2→2, and the
+total true original h-weighted
+`ΔH+D−W` and mass balance of
+continuous vs interrupted/restarted
+physical simulations. Real PETSc
+accepted step counts/time are asserted
+on both the saved and resumed runs.
+Data are saved in host-owned
+`sandbox/outputs/`, not in a
+disposable Docker filesystem.
+These strict sandbox tolerances are
+initial gates, subject to review if
+real native results expose a scientific
+or implementation problem; never
+weaken them just to print PASS.
+
+**Run preflight and actual first native pilot:**
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+python -m py_compile \
+  sandbox/v130_checkpoint_state.py \
+  sandbox/probe_v130_checkpoint_restart.py \
+  sandbox/compare_v130_checkpoint_restart.py \
+  tests/test_v130_checkpoint_state.py \
+  tests/test_v130_checkpoint_restart.py
+python tests/test_v130_checkpoint_state.py
+python tests/test_v130_checkpoint_restart.py
+bash -n scripts/run-v130-checkpoint-restart.sh
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-checkpoint-restart.sh
+```
+
+**Evidence status:** synthetic host regression
+source is staged but its execution has not
+yet been independently observed; native
+**0/16 executed for this new checkpoint gate**.
+The already-qualified full C1 ramp 12/12
+separately remains valid and is the
+source scientific motivation, not proof
+of checkpoint restart. No `DPHS`
+production API has been implemented,
+no generic linear second model proven
+and no claim of exact BDF/IMEX history
+restoration. The #29 P0 release gate
+therefore remains **OPEN**.
