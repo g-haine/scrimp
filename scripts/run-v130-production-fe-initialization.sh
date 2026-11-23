@@ -5,7 +5,7 @@
 #
 # See the LICENSE file for license information.
 #
-# Native production-opt-in FE L2 projection: fifteen spaces and Gaussian.
+# Native production-default FE L2 projection: fifteen spaces and Gaussian.
 set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
@@ -26,9 +26,9 @@ mkdir -p sandbox/outputs
 out="$(mktemp -d "$root/sandbox/outputs/v130-production-fe-l2-$(git rev-parse --short=8 HEAD)-XXXXXXXX")"
 printf '{"schema":"scrimp-v130-native-production-fe-l2-v1","source":"%s","image_revision":"%s","native_status":"PENDING"}\n' \
  "$(git rev-parse HEAD)" "$revision" > "$out/manifest.json"
-echo "ACTUAL DPHS.set_initial_value(method=l2), PETSc sparse MUMPS, MPI1"
+echo "ACTUAL DPHS.set_initial_value() default L2, PETSc sparse MUMPS, MPI1"
 echo "15 scalar/vector/derivative FEM spaces plus Gaussian nonpolynomial CG1"
-echo "No published source modification, no production default change, no image rebuild"
+echo "New production L2 default, explicit legacy interpolation, no image rebuild"
 echo "EVIDENCE: $out"
 if ! "${docker_cmd[@]}" run --rm \
  --user "$(id -u):$(id -g)" \
@@ -57,7 +57,8 @@ assert r["status"]=="PASS_NATIVE_SPARSE_15_PLUS_NONPOLYNOMIAL"
 assert len(r["cases"])==16
 assert r["MPI2_qualified"] is False
 assert r["DAE_physics_qualified"] is False
-assert r["nodal_interpolation_default_unchanged"] is True
+assert r["default_initialization_method"]=="l2"
+assert r["legacy_interpolation_explicit"] is True
 archive=Path(str(p)+".zip")
 with zipfile.ZipFile(archive,"x",compression=zipfile.ZIP_DEFLATED) as z:
  for f in sorted(p.glob("*")):

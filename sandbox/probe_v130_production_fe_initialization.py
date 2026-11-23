@@ -77,9 +77,8 @@ def run_case(mesh, region, name, spec):
     model = gf.Model("real")
     model.add_filtered_fem_variable("u", fem, region)
     adapter = Adapter(model, fem, region)
-    DPHS.set_initial_value(
-        adapter, "u", expression, method="l2", projection_mim=mim
-    )
+    # Actual no-keyword default; explicit L2 was qualified at 693153c1.
+    DPHS.set_initial_value(adapter, "u", expression, projection_mim=mim)
     coefficients = np.asarray(model.variable("u")).reshape(-1)
     if coefficients.dtype != np.dtype("float64"):
         raise RuntimeError(
@@ -118,9 +117,8 @@ def nonpolynomial_case(mesh, region):
     model = gf.Model("real")
     model.add_filtered_fem_variable("u", fem, region)
     adapter = Adapter(model, fem, region)
-    DPHS.set_initial_value(
-        adapter, "u", expression, method="l2", projection_mim=mim
-    )
+    # Actual no-keyword default; explicit L2 was qualified at 693153c1.
+    DPHS.set_initial_value(adapter, "u", expression, projection_mim=mim)
     observed = np.asarray(model.variable("u")).reshape(-1)
 
     reference = gf.Model("real")
@@ -146,7 +144,7 @@ def nonpolynomial_case(mesh, region):
     interpolation_model = gf.Model("real")
     interpolation_model.add_filtered_fem_variable("u", fem, region)
     old = Adapter(interpolation_model, fem, region)
-    DPHS.set_initial_value(old, "u", expression)
+    DPHS.set_initial_value(old, "u", expression, method="interpolation")
     old_coeff = np.asarray(interpolation_model.variable("u")).reshape(-1)
     legacy_to_l2 = float(
         np.linalg.norm(old_coeff - observed) /
@@ -223,7 +221,8 @@ def main():
         "GetFEM_real_coefficients_enforced": True,
         "MPI2_qualified": False,
         "DAE_physics_qualified": False,
-        "nodal_interpolation_default_unchanged": True,
+        "default_initialization_method": "l2",
+        "legacy_interpolation_explicit": True,
         "published_sources_unchanged": True,
     }
     args.out.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")

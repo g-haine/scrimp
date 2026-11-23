@@ -164,3 +164,38 @@ an actual complex physical state. The native runner prints complete
 per-case tracebacks on any remaining failure and records
 `PETSc_ScalarType` in the JSON to confirm the source of the mismatch.
 **Native rerun pending; production method opt-in only.**
+
+## 23 November 2026 — verified 16/16 native sparse production and default promotion
+
+The user-provided original archive
+`v130-production-fe-l2-693153c1-WB4iwQmI.zip`
+has been checked directly: `results.json` reports
+`PASS_NATIVE_SPARSE_15_PLUS_NONPOLYNOMIAL` for 15 FEM spaces and one
+Gaussian. Maximum exact-polynomial physical relative L2 error
+`1.0327239069599589e-14` (Argyris). Gaussian sparse PETSc MUMPS
+versus original GetFEM dense reference relative coefficient discrepancy
+`2.1230373608471312e-16`. Gaussian approximation error
+`0.24622684405878315` is a discrete **field approximation** error,
+not the numerical linear-solver error. Legacy nodal vs L2 coefficient
+difference is `0.18364836397333328` (18.36%), so a default change
+is a genuine initial-data change for nonpolynomial inputs.
+
+**Authorized default change:** The v1.3.0 preparation branch now uses
+`DPHS.set_initial_value(name, expression, method="l2")` by default.
+Historical interpolation is still available by explicitly requesting
+`method="interpolation"`, for reproducibility. Scalar lumped states
+remain initialized numerically under either method; they do not
+have a spatial FE projection. Unsupported Python expressions fail
+explicitly, with no silent interpolation fallback.
+
+The production native pilot now exercises the **no-keyword** default
+for all 15 FE families and the Gaussian and separately calls explicit
+legacy interpolation for the Gaussian comparator. This is a new
+native gate and must be rerun following the default change.
+
+**Evidence boundary:** the original 693153c1 archive proves the
+explicit `method="l2"` path on MPI1. The new implicit-default dispatch,
+full pH-DAE simulations, Heat-Wave, MPI2 and general PDE energy/power
+acceptance are **not** qualified by that archive. No v1.3.0 release
+tagging is authorized by the initial-state FE tests. All eight
+published research sources remain byte-for-byte immutable.

@@ -8,7 +8,8 @@
 
 """Actual DPHS.set_initial_value extracted from source, without native PETSc.
 
-Exercise the production method with fake GetFEM array interfaces. These
+Exercise the explicit LEGACY interpolation method with fake GetFEM arrays.
+The development-branch default is L2; these check historical indexing. These
 tests validate coefficient ordering and index filtering; native RT0
 MeshFem interpolation and PETSc assembly still require Docker.
 """
@@ -112,7 +113,7 @@ class RestrictedInitialValueTests(unittest.TestCase):
         filtered=np.arange(3111,dtype=int)
         self.assertEqual(filtered.size % 2, 1)
         sim=MockDPHS(MockMeshFem(all_coefficients,filtered))
-        self.set_initial_value(sim, "q", "[0.,0.]")
+        self.set_initial_value(sim, "q", "[0.,0.]", method="interpolation")
         actual=sim.gf_model.initial
         np.testing.assert_array_equal(actual,all_coefficients.ravel()[filtered])
         self.assertEqual(actual.shape,(3111,))
@@ -121,7 +122,7 @@ class RestrictedInitialValueTests(unittest.TestCase):
     def test_zero_rt0_field_is_not_shortened_or_rejected(self):
         values=np.zeros(4794,dtype=float)
         sim=MockDPHS(MockMeshFem(values,np.arange(3111)))
-        self.set_initial_value(sim,"q","[0.,0.]")
+        self.set_initial_value(sim,"q","[0.,0.]", method="interpolation")
         self.assertEqual(sim.gf_model.initial.shape,(3111,))
         self.assertTrue(np.all(sim.gf_model.initial==0))
 
@@ -129,7 +130,7 @@ class RestrictedInitialValueTests(unittest.TestCase):
         values=np.arange(24,dtype=float).reshape(2,12)
         dofs=np.array([1,5,7,10,11,14,18,23])
         sim=MockDPHS(MockMeshFem(values,dofs))
-        self.set_initial_value(sim,"q","[1.,2.]")
+        self.set_initial_value(sim,"q","[1.,2.]", method="interpolation")
         np.testing.assert_array_equal(
             sim.gf_model.initial,values.reshape(-1)[dofs]
         )
@@ -139,13 +140,13 @@ class RestrictedInitialValueTests(unittest.TestCase):
         values=np.array([1.,2.,3.,4.,5.])
         dofs=np.array([4,0,2],dtype=int)
         sim=MockDPHS(MockMeshFem(values,dofs))
-        self.set_initial_value(sim,"q","1.")
+        self.set_initial_value(sim,"q","1.", method="interpolation")
         np.testing.assert_array_equal(sim.gf_model.initial,[5.,1.,3.])
 
     def test_full_region_does_not_modify_existing_evaluation_shape(self):
         values=np.arange(12).reshape(2,6)
         sim=MockDPHS(MockMeshFem(values,[]),region=None)
-        self.set_initial_value(sim,"q","[1.,2.]")
+        self.set_initial_value(sim,"q","[1.,2.]", method="interpolation")
         np.testing.assert_array_equal(sim.gf_model.initial,values)
         self.assertEqual(sim.gf_model.initial.shape,(2,6))
 
@@ -156,21 +157,21 @@ class RestrictedInitialValueTests(unittest.TestCase):
                     MockMeshFem(np.zeros(4794),indices)
                 )
                 with self.assertRaisesRegex(ValueError,"DOF indices"):
-                    self.set_initial_value(sim,"q","[0.,0.]")
+                    self.set_initial_value(sim,"q","[0.,0.]", method="interpolation")
                 self.assertIsNone(sim.gf_model.initial)
                 self.assertFalse(sim.initial_value_set["q"])
 
     def test_missing_variable_or_mismatched_fem_evaluation_fails(self):
         sim=MockDPHS(MockMeshFem(np.zeros(8),[0,1]))
         with self.assertRaises(ValueError):
-            self.set_initial_value(sim,"missing","1.")
+            self.set_initial_value(sim,"missing","1.", method="interpolation")
         # Invariant: evaluator gives exactly fem.nbdof coefficients.
         class BrokenFEM(MockMeshFem):
             def nbdof(self):
                 return 9
         sim=MockDPHS(BrokenFEM(np.zeros(8),[0,1]))
         with self.assertRaisesRegex(ValueError,"expected 9"):
-            self.set_initial_value(sim,"q","[0.,0.]")
+            self.set_initial_value(sim,"q","[0.,0.]", method="interpolation")
 
 
 if __name__ == "__main__":

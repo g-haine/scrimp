@@ -6,7 +6,7 @@
 #
 # github: https://github.com/g-haine/scrimp
 
-"""Source-only contracts for the universal opt-in FE L2 initializer.
+"""Source-only contracts for the universal default FE L2 initializer.
 
 The expression translator is extracted from actual production AST.
 This suite does not claim a native GetFEM/PETSc, MPI, or physics PASS.
@@ -140,7 +140,7 @@ class UniversalFEInitialExpressionTests(unittest.TestCase):
         self.assertIn("real_getfem_projection_coefficients(", src)
         self.assertNotIn("np.linalg.solve(", src)
 
-    def test_production_legacy_default_unchanged_and_opt_in(self):
+    def test_production_default_l2_and_explicit_legacy(self):
         tree = ast.parse(DPHS.read_text(encoding="utf-8"))
         cls = next(x for x in tree.body if isinstance(x, ast.ClassDef)
                    and x.name == "DPHS")
@@ -153,12 +153,18 @@ class UniversalFEInitialExpressionTests(unittest.TestCase):
         )
         self.assertEqual(
             [v.value for v in method.args.kw_defaults],
-            ["interpolation", None],
+            ["l2", None],
         )
         actual = ast.get_source_segment(DPHS.read_text(encoding="utf-8"),
                                         method)
         self.assertIn('if method == "l2":', actual)
         self.assertIn("project_fe_initial_value(", actual)
+        self.assertIn('if method not in ("interpolation", "l2"):', actual)
+        self.assertIn("if name_variable in self.lumped_variables:", actual)
+        self.assertNotIn(
+            'raise ValueError("L2 FE projection does not apply to lumped states")',
+            actual
+        )
 
 
 if __name__ == "__main__":

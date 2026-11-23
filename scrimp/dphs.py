@@ -1003,23 +1003,23 @@ class DPHS:
 
     def set_initial_value(
         self, name_variable, expression, *,
-        method="interpolation", projection_mim=None,
+        method="l2", projection_mim=None,
     ):
         """Set a field's initial GetFEM coefficients from a Python expression.
 
-        The historical `method="interpolation"` is preserved for
-        backward compatibility, including its original GetFEM.eval
-        semantics. An explicitly requested `method="l2"` computes a
-        variational L2 projection on the *actual* scalar/vector/derivative
-        FE basis, via GetFEM assembly and sparse PETSc MUMPS.
+        The default `method="l2"` computes a variational L2 projection
+        into the actual scalar/vector/derivative FE basis via GetFEM
+        assembly and sparse PETSc MUMPS. Historical interpolation remains
+        available explicitly via `method="interpolation"`.
 
-        The two methods differ for nonpolynomial functions; the new
-        universal method is opt-in pending native MPI/physics validation.
+        These methods differ for nonpolynomial functions; the default
+        is a deliberate v1.3.0 development-branch policy change.
+        MPI2, DAE and full physical-model gates remain open.
 
         Args:
             name_variable (str): initial dynamic variable
             expression (str): SCRIMP Python/NumPy initial expression
-            method (str): "interpolation" (legacy) or "l2" (new opt-in)
+            method (str): "l2" (default) or "interpolation" (legacy)
             projection_mim (gf.MeshIm, optional): override the domain's
                 integration rule, e.g. HCT composite integration.
         """
@@ -1036,8 +1036,8 @@ class DPHS:
                 "Initial FE method must be interpolation or l2"
             )
         if name_variable in self.lumped_variables:
-            if method == "l2":
-                raise ValueError("L2 FE projection does not apply to lumped states")
+            # Lumped states have no spatial FE basis: preserve their
+            # numeric-scalar initialization under either method.
             if name_variable not in self.initial_value_set:
                 raise ValueError(f"{name_variable} is not a dynamic state")
             try:
