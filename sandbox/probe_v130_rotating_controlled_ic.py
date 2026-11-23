@@ -108,6 +108,12 @@ def run():
         help="Physical gate checks model energy defect; restart_parity "
              "records that defect but qualifies only fidelity to uninterrupted TS.",
     )
+    cli.add_argument(
+        "--audit-mpi-ports", action="store_true",
+        help="Exercise collective SCRIMP plot_Hamiltonian(with_powers=True) "
+             "on ALL ranks, archive raw generic port powers per rank and "
+             "rank-0 physical h-weighted plot (MPI issue #6, not #30).",
+    )
     cli.add_argument("--checkpoint-in", type=Path)
     cli.add_argument("--checkpoint-out", type=Path, required=True)
     cli.add_argument("--out", type=Path, required=True)
@@ -436,6 +442,7 @@ def run():
         "closed_loop_feedback_is_inactive_before_75s": True,
         "stationary_rotating_state_certified": False,
         "full_TS_integrator_history_saved": False,
+        "mpi_port_power_audit_enabled": bool(args.audit_mpi_ports),
         "checkpoint_path": str(args.checkpoint_out),
     }
     if mpi.rank == 0:
@@ -456,6 +463,86 @@ def run():
             volume_balance=traces["volume_balance"],
             full_state_start=states[0], full_state_final=states[-1],
         )
+    if args.audit_mpi_ports:
+        # Original #6 collective path. Every rank enters the exact
+        # public plotting/power method; only rank zero creates a figure.
+        # The plotted integrated "balance" is NOT a physical acceptance
+        # oracle until the unrelated #30 CN-stage quadrature is fixed.
+        system.plot_Hamiltonian(with_powers=True, save_figure=False)
+        ports = {}
+        for port in system.ports.values():
+            if port.get_algebraic() and not port.get_substituted():
+                values = ensure_real(
+                    port.get_power(), "generic port " + port.get_name()
+                )
+                if values.shape != times.shape:
+                    raise RuntimeError("Malformed MPI generic port trace "
+                                       + port.get_name())
+                ports[port.get_name()] = values.tolist()
+        if not ports:
+            raise RuntimeError("No native algebraic ports for MPI power audit")
+        # All ranks have already completed GetFEM's collective assembly.
+        # The write targets are unique to each MPI rank and root-only.
+        local_error = None
+        try:
+            payload = {
+                "schema": "scrimp-v130-issue6-active-ports-v1",
+                "physical_model": "controlled_rotating_SWE_gamma_0.25",
+                "rank": int(mpi.rank), "world_size": int(mpi.size),
+                "mesh": float(args.mesh), "phase": args.phase,
+                "source_fingerprint": fingerprint["fingerprint_sha256"],
+                "sample_semantics": (
+                    "P[0] instantaneous; P[k>=1] original "
+                    "Port.compute CN midpoint-stage, not endpoint"
+                ),
+                "times": times.tolist(), "powers": ports,
+                "physical_h_weighted_balance_is_separate": True,
+                "normal_feedback_active": False,
+            }
+            (args.out / f"mpi_port_powers_rank{mpi.rank}.json").write_text(
+                json.dumps(payload, indent=2) + "\n", encoding="utf-8"
+            )
+            if mpi.rank == 0:
+                # A correct physical plot uses original h-weighted
+                # sampled stage powers; DO NOT integrate generic P[k]
+                # using plot_powers()'s presently wrong trapezoids.
+                import matplotlib.pyplot as plt
+
+                fig, axes = plt.subplots(3, 1, figsize=(10, 8),
+                                         sharex=True)
+                axes[0].plot(times, traces["H"], label="H")
+                axes[0].legend()
+                axes[1].plot(times, traces["p_normal"],
+                             label="h*U_n*Y_n (CN)")
+                axes[1].plot(times, traces["p_viscous"],
+                             label="h*U.Y (CN)")
+                axes[1].plot(times, traces["d_grad"] + traces["d_div"],
+                             label="viscous dissipation (CN)")
+                axes[1].legend()
+                axes[2].plot(times, traces["balance"],
+                             label="H-H0+D-W (model diagnostic)")
+                axes[2].legend()
+                axes[2].set_xlabel("Absolute physical time")
+                for ax in axes:
+                    ax.grid(True)
+                fig.tight_layout()
+                fig.savefig(args.out / "mpi_physical_powers.png", dpi=140)
+                plt.close(fig)
+        except Exception as exc:
+            local_error = f"rank={mpi.rank}: {type(exc).__name__}: {exc}"
+        all_errors = mpi.allgather(local_error)
+        errors = [x for x in all_errors if x is not None]
+        if errors:
+            raise RuntimeError("Collective rank-local MPI port audit "
+                               "export failed: " + "; ".join(errors))
+        if mpi.rank == 0:
+            print(
+                f"MPI #6 PORT AUDIT PASS rank_count={mpi.size} "
+                f"ports={len(ports)} root_physical_plot=1 "
+                "per_rank_json=1 (not numerical cross-rank comparison)",
+                flush=True,
+            )
+    if mpi.rank == 0:
         print(
             "ROTATING CONTROLLED IC ACCEPTED "
             f"phase={args.phase} mode={args.qualification_mode} "

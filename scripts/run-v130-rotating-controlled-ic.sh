@@ -16,6 +16,11 @@ usage() {
 [[ $# -ge 4 && $# -le 5 ]] || { usage; exit 2; }
 phase="$1"; mesh="$2"; ranks="$3"; final_time="$4"
 qualification="${SCRIMP_V130_ROTATING_IC_QUALIFICATION:-physical}"
+mpi_port_audit="${SCRIMP_V130_ISSUE6_AUDIT_PORTS:-0}"
+[[ "$mpi_port_audit" == 0 || "$mpi_port_audit" == 1 ]] || {
+    echo "SCRIMP_V130_ISSUE6_AUDIT_PORTS must be 0 or 1" >&2
+    exit 2
+}
 [[ "$qualification" == physical || "$qualification" == restart_parity ]] || {
     echo "SCRIMP_V130_ROTATING_IC_QUALIFICATION must be physical or restart_parity" >&2
     exit 2
@@ -81,7 +86,7 @@ printf '{"schema":"scrimp-v130-rotating-controlled-ic-runner-v1","source":"%s","
     > "$out/manifest.json"
 echo "Physical controlled rotating SWE preparation: gamma=0.25, mesh=$mesh, MPI=$ranks"
 echo "Original GetFEM/PETSc weak forms, C1 wall startup, original normal feedback envelope"
-echo "Input phase=$phase, qualification=$qualification, final absolute physical time=$final_time, dt=0.002"
+echo "Input phase=$phase, qualification=$qualification, MPI_port_audit=$mpi_port_audit, final absolute physical time=$final_time, dt=0.002"
 echo "Evidence on host: $out"
 
 docker_args=(
@@ -116,6 +121,9 @@ native_args=(
 if [[ "$phase" == resume ]]; then
     native_args+=(--checkpoint-in "/source-checkpoint/$checkpoint_name")
 fi
+if [[ "$mpi_port_audit" == 1 ]]; then
+    native_args+=(--audit-mpi-ports)
+fi
 if ! docker_exec "${docker_args[@]}" "$image" \
     timeout -k 5s "${SCRIMP_V130_ROTATING_IC_TIMEOUT:-600s}" \
     mpiexec --oversubscribe --bind-to none -n "$ranks" \
@@ -130,7 +138,7 @@ if ! grep -a 'ROTATING CONTROLLED IC ACCEPTED' "$out/native.log"; then
     tail -n 100 "$out/native.log" >&2
     exit 1
 fi
-python3 - "$out" "$mesh" "$ranks" "$final_time" "$qualification" <<'PY'
+python3 - "$out" "$mesh" "$ranks" "$final_time" "$qualification" "$mpi_port_audit" <<'PY'
 import json, math, sys
 from pathlib import Path
 out=Path(sys.argv[1])
@@ -141,6 +149,7 @@ assert r["MPI"]==int(sys.argv[3])
 assert r["qualification_mode"]==sys.argv[5]
 assert r["physical_relative_power_gate_applied"]==(sys.argv[5]=="physical")
 assert r["physical_energy_defect_retained_not_modified"] is True
+assert r["mpi_port_power_audit_enabled"]==(sys.argv[6]=="1")
 assert math.isclose(r["physical_time_final"],float(sys.argv[4]),abs_tol=1e-12)
 assert r["original_TSCN_max_l2"]<1e-7
 assert r["original_Fa_max_l2"]<1e-8
@@ -151,6 +160,17 @@ assert r["original_volume_balance_defect"]<1e-8
 assert r["minimum_positive_height_FE_coefficient"]>0
 assert r["stationary_rotating_state_certified"] is False
 assert (out/"accepted_state.npz").stat().st_size>0
+if sys.argv[6]=="1":
+    assert (out/"mpi_physical_powers.png").stat().st_size>1000
+    actual={p.name for p in out.glob("mpi_port_powers_rank*.json")}
+    expected={f"mpi_port_powers_rank{i}.json" for i in range(int(sys.argv[3]))}
+    assert actual==expected, (actual,expected)
+    for rank in range(int(sys.argv[3])):
+        p=out/f"mpi_port_powers_rank{rank}.json"
+        d=json.loads(p.read_text(encoding="utf-8"))
+        assert d["rank"]==rank and d["world_size"]==int(sys.argv[3])
+        assert d["physical_h_weighted_balance_is_separate"] is True
+        assert d["powers"]
 print("HOST EVIDENCE PASS: accepted full DAE state; "
       "qualification="+sys.argv[5]+"; equilibrium NOT claimed")
 PY

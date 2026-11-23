@@ -20,6 +20,19 @@
 > adaptive TS history restoration or mathematical energy accuracy:
 > [V130_ROTATING_CONTROLLED_INITIAL_STATE.md](V130_ROTATING_CONTROLLED_INITIAL_STATE.md).
 >
+> **Next P0 native gate (#6, source-only staged 23 November):**
+> independent 1/2/4-rank original controlled *active rotating-wall*
+> Saint-Venant (gamma=.25) MPI port-power assembly and MPI-safe output
+> audit, including full trajectory and original h-weighted physical
+> power observables plus cold resume 1→4/4→1 for h=.2/.1.
+> It tests actual `plot_Hamiltonian(with_powers=True)` collectively
+> and writes rank-unique raw port-power JSON, root-only physical PNG.
+> **NO new native MPI4 PASS has been claimed**; run
+> `scripts/run-v130-issue6-rotating-mpi4.sh` on the qualified host.
+> The normal feedback remains inactive until t=75 in this
+> short-time test. See
+> [V130_ISSUE6_COMPATIBLE_MPI4_QUALIFICATION.md](V130_ISSUE6_COMPATIBLE_MPI4_QUALIFICATION.md).
+>
 > **Scope decisions — 23 November 2026:** #23's GetFEM MPI-2 raw-RHS anomaly
 > was confined to a locally miscompiled *old* GetFEM environment and is
 > **retired without an upstream root-cause claim**; retain exact-build
