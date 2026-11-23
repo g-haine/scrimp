@@ -188,9 +188,25 @@ class LinearDAECheckpointHostTests(unittest.TestCase):
 
     def test_rejects_wrong_model_fingerprint(self):
         path,r,_=self.fixture("resume",2,1)
-        r["fingerprint_sha256"]="invalid"
+        # Valid SHA-256 syntax but WRONG actual GetFEM model identity.
+        r["fingerprint_sha256"]="f"*64
         (path/"linear_report.json").write_text(json.dumps(r),encoding="utf-8")
         with self.assertRaisesRegex(ValueError,"physically different model"):
+            compare(self.root)
+
+    def test_rejects_wrong_seed_model_fingerprint(self):
+        path,r,_=self.fixture("seed",2)
+        r["fingerprint_sha256"]="f"*64
+        (path/"linear_report.json").write_text(json.dumps(r),encoding="utf-8")
+        with self.assertRaisesRegex(ValueError,"physically different model"):
+            compare(self.root)
+
+    def test_rejects_projection_without_model_mismatch(self):
+        # Distinguish a genuine q0 projection from changed source physics.
+        path,r,_=self.fixture("resume",2,1)
+        r["initialization_report"]["no_pseudo_BDF_or_projection"]=False
+        (path/"linear_report.json").write_text(json.dumps(r),encoding="utf-8")
+        with self.assertRaisesRegex(ValueError,"projected/changed q0"):
             compare(self.root)
 
 
