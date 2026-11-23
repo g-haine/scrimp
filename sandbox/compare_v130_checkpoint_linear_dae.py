@@ -255,7 +255,7 @@ def compare(root):
         "generic_checkpoint_supported_CN_only":True,
     }
     (root/"linear_dae_comparison.json").write_text(
-        json.dumps(result,indent=2)+"\\n",encoding="utf-8",
+        json.dumps(result,indent=2)+"\n",encoding="utf-8",
     )
     return result
 
