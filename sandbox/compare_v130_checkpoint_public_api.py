@@ -95,7 +95,7 @@ def segment(root, mesh, name, rank, source_rank=None):
             "Native production DPHS save/load methods not used")
     if name=="resume":
         init=report.get("initialization_report",{})
-        require(init.get("status")=="COMPLETE_DAE_STATE_COLD_RESTORED_IN_DHPS"
+        require(init.get("status")=="COMPLETE_DAE_STATE_COLD_RESTORED_IN_DPHS"
                 and init.get("all_GetFEM_and_GlobalVec_coefficients_restored_bitwise") is True
                 and init.get("no_pseudo_BDF_or_projection") is True
                 and init.get("PETSc_TS_history_restored") is False
