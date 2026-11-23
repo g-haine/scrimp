@@ -184,6 +184,25 @@ class UniversalFEInitialExpressionTests(unittest.TestCase):
         self.assertIn("real_getfem_projection_coefficients(", src)
         self.assertNotIn("np.linalg.solve(", src)
 
+    def test_native_mpi_pilot_uses_distributed_bridge(self):
+        runner = (
+            ROOT / "scripts/run-v130-fe-initial-mpi.sh"
+        ).read_text(encoding="utf-8")
+        self.assertIn(
+            "--env SCRIMP_GETFEM_MATRIX_MODE=distributed", runner
+        )
+        self.assertIn(
+            "--env SCRIMP_GETFEM_BRIDGE_DISTRIBUTED=csr", runner
+        )
+        self.assertNotIn(
+            "--env SCRIMP_GETFEM_MATRIX_MODE=replicated", runner
+        )
+        pilot = (
+            ROOT / "sandbox/probe_v130_fe_initial_mpi.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('if mode != "distributed":', pilot)
+        self.assertIn('"getfem_matrix_mode": mode', pilot)
+
     def test_production_default_l2_and_explicit_legacy(self):
         tree = ast.parse(DPHS.read_text(encoding="utf-8"))
         cls = next(x for x in tree.body if isinstance(x, ast.ClassDef)

@@ -240,3 +240,27 @@ separately (not conflated with field coefficients).
 will not prove coupled Heat-Wave algebraic feasibility,
 physics of interface conditions, or multi-step time
 integration. No research-published source or output is changed.
+
+## 23 November 2026 — MPI2 failed, corrected incorrect replicated runner
+
+The native pilot at `936ecb2a` passed MPI1 but all FE
+mass projections raised PETSc `KSP_DIVERGED_PC_FAILED (-11)`
+in MPI2. The runner mistakenly **forced**
+`SCRIMP_GETFEM_MATRIX_MODE=replicated`, unlike the
+previously qualified SCRIMP MPI distributed operators. In
+GetFEM MPI level 2, an individual rank's matrix can contain
+only a fraction of the globally assembled contributions;
+treating those local fragments as complete replicated matrices
+can leave incorrect sparse entries, leading to factorization
+failure. This is a **hypothesis**, not proof of singularity.
+
+The runner now explicitly selects `distributed` with
+`SCRIMP_GETFEM_BRIDGE_DISTRIBUTED=csr`: this intentionally
+uses the established IJV/ADD_VALUES reference transfer for
+an unqualified new call site. The native pilot refuses
+`replicated`, and a source-only regression protects the
+settings. We do **not** change PETSc MUMPS parameters or
+modify the production mass bridge to paper over a failed test.
+The same MPI1/2 coefficient and physical-field comparisons
+must be rerun. Only after the distributed reference passes
+should the faster COO path be tested separately.

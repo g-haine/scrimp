@@ -21,6 +21,7 @@ This is not a DAE/Heat-Wave physics or general MPI scalability claim.
 
 import argparse
 import json
+import os
 import traceback
 from pathlib import Path
 
@@ -206,6 +207,20 @@ def main():
         raise RuntimeError("GetFEM must be built with MPI level 2")
     if not a.outdir.is_dir():
         raise RuntimeError("Expected writable output mount")
+    mode = os.environ.get("SCRIMP_GETFEM_MATRIX_MODE", "").strip().lower()
+    if mode != "distributed":
+        raise RuntimeError(
+            "Native MPI FE gate requires GetFEM matrix mode distributed "
+            f"(got {mode!r}), not replicated"
+        )
+    bridge = os.environ.get(
+        "SCRIMP_GETFEM_BRIDGE_DISTRIBUTED", ""
+    ).strip().lower()
+    if bridge not in ("csr", "ijv"):
+        raise RuntimeError(
+            "First reference native MPI FE gate requires csr/IJV "
+            f"distributed transfer (got {bridge!r})"
+        )
 
     factor = float(_getfem_mpi_rhs_scale())
     if not np.isfinite(factor) or factor <= 0:
@@ -253,7 +268,8 @@ def main():
         "mpi_ranks":comm.size,
         "rank":comm.rank,
         "getfem_rhs_multiplicative_scale":factor,
-        "getfem_matrix_mode":"replicated",
+        "getfem_matrix_mode": mode,
+        "getfem_distributed_bridge": bridge,
         "cases":rows,
         "MPI2_qualified":False,
         "DAE_and_full_physics_qualified":False,
