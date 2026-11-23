@@ -10,6 +10,7 @@ Synthetic numbers test comparison/report rejection, NEVER count as
 native GetFEM or PETSc evidence.
 """
 
+import ast
 import importlib.util
 import json
 from pathlib import Path
@@ -134,6 +135,48 @@ class LinearDAECheckpointHostTests(unittest.TestCase):
             "synthetic fixture only",encoding="utf-8"
         )
         return path,result,states
+
+    def test_original_IFunction_uses_configured_PETSc_index_width(self):
+        # Regression for the first real native wave-DAE run:
+        # on 64-bit Python, dtype=int defaults to int64, whereas
+        # the pinned PETSc image uses 32-bit PetscInt. This test is
+        # HOST ONLY and checks the native probe's actual Vec.setValues
+        # call sites without importing PETSc/GetFEM.
+        probe=ROOT/"sandbox"/"probe_v130_checkpoint_linear_dae.py"
+        tree=ast.parse(probe.read_text(encoding="utf-8"))
+        funcs=[
+            node for node in tree.body
+            if isinstance(node,ast.FunctionDef)
+            and node.name=="original_IFunction"
+        ]
+        self.assertEqual(len(funcs),1)
+        method=funcs[0]
+        owned_assignments=[
+            node for node in ast.walk(method)
+            if isinstance(node,ast.Assign)
+            and any(
+                isinstance(target,ast.Name) and target.id=="owned"
+                for target in node.targets
+            )
+        ]
+        self.assertEqual(len(owned_assignments),1)
+        self.assertEqual(
+            ast.unparse(owned_assignments[0].value),
+            "np.arange(lo, hi, dtype=PETSc.IntType)"
+        )
+        setters={
+            ast.unparse(node.func.value)
+            for node in ast.walk(method)
+            if isinstance(node,ast.Call)
+            and isinstance(node.func,ast.Attribute)
+            and node.func.attr=="setValues"
+            and node.args and isinstance(node.args[0],ast.Name)
+            and node.args[0].id=="owned"
+        }
+        self.assertEqual(setters,{"vec","vel"})
+        self.assertEqual(
+            np.arange(0,3,dtype=np.int32).dtype,np.dtype("int32")
+        )
 
     def test_synthetic_complete_four_MPI_restarts(self):
         result=compare(self.root)
