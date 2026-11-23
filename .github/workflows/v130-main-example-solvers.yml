@@ -1,0 +1,44 @@
+name: v1.3.0 top-level examples LU selection source guards
+
+on:
+  push:
+    branches:
+      - release/1.3.0-preparation
+    paths:
+      - 'examples/mass_spring_damper.py'
+      - 'examples/nonlinear_pendulum.py'
+      - 'examples/heat_wave.py'
+      - 'examples/shallow_water.py'
+      - 'sandbox/probe_v130_lumped_example_solver.py'
+      - 'scripts/run-v130-example-lumped-lu.sh'
+      - 'tests/test_v130_main_example_solver_policy.py'
+      - '.github/workflows/v130-main-example-solvers.yml'
+  pull_request:
+    paths:
+      - 'examples/mass_spring_damper.py'
+      - 'examples/nonlinear_pendulum.py'
+      - 'examples/heat_wave.py'
+      - 'examples/shallow_water.py'
+      - 'sandbox/probe_v130_lumped_example_solver.py'
+      - 'scripts/run-v130-example-lumped-lu.sh'
+      - 'tests/test_v130_main_example_solver_policy.py'
+      - '.github/workflows/v130-main-example-solvers.yml'
+
+jobs:
+  source-only:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Basic python/shell syntax
+        run: |
+          python -m py_compile examples/mass_spring_damper.py examples/nonlinear_pendulum.py examples/heat_wave.py examples/shallow_water.py sandbox/probe_v130_lumped_example_solver.py tests/test_v130_main_example_solver_policy.py
+          bash -n scripts/run-v130-example-lumped-lu.sh
+      - name: Preserve original times, factor default and user choice
+        run: python tests/test_v130_main_example_solver_policy.py
+      - name: Published article-era code remains byte-for-byte unchanged
+        run: python scripts/check-v130-published-immutable.py
+      - name: Native GetFEM+PETSc acceptance is a separate physical gate
+        run: echo "Source guard PASS; 12 native physical example cases still pending qualified host"

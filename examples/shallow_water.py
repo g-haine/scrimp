@@ -16,7 +16,10 @@
 # Import scrimp
 import scrimp as S
 
-def shallow_water_eq():
+def shallow_water_eq(
+    *, factor_solver=None, final_time=0.5, time_step=0.0001,
+    save_step=0.01,
+):
     """A structure-preserving discretization of the inviscid shallow-water equation
 
     Formulation Grad-Grad, homogeneous boundary condition, on a tank
@@ -184,18 +187,22 @@ def shallow_water_eq():
 
     ## Solve in time
     # Define the time scheme
+    # The default solver is chosen by SCRIMP (MUMPS), not by this example.
+    # Opt-in PETSc backends may be passed without changing the PDE.
+    scheme = {}
+    if factor_solver is not None:
+        scheme["pc_factor_mat_solver_type"] = factor_solver
     swe.set_time_scheme(
-        # Explicit legacy relaxation: preserve the published example's
-        # original initial-data behavior when algebraic becomes default.
+        # Preserve the original explicit pseudo initialization.
         init_step_ts_type="pseudo",
         ts_type="bdf",
         ts_bdf_order=2,
-        t_f=0.5,
-        dt=0.0001,
-        dt_save=0.01,
+        t_f=float(final_time),
+        dt=float(time_step),
+        dt_save=float(save_step),
         ksp_type="gmres",
         pc_type="lu",
-        pc_factor_mat_solver_type="superlu",
+        **scheme,
     )
 
     # Solve the system in time

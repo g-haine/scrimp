@@ -16,7 +16,10 @@
 # Import scrimp
 import scrimp as S
 
-def heat_wave_eq(heat_region=1, wave_region=2):
+def heat_wave_eq(
+    heat_region=1, wave_region=2, *, factor_solver=None,
+    final_time=2.0, time_step=0.001, save_step=0.05,
+):
     """A structure-preserving discretization of a coupled heat-wave equation
 
     Co-energy formulations, heat: div-div, wave: grad-grad, gyrator interconnection
@@ -172,18 +175,22 @@ def heat_wave_eq(heat_region=1, wave_region=2):
 
     ## Solve in time
     # Define the time scheme ("bdf" is backward differentiation formula)
+    # No explicit solver => SCRIMP's qualified MUMPS default.
+    # Other PETSc LU backends remain an opt-in user choice.
+    scheme = {}
+    if factor_solver is not None:
+        scheme["pc_factor_mat_solver_type"] = factor_solver
     hw.set_time_scheme(
-        # Explicit legacy relaxation: preserve the published example's
-        # original initial-data behavior when algebraic becomes default.
+        # Preserve the original explicit pseudo initialization.
         init_step_ts_type="pseudo",
         ts_type="bdf",
                        ts_bdf_order=2,
-                       t_f=2.,
-                       dt=0.001,
-                       dt_save=0.05,
+                       t_f=float(final_time),
+                       dt=float(time_step),
+                       dt_save=float(save_step),
                        ksp_type="preonly",
                        pc_type="lu",
-                       pc_factor_mat_solver_type="superlu",
+                       **scheme,
                        )
 
     # Solve

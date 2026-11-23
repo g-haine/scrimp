@@ -25,7 +25,9 @@ import numpy as np
 import scrimp as S
 
 
-def mass_spring_damper(final_time=8.0, time_step=0.01, plot=False):
+def mass_spring_damper(
+    final_time=8.0, time_step=0.01, plot=False, *, factor_solver=None
+):
     """Simulate the forced, damped oscillator using lumped dynamic ports.
 
     Returns
@@ -81,18 +83,23 @@ def mass_spring_damper(final_time=8.0, time_step=0.01, plot=False):
 
     sys.set_initial_value("q", 0.4)
     sys.set_initial_value("p", 0.0)
+    # An omitted factor_solver leaves the current SCRIMP/PETSc default
+    # (MUMPS) untouched. Users can explicitly select superlu (serial),
+    # superlu_dist (MPI), or another PETSc-supported LU backend.
+    scheme = {}
+    if factor_solver is not None:
+        scheme["pc_factor_mat_solver_type"] = factor_solver
     sys.set_time_scheme(
-        # Explicit legacy relaxation: preserve the published example's
-        # original initial-data behavior when algebraic becomes default.
+        # Preserve this example's original explicit pseudo initialization.
         init_step_ts_type="pseudo",
         ts_type="bdf", ts_bdf_order=2,
         ts_exact_final_time="matchstep",
         ts_adapt_type="none",
         ksp_type="gmres", pc_type="lu",
-        pc_factor_mat_solver_type="superlu",
         t_0=0.0, t_f=float(final_time),
         dt=float(time_step), dt_save=float(time_step),
         init_step=True,
+        **scheme,
     )
     sys.solve()
 

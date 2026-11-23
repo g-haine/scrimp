@@ -35,17 +35,93 @@ symbolic/numeric factorization cost all controlled.
 Such results are scientific evidence, not a blanket claim that
 one backend is always faster.
 
-## Inventory (source inspected at db6ad7a)
+## Stage B1 — update top-level examples (source STAGED; native pending)
+
+The **four live, non-published** examples previously hardcoding
+sequential `superlu` now take an optional **keyword-only**
+`factor_solver=None` parameter:
+
+```python
+from examples.mass_spring_damper import mass_spring_damper
+
+system = mass_spring_damper(final_time=0.04, time_step=0.01)
+# Omitting factor_solver preserves SCRIMP's current MUMPS default.
+system_dist = mass_spring_damper(
+    final_time=0.04, time_step=0.01,
+    factor_solver="superlu_dist",
+)
+# Serial SuperLU remains an explicit user choice on one rank.
+```
+
+Exactly the same optional parameter is available on
+`nonlinear_pendulum()`, `heat_wave_eq()` and
+`shallow_water_eq()`. No solver whitelist is hardcoded
+into the example functions; the user's PETSc backend
+selection passes through unchanged. For the two 2D
+functions, explicit `final_time`, `time_step` and
+`save_step` options permit bounded tests; **default
+physical durations, timesteps, meshes, weak forms,
+controls and initialization all retain their original
+values**. All four original top-level entry points still
+work without extra parameters and use MUMPS by default.
+The other four top-level examples already inherit MUMPS
+and have not been edited.
+
+**Do not mistake this source change for a numerical PASS.**
+Source-only tests validate the exact function signatures,
+original defaults, preserved production MUMPS option
+behavior and continued immutable `examples/published/`
+guard. They cannot certify an actual nonlinear DAE
+integration or solver performance.
+
+### Bounded genuine physical pilot: original lumped systems
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-example-lumped-lu.sh
+```
+
+The driver overlays current Python source read-only onto
+the previously qualified rc3 image, without rebuilding
+GetFEM or PETSc. It executes **12 independent original
+physical GetFEM/PETSc simulations**:
+
+- mass–spring–damper and fully nonlinear pendulum,
+  original weak forms, explicit pseudo initial relaxation,
+  BDF2, `t=0..0.04`, `dt=0.01` (four accepted steps);
+- for each example: default MUMPS at MPI1, explicitly
+  selected MUMPS at MPI1/2, explicit SuperLU_DIST at
+  MPI1/2 and sequential SuperLU at MPI1;
+- strict PETSc convergence and accepted-time/step guards,
+  no rejected steps or SNES failures; actual saved
+  full-DAE state and model-specific Hamiltonian
+  identities, nontrivial dynamics, rank-local state
+  agreement and cross-solver whole-trajectory parity;
+- completely separate host-owned working/output directories;
+  output reports, original NPZ full states and complete
+  host logs stored in a unique ZIP; **nothing is mounted
+  for writing from `examples/published/`**.
+
+This is an intentional **short pilot**: full default
+8/12-second trajectories, the eight-model release matrix,
+real 2D example output exports, extended MPI4 and
+nonlinear Saint-Venant remain distinct subsequent gates.
+**Native status: PENDING qualified-host execution.**
+
+## Inventory (source at current release/1.3.0-preparation; 23 November 2026)
 
 Eight top-level executable examples:
 
 | Script | Solver currently selected | Qualification action |
 |---|---|---|
 | `examples/heat.py` | no override; MUMPS default | Run physics + I/O |
-| `examples/heat_wave.py` | hardcoded `superlu` | Default MUMPS + optional solver choice |
-| `examples/mass_spring_damper.py` | hardcoded `superlu` | Default MUMPS + optional solver choice |
-| `examples/nonlinear_pendulum.py` | hardcoded `superlu` | Default MUMPS + optional solver choice |
-| `examples/shallow_water.py` | hardcoded `superlu` | Default MUMPS + separate nonlinear DAE/Jacobian gate |
+| `examples/heat_wave.py` | now default MUMPS; optional backend | Native 2D qualification pending |
+| `examples/mass_spring_damper.py` | now default MUMPS; optional backend | Short native pilot pending |
+| `examples/nonlinear_pendulum.py` | now default MUMPS; optional backend | Short native pilot pending |
+| `examples/shallow_water.py` | now default MUMPS; optional backend | Separate nonlinear DAE/Jacobian gate pending |
 | `examples/wave.py` | no override; MUMPS default | Run physics + I/O |
 | `examples/wave_coenergy.py` | no override; MUMPS default | Run physics + I/O |
 | `examples/wave_dissipative.py` | no override; MUMPS default | Run physics + I/O |
@@ -156,11 +232,11 @@ non-MUMPS path.
 
 ### Stage B — example acceptance, P0 for release
 
-1. Add explicit opt-in solver choice to the four hardcoded
-   top-level scripts while retaining MUMPS as the no-argument
-   reference. Do not hardcode `superlu_dist` on all systems:
-   users without that PETSc backend must still be able
-   to run basic examples with their installed solver.
+1. **SOURCE STAGED:** four formerly hardcoded top-level
+   scripts accept optional `factor_solver` with production
+   MUMPS default. Native acceptance (first lumped pilot,
+   then distributed PDE examples) is still mandatory.
+   Do not require SuperLU_DIST on other installations.
 2. Run each shipped top-level model with MUMPS on MPI 1;
    use MPI 4 only where the model and outputs have an
    explicitly tested MPI contract. Store PETSc status,

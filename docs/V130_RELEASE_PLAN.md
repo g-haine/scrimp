@@ -1462,6 +1462,27 @@ limits displayed rather than concealed.
 Exit: reviewed Sphinx documentation, green HTML/PDF build and
 reproducible container walkthrough. This covers #26.
 
+> **Examples P0 — 23 November 2026: source stage B1 ready,
+> native lumped pilot PENDING.** Four **non-published**
+> top-level functions `mass_spring_damper`, `nonlinear_pendulum`,
+> `heat_wave_eq` and `shallow_water_eq` no longer hardcode
+> serial SuperLU; `factor_solver=None` leaves the MUMPS
+> SCRIMP default, explicit `factor_solver="superlu_dist"`
+> or `"superlu"` gives users a transparent PETSc opt-in.
+> Existing default model equations, meshes, initialization,
+> times, output calls and boundary controls are preserved.
+> Two 2D functions also permit explicitly short `final_time`,
+> `time_step`, `save_step` for bounded acceptance.
+> New `scripts/run-v130-example-lumped-lu.sh` is a
+> 12-case real GetFEM/PETSc pilot over the two original
+> lumped examples, MPI1/2 and three backends, checks
+> Hamiltonian formulas, entire state path and parity,
+> no scientific PASS yet. Stage 2D, remaining 8-example
+> full matrix and MPI4 are next independent gates.
+> **No files under `examples/published/` were touched**
+> (immutable source snapshots; ignored local results preserved).
+> See [V130_EXAMPLES_SOLVER_POLICY.md](V130_EXAMPLES_SOLVER_POLICY.md).
+>
 ## 6 — All examples / optional installation self-check
 
 - Inventory **every** shipped example, then run each with

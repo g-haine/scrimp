@@ -28,7 +28,7 @@ import scrimp as S
 
 def nonlinear_pendulum(final_time=12.0, time_step=0.01,
                        initial_angle=1.2, torque_amplitude=0.0,
-                       plot=False):
+                       plot=False, *, factor_solver=None):
     """Integrate a nonlinear (possibly forced) pendulum with damping."""
     mass = 1.0
     length = 1.0
@@ -89,18 +89,22 @@ def nonlinear_pendulum(final_time=12.0, time_step=0.01,
     pend.set_initial_value("theta", float(initial_angle))
     pend.set_initial_value("p", 0.0)
 
+    # None leaves the qualified MUMPS default unchanged.
+    # Non-default backends are chosen explicitly by example callers.
+    scheme = {}
+    if factor_solver is not None:
+        scheme["pc_factor_mat_solver_type"] = factor_solver
     pend.set_time_scheme(
-        # Explicit legacy relaxation: preserve the published example's
-        # original initial-data behavior when algebraic becomes default.
+        # Preserve this example's original explicit pseudo initialization.
         init_step_ts_type="pseudo",
         ts_type="bdf", ts_bdf_order=2,
         ts_exact_final_time="matchstep",
         ts_adapt_type="none",
         ksp_type="gmres", pc_type="lu",
-        pc_factor_mat_solver_type="superlu",
         t_0=0.0, t_f=float(final_time),
         dt=float(time_step), dt_save=float(time_step),
         init_step=True,
+        **scheme,
     )
     pend.solve()
 
