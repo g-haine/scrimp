@@ -1,5 +1,30 @@
 # SCRIMP v1.3.0 — release plan and acceptance gates
 
+> **Examples solver policy — 23 November 2026 (preflight source ready,
+> NATIVE PENDING):** the existing qualified Docker rc3 contains
+> `mumps`, `superlu` and `superlu_dist` according to the user's
+> actual `PETSc.Sys.hasExternalPackage()` query. No recompile of
+> GetFEM/PETSc/Docker is required **to test** real parallel SuperLU_DIST.
+> Package presence is not a successful factorization or SCRIMP model
+> qualification. The release reference remains **MUMPS**, already the
+> conditional default in `DPHS.set_time_scheme()`; do not prohibit
+> alternate user-selected PETSc backends. Four of the eight top-level
+> examples still hardcode serial `superlu`; the published
+> MCSS 2024 shallow-water script also explicitly uses it and
+> requires preserving historical provenance.
+>
+> The next bounded P0 action is a separate **real native sparse LU**
+> preflight: seven cases, MUMPS/SuperLU_DIST × MPI1/2/4, serial
+> SuperLU × MPI1, complex MPIAIJ matrix, known exact solution,
+> `1e-11` error/residual gates; no benchmark claim. Driver:
+> `scripts/run-v130-petsc-lu-backends.sh`. Next, adjust
+> *top-level* examples to use MUMPS by default with explicit
+> opt-in backend choice, then perform model-level physical,
+> power, MPI and output qualification. Do not turn mandatory
+> example acceptance into an unrestricted solver-performance study.
+> Details: [V130_EXAMPLES_SOLVER_POLICY.md](V130_EXAMPLES_SOLVER_POLICY.md).
+>
+
 > **#6 / controlled SWE checkpoint parity (23 November):** original
 > native gamma=.25 mesh=.2 MPI1→MPI2 cold restart faithfully reproduces
 > the uninterrupted CN solution: full final FE difference 1.6464e-13,

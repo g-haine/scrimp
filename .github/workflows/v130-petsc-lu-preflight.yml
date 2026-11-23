@@ -1,0 +1,45 @@
+name: v1.3.0 PETSc LU backend preflight source checks
+
+on:
+  push:
+    branches:
+      - release/1.3.0-preparation
+    paths:
+      - scripts/probe-v130-petsc-lu-backends.py
+      - scripts/run-v130-petsc-lu-backends.sh
+      - docs/V130_EXAMPLES_SOLVER_POLICY.md
+      - .github/workflows/v130-petsc-lu-preflight.yml
+  pull_request:
+    paths:
+      - scripts/probe-v130-petsc-lu-backends.py
+      - scripts/run-v130-petsc-lu-backends.sh
+      - docs/V130_EXAMPLES_SOLVER_POLICY.md
+      - .github/workflows/v130-petsc-lu-preflight.yml
+
+jobs:
+  source-only:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Syntax guard for PETSc native CLI (no PETSc installed in CI)
+        run: python -m py_compile scripts/probe-v130-petsc-lu-backends.py
+      - name: Shell driver syntax
+        run: bash -n scripts/run-v130-petsc-lu-backends.sh
+      - name: Assert correct backend permutations and no rebuild
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          text=Path('scripts/run-v130-petsc-lu-backends.sh').read_text()
+          assert 'for backend in mumps superlu superlu_dist;' in text
+          assert 'ranks_list=(1 2 4)' in text
+          assert '[[ "$backend" == superlu ]]' in text
+          assert "1d6d0c90115213298047b28237a7f38087563a35" in text
+          assert 'docker_cmd=(docker)' in text
+          assert 'image inspect' in text
+          assert '--rm' in text
+          assert 'docker build' not in text
+          print('Source-only test PASS; actual native LU run still required')
+          PY
