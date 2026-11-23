@@ -4749,3 +4749,149 @@ GETFEM/PETSc runs. The earlier
 16/16 **sandbox** evidence is not
 a substitute for native validation
 of the new production entry points.
+
+## 23 November 2026 — #29 production DPHS API physically native-qualified on SWE (16/16 PASS), independent linear DAE staged
+
+**Qualified new production API evidence (NOT merely the earlier
+sandbox hook):** user-supplied native archive
+`v130-issue29-public-api-restart-260aeb55-nq2ksRwp.zip`,
+original runner source `260aeb558ffec8783044e7c93c2f02504d75eb41`,
+Docker `scrimp-mpi:v1.3.0-rc3` with immutable OCI
+`1d6d0c90115213298047b28237a7f38087563a35`.
+I independently inspected the ZIP, verified its CRC,
+**16 native phase reports and full FE/power trajectories**,
+the complete four SHA-256-verified accepted-state
+checkpoints (`t_*=.02`, respectively **3300/10272 DOFs**),
+and `checkpoint_public_api_comparison.json`.
+All four saved checkpoint vectors are byte-identical to
+their own native PETSc TS accepted seed endpoints, and
+**all eight resumed initial FE vectors** are bit-identical
+to their source rank's original complete DAE state.
+
+All **16/16 original curved-P2 viscous SWE** phases using
+the REAL production `DPHS.save_checkpoint()/load_checkpoint()`
+API PASS; both meshes h=.2/.1, MPI1/2, continuous
+`0→.024` vs seed `0→.02` and fresh PETSc CN
+`.02→.024` for source→target MPI
+`1→1,1→2,2→1,2→2`.
+Total host **35/35** (17+13+5).
+Max full original FE vector L2 endpoint discrepancy
+**2.2588229756e-13**.
+Max Hamiltonian jump at t* **7.5495165675e-15**.
+Max signed ORIGINAL h-weighted
+`ΔH + D − W` difference continuous vs
+split **3.0200668355e-14**.
+At restored t* original `F_a` is O(1e-15).
+The existing true PETSc original TSCN and
+algebraic every-step native checks PASS with no
+SNES/rejection failure. All four MPI change
+combinations verified with actual new model/TS creation.
+The archive has source fingerprint and full model
+metadata; no general arbitrary index/high-index
+initializer is claimed.
+
+**Qualification status:** `DPHS` production checkpoint
+API is native-qualified **for this nonlinear
+viscous SWE experiment**; independent second-model
+DAE still pending. Thus #29 remains OPEN and
+generalized cold checkpoint is not yet
+release-qualified. PETSc TS BDF/IMEX stage history
+is NOT serialized; CN cold state restart only.
+
+**Nonphysical audit cosmetic issue fixed:** the previous
+host evidence checker imported
+`scrimp.utils.dae_checkpoint` normally,
+triggering `scrimp.__init__ → petsc4py.init(sys.argv)`
+with pure-checker arguments `--evidence`, `--phase`,
+`--mesh` and `--source-ranks`. PETSc printed
+warnings about *unused options* after otherwise
+successfully verified cases. The host-only
+`sandbox/compare_v130_checkpoint_public_api.py`
+and `sandbox/validate_v130_checkpoint_public_api_case.py`
+now load the exact pure NumPy/JSON module by
+`importlib.util.spec_from_file_location`,
+without initializing PETSc. The comparator's prose
+no longer incorrectly calls the real production
+API result a sandbox-only experiment.
+**No original SWE physics or PETSc TS numeric
+source changed; do NOT rerun 16 SWE native cases
+solely to eliminate a CLI-warning display.**
+
+**NEXT native scientific release gate, second
+genuinely independent linear pH-DAE**:
+- `sandbox/probe_v130_checkpoint_linear_dae.py`
+  copies the native linear 2D wave physical
+  Dirac/constitutive/boundary bricks/FEM
+  from `examples/wave.py` with a smaller
+  `Rectangle` mesh h=.5; real states
+  `q,p`, efforts `e_q,e_p`,
+  four mixed boundary ports and real
+  time-dependent left velocity input
+  `U_L=.2*sin(25*t)*sin(pi*y)`.
+  Exact compatible initial zero q,p,
+  boundary input zero at t0,
+  `init_step=False` (no pseudo or
+  BDF initializer). The forcing grows,
+  so this is a NONTRIVIAL linear DAE
+  evolution, not a zero-state roundtrip.
+  Same CN dt=.002 and physical
+  `0→.02` seed, `0→.024` continuous,
+  `.02→.024` fresh production
+  `load_checkpoint` resume.
+- `sandbox/compare_v130_checkpoint_linear_dae.py`
+  validates all real TS accepted steps,
+  independent true original full
+  GetFEM IFunction endpoint CN equation,
+  **all algebraic rows** at every
+  state, complete FE state/checkpoint
+  SHA256, source/target rank control
+  provenance, original Hamiltonian,
+  true GetFEM boundary-port powers,
+  cumulative boundary work and
+  continuous-vs-split matching with
+  strict fail-closed gates.
+- `scripts/run-v130-checkpoint-linear-dae.sh`:
+  **8 new native cases** (2 MPI1/2
+  seeds, 2 continuous, and 4 cross-rank
+  resumes). Immutable original Docker
+  image; host-owned logs, `--resume`
+  verified partial-evidence reuse,
+  `--compare-only` audit.
+- `tests/test_v130_checkpoint_linear_dae.py`:
+  7 host positive/negative synthetic
+  controls; the CI compiles source,
+  checks Bash and runs them.
+  No host synthetic result is to be
+  represented as native physical success.
+
+**Native linear wave gate is entirely PENDING**.
+Given its real physical/FE differences from SWE,
+errors in its first actual GetFEM run must
+be debugged on this second model, not hidden
+through a weaker comparator. No release/tag
+or #29 closure until original linear DAE
+and negative controls are native/host qualified.
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+
+python -m py_compile \
+  sandbox/probe_v130_checkpoint_linear_dae.py \
+  sandbox/compare_v130_checkpoint_linear_dae.py \
+  tests/test_v130_checkpoint_linear_dae.py
+python tests/test_v130_checkpoint_linear_dae.py
+bash -n scripts/run-v130-checkpoint-linear-dae.sh
+
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-checkpoint-linear-dae.sh
+```
+
+**Release priority:** checkpoint #29 still P0,
+new Maxwell 3D P2 optional before v1.3.0,
+otherwise post-release. Original already-rotating
+incompatible Saint-Venant p0 remains unchanged;
+restored saved state is physically compatible,
+but reaching the C1 wall plateau does NOT imply
+interior stationary rotation.
