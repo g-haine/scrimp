@@ -11,10 +11,12 @@ on:
       - 'examples/shallow_water.py'
       - 'sandbox/probe_v130_lumped_example_solver.py'
       - 'sandbox/probe_v130_main_2d_examples.py'
+      - 'sandbox/measure_v130_heat_wave_physics.py'
       - 'scripts/run-v130-example-lumped-lu.sh'
       - 'scripts/run-v130-example-2d-lu.sh'
       - 'tests/test_v130_main_example_solver_policy.py'
       - 'tests/test_v130_main_2d_example_protocol.py'
+      - 'tests/test_v130_heat_wave_physics_diagnostic.py'
       - '.github/workflows/v130-main-example-solvers.yml'
   pull_request:
     paths:
@@ -24,10 +26,12 @@ on:
       - 'examples/shallow_water.py'
       - 'sandbox/probe_v130_lumped_example_solver.py'
       - 'sandbox/probe_v130_main_2d_examples.py'
+      - 'sandbox/measure_v130_heat_wave_physics.py'
       - 'scripts/run-v130-example-lumped-lu.sh'
       - 'scripts/run-v130-example-2d-lu.sh'
       - 'tests/test_v130_main_example_solver_policy.py'
       - 'tests/test_v130_main_2d_example_protocol.py'
+      - 'tests/test_v130_heat_wave_physics_diagnostic.py'
       - '.github/workflows/v130-main-example-solvers.yml'
 
 jobs:
@@ -40,14 +44,16 @@ jobs:
           python-version: '3.11'
       - name: Basic python/shell syntax
         run: |
-          python -m py_compile examples/mass_spring_damper.py examples/nonlinear_pendulum.py examples/heat_wave.py examples/shallow_water.py sandbox/probe_v130_lumped_example_solver.py sandbox/probe_v130_main_2d_examples.py tests/test_v130_main_example_solver_policy.py tests/test_v130_main_2d_example_protocol.py
+          python -m py_compile examples/mass_spring_damper.py examples/nonlinear_pendulum.py examples/heat_wave.py examples/shallow_water.py sandbox/probe_v130_lumped_example_solver.py sandbox/probe_v130_main_2d_examples.py sandbox/measure_v130_heat_wave_physics.py tests/test_v130_main_example_solver_policy.py tests/test_v130_main_2d_example_protocol.py tests/test_v130_heat_wave_physics_diagnostic.py
           bash -n scripts/run-v130-example-lumped-lu.sh
           bash -n scripts/run-v130-example-2d-lu.sh
       - name: Preserve original times, factor default and user choice
         run: python tests/test_v130_main_example_solver_policy.py
       - name: Original 2D example diagnostic and MPI write-safety guards
         run: python tests/test_v130_main_2d_example_protocol.py
+      - name: Adaptive BDF2 and heat-wave physical diagnostic negative controls
+        run: python tests/test_v130_heat_wave_physics_diagnostic.py
       - name: Published article-era code remains byte-for-byte unchanged
         run: python scripts/check-v130-published-immutable.py
       - name: Native GetFEM+PETSc acceptance is a separate physical gate
-        run: echo "Source guard PASS; 12 native physical example cases still pending qualified host"
+        run: echo "Source guard PASS; native 2D physics and coupling diagnostic still PENDING"

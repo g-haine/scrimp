@@ -38,11 +38,43 @@ class Main2DExampleProtocolTests(unittest.TestCase):
         self.assertIn("original_2d_example_trace.npz",pilot)
         self.assertIn("check_output_files(args.example)",pilot)
         self.assertIn('for backend in mumps superlu_dist;',runner)
-        self.assertIn('for example in heat_wave shallow_water;',runner)
+        self.assertIn('for example in "${examples[@]}";',runner)
+        self.assertIn('scope="${SCRIMP_V130_2D_SCOPE:-heat_wave}"',runner)
+        self.assertIn('all) examples=(heat_wave shallow_water) ;;',runner)
         self.assertIn('mpiexec --oversubscribe --bind-to none -n 1',runner)
         self.assertNotIn('mpiexec --oversubscribe --bind-to none -n 2',runner)
         self.assertIn("python3 scripts/check-v130-published-immutable.py",runner)
         self.assertNotIn("--volume \"$root/examples/published",runner)
+
+    def test_adaptive_BDF2_accepted_steps_and_diagnostics_are_explicit(self):
+        probe=(ROOT/"sandbox"/"probe_v130_main_2d_examples.py").read_text(
+            encoding="utf-8"
+        )
+        physics=(ROOT/"sandbox"/"measure_v130_heat_wave_physics.py").read_text(
+            encoding="utf-8"
+        )
+        runner=(ROOT/"scripts"/"run-v130-example-2d-lu.sh").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("np.all(np.diff(times)>0.)",probe)
+        self.assertIn("system.last_ts_steps < times.size-1",probe)
+        self.assertIn('"requested_initial_dt":DT',probe)
+        self.assertIn("collect_heat_wave_physics(",probe)
+        self.assertNotIn('system.last_ts_steps!=4',probe)
+        self.assertNotIn('system.last_ts_rejections!=0',probe)
+        self.assertIn('"H_heat": (".5*T*T", 1)',physics)
+        self.assertIn('"H_wave_kinetic": (".5*p*p", 2)',physics)
+        self.assertIn('"H_wave_potential": (".5*q.q", 2)',physics)
+        self.assertIn('"D_heat_flux": ("e_Q.e_Q", 1)',physics)
+        self.assertIn('"P_interface_heat": ("U_T*Y_T", 10)',physics)
+        self.assertIn('"P_interface_wave": ("U_w*Y_w", 10)',physics)
+        self.assertIn('"interface_T_minus_p_L2_sq"',physics)
+        self.assertIn('"interface_T_plus_p_L2_sq"',physics)
+        self.assertIn('python3 - "$out" "${examples[@]}"',runner)
+        self.assertIn("ENDPOINTS_ONLY_DIFFERENT_ADAPTIVE_CLOCKS",runner)
+        self.assertIn("PHYSICAL_AUDIT_OPEN",runner)
+        self.assertNotIn('report["steps"]==4',runner)
+        self.assertNotIn('trace["times"].shape==(5,)',runner)
 
     def test_original_2d_defaults_are_not_overridden_without_call_site(self):
         hw=(ROOT/"examples"/"heat_wave.py").read_text(encoding="utf-8")

@@ -111,7 +111,7 @@ real 2D example output exports, extended MPI4 and
 nonlinear Saint-Venant remain distinct subsequent gates.
 **Native status: PENDING qualified-host execution.**
 
-### Stage B2 — original 2D Heat–Wave and inviscid Saint-Venant (PENDING)
+### Stage B2 — real 2D Heat–Wave and inviscid Saint-Venant: original BDF2 adaptive behavior
 
 The former hardcoded serial-SuperLU main scripts are now available
 with MUMPS as the default, and `superlu_dist` as a pure
@@ -123,6 +123,7 @@ cd ~/Simulations/scrimp
 git pull --ff-only
 SCRIMP_DOCKER_NO_SUDO=1 \
 SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+SCRIMP_V130_2D_SCOPE=heat_wave \
 bash scripts/run-v130-example-2d-lu.sh
 ```
 
@@ -133,19 +134,47 @@ relations, boundary conditions and public figure/ParaView
 export methods, with explicit `t=0..0.004`,
 `dt=dt_save=0.001`. Other default values do not change.
 
-Four bounded native jobs: each model at MPI1 with
-MUMPS and SuperLU_DIST. The pilot checks the actual
-PETSc convergence status, 4 steps, 5 saved physical
-times, full finite-element/DAE vector and all original
-field histories, finite positive Hamiltonian, nontrivial
-dynamics, available original Hamiltonian PNG,
-and nonempty public ParaView `.pvd` and `.vtu`
-outputs. For Saint-Venant it also saves the genuine
-original GetFEM water-height integral `∫h` and its
-observed time drift (without hiding or renormalizing it).
-The independent host comparator gates every original
-field, full state, Hamiltonian and volume trace
-against MUMPS within `1e-8`; native status is PENDING.
+The first native run `heat_wave_mumps_mpi1` reached
+t=0.004 with **39 accepted adaptive BDF2 steps, 4 rejected
+steps and no SNES failures**, 26,198 GetFEM DoFs,
+and completed Hamiltonian and ParaView exports.
+The old **test harness incorrectly required 4 fixed steps,
+zero rejections and a uniform 5-point saved clock**.
+This is a protocol false negative, *not* evidence of an
+unsuccessful MUMPS solve or incorrect physical coupling.
+
+The corrected gate checks actual accepted-time monotonicity,
+physical final time, PETSc convergence and finite full DAE
+states; it reports accepted and rejected steps explicitly.
+For MUMPS vs SuperLU_DIST it gates the **full original
+trajectory** only if both adaptive saved clocks match.
+Otherwise it gates **original full FE and all physical
+observables at identical start/end times**, explicitly
+disclosing that this is endpoint-only and no
+whole-trajectory parity has been claimed. All results
+remain immutable and in separate workdirs.
+
+`SCRIMP_V130_2D_SCOPE=heat_wave` is the first stage,
+MUMPS and SuperLU_DIST MPI1; `=shallow_water`
+is a later distinct stage, and `=all` runs both
+only when the first-stage physics has been examined.
+The heat-wave pilot records separate original
+heat/wave energies, genuine GetFEM heat-flux
+dissipation, raw pairings of both interface ports,
+outer boundary power, candidate trace constraints
+and BDF nodal trapezoidal balance **as diagnostics only**.
+A numerical LU parity PASS is expressly NOT a physical
+coupling model PASS. No physical qualification is
+claimed at this point. See
+[V130_HEAT_WAVE_PHYSICAL_AUDIT.md](V130_HEAT_WAVE_PHYSICAL_AUDIT.md).
+
+For the later inviscid Saint-Venant stage, the probe
+also saves the original GetFEM water-height integral
+`∫h` and its time drift, without normalizing it
+or interpreting approximate BDF energy conservation
+as a factorization result. The separate scientific
+audit and any model correction will follow the
+native data, not precede them.
 
 **MPI I/O scope warning:** current `DPHS.export_to_pv()`
 opens the same `.pvd` on all ranks (and uses

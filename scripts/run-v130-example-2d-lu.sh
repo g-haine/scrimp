@@ -10,7 +10,14 @@
 set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
-[[ $# == 0 ]] || { echo "Usage: $0" >&2; exit 2; }
+[[ $# == 0 ]] || { echo "Usage: $0 (set SCRIMP_V130_2D_SCOPE=heat_wave|shallow_water|all)" >&2; exit 2; }
+scope="${SCRIMP_V130_2D_SCOPE:-heat_wave}"
+case "$scope" in
+    heat_wave) examples=(heat_wave) ;;
+    shallow_water) examples=(shallow_water) ;;
+    all) examples=(heat_wave shallow_water) ;;
+    *) echo "Unknown SCRIMP_V130_2D_SCOPE=$scope" >&2; exit 2 ;;
+esac
 
 if [[ "${SCRIMP_DOCKER_NO_SUDO:-0}" == 1 ]]; then
     docker_exec=(docker)
@@ -26,6 +33,7 @@ revision="$("${docker_exec[@]}" image inspect \
 }
 python3 -m py_compile \
     sandbox/probe_v130_main_2d_examples.py \
+    sandbox/measure_v130_heat_wave_physics.py \
     examples/heat_wave.py examples/shallow_water.py \
     tests/test_v130_main_example_solver_policy.py
 python3 tests/test_v130_main_example_solver_policy.py
@@ -33,16 +41,17 @@ python3 scripts/check-v130-published-immutable.py
 
 mkdir -p sandbox/outputs
 out="$(mktemp -d "$root/sandbox/outputs/v130-main-2d-lu-$(git rev-parse --short=8 HEAD)-XXXXXXXX")"
-printf '{"schema":"scrimp-v130-main-2d-lu-pilot-campaign-v1","source":"%s","image_revision":"%s","status":"NATIVE_PENDING","models":["heat_wave","shallow_water"],"solvers":["mumps","superlu_dist"],"MPI":[1],"dt":0.001,"t_final":0.004,"parallel_ParaView_export_not_qualified":true,"not_a_benchmark":true}\n' \
-  "$(git rev-parse HEAD)" "$revision" > "$out/manifest.json"
+printf '{"schema":"scrimp-v130-main-2d-lu-pilot-campaign-v2","source":"%s","image_revision":"%s","status":"NATIVE_PENDING","scope":"%s","solvers":["mumps","superlu_dist"],"MPI":[1],"requested_initial_dt":0.001,"t_final":0.004,"adaptive_rejected_steps_allowed_but_reported":true,"coupled_heat_wave_model_physics_not_yet_qualified":true,"parallel_ParaView_export_not_qualified":true,"not_a_benchmark":true}\n' \
+  "$(git rev-parse HEAD)" "$revision" "$scope" > "$out/manifest.json"
 echo "Original SCRIMP 2-D Heat-Wave and inviscid Saint-Venant pilot"
 echo "MUMPS vs SuperLU_DIST, 1 rank only: first native results before MPI I/O audit"
 echo "Original weak forms, original public Hamiltonian PNG and ParaView PVD/VTU"
-echo "t=0..0.004; dt=0.001; 4 accepted BDF2 steps expected"
+echo "t=0..0.004; initial dt=0.001; PETSc adaptive BDF2 ACCEPTED STEPS NOT FIXED"
+echo "Original heat/wave interface flux, dissipation and power are DIAGNOSTICS (not a model PASS)"
 echo "No changes or mounts in examples/published"
 echo "EVIDENCE: $out"
 
-for example in heat_wave shallow_water; do
+for example in "${examples[@]}"; do
     for backend in mumps superlu_dist; do
         name="${example}_${backend}_mpi1"
         mkdir -p "$out/$name" "$out/work_$name"
@@ -62,6 +71,7 @@ for example in heat_wave shallow_water; do
             --volume "$root/examples/heat_wave.py:/workspace/scrimp/examples/heat_wave.py:ro" \
             --volume "$root/examples/shallow_water.py:/workspace/scrimp/examples/shallow_water.py:ro" \
             --volume "$root/sandbox/probe_v130_main_2d_examples.py:/probe-2d.py:ro" \
+            --volume "$root/sandbox/measure_v130_heat_wave_physics.py:/workspace/scrimp/sandbox/measure_v130_heat_wave_physics.py:ro" \
             --volume "$out/$name:/artifacts:rw" \
             --volume "$out/work_$name:/scrimp-work:rw" \
             --workdir /scrimp-work \
@@ -86,40 +96,81 @@ for example in heat_wave shallow_water; do
     done
 done
 
-python3 - "$out" <<'PY'
+python3 - "$out" "${examples[@]}" <<'PY'
 import json,sys,zipfile
 from pathlib import Path
 import numpy as np
 root=Path(sys.argv[1])
+examples=tuple(sys.argv[2:])
+assert examples and set(examples)<={"heat_wave","shallow_water"}
 summaries={}
-for example in ("heat_wave","shallow_water"):
+for example in examples:
     all_runs={}
     for solver in ("mumps","superlu_dist"):
         folder=root/f"{example}_{solver}_mpi1"
         report=json.loads((folder/"original_2d_example_report.json").read_text())
-        assert report["status"]=="PASS_NATIVE_ORIGINAL_2D_EXAMPLE_SINGLE_MPI"
+        assert report["status"]==(
+            "PASS_NATIVE_INTEGRATION_HEAT_WAVE_PHYSICAL_AUDIT_PENDING"
+            if example=="heat_wave" else
+            "PASS_NATIVE_ORIGINAL_2D_EXAMPLE_SINGLE_MPI"
+        )
         assert report["example"]==example and report["factor_solver"]==solver
-        assert report["steps"]==4 and report["MPI"]==1
-        assert report["rejected_steps"]==0 and report["SNES_failures"]==0
+        assert report["steps"]>=1 and report["MPI"]==1
+        assert report["rejected_steps"]>=0 and report["SNES_failures"]==0
+        assert report["PETSc_reason"]>0
+        assert report["adaptive_integrator_original_behavior_preserved"] is True
         with np.load(folder/"original_2d_example_trace.npz",
                      allow_pickle=False) as a:
             trace={k:a[k] for k in a.files}
-        assert trace["times"].shape==(5,)
+        times=trace["times"]
+        assert times.ndim==1 and times.size>=2
+        assert np.all(np.isfinite(times)) and np.all(np.diff(times)>0)
+        assert abs(float(times[0]))<1e-12
+        assert abs(float(times[-1])-0.004)<1e-11
         assert np.all(np.isfinite(trace["states"]))
-        assert trace["states"].shape[0]==5
-        assert trace["H"].shape==(5,)
+        assert trace["states"].shape[0]==len(times)
+        assert trace["H"].shape==(len(times),)
+        if example=="heat_wave":
+            diagnostics=json.loads(
+                (folder/"heat_wave_physics_diagnostic.json").read_text()
+            )
+            assert diagnostics["scientific_status"]==(
+                "DIAGNOSTIC_ONLY_MODEL_NOT_YET_QUALIFIED"
+            )
+            assert "phys_D_heat_flux" in trace
+            assert "phys_P_interface_sum" in trace
+            assert trace["phys_D_heat_flux"].shape==times.shape
+            assert diagnostics["dissipation_min"]>=-1e-10
         assert report["full_state_DOFs"]==trace["states"].shape[1]
         all_runs[solver]=(report,trace)
     left,right=all_runs["mumps"][1],all_runs["superlu_dist"][1]
     if set(left)!=set(right):
         raise RuntimeError(f"Different original physical observables: {example}")
-    if not np.array_equal(left["times"],right["times"]):
-        raise RuntimeError(f"Different original time grid: {example}")
+    common_clock=(
+        left["times"].shape==right["times"].shape
+        and np.allclose(left["times"],right["times"],
+                        atol=1e-12,rtol=0.)
+    )
+    # Adaptive BDF2 can legitimately take a different number of
+    # accepted steps with different native LU roundoff. If so,
+    # ONLY same-clock endpoints can be compared exactly. Never
+    # invent a claimed whole-trajectory parity via interpolation.
+    comparison_scope=(
+        "WHOLE_SAVED_TRAJECTORY_AT_SAME_ADAPTIVE_CLOCK"
+        if common_clock else "ENDPOINTS_ONLY_DIFFERENT_ADAPTIVE_CLOCKS"
+    )
     if left["states"].shape!=right["states"].shape:
         raise RuntimeError(f"Different original finite-element model: {example}")
     differences={}
     for key in sorted(left):
         a,b=left[key],right[key]
+        if not common_clock:
+            if a.ndim<1 or b.ndim<1 or a.shape[1:]!=b.shape[1:]:
+                raise RuntimeError(
+                    f"Adaptive endpoint FE/observable mismatch: {example} {key}"
+                )
+            a=np.stack((a[0],a[-1]))
+            b=np.stack((b[0],b[-1]))
         if a.shape!=b.shape:
             raise RuntimeError(f"Different original observable shape: {example} {key}")
         if key=="states":
@@ -134,6 +185,10 @@ for example in ("heat_wave","shallow_water"):
     summaries[example]={
         "full_state_DOFs":int(left["states"].shape[1]),
         "max_discrepancies":differences,
+        "numerical_comparison_scope":comparison_scope,
+        "saved_time_count_mumps":len(left["times"]),
+        "saved_time_count_superlu_dist":len(right["times"]),
+        "original_heat_wave_physical_model_qualified":False,
         "original_water_height_mass_change_mumps":(
             None if example!="shallow_water" else
             float(left["integral_h"][-1]-left["integral_h"][0])
@@ -144,8 +199,8 @@ for example in ("heat_wave","shallow_water"):
 
 summary={
     "schema":"scrimp-v130-main-2d-lu-native-campaign-v1",
-    "status":"PASS_2D_MAIN_EXAMPLES_MUMPS_SUPERLU_DIST_MPI1",
-    "actual_native_runs":4,
+    "status":"PASS_BACKEND_NUMERICAL_PARITY_PHYSICAL_AUDIT_OPEN",
+    "actual_native_runs":len(examples)*2,
     "models":summaries,
     "full_shipped_time_horizon_not_qualified":True,
     "parallel_ParaView_export_not_qualified":True,

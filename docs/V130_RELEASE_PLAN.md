@@ -1485,11 +1485,27 @@ reproducible container walkthrough. This covers #26.
 > 8.8818e-16 and 5.3718e-15, respectively.
 > This is **short 0..0.04 BDF2** and four complete
 > state DoFs, not long-time or 2D/scaling qualification.
-> **Next P0:** `scripts/run-v130-example-2d-lu.sh`
-> stages four actual Heat–Wave and inviscid
-> Saint-Venant runs at MPI1, MUMPS/SuperLU_DIST,
-> with original FE, figures and ParaView exports,
-> four steps t=0..0.004. No numeric PASS claimed yet.
+> **2D source-only diagnostic corrected after the first
+> Heat–Wave run:** original PETSc BDF2 is adaptive;
+> the MUMPS Heat–Wave reached t=0.004 with
+> **39 accepted, 4 rejected, 0 SNES failures**
+> on **26,198 FE/DAE DoFs** and generated figure/VTU
+> outputs. The previous gate wrongly demanded four
+> fixed steps and zero rejections; it was a **test
+> failure**, not an unsuccessful physical integration.
+> The staged `scripts/run-v130-example-2d-lu.sh`
+> now defaults to the Heat–Wave-only two-solver MPI1
+> diagnostic; accepts legitimate adaptive steps,
+> compares full trajectories only on matched clocks
+> and otherwise reports an *endpoint-only* parity.
+> It measures heat/wave energy, heat-flux dissipation,
+> both interface powers and candidate physical trace
+> residuals. **Heat–Wave coupling physics NOT YET
+> VALIDATED**, regardless of MUMPS/SuperLU_DIST parity.
+> Reference article and FEM/port differences documented
+> in [V130_HEAT_WAVE_PHYSICAL_AUDIT.md](V130_HEAT_WAVE_PHYSICAL_AUDIT.md).
+> Saint-Venant is a separate subsequent scope.
+> No new native PASS has been claimed yet.
 > The original `DPHS.export_to_pv()` writes `.pvd`
 > from every rank and must have its MPI write behavior
 > independently checked before launching existing
