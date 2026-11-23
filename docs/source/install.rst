@@ -104,6 +104,69 @@ algebra and representative wave physics. GHCR publication remains
 opt-in and must follow actual image validation; the local candidate
 build script never publishes.
 
+Windows and macOS users: best-effort Docker/Dev Containers
+------------------------------------------------------------
+
+SCRIMP has users on Windows and macOS. These are **best-effort
+installation workflows**, not evidence of independently tested native
+Windows/macOS PETSc/GetFEM/MUMPS compatibility. The qualified v1.3.0
+development baseline is currently a **Linux/Ubuntu Docker image**,
+and a public v1.3.0 image is not yet available. Check the selected
+image tag and its platform before relying on it; do not assume
+that ``scrimp-mpi:v1.3.0-rc3`` can be pulled from a public registry.
+
+**Windows 10/11 (WSL2):** install Docker Desktop, enable its WSL2
+backend and integration for your Linux distribution, and install
+VS Code plus the Dev Containers extension. Open a **WSL2 Linux**
+terminal and verify ``docker version``. Keep your SCRIMP user
+project under the WSL2 Linux filesystem (rather than an NTFS
+``/mnt/c`` mount) if you will create many numerical outputs.
+From this terminal, once a **compatible image has been built or
+provided locally**, run:
+
+.. code-block:: bash
+
+    cd ~/MySCRIMPProject
+    docker images
+    docker run --rm -v "$PWD:/work" -w /work \
+        YOUR_LOCALLY_AVAILABLE_SCRIMP_IMAGE:TAG \
+        python simulations/first_simulation.py
+
+These commands run a Linux container through WSL2; they do **not**
+constitute a native Windows compilation. If Docker Desktop's
+integration/permissions differ, use its documented WSL2 integration
+settings. Use :doc:`vscode` for the independent project workflow.
+
+**macOS (Intel/Apple Silicon):** install Docker Desktop for the
+machine architecture and VS Code/Dev Containers. Once an image
+exists locally, inspect its architecture using
+``docker image inspect IMAGE:TAG``; a Linux AMD64-only image
+will not become ARM64-native merely because Docker Desktop
+can start it with emulation. On an Apple Silicon machine,
+``--platform linux/amd64`` is a possible **experimental**
+compatibility option for an AMD64 image, but its numerical
+performance and GetFEM/PETSc/MUMPS MPI behavior remain unqualified:
+
+.. code-block:: bash
+
+    cd ~/MySCRIMPProject
+    docker run --rm --platform linux/amd64 \
+        -v "$PWD:/work" -w /work \
+        YOUR_LOCALLY_AVAILABLE_SCRIMP_AMD64_IMAGE:TAG \
+        python simulations/first_simulation.py
+
+Do not infer scientific accuracy or MPI safety from a successful
+container launch. Prefer a separately built and validated ARM64
+image when one becomes available. Docker Desktop's bind-mount
+permissions and filesystem performance differ from native Linux.
+
+In **all** cases, begin with the bundled oscillator and a bounded
+two-rank MPI start-up check, then progress to validated PDE models.
+If your setup differs from the tested Linux baseline, record image
+digest/platform, Python/PETSc/GetFEM versions and raw logs when
+reporting a problem. Windows/macOS use is welcome, but it is
+**not a mandatory v1.3.0 release-blocking acceptance gate**.
+
 Local GetFEM 5.5 MPI compilation (Conda environment)
 ----------------------------------------------------
 

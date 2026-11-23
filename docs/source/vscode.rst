@@ -147,6 +147,10 @@ VS Code workflow for either Docker installation
 
 1. Install Docker and VS Code with Python and Dev Containers extensions.
    On Windows use Docker Desktop with WSL2; on macOS use Docker Desktop.
+   Both paths are **best effort for existing users** and are not
+   independent native Windows/macOS acceptance tests for v1.3.0.
+   See :doc:`install` for executable shell commands, WSL2 volume
+   guidance and the Apple Silicon image-architecture/emulation caveat.
 2. Open **MySCRIMPProject** in VS Code (not SCRIMP's source checkout).
 3. Choose **Dev Containers: Reopen in Container**.
 4. Check the selected interpreter is
@@ -417,8 +421,10 @@ Known limitations / release gates
   ``python.useEnvironmentsExtension=false`` fixes editor
   interpreter recognition, while Pylance resolves SCRIMP via
   ``python.analysis.extraPaths``. Native compatibility,
-  Windows/macOS/Apple Silicon, MPI multi-process debugging and
-  power-balance/physics qualification remain separate gates.
+  Windows/macOS/Apple Silicon remain **best-effort** supported
+  user environments, not mandatory release gates nor independently
+  qualified native runtimes. MPI multi-process debugging and
+  model-specific physical power balance require separate qualification.
 - The public GHCR v1.3.0 tag and starter project ZIP are not
   published; both require an accepted release.
 - The introductory oscillator is a serial model; use validated
