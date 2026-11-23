@@ -255,13 +255,29 @@ def original_energy_and_boundary_power(system, times):
     if not powers:
         raise RuntimeError("Original linear DAE lacks real boundary powers")
     net=np.sum(np.stack(list(powers.values())),axis=0)
+    # SCRIMP Port.compute evaluates net[k] (k>=1) from the
+    # Crank–Nicolson midpoint z[k-1]/z[k], with t[k] passed to
+    # the GetFEM algebraic port. Thus each net[k] is a STEP
+    # power, NOT an instantaneous sample suitable for the
+    # endpoint trapezoidal rule. net[0] is instantaneous
+    # at the first accepted state and must NOT be used to
+    # integrate the next CN step (especially after restart).
+    # Original left-boundary port sign convention: supplied work
+    # W=-sum(dt_k*net[k]) and ΔH=W for this conservative wave.
     work=np.r_[0.,np.cumsum(
-        .5*np.diff(times)*(net[:-1]+net[1:])
+        -np.diff(times)*net[1:]
     )]
+    per_step_balance=np.diff(energies)+np.diff(times)*net[1:]
+    max_balance=float(np.max(np.abs(per_step_balance)))
+    if (not np.isfinite(max_balance) or max_balance>=1e-11):
+        raise RuntimeError(
+            "Original linear pH-DAE Crank–Nicolson power identity "
+            f"ΔH+dt*P != 0; maximal per-step defect {max_balance:.9g}"
+        )
     if (energies.shape!=times.shape or not np.all(np.isfinite(energies))
             or not np.all(np.isfinite(work))):
         raise RuntimeError("Original GetFEM Hamiltonian/control work invalid")
-    return energies,work,net
+    return energies,work,net,max_balance
 
 
 def run():
@@ -311,9 +327,9 @@ def run():
             "source_MPI_ranks":mpi.size,
             "original_Fa_max":diagnostics["maximum_original_Fa_residual"],
         })
-    h,w,power=original_energy_and_boundary_power(system,t)
+    h,w,power,discrete_power_defect=original_energy_and_boundary_power(system,t)
     report={
-        "schema":"scrimp-v130-issue29-linear-DAE-public-API-v1",
+        "schema":"scrimp-v130-issue29-linear-DAE-public-API-v2",
         "status":"NATIVE_LINEAR_DAE_SEGMENT_NOT_YET_CROSS_MPI_COMPARED",
         "phase":args.phase,
         "MPI":mpi.size,"mesh_h":MESH,
@@ -332,6 +348,8 @@ def run():
         "Hamiltonian_initial":float(h[0]),
         "Hamiltonian_final":float(h[-1]),
         "boundary_work":float(w[-1]),
+        "boundary_work_quadrature":"minus_CN_step_midpoint_port_power_times_dt",
+        "maximum_discrete_energy_balance_defect":discrete_power_defect,
         "dH_minus_W":float(h[-1]-h[0]-w[-1]),
         "initialization_report":status,
         "production_API_used":args.phase in ("seed","resume"),
