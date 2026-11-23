@@ -32,9 +32,11 @@ python3 -m py_compile \
     sandbox/probe_v130_checkpoint_linear_dae.py \
     sandbox/compare_v130_checkpoint_linear_dae.py \
     tests/test_v130_checkpoint_state.py \
-    tests/test_v130_checkpoint_public_api.py
+    tests/test_v130_checkpoint_public_api.py \
+    tests/test_v130_checkpoint_linear_dae.py
 python3 tests/test_v130_checkpoint_state.py
 python3 tests/test_v130_checkpoint_public_api.py
+python3 tests/test_v130_checkpoint_linear_dae.py
 
 docker_exec() {
     if [[ "${SCRIMP_DOCKER_NO_SUDO:-0}" == 1 ]]; then
