@@ -259,9 +259,7 @@ class LinearDAECheckpointHostTests(unittest.TestCase):
         self.assertEqual(len(compare(self.root)["cases"]),4)
 
     def test_rejects_wrong_original_CN_step_power_even_if_old_report_updated(self):
-        folder=self.root/"wave_resume_dummy" if False else (
-            self.root/"wave_restart_from1_to2"
-        )
+        folder=self.root/"wave_restart_from1_to2"
         report=json.loads(
             (folder/"linear_report.json").read_text(encoding="utf-8")
         )
