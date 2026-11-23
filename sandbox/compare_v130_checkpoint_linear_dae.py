@@ -152,25 +152,38 @@ def segment(root,phase,ranks,source=None):
             "Linear DAE accepted full FE state checksum mismatch")
     if phase=="seed":
         state,meta=checkpoint(root,ranks)
-        require(np.array_equal(state,states[-1])
-                and meta["model"]["fingerprint_sha256"]==
-                    r["fingerprint_sha256"],
-                "Production DPHS saved checkpoint differs from seed native FE")
+        require(
+            meta["model"]["fingerprint_sha256"]==r["fingerprint_sha256"],
+            "Original seed checkpoint uses physically different model"
+        )
+        require(
+            np.array_equal(state,states[-1]),
+            "Production DPHS saved checkpoint differs from seed native FE"
+        )
     if phase=="resume":
         state,meta=checkpoint(root,source)
+        # Diagnose the model mismatch BEFORE checking bitwise state
+        # publication, projection, or algebraic residuals. A valid
+        # checkpoint must never be relabeled as a DAE q0 projection bug.
+        require(
+            meta["model"]["fingerprint_sha256"]==r["fingerprint_sha256"],
+            "Cross MPI linear DAE uses physically different model"
+        )
         report=r["initialization_report"]
-        require(np.array_equal(state,states[0])
-                and meta["model"]["fingerprint_sha256"]==
-                    r["fingerprint_sha256"]
-                and report.get("status")==
-                    "COMPLETE_DAE_STATE_COLD_RESTORED_IN_DPHS"
-                and report.get(
-                    "all_GetFEM_and_GlobalVec_coefficients_restored_bitwise"
-                ) is True
-                and report.get("no_pseudo_BDF_or_projection") is True
-                and report.get("PETSc_TS_history_restored") is False
-                and report.get("original_algebraic_residual_l2",float("inf"))<1e-9,
-                "Actual DPHS linear DAE resume projected/changed q0 or violated Fa")
+        require(
+            np.array_equal(state,states[0])
+            and report.get("status")==
+                "COMPLETE_DAE_STATE_COLD_RESTORED_IN_DPHS"
+            and report.get(
+                "all_GetFEM_and_GlobalVec_coefficients_restored_bitwise"
+            ) is True
+            and report.get("no_pseudo_BDF_or_projection") is True
+            and report.get("PETSc_TS_history_restored") is False
+            and report.get(
+                "original_algebraic_residual_l2",float("inf")
+            )<1e-9,
+            "Actual DPHS linear DAE resume projected/changed q0 or violated Fa"
+        )
     return dict(report=r,times=times,states=states,H=h,
                 work=w,power=powers)
 
