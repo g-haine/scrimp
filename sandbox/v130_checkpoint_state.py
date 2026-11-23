@@ -227,16 +227,21 @@ def write_checkpoint(path, *, z, t, provenance, ts_type, accepted, extra=None):
 
 def read_checkpoint(path, *, current_provenance, ts_type="cn"):
     """Validate full source and current model before returning any state."""
-    with np.load(path, allow_pickle=False) as data:
-        if set(data.files) != {"state", "manifest"}:
-            raise ValueError("Incomplete or unknown checkpoint payload")
-        raw = np.asarray(data["manifest"])
-        if raw.ndim != 1 or raw.dtype != np.dtype("uint8"):
-            raise ValueError("Invalid checkpoint metadata encoding")
-        if raw.size > MAX_METADATA_BYTES:
-            raise ValueError("Checkpoint manifest exceeds size cap")
-        header = json.loads(raw.tobytes().decode("utf-8"))
-        state = np.asarray(data["state"])
+    # An explicitly owned file handle is essential here. NumPy may
+    # raise while opening a deliberately truncated/corrupt .npz, before
+    # it has produced an NpzFile context manager. In that case using
+    # np.load(path) directly can leak its internally opened descriptor.
+    with open(path, "rb") as handle:
+        with np.load(handle, allow_pickle=False) as data:
+            if set(data.files) != {"state", "manifest"}:
+                raise ValueError("Incomplete or unknown checkpoint payload")
+            raw = np.asarray(data["manifest"])
+            if raw.ndim != 1 or raw.dtype != np.dtype("uint8"):
+                raise ValueError("Invalid checkpoint metadata encoding")
+            if raw.size > MAX_METADATA_BYTES:
+                raise ValueError("Checkpoint manifest exceeds size cap")
+            header = json.loads(raw.tobytes().decode("utf-8"))
+            state = np.asarray(data["state"])
     if not isinstance(header, dict) or header.get("schema") != SCHEMA:
         raise ValueError("Unsupported checkpoint schema")
     if header.get("kind") != RESTART_KIND or header.get("scheme") != "cn":
