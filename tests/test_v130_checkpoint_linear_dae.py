@@ -73,15 +73,15 @@ class LinearDAECheckpointHostTests(unittest.TestCase):
         if phase=="seed":
             a,b=0.,.02
             z0,z1=self.z0,self.zstar
-            h0,h1,w=0.,.003,.004
+            h0,h1,w=0.,.003,.003
         elif phase=="continuous":
             a,b=0.,.024
             z0,z1=self.z0,self.zend
-            h0,h1,w=0.,.004,.0055
+            h0,h1,w=0.,.004,.004
         else:
             a,b=.02,.024
             z0,z1=self.zstar,self.zend
-            h0,h1,w=.003,.004,.0015
+            h0,h1,w=.003,.004,.001
         name=(f"wave_{phase}_mpi{ranks}" if phase!="resume" else
               f"wave_restart_from{source}_to{ranks}")
         path=self.root/name
@@ -92,8 +92,18 @@ class LinearDAECheckpointHostTests(unittest.TestCase):
             z0+(z1-z0)*k/n for k in range(n+1)
         ],dtype=float)
         H=np.linspace(h0,h1,n+1)
-        power=np.full(n+1,w/(b-a))
-        work=np.linspace(0.,w,n+1)
+        # Native Port.compute records edge/CN midpoint powers for
+        # k>=1, but power[0] is instantaneous at the initial state.
+        # Critically, the initial instantaneous restart sample can
+        # be unrelated to the previous step's power. The old v1
+        # report nonetheless incorrectly integrated all samples
+        # with trapezoids and the wrong sign; the comparator must
+        # transparently correct it WITHOUT rewriting this evidence.
+        power=np.full(n+1,-w/(b-a))
+        power[0]=0.173 if phase=="resume" else 0.
+        work=np.r_[0.,np.cumsum(
+            .5*np.diff(times)*(power[:-1]+power[1:])
+        )]
         result={
             "schema":"scrimp-v130-issue29-linear-DAE-public-API-v1",
             "status":"NATIVE_LINEAR_DAE_SEGMENT_NOT_YET_CROSS_MPI_COMPARED",
@@ -112,7 +122,8 @@ class LinearDAECheckpointHostTests(unittest.TestCase):
                 "full_step_TSCN_residuals":[1e-12]*n,
             },
             "Hamiltonian_initial":h0,"Hamiltonian_final":h1,
-            "boundary_work":w,"dH_minus_W":h1-h0-w,
+            "boundary_work":float(work[-1]),
+            "dH_minus_W":float(h1-h0-work[-1]),
             "initialization_report":{
                 "status":"COMPLETE_DAE_STATE_COLD_RESTORED_IN_DPHS",
                 "all_GetFEM_and_GlobalVec_coefficients_restored_bitwise":True,
@@ -184,6 +195,94 @@ class LinearDAECheckpointHostTests(unittest.TestCase):
             result["status"],"NATIVE_LINEAR_PHDae_DPHS_COLD_RESTART_PASSED"
         )
         self.assertEqual(len(result["cases"]),4)
+
+    def test_native_v1_power_recovered_from_original_stage_samples(self):
+        # A phase-0 instantaneous port power is NOT the CN edge power
+        # used to advance energy at the first resumed time-step.
+        seed=segment(self.root,"seed",1)
+        resumed=segment(self.root,"resume",2,source=1)
+        base=segment(self.root,"continuous",2)
+        self.assertGreater(
+            abs(float(resumed["power"][0]-seed["power"][-1])), .01
+        )
+        self.assertGreater(
+            abs(float(
+                seed["archived_work"][-1]+resumed["archived_work"][-1]
+                -base["archived_work"][-1]
+            )), 1e-5
+        )
+        self.assertAlmostEqual(
+            float(seed["work"][-1]+resumed["work"][-1]),
+            float(base["work"][-1]),places=13
+        )
+        self.assertLess(resumed["max_step_power_defect"],1e-14)
+        self.assertEqual(
+            resumed["archived_work_convention"],
+            "legacy_trapezoidal_endpoint_v1_INCORRECT"
+        )
+
+    def test_v2_native_power_report_uses_CN_midpoint_step_work(self):
+        # A future genuine native simulation writes v2 correctly.
+        name="wave_restart_from1_to2"
+        folder=self.root/name
+        report=json.loads(
+            (folder/"linear_report.json").read_text(encoding="utf-8")
+        )
+        with np.load(folder/"linear_states.npz",allow_pickle=False) as x:
+            data={k:np.asarray(x[k]).copy() for k in x.files}
+        dt=np.diff(data["times"])
+        corrected=np.r_[0.,np.cumsum(-dt*data["port_power"][1:])]
+        data["work"]=corrected
+        report["schema"]="scrimp-v130-issue29-linear-DAE-public-API-v2"
+        report["boundary_work_quadrature"]=(
+            "minus_CN_step_midpoint_port_power_times_dt"
+        )
+        report["maximum_discrete_energy_balance_defect"]=float(
+            np.max(np.abs(
+                np.diff(data["H"])+dt*data["port_power"][1:]
+            ))
+        )
+        report["boundary_work"]=float(corrected[-1])
+        report["dH_minus_W"]=float(
+            data["H"][-1]-data["H"][0]-corrected[-1]
+        )
+        np.savez_compressed(folder/"linear_states.npz",**data)
+        (folder/"linear_report.json").write_text(
+            json.dumps(report),encoding="utf-8"
+        )
+        accepted=segment(self.root,"resume",2,source=1)
+        self.assertEqual(
+            accepted["archived_work_convention"],
+            "corrected_CN_step_port_power_v2"
+        )
+        self.assertLess(accepted["max_step_power_defect"],1e-14)
+        self.assertEqual(len(compare(self.root)["cases"]),4)
+
+    def test_rejects_wrong_original_CN_step_power_even_if_old_report_updated(self):
+        folder=self.root/"wave_resume_dummy" if False else (
+            self.root/"wave_restart_from1_to2"
+        )
+        report=json.loads(
+            (folder/"linear_report.json").read_text(encoding="utf-8")
+        )
+        with np.load(folder/"linear_states.npz",allow_pickle=False) as x:
+            data={k:np.asarray(x[k]).copy() for k in x.files}
+        data["port_power"][1]*=1.5
+        dt=np.diff(data["times"])
+        old=np.r_[0.,np.cumsum(
+            .5*dt*(data["port_power"][:-1]+data["port_power"][1:])
+        )]
+        data["work"]=old
+        report["boundary_work"]=float(old[-1])
+        report["dH_minus_W"]=float(
+            data["H"][-1]-data["H"][0]-old[-1]
+        )
+        np.savez_compressed(folder/"linear_states.npz",**data)
+        (folder/"linear_report.json").write_text(
+            json.dumps(report),encoding="utf-8"
+        )
+        with self.assertRaisesRegex(ValueError,"POWER balance failed"):
+            segment(self.root,"resume",2,source=1)
 
     def test_rejects_missing_cross_MPI_run(self):
         (self.root/"wave_restart_from1_to2"/"linear_states.npz").unlink()
