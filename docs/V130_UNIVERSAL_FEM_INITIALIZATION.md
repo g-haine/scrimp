@@ -264,3 +264,28 @@ modify the production mass bridge to paper over a failed test.
 The same MPI1/2 coefficient and physical-field comparisons
 must be rerun. Only after the distributed reference passes
 should the faster COO path be tested separately.
+
+## 23 November 2026 — distributed MPI1/2 native qualification
+
+User native output `v130-fe-default-mpi-9b8e34c7-wndKnTX1`
+reported `PASS_DEFAULT_L2_MPI1_MPI2_COEFFICIENTS_AND_FIELDS`
+for CG2 scalar, CG1 vector, RT0, BDM1, Nedelec, Argyris, Gaussian
+and a numeric `lumped_variable`. The largest cross-MPI relative
+coefficient difference is `2.321088974812009e-11` (Argyris),
+below acceptance 1e-9. Both MPI2 ranks report RHS scale 1.0,
+and GetFEM integrated reference norms agree at roundoff.
+This qualifies **distributed IJV/ADD_VALUES** at MPI1/2,
+not the replicated bridge (which had failed with KSP -11).
+
+For safety, the production FE project now refuses MPI>1
+when `SCRIMP_GETFEM_MATRIX_MODE` is not `distributed`.
+Its default IJV transfer remains native-qualified.
+Experimental `SCRIMP_FE_INITIAL_COO=1` is only permitted
+with `SCRIMP_GETFEM_MATRIX_MODE=distributed` and
+`SCRIMP_GETFEM_BRIDGE_DISTRIBUTED=coo`; this opts into
+the existing PETSc COO mass assembly, which needs its own
+MPI1/2 comparison before qualification.
+
+Neither this test nor a future COO transfer pass establishes
+coupled DAE feasibility, Heat-Wave energy/power, or
+time-trajectory PDE acceptance.

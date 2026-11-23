@@ -34,6 +34,16 @@ def actual_real_coefficient_bridge():
     return env["real_getfem_projection_coefficients"]
 
 
+def actual_transfer_policy():
+    tree = ast.parse(PROJECTION.read_text(encoding="utf-8"))
+    method = next(n for n in tree.body if isinstance(n, ast.FunctionDef)
+                  and n.name == "fe_projection_transfer_policy")
+    env = {}
+    exec(compile(ast.Module(body=[method], type_ignores=[]),
+                 str(PROJECTION), "exec"), env)
+    return env["fe_projection_transfer_policy"]
+
+
 def actual_rhs_scaler():
     tree = ast.parse(PROJECTION.read_text(encoding="utf-8"))
     method = next(n for n in tree.body if isinstance(n, ast.FunctionDef)
@@ -55,6 +65,37 @@ def actual_expression_translator():
     exec(compile(ast.Module(body=[method], type_ignores=[]),
                  str(PROJECTION), "exec"), env)
     return env["python_expression_to_gwfl"]
+
+
+class GetFEMMPITransferPolicyTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.policy = staticmethod(actual_transfer_policy())
+
+    def test_replicated_mpi2_rejected(self):
+        with self.assertRaisesRegex(ValueError, "requires .*distributed"):
+            self.policy(2, "replicated", "0", "csr")
+
+    def test_distributed_ijv_remains_qualified_reference(self):
+        self.assertFalse(self.policy(2, "distributed", "0", "csr"))
+        self.assertFalse(self.policy(2, "distributed", "0", "coo"))
+        self.assertFalse(self.policy(1, "replicated", "0", "coo"))
+
+    def test_coo_experiment_requires_explicit_opt_in(self):
+        self.assertTrue(self.policy(2, "distributed", "1", "coo"))
+        with self.assertRaisesRegex(ValueError, "Experimental"):
+            self.policy(2, "distributed", "1", "csr")
+
+    def test_invalid_mode_and_opt_in_fail_closed(self):
+        with self.assertRaises(ValueError):
+            self.policy(2, "unknown", "0", "csr")
+        with self.assertRaises(ValueError):
+            self.policy(2, "distributed", "yes", "coo")
+
+    def test_actual_bridge_is_explicitly_gated(self):
+        src=PROJECTION.read_text(encoding="utf-8")
+        self.assertIn("coo_eligible = fe_projection_transfer_policy(",src)
+        self.assertIn("distributed_coo_eligible=coo_eligible",src)
 
 
 class GetFEMMPIProjectionRHSScaleTests(unittest.TestCase):

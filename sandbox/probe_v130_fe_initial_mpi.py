@@ -270,6 +270,9 @@ def main():
         "getfem_rhs_multiplicative_scale":factor,
         "getfem_matrix_mode": mode,
         "getfem_distributed_bridge": bridge,
+        "fe_initial_experimental_coo": (
+            os.environ.get("SCRIMP_FE_INITIAL_COO", "0") == "1"
+        ),
         "cases":rows,
         "MPI2_qualified":False,
         "DAE_and_full_physics_qualified":False,
