@@ -991,3 +991,62 @@ incompatible Saint-Venant p0 remains unchanged;
 restored saved state is physically compatible,
 but reaching the C1 wall plateau does NOT imply
 interior stationary rotation.
+
+### 23 November 2026 — linear second-model host preflight: 6/7; diagnostic specificity corrected (native pending)
+
+The user ran the staged second-independent-model
+`tests/test_v130_checkpoint_linear_dae.py`
+at source `5c9d924`:
+Python `py_compile` for both linear DAE probes and
+test file PASS, `bash -n` for the 8-case native
+runner PASS; **7 synthetic host tests executed,
+6 PASS, 1 FAIL**. The only failing test,
+`test_rejects_wrong_model_fingerprint`,
+correctly rejected a tampered resumed segment
+report, but the comparator merged its model
+SHA mismatch into a broad
+`Actual DPHS linear DAE resume projected/changed
+q0 or violated Fa` error, whereas the negative
+test required the more accurate
+`physically different model` reason.
+
+**Fix staged on the source branch**:
+`sandbox/compare_v130_checkpoint_linear_dae.py`
+checks the accepted checkpoint's exact original
+FE/weak-form model fingerprint against the
+restored report *before* inspecting full state
+byte equality or DAE constraints; seed source
+fingerprint checks are likewise isolated.
+This retains every previous strict
+fail-closed safeguard. New explicit tests
+separately cover (a) a **syntactically valid
+but physically different 64-hex-digit model
+hash** in restart, (b) wrong seed-model
+fingerprint, and (c) a genuine false
+`no_pseudo_BDF_or_projection` restart flag
+with otherwise identical physical model.
+There are now **9 synthetic host regression
+tests** for the second model. No SWE/native
+physics, PETSc solver, checkpoint format or
+numerical acceptance threshold changed.
+
+**Status**: new 9/9 host tests are NOT YET
+confirmed by a rerun; **zero native second
+linear DAE trials have yet been observed**.
+Issue #29 remains OPEN. Actual production
+DPHS checkpoint API's earlier original
+Saint-Venant native **16/16 PASS** evidence
+remains unchanged.
+
+Revalidate before Docker:
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+python tests/test_v130_checkpoint_linear_dae.py
+bash -n scripts/run-v130-checkpoint-linear-dae.sh
+
+# Only if the host suite passes 9/9:
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-checkpoint-linear-dae.sh
+```
