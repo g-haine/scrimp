@@ -15,14 +15,28 @@ if [[ "${1:-}" == "--compare-only" ]]; then
     python3 sandbox/compare_v130_checkpoint_restart.py --evidence "$2"
     exit 0
 fi
-[[ "$#" == 0 ]] || { echo "Usage: $0 [--compare-only <evidence-dir>]" >&2; exit 2; }
+resume_dir=""
+if [[ "${1:-}" == "--resume" ]]; then
+    [[ "$#" == 2 ]] || {
+        echo "Usage: $0 --resume <existing-host-evidence-directory>" >&2
+        exit 2
+    }
+    resume_dir="$2"
+else
+    [[ "$#" == 0 ]] || {
+        echo "Usage: $0 [--resume <existing-evidence-dir> | --compare-only <evidence-dir>]" >&2
+        exit 2
+    }
+fi
 
 # Catch Python grammar failures BEFORE any Docker image is launched.
 python3 -m py_compile \
     sandbox/v130_checkpoint_state.py \
     sandbox/probe_v130_checkpoint_restart.py \
     sandbox/compare_v130_checkpoint_restart.py \
-    tests/test_v130_checkpoint_state.py
+    tests/test_v130_checkpoint_state.py \
+    tests/test_v130_checkpoint_restart.py \
+    sandbox/validate_v130_checkpoint_case.py
 python3 tests/test_v130_checkpoint_state.py
 python3 tests/test_v130_checkpoint_restart.py
 
@@ -48,15 +62,64 @@ files=(
     sandbox/probe_v130_issue28_one_cn_spinup.py
     sandbox/v130_checkpoint_state.py sandbox/probe_v130_checkpoint_restart.py
     sandbox/compare_v130_checkpoint_restart.py
+    sandbox/validate_v130_checkpoint_case.py
 )
 for f in "${files[@]}"; do
     [[ -s "$f" ]] || { echo "Missing source $f" >&2; exit 2; }
 done
 mkdir -p sandbox/outputs
 sha="$(git rev-parse HEAD)"
-out="$(mktemp -d "$root/sandbox/outputs/v130-issue29-cold-restart-$(git rev-parse --short=8 HEAD)-XXXXXXXX")"
-printf '{"schema":"scrimp-v130-issue29-runner-v1","source":"%s","image_revision":"%s","original_physics_untouched":true,"cold_state_restart_only":true,"source_spinup_time":0.02,"physical_final_time":0.024}\n' \
-    "$sha" "$revision" > "$out/manifest.json"
+if [[ -n "$resume_dir" ]]; then
+    out="$(realpath -e -- "$resume_dir")"
+    [[ "$out" == "$root/sandbox/outputs/"* ]] || {
+        echo "Refusing --resume outside the host-owned sandbox/outputs directory" >&2
+        exit 2
+    }
+    [[ -s "$out/manifest.json" ]] || {
+        echo "Refusing --resume: missing original evidence manifest" >&2
+        exit 2
+    }
+    # Source commit is recorded by the original native evidence. It
+    # need not equal HEAD after this launcher is fixed, but the physics,
+    # solver, checkpoint schema and native probe must be IDENTICAL.
+    source_sha="$(python3 - "$out/manifest.json" "$revision" <<'PY'
+import json, re, sys
+from pathlib import Path
+p = Path(sys.argv[1])
+doc = json.loads(p.read_text(encoding="utf-8"))
+assert doc.get("schema") == "scrimp-v130-issue29-runner-v1"
+assert doc.get("original_physics_untouched") is True
+assert doc.get("cold_state_restart_only") is True
+assert doc.get("source_spinup_time") == 0.02
+assert doc.get("physical_final_time") == 0.024
+assert doc.get("image_revision") == sys.argv[2]
+source = doc.get("source", "")
+assert re.fullmatch(r"[a-f0-9]{40}", source)
+print(source)
+PY
+)" || { echo "Invalid original evidence manifest" >&2; exit 2; }
+    git merge-base --is-ancestor "$source_sha" "$sha" || {
+        echo "Refusing --resume: original native source is not a HEAD ancestor" >&2
+        exit 2
+    }
+    if ! git diff --quiet "$source_sha" "$sha" -- \
+        scrimp/dphs.py scrimp/port.py scrimp/utils/mesh.py \
+        scrimp/utils/dae_initialization.py scrimp/utils/nonlinear_affine_dae.py \
+        sandbox/viscous_swe_2d_mpi.py \
+        sandbox/probe_v130_issue28_structure.py \
+        sandbox/probe_v130_issue28_weak_wall.py \
+        sandbox/probe_v130_issue28_one_cn_spinup.py \
+        sandbox/v130_checkpoint_state.py \
+        sandbox/probe_v130_checkpoint_restart.py; then
+        echo "Refusing --resume: production physics, solver or native probe changed" >&2
+        exit 2
+    fi
+    echo "RESUMING immutable native evidence from source=$source_sha"
+else
+    out="$(mktemp -d "$root/sandbox/outputs/v130-issue29-cold-restart-$(git rev-parse --short=8 HEAD)-XXXXXXXX")"
+    printf '{"schema":"scrimp-v130-issue29-runner-v1","source":"%s","image_revision":"%s","original_physics_untouched":true,"cold_state_restart_only":true,"source_spinup_time":0.02,"physical_final_time":0.024}\n' \
+        "$sha" "$revision" > "$out/manifest.json"
+fi
 
 echo "#29 TRUE native accepted-state GetFEM/PETSc cold restart; NO TS history"
 echo "Source=$sha, image=$image OCI=$revision"
@@ -67,6 +130,28 @@ echo "Full host-owned evidence: $out"
 run_case() {
     local mesh="$1" phase="$2" ranks="$3" case_dir="$4" checkpoint="$5"
     local work="$out/work_${case_dir}" dest="$out/${case_dir}" log="$out/${case_dir}.log"
+    local validate=(python3 sandbox/validate_v130_checkpoint_case.py
+        --evidence "$out" --mesh "$mesh" --phase "$phase" --ranks "$ranks")
+    if [[ "$phase" == resume ]]; then
+        # h0p2_restart_from1_to2 -> source_rank=1
+        local original_rank="${case_dir#*_restart_from}"
+        original_rank="${original_rank%%_to*}"
+        validate+=(--source-ranks "$original_rank")
+    fi
+    if [[ -e "$log" || -e "$dest/segment_report.json" ||
+          -e "$dest/segment_states.npz" ]]; then
+        if [[ -z "$resume_dir" ]]; then
+            echo "Refusing to overwrite existing native case evidence: $case_dir" >&2
+            exit 1
+        fi
+        echo "VERIFY existing native case before skipping $case_dir"
+        "${validate[@]}" || {
+            echo "FAIL: partial or invalid case cannot be skipped: $case_dir" >&2
+            exit 1
+        }
+        echo "SKIP valid original native evidence $case_dir"
+        return 0
+    fi
     mkdir -p "$work" "$dest"
     echo "RUN mesh=$mesh phase=$phase MPI=$ranks case=$case_dir"
     if ! docker_exec run --rm \
@@ -104,7 +189,18 @@ run_case() {
         tail -n 130 "$log" >&2
         exit 1
     fi
-    grep -aE 'CHECKPOINT (PHASE|RESTORE) ' "$log"
+    # Real native success is CHECKPOINT PHASE=seed (EQUALS).
+    # The old regex required a SPACE after PHASE and silently killed
+    # the whole runner under set -e, even after a successful TS step.
+    if ! grep -aE 'CHECKPOINT (PHASE=|RESTORE )' "$log"; then
+        echo "FAIL: native success marker missing from $log" >&2
+        tail -n 60 "$log" >&2
+        exit 1
+    fi
+    "${validate[@]}" || {
+        echo "FAIL: native case evidence not valid: $case_dir" >&2
+        exit 1
+    }
 }
 for mesh in 0.2 0.1; do
     label="h${mesh/./p}"
