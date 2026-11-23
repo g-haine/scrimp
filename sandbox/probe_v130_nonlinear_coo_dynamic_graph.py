@@ -92,7 +92,7 @@ def main():
     if not args.out.parent.is_dir() or args.out.exists():
         raise RuntimeError("Host evidence path must be new and writable")
 
-    mesh = gf.Mesh("regular simplices", np.linspace(0.,1.,6))
+    mesh = gf.Mesh("cartesian", np.linspace(0.,1.,6))
     mim = gf.MeshIm(mesh, gf.Integ("IM_GAUSS1D(5)"))
     model0 = getfem_matrix(mesh, mim, coupled=False)
     model1 = getfem_matrix(mesh, mim, coupled=True)
