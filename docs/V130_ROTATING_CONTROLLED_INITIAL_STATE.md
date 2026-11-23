@@ -294,7 +294,7 @@ model's balance defect normalized by the *small work exchanged only
 within that segment*. That number does **not** contradict restart
 equivalence and is not the acceptance criterion for this feature.
 
-### Generalizing to full-path equivalence (new staged gate)
+### Generalizing to full-path equivalence (qualified gate)
 
 `sandbox/probe_v130_rotating_controlled_ic.py` and
 `scripts/run-v130-rotating-controlled-ic.sh` now support a
@@ -349,12 +349,62 @@ directory with a manifest, per-case logs, `*.parity.json` verdicts
 and an aggregate `summary.json`. No existing user-owned output
 directory is deleted or overwritten.
 
-**Staged only:** these new full-trajectory native results must be
-collected from the qualified Docker host before claiming the full
-8/8 campaign PASS. Separate higher-order, MPI4, t>75 active
-normal-feedback and mathematical long-time stationary questions are
-not silently claimed. The existing #29 cold checkpoint API evidence
-remains unchanged.
+### Full 8/8 NATIVE PASS — 23 November 2026
+
+The user ran the actual complete native campaign from source
+`2119bc551c6cc25a664e59fb2a6962af1a5202ed` under
+`scrimp-mpi:v1.3.0-rc3`. Original host evidence directory:
+
+```text
+sandbox/outputs/v130-rotating-parity-2119bc55-OtGpBAwi
+```
+
+The uploaded ZIP `v130-rotating-.zip` has **valid CRC for all members**,
+contains all 16 individual native run directories, their production
+`accepted_state.npz` checkpoints and original `initial_state_trace.npz`
+arrays, plus the campaign manifest, 8 comparison JSON reports and
+`summary.json`. All of these results were additionally checked
+directly from the original NPZ arrays independently of the runner.
+
+Each case used original curved P2 disk, `gamma=.25`,
+`dt=.002`, physical spinup from rest `0→.02`, and continuous
+reference `0→.024` versus cold checkpoint continuation
+`.02→.024`. Every native segment accepted all TSCN steps, with
+zero rejected steps/SNES failures and native `F_a`/`F_TSCN`
+within their independently qualified thresholds.
+
+| Mesh | Full original FE DoFs | Checkpoint MPI | Max full-path FE L2 error | Max discrepancy in H+D−W |
+|---|---:|---|---:|---:|
+| 0.2 | 3300 | 1→1 | 1.65829742e-13 | 4.47558657e-16 |
+| 0.2 | 3300 | 1→2 | 2.24551458e-13 | 1.02157866e-14 |
+| 0.2 | 3300 | 2→1 | 2.32118847e-13 | 9.76822789e-15 |
+| 0.2 | 3300 | 2→2 | 1.78483582e-13 | 8.88178420e-16 |
+| 0.1 | 10272 | 1→1 | 1.45135103e-13 | 1.33226763e-15 |
+| 0.1 | 10272 | 1→2 | 1.61193961e-13 | 5.46228644e-14 |
+| 0.1 | 10272 | 2→1 | 1.59277967e-13 | 5.46228644e-14 |
+| 0.1 | 10272 | 2→2 | 1.64218558e-13 | 4.45823933e-16 |
+
+**Aggregate native verdict:
+`PASS_COMPLETE_NATIVE_CHECKPOINT_PARITY_CAMPAIGN`; 8/8 PASS,
+maximum trajectory error `2.321188465396335e-13`, maximum
+`H+D−W` parity discrepancy `5.4622864391340453e-14`.**
+
+This is SCRIMP's **pause/restart fidelity** gate, not a proof of
+exact discrete energy conservation or a mathematical statement about
+time-discretization consistency. The same nonzero numerical-model
+energy-balance defect occurs in continuous and restarted trajectories
+and is deliberately recorded, **not an independent gate** for
+checkpoint equivalence. Original physical weak forms, numerical
+time scheme, and production `DPHS` checkpoint implementation were
+not altered for this campaign.
+
+**Scope qualification:** these native results establish full-path
+cold restart parity at h=.2/.1, MPI 1 and 2 and gamma=.25 in the
+`0→.024` pre-feedback time window, for fixed TSCN dt=.002.
+They do **not** claim MPI4, time-step-adaptive history replay,
+long-time stationary rotating flows, t>75 normal-feedback-active
+restarts, or model energy accuracy. Existing #29 production public
+checkpoint evidence remains separately valid.
 
 ## Safety, provenance and release scope
 

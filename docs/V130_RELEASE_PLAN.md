@@ -10,7 +10,14 @@
 > mathematical model/discretization question, NOT a SCRIMP checkpoint
 > error or a reason to reject an otherwise identical trajectory.
 > Dedicated native full-trajectory MPI 1/2 × h=.2/.1 parity campaign
-> staged (8 comparisons, results PENDING):
+> **QUALIFIED 23 November 2026: 16 native runs, 8/8 comparisons PASS**;
+> all 3300/10272 original FE coefficients compared at every time step,
+> maximum complete trajectory L2 error 2.321188465396335e-13,
+> maximum discrepancy of the common H+D-W numerical-model defect
+> 5.4622864391340453e-14. Source 2119bc55; original immutable host
+> evidence `v130-rotating-parity-2119bc55-OtGpBAwi`; user-provided ZIP
+> verified independently. Does not qualify MPI4, t>75 closed-loop feedback,
+> adaptive TS history restoration or mathematical energy accuracy:
 > [V130_ROTATING_CONTROLLED_INITIAL_STATE.md](V130_ROTATING_CONTROLLED_INITIAL_STATE.md).
 >
 > **Scope decisions — 23 November 2026:** #23's GetFEM MPI-2 raw-RHS anomaly
