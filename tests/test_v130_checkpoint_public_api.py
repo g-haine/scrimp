@@ -14,19 +14,29 @@ Full numerical DPHS.restore must still be verified with native PETSc.
 import ast
 import importlib.util
 from pathlib import Path
+import sys
 import tempfile
 import unittest
 
 import numpy as np
 
-from tests.test_v130_checkpoint_state import System
-from sandbox.v130_checkpoint_state import (
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT/"sandbox"))
+from v130_checkpoint_state import (
     model_provenance as sandbox_provenance,
     read_checkpoint as sandbox_read_checkpoint,
     write_checkpoint as sandbox_write_checkpoint,
 )
 
-ROOT = Path(__file__).resolve().parents[1]
+# The host-only fake is loaded by exact path to avoid importing any
+# unrelated installed "tests" namespace or SCRIMP's native dependencies.
+fixture_path = ROOT/"tests"/"test_v130_checkpoint_state.py"
+fake_spec = importlib.util.spec_from_file_location(
+    "_scrimp_checkpoint_native_free_fakes", fixture_path
+)
+fake_module = importlib.util.module_from_spec(fake_spec)
+fake_spec.loader.exec_module(fake_module)
+System = fake_module.System
 PATH = ROOT/"scrimp"/"utils"/"dae_checkpoint.py"
 spec = importlib.util.spec_from_file_location("_scrimp_checkpoint_host", PATH)
 production = importlib.util.module_from_spec(spec)
