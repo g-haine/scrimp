@@ -20,7 +20,19 @@ import re
 import numpy as np
 
 from compare_v130_checkpoint_public_api import segment
-from scrimp.utils.dae_checkpoint import read_checkpoint, sha256
+# Host-only audit must NOT import scrimp.__init__:
+# scrimp initializes PETSc with sys.argv and treats --evidence/--mesh
+# as unused PETSc options. Load this pure NumPy/JSON helper by exact file.
+import importlib.util
+ROOT = Path(__file__).resolve().parents[1]
+_spec = importlib.util.spec_from_file_location(
+    "_scrimp_native_checkpoint_host_audit",
+    ROOT / "scrimp" / "utils" / "dae_checkpoint.py",
+)
+_checkpoint_runtime = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_checkpoint_runtime)
+read_checkpoint = _checkpoint_runtime.read_checkpoint
+sha256 = _checkpoint_runtime.sha256
 
 MESHES = (0.2, 0.1)
 RANKS = (1, 2)
