@@ -5,8 +5,8 @@
 #
 # See the LICENSE file for license information.
 #
-# Native comparison of default FE L2 initialization: qualified
-# distributed IJV vs explicitly experimental distributed PETSc COO.
+# Optional research comparison of historical IJV transfer and
+# standard distributed PETSc COO assembly, both producing AIJ matrices.
 set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
@@ -26,23 +26,21 @@ mkdir -p sandbox/outputs
 out="$(mktemp -d "$root/sandbox/outputs/v130-fe-initial-coo-$(git rev-parse --short=8 HEAD)-XXXXXXXX")"
 printf '{"schema":"scrimp-v130-fe-initial-coo-comparison-v1","source":"%s","image_revision":"%s"}\n' \
  "$(git rev-parse HEAD)" "$revision" > "$out/manifest.json"
-echo "Native GetFEM->PETSc distributed IJV reference vs opt-in COO"
-echo "Same original FE L2 default, eight test cases and MPI 1/2"
+echo "Research diagnostic: historical IJV transfer vs standard COO assembly"
+echo "Same default FE L2, eight test cases and MPI 1/2"
 echo "No release/tag changes; DAE/PDE physics not qualified"
 echo "EVIDENCE: $out"
 for bridge in ijv coo; do
  for ranks in 1 2; do
   folder="$out/${bridge}-${ranks}r"
   mkdir "$folder"
-  if [[ "$bridge" == "coo" ]]; then experimental=1; else experimental=0; fi
-  echo "RUN bridge=$bridge ranks=$ranks"
+  echo "RUN transfer=$bridge ranks=$ranks"
   if ! "${docker_cmd[@]}" run --rm \
     --user "$(id -u):$(id -g)" \
     --env HOME=/tmp --env PYTHONPATH=/workspace/scrimp \
     --env SCRIMP_GETFEM_MATRIX_MODE=distributed \
     --env SCRIMP_GETFEM_BRIDGE_DISTRIBUTED="$bridge" \
-    --env SCRIMP_FE_INITIAL_COO="$experimental" \
-    --env OMP_NUM_THREADS=1 --env OPENBLAS_NUM_THREADS=1 \
+      --env OMP_NUM_THREADS=1 --env OPENBLAS_NUM_THREADS=1 \
     --volume "$root/scrimp:/workspace/scrimp/scrimp:ro" \
     --volume "$root/sandbox/probe_v130_fe_initial_mpi.py:/pilot.py:ro" \
     --volume "$root/sandbox/probe_v130_universal_fem_initialization.py:/original_pilot.py:ro" \
@@ -82,7 +80,7 @@ for mode in ("ijv", "coo"):
             assert check["mpi_ranks"] == count
             assert check["getfem_matrix_mode"] == "distributed"
             assert check["getfem_distributed_bridge"] == mode
-            assert check["fe_initial_experimental_coo"] == (mode == "coo")
+            assert check["fe_initial_standard_coo_bridge"] == (mode == "coo")
 
 for name, first in reference["cases"].items():
     discrepancies, physical = [], []
@@ -122,7 +120,7 @@ for name, first in reference["cases"].items():
 
 summary = {
     "schema": "scrimp-v130-fe-initial-coo-comparison-v1",
-    "status": "PASS_EXPERIMENTAL_COO_EQUALS_IJV_MPI1_MPI2",
+    "status": "PASS_STANDARD_COO_EQUALS_HISTORICAL_IJV_MPI1_MPI2",
     "cases": comparison,
     "production_coo_default_enabled": False,
     "DAE_and_full_physics_qualified": False,

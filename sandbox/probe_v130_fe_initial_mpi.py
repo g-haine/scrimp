@@ -216,10 +216,10 @@ def main():
     bridge = os.environ.get(
         "SCRIMP_GETFEM_BRIDGE_DISTRIBUTED", ""
     ).strip().lower()
-    if bridge not in ("csr", "ijv"):
+    if bridge not in ("coo", "csr", "ijv"):
         raise RuntimeError(
-            "First reference native MPI FE gate requires csr/IJV "
-            f"distributed transfer (got {bridge!r})"
+            "Unknown GetFEM/PETSc distributed bridge "
+            f"{bridge!r}; expected standard coo or legacy csr/ijv"
         )
 
     factor = float(_getfem_mpi_rhs_scale())
@@ -270,9 +270,7 @@ def main():
         "getfem_rhs_multiplicative_scale":factor,
         "getfem_matrix_mode": mode,
         "getfem_distributed_bridge": bridge,
-        "fe_initial_experimental_coo": (
-            os.environ.get("SCRIMP_FE_INITIAL_COO", "0") == "1"
-        ),
+        "fe_initial_standard_coo_bridge": bridge == "coo",
         "cases":rows,
         "MPI2_qualified":False,
         "DAE_and_full_physics_qualified":False,

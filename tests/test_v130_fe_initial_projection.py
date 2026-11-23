@@ -231,11 +231,12 @@ class UniversalFEInitialExpressionTests(unittest.TestCase):
             "--env SCRIMP_GETFEM_MATRIX_MODE=distributed", runner
         )
         self.assertIn(
-            "--env SCRIMP_GETFEM_BRIDGE_DISTRIBUTED=csr", runner
+            "--env SCRIMP_GETFEM_BRIDGE_DISTRIBUTED=coo", runner
         )
         self.assertNotIn(
             "--env SCRIMP_GETFEM_MATRIX_MODE=replicated", runner
         )
+        self.assertNotIn("SCRIMP_FE_INITIAL_COO", runner)
         pilot = (
             ROOT / "sandbox/probe_v130_fe_initial_mpi.py"
         ).read_text(encoding="utf-8")

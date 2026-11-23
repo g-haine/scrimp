@@ -5,7 +5,8 @@
 #
 # See the LICENSE file for license information.
 #
-# Native MPI1/2 universal sparse FE projection and lumped numeric gate.
+# Native MPI1/2 universal sparse FE projection using standard COO
+# mass assembly and PETSc AIJ/CSR storage; lumped numeric gate.
 set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
@@ -27,7 +28,7 @@ out="$(mktemp -d "$root/sandbox/outputs/v130-fe-default-mpi-$(git rev-parse --sh
 printf '{"schema":"scrimp-v130-default-fe-l2-mpi-gate-v1","source":"%s","image_revision":"%s"}\n' \
  "$(git rev-parse HEAD)" "$revision" > "$out/manifest.json"
 echo "Original GetFEM MPI level 2, PETSc sparse MUMPS, DEFAULT L2 projection"
-echo "GetFEM -> PETSc MATRIX MODE: distributed; reference IJV/ADD_VALUES bridge"
+echo "GetFEM -> PETSc MATRIX MODE: distributed; standard COO assembly into PETSc AIJ"
 echo "CG2 scalar, CG1 vector, RT0, BDM1, Nedelec, Argyris, Gaussian + lumped"
 echo "MPI 1/2, rank agreement, cross-MPI global coefficient comparison"
 echo "Actual DAE feasibility, energy/power and PDE convergence NOT qualified"
@@ -39,7 +40,7 @@ for ranks in 1 2; do
    --user "$(id -u):$(id -g)" \
    --env HOME=/tmp --env PYTHONPATH=/workspace/scrimp \
    --env SCRIMP_GETFEM_MATRIX_MODE=distributed \
-   --env SCRIMP_GETFEM_BRIDGE_DISTRIBUTED=csr \
+   --env SCRIMP_GETFEM_BRIDGE_DISTRIBUTED=coo \
    --env OMP_NUM_THREADS=1 --env OPENBLAS_NUM_THREADS=1 \
    --volume "$root/scrimp:/workspace/scrimp/scrimp:ro" \
    --volume "$root/sandbox/probe_v130_fe_initial_mpi.py:/pilot.py:ro" \

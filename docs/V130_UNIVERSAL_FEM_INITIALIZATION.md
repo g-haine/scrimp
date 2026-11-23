@@ -289,3 +289,36 @@ MPI1/2 comparison before qualification.
 Neither this test nor a future COO transfer pass establishes
 coupled DAE feasibility, Heat-Wave energy/power, or
 time-trajectory PDE acceptance.
+
+## 23 November 2026 — unify FE projection with standard linear COO bridge
+
+The user identified a conceptual mismatch in the pilot's naming:
+COO is the **assembly insertion API**, whereas the resulting PETSc
+matrix is AIJ/CSR-like sparse storage; they are not two competing
+mathematical FE initialization methods. The previous pilot
+temporarily selected the historical IJV/ADD_VALUES transfer, which
+was useful as a stable MPI1/2 reference but does not certify the
+standard linear-matrix COO path.
+
+The FE L2 mass matrix now follows the **same
+`distributed_coo_eligible=True` path as DPHS's initial linear mass
+and stiffness** whenever `SCRIMP_GETFEM_MATRIX_MODE=distributed`
+(the standard bridge setting defaults to
+`SCRIMP_GETFEM_BRIDGE_DISTRIBUTED=coo`). The extra
+`SCRIMP_FE_INITIAL_COO` option was removed; no second FE-specific
+switch is needed. Serial `replicated` remains compatible; MPI>1
+`replicated` is still rejected because GetFEM's rank-local matrix
+must not be mistaken for a fully replicated global one.
+
+The standard MPI1/2 runner now checks COO directly and compares
+coefficients, physical field reconstruction, and a numeric lumped
+initial value. The historical IJV-vs-COO comparison runner remains
+optional research instrumentation, not a production choice.
+COO projection in this new call site remains **pending the native
+rerun**. No pH-DAE, Heat-Wave trajectory or power balance is
+qualified by these source-only changes.
+
+Other non-linear Jacobian/dynamic GetFEM call sites still use a
+historical IJV fallback as documented in `convert_gmm_to_petsc`.
+This change does NOT assert that all SCRIMP matrix assembly call
+sites were already converted to COO.
