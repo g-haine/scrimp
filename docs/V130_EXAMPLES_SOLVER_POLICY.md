@@ -193,7 +193,18 @@ outputs remain strictly untouched.
 Detailed formulation, comparison with the 2022
 paper, and scientific acceptance criteria are in
 [V130_HEAT_WAVE_PHYSICAL_AUDIT.md](V130_HEAT_WAVE_PHYSICAL_AUDIT.md).
-**Native status: PENDING.**
+**Native status: PENDING.** Initial native MUMPS
+attempt at source `8286f18d` established
+DG0/RT0/CG1 MeshFem creation but was halted
+by SCRIMP's *core* filtered RT0 initialization:
+3111 wave RT DOFs with qdim=2 were erroneously
+reshaped to (2,1555). This is now corrected
+generically in `DPHS.set_initial_value()`,
+using the raw 1D intrinsic-FE coefficient order,
+with new host-only negative regressions.
+No actual CN trajectory/power balance has
+been obtained yet. Details in
+[V130_HEAT_WAVE_PHYSICAL_AUDIT.md](V130_HEAT_WAVE_PHYSICAL_AUDIT.md).
 
 
 ## Inventory (source at current release/1.3.0-preparation; 23 November 2026)

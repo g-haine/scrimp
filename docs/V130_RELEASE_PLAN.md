@@ -1519,6 +1519,18 @@ reproducible container walkthrough. This covers #26.
 > CN steps and compare complete physical FE
 > trajectories, without declaring coupling
 > physics correct merely from solver parity.
+> **First RT0-native run failed before assembly:**
+> all correct FEM types were instantiated, but
+> `DPHS.set_initial_value("q")` tried to
+> reshape **3111** RT0 face flux coefficients
+> into (2,1555), a false component-wise
+> nodal-space assumption. The core now keeps
+> GetFEM's original filtered 1D DOF ordering;
+> a dedicated regression exercises the actual
+> production method with odd RT0, CG, scalar,
+> zero and malformed index cases. This is
+> a **core initialization repair only**, not
+> validation of the revised Heat–Wave physics.
 > **No new native physical PASS yet.**
 > Details: [V130_HEAT_WAVE_PHYSICAL_AUDIT.md](V130_HEAT_WAVE_PHYSICAL_AUDIT.md).
 > Saint-Venant remains a separate unchanged BDF2 scope.

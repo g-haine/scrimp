@@ -155,6 +155,52 @@ Gaussian initially satisfies every constraint.
 
 No implicit adaptive BDF2 property is asserted.
 
+## First native mixed-RT integration result: core initializer bug (OPEN)
+
+Actual qualified Docker `scrimp-mpi:v1.3.0-rc3`, source
+`8286f18dc87ba97b4bc690e5dbd85316f84e9f14`,
+evidence ZIP `v130-main-2d-lu-8286f18d-zY4Twrpi.zip`
+(11 entries, integrity PASS). The run was stopped at
+`DPHS.set_initial_value("q","[0.,0.]")` **before**
+mass/stiffness assembly, consistent initialization,
+PETSc solve, Hamiltonian calculation or output validation.
+The archive contains the source log and initial mesh,
+but **no accepted numerical trajectory or physical
+energy results**. Hence no new physical conclusion.
+
+All intrinsic mixed FEMs instantiated successfully:
+`T DG0`, heat flux `RT0`, wave velocity `CG1`,
+wave stress `RT0`, interface and boundary `CG1`.
+The wave-region RT0 restriction produced **3111
+coefficients** (whole MeshFem `nbdof=4794`,
+physical vector `qdim=2`). The legacy
+`DPHS.set_initial_value` incorrectly forced
+`reshape((qdim, int(3111/qdim)))` and raised
+`ValueError: cannot reshape array of size 3111 into
+shape (2,1555)`. RT/BDM intrinsic FE coefficients
+are face flux moments, not component-wise nodal values.
+A valid odd-length 3111-vector is completely normal.
+
+SCRIMP core is now corrected to pass the exact
+original **flat GetFEM coefficient vector** after
+`basic_dof_on_region` filtering, with validation of
+source evaluator coefficient count and region DOF
+indices. No zero-padding, truncation, reordering,
+FE element substitution, or weakening of native
+scientific convergence checks. The change covers
+any intrinsic-vector basis with a non-componentwise
+DOF count, not merely this example.
+
+Standalone regression
+`tests/test_v130_rt_initial_values.py`
+executes the **actual production method** using
+controlled GetFEM-shaped fake arrays: RT0 odd
+3111 DOFs, zero RT state, legacy vector CG,
+scalar and unfiltered behavior, bad indices,
+and mismatched evaluator size. Its source CI
+is a separate guard: native GetFEM/PETSc must
+still validate the actual RT0 initialization.
+
 ## Genuine physical qualification — native PENDING
 
 The revised `scripts/run-v130-example-2d-lu.sh`

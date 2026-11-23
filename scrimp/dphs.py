@@ -1019,26 +1019,42 @@ class DPHS:
         initial_value = None
         for _, port in self.ports.items():
             if name_variable == port.get_flow() or name_variable == port.get_effort():
-                if port.get_region() == None:
+                if port.get_region() is None:
                     initial_value = evaluation
                 else:
-                    nb_dofs_total = port.get_fem().nbdof()
-                    dofs_on_region = port.get_fem().basic_dof_on_region(
-                        port.get_region()
-                    )
-                    qdim = port.get_fem().qdim()
-                    size = dofs_on_region.shape[0]
-                    shape = (qdim, int(size / qdim))
-                    evaluation_long = np.reshape(evaluation, (nb_dofs_total,))
-                    initial_value_long = evaluation_long[dofs_on_region]
-                    initial_value = np.reshape(initial_value_long, shape)
-                continue
+                    # A GetFEM MeshFem stores one scalar coefficient for
+                    # every intrinsic FE basis function. In particular an
+                    # H(div) Raviart–Thomas or BDM vector field does NOT
+                    # have qdim independent nodal coefficients: RT0 DOFs
+                    # are face-normal fluxes, and their count need not be
+                    # divisible by the geometric qdim. Keep the exact
+                    # filtered GetFEM coefficient ordering as a 1D array.
+                    # The previous reshape (qdim, int(size/qdim)) could
+                    # discard a DOF or raise on a genuine RT/BDM basis.
+                    fem = port.get_fem()
+                    evaluation_long = np.asarray(evaluation).reshape(-1)
+                    nb_dofs_total = fem.nbdof()
+                    if evaluation_long.size != nb_dofs_total:
+                        raise ValueError(
+                            f"Initial FEM evaluation of {name_variable} has "
+                            f"{evaluation_long.size} coefficients, expected "
+                            f"{nb_dofs_total}"
+                        )
+                    dofs_on_region = np.asarray(
+                        fem.basic_dof_on_region(port.get_region())
+                    ).reshape(-1)
+                    if (not np.issubdtype(dofs_on_region.dtype, np.integer)
+                            or np.any(dofs_on_region < 0)
+                            or np.any(dofs_on_region >= nb_dofs_total)):
+                        raise ValueError(
+                            f"Invalid GetFEM region DOF indices for "
+                            f"{name_variable}"
+                        )
+                    initial_value = evaluation_long[dofs_on_region]
+                break
 
-        try:
-            assert not initial_value.all() == None
-        except AssertionError as err:
-            logging.error(f"{name_variable} can not be found in ports")
-            raise err
+        if initial_value is None:
+            raise ValueError(f"{name_variable} cannot be found in ports")
 
         self.set_from_vector(name_variable, initial_value)
         self.initial_value_set[name_variable] = True
