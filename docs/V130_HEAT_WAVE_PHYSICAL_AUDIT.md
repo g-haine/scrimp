@@ -288,6 +288,38 @@ This is a pending separate FEM-family validation gate,
 not a reason to regress to CG/DG or reshape/truncate
 coefficient vectors.
 
+An optional native, non-PDE **element-family coefficient
+pilot** has now been prepared. It creates genuine
+triangular GetFEM `MeshFem` objects, restricts their
+DOFs to a subset of elements, constructs the same
+`Model.add_filtered_fem_variable` that production SCRIMP
+uses, calls the **actual**
+`DPHS.set_initial_value()` on nonzero vector data,
+then checks the resulting GetFEM model coefficients
+against the independently evaluated ordered restriction.
+Candidates: `FEM_RTK(2,0)`, `RTK(2,1)`,
+`RTK(2,2)`, `FEM_BDMK(2,1)`,
+`FEM_BDMK(2,2)`, and
+`FEM_NEDELEC(2)`. A descriptor unavailable in this
+particular native image is reported as **UNAVAILABLE**,
+never passed. A descriptor that instantiates but fails
+coefficient initialization makes the pilot FAIL.
+Nédélec higher-order and second-kind elements are
+explicitly **not implemented or qualified** by this
+probe.
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-intrinsic-fem-initialization.sh
+```
+
+This independent check produces host-owned JSON and a
+small ZIP. It neither runs a physical PDE nor establishes
+Maxwell/operator or MPI support. **Native pilot PENDING**.
+
 ## Genuine physical qualification — native PENDING
 
 The revised `scripts/run-v130-example-2d-lu.sh`

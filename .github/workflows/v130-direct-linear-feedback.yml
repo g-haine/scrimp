@@ -7,11 +7,15 @@ on:
     paths:
       - scrimp/dphs.py
       - tests/test_v130_direct_linear_feedback.py
+      - sandbox/probe_v130_intrinsic_vector_fem_initialization.py
+      - scripts/run-v130-intrinsic-fem-initialization.sh
       - .github/workflows/v130-direct-linear-feedback.yml
   pull_request:
     paths:
       - scrimp/dphs.py
       - tests/test_v130_direct_linear_feedback.py
+      - sandbox/probe_v130_intrinsic_vector_fem_initialization.py
+      - scripts/run-v130-intrinsic-fem-initialization.sh
       - .github/workflows/v130-direct-linear-feedback.yml
 
 jobs:
@@ -24,7 +28,8 @@ jobs:
           python-version: '3.11'
       - name: Syntax
         run: |
-          python -m py_compile scrimp/dphs.py tests/test_v130_direct_linear_feedback.py
+          python -m py_compile scrimp/dphs.py tests/test_v130_direct_linear_feedback.py sandbox/probe_v130_intrinsic_vector_fem_initialization.py
+          bash -n scripts/run-v130-intrinsic-fem-initialization.sh
       - name: Actual DPHS control classification and GetFEM assembly routing
         run: python tests/test_v130_direct_linear_feedback.py
       - name: Immutable published source bytes

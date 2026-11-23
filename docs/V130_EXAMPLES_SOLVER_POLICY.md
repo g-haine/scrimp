@@ -115,6 +115,17 @@ real 2D example output exports, extended MPI4 and
 nonlinear Saint-Venant remain distinct subsequent gates.
 **Native status: PENDING qualified-host execution.**
 
+**New generic intrinsic-FEM coefficient preflight (source staged):**
+`scripts/run-v130-intrinsic-fem-initialization.sh`
+tests RT0/1/2, BDM1/2 and GetFEM's lowest-order
+`FEM_NEDELEC(2)` on real filtered simplicial
+MeshFem variables. Any truly unavailable element
+is recorded as UNAVAILABLE, never passed; successful
+native coefficient preservation is a much narrower
+claim than full H(div)/H(curl) PDE support.
+`examples/published/` remains immutable.
+See [V130_HEAT_WAVE_PHYSICAL_AUDIT.md](V130_HEAT_WAVE_PHYSICAL_AUDIT.md).
+
 ### Stage B2 — Heat–Wave physics revised to RT/CN (NATIVE PENDING)
 
 The old Heat–Wave example was not physically qualified:

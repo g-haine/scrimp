@@ -1531,6 +1531,17 @@ reproducible container walkthrough. This covers #26.
 > zero and malformed index cases. This is
 > a **core initialization repair only**, not
 > validation of the revised Heat–Wave physics.
+> **Intrinsic FEM-family support (source staged,
+> native PENDING):** a separate native short test
+> exercises actual GetFEM filtered `MeshFem`
+> plus production `DPHS.set_initial_value()`
+> on RT0/1/2, BDM1/2 and lowest-order Nédélec.
+> Each unavailable descriptor is reported honestly;
+> coefficient indexing does not imply validated
+> mixed PDE/curl formulation or Nédélec second-kind
+> availability. Driver:
+> `scripts/run-v130-intrinsic-fem-initialization.sh`.
+>
 > Second RT0-native attempt:
 > fixed 3111-DOF q initialization now succeeds;
 > both GetFEM linear mass/stiffness assemblies
