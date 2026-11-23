@@ -1121,10 +1121,10 @@ Hamiltonian and port power show:
   from immutable NPZ arrays.
 - Maximum corrected split-versus-continuous
   **total incoming boundary work difference
-  `5.42e-19`**.
+  below `7e-19`**.
 - Maximum corrected continuous-vs-split
   **signed `ΔH-W` discrepancy
-  `1.90e-19`**.
+  below `2e-19`**.
 - The uninterrupted original physical
   Hamiltonian increases to
   `H(.024)=3.66098987026944e-4`,
