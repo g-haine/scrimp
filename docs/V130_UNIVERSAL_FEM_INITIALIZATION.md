@@ -1,6 +1,6 @@
 # SCRIMP v1.3.0 — universal FE initialization diagnostic
 
-**23 November 2026, experimental, native MPI1 pending.**
+**23 November 2026, experimental; scalar/high-regularity native gate pending.**
 
 The `dbfa7f1a` original native pilot qualified exact **affine**
 field reconstruction in six intrinsic vector GetFEM families:
@@ -79,3 +79,35 @@ This **does not qualify** production changes, high-order Hermite/
 Argyris canonical derivatives, large sparse PETSc scalability,
 MPI2, physical PDE/DAE integration, or arbitrary analytic fields.
 Publication-era example files must remain immutable.
+
+## Failed first universal-pilot run and scientific interpretation (23 November 2026)
+
+Original host evidence at source `fea5fb65`, folder
+`v130-universal-fem-fea5fb65-M1kq1fqm`:
+
+- Scalar CG1 and DG0 and vector RT0/BDM1/lowest Nédélec,
+  as well as reduced HCT, nonconforming P1 and CG1/DG1
+  vector spaces: projection itself succeeded and matched
+  GetFEM-reconstructed fields to roundoff.
+- CG2, DG2, Hermite, Argyris, Morley and full HCT failed
+  to assemble **because the diagnostic wrote `^` as a
+  polynomial power in GWFL**. The GetFEM parser rejected
+  the expressions; these failures do **not** test whether
+  their finite element spaces support projection.
+- Production `DPHS.set_initial_value` returned for CG1/DG1
+  vector fields but produced relative physical L2 errors
+  **0.9281246565019555** and **0.7598154957809599**;
+  projection errors were 4.15e-16 and 3.75e-16.
+  BDM1 produced old relative physical error
+  **0.9536667458578806** vs projection 1.78e-15.
+- Reduced HCT old scalar interpolation returned with error
+  0.07276178095132534 while projection had 6.77e-15.
+  Its old behavior is recorded separately, not a projection
+  failure or an expected scalar nodal baseline.
+
+The diagnostic now uses explicit products `X(1)*X(1)`,
+`X(2)*X(2)*X(2)` etc., and keeps its old-production error
+as an independent, visible negative result. Only classical
+scalar CG/DG elements are required to preserve the known
+historical physical interpolation baseline in this pilot.
+**No production method has been changed.**

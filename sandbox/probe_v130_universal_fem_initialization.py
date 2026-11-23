@@ -42,7 +42,7 @@ CASES = {
     ),
     "cg2_scalar": (
         "FEM_PK(2,2)", 1,
-        "1+X(1)^2+X(2)^2", "1.+x*x+y*y", False, False,
+        "1+X(1)*X(1)+X(2)*X(2)", "1.+x*x+y*y", False, False,
     ),
     "dg0_scalar": (
         "FEM_PK_DISCONTINUOUS(2,0)", 1,
@@ -50,7 +50,7 @@ CASES = {
     ),
     "dg2_scalar": (
         "FEM_PK_DISCONTINUOUS(2,2)", 1,
-        "1+X(1)^2+X(2)^2", "1.+x*x+y*y", False, False,
+        "1+X(1)*X(1)+X(2)*X(2)", "1.+x*x+y*y", False, False,
     ),
     "cg1_vector": (
         "FEM_PK(2,1)", 2,
@@ -62,21 +62,21 @@ CASES = {
     ),
     "hermite2_scalar": (
         "FEM_HERMITE(2)", 1,
-        "1+X(1)+X(1)^2+X(2)^3",
+        "1+X(1)+X(1)*X(1)+X(2)*X(2)*X(2)",
         "1.+x+x*x+y*y*y", False, True,
     ),
     "argyris2_scalar": (
         "FEM_ARGYRIS", 1,
-        "1+X(1)^2*X(2)+X(1)^5",
+        "1+X(1)*X(1)*X(2)+X(1)*X(1)*X(1)*X(1)*X(1)",
         "1.+x*x*y+x**5", False, True,
     ),
     "morley2_scalar": (
         "FEM_MORLEY(2)", 1,
-        "1+X(1)^2+X(2)^2", "1.+x*x+y*y", False, True,
+        "1+X(1)*X(1)+X(2)*X(2)", "1.+x*x+y*y", False, True,
     ),
     "hct2_scalar": (
         "FEM_HCT_TRIANGLE", 1,
-        "1+X(1)+X(2)^3",
+        "1+X(1)+X(2)*X(2)*X(2)",
         "1.+x+y*y*y", True, True,
     ),
     "reduced_hct2_scalar": (
@@ -242,15 +242,23 @@ def run_case(mesh, region, name, spec):
         if relative_residual < 1e-10 and l2_error < 5e-8
         else "FAIL_PHYSICAL_PROJECTION"
     )
-    # For the standard scalar/vector nodal bases the legacy Python
-    # interpolation is still expected to reproduce an exact polynomial.
-    if name in {
-        "cg1_scalar","cg2_scalar","dg0_scalar","dg2_scalar",
-        "cg1_vector","dg1_vector"
-    }:
-        if (not row["old_production_returned"]
-                or row["old_production_L2_error_relative"] >= 5e-8):
-            row["status"]="FAIL_LEGACY_LAGRANGIAN_COMPATIBILITY"
+    # The old production implementation is a SEPARATE diagnostic,
+    # never a precondition for the universal L2 projection to pass.
+    # A matching coefficient count does not certify a physical field:
+    # real CG1/DG1 vector meshes silently returned wrong fields.
+    # Preserve a scalar-only baseline to catch unintended regressions
+    # of existing scalar nodal evaluation.
+    old_error = row["old_production_L2_error_relative"]
+    row["old_production_physical_field_valid"] = (
+        bool(old_error < 5e-8) if old_error is not None else False
+    )
+    row["old_production_silent_physical_failure"] = (
+        bool(row["old_production_returned"] and old_error is not None
+             and old_error >= 5e-8)
+    )
+    if name in {"cg1_scalar","cg2_scalar","dg0_scalar","dg2_scalar"}:
+        if not row["old_production_physical_field_valid"]:
+            row["status"]="FAIL_LEGACY_SCALAR_LAGRANGIAN_BASELINE"
     print(f"UNIVERSAL {name}: qdim={qdim} n={dofs} "
           f"mass={relative_residual:.3g} physical={l2_error:.3g} "
           f"old={row['old_production_L2_error_relative']} "
@@ -292,8 +300,12 @@ def main():
             "UNAVAILABLE_IN_PINNED_GETFEM",
         ) for n in advanced
     )
+    silent_legacy_failures = [
+        n for n, r in results.items()
+        if r.get("old_production_silent_physical_failure", False)
+    ]
     output={
-        "schema":"scrimp-v130-universal-fem-projection-v1",
+        "schema":"scrimp-v130-universal-fem-projection-v2",
         "status":"PASS_REQUIRED_AND_ALL_AVAILABLE_FEM" if success else "FAIL",
         "cases":results,
         "mandatory_cases":mandatory,
@@ -302,6 +314,8 @@ def main():
                             "PASS_UNIVERSAL_MASS_PROJECTION_AND_PHYSICAL_L2"],
         "unavailable":[n for n,r in results.items() if r["status"]==
                        "UNAVAILABLE_IN_PINNED_GETFEM"],
+        "old_production_silent_physical_failures": silent_legacy_failures,
+        "projection_and_legacy_acceptance_separate": True,
         "production_changed":False,
         "physical_scope":"Exactly represented polynomial on selected filtered 2D region",
         "MPI_qualified":False,
