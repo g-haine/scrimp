@@ -1,5 +1,18 @@
 # SCRIMP v1.3.0 — scope, limits, and further work
 
+> **User scope decision — 23 November 2026:** local GetFEM MPI-2 issue
+> #23: retire the investigation of the old miscompiled GetFEM build,
+> without asserting an upstream defect; do not remove tested RHS
+> safeguards. Schur/field-block/ASM solver alternatives: **retired,
+> no future investigation**, use proven MUMPS. FE descriptors:
+> Nédélec-I code parameterized k>=0 but qualified only k<=2;
+> Nédélec-II explicitly k=1,2; RT upstream parameterized; BDM
+> k>=3 not natively qualified. Windows/macOS: best-effort docs
+> for real users, no full native acceptance gate. The new compatible
+> controlled rotating SWE **initial-state-generation pilot** is
+> staged, not yet native-qualified; see
+> [V130_ROTATING_CONTROLLED_INITIAL_STATE.md](V130_ROTATING_CONTROLLED_INITIAL_STATE.md).
+>
 > **Updated 23 November 2026:** issue #29's **qualified cold checkpoint/restart** criterion has passed (production SWE and second linear pH-DAE; cross-MPI 1↔2; CN energy/work at roundoff). Refer to [V130_CHECKPOINT_ISSUE29_QUALIFICATION.md](V130_CHECKPOINT_ISSUE29_QUALIFICATION.md). This does not imply a general DAE initializer or historical TS state restoration; release v1.3.0 remains untagged pending other gates.
 
 **Release plan (workstreams 0–9 and acceptance gates):** [V130_RELEASE_PLAN.md](V130_RELEASE_PLAN.md). The present file records the prior technical investigations and measured results; the release plan governs current scope and priorities.
@@ -383,15 +396,17 @@ MPI distribution and rank/core placement, and per-step collective
 synchronization. Benchmark on >1 NUMA domain or additional machines
 only if hardware is available.
 
-### Alternative Schur/field-block solvers
+### Alternative Schur/field-block solvers — retired, NOT planned
 
 Earlier pH-DAE graph discovery and sparse path-2 Schur prototypes
 correctly identified constraints and achieved residuals near 1e-15,
 but their distributed nested Krylov/ASM setup was roughly **100--120x
 slower than reused global MUMPS** on the investigated small wave
-system. This is an experimental negative result. Do not choose Schur
-or ASM as the v1.3.0 production default. Revisit only with a
-better Schur approximation and realistic large-scale benefit.
+system. This experimental negative result is retained only as
+historical evidence. **Decision 23 November:** no future research,
+optimization, benchmark or deferred roadmap item for Schur/ASM;
+this is outside the project scientific remit. MUMPS remains the
+qualified production direct solver.
 
 ### Physics, memory and models
 
@@ -400,10 +415,12 @@ better Schur approximation and realistic large-scale benefit.
   wave performance does not qualify those models.
 - Validate long-time memory stability of both the CSR snapshot cache
   and the LU factor after the on_change integration.
-- Native GetFEM MPI-2 generic RHS replication/over-summation remains
-  an upstream/build configuration issue (#23) until root cause is known.
-  Never divide arbitrary RHS contributions by MPI rank count without
-  the existing build-specific calibration and physical parity proof.
+- The historical GetFEM 5.4.2 MPI-2 raw RHS/partition anomaly
+  (#23) arose in an untrusted locally miscompiled older build.
+  **No upstream bug is established or further investigation planned**;
+  issue closed as not planned, not fixed. Keep the actual build-specific
+  RHS auto-calibration and physical MPI parity guards. Never divide
+  arbitrary RHS contributions by rank count without validation.
 - Keep independent v1.3 documentation modernization (#26), Docker
   cache/context optimization (#25), and MPI power/physics completion
   (#6) on their own acceptance gates.
@@ -423,7 +440,7 @@ delete existing benchmark reports, or rewrite published Git history.
 - #6: MPI power-plot deadlock fix and various algebra/IO corrections
   are represented in the current branch, but the umbrella issue is
   not closed until its complete MPI and physical parity gates pass.
-- #23: GetFEM MPI-2 assembly root cause unresolved: keep open.
+- #23: old local GetFEM MPI-2 misbuild investigation **closed as not planned**; no upstream root-cause finding or blanket removal of calibrated safeguards.
 - #25: Docker context/build cache/development ergonomics: keep open.
 - #26: full documentation modernization: keep open; this focused
   solver guide is a first step only.

@@ -1,5 +1,16 @@
 # SCRIMP v1.3.0 — release sprint, week 48 (23–29 November 2026)
 
+> **23 November — updated scope and next scientific step:** #23
+> retires the old, locally miscompiled GetFEM MPI-2 investigation
+> (not an upstream fix); Schur/field-block research is removed
+> permanently; Nédélec-I is parameterized beyond k=2 but those
+> orders are not native-qualified, whereas Nédélec-II is explicitly
+> restricted to k=1,2. Windows/macOS documentation is **best effort**
+> for existing users, not a release gate. The new compatible,
+> closed-loop-enabled rotating Saint-Venant state pilot is **staged
+> only**, pending native PETSc evidence:
+> [V130_ROTATING_CONTROLLED_INITIAL_STATE.md](V130_ROTATING_CONTROLLED_INITIAL_STATE.md).
+>
 > **23 November 2026 — #29 qualification completed:** 13/13 host linear DAE tests and 4/4 original native MPI continuous-vs-restart comparisons PASS; corrected CN port-work and the per-step Hamiltonian identity verified without modifying the original archive. Production SWE checkpoint API was already 16/16 native PASS. Definitive evidence and limitations: [V130_CHECKPOINT_ISSUE29_QUALIFICATION.md](V130_CHECKPOINT_ISSUE29_QUALIFICATION.md). Dated earlier **pending** entries below remain as historical audit logs, not current gate status.
 
 **Decision recorded 20 November 2026.** The user's delivery objective is
@@ -91,7 +102,7 @@ slips; Maxwell does not become a blocker.
 | DAE default (new) | **FULL native PASS, two linear pH-DAEs** | Preserve explicit pseudo/BDF2, documented incompatible Gaussian, and short memory/exceptional MPI cleanup gate. |
 | **#27** state-dependent mass Jacobian | **FULL native gate PASS (MPI 1/2)**: directional FD plus genuine 4-step physical TS with accepted-state frozen G | Freeze the two evidenced campaigns; close #27 with explicit limitations. No automatic claims about exact energy conservation, order two, nonlinear DAE initialization or 4-rank MPI. |
 | **#6** viscous SWE MPI/port powers | **Native qualification PENDING.** Instrumented experimental runner and source-only negative controls prepared; source-check CI PASS at `8a20d551`. | Execute short 1/2/4-rank rest then nontrivial physical open/closed smokes, investigate initialization or rank mismatch on FAIL; only later pursue long-time physics, output races and full issue closure. |
-| **2C / #29** — Generic accepted-state checkpoint/restart (NEW P0) | **SOURCE/IMPLEMENTATION NOT STARTED**; native full-spinup states available for pilot | Before tag: atomically save full accepted FE state at absolute t*, exact mesh/DoF/control provenance, fail-closed GetFEM/PETSc cold restore, MPI 1→1/1→2/2→1/2→2 continuous-vs-split physical/DAE/power checks, and linear DAE regression. |
+| **2C / #29** — Generic accepted-state checkpoint/restart (P0) | **COMPLETE, issue CLOSED 23 Nov**; native SWE production API 16/16, independent wave 8/8, cross-MPI 4/4, host 13/13 | Preserve frozen source artifacts and explicit CN cold-state scope; no repeat without change to physical solver/API. |
 | 3 — New 3D Maxwell **(P2 optional)** | **NOT QUALIFIED, DEFERRED FROM CRITICAL PATH** | Only if all P0s are done before tag; else immediately post-release. Preserve 3D H(curl)/H(div), Poynting, orientation and MPI acceptance; published Maxwell examples/FE checks remain in regressions. |
 | 4 — Performance figures | **Wave evidence PASS; publication figures incomplete** | Curate reproducible wave/MPI plots and metadata; defer new Maxwell scaling if its new model is postponed. |
 | 5 / **#26** — Sphinx and research docs | **Partially complete** | HTML and LaTeX/PDF green on final source, accurately scoped MPI/jacobian/DAE/default, usable first-run path. |
@@ -180,10 +191,10 @@ for historical reproducibility.
   regressions**. Close only after those items actually PASS,
   or split/de-scope explicitly with a reviewed narrower issue.
   This is the main MPI correctness risk for a broad v1.3 claim.
-- **#23 (open upstream/root-cause investigation):** GetFEM MPI-2
-  duplicate full raw RHS and tangent. Keep **open** until the
-  underlying assembly/partition root cause is located; the
-  calibrated compatibility mode is not equivalent to an upstream fix.
+- **#23 (closed, not planned):** the old GetFEM 5.4.2 local MPI
+  build was miscompiled; do not spend time diagnosing this obsolete
+  environment or claim a confirmed upstream defect. Keep existing
+  exact-build RHS calibration and physical parity safeguards.
   Document the exact build and residual calibration in the release.
 - **#25 (open enhancement):** Docker cache/build-context and
   developer workflow. rc3 targeted native build/cache/VS Code

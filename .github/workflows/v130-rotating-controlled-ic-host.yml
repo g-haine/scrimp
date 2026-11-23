@@ -1,0 +1,35 @@
+name: v1.3.0 rotating controlled SWE initial-state host guards
+
+on:
+  push:
+    branches:
+      - release/1.3.0-preparation
+    paths:
+      - sandbox/viscous_swe_2d_mpi.py
+      - sandbox/probe_v130_rotating_controlled_ic.py
+      - scripts/run-v130-rotating-controlled-ic.sh
+      - tests/test_v130_rotating_controlled_ic.py
+      - .github/workflows/v130-rotating-controlled-ic-host.yml
+  pull_request:
+    paths:
+      - sandbox/viscous_swe_2d_mpi.py
+      - sandbox/probe_v130_rotating_controlled_ic.py
+      - scripts/run-v130-rotating-controlled-ic.sh
+      - tests/test_v130_rotating_controlled_ic.py
+      - .github/workflows/v130-rotating-controlled-ic-host.yml
+
+jobs:
+  source-and-policy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Python syntax
+        run: |
+          python -m py_compile sandbox/viscous_swe_2d_mpi.py sandbox/probe_v130_rotating_controlled_ic.py tests/test_v130_rotating_controlled_ic.py
+      - name: Shell syntax
+        run: bash -n scripts/run-v130-rotating-controlled-ic.sh
+      - name: Pure Python physical control-law and fail-closed tests
+        run: python tests/test_v130_rotating_controlled_ic.py

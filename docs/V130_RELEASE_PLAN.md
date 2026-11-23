@@ -1,5 +1,21 @@
 # SCRIMP v1.3.0 — release plan and acceptance gates
 
+> **Scope decisions — 23 November 2026:** #23's GetFEM MPI-2 raw-RHS anomaly
+> was confined to a locally miscompiled *old* GetFEM environment and is
+> **retired without an upstream root-cause claim**; retain exact-build
+> calibration safeguards. Schur/field-block alternatives are **outside
+> the research scope**, no further solver study planned: retain MUMPS.
+> Nédélec-I is parameterized for k>=0, but its current native
+> validation covers k<=2; **only Nédélec-II explicitly rejects k>=3**.
+> RT is parameterized upstream and BDM higher-order support remains
+> unqualified rather than universally forbidden. Windows/macOS users
+> receive documented **best-effort** workflows, not a mandatory
+> multi-platform native gate. Next pilot: compatible, rotating
+> dissipative SWE controlled initial state
+> [V130_ROTATING_CONTROLLED_INITIAL_STATE.md](V130_ROTATING_CONTROLLED_INITIAL_STATE.md);
+> native result **PENDING**. None of these decisions alters the already
+> qualified #29 checkpoint API or authorizes premature v1.3.0 tagging.
+>
 > **Qualification update — 23 November 2026:** issue #29 / gate 2C has passed the narrow **scientific/native** acceptance: production API Saint-Venant 16/16 native cases; independent linear wave pH-DAE 8/8 native segments, all four cross-MPI restarts, 13/13 host tests, and per-step CN power balance at roundoff. See [V130_CHECKPOINT_ISSUE29_QUALIFICATION.md](V130_CHECKPOINT_ISSUE29_QUALIFICATION.md). This does **not** certify unrelated v1.3.0 release gates or integrator-history restoration.
 
 **Scope agreed 18 November 2026.** This document is the authoritative
@@ -908,8 +924,11 @@ The independent source-level and native findings are in
   document order conventions and the distinction between local
   polynomial dimension and *globally conforming* DoFs. **Release-gated
   orders are k=1,2 only** (plus the pre-existing Nédélec-I k=0).
-  Nédélec-I is coded parametrically but k>=3 remains unvalidated;
-  **Nédélec-II is implemented only for k=1,2 and rejects k>=3**.
+  Nédélec-I is coded parametrically for k>=0 (k>=3 NOT
+  natively qualified); **only Nédélec-II explicitly rejects k>=3**
+  in our newly supplied constructors. The upstream RT family is
+  parameterized; the BDM patch is natively checked at k=1,2
+  without asserting that higher orders are forbidden.
   Arbitrary-order support is still an enhancement, not a completed
   deliverable. The per-entity degree-of-freedom formulas and future
   tests are recorded in
@@ -1178,10 +1197,12 @@ See the [VS Code onboarding guide](source/vscode.rst).
 - Keep Docker build context minimal; no historical artifacts,
   generated mesh/figures, large ignored outputs or local
   simulation archives should enter it.
-- Ship an installer/launcher for **Ubuntu/Debian**, **Windows**
-  (document Docker Desktop/WSL2 requirements) and **macOS**
-  (including Apple Silicon image constraints). Separate
-  supported/validated platforms from best-effort instructions.
+- Ship and validate the **Ubuntu/Debian** launcher and image;
+  provide documented **best-effort Windows** (Docker Desktop/WSL2)
+  and **macOS** (including Apple Silicon architecture constraints)
+  workflows because SCRIMP has users on those platforms. Never
+  claim native Windows/macOS qualification without actual tests.
+  These platforms are NOT mandatory release blockers.
 - Ship the validated **independent VS Code project template** as a
   small GitHub release ZIP. Its Dev Container must select the actually
   published GHCR image (or an explicitly rebuilt local image);
@@ -1194,8 +1215,11 @@ See the [VS Code onboarding guide](source/vscode.rst).
 - Provide version-pinned image metadata, licensing, examples and
   volume/permission handling.
 
-Exit: a reproducible clean image, repeatable warm-cache build
-and documented cross-platform entry points. This covers #25.
+Exit for the v1.3.0 packaging gate: a reproducible Ubuntu
+candidate image, repeatable warm-cache build, working host-owned
+outputs and best-effort Windows/macOS instructions clearly marked
+as not independently native-validated. The broader interrupted-build
+recovery and multi-platform #25 wishlist can remain follow-up.
 
 ## 2C — P0 generic accepted-state checkpoint/restart (#29; new v1.3.0 gate)
 

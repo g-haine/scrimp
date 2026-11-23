@@ -21,11 +21,15 @@ immutable `scrimp-mpi:v1.3.0-rc3` OCI
 `1d6d0c90115213298047b28237a7f38087563a35`.
 This qualifies the *actual public API for this SWE model only*.
 
-**Independent linear pH-DAE wave test:** source and host negative
-controls are staged; native results **not yet available**.
-See `scripts/run-v130-checkpoint-linear-dae.sh` and
-`sandbox/probe_v130_checkpoint_linear_dae.py`.
-A general release claim for #29 requires this second-model gate.
+**Independent linear pH-DAE wave test: QUALIFIED 23 November 2026.**
+Eight genuine native GetFEM/PETSc wave segments (including all four
+cross-MPI restarts) and 13/13 host tests PASS. The corrected CN
+step-midpoint work and physical Hamiltonian identity close at roundoff,
+with immutable original native v1 reports preserved and v2 support
+in the comparator. **Issue #29 closed.** See
+[V130_CHECKPOINT_ISSUE29_QUALIFICATION.md](V130_CHECKPOINT_ISSUE29_QUALIFICATION.md)
+and `scripts/run-v130-checkpoint-linear-dae.sh`. This does not
+assert a general stationary/high-index initializer or any BDF history.
 
 ## A typical same-mesh restart
 

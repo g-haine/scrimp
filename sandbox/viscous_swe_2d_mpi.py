@@ -56,6 +56,30 @@ def ramp_expression(start=75.0, end=200.0):
     return f"(1. - 3.*({s})*({s}) + 2.*({s})*({s})*({s}))"
 
 
+def spinup_control_envelopes(ramp_start, ramp_end, spinup_duration):
+    """Return (tangential wall envelope, original normal-feedback envelope).
+
+    A compatible h=5, p=0 start requires BOTH physical controls to be
+    inactive at t=0. The original closed-loop normal control multiplies
+    (1 - f_decay), with f_decay=1 until ramp_start. Starting the wall
+    gently must NOT independently activate that feedback at t=0.
+
+    Once t>=spinup_duration, tangential f_wall=f_decay, and the
+    original (open or closed) boundary laws are recovered exactly.
+    This is an explicitly different physical preparation experiment,
+    not a projection of the incompatible pre-rotating p0.
+    """
+    if not np.isfinite(spinup_duration) or spinup_duration < 0:
+        raise ValueError("spinup_duration must be finite and nonnegative")
+    decaying = ramp_expression(ramp_start, ramp_end)
+    if spinup_duration == 0:
+        return decaying, decaying
+    tau = spinup_duration
+    q = f"(min(1., max(0., t/{tau})))"
+    rising = f"(3.*({q})*({q}) - 2.*({q})*({q})*({q}))"
+    return f"({decaying})*({rising})", decaying
+
+
 def _set_diagnostic_initial_guess(swe, name, expression):
     """Set an ALGEBRAIC GetFEM variable's starting value, not the PDE state.
 
@@ -127,14 +151,14 @@ def build_system(gamma, mesh, final_time, save_dt, max_step,
     if not np.isfinite(start_from_rest_duration) or start_from_rest_duration < 0:
         raise ValueError("start_from_rest_duration must be finite and nonnegative")
     if start_from_rest_duration > 0 and (
-        gamma != 0.0 or initial_profile != "rigid"
+        initial_profile != "rigid"
         or wall_velocity_profile != "facet_tangent"
         or algebraic_initial_guess != "zero"
     ):
         raise ValueError(
-            "start_from_rest_duration is diagnostic-only and requires "
-            "the open case, rigid initial profile, physical facet_tangent "
-            "wall and zero algebraic initial guesses"
+            "start_from_rest_duration requires rigid initial profile, "
+            "physical facet_tangent wall and zero algebraic guesses; "
+            "closed-loop feedback keeps its ORIGINAL decaying envelope"
         )
     if algebraic_initial_guess not in ("zero", "ep", "ep_wall"):
         raise ValueError("unknown algebraic initial guess")
@@ -250,20 +274,12 @@ def build_system(gamma, mesh, final_time, save_dt, max_step,
     for brick in bricks:
         swe.add_brick(brick)
 
-    f = ramp_expression(ramp_start, ramp_end)
-    if start_from_rest_duration > 0:
-        # DIAGNOSTIC ONLY. Instead of initializing a nonzero rotating
-        # dynamic state and an already moving wall, start from the
-        # validated stationary state. Then smoothly drive the *physical*
-        # facet-tangential wall to the requested rotation. The decreasing
-        # long-time ramp is retained by multiplying both envelopes.
-        # At t=0 the rising envelope and its derivative both vanish.
-        # This changes the initial-value/forcing experiment but NOT the
-        # SCRIMP formulations, KSP/MUMPS options or BDF2 consistency gate.
-        tau = start_from_rest_duration
-        q = f"(min(1., max(0., t/{tau})))"
-        rising = f"(3.*({q})*({q}) - 2.*({q})*({q})*({q}))"
-        f = f"({f})*({rising})"
+    # Tangential ramp is new; the original normal-feedback law is not.
+    # The two envelopes are identical when no preparation is requested.
+    # In particular, gamma=0 already-qualified weak forms are unchanged.
+    f, f_feedback = spinup_control_envelopes(
+        ramp_start, ramp_end, start_from_rest_duration
+    )
     if gamma == 0.0:
         swe.set_control(control_normal.get_name(), "0.")
     else:
@@ -272,14 +288,17 @@ def build_system(gamma, mesh, final_time, save_dt, max_step,
         # An implicit algebraic brick is used: feedback is state-dependent,
         # so it must NOT be implemented as an external source term.
         normal_law = (
-            f"(-U_n - ({gamma})*(1.-({f}))"
+            f"(-U_n - ({gamma})*(1.-({f_feedback}))"
             f"*(Y_n + Y.Normal + {RHO*GRAVITY*H_TARGET}))*Test_U_n"
         )
         swe.add_brick(S.Brick("Normal output feedback", normal_law,
                               [REGION_WALL], linear=False))
 
     # Full boundary velocity: U = U_n*n + rotation*f(t)*Rot*n.
-    # The ramp is DECREASING: f(0)=1 for the default start=75 s.
+    # For a prepared run, the tangential wall first rises from rest,
+    # whereas the original normal feedback retains the decaying law.
+    # Once the rising stage is complete, original controls coincide.
+    # The decay is 1 until ramp_start (75 seconds by default).
     # The intended clockwise Rot is encoded column-first in GetFEM:
     # Rot=[[0,-1],[1,0]]. Match the initial p sign,
     # but beware: on a faceted disk, the imposed Rot*Normal is not

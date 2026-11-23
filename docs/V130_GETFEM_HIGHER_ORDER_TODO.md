@@ -1,5 +1,12 @@
 # GetFEM 5.5 simplicial FEM — higher-order follow-up (deferred)
 
+**Implementation versus validation — clarified 23 November 2026:**
+Nédélec-I is parametrized for k >= 0, with native qualification so far
+for k <= 2. **Only Nédélec-II explicitly refuses k >= 3.** RT is an
+upstream parametrized family, and the BDM repair has been qualified
+for k=1,2 without establishing support/rejection for k>=3.
+No native validation of higher-order elements is implied.
+
 **Status (19 November 2026): deferred, not a SCRIMP v1.3.0 release gate.**
 The supported native smoke scope is **triangles and tetrahedra,
 Nédélec I/II and BDM at k=1,2**; Nédélec-I k=0 uses GetFEM's built-in
