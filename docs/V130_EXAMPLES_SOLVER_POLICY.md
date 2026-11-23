@@ -60,9 +60,13 @@ into the example functions; the user's PETSc backend
 selection passes through unchanged. For the two 2D
 functions, explicit `final_time`, `time_step` and
 `save_step` options permit bounded tests; **default
-physical durations, timesteps, meshes, weak forms,
-controls and initialization all retain their original
-values**. All four original top-level entry points still
+physical durations and initial timesteps remain configurable
+without changing the original calls**. Heat–Wave now
+**intentionally changes its FEMs, coupling signs,
+external boundary condition, DAE initializer and
+integrator** to make the example physically relevant;
+see [V130_HEAT_WAVE_PHYSICAL_AUDIT.md](V130_HEAT_WAVE_PHYSICAL_AUDIT.md).
+All four top-level entry points still
 work without extra parameters and use MUMPS by default.
 The other four top-level examples already inherit MUMPS
 and have not been edited.
@@ -111,12 +115,56 @@ real 2D example output exports, extended MPI4 and
 nonlinear Saint-Venant remain distinct subsequent gates.
 **Native status: PENDING qualified-host execution.**
 
-### Stage B2 — real 2D Heat–Wave and inviscid Saint-Venant: original BDF2 adaptive behavior
+### Stage B2 — Heat–Wave physics revised to RT/CN (NATIVE PENDING)
 
-The former hardcoded serial-SuperLU main scripts are now available
-with MUMPS as the default, and `superlu_dist` as a pure
-`factor_solver` opt-in. The first true model-scale test
-is **not** an unrestricted solver benchmark:
+The old Heat–Wave example was not physically qualified:
+it imposed zero *traction* on the outer wave boundary
+rather than the specified Dirichlet condition, had
+a sign convention enforcing `T=-p` at the interface
+instead of `T=p`, used heat `CG2` flux and `DG1`
+wave stress, and integrated in adaptive BDF2.
+Its first native run did complete t=0.004 with
+39 accepted, 4 rejected steps and zero nonlinear solver
+failures; the first fixed-four-step smoke was an
+incorrect **test protocol**, not evidence of divergent
+MUMPS nor proof of correct physical transmission.
+
+Because the purpose of this campaign is to provide
+scientifically meaningful user examples, we have now
+deliberately revised **only the live, non-published**
+`examples/heat_wave.py` to:
+
+- `T:DG0`, `e_Q:RT0`, `p:CG1`,
+  `q:RT0`, interface/boundary traces `CG1`;
+- fixed `CN` with the production constraint-consistent
+  `algebraic` initializer and unchanged numerical
+  default values `dt=.001,t_f=2.,dt_save=.05`;
+- correct heat temperature input and common mesh-normal
+  orientation, wave traction transmission and
+  exterior zero-velocity Dirichlet enforced by a
+  Lagrange multiplier;
+- explicit MUMPS-default or optional PETSc
+  `factor_solver`, with no changes to SCRIMP itself.
+
+**Important scientific caveat:** the wave still uses
+its established **grad–grad** partitioned form,
+hence `p:CG1`, rather than the article's distinct
+**div–div/DG0** wave discretization. This is not
+claimed to reproduce the original article's numerical
+method. Do not use DG0 wave velocity with the old
+grad-grad bricks: its gradient would vanish elementwise.
+
+The revised probe measures the actual original GetFEM
+Hamiltonian contributions, CN midpoint heat dissipation,
+raw interface port values with correct physical signs,
+the two separate subsystem energy balances, outer
+boundary work and optional traces. It uses
+`get_quantity(...,CN=True)`, so no artificial
+trapezoidal integration of already-stage-associated
+CN power is introduced. It checks complete FE
+trajectory and physical traces for MUMPS vs
+SuperLU_DIST at **MPI=1 only** (parallel
+ParaView I/O is not yet qualified).
 
 ```bash
 cd ~/Simulations/scrimp
@@ -127,78 +175,26 @@ SCRIMP_V130_2D_SCOPE=heat_wave \
 bash scripts/run-v130-example-2d-lu.sh
 ```
 
-This launches the **actual shipped** `heat_wave_eq()` and
-`shallow_water_eq()` models, with original weak forms,
-original pseudo DAE initialization, meshes, constitutive
-relations, boundary conditions and public figure/ParaView
-export methods, with explicit `t=0..0.004`,
-`dt=dt_save=0.001`. Other default values do not change.
+The job must accept exactly four CN steps over 0..0.004,
+with five stored times and no rejections.
+A backend parity PASS **must not** be mislabeled
+as physical correctness until its independent
+energy and interface residuals are inspected.
 
-The first native run `heat_wave_mumps_mpi1` reached
-t=0.004 with **39 accepted adaptive BDF2 steps, 4 rejected
-steps and no SNES failures**, 26,198 GetFEM DoFs,
-and completed Hamiltonian and ParaView exports.
-The old **test harness incorrectly required 4 fixed steps,
-zero rejections and a uniform 5-point saved clock**.
-This is a protocol false negative, *not* evidence of an
-unsuccessful MUMPS solve or incorrect physical coupling.
+The inviscid `shallow_water_eq()` is a separate,
+**unchanged adaptive BDF2** model. It may be
+run later using `SCRIMP_V130_2D_SCOPE=shallow_water`.
+Do not simultaneously exercise unchanged public
+ParaView writers on multiple MPI ranks; this
+requires a dedicated safe export implementation.
+`examples/published/` and all original historical
+outputs remain strictly untouched.
 
-The corrected gate checks actual accepted-time monotonicity,
-physical final time, PETSc convergence and finite full DAE
-states; it reports accepted and rejected steps explicitly.
-For MUMPS vs SuperLU_DIST it gates the **full original
-trajectory** only if both adaptive saved clocks match.
-Otherwise it gates **original full FE and all physical
-observables at identical start/end times**, explicitly
-disclosing that this is endpoint-only and no
-whole-trajectory parity has been claimed. All results
-remain immutable and in separate workdirs.
-
-`SCRIMP_V130_2D_SCOPE=heat_wave` is the first stage,
-MUMPS and SuperLU_DIST MPI1; `=shallow_water`
-is a later distinct stage, and `=all` runs both
-only when the first-stage physics has been examined.
-The heat-wave pilot records separate original
-heat/wave energies, genuine GetFEM heat-flux
-dissipation, raw pairings of both interface ports,
-outer boundary power, candidate trace constraints
-and BDF nodal trapezoidal balance **as diagnostics only**.
-A numerical LU parity PASS is expressly NOT a physical
-coupling model PASS. No physical qualification is
-claimed at this point. See
+Detailed formulation, comparison with the 2022
+paper, and scientific acceptance criteria are in
 [V130_HEAT_WAVE_PHYSICAL_AUDIT.md](V130_HEAT_WAVE_PHYSICAL_AUDIT.md).
+**Native status: PENDING.**
 
-For the later inviscid Saint-Venant stage, the probe
-also saves the original GetFEM water-height integral
-`∫h` and its time drift, without normalizing it
-or interpreting approximate BDF energy conservation
-as a factorization result. The separate scientific
-audit and any model correction will follow the
-native data, not precede them.
-
-**MPI I/O scope warning:** current `DPHS.export_to_pv()`
-opens the same `.pvd` on all ranks (and uses
-root-only directory reset). The user previously
-reported trouble locating generated outputs. It is
-not yet proven safe to run these unchanged top-level
-postprocessors simultaneously on MPI2/4. This
-first stage therefore deliberately uses only MPI1
-and independent host working directories. **No
-simulation or document under `examples/published/`
-is mounted, modified or touched.** After examining
-both physical trajectories, qualify/fix generic
-MPI export separately before extending actual
-top-level 2D examples to MPI2/4.
-
-**Scientific limitation:** numerical MUMPS/SuperLU_DIST
-agreement does not itself validate correctness of the
-original Heat–Wave coupling nor inviscid Saint-Venant
-discretization. Physical Hamiltonian and volume
-diagnostics are preserved for critical review; an
-exact BDF2 power identity is **not** claimed.
-On failure the launcher stops immediately and retains
-the first original native failure logs and host
-outputs; no forced PASS.
 
 ## Inventory (source at current release/1.3.0-preparation; 23 November 2026)
 

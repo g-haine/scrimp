@@ -10,9 +10,10 @@
 
 Run **MPI=1 only**: both existing top-level functions include ParaView
 export postprocessing, which is NOT certified for concurrent MPI writers.
-This is a real GetFEM/PETSc/Python integration test, not a performance
-benchmark or a claim of universal BDF discrete energy conservation.
-The heat-wave and SWE models are called without modifying weak forms.
+The Heat–Wave model is now explicitly revised for physical clarity
+(mixed RT and CN). Its correctness remains under actual native
+diagnostic review, not inferred from solver convergence.
+The shallow-water original model and BDF implementation are unchanged.
 """
 
 import argparse
@@ -161,6 +162,18 @@ def main():
     physics_data={}
     physics_report=None
     if args.example=="heat_wave":
+        if system.time_scheme.getString("ts_type","").lower()!="cn":
+            raise RuntimeError("Corrected heat-wave example must use PETSc CN")
+        if (system.time_scheme.getString("ts_adapt_type","").lower()
+                != "none"):
+            raise RuntimeError("Heat-wave CN must have fixed dt")
+        if (system.last_ts_steps!=4 or system.last_ts_rejections!=0
+                or not np.allclose(
+                    times,np.linspace(0.,T_FINAL,5),atol=1e-11,rtol=0.
+                )):
+            raise RuntimeError(
+                "Fixed-step CN heat-wave accepted-time contract failed"
+            )
         physics_data,physics_report=collect_heat_wave_physics(
             system,times,H
         )
@@ -189,7 +202,9 @@ def main():
             else "PASS_NATIVE_ORIGINAL_2D_EXAMPLE_SINGLE_MPI"
         ),
         "example":args.example,"factor_solver":chosen,
-        "original_FEM_and_weak_forms_unchanged":True,
+        "original_FEM_and_weak_forms_unchanged":args.example!="heat_wave",
+        "heat_wave_RT_CN_boundary_and_interface_updated":
+            args.example=="heat_wave",
         "PETSc_reason":int(system.last_ts_converged_reason),
         "rejected_steps":int(system.last_ts_rejections),
         "SNES_failures":int(system.last_ts_snes_failures),
@@ -202,7 +217,9 @@ def main():
             np.allclose(np.diff(times),np.diff(times)[0],
                         atol=1e-12,rtol=0.)
         ),
-        "adaptive_integrator_original_behavior_preserved":True,
+        "adaptive_integrator_original_behavior_preserved":
+            args.example!="heat_wave",
+        "heat_wave_fixed_CN":args.example=="heat_wave",
         "MPI":comm.size,"full_state_DOFs":int(states.shape[1]),
         "t_initial":float(times[0]),"t_final":float(times[-1]),
         "dt":DT,"Hamiltonian_initial":float(H[0]),
@@ -216,7 +233,9 @@ def main():
         ),
         "original_outputs_plot":figure,
         "original_outputs_paraview":paraview,
-        "BDF_energy_balance_identity_not_claimed":True,
+        "BDF_energy_balance_identity_not_claimed":args.example!="heat_wave",
+        "CN_midpoint_physical_power_balance_diagnostic":
+            args.example=="heat_wave",
         "physical_model_approval_not_inferred_from_solver_success":True,
         "parallel_export_safety_not_qualified":True,
         "heat_wave_physical_audit":physics_report,

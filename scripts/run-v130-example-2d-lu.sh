@@ -41,13 +41,15 @@ python3 scripts/check-v130-published-immutable.py
 
 mkdir -p sandbox/outputs
 out="$(mktemp -d "$root/sandbox/outputs/v130-main-2d-lu-$(git rev-parse --short=8 HEAD)-XXXXXXXX")"
-printf '{"schema":"scrimp-v130-main-2d-lu-pilot-campaign-v2","source":"%s","image_revision":"%s","status":"NATIVE_PENDING","scope":"%s","solvers":["mumps","superlu_dist"],"MPI":[1],"requested_initial_dt":0.001,"t_final":0.004,"adaptive_rejected_steps_allowed_but_reported":true,"coupled_heat_wave_model_physics_not_yet_qualified":true,"parallel_ParaView_export_not_qualified":true,"not_a_benchmark":true}\n' \
+printf '{"schema":"scrimp-v130-main-2d-lu-pilot-campaign-v2","source":"%s","image_revision":"%s","status":"NATIVE_PENDING","scope":"%s","solvers":["mumps","superlu_dist"],"MPI":[1],"requested_initial_dt":0.001,"t_final":0.004,"heat_wave_fixed_CN":true,"shallow_water_BDF_adaptive":true,"coupled_heat_wave_model_physics_not_yet_qualified":true,"parallel_ParaView_export_not_qualified":true,"not_a_benchmark":true}\n' \
   "$(git rev-parse HEAD)" "$revision" "$scope" > "$out/manifest.json"
-echo "Original SCRIMP 2-D Heat-Wave and inviscid Saint-Venant pilot"
-echo "MUMPS vs SuperLU_DIST, 1 rank only: first native results before MPI I/O audit"
-echo "Original weak forms, original public Hamiltonian PNG and ParaView PVD/VTU"
-echo "t=0..0.004; initial dt=0.001; PETSc adaptive BDF2 ACCEPTED STEPS NOT FIXED"
-echo "Original heat/wave interface flux, dissipation and power are DIAGNOSTICS (not a model PASS)"
+echo "SCRIMP 2-D Heat-Wave PHYSICAL REVISION and inviscid Saint-Venant pilot"
+echo "MUMPS vs SuperLU_DIST, 1 rank only, prior to parallel ParaView I/O audit"
+echo "Heat-Wave: mixed DG0/RT0/CG1, corrected interface and exterior, fixed CN"
+echo "Shallow water: unchanged original adaptive BDF2 numerical model"
+echo "t=0..0.004; heat-wave CN dt=0.001, 4 accepted steps"
+echo "Per-subsystem Hamiltonians, CN midpoint dissipation and oriented interface work"
+echo "NO heat-wave physical PASS without independent scientific audit"
 echo "No changes or mounts in examples/published"
 echo "EVIDENCE: $out"
 
@@ -118,7 +120,11 @@ for example in examples:
         assert report["steps"]>=1 and report["MPI"]==1
         assert report["rejected_steps"]>=0 and report["SNES_failures"]==0
         assert report["PETSc_reason"]>0
-        assert report["adaptive_integrator_original_behavior_preserved"] is True
+        if example=="heat_wave":
+            assert report["heat_wave_fixed_CN"] is True
+            assert report["steps"]==4 and report["rejected_steps"]==0
+        else:
+            assert report["adaptive_integrator_original_behavior_preserved"] is True
         with np.load(folder/"original_2d_example_trace.npz",
                      allow_pickle=False) as a:
             trace={k:a[k] for k in a.files}
@@ -137,10 +143,18 @@ for example in examples:
             assert diagnostics["scientific_status"]==(
                 "DIAGNOSTIC_ONLY_MODEL_NOT_YET_QUALIFIED"
             )
+            assert times.shape==(5,)
+            assert np.allclose(times,np.linspace(0.,.004,5),atol=1e-11,rtol=0)
             assert "phys_D_heat_flux" in trace
             assert "phys_P_interface_sum" in trace
-            assert trace["phys_D_heat_flux"].shape==times.shape
+            assert "phys_CN_D_heat_flux" in trace
+            assert "phys_CN_per_step_H_balance_error" in trace
+            assert "phys_CN_per_step_heat_balance_error" in trace
+            assert "phys_CN_per_step_wave_balance_error" in trace
+            assert "phys_CN_cumulative_total_balance_error" in trace
+            assert trace["phys_CN_D_heat_flux"].shape==times.shape
             assert diagnostics["dissipation_min"]>=-1e-10
+            assert diagnostics["CN_step_powers_are_assembled_at_mean_FE_state"] is True
         assert report["full_state_DOFs"]==trace["states"].shape[1]
         all_runs[solver]=(report,trace)
     left,right=all_runs["mumps"][1],all_runs["superlu_dist"][1]
@@ -151,11 +165,17 @@ for example in examples:
         and np.allclose(left["times"],right["times"],
                         atol=1e-12,rtol=0.)
     )
-    # Adaptive BDF2 can legitimately take a different number of
-    # accepted steps with different native LU roundoff. If so,
-    # ONLY same-clock endpoints can be compared exactly. Never
-    # invent a claimed whole-trajectory parity via interpolation.
+    if example=="heat_wave" and not common_clock:
+        raise RuntimeError(
+            "Fixed CN must yield the identical accepted time grid "
+            "for MUMPS and SuperLU_DIST"
+        )
+    # Shallow-water adaptive BDF2 may have different accepted
+    # time grids. Only compare its original endpoints when they differ;
+    # do not invent whole-path parity via interpolation.
     comparison_scope=(
+        "WHOLE_SAVED_TRAJECTORY_FIXED_CN"
+        if example=="heat_wave" else
         "WHOLE_SAVED_TRAJECTORY_AT_SAME_ADAPTIVE_CLOCK"
         if common_clock else "ENDPOINTS_ONLY_DIFFERENT_ADAPTIVE_CLOCKS"
     )
@@ -189,6 +209,8 @@ for example in examples:
         "saved_time_count_mumps":len(left["times"]),
         "saved_time_count_superlu_dist":len(right["times"]),
         "original_heat_wave_physical_model_qualified":False,
+        "original_heat_wave_model_revised_for_CN_RT_physics":
+            example=="heat_wave",
         "original_water_height_mass_change_mumps":(
             None if example!="shallow_water" else
             float(left["integral_h"][-1]-left["integral_h"][0])

@@ -20,14 +20,25 @@ def heat_wave_eq(
     heat_region=1, wave_region=2, *, factor_solver=None,
     final_time=2.0, time_step=0.001, save_step=0.05,
 ):
-    """A structure-preserving discretization of a coupled heat-wave equation
+    """A physically oriented, energy-dissipative coupled heat-wave example.
 
-    Co-energy formulations, heat: div-div, wave: grad-grad, gyrator interconnection
-    On the `Concentric` built-in geometry: 1: internal disk, 2: exterior annulus
-    
+    Reference: Haine, Matignon & Monteghetti, Mathematical Reports (2022),
+    eqs. (2.1)-(2.2), (3.15), (4.3)-(4.5). This example is NOT the paper's
+    numerical experiment: it keeps the original SCRIMP heat div-div and
+    wave grad-grad weak forms, choosing compatible mixed FEM spaces.
+
+    The original built-in Concentric geometry has disk=1, annulus=2,
+    interface=10, outer boundary=20. CN and the 0-input external
+    Dirichlet condition are used to expose the heat dissipation and
+    closed interconnection in an interpretable power balance.
+
     Args:
-        heat_region (int):  the label of the region where the heat equation lies
-        wave_region (int):  the label of the region where the wave equation lies
+        heat_region: domain label of the heat equation (1 or 2).
+        wave_region: domain label of the wave equation (the other one).
+        factor_solver: optional PETSc LU solver (default: SCRIMP MUMPS).
+        final_time: physical end time.
+        time_step: fixed Crank–Nicolson timestep.
+        save_step: accepted trajectory sampling interval.
     """
     
     # Init the distributed port-Hamiltonian system
@@ -68,6 +79,18 @@ def heat_wave_eq(
     for port in ports:
         hw.add_port(port)
 
+    if {heat_region, wave_region} != {1, 2}:
+        raise ValueError("Concentric requires heat/wave regions 1 and 2")
+
+    # The outer boundary is either wave velocity (Dirichlet) or heat
+    # temperature (Dirichlet). Its port causality depends on the
+    # adjacent subsystem, NOT on the user-selected LU factorization.
+    outer_is_wave = (wave_region == 2)
+    # GetFEM's interface Normal is oriented away from the inner disk
+    # for either subdomain. Convert it to outward HEAT normal:
+    # +1 when heat is disk, -1 when heat is annulus.
+    heat_normal_orientation = 1 if heat_region == 1 else -1
+
     # Define the control ports
     control_ports = [
         S.Control_Port(
@@ -90,17 +113,18 @@ def heat_wave_eq(
             region=10, 
             position="effort"
         ),
-        # This port will be either for the wave or the heat equation
-        # It corresponds to the exterior circle of radius R
-        S.Control_Port( 
-            "Boundary", 
-            "U_bnd", 
-            "0", 
-            "Y_bnd", 
-            ".", 
-            "scalar-field", 
-            region=20, 
-            position="flow"
+        # Homogeneous Dirichlet: wave velocity=0 (wave annulus)
+        # or temperature=0 (heat annulus). Normal traction/flux is
+        # the corresponding Lagrange-multiplier output.
+        S.Control_Port(
+            "Boundary",
+            "U_bnd",
+            "Velocity" if outer_is_wave else "Temperature",
+            "Y_bnd",
+            "Normal force" if outer_is_wave else "Normal heat flux",
+            "scalar-field",
+            region=20,
+            position="flow" if outer_is_wave else "effort",
         ),
     ]
 
@@ -108,22 +132,34 @@ def heat_wave_eq(
     for ctrl_port in control_ports:
         hw.add_control_port(ctrl_port)
 
-    # Define the Finite Elements Method of each port
-    k = 1
+    # Paper (4.3)-(4.5): DG_k heat scalar, RT_k heat flux,
+    # CG_(k+1) interface traces. Our existing wave grad-grad PFEM
+    # requires a continuous velocity p: CG_(k+1) rather than the
+    # article's div-div DG_k. Wave stress q is now H(div)-conforming
+    # RT_k, giving a genuine normal trace.
+    # k=0 is the order used in the reference numerical experiments.
+    k = 0
     FEMs = [
         S.FEM("T", k, "DG"),
-        S.FEM("Heat flux", k+1, "CG"),
-        S.FEM("Interface Heat", k, "DG"),
-        S.FEM("p", k+1, "CG"),
-        S.FEM("q", k, "DG"),
-        S.FEM("Interface Wave", k, "DG"),
-        S.FEM("Boundary", k, "DG"),
+        S.FEM("Heat flux", k, "RT"),
+        S.FEM("Interface Heat", k + 1, "CG"),
+        S.FEM("p", k + 1, "CG"),
+        S.FEM("q", k, "RT"),
+        S.FEM("Interface Wave", k + 1, "CG"),
+        S.FEM("Boundary", k + 1, "CG"),
     ]
     
     # Add them to the dphs
     for FEM in FEMs:
         hw.add_FEM(FEM)
-    
+        # Earlier GetFEM versions could silently fall back to CG
+        # on an unavailable intrinsic RT element. Never claim an
+        # RT-based model if that fallback occurred.
+        if FEM.get_name() in ("Heat flux", "q") and FEM.get_type() != "RT":
+            raise RuntimeError(
+                "RT finite elements are required for the heat-wave example"
+            )
+
     # Define the pHs via `Brick` == non-zero block matrices == variational terms
     # Since we use co-energy formulation, constitutive relations are already taken into
     # account in the mass matrices M_q and M_p
@@ -135,7 +171,14 @@ def heat_wave_eq(
         
         S.Brick("D_T", "-Div(e_Q)*Test_T", [heat_region], position="effort"),
         S.Brick("D_T^T", "T*Div(Test_e_Q)", [heat_region], position="effort"),
-        S.Brick("B_T", "U_T*Test_e_Q.Normal", [10], position="effort"),
+        # With e_Q=-grad(T), the boundary temperature term enters
+        # with a minus: T=U_T on the interface in the mixed weak form.
+        S.Brick(
+            "B_T",
+            "-U_T*Test_e_Q.Normal" if heat_normal_orientation == 1
+            else "U_T*Test_e_Q.Normal",
+            [10], position="effort",
+        ),
         S.Brick("B_T^T", "e_Q.Normal*Test_Y_T", [10], position="effort"),
 
         # === Wave: grad-grad
@@ -148,23 +191,46 @@ def heat_wave_eq(
         S.Brick("B_w", "U_w*Test_p", [10], position="effort"),
         S.Brick("B_w^T", "p*Test_Y_w", [10], position="effort"),
     ]
-    # === Boundary depends on where is the heat equation / wave equation
-    if wave_region==1:
-        bricks.append(S.Brick("M_Y_bnd", "Y_bnd*Test_Y_bnd", [20], position="flow"))
-        bricks.append(S.Brick("B_bnd", "U_bnd*Test_e_Q.Normal", [20], position="effort"))
-        bricks.append(S.Brick("B_bnd^T", "e_Q.Normal*Test_Y_bnd", [20], position="effort"))
+    # Outer homogeneous Dirichlet, consistently with (2.1):
+    # - heat exterior: prescribe temperature, observe normal flux;
+    # - wave exterior: prescribe velocity, normal traction is the
+    #   Lagrange multiplier, following examples/wave.py.
+    if not outer_is_wave:
+        bricks.append(S.Brick(
+            "M_Y_bnd", "Y_bnd*Test_Y_bnd", [20], position="flow"
+        ))
+        bricks.append(S.Brick(
+            "B_bnd", "-U_bnd*Test_e_Q.Normal", [20], position="effort"
+        ))
+        bricks.append(S.Brick(
+            "B_bnd^T", "e_Q.Normal*Test_Y_bnd", [20], position="effort"
+        ))
     else:
-        bricks.append(S.Brick("M_Y_bnd", "U_bnd*Test_Y_bnd", [20], position="flow"))
-        bricks.append(S.Brick("B_bnd", "Y_bnd*Test_p", [20], position="effort"))
-        bricks.append(S.Brick("B_bnd^T", "p*Test_Y_bnd", [20], position="effort"))
+        bricks.append(S.Brick(
+            "M_Y_bnd", "U_bnd*Test_Y_bnd", [20], position="flow"
+        ))
+        bricks.append(S.Brick(
+            "B_bnd", "Y_bnd*Test_p", [20], position="effort"
+        ))
+        bricks.append(S.Brick(
+            "B_bnd^T", "-p*Test_Y_bnd", [20], position="effort"
+        ))
     for brick in bricks:
         hw.add_brick(brick)
     
     # Set the controls
-    # === Gyrator interconnection
-    hw.set_control("Interface Heat", "Y_w") 
-    # CAREFUL: the numerical normal is the same for both sub-domains! Hence the minus sign. 
-    hw.set_control("Interface Wave", "-Y_T") 
+    # Physical continuity (2.2): T=p, J_Q.n_heat=q.n_wave.
+    # The heat temperature input U_T equals the wave velocity Y_w.
+    # The heat flux output Y_T uses GetFEM's common interface Normal,
+    # not always the outward heat-domain normal. Convert that normal
+    # via heat_normal_orientation when prescribing wave traction U_w.
+    # The physical signed power is
+    # -heat_normal_orientation*U_T*Y_T + U_w*Y_w = 0.
+    hw.set_control("Interface Heat", "Y_w")
+    hw.set_control(
+        "Interface Wave",
+        "Y_T" if heat_normal_orientation == 1 else "-Y_T",
+    ) 
     # === Dirichlet boundary condition
     hw.set_control("Boundary", "0.")
 
@@ -174,20 +240,23 @@ def heat_wave_eq(
     hw.set_initial_value("q", "[0.,0.]")
 
     ## Solve in time
-    # Define the time scheme ("bdf" is backward differentiation formula)
+    # CN is the second-order time integrator used for the paper's
+    # energy-decay results; fixed accepted steps make the model's
+    # dissipation work independently checkable step by step.
     # No explicit solver => SCRIMP's qualified MUMPS default.
     # Other PETSc LU backends remain an opt-in user choice.
     scheme = {}
     if factor_solver is not None:
         scheme["pc_factor_mat_solver_type"] = factor_solver
     hw.set_time_scheme(
-        # Preserve the original explicit pseudo initialization.
-        init_step_ts_type="pseudo",
-        ts_type="bdf",
-                       ts_bdf_order=2,
-                       t_f=float(final_time),
-                       dt=float(time_step),
-                       dt_save=float(save_step),
+        # Use the production constraint-consistent initializer for the
+        # index-2 coupled pH-DAE; do not hide an inconsistent Gaussian.
+        init_step_ts_type="algebraic",
+        ts_type="cn",
+        ts_adapt_type="none",
+        t_f=float(final_time),
+        dt=float(time_step),
+        dt_save=float(save_step),
                        ksp_type="preonly",
                        pc_type="lu",
                        **scheme,
@@ -212,18 +281,22 @@ def heat_wave_eq(
     # Plot the Hamiltonian and save the output
     hw.plot_Hamiltonian(save_figure=True, filename="Hamiltonian_Heat"+str(heat_region)+"_Wave"+str(wave_region)+"_2D.png")
     
-    # Plot the Hamiltonian in log-log scale
-    t = hw.solution["t"]
-    Hamiltonian = hw.get_Hamiltonian()
+    # A true log-log diagnostic must omit t=0, rather than plotting
+    # zero on a logarithmic axis. Keep this separate from the energy
+    # identity plot used for the physical qualification.
+    import numpy as np
     import matplotlib.pyplot as plt
-    fig = plt.figure(figsize=[8, 5])
-    ax = fig.add_subplot(111)
-    ax.loglog(t, Hamiltonian)
+    t = np.asarray(hw.solution["t"], dtype=float)
+    Hamiltonian = np.asarray(hw.get_Hamiltonian(), dtype=float)
+    fig, ax = plt.subplots(figsize=(8, 5))
+    positive = (t > 0.) & (Hamiltonian > 0.)
+    ax.loglog(t[positive], Hamiltonian[positive])
     ax.grid(axis="both")
     ax.set_xlabel("time t")
     ax.set_ylabel("Hamiltonian")
     ax.set_title("Evolution of the Hamiltonian (log-log)")
     plt.show()
+    plt.close(fig)
     
     hw.export_to_pv("p")
     hw.export_to_pv("T")

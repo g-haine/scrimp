@@ -1,156 +1,203 @@
-# SCRIMP v1.3.0 — Heat–Wave example: physical verification (OPEN)
+# SCRIMP v1.3.0 — Heat–Wave 2D: physically meaningful example
 
-**23 November 2026. The correct reference article was confirmed by the author;
-its actual numerical experiments are NOT assumed to be the same as
-`examples/heat_wave.py`. This document is an independent audit, not a claim
-that the current example is faithful or physically qualified.**
+**23 November 2026 — physical MODEL REVISION COMMITTED IN SOURCE;
+native GetFEM/PETSc and CN power-balance qualification PENDING.**
 
-## Definitive published reference (read from the actual PDF)
+The author confirmed the correct scientific reference:
 
 G. Haine, D. Matignon and F. Monteghetti,
 *Long-Time Behavior of a Coupled Heat-Wave System Using a
 Structure-Preserving Finite Element Method*,
-Mathematical Reports 24(74), 1–2 (2022), pp. 187–215.
-Original PDF: https://imar.ro/journals/Mathematical_Reports/Pdfs/2022/1-2/11.pdf
+Mathematical Reports **24**(74), 1–2 (2022), 187–215.
+https://imar.ro/journals/Mathematical_Reports/Pdfs/2022/1-2/11.pdf
 
-Section 2 eqs. (2.1)-(2.2): with unit material coefficients
-and original interface normal orientations,
+The **original paper's numerical experiments are different** from
+the SCRIMP `examples/heat_wave.py` example. No modifications,
+even cosmetic, are allowed under `examples/published/`.
+
+## Mathematical target (paper eqs. 2.1–2.2, 3.15)
+
+With unit physical coefficients, heat inside `Omega_1`,
+wave inside `Omega_2`, exterior wave displacement fixed:
+
 ```text
-d_t theta = Delta theta         in Omega_1 (heat)
-d_tt w = Delta w                 in Omega_2 (wave)
-theta = d_t w                    on Gamma_int
-d_{n1} theta = -d_{n2} w         on Gamma_int
-w = 0                            on Gamma_2 (external wave boundary)
+d_t T = Delta T                    in Omega_heat
+d_tt w = Delta w                   in Omega_wave
+T = d_t w = p                      at Gamma_interface
+grad(T).n_heat = -grad(w).n_wave   at Gamma_interface
+w = 0                              at Gamma_wave_exterior
 ```
 
-Section 3 eqs. (3.6)-(3.15): the coenergy variables
-are heat temperature `theta`, heat flux
-`J_Q=-grad(theta)`, wave velocity `v=d_t(w)`, and
-wave stress `sigma=grad(w)`. In the article's
-**specific boundary-port convention**:
-`J_Q.n1=-u1, y1=theta, u2=v, y2=sigma.n2`;
-the gyrator interconnection (3.14) is
-`u1=-y2, u2=y1`.
-This yields
-`H=0.5*int_heat theta^2+0.5*int_wave(v^2+sigma.sigma)`
-and the closed-system identity (3.15):
+In co-energy variables:
+`e_Q=-grad T`, `p=d_t w`, `q=grad w`,
+and the outward physical interface normals have opposite
+directions. The energy is
+
 ```text
-dH/dt = - int_Omega1 J_Q.J_Q = - int_Omega1 |grad(theta)|^2 <= 0
+H = 1/2 int_heat T^2 + 1/2 int_wave (p^2+q.q)
+dH/dt = - int_heat e_Q.e_Q = -D,   D>=0.
 ```
-These are **physical** statements, separate from the
-specific time integrator or LU factor solver.
 
-The main example uses different boundary port **causality**
-(temperature control on the heat side, traction on the wave
-side). Consequently, the raw code
-`U_T=Y_w`, `U_w=-Y_T` is not automatically inconsistent
-with the article's `u1=-y2, u2=y1`.
-They must be mapped by **physical trace definitions and
-normal orientations**, not by matching names or changing signs.
-The correct physical interface checks are
-`theta-v=0` and `J_Q.n1-sigma.n2=0`
-(equivalently `d_n1(theta)+d_n2(w)=0`) in appropriate
-discrete trace dualities. An algebraic
-`int(U_T*Y_T+U_w*Y_w)=0` may be tautologically true
-for a gyrator and alone does NOT prove this interface
-represents the physical PDE.
+The outer Dirichlet `w=0` corresponds to fixed *velocity*
+`p=0`, if this is compatible with its initial displacement.
+It is **not** the Neumann condition `q.n=0`.
 
-## Differences that must be analyzed, not erased
+## What was incorrect or insufficient in the old example
 
-1. **Time discretization:** the 2022 paper's quantitative
-   temporal energy-decay study uses **Crank–Nicolson**
-   (Introduction, Section 5); current
-   `examples/heat_wave.py` defaults to **adaptive BDF2**.
-   For BDF2, `∫P dt` from saved nodal powers using
-   trapezoids is an approximation, not the scheme's exact
-   discrete power balance. A genuine CN physical check
-   is scientifically desirable *after* inspecting the DAE.
-2. **FEM spaces:** the paper's eqs. (4.3)-(4.5)
-   use `DG_k` for heat temperature and wave velocity,
-   `RT_k` for heat flux and wave stress, and
-   `CG_(k+1)` on interface traces. Current
-   `examples/heat_wave.py` chooses `DG_1` for
-   `T`, **`CG_2` for `e_Q`**, **`CG_2`
-   for `p`**, **`DG_1` for `q`**
-   (interface ports `DG_1`).
-   These are NOT the same mixed FEM spaces, so
-   stability/inf-sup and discrete interface balance
-   from the article cannot simply be assumed.
-   These choices are hypotheses to assess, not
-   automatically proof of an invalid physical model.
-3. **Initialization:** the example chooses Gaussian
-   `T(0),p(0)` centered near the interface and
-   `q(0)=0`; an index-2 pHDAE imposes additional
-   interface constraints. The original initial
-   `pseudo` consistency step may change the
-   accepted initial FE state. Preserve both prescribed
-   and accepted `z(0)` for comparison and report it;
-   do not treat a visually plausible Gaussian as
-   compatible without the constraint check.
-4. **Physical outputs:** inspect separate heat/wave
-   Hamiltonian contributions, nonnegative heat
-   dissipation, interface *physical* trace residual,
-   boundary work, and the coupled balance. Check at
-   multiple meshes and time steps. Solver factorization
-   parity is necessary for implementation robustness
-   but not a certificate of correctness of the PDE.
+The preceding `heat_wave.py` used mixed co-energy
+variables but unsuitable/opaque combinations of FEMs
+(`T:DG1`, `e_Q:CG2`, `p:CG2`, `q:DG1`,
+interface/boundary `DG1`), an adaptive BDF2 time scheme,
+and a purported Dirichlet outer boundary whose actual
+wave boundary equations prescribed **zero traction**,
+which is Neumann.
 
-## What the first real native pilot actually established
+In addition, with the heat div-div weak form
+`M_Q e_Q = int T div(test_e_Q) - int U_T test_e_Q.n`,
+a **minus** sign is required for the temperature
+Dirichlet input on the heat boundary. The former
+`+U_T test_e_Q.Normal` instead prescribed
+`T=-U_T`. The former `U_w=-Y_T` simultaneously
+compensated this mistake in the algebraic energy
+interconnection, so an apparently correct *zero
+algebraic interface-power sum* did NOT by itself
+establish the intended physical transmission law.
+Both signs must be corrected together.
 
-At source `f294f0edde8311299d82b6eeec889756d7094d1a`,
-the original `heat_wave_mumps_mpi1` produced:
+The previous native PETSc BDF2 Heat–Wave integration
+already completed at t=.004 (39 accepted, 4 rejected,
+0 SNES failures, 26,198 DoFs); it was the **old pilot's
+false four-fixed-step acceptance test** that failed,
+not MUMPS or the actual physical solver. That
+historical evidence does not qualify the new model.
 
-| Original observed quantity | Value |
-|---|---:|
-| Full GetFEM/PETSc degrees of freedom | 26198 |
-| Physical final time reached | 0.004 |
-| Accepted adaptive BDF2 steps | 39 |
-| Rejected steps | 4 |
-| SNES nonlinear solver failures | 0 |
-| Hamiltonian postprocessing | Completed |
-| ParaView `p` and `T` export calls | Completed |
+## New implementation in examples/heat_wave.py
 
-The original **test harness was wrong**: it required
-`last_ts_steps==4`, `last_ts_rejections==0`, and
-exactly five uniformly spaced saved times. The default
-PETSc BDF2 adapter uses an initial dt=.001 then adjusts
-its timestep; the monitor saves **accepted** physical
-states rather than interpolating to exact uniform times.
-The failure did **not** establish MUMPS divergence,
-a wrong physical PDE or an invalid energy law.
+The previously qualified SCRIMP/PETSc/GF **solvers and
+PDE backend are NOT modified**. Only this **non-published
+example** is revised.
 
-## Diagnostic method — current native test PENDING
+### FEM choice and mathematical honesty
 
-The new, separate non-invasive
-`sandbox/measure_v130_heat_wave_physics.py`
-uses the actual original SCRIMP `get_quantity()`
-and accepted time/state history:
+The paper's mixed FE spaces are (4.3)–(4.5):
+```text
+T: DG_k; e_Q: RT_k; p: DG_k; q: RT_k;
+interface and outer boundary variables: CG_(k+1).
+```
 
-- `H_heat = 0.5*int_1(T*T)`;
-- `H_wave = 0.5*int_2(p*p+q.q)`;
-- `D_heat = int_1(e_Q.e_Q)`;
-- signed `int_10 U_T*Y_T`, `int_10 U_w*Y_w`
-  and outer `int_20 U_bnd*Y_bnd`;
-- optional trace residuals `T-p`, `T+p`,
-  `U_T-Y_w`, `U_w+Y_T`, each explicitly
-  marked unavailable if GetFEM cannot evaluate the
-  expression on that original FE trace.
+For its time-decay experiments the paper uses `k=0`.
+The current SCRIMP example selects
+```text
+k=0
+T      DG0
+e_Q    RT0  (GetFEM FEM_RTK(2,0), intrinsic H(div))
+p      CG1  (because the existing wave uses grad–grad weak form)
+q      RT0  (intrinsic H(div), with proper normal traces)
+U_T/Y_T, U_w/Y_w, U_bnd/Y_bnd: CG1 restricted to boundaries
+```
 
-It saves all original time histories **without changing
-the equations** and records nonconservation and
-dissipation without pretending a BDF2 trapezoid is an
-exact energy identity. An unexpected failure in the
-required original physical quantities must FAIL with
-the full original log retained — it must not silently
-replace missing physics with zeros.
+**This is a mixed PFEM that remains different from the
+paper's DG0/RT0 wave formulation.** To implement the
+latter exactly, the wave weak forms and port causalities
+must also be rebuilt to the paper's div-div system
+(3.18–3.19) and its interface DAE (4.7–4.9).
+An unverified partial replacement of `p:CG1` with
+`p:DG0` while leaving `Grad(p)` or
+`q.Grad(Test_p)` would remove the spatial wave
+operator. Do **not** make that invalid shortcut.
 
-The bounded backend test is therefore split into a
-`heat_wave`-only first phase, then the inviscid
-`shallow_water` model. Numerical MUMPS/SuperLU_DIST
-parity can only be claimed on the original full FE
-trajectories when the accepted time grids agree; if
-adaptive grids differ, the test may compare endpoints,
-and must explicitly disclose the reduced scope.
+Native `S.FEM("Heat flux",0,"RT")` and
+`S.FEM("q",0,"RT")` require the current GetFEM build
+to support `FEM_RTK(2,0)`. The example explicitly
+checks that neither was silently replaced by CG.
+GetFEM reference:
+https://getfem.readthedocs.io/en/latest/userdoc/appendixA.html
+
+### Boundary, coupling and model power
+
+The heat div-div and wave grad-grad weak forms remain,
+but their **physical signs** are now explicit:
+
+- `U_T=Y_w=p`: temperature on the heat interface
+  equals wave velocity.
+- `Y_T=e_Q.Normal` uses the common GetFEM normal.
+  To obtain physical outward heat flux,
+  `orientation=+1` for heat in inner disk,
+  `orientation=-1` for heat in outer annulus.
+- `U_w=orientation*Y_T` imposes physical wave traction
+  matching outward heat flux. The heat boundary
+  brick is `-orientation*U_T*Test_e_Q.Normal`.
+- The true *signed* interface power is
+  `P_int=-orientation*U_T*Y_T+U_w*Y_w`, expected
+  to vanish. An unweighted `U_T*Y_T+U_w*Y_w`
+  sum is **not** the physical power balance here.
+- For an outer **wave** boundary, a Lagrange-multiplier
+  port enforces `p=U_bnd=0` (instead of setting
+  zero traction); with heat on the exterior,
+  `T=U_bnd=0` is imposed using the heat div-div
+  temperature input. This follows the intended
+  Dirichlet boundary conditions.
+
+### Fixed Crank–Nicolson and DAE initialization
+
+The example explicitly sets
+`ts_type="cn"`, `ts_adapt_type="none"`,
+`init_step_ts_type="algebraic"` and preserves
+`dt=.001, dt_save=.05, t_f=2.` by default.
+Users can still supply different `time_step`,
+`save_step`, `final_time` and `factor_solver`
+for bounded tests; if unspecified, LU=MUMPS as
+in the qualified SCRIMP core. The initial Gaussian
+profiles remain as before pending physical diagnostics
+of the **accepted, algebraically consistent** initial
+state; this does not claim that the raw prescribed
+Gaussian initially satisfies every constraint.
+
+No implicit adaptive BDF2 property is asserted.
+
+## Genuine physical qualification — native PENDING
+
+The revised `scripts/run-v130-example-2d-lu.sh`
+by default runs only `heat_wave` at MPI1,
+MUMPS and SuperLU_DIST (the unchanged
+`shallow_water` stage is selected separately).
+Each model uses its original geometry and
+weak-form/constitutive parameters with explicit
+short horizon t=0..0.004, fixed CN dt=.001.
+For heat-wave, exactly 4 accepted steps are now
+a correct **CN no-adaptation** criterion.
+ParaView exporter is not proven MPI-safe: do
+**not** run this top-level plotting example on
+multiple ranks without a separate export audit.
+
+The independent `sandbox/measure_v130_heat_wave_physics.py`
+records the actual original GetFEM quantities:
+
+- separate heat/wave energies and exact sum vs H;
+- nonnegative heat flux dissipation;
+- each raw interface port, true oriented net power,
+  and outer boundary power;
+- candidate physical temperature and flux trace errors,
+  with unsupported evaluations clearly reported;
+- **CN midpoint values** `get_quantity(..., CN=True)`
+  for dissipation and port power on each accepted step;
+- original per-step and cumulative identities,
+  including `ΔH + dt*(D - P_signed)=0`
+  and each subsystem's separate balance;
+- all entire FE coefficient paths, actual field traces,
+  Hamiltonians and public PNG/ParaView outputs;
+- cross-LU full-path FE and power-observable
+  agreement with an explicit `1e-8` comparator gate
+  (MUMPS vs SuperLU_DIST, same fixed CN clock).
+
+Diagnostics are **not automatically a physical-model
+PASS**. Confirm energy and interface residuals
+against explicit tolerances and physical meaning,
+then qualify or correct the model. In particular,
+the published article establishes a continuous
+and semidiscrete identity, not an unconditional
+PETSc time-integration proof for this different
+specific weak form.
 
 ```bash
 cd ~/Simulations/scrimp
@@ -161,19 +208,6 @@ SCRIMP_V130_2D_SCOPE=heat_wave \
 bash scripts/run-v130-example-2d-lu.sh
 ```
 
-The output ZIP includes the original full FE trajectories,
-per-subsystem Hamiltonians, interface powers,
-heat flux dissipation, optional trace residuals,
-host logs and postprocessed figures/VTU files.
-**No numeric or physical PASS claimed before
-running these actual GetFEM native diagnostics.**
-`examples/published/` is not modified, mounted,
-or touched. The original paper's experiments are
-not silently substituted for this example.
-
-**Next scientific decision, after seeing the real traces:**
-identify whether a demonstrated defect arises in
-(1) port causality/signs, (2) mixed FE spaces,
-(3) consistent initialization, (4) discretization/time
-integration, or (5) postprocessing; change one element
-at a time outside the immutable `published` subtree.
+**Status: source model changed; no genuine native
+result yet.** `examples/published/` and every
+historical local simulation output remain untouched.

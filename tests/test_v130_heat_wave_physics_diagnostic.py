@@ -31,7 +31,7 @@ class SyntheticGetFEM:
         self.mismatch=mismatch
         self.fail_optional=fail_optional
 
-    def get_quantity(self, expression, region=-1):
+    def get_quantity(self, expression, region=-1, CN=False):
         if self.fail_optional and expression.startswith("("):
             raise ValueError("Synthetic trace feature unavailable")
         t=self.t
@@ -41,7 +41,7 @@ class SyntheticGetFEM:
             (".5*p*p",2):.3+.4*t,
             (".5*q.q",2):.7+.4*t,
             ("e_Q.e_Q",1):constant(1.2),
-            ("U_T*Y_T",10):constant(-.8),
+            ("U_T*Y_T",10):constant(.8),
             ("U_w*Y_w",10):constant(.9 if self.mismatch else .8),
             ("U_bnd*Y_bnd",20):constant(0.),
         }
@@ -74,12 +74,15 @@ class HeatWaveObservableTests(unittest.TestCase):
             report["scientific_status"],
             "DIAGNOSTIC_ONLY_MODEL_NOT_YET_QUALIFIED"
         )
+        self.assertLess(report["max_CN_step_H_balance_defect"],1e-13)
+        self.assertLess(report["max_CN_interface_power_defect"],1e-13)
 
     def test_nonconserving_gyrator_is_not_silently_accepted(self):
         t=np.array([0.,.5,1.])
         model=SyntheticGetFEM(t,mismatch=True)
         _,report=physical.collect_heat_wave_physics(model,t,5.-1.2*t)
         self.assertGreater(report["max_interface_port_power_sum"],.09)
+        self.assertGreater(report["max_CN_interface_power_defect"],.09)
         self.assertEqual(
             report["scientific_status"],
             "DIAGNOSTIC_ONLY_MODEL_NOT_YET_QUALIFIED"
@@ -118,10 +121,13 @@ class HeatWaveObservableTests(unittest.TestCase):
         np.testing.assert_allclose(
             physical.trapezoid(t,p),expected,atol=1e-15
         )
-        self.assertIn("BDF_trapezoids_are_approximate_not_discrete_step_work",
-                      physical.collect_heat_wave_physics(
-                          SyntheticGetFEM(t),t,5.-1.2*t
-                      )[1])
+        report=physical.collect_heat_wave_physics(
+            SyntheticGetFEM(t),t,5.-1.2*t
+        )[1]
+        self.assertTrue(
+            report["CN_step_powers_are_assembled_at_mean_FE_state"]
+        )
+        self.assertTrue(report["nodal_trapezoid_is_diagnostic_only"])
 
     def test_refuse_nonfinite_and_wrong_shape(self):
         t=np.array([0.,.5,1.])
