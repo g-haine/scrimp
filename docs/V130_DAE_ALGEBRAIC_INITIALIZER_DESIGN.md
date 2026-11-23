@@ -141,6 +141,20 @@ The initial positive/negative tests cover only a model for which:
 - the real-valued distributed PETSc algebraic submatrix and
   the native residual use compatible variable indexing.
 
+**23 November 2026 source-only extension (native gate pending):**
+the linear initializer now classifies substituted finite-element
+ports by the unknown coefficients actually registered by GetFEM:
+substituted dynamic ports register only the differential flow,
+and substituted algebraic ports register only the algebraic flow.
+For unsubstituted ports the independent effort is still classified
+as algebraic. The historical restriction above describes the original
+native acoustic qualification, not this expanded scope. Algebraic
+mass-row zero tests, exact differential-data preservation and native
+IFunction acceptance are unchanged. The separate nonlinear-affine
+initializer still rejects substituted ports. Source-level tests do not
+certify Heat-Wave initial-data compatibility, RT/BDM/Nedelec PDE
+physics, or MPI qualification.
+
 This deliberately does **not** qualify nonlinear state-dependent
 mass matrices (even though SCRIMP v1.3.0 can support them),
 higher-index DAEs, general feedback controls, or all possible

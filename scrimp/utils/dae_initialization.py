@@ -13,8 +13,9 @@ find only algebraic corrections using distributed PETSc K_aa and KSP
 LSQR, and accept the result only if the *original* IFunction's
 algebraic rows satisfy the requested tolerance. No pseudo-time TS.
 
-This deliberately refuses lumped/substituted/nonlinear and incomplete
-variable layouts. See docs/V130_DAE_ALGEBRAIC_INITIALIZER_DESIGN.md.
+This deliberately refuses lumped, nonlinear, and incomplete variable
+layouts. Substituted FE ports are classified by their actual GetFEM
+unknown variables. See docs/V130_DAE_ALGEBRAIC_INITIALIZER_DESIGN.md.
 """
 
 import numpy as np
@@ -60,7 +61,7 @@ def _intervals(system, *, allow_nonlinear=False):
 
     Nonlinear mass/stiffness is permitted ONLY when explicitly requested
     by the separate opt-in nonlinear-affine initializer. The existing
-    linear initializer keeps its previous strict admissibility guard.
+    nonlinear-affine initializer retains its substituted-port guard.
     """
     if not allow_nonlinear and (not system.linear_mass or not system.linear_stiffness):
         raise ValueError(
@@ -68,9 +69,9 @@ def _intervals(system, *, allow_nonlinear=False):
         )
     if system.lumped_variables:
         raise ValueError("Algebraic initializer does not support lumped ports")
-    if any(p.get_substituted() for p in system.ports.values()):
+    if allow_nonlinear and any(p.get_substituted() for p in system.ports.values()):
         raise ValueError(
-            "Algebraic initializer does not support substituted ports"
+            "Nonlinear-affine initializer does not yet support substituted ports"
         )
 
     n = int(system.gf_model.nbdof())
@@ -81,12 +82,14 @@ def _intervals(system, *, allow_nonlinear=False):
             int, system.gf_model.interval_of_variable(name)
         ))
     for port in system.ports.values():
-        names = []
         if port.get_algebraic():
-            names.append(port.get_flow())
-            names.append(port.get_effort())
+            names = [port.get_flow()]
+            if not port.get_substituted():
+                names.append(port.get_effort())
+        elif port.get_substituted():
+            names = []
         else:
-            names.append(port.get_effort())
+            names = [port.get_effort()]
         for name in names:
             if not name:
                 continue

@@ -38,7 +38,7 @@ if ! "${docker_cmd[@]}" run --rm \
  --volume "$root/scrimp:/workspace/scrimp/scrimp:ro" \
  --volume "$root/sandbox/probe_v130_intrinsic_vector_fem_initialization.py:/pilot.py:ro" \
  --volume "$out:/artifacts:rw" \
- --workdir /workspace/scrimp \
+ --workdir /artifacts \
  "$image" timeout -k 5s "${SCRIMP_V130_FE_INIT_TIMEOUT:-90s}" \
  mpiexec --oversubscribe --bind-to none -n 1 \
  python -u /pilot.py --out /artifacts/results.json \
