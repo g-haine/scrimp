@@ -9,6 +9,10 @@ on:
       - "sandbox/v130_checkpoint_state.py"
       - "sandbox/probe_v130_checkpoint_restart.py"
       - "sandbox/probe_v130_checkpoint_public_api.py"
+      - "sandbox/probe_v130_checkpoint_linear_dae.py"
+      - "sandbox/compare_v130_checkpoint_linear_dae.py"
+      - "scripts/run-v130-checkpoint-linear-dae.sh"
+      - "tests/test_v130_checkpoint_linear_dae.py"
       - "sandbox/compare_v130_checkpoint_public_api.py"
       - "sandbox/validate_v130_checkpoint_public_api_case.py"
       - "sandbox/compare_v130_checkpoint_restart.py"
@@ -26,6 +30,10 @@ on:
       - "sandbox/v130_checkpoint_state.py"
       - "sandbox/probe_v130_checkpoint_restart.py"
       - "sandbox/probe_v130_checkpoint_public_api.py"
+      - "sandbox/probe_v130_checkpoint_linear_dae.py"
+      - "sandbox/compare_v130_checkpoint_linear_dae.py"
+      - "scripts/run-v130-checkpoint-linear-dae.sh"
+      - "tests/test_v130_checkpoint_linear_dae.py"
       - "sandbox/compare_v130_checkpoint_public_api.py"
       - "sandbox/validate_v130_checkpoint_public_api_case.py"
       - "sandbox/compare_v130_checkpoint_restart.py"
@@ -56,6 +64,9 @@ jobs:
             scrimp/utils/dae_checkpoint.py \
             sandbox/v130_checkpoint_state.py \
             sandbox/probe_v130_checkpoint_public_api.py \
+            sandbox/probe_v130_checkpoint_linear_dae.py \
+            sandbox/compare_v130_checkpoint_linear_dae.py \
+            tests/test_v130_checkpoint_linear_dae.py \
             sandbox/compare_v130_checkpoint_public_api.py \
             sandbox/validate_v130_checkpoint_public_api_case.py \
             tests/test_v130_checkpoint_public_api.py \
@@ -66,9 +77,11 @@ jobs:
             tests/test_v130_checkpoint_restart.py
           bash -n scripts/run-v130-checkpoint-restart.sh
           bash -n scripts/run-v130-checkpoint-public-api.sh
+          bash -n scripts/run-v130-checkpoint-linear-dae.sh
       - name: Reject corrupted and physically incompatible checkpoints
         run: |
           python -m unittest -v \
             tests.test_v130_checkpoint_state \
             tests.test_v130_checkpoint_restart \
-            tests.test_v130_checkpoint_public_api
+            tests.test_v130_checkpoint_public_api \
+            tests.test_v130_checkpoint_linear_dae
