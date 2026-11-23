@@ -215,3 +215,28 @@ existing PDE RHS bridge. A source-only regression checks
 This corrects the direction of normalization, but the full MPI2
 GetFEM/PETSc mass-assembly and physical reconstructed-field gate is
 still required before claiming parallel initial-value support.
+
+## 23 November 2026 — next native gate: MPI1 vs MPI2 and lumped default
+
+The native source `9dbace0e` test succeeded on all 16
+original GetFEM field cases using the **no-keyword** default
+`set_initial_value(...)`, and confirmed that the purely
+numeric `lumped_variables` initialization remains valid.
+The archival report explicitly recorded `MPI2_qualified=false`.
+
+Source `ba022483` corrected the projection's GetFEM MPI RHS
+calibration to multiply the RHS by `_getfem_mpi_rhs_scale()`
+(in the duplicated-RHS case, `1/P`), rather than dividing.
+A new native original-image comparison gate
+`scripts/run-v130-fe-initial-mpi.sh` runs six representative
+finite element spaces, the Gaussian and a lumped state on
+MPI1 and MPI2, and rejects coefficient mismatch (>1e-9),
+inter-rank disagreement, wrong physical fields and mixed
+MPI calibration. It retains each original rank's output and
+records any differences in raw GetFEM scalar integrations
+separately (not conflated with field coefficients).
+
+**Not a DAE/power/energy gate:** even a pass on this test
+will not prove coupled Heat-Wave algebraic feasibility,
+physics of interface conditions, or multi-step time
+integration. No research-published source or output is changed.
