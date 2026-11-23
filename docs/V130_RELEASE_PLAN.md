@@ -1531,6 +1531,25 @@ reproducible container walkthrough. This covers #26.
 > zero and malformed index cases. This is
 > a **core initialization repair only**, not
 > validation of the revised Heat–Wave physics.
+> Second RT0-native attempt:
+> fixed 3111-DOF q initialization now succeeds;
+> both GetFEM linear mass/stiffness assemblies
+> complete for **7689 full DAE DoFs**. The
+> conservative linear-only algebraic projector
+> then rejects the model because simple
+> `U_T=Y_w`, `U_w=Y_T` were classified as
+> nonlinear feedback, despite being constant
+> linear cross-variable couplings. Production
+> `DPHS.set_control()` now recognizes **only
+> signed bare known model variables** as linear;
+> general nonlinear/opaque feedback stays on the
+> Newton-tangent path. Source negative controls
+> cover actual GetFEM assembly routing. Native
+> projection, CN steps and energy balances
+> still **PENDING**.
+> The generic RTk/BDM/Nédélec coefficient rule
+> is not full family qualification; see
+> [V130_HEAT_WAVE_PHYSICAL_AUDIT.md](V130_HEAT_WAVE_PHYSICAL_AUDIT.md).
 > **No new native physical PASS yet.**
 > Details: [V130_HEAT_WAVE_PHYSICAL_AUDIT.md](V130_HEAT_WAVE_PHYSICAL_AUDIT.md).
 > Saint-Venant remains a separate unchanged BDF2 scope.

@@ -1,0 +1,33 @@
+name: v1.3.0 direct linear control feedback checks
+
+on:
+  push:
+    branches:
+      - release/1.3.0-preparation
+    paths:
+      - scrimp/dphs.py
+      - tests/test_v130_direct_linear_feedback.py
+      - .github/workflows/v130-direct-linear-feedback.yml
+  pull_request:
+    paths:
+      - scrimp/dphs.py
+      - tests/test_v130_direct_linear_feedback.py
+      - .github/workflows/v130-direct-linear-feedback.yml
+
+jobs:
+  source-only-production-methods:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Syntax
+        run: |
+          python -m py_compile scrimp/dphs.py tests/test_v130_direct_linear_feedback.py
+      - name: Actual DPHS control classification and GetFEM assembly routing
+        run: python tests/test_v130_direct_linear_feedback.py
+      - name: Immutable published source bytes
+        run: python scripts/check-v130-published-immutable.py
+      - name: Report native gate still required
+        run: echo "Source-only PASS does not certify the 7689-DOF Heat-Wave GetFEM/PETSc CN physics"

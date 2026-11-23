@@ -272,14 +272,32 @@ def _control_expression_is_prescribed(expression, model_variables):
     return not symbols.intersection(model_variables) and not unknowns
 
 
+def _control_expression_is_direct_linear_feedback(expression, model_variables):
+    """Certify only signed *bare unknowns* as constant linear feedback.
+
+    For example `Y_w`, `+Y_T`, and `-Y_T` yield a GetFEM
+    bilinear weak term `Y_w*Test_U_T` with a fixed Jacobian.
+    Products, arbitrary coefficients, macros, and functions must
+    stay on the nonlinear GetFEM route. This fail-closed test
+    deliberately does not claim to recognize every affine law.
+    """
+    if not isinstance(expression, str):
+        return False
+    matched = re.fullmatch(
+        r"\s*[+-]?\s*([A-Za-z_][A-Za-z0-9_]*)\s*", expression
+    )
+    return bool(matched and matched.group(1) in model_variables)
+
+
 def _all_bricks_are_linear(bricks):
     """Only skip CSR checks for provably affine, fixed-graph systems.
 
     A GetFEM source brick has no nonlinear Jacobian contribution,
     but we only trust sources *created by set_control* and certified
     to be state-independent. User-supplied or unknown source bricks
-    remain conservative. Feedback controls are ordinary nonlinear
-    variational bricks and have proper GetFEM tangents.
+    remain conservative. Bare signed model-variable feedback is
+    assembled as an exact linear GetFEM tangent; genuinely nonlinear
+    or unknown feedback remains nonlinear with its Newton derivative.
     """
     return bool(bricks) and all(
         brick.get_linear()
@@ -1153,9 +1171,12 @@ class DPHS:
         """Set a prescribed open-loop input or an implicit feedback law.
 
         State-independent GWFL expressions use an RHS-only GetFEM source.
-        Expressions referencing model variables (or unknown macros)
-        use a nonlinear variational brick so Newton assembles the
-        feedback derivative, not just the control residual.
+        A bare signed model variable (e.g. Y_w or -Y_T) is
+        a provably linear feedback: GetFEM assembles its constant
+        bilinear coupling directly into the stiffness matrix.
+        Other state-dependent expressions, or unknown macros,
+        use a nonlinear variational brick so Newton computes
+        their full derivative, not merely the residual.
 
         Args:
             name (str): the name of the control port
@@ -1192,16 +1213,15 @@ class DPHS:
         # A prescribed control (only t, geometry, known mathematical
         # functions) belongs to the efficient RHS-only source brick.
         #
-        # A feedback law can depend on another port variable, e.g.
-        # set_control("Interface Heat", "Y_w"). A GetFEM source brick
-        # ignores its Jacobian by design; using it for feedback yields
-        # an inconsistent Newton tangent. Instead, represent a
-        # non-prescribed control as a nonlinear variational term:
-        #       -M_u * u + expression = 0
-        # GetFEM differentiates this term with respect to all model
-        # unknowns. Unrecognized user macros are deliberately treated
-        # as potentially state-dependent; a false positive here costs
-        # assembly time but cannot silently drop a feedback derivative.
+        # Feedback may depend on another port variable, e.g.
+        # set_control("Interface Heat", "Y_w"). A source brick
+        # ignores its derivative and would be mathematically WRONG.
+        # The exact bare-variable expressions (Y_w, +/-Y_T) are
+        # *constant linear* feedback: add_linear_term includes their
+        # correct coupling in K and retains the physical Jacobian.
+        # All other state-dependent laws stay on add_nonlinear_term
+        # with the exact full Newton derivative. Unknown macros are
+        # never guessed linear.
         model_variables = {
             variable
             for port in self.ports.values()
@@ -1210,6 +1230,12 @@ class DPHS:
         }
         prescribed = _control_expression_is_prescribed(
             expression, model_variables
+        )
+        direct_linear_feedback = (
+            not prescribed
+            and _control_expression_is_direct_linear_feedback(
+                expression, model_variables
+            )
         )
         if prescribed:
             source = Brick(
@@ -1231,7 +1257,7 @@ class DPHS:
                     u + "_feedback",
                     f"({expression}){times}Test_{u}",
                     [self.controls[name].get_region()],
-                    linear=False,
+                    linear=direct_linear_feedback,
                     dt=False,
                     position="constitutive",
                     mesh_id=self.controls[name].get_mesh_id(),
@@ -1860,9 +1886,10 @@ class DPHS:
 
         GetFEM source bricks contribute only to the RHS, even when
         declared linear=False for their special assembly route.
-        Feedback controls created by set_control() are *not* source
-        bricks: they are nonlinear constitutive terms whose tangent
-        must be reassembled at each Newton iteration.
+        Feedback controls created by set_control() are *not* sources:
+        signed bare-variable feedback is a constant linear coupling
+        assembled in K; general feedback has a state-dependent
+        constitutive tangent and is reassembled per Newton iterate.
         """
         self.linear_mass = True
         self.linear_stiffness = True

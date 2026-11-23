@@ -193,7 +193,21 @@ outputs remain strictly untouched.
 Detailed formulation, comparison with the 2022
 paper, and scientific acceptance criteria are in
 [V130_HEAT_WAVE_PHYSICAL_AUDIT.md](V130_HEAT_WAVE_PHYSICAL_AUDIT.md).
-**Native status: PENDING.** Initial native MUMPS
+**Native status: PENDING.** Second native attempt
+at source `f97fcd1f`: original RT0 q 3111
+coefficients initialize correctly, and full
+7689-DOF GetFEM mass/stiffness assembly completes.
+However the linear-only algebraic projector rejects
+the constitutive feedback relations because
+`set_control("...","Y_w")` and `"Y_T"`
+were incorrectly marked `linear=False`.
+They are bare signed model-variable **linear** feedback.
+The core classification now selects the exact
+constant linear GetFEM tangent for these controls,
+with fail-closed nonlinear behavior for other
+expressions and dedicated actual-method regression.
+Numerical projection and physical CN balance remain
+**unqualified**. First native MUMPS
 attempt at source `8286f18d` established
 DG0/RT0/CG1 MeshFem creation but was halted
 by SCRIMP's *core* filtered RT0 initialization:

@@ -201,6 +201,93 @@ and mismatched evaluator size. Its source CI
 is a separate guard: native GetFEM/PETSc must
 still validate the actual RT0 initialization.
 
+## Second native attempt: false nonlinear classification (OPEN)
+
+Actual source `f97fcd1f866abf9e24591b068dc7a1651d271e69`,
+original host archive
+`v130-main-2d-lu-f97fcd1f-RpX0FgJi.zip` (11 ZIP
+members, CRC PASS). The corrected general `DPHS.set_initial_value()`
+successfully initializes **all 3111 RT0 wave coefficients**
+without losing an entry. Original GetFEM linear mass/stiffness
+assembly completes: model **7689** full DAE DoFs.
+The failure occurs **before PETSc's physical CN integration**:
+
+```text
+ValueError: Algebraic initializer supports only linear mass and stiffness
+```
+
+Source diagnosis: `DPHS.set_control("Interface Heat","Y_w")`
+and `DPHS.set_control("Interface Wave","Y_T")` created feedback
+bricks with `linear=False` (historically essential for
+nonlinear state-dependent feedback). Yet `U_T=Y_w` and
+`U_w=Y_T` are **exact linear coupling relations**: the
+weak terms `Y_w*Test_U_T` and `Y_T*Test_U_w` are
+genuine GetFEM **bilinear** terms with constant tangent.
+The global `linear_stiffness=False` flag was therefore
+incorrect for this specific coupled model and correctly
+caused the conservative *linear-only* algebraic initializer
+to reject it.
+
+**Source correction:** `DPHS.set_control()` now recognizes
+only a **bare signed registered GetFEM model variable**
+(`Y_w`, `Y_T`, `-Y_T`, etc.) as provably linear.
+Such feedback uses `Brick(linear=True)`, so GetFEM
+`add_linear_term()` includes the exact cross-variable
+coupling in the constant stiffness matrix and in the
+native `K_aa` projection. Arbitrary macros, sums,
+products, coefficients or unknown expressions are **not**
+guessed linear: their GetFEM nonlinear weak form and
+Newton derivative remain unchanged. Prescribed open-loop
+sources still use the existing independent RHS route.
+
+Dedicated source-only tests execute actual production
+`set_control()`, `add_brick()`, `set_linear_flags()`,
+and classify source/linear/nonlinear GetFEM assembly
+routes with negative controls. **No native PASS yet.**
+A subsequent run must check the actual fixed-state
+projection, its true algebraic `IFunction` residual,
+the four fixed CN steps and the separate physical
+heat/wave power balances. In particular, a structurally
+singular coupled `K_aa` can still produce an explicit
+initialization rejection and must not be masked by a
+pseudo-time fallback.
+
+### Intrinsic vector FE initial coefficients: generality and limits
+
+The `DPHS.set_initial_value()` fix is **not RT0-specific**.
+It flattens the exact `MeshFem.eval()` coefficient array
+and retains `basic_dof_on_region()` indices in the
+original GetFEM order; it does not reshape by `qdim`.
+That structural rule also applies to intrinsic
+`RT_k`, `BDM_k` and Nédélec edge basis functions.
+However **coefficient-layout compatibility is not
+complete family qualification**: element availability,
+interpolation, Piola transformations, partial-region
+index matching, normal/tangential traces, and actual
+Maxwell/PDE weak-form solves require native tests.
+
+The SCRIMP `FEM` class currently exposes native
+`RT` and `BDM` string selectors; GetFEM documents
+`FEM_RTK(P,K)` for simplices (K>=0),
+`FEM_BDMK(P,K)` for simplices (K>=1), and
+**`FEM_NEDELEC(P)` only for lowest-order edge
+elements**. There is no native `Nedelec1`/`Nedelec2`
+selector in the current SCRIMP `FEM` class.
+GetFEM may accept an explicit descriptor through
+SCRIMP's expert `order<0` escape hatch, but no
+higher-order Nédélec first/second-family implementation
+or support is thereby proven. Missing intrinsic
+elements can currently fall back to CG in `FEM.set_fem()`;
+production tests must require **strict element
+identity** and never silently treat a fallback as PASS.
+
+Therefore: `RT0` coefficient indexing observed in
+the real example; higher `RT_k`, `BDM_k` and
+Nédélec 1st/2nd families still **UNQUALIFIED**.
+This is a pending separate FEM-family validation gate,
+not a reason to regress to CG/DG or reshape/truncate
+coefficient vectors.
+
 ## Genuine physical qualification — native PENDING
 
 The revised `scripts/run-v130-example-2d-lu.sh`
