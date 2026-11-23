@@ -24,6 +24,7 @@ python3 -m py_compile \
     sandbox/compare_v130_checkpoint_restart.py \
     tests/test_v130_checkpoint_state.py
 python3 tests/test_v130_checkpoint_state.py
+python3 tests/test_v130_checkpoint_restart.py
 
 docker_exec() {
     if [[ "${SCRIMP_DOCKER_NO_SUDO:-0}" == 1 ]]; then
