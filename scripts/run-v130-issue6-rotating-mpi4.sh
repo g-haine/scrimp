@@ -123,4 +123,49 @@ manifest["max_generic_port_power_difference"]=max(
 print(json.dumps(manifest,indent=2))
 PY
 
+# Produce a bounded, self-contained and shareable archive without
+# modifying or deleting any original host-owned PETSc/GetFEM evidence.
+# Include native full FE traces, accepted production checkpoints,
+# port powers on ALL ranks, native logs and root-only PNG plots.
+python3 - "$out" <<'PY'
+import csv
+import json
+import sys
+import zipfile
+from pathlib import Path
+
+campaign=Path(sys.argv[1]).resolve()
+safe_root=(campaign.parents[2] / "sandbox" / "outputs").resolve()
+assert campaign.parent==safe_root, (campaign,safe_root)
+with (campaign/"native_cases.tsv").open(encoding="utf-8",newline="") as f:
+    rows=list(csv.DictReader(f,delimiter="\t"))
+assert len(rows)==14, f"Expected 14 immutable native case roots, got {len(rows)}"
+zip_path=Path(str(campaign)+".zip")
+assert not zip_path.exists()
+with zipfile.ZipFile(zip_path,mode="x",
+                     compression=zipfile.ZIP_DEFLATED,
+                     compresslevel=4,allowZip64=True) as z:
+    for p in sorted(campaign.iterdir()):
+        if p.is_file() and p.suffix in (".json",".tsv",".log"):
+            z.write(p,arcname="campaign/"+p.name)
+    for row in rows:
+        name,path=row["name"],Path(row["path"]).resolve()
+        assert path.parent==safe_root and path.is_dir()
+        report=json.loads((path/"initial_state_report.json").read_text())
+        ranks=report["MPI"]
+        required=[
+            path/x for x in (
+                "manifest.json", "native.log", "initial_state_report.json",
+                "initial_state_trace.npz", "accepted_state.npz",
+                "physical_precheck_report.json",
+                "physical_precheck_trace.npz",
+                "mpi_physical_powers.png",
+            )
+        ] + [path/f"mpi_port_powers_rank{i}.json" for i in range(ranks)]
+        assert all(p.is_file() and p.stat().st_size>0 for p in required)
+        for p in required:
+            z.write(p,arcname=f"native/{name}/{p.name}")
+print("SHAREABLE ORIGINAL NATIVE EVIDENCE ZIP:",zip_path,flush=True)
+PY
+
 echo "COMPLETE native MPI #6 active rotating evidence: $out"

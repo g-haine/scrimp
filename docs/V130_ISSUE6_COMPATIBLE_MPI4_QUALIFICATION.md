@@ -117,6 +117,16 @@ has complete GetFEM full-state NPZ, accepted production
 checkpoint, per-rank `mpi_port_powers_rank<N>.json` and
 root-only `mpi_physical_powers.png`.
 
+On complete native success, the runner also creates a
+**self-contained, separately named ZIP** next to the campaign
+folder, `v130-issue6-active-mpi4-<source>-<suffix>.zip`.
+It includes the unchanged original native full-state NPZ traces,
+production checkpoint arrays, native logs, every rank-local
+port-power JSON, physical PNGs, source manifests and comparison
+reports. It does **not** move, overwrite or delete any source
+evidence. This ZIP may be shared for independent numerical review
+without requiring access to the original host paths.
+
 **Do not report this as PASS until the genuine host runs
 complete with final `PASS_NATIVE_COMPATIBLE_ROTATING_SWE_MPI_1_2_4`.**
 Do not close issue #6 automatically: other scope includes
