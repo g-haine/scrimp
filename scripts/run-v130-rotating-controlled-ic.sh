@@ -34,6 +34,7 @@ python3 -m py_compile \
     sandbox/viscous_swe_2d_mpi.py \
     sandbox/probe_v130_issue28_one_cn_spinup.py \
     sandbox/probe_v130_rotating_controlled_ic.py \
+    sandbox/compare_v130_rotating_ic_continuous_split.py \
     scrimp/utils/dae_checkpoint.py
 python3 tests/test_v130_rotating_controlled_ic.py
 bash -n "$0"

@@ -147,6 +147,37 @@ class RotatingControlledPreparationHostTest(unittest.TestCase):
         ):
             self.assertIn(required, source)
 
+    def test_energy_failure_preserves_native_traces_before_rejection(self):
+        source = PILOT.read_text(encoding="utf-8")
+        self.assertIn('"physical_precheck_report.json"', source)
+        self.assertIn('"physical_precheck_trace.npz"', source)
+        self.assertIn('"step_balance_defect"', source)
+        self.assertIn('"checkpoint_created": False', source)
+        self.assertLess(
+            source.index('"physical_precheck_trace.npz"'),
+            source.index('if power_defect > 1e-3 or mass_defect > 1e-8:')
+        )
+        # The original physical acceptance gate is deliberately unchanged.
+        self.assertIn("if power_defect > 1e-3 or mass_defect > 1e-8:", source)
+        self.assertLess(
+            source.index('if power_defect > 1e-3 or mass_defect > 1e-8:'),
+            source.index("    system.save_checkpoint(")
+        )
+
+    def test_continuous_split_comparator_never_accepts_power_defect(self):
+        source = (ROOT / "sandbox" /
+                  "compare_v130_rotating_ic_continuous_split.py").read_text(
+                      encoding="utf-8"
+                  )
+        for required in (
+            "np.array_equal(s[\"full_state_final\"], r[\"full_state_start\"])",
+            "continuous_vs_restarted_final_full_FE_l2",
+            "continuous_vs_split_energy_defect_difference",
+            "NATIVE_RESTART_PARITY_DIAGNOSTIC_NOT_ENERGY_ACCEPTANCE",
+            "physical_segment_relative_energy_gate_not_overridden",
+        ):
+            self.assertIn(required, source)
+
     def test_no_pseudo_bdf_on_resume(self):
         source = PILOT.read_text(encoding="utf-8")
         tree = ast.parse(source)

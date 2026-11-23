@@ -7,6 +7,7 @@ on:
     paths:
       - sandbox/viscous_swe_2d_mpi.py
       - sandbox/probe_v130_rotating_controlled_ic.py
+      - sandbox/compare_v130_rotating_ic_continuous_split.py
       - scripts/run-v130-rotating-controlled-ic.sh
       - tests/test_v130_rotating_controlled_ic.py
       - .github/workflows/v130-rotating-controlled-ic-host.yml
@@ -14,6 +15,7 @@ on:
     paths:
       - sandbox/viscous_swe_2d_mpi.py
       - sandbox/probe_v130_rotating_controlled_ic.py
+      - sandbox/compare_v130_rotating_ic_continuous_split.py
       - scripts/run-v130-rotating-controlled-ic.sh
       - tests/test_v130_rotating_controlled_ic.py
       - .github/workflows/v130-rotating-controlled-ic-host.yml
@@ -28,7 +30,7 @@ jobs:
           python-version: '3.11'
       - name: Python syntax
         run: |
-          python -m py_compile sandbox/viscous_swe_2d_mpi.py sandbox/probe_v130_rotating_controlled_ic.py tests/test_v130_rotating_controlled_ic.py
+          python -m py_compile sandbox/viscous_swe_2d_mpi.py sandbox/probe_v130_rotating_controlled_ic.py sandbox/compare_v130_rotating_ic_continuous_split.py tests/test_v130_rotating_controlled_ic.py
       - name: Shell syntax
         run: bash -n scripts/run-v130-rotating-controlled-ic.sh
       - name: Pure Python physical control-law and fail-closed tests

@@ -153,6 +153,104 @@ require much longer preparation; no unobserved convergence time
 is asserted. A controlled response after t=75 requires a
 separate native physical test with the original decaying wall law.
 
+## 23 November 2026 — first controlled native run and rejected short-segment power gate
+
+**Original source** `6df826a8`, pinned image
+`scrimp-mpi:v1.3.0-rc3`, native user archives
+`v130-rotating-controlled-ic-6df826a8-IDSkT9nu.zip` (seed)
+and `v130-rotating-controlled-ic-6df826a8-nkyKGqxg.zip` (rejected
+resume). Both ZIPs have valid CRC.
+
+**Seed h=0.2, gamma=.25, MPI1, t=0..0.02: genuine native PASS.**
+10 accepted TSCN steps, zero TS/SNES failures,
+max original `||F_a||=3.242458e-14`,
+max original `||F_TSCN||=8.1410743e-11`,
+volume defect `3.907985e-14`. Actual port-Hamiltonian data:
+
+```text
+Delta_H  = +0.011303178934262359
+W_wall   = +0.011521706709641357
+D_visc   = +0.000218875523532252
+Delta_H + D_visc - W_wall = +3.4774815e-7
+relative to the seed's exchanged energy = 3.0182000e-5
+```
+
+The full accepted **3300-DOF** state was saved via production
+`DPHS.save_checkpoint`. The final original hypothetical stationary
+differential residual is `||F_d(z*,0)||=0.04617765493`, with
+observed last-step dynamic derivative `27.8368`: clearly **not**
+a stationary rotating equilibrium.
+
+**First restart MPI1→2, t=.02..024: numerically integrated but
+physically rejected.** The checkpoint passed production
+`DPHS.load_checkpoint`; real PETSc accepted both TSCN steps with
+zero rejections/SNES failures. Postprocessing reported a volume
+defect `1.59872116e-14` and a **relative energy defect
+`0.00309672446`**, exceeding the existing per-segment
+`1e-3` acceptance threshold. Therefore **NO** new checkpoint,
+accepted report or energy trace was written in source
+`6df826a8`. Neither the absolute size of this segment's energy
+defect nor its equality/difference from uninterrupted integration
+can be established from that failed archive.
+
+**Do not relax `1e-3` merely to force a PASS.** In a short interval
+after the acceleration plateau, the segment's actual exchanged
+energy may be extremely small, inflating `|Delta_H+D-W|/exchange`.
+The physical nonlinear-mass CN discretization may also exhibit
+truncation-induced discrete chain-rule defects. A proper test must
+compare exact original **continuous vs split** native trajectories
+and their per-step physical work and dissipation.
+
+### New diagnosis: never lose a failed native physical trace
+
+The follow-up code writes `physical_precheck_report.json` and
+`physical_precheck_trace.npz` **before** the unchanged
+power/volume acceptance gate. It keeps actual original FE endpoint
+vectors, Hamiltonian, volume, integrated boundary work and viscous
+dissipation, per-step `Delta_H`, `Delta_W`, `Delta_D`, energy
+defects and original CN/Fa residual arrays, **even if the gate
+later refuses checkpoint creation**. The report is explicitly a
+*diagnostic*, NOT an accepted model state.
+
+Native comparison procedure (on the original user host):
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+
+# Uninterrupted physical control: identical model, 0 -> 0.024.
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-rotating-controlled-ic.sh seed 0.2 1 0.024
+
+# Retry the existing checkpoint as a diagnostic: MPI 1 -> 2.
+# Nonzero exit remains possible/expected while energy gate is red.
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-rotating-controlled-ic.sh resume 0.2 2 0.024 \
+  sandbox/outputs/v130-rotating-controlled-ic-6df826a8-IDSkT9nu/accepted_state.npz
+
+# After copying the TWO NEW output directory names:
+python sandbox/compare_v130_rotating_ic_continuous_split.py \
+  --seed sandbox/outputs/v130-rotating-controlled-ic-6df826a8-IDSkT9nu \
+  --continuous sandbox/outputs/<new-continuous-directory> \
+  --resume sandbox/outputs/<new-restart-directory>
+```
+
+The comparator independently reads native source states/power traces,
+checks model/mesh fingerprint, source checkpoint bitwise state, terminal
+full-FE parity, Hamiltonian/volume continuity, and continuous-versus-
+split work/dissipation/balance. Its **PASS is ONLY a restart parity
+diagnostic**, not an override of the existing relative physical
+energy acceptance threshold. If the same defect appears in both
+uninterrupted and split integrations, investigate intrinsic
+nonlinear-mass CN energy balance and normalization; if not, investigate
+checkpoint/postprocessing clock/history. A subsequent independent
+temporal-refinement comparison may be necessary.
+
+The old checkpoint is immutable; failed diagnostic restarts must
+not publish unqualified new accepted initial states.
+
 ## Safety, provenance and release scope
 
 - No change to `scrimp/dphs.py`, PETSc integrators, global FE numbering

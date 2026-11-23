@@ -258,12 +258,105 @@ def run():
     )
     power_defect = float(np.max(np.abs(traces["balance"]))) / exchanged
     mass_defect = float(np.max(np.abs(traces["volume_balance"])))
+    # Preserve scientific evidence BEFORE a power gate can reject a
+    # numerically accepted PETSc trajectory. A short cold segment can
+    # exchange little energy, amplifying its per-segment relative error;
+    # only a continuous-vs-split native comparison can diagnose that.
+    dH_step = np.diff(traces["H"])
+    dW_step = np.diff(traces["supplied"])
+    dD_step = np.diff(traces["dissipated"])
+    balance_step = dH_step + dD_step - dW_step
+    step_exchange = np.maximum.reduce([
+        np.abs(dH_step), np.abs(dW_step), np.abs(dD_step),
+        np.full_like(dH_step, 1e-14),
+    ])
+    precheck = {
+        "schema": "scrimp-v130-rotating-controlled-precheck-v2",
+        "status": "NATIVE_PHYSICAL_DIAGNOSTIC_NOT_A_CHECKPOINT",
+        "phase": args.phase,
+        "source_time": t0, "final_time": float(times[-1]),
+        "mesh": args.mesh, "gamma": args.gamma, "ranks": mpi.size,
+        "source_checkpoint_sha256": (
+            sha256(args.checkpoint_in.read_bytes())
+            if args.checkpoint_in is not None else None
+        ),
+        "source_model_fingerprint": model_provenance(system)["fingerprint_sha256"],
+        "PETSc_accepted_steps": actual[1],
+        "PETSc_converged_reason": actual[2],
+        "PETSc_rejections": actual[3],
+        "PETSc_SNES_failures": actual[4],
+        "maximum_actual_original_CN_residual": max(cn_residuals),
+        "maximum_actual_original_Fa_residual": max(fa_residuals),
+        "min_height_FE_coefficient": min_h,
+        "segment_energy_exchange_scale": exchanged,
+        "maximum_absolute_cumulative_energy_defect": float(
+            np.max(np.abs(traces["balance"]))
+        ),
+        "maximum_absolute_per_step_energy_defect": float(
+            np.max(np.abs(balance_step))
+        ),
+        "maximum_relative_per_step_energy_defect": float(
+            np.max(np.abs(balance_step) / step_exchange)
+        ),
+        "relative_cumulative_defect_over_segment_exchange": power_defect,
+        "max_absolute_volume_defect": mass_defect,
+        "physical_H_change": float(dH[-1]),
+        "physical_boundary_work": float(traces["supplied"][-1]),
+        "physical_viscous_dissipation": float(traces["dissipated"][-1]),
+        "checkpoint_created": False,
+    }
+    save_error = None
+    if mpi.rank == 0:
+        try:
+            args.out.mkdir(parents=True, exist_ok=True)
+            (args.out / "physical_precheck_report.json").write_text(
+                json.dumps(precheck, indent=2) + "\n", encoding="utf-8"
+            )
+            np.savez_compressed(
+                args.out / "physical_precheck_trace.npz",
+                times=times, full_state_start=states[0],
+                full_state_final=states[-1],
+                H=traces["H"], volume=traces["volume"],
+                boundary_work=traces["supplied"],
+                viscous_dissipation=traces["dissipated"],
+                power_balance=traces["balance"],
+                volume_balance=traces["volume_balance"],
+                step_delta_H=dH_step, step_delta_work=dW_step,
+                step_delta_dissipation=dD_step,
+                step_balance_defect=balance_step,
+                step_exchange_scale=step_exchange,
+                Fa_residuals=np.asarray(fa_residuals),
+                CN_residuals=np.asarray(cn_residuals),
+            )
+        except Exception as exc:
+            save_error = f"{type(exc).__name__}: {exc}"
+    save_error = mpi.bcast(save_error, root=0)
+    if save_error is not None:
+        raise RuntimeError("Physical diagnostic export failed collectively: "
+                           + save_error)
+    if mpi.rank == 0:
+        print(
+            "PHYSICAL PRECHECK "
+            f"phase={args.phase} source_time={t0:.9g} "
+            f"final_time={times[-1]:.9g} "
+            f"abs_defect={precheck['maximum_absolute_cumulative_energy_defect']:.9g} "
+            f"energy_exchange={exchanged:.9g} "
+            f"relative_defect={power_defect:.9g} "
+            f"max_step_defect={precheck['maximum_absolute_per_step_energy_defect']:.9g} "
+            f"mass_defect={mass_defect:.9g}; "
+            "diagnostic trace preserved BEFORE decision", flush=True,
+        )
+
     # Conservative pilot guards (not a claimed general nonlinear-mass
     # CN identity). Historic full ramp observed ~2.8e-5..6.9e-5.
     if power_defect > 1e-3 or mass_defect > 1e-8:
         raise RuntimeError(
             "Original physical boundary/dissipation/mass balance failed: "
-            f"relative power={power_defect:.9g}, mass={mass_defect:.9g}"
+            f"relative power={power_defect:.9g}, mass={mass_defect:.9g}; "
+            "NATIVE PETSc trajectory and original per-step power traces "
+            "preserved in physical_precheck_{report.json,trace.npz}. "
+            "Checkpoint correctly REFUSED; compare with uninterrupted "
+            "0->0.024 reference before changing physical acceptance."
         )
     wall0, feedback0 = evaluated_envelopes(0.)
     wallfinal, feedbackfinal = evaluated_envelopes(args.final_time)
