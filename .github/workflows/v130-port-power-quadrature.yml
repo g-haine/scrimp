@@ -1,0 +1,36 @@
+name: v1.3.0 CN port-power quadrature unit regressions
+
+on:
+  push:
+    branches:
+      - release/1.3.0-preparation
+    paths:
+      - scrimp/utils/power_integration.py
+      - scrimp/dphs.py
+      - scrimp/port.py
+      - tests/test_v130_power_integration.py
+      - sandbox/verify_v130_power_quadrature_native.py
+      - .github/workflows/v130-port-power-quadrature.yml
+  pull_request:
+    paths:
+      - scrimp/utils/power_integration.py
+      - scrimp/dphs.py
+      - scrimp/port.py
+      - tests/test_v130_power_integration.py
+      - sandbox/verify_v130_power_quadrature_native.py
+      - .github/workflows/v130-port-power-quadrature.yml
+
+jobs:
+  source-and-negative-controls:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pure-numpy test requirement
+        run: python -m pip install numpy
+      - name: Python syntax
+        run: python -m py_compile scrimp/utils/power_integration.py scrimp/dphs.py tests/test_v130_power_integration.py sandbox/verify_v130_power_quadrature_native.py
+      - name: CN step-power sign and pause/restart negative tests
+        run: python tests/test_v130_power_integration.py

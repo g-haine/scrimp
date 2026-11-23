@@ -20,6 +20,17 @@
 > adaptive TS history restoration or mathematical energy accuracy:
 > [V130_ROTATING_CONTROLLED_INITIAL_STATE.md](V130_ROTATING_CONTROLLED_INITIAL_STATE.md).
 >
+> **Next implementation #30 (23 November): CN plot-port-power
+> quadrature source correction STAGED; native original-array
+> re-audit and end-to-end plotting smoke still PENDING.**
+> `DPHS.plot_powers()` was mistakenly using trapezoids on
+> `Port.compute()`'s pre-evaluated CN step powers. New
+> explicit `cn_step` quadrature uses `dt*P[k]`, never
+> `P[0]` at cold restart. Other TS types retain the
+> previous approximate rule; no original physical model,
+> integrator, MPI bridge or checkpoint code changed.
+> See [V130_PORT_POWER_QUADRATURE_ISSUE30.md](V130_PORT_POWER_QUADRATURE_ISSUE30.md).
+>
 > **P0 native #6 MPI4 qualification (23 November): PASS, archive re-audited.**
 > independent 1/2/4-rank original controlled *active rotating-wall*
 > Saint-Venant (gamma=.25) MPI port-power assembly and MPI-safe output

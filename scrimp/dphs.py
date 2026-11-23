@@ -29,6 +29,7 @@ from scrimp.utils.matrix_memory import (
     alias_readonly_linear_tangent, add_mass_hessian_fd_reused,
 )
 from scrimp.utils.phase_memory_audit import PhaseMemoryAudit
+from scrimp.utils.power_integration import integrate_port_power
 from scrimp.utils.async_binary_trajectory import (
     RankSender, LazyTrajectory, wait_for_manifest,
 )
@@ -3482,11 +3483,20 @@ class DPHS:
     def plot_powers(self, ax=None, HamTot=None):
         """Plot each power associated to each algebraic port
 
-        The time integration for visual comparison with the Hamiltonian is done using a midpoint method
+        For PETSc Crank--Nicolson, Port.compute() already stores step
+        powers P[k>=1] evaluated at the mean FE state. Their integral is
+        sum(dt[k] * P[k]) without an additional trapezoidal rule; P[0]
+        is an instantaneous initial-state sample, not a step power.
+        The sign is the original port's flow-effort orientation.
 
-        If HamTot is provided, a `Balance` showing structure-preserving property is shown: must be constant on the plot
+        Non-CN schemes retain the historical trapezoidal postprocessor
+        pending method-specific audit; no exact BDF/IMEX balance is claimed.
+        If HamTot is provided, the plotted Balance retains the historic
+        sign convention and is only a diagnostic; its constancy must
+        be verified for the particular model and port orientations.
 
-        ax (Matplotlib axis): the gca of matplotlib when this function is called from plot_Hamiltonian()
+        ax (Matplotlib axis): the gca of matplotlib when this function
+            is called from plot_Hamiltonian().
         HamTot (Numpy array): the values of the Hamiltonian over time
         """
 
@@ -3504,20 +3514,27 @@ class DPHS:
         if HamTot is not None:
             SP_balance = HamTot.copy()
 
+        scheme = self.time_scheme.getString("ts_type", "bdf").lower()
+        convention = "cn_step" if scheme == "cn" else "legacy_trapezoid"
+        display_convention = ("CN step integral" if scheme == "cn"
+                              else "legacy trapezoid; unqualified")
         for _, port in self.ports.items():
             if port.get_algebraic() and not port.get_substituted():
                 power = port.get_power()
-                values = np.zeros(t.size)
-                # Integration in time
-                for k in range(1, t.size):
-                    values[k] = values[k - 1] + 0.5 * (t[k] - t[k - 1]) * (
-                        power[k - 1] + power[k]
-                    )
+                # P[0] is an instantaneous initial-state sample; the
+                # original Port.compute() P[k>=1] for CN is already
+                # evaluated at the mean FE state of step k. A second
+                # trapezoidal quadrature is mathematically incorrect.
+                values = integrate_port_power(
+                    t, power, convention=convention
+                )
                 if rank == 0:
                     if port.get_dissipative():
-                        ax.plot(t, -values, label=port.get_name())
+                        ax.plot(t, -values, label=port.get_name()
+                                + " (" + display_convention + ")")
                     else:
-                        ax.plot(t, values, label=port.get_name())
+                        ax.plot(t, values, label=port.get_name()
+                                + " (" + display_convention + ")")
                 if HamTot is not None:
                     if port.get_dissipative():
                         SP_balance += values
@@ -3531,14 +3548,15 @@ class DPHS:
             	if port.get_algebraic() and port.get_substituted():
                     check_makes_sense = False
             if check_makes_sense and rank == 0:
-                ax.plot(t, SP_balance, "--", label="Balance")
+                ax.plot(t, SP_balance, "--",
+                        label="Balance (legacy port signs; model-dependent)")
 
         if need_to_set_figure and rank == 0:
             ax.legend()
             ax.grid(axis="both")
             ax.set_xlabel("time t")
-            ax.set_ylabel("Power terms")
-            ax.set_title("Evolution of power terms")
+            ax.set_ylabel("Integrated signed port powers")
+            ax.set_title("Cumulative power terms (" + display_convention + ")")
             plt.show()
 
     def spy_Dirac(self, t=None, state=None):
