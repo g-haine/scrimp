@@ -232,7 +232,7 @@ def project_fe_initial_value(
     """
     coo_eligible = fe_projection_transfer_policy(
         PETSc.COMM_WORLD.getSize(),
-        os.environ.get("SCRIMP_GETFEM_MATRIX_MODE", "replicated"),
+        os.environ.get("SCRIMP_GETFEM_MATRIX_MODE", "distributed"),
     )
     qdim = int(fem.qdim())
     source = python_expression_to_gwfl(expression, qdim)

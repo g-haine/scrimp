@@ -372,3 +372,20 @@ COO is qualified. It does NOT qualify the nonlinear DAE initializer,
 complete physical time integration, or energy/power trajectories.
 Explicit `csr/ijv` is retained only for historical A/B benchmark
 reproduction, not as the production assembly choice.
+
+## 23 November 2026 — distributed COO is the *implicit* default
+
+The common `convert_gmm_to_petsc()` and the universal initial-state
+projection both now select `SCRIMP_GETFEM_MATRIX_MODE=distributed`
+when the environment variable is unset. The standard bridge also
+defaults to `SCRIMP_GETFEM_BRIDGE_DISTRIBUTED=coo`, and all four
+production DPHS mass/stiffness call sites are COO-eligible.
+PETSc still stores matrices as AIJ/CSR-like sparse arrays; COO
+is the insertion/assembly method.
+
+`replicated` remains an explicitly requested compatibility option
+for serial scripts; the FE initial projector refuses it in MPI>1.
+`csr/ijv` remains an **explicit** archival transfer override for
+reproduction of previous benchmarks, not a production default.
+This default change must be covered by the next original-image
+nonlinear/native physical gate before general release qualification.

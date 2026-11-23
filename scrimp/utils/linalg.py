@@ -74,7 +74,7 @@ def convert_gmm_to_petsc(
         return profiler.measure(f"{profile_label}.{step}")
 
     mode = os.environ.get(
-        "SCRIMP_GETFEM_MATRIX_MODE", "replicated"
+        "SCRIMP_GETFEM_MATRIX_MODE", "distributed"
     ).strip().lower()
     if mode not in ("replicated", "distributed"):
         raise ValueError(

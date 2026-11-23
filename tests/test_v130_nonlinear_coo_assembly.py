@@ -53,6 +53,18 @@ class NonlinearCOOAssemblySourceTests(unittest.TestCase):
                                       ast.Constant)
                 self.assertIs(kw["distributed_coo_eligible"].value, True)
 
+    def test_distributed_is_actual_implicit_default(self):
+        self.assertIn(
+            '"SCRIMP_GETFEM_MATRIX_MODE", "distributed"', self.linalg
+        )
+        projection = (
+            ROOT / "scrimp/utils/fe_initialization.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn(
+            'os.environ.get("SCRIMP_GETFEM_MATRIX_MODE", "distributed")',
+            projection
+        )
+
     def test_bridge_default_is_coo_not_ijv(self):
         fn = next(n for n in self.la_ast.body
                   if isinstance(n, ast.FunctionDef)
