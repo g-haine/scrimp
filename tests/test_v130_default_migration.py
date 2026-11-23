@@ -22,7 +22,8 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 LEGACY_EXAMPLES = (
     "heat.py",
-    "heat_wave.py",
+    # Heat–Wave is deliberately modernized to RT/CN/algebraic (2026);
+    # unlike the original unchanged legacy examples below.
     "mass_spring_damper.py",
     "nonlinear_pendulum.py",
     "shallow_water.py",
@@ -63,6 +64,16 @@ class TestDefaultMigration(unittest.TestCase):
                     all(x=="pseudo" for x in found),
                     f"Historical example changed initializer: {found}",
                 )
+
+    def test_heat_wave_deliberate_CN_algebraic_physics_migration(self):
+        source=(ROOT/"examples"/"heat_wave.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('init_step_ts_type="algebraic"',source)
+        self.assertIn('ts_type="cn"',source)
+        self.assertIn('ts_adapt_type="none"',source)
+        self.assertIn('S.FEM("Heat flux", k, "RT")',source)
+        self.assertIn('S.FEM("q", k, "RT")',source)
 
     def test_original_wave_gaussian_kept_unchanged(self):
         src=(ROOT / "examples/wave.py").read_text(

@@ -60,8 +60,11 @@ class Main2DExampleProtocolTests(unittest.TestCase):
         self.assertIn("system.last_ts_steps < times.size-1",probe)
         self.assertIn('"requested_initial_dt":DT',probe)
         self.assertIn("collect_heat_wave_physics(",probe)
-        self.assertNotIn('system.last_ts_steps!=4',probe)
-        self.assertNotIn('system.last_ts_rejections!=0',probe)
+        # Only the heat-wave CN branch now deliberately requires
+        # fixed four-step integration; shallow-water remains adaptive.
+        self.assertIn('if args.example=="heat_wave":',probe)
+        self.assertIn('system.last_ts_steps!=4',probe)
+        self.assertIn('system.last_ts_rejections!=0',probe)
         self.assertIn('"H_heat": (".5*T*T", 1)',physics)
         self.assertIn('"H_wave_kinetic": (".5*p*p", 2)',physics)
         self.assertIn('"H_wave_potential": (".5*q.q", 2)',physics)
@@ -98,8 +101,6 @@ class Main2DExampleProtocolTests(unittest.TestCase):
         self.assertIn('"-p*Test_Y_bnd"',hw)
         self.assertIn('"Y_T" if heat_normal_orientation == 1 else "-Y_T"',hw)
         self.assertIn('if FEM.get_name() in ("Heat flux", "q")',hw)
-        self.assertIn('system.last_ts_steps!=4',probe)
-        self.assertIn('system.last_ts_rejections!=0',probe)
         self.assertIn('factor_solver=args.backend',(
             ROOT/"sandbox"/"probe_v130_main_2d_examples.py"
         ).read_text(encoding="utf-8"))
