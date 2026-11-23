@@ -8,6 +8,8 @@ on:
       - scrimp/dphs.py
       - scrimp/utils/dae_initialization.py
       - scrimp/utils/fe_initialization.py
+      - scrimp/utils/linalg.py
+      - tests/test_v130_nonlinear_coo_assembly.py
       - tests/test_v130_fe_initial_projection.py
       - sandbox/probe_v130_production_fe_initialization.py
       - scripts/run-v130-production-fe-initialization.sh
@@ -31,6 +33,8 @@ on:
       - scrimp/dphs.py
       - scrimp/utils/dae_initialization.py
       - scrimp/utils/fe_initialization.py
+      - scrimp/utils/linalg.py
+      - tests/test_v130_nonlinear_coo_assembly.py
       - tests/test_v130_fe_initial_projection.py
       - sandbox/probe_v130_production_fe_initialization.py
       - scripts/run-v130-production-fe-initialization.sh
@@ -73,7 +77,7 @@ jobs:
           python -m py_compile sandbox/probe_v130_fe_initial_mpi.py
           bash -n scripts/run-v130-fe-initial-mpi.sh
           bash -n scripts/run-v130-fe-initial-coo.sh
-          python -m py_compile tests/test_v130_universal_fe_projection_spec.py
+          python -m py_compile tests/test_v130_universal_fe_projection_spec.py tests/test_v130_nonlinear_coo_assembly.py
       - name: Actual DPHS control classification and GetFEM assembly routing
         run: python tests/test_v130_direct_linear_feedback.py
       - name: Source-only production substituted DAE interval classification
@@ -82,6 +86,8 @@ jobs:
         run: python tests/test_v130_universal_fe_projection_spec.py
       - name: Universal source-only FE L2 initialization and expression grammar
         run: python tests/test_v130_fe_initial_projection.py
+      - name: All production GetFEM mass and tangent bridges use COO
+        run: python tests/test_v130_nonlinear_coo_assembly.py
       - name: Immutable published source bytes
         run: python scripts/check-v130-published-immutable.py
       - name: Report native gate still required

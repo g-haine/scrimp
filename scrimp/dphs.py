@@ -1552,6 +1552,7 @@ class DPHS:
                 self.nl_mass,
                 profiler=self.profiler,
                 profile_label=f"{self._profile_phase}.bridge.nl_mass",
+                distributed_coo_eligible=True,
             )
         _mpi_trace("nl_mass: PETSc matrix assembled")
         _mpi_trace("nl_mass: before PETSc copy/AXPY")
@@ -1609,6 +1610,7 @@ class DPHS:
                 self.nl_stiffness,
                 profiler=self.profiler,
                 profile_label=f"{self._profile_phase}.bridge.nl_stiffness",
+                distributed_coo_eligible=True,
             )
         _mpi_trace("nl_stiffness: PETSc matrix assembled")
         _mpi_trace("nl_stiffness: before PETSc copy/AXPY")

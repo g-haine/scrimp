@@ -322,3 +322,32 @@ Other non-linear Jacobian/dynamic GetFEM call sites still use a
 historical IJV fallback as documented in `convert_gmm_to_petsc`.
 This change does NOT assert that all SCRIMP matrix assembly call
 sites were already converted to COO.
+
+## 23 November 2026 — final production nonlinear GetFEM bridges to COO (native pending)
+
+The user confirmed the original default FE projection is now MPI1/2
+qualified on the standard **distributed COO insertion -> PETSc AIJ**
+path, including RT0, BDM1, Nedelec, Argyris, Gaussian and lumped states:
+`v130-fe-default-mpi-a78eed06-tYJZ7Chu.zip`, source `a78eed06`.
+
+Repository audit exposed two missed production call sites:
+`DPHS.assemble_nl_mass` and `DPHS.assemble_nl_stiffness`
+had not passed `distributed_coo_eligible=True` to the GetFEM bridge.
+Both are now explicitly COO-eligible, matching their **linear**
+counterparts; the shared bridge default was also changed to
+COO-eligible. This means nonlinear Newton tangents are assembled via
+PETSc COO, not silently forced onto IJV when the global mode is
+`distributed`. The PETSc matrices remain AIJ/CSR-like in storage.
+The existing COO bridge recomputes `setPreallocationCOO` with
+the current stored nonzero graph and owned diagonal at EACH assembly,
+before `setValuesCOO`. Dynamic `MatAXPY` still uses
+`DIFFERENT_NONZERO_PATTERN` and retains stable PETSc Mat handles.
+
+An explicit `SCRIMP_GETFEM_BRIDGE_DISTRIBUTED=csr` or `ijv`
+remains for historical benchmark reproduction only, not normal
+production assembly; removing it from all archival benchmarks would
+destroy previously generated A/B comparisons. It is not an accepted
+permanent performance fallback. Separate native gates on the actual
+nonlinear shallow-water Jacobian in MPI1/2 and on an artificially
+changing COO graph are REQUIRED before qualification, even though the
+linear-mass/initial-state COO bridge was already qualified.

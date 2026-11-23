@@ -33,7 +33,7 @@ import scipy.sparse as sp
 
 def convert_gmm_to_petsc(
     M, B, comm=comm, *, profiler=None, profile_label=None,
-    distributed_coo_eligible=False,
+    distributed_coo_eligible=True,
 ):
     """Transfer GetFEM's globally numbered matrix into distributed PETSc.
 
@@ -44,16 +44,20 @@ def convert_gmm_to_petsc(
     SCRIMP_GETFEM_BRIDGE_REPLICATED controls only extraction in
     replicated mode: 'full' (default) or experimental 'owned_rows'.
 
-    For distributed mode, SCRIMP_GETFEM_BRIDGE_DISTRIBUTED=coo
-    (DEFAULT) selects PETSc's native COO preallocation/assembly, only
-    at call sites explicitly marked distributed_coo_eligible=True:
-    currently DPHS's initial LINEAR mass and stiffness matrices.
-    SCRIMP_GETFEM_BRIDGE_DISTRIBUTED=csr selects the historical
-    IJV/ADD_VALUES path; 'ijv' is retained as its legacy alias.
-    Nonlinear Jacobians and dynamic sparsity retain historical IJV
-    even when the default is COO. Replicated GetFEM mode is unchanged.
-    The resulting PETSc matrix still stores sparse coefficients as AIJ
-    (CSR-like); COO is the assembly API, not the storage format.
+    With distributed GetFEM assembly, all production matrix transfers
+    default to PETSc's native COO preallocation/assembly, including the
+    state-dependent nonlinear mass and stiffness tangents. The GetFEM
+    contributions may change sparsity between Newton iterations:
+    setPreallocationCOO is rerun for EACH assembly before setValuesCOO,
+    using the SAME PETSc Mat handle (not a new Mat per iteration).
+    The owned structural diagonal is always retained.
+
+    SCRIMP_GETFEM_BRIDGE_DISTRIBUTED=csr or ijv remains an EXPLICIT
+    historical diagnostic override for source-era benchmark parity;
+    it is no longer a production default or the nonlinear assembly path.
+    Replicated GetFEM extraction is retained for serial compatibility.
+    PETSc stores the assembled sparse matrix as AIJ (CSR-like):
+    COO is the assembly API, not the storage format.
 
     The native-MPI benchmark and complete acoustic trajectory tests
     cover 1/2/4/6 ranks and three-repeat runs for linear operators.
@@ -92,6 +96,10 @@ def convert_gmm_to_petsc(
             "SCRIMP_GETFEM_BRIDGE_DISTRIBUTED must be csr, coo or ijv "
             "(legacy alias for csr)"
         )
+    # The default is the same COO path for linear and nonlinear
+    # operators. The explicit csr/ijv override exists ONLY for
+    # historical benchmark comparison, not as a permanent fallback
+    # whenever a Newton tangent changes its sparsity.
     use_coo = (
         mode == "distributed" and distributed_method == "coo"
         and distributed_coo_eligible
@@ -154,7 +162,8 @@ def convert_gmm_to_petsc(
     if trace:
         print(
             f"[MPI {comm.getRank()}/{comm.getSize()}] "
-            f"GetFEM -> PETSc: global_rows={nrows}, "
+            f"GetFEM -> PETSc effective={'coo' if use_coo else 'ijv'} "
+            f"global_rows={nrows}, "
             f"extracted_rows={extracted_rows}, "
             f"nnz_stored_extracted={len(values)}, "
             f"nnz_nonzero_extracted={np.count_nonzero(values)}, "
@@ -190,6 +199,10 @@ def convert_gmm_to_petsc(
                     np.zeros(hi - lo, dtype=PETSc.ScalarType),
                 ))
             )
+        # Refresh COO indices and stored AIJ graph every time.
+        # For nonlinear Newton steps the matrix values and even the
+        # pattern may change; the old COO mapping must never be reused
+        # against a changed PETSc nonzero graph.
         with measure("petsc.coo.preallocate"):
             B.setPreallocationCOO(coo_i, coo_j)
         with measure("petsc.coo.set_values"):
