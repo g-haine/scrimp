@@ -1,9 +1,74 @@
 # SCRIMP v1.3.0 — Issue #6: active rotating SWE MPI 1/2/4 parity
 
-**Status: SOURCE ONLY / NEW NATIVE CAMPAIGN PENDING.**
-Prepared on 23 November 2026 on `release/1.3.0-preparation`.
+**Status: NATIVE QUALIFIED / 14/14 PETSc runs PASS, MPI 1/2/4 parity PASS.**
+Prepared and executed on 23 November 2026 on
+`release/1.3.0-preparation` at source
+`669540ef4805000612e48a1e81489e4590752bd8`.
 The already qualified cold checkpoint 1/2-rank campaign from
 `2119bc55` remains immutable and PASSED.
+
+## Native results — 23 November 2026: COMPLETE PASS
+
+Immutable original host evidence:
+`sandbox/outputs/v130-issue6-active-mpi4-669540ef-JJl2w1Tm/`
+and standalone ZIP with exactly that basename. All original
+native logs, both mesh cases, 14 production DPHS checkpoints,
+14 complete full-FE NPZ trajectories, 34 rank-local original
+generic-port-power JSON files and root-only physical plots are
+preserved. User-provided ZIP: **167 entries**, all pass CRC, original
+data independently read/recomputed (not merely accepting the
+campaign-comparator verdict).
+
+Two meshes, original gamma=.25 physical rotating wall, curved
+P2 domain, dt=.002: 14/14 native PETSc runs, zero rejected steps
+or SNES failures, valid constraints, completed CN steps.
+
+| Physical mesh | Complete FE DOFs | Continuous max whole-path L2 MPI1 vs MPI2 | Continuous max whole-path L2 MPI1 vs MPI4 | Maximum physical observables MPI1 vs MPI2/4 | Maximum generic port-power MPI1 vs MPI2/4 |
+|---|---:|---:|---:|---:|---:|
+| h=.2 | 3300 | 2.57507288e-13 | 2.1002e-13 | 4.79616347e-14 | 3.40005801e-16 |
+| h=.1 | 10272 | 1.6614e-13 | 1.68086923e-13 | 2.32702746e-13 | 1.52655666e-16 |
+
+Native cold restarts **1→4** and **4→1** match the full
+uninterrupted trajectory, with bitwise source FE restoration:
+
+| Mesh | Restart 1→4 max whole-path FE L2 | Restart 4→1 max whole-path FE L2 |
+|---|---:|---:|
+| h=.2 | 1.9078e-13 | 2.2930e-13 |
+| h=.1 | 1.6358e-13 | 1.6878e-13 |
+
+The **aggregate, independently reproduced** source-matched metrics:
+
+- Whole-path MPI 1/2/4 FE discrepancy max:
+  `2.5750728773395547e-13`.
+- Original h-weighted physical observables discrepancy max:
+  `2.32702746103467e-13`.
+- Original unweighted generic port-power discrepancy max:
+  `3.400058012914542e-16`; on each individual MPI run,
+  all rank-local generic powers agree exactly to the saved precision.
+- Four cross-rank cold restarts 1↔4 passed (two meshes), with
+  original full FE state, time, physical powers and Hamiltonian.
+- Actual nonzero generic port power activity (representative
+  max magnitude h=.2: `0.2231`; h=.1: `0.1216`).
+  The rank-local assembly test is not a vacuous resting solution.
+
+Final campaign manifest reports
+`PASS_NATIVE_COMPATIBLE_ROTATING_SWE_MPI_1_2_4`.
+
+**Software verdict:** SCRIMP reproduces the original finite-element
+trajectory, physical power observables and generic algebraic port
+powers on MPI1, MPI2 and MPI4, with working collective plotting
+and no concurrent rank-file overwrites in these outputs. The
+production cold checkpoint also preserves the same simulation
+for 1↔4 changes of MPI process count.
+
+**Strict scope:** the experiment runs only t=0..0.024,
+before normal feedback starts at t=75. The actual tangential wall
+motion is nonzero, but this does not qualify normal-feedback-active
+long-time dynamics, ParaView exports, adaptive multistep TS history
+or a stationary rotating solution. Keep the broader issue #6 OPEN.
+The model's absolute nonzero CN energy defect remains a
+separate numerical-analysis question and has not been reclassified
+as a SCRIMP MPI error.
 
 ## Required question
 
@@ -127,8 +192,7 @@ reports. It does **not** move, overwrite or delete any source
 evidence. This ZIP may be shared for independent numerical review
 without requiring access to the original host paths.
 
-**Do not report this as PASS until the genuine host runs
-complete with final `PASS_NATIVE_COMPATIBLE_ROTATING_SWE_MPI_1_2_4`.**
+**This criterion is now SATISFIED by the archived 14 native jobs and independent ZIP re-audit.**
 Do not close issue #6 automatically: other scope includes
 longer-time, active normal feedback and parallel output
 scenarios not tested here. No model, production solver,

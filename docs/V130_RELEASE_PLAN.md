@@ -20,15 +20,19 @@
 > adaptive TS history restoration or mathematical energy accuracy:
 > [V130_ROTATING_CONTROLLED_INITIAL_STATE.md](V130_ROTATING_CONTROLLED_INITIAL_STATE.md).
 >
-> **Next P0 native gate (#6, source-only staged 23 November):**
+> **P0 native #6 MPI4 qualification (23 November): PASS, archive re-audited.**
 > independent 1/2/4-rank original controlled *active rotating-wall*
 > Saint-Venant (gamma=.25) MPI port-power assembly and MPI-safe output
 > audit, including full trajectory and original h-weighted physical
 > power observables plus cold resume 1→4/4→1 for h=.2/.1.
 > It tests actual `plot_Hamiltonian(with_powers=True)` collectively
 > and writes rank-unique raw port-power JSON, root-only physical PNG.
-> **NO new native MPI4 PASS has been claimed**; run
-> `scripts/run-v130-issue6-rotating-mpi4.sh` on the qualified host.
+> **14/14 native original PETSc runs passed** and all MPI1/2/4,
+> MPI1↔4 parity gates were reproduced from the full ZIP;
+> full FE 3300/10272 DoFs, max whole-path FE L2 2.5751e-13,
+> max weighted physical observable discrepancy 2.3270e-13,
+> max generic port-power discrepancy 3.4001e-16.
+> Evidence `v130-issue6-active-mpi4-669540ef-JJl2w1Tm`.
 > The normal feedback remains inactive until t=75 in this
 > short-time test. See
 > [V130_ISSUE6_COMPATIBLE_MPI4_QUALIFICATION.md](V130_ISSUE6_COMPATIBLE_MPI4_QUALIFICATION.md).

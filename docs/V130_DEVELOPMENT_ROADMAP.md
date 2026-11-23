@@ -15,6 +15,16 @@
 >
 > **Updated 23 November 2026:** issue #29's **qualified cold checkpoint/restart** criterion has passed (production SWE and second linear pH-DAE; cross-MPI 1↔2; CN energy/work at roundoff). Refer to [V130_CHECKPOINT_ISSUE29_QUALIFICATION.md](V130_CHECKPOINT_ISSUE29_QUALIFICATION.md). This does not imply a general DAE initializer or historical TS state restoration; release v1.3.0 remains untagged pending other gates.
 
+**Native MPI4 qualification (23 November):** 14/14 original rotating
+Saint-Venant PETSc runs on h=.2/.1, MPI 1/2/4 original
+full-trajectory/power parity and cold checkpoint 1↔4 **PASS**.
+Full original ZIP independently audited; max full trajectory
+L2 discrepancy 2.5751e-13, original physical trace discrepancy
+2.3270e-13, generic port-power discrepancy 3.4001e-16.
+See [V130_ISSUE6_COMPATIBLE_MPI4_QUALIFICATION.md](V130_ISSUE6_COMPATIBLE_MPI4_QUALIFICATION.md).
+This does not validate t>75 active normal feedback nor long-time
+control; broader #6 remains open.
+
 **Release plan (workstreams 0–9 and acceptance gates):** [V130_RELEASE_PLAN.md](V130_RELEASE_PLAN.md). The present file records the prior technical investigations and measured results; the release plan governs current scope and priorities.
 
 Status: **development / untagged release preparation** (updated 21 Nov 2026).
