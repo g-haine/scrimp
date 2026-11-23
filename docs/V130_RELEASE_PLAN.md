@@ -1,5 +1,18 @@
 # SCRIMP v1.3.0 — release plan and acceptance gates
 
+> **#6 / controlled SWE checkpoint parity (23 November):** original
+> native gamma=.25 mesh=.2 MPI1→MPI2 cold restart faithfully reproduces
+> the uninterrupted CN solution: full final FE difference 1.6464e-13,
+> Hamiltonian/physical integral differences at roundoff, and
+> H+D-W continuous/split defect difference 4.44e-15. This is a
+> **checkpoint equivalence PASS**, independent of the *common*
+> nonlinear-mass CN numerical Hamiltonian defect. The latter is a
+> mathematical model/discretization question, NOT a SCRIMP checkpoint
+> error or a reason to reject an otherwise identical trajectory.
+> Dedicated native full-trajectory MPI 1/2 × h=.2/.1 parity campaign
+> staged (8 comparisons, results PENDING):
+> [V130_ROTATING_CONTROLLED_INITIAL_STATE.md](V130_ROTATING_CONTROLLED_INITIAL_STATE.md).
+>
 > **Scope decisions — 23 November 2026:** #23's GetFEM MPI-2 raw-RHS anomaly
 > was confined to a locally miscompiled *old* GetFEM environment and is
 > **retired without an upstream root-cause claim**; retain exact-build

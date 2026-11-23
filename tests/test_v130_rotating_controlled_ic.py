@@ -153,16 +153,22 @@ class RotatingControlledPreparationHostTest(unittest.TestCase):
         self.assertIn('"physical_precheck_trace.npz"', source)
         self.assertIn("step_balance_defect=balance_step", source)
         self.assertIn('"checkpoint_created": False', source)
+        physical_gate = 'args.qualification_mode == "physical" and power_defect > 1e-3'
+        self.assertIn(physical_gate, source)
+        self.assertIn("mass_defect > 1e-8", source)
         self.assertLess(
             source.index('"physical_precheck_trace.npz"'),
-            source.index('if power_defect > 1e-3 or mass_defect > 1e-8:')
+            source.index(physical_gate)
         )
-        # The original physical acceptance gate is deliberately unchanged.
-        self.assertIn("if power_defect > 1e-3 or mass_defect > 1e-8:", source)
         self.assertLess(
-            source.index('if power_defect > 1e-3 or mass_defect > 1e-8:'),
+            source.index(physical_gate),
             source.index("    system.save_checkpoint(")
         )
+        # The original numerical-model gate is unchanged by default.
+        # Only a separately labeled restart-parity gate refrains from
+        # mistaking the same model drift for a failed checkpoint.
+        self.assertIn('default="physical"', source)
+        self.assertIn('"restart_parity"', source)
 
     def test_continuous_split_comparator_never_accepts_power_defect(self):
         source = (ROOT / "sandbox" /
@@ -177,6 +183,19 @@ class RotatingControlledPreparationHostTest(unittest.TestCase):
             "physical_segment_relative_energy_gate_not_overridden",
         ):
             self.assertIn(required, source)
+
+    def test_campaign_guards_native_parity_not_absolute_energy(self):
+        source = (ROOT / "scripts" /
+                  "run-v130-rotating-ic-parity.sh").read_text(encoding="utf-8")
+        runner = (ROOT / "scripts" /
+                  "run-v130-rotating-controlled-ic.sh").read_text(encoding="utf-8")
+        self.assertIn("SCRIMP_V130_ROTATING_IC_QUALIFICATION=restart_parity", source)
+        self.assertIn("sandbox/compare_v130_rotating_ic_parity.py", source)
+        self.assertIn("for mesh in 0.2 0.1", source)
+        self.assertIn("for source in 1 2", source)
+        self.assertIn("for target in 1 2", source)
+        self.assertIn('"$qualification"', runner)
+        self.assertIn('if sys.argv[5]=="physical":', runner)
 
     def test_no_pseudo_bdf_on_resume(self):
         source = PILOT.read_text(encoding="utf-8")

@@ -251,6 +251,111 @@ temporal-refinement comparison may be necessary.
 The old checkpoint is immutable; failed diagnostic restarts must
 not publish unqualified new accepted initial states.
 
+## 23 November 2026 — qualification policy clarified: SCRIMP is responsible for replay equivalence
+
+**Scientific division of responsibilities (user decision):** the question
+of *why* a given CN/PFEM nonlinear-mass discretization has a nonzero
+discrete Hamiltonian balance defect belongs to the mathematical model
+and numerical-analysis research, **not** to this SCRIMP checkpoint
+feature. The v1.3.0 restart test must establish that stopping and
+resuming produces **the same discrete solution as running uninterrupted**,
+including the same numerical balance defect; it must **not** require
+that common defect to vanish. No changes to the physical bricks,
+discrete model, Newton/MUMPS solver or TS integrator are warranted
+by the observed local balance ratio alone.
+
+### Already qualified native example (source `b660dbb2`)
+
+For the *controlled rotating viscous Saint-Venant P2 disk* at
+`gamma=0.25`, `mesh=0.2`, `dt=0.002`, pause at `t=0.02`:
+the real original seed MPI1 and uninterrupted MPI1 up to `t=0.024`
+were compared to a **genuine MPI1→MPI2 production API cold restart**
+from `t=0.02` to `t=0.024`. The raw comparator reported:
+
+```text
+checkpoint bitwise restored           yes
+final full FE state L2 difference     1.646398512702811e-13
+initial Hamiltonian restart jump      -7.549516567451064e-15
+initial volume restart jump           -7.105427357601002e-15
+final Hamiltonian difference         -4.440892098500626e-15
+integrated boundary work difference  -3.469446951953614e-18
+integrated dissipation difference      3.7947076036992655e-19
+continuous full H+D-W defect           7.234183384829951e-07
+resumed full H+D-W defect              7.234183429273566e-07
+difference of defects                  4.44436154545258e-15
+original resumed TSCN residual max     5.5136210170999984e-14
+original resumed algebraic max         2.9045221981055017e-15
+```
+
+This result demonstrates replay fidelity for **this** mesh,
+time window and MPI permutation. The earlier `0.00309672446`
+relative power gate over the two-step segment reflected the numerical
+model's balance defect normalized by the *small work exchanged only
+within that segment*. That number does **not** contradict restart
+equivalence and is not the acceptance criterion for this feature.
+
+### Generalizing to full-path equivalence (new staged gate)
+
+`sandbox/probe_v130_rotating_controlled_ic.py` and
+`scripts/run-v130-rotating-controlled-ic.sh` now support a
+**separate explicitly requested** mode
+`SCRIMP_V130_ROTATING_IC_QUALIFICATION=restart_parity`.
+
+- `physical` remains the DEFAULT and preserves the historical
+  relative energy-defect threshold, for those explicitly studying
+  the time integrator.
+- `restart_parity` records *exactly the same* Hamiltonian,
+  original GetFEM port powers and dissipation, total and per-step
+  defects, and mass/DAE residuals, but **never gates on the absolute
+  model-energy defect**. A true PETSc failure, invalid native
+  `F_a`/`F_TSCN`, wrong FE/control fingerprint, inconsistent
+  physical clock, missing state or volume conservation still fails.
+- Each accepted full FE `z(t_n)` is now archived, together with
+  original instantaneous normal/viscous port powers and grad/div
+  volume dissipation, not only endpoints. A production API checkpoint
+  is saved only after numerical state/DAE acceptance.
+- `sandbox/compare_v130_rotating_ic_parity.py` compares **every
+  accepted full FE state** and physical time against the same
+  uninterrupted trajectory, and checks pointwise work/dissipation,
+  Hamiltonian and volume. Segment-integrated wall work, dissipation
+  and balance are correctly *offset* across the pause, instead of
+  erroneously comparing two separately zeroed integrals.
+- The model's common `H+D-W` defect magnitude is a *reported
+  diagnostic*; its **continuous-versus-restarted difference**
+  is a **strict parity gate**.
+- Unit tests have negative controls for an altered intermediate FE
+  state, an altered boundary work record, a mismatched fingerprint,
+  a corrupted checkpoint and an unauthorized pseudo-DAE
+  reinitialization. These do not replace actual native runs.
+
+**Native campaign:**
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-rotating-ic-parity.sh
+```
+
+For **each** h=0.2 and h=0.1, the launcher independently runs
+native seed trajectories from rest to `0.02` with MPI1 and MPI2,
+uninterrupted `0→0.024` trajectories with MPI1/MPI2 and all
+four cross-rank resumes `1→1, 1→2, 2→1, 2→2`. There are 16
+native PETSc runs and **8 mandatory full-trajectory comparison gates**.
+The campaign retains the host-owned native evidence from each run
+and writes a unique `sandbox/outputs/v130-rotating-parity-.../`
+directory with a manifest, per-case logs, `*.parity.json` verdicts
+and an aggregate `summary.json`. No existing user-owned output
+directory is deleted or overwritten.
+
+**Staged only:** these new full-trajectory native results must be
+collected from the qualified Docker host before claiming the full
+8/8 campaign PASS. Separate higher-order, MPI4, t>75 active
+normal-feedback and mathematical long-time stationary questions are
+not silently claimed. The existing #29 cold checkpoint API evidence
+remains unchanged.
+
 ## Safety, provenance and release scope
 
 - No change to `scrimp/dphs.py`, PETSc integrators, global FE numbering

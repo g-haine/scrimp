@@ -15,6 +15,11 @@ usage() {
 }
 [[ $# -ge 4 && $# -le 5 ]] || { usage; exit 2; }
 phase="$1"; mesh="$2"; ranks="$3"; final_time="$4"
+qualification="${SCRIMP_V130_ROTATING_IC_QUALIFICATION:-physical}"
+[[ "$qualification" == physical || "$qualification" == restart_parity ]] || {
+    echo "SCRIMP_V130_ROTATING_IC_QUALIFICATION must be physical or restart_parity" >&2
+    exit 2
+}
 [[ "$phase" == seed || "$phase" == resume ]] || { usage; exit 2; }
 [[ "$mesh" == 0.2 || "$mesh" == 0.1 ]] || { usage; exit 2; }
 [[ "$ranks" == 1 || "$ranks" == 2 || "$ranks" == 4 ]] || { usage; exit 2; }
@@ -76,7 +81,7 @@ printf '{"schema":"scrimp-v130-rotating-controlled-ic-runner-v1","source":"%s","
     > "$out/manifest.json"
 echo "Physical controlled rotating SWE preparation: gamma=0.25, mesh=$mesh, MPI=$ranks"
 echo "Original GetFEM/PETSc weak forms, C1 wall startup, original normal feedback envelope"
-echo "Input phase=$phase, final absolute physical time=$final_time, dt=0.002"
+echo "Input phase=$phase, qualification=$qualification, final absolute physical time=$final_time, dt=0.002"
 echo "Evidence on host: $out"
 
 docker_args=(
@@ -103,6 +108,7 @@ for f in "${files[@]}"; do
 done
 native_args=(
     --phase "$phase" --mesh "$mesh" --gamma 0.25
+    --qualification-mode "$qualification"
     --dt 0.002 --final-time "$final_time"
     --checkpoint-out /artifacts/accepted_state.npz
     --out /artifacts
@@ -124,7 +130,7 @@ if ! grep -a 'ROTATING CONTROLLED IC ACCEPTED' "$out/native.log"; then
     tail -n 100 "$out/native.log" >&2
     exit 1
 fi
-python3 - "$out" "$mesh" "$ranks" "$final_time" <<'PY'
+python3 - "$out" "$mesh" "$ranks" "$final_time" "$qualification" <<'PY'
 import json, math, sys
 from pathlib import Path
 out=Path(sys.argv[1])
@@ -132,15 +138,21 @@ r=json.loads((out/"initial_state_report.json").read_text(encoding="utf-8"))
 assert r["status"]=="ACCEPTED_COMPATIBLE_ROTATING_DAE_INITIAL_STATE_NOT_STEADY"
 assert r["gamma"]==0.25 and r["mesh"]==float(sys.argv[2])
 assert r["MPI"]==int(sys.argv[3])
+assert r["qualification_mode"]==sys.argv[5]
+assert r["physical_relative_power_gate_applied"]==(sys.argv[5]=="physical")
+assert r["physical_energy_defect_retained_not_modified"] is True
 assert math.isclose(r["physical_time_final"],float(sys.argv[4]),abs_tol=1e-12)
 assert r["original_TSCN_max_l2"]<1e-7
 assert r["original_Fa_max_l2"]<1e-8
-assert r["original_power_defect_over_exchange"]<1e-3
+assert math.isfinite(r["original_power_defect_over_exchange"])
+if sys.argv[5]=="physical":
+    assert r["original_power_defect_over_exchange"]<1e-3
 assert r["original_volume_balance_defect"]<1e-8
 assert r["minimum_positive_height_FE_coefficient"]>0
 assert r["stationary_rotating_state_certified"] is False
 assert (out/"accepted_state.npz").stat().st_size>0
-print("HOST EVIDENCE PASS: accepted full DAE state; equilibrium NOT claimed")
+print("HOST EVIDENCE PASS: accepted full DAE state; "
+      "qualification="+sys.argv[5]+"; equilibrium NOT claimed")
 PY
 echo "CHECKPOINT (host): $out/accepted_state.npz"
 echo "REPORT (host): $out/initial_state_report.json"

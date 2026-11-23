@@ -102,6 +102,12 @@ def run():
     cli.add_argument("--gamma", choices=(0.0, 0.25), type=float, default=0.25)
     cli.add_argument("--final-time", type=float, required=True)
     cli.add_argument("--dt", type=float, default=DEFAULT_DT)
+    cli.add_argument(
+        "--qualification-mode", choices=("physical", "restart_parity"),
+        default="physical",
+        help="Physical gate checks model energy defect; restart_parity "
+             "records that defect but qualifies only fidelity to uninterrupted TS.",
+    )
     cli.add_argument("--checkpoint-in", type=Path)
     cli.add_argument("--checkpoint-out", type=Path, required=True)
     cli.add_argument("--out", type=Path, required=True)
@@ -273,7 +279,7 @@ def run():
     precheck = {
         "schema": "scrimp-v130-rotating-controlled-precheck-v2",
         "status": "NATIVE_PHYSICAL_DIAGNOSTIC_NOT_A_CHECKPOINT",
-        "phase": args.phase,
+        "phase": args.phase, "qualification_mode": args.qualification_mode,
         "source_time": t0, "final_time": float(times[-1]),
         "mesh": args.mesh, "gamma": args.gamma, "ranks": mpi.size,
         "source_checkpoint_sha256": (
@@ -314,11 +320,15 @@ def run():
             )
             np.savez_compressed(
                 args.out / "physical_precheck_trace.npz",
-                times=times, full_state_start=states[0],
+                times=times, states=states,
+                full_state_start=states[0],
                 full_state_final=states[-1],
                 H=traces["H"], volume=traces["volume"],
                 boundary_work=traces["supplied"],
                 viscous_dissipation=traces["dissipated"],
+                p_normal=traces["p_normal"],
+                p_viscous=traces["p_viscous"],
+                d_grad=traces["d_grad"], d_div=traces["d_div"],
                 power_balance=traces["balance"],
                 volume_balance=traces["volume_balance"],
                 step_delta_H=dH_step, step_delta_work=dW_step,
@@ -349,7 +359,14 @@ def run():
 
     # Conservative pilot guards (not a claimed general nonlinear-mass
     # CN identity). Historic full ramp observed ~2.8e-5..6.9e-5.
-    if power_defect > 1e-3 or mass_defect > 1e-8:
+    # The relative Hamiltonian defect is a numerical-model observable,
+    # NOT a checkpoint fidelity error. Do not turn an otherwise exact
+    # restarted trajectory into a fake checkpoint failure. Preserve the
+    # original physical gate as the DEFAULT for scientific model checks;
+    # only the explicit restart-parity qualification ignores its magnitude.
+    # Mass conservation and native DAE/CN acceptance remain mandatory.
+    if (mass_defect > 1e-8 or
+            (args.qualification_mode == "physical" and power_defect > 1e-3)):
         raise RuntimeError(
             "Original physical boundary/dissipation/mass balance failed: "
             f"relative power={power_defect:.9g}, mass={mass_defect:.9g}; "
@@ -380,6 +397,7 @@ def run():
                 else sha256(args.checkpoint_in.read_bytes())
             ),
             "source_MPI_ranks": int(mpi.size),
+            "qualification_mode": args.qualification_mode,
             "max_original_CN_residual": max(cn_residuals),
             "max_original_Fa_residual": max(fa_residuals),
         },
@@ -389,6 +407,10 @@ def run():
         "schema": "scrimp-v130-rotating-controlled-ic-native-v1",
         "status": "ACCEPTED_COMPATIBLE_ROTATING_DAE_INITIAL_STATE_NOT_STEADY",
         "phase": args.phase, "gamma": args.gamma,
+        "qualification_mode": args.qualification_mode,
+        "physical_relative_power_gate_applied":
+            args.qualification_mode == "physical",
+        "physical_energy_defect_retained_not_modified": True,
         "mesh": args.mesh, "MPI": int(mpi.size),
         "physical_time_initial": t0, "physical_time_final": float(times[-1]),
         "dt": args.dt, "accepted_steps": nsteps,
@@ -423,7 +445,11 @@ def run():
         )
         np.savez_compressed(
             args.out / "initial_state_trace.npz",
-            times=times, H=traces["H"], volume=traces["volume"],
+            times=times, states=states,
+            H=traces["H"], volume=traces["volume"],
+            p_normal=traces["p_normal"],
+            p_viscous=traces["p_viscous"],
+            d_grad=traces["d_grad"], d_div=traces["d_div"],
             boundary_work=traces["supplied"],
             viscous_dissipation=traces["dissipated"],
             power_balance=traces["balance"],
@@ -432,7 +458,8 @@ def run():
         )
         print(
             "ROTATING CONTROLLED IC ACCEPTED "
-            f"phase={args.phase} gamma={args.gamma:g} "
+            f"phase={args.phase} mode={args.qualification_mode} "
+            f"gamma={args.gamma:g} "
             f"mesh={args.mesh:g} MPI={mpi.size} "
             f"t={times[-1]:.6g} steps={nsteps} "
             f"Fa={max(fa_residuals):.8g} CN={max(cn_residuals):.8g} "
