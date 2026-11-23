@@ -111,6 +111,66 @@ real 2D example output exports, extended MPI4 and
 nonlinear Saint-Venant remain distinct subsequent gates.
 **Native status: PENDING qualified-host execution.**
 
+### Stage B2 — original 2D Heat–Wave and inviscid Saint-Venant (PENDING)
+
+The former hardcoded serial-SuperLU main scripts are now available
+with MUMPS as the default, and `superlu_dist` as a pure
+`factor_solver` opt-in. The first true model-scale test
+is **not** an unrestricted solver benchmark:
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-example-2d-lu.sh
+```
+
+This launches the **actual shipped** `heat_wave_eq()` and
+`shallow_water_eq()` models, with original weak forms,
+original pseudo DAE initialization, meshes, constitutive
+relations, boundary conditions and public figure/ParaView
+export methods, with explicit `t=0..0.004`,
+`dt=dt_save=0.001`. Other default values do not change.
+
+Four bounded native jobs: each model at MPI1 with
+MUMPS and SuperLU_DIST. The pilot checks the actual
+PETSc convergence status, 4 steps, 5 saved physical
+times, full finite-element/DAE vector and all original
+field histories, finite positive Hamiltonian, nontrivial
+dynamics, available original Hamiltonian PNG,
+and nonempty public ParaView `.pvd` and `.vtu`
+outputs. For Saint-Venant it also saves the genuine
+original GetFEM water-height integral `∫h` and its
+observed time drift (without hiding or renormalizing it).
+The independent host comparator gates every original
+field, full state, Hamiltonian and volume trace
+against MUMPS within `1e-8`; native status is PENDING.
+
+**MPI I/O scope warning:** current `DPHS.export_to_pv()`
+opens the same `.pvd` on all ranks (and uses
+root-only directory reset). The user previously
+reported trouble locating generated outputs. It is
+not yet proven safe to run these unchanged top-level
+postprocessors simultaneously on MPI2/4. This
+first stage therefore deliberately uses only MPI1
+and independent host working directories. **No
+simulation or document under `examples/published/`
+is mounted, modified or touched.** After examining
+both physical trajectories, qualify/fix generic
+MPI export separately before extending actual
+top-level 2D examples to MPI2/4.
+
+**Scientific limitation:** numerical MUMPS/SuperLU_DIST
+agreement does not itself validate correctness of the
+original Heat–Wave coupling nor inviscid Saint-Venant
+discretization. Physical Hamiltonian and volume
+diagnostics are preserved for critical review; an
+exact BDF2 power identity is **not** claimed.
+On failure the launcher stops immediately and retains
+the first original native failure logs and host
+outputs; no forced PASS.
+
 ## Inventory (source at current release/1.3.0-preparation; 23 November 2026)
 
 Eight top-level executable examples:

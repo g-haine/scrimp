@@ -1462,8 +1462,9 @@ limits displayed rather than concealed.
 Exit: reviewed Sphinx documentation, green HTML/PDF build and
 reproducible container walkthrough. This covers #26.
 
-> **Examples P0 — 23 November 2026: source stage B1 ready,
-> native lumped pilot PENDING.** Four **non-published**
+> **Examples P0 — 23 November 2026: lumped examples
+> 12/12 NATIVE PASS, independently checked ZIP; bounded
+> 2D models (MPI1) staged, native PENDING.** Four **non-published**
 > top-level functions `mass_spring_damper`, `nonlinear_pendulum`,
 > `heat_wave_eq` and `shallow_water_eq` no longer hardcode
 > serial SuperLU; `factor_solver=None` leaves the MUMPS
@@ -1473,12 +1474,28 @@ reproducible container walkthrough. This covers #26.
 > times, output calls and boundary controls are preserved.
 > Two 2D functions also permit explicitly short `final_time`,
 > `time_step`, `save_step` for bounded acceptance.
-> New `scripts/run-v130-example-lumped-lu.sh` is a
-> 12-case real GetFEM/PETSc pilot over the two original
-> lumped examples, MPI1/2 and three backends, checks
-> Hamiltonian formulas, entire state path and parity,
-> no scientific PASS yet. Stage 2D, remaining 8-example
-> full matrix and MPI4 are next independent gates.
+> `scripts/run-v130-example-lumped-lu.sh` passed
+> **12/12 genuine GetFEM/PETSc integrations** of original
+> mass–spring–damper and nonlinear pendulum on MPI1/2,
+> MUMPS/SuperLU_DIST plus serial SuperLU. All complete
+> DAE vectors and analytical Hamiltonians independently
+> recalculated from 38-member original ZIP
+> `v130-example-lu-lumped-71f007ca-6BgVGaKp.zip`.
+> Max cross-backend whole-path FE/DAE discrepancies:
+> 8.8818e-16 and 5.3718e-15, respectively.
+> This is **short 0..0.04 BDF2** and four complete
+> state DoFs, not long-time or 2D/scaling qualification.
+> **Next P0:** `scripts/run-v130-example-2d-lu.sh`
+> stages four actual Heat–Wave and inviscid
+> Saint-Venant runs at MPI1, MUMPS/SuperLU_DIST,
+> with original FE, figures and ParaView exports,
+> four steps t=0..0.004. No numeric PASS claimed yet.
+> The original `DPHS.export_to_pv()` writes `.pvd`
+> from every rank and must have its MPI write behavior
+> independently checked before launching existing
+> top-level 2D postprocessors on MPI2/4.
+> Full shipped horizons, the remaining examples
+> and MPI4 remain subsequent independent gates.
 > **No files under `examples/published/` were touched**
 > (immutable source snapshots; ignored local results preserved).
 > See [V130_EXAMPLES_SOLVER_POLICY.md](V130_EXAMPLES_SOLVER_POLICY.md).
