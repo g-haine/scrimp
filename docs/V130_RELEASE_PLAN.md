@@ -18,15 +18,18 @@
 > alternate user-selected PETSc backends. Four of the eight top-level
 > examples still hardcode serial `superlu`; the published
 > MCSS 2024 shallow-water script also explicitly uses it.
-> **Absolute rule: every file under `examples/published/`
-> is an immutable article-era snapshot. NEVER modify,
-> rename, delete or add to that directory**, including
-> solver choice, imports, formatting or documentation there.
-> The 8 archived Git blobs are byte-for-byte guarded by
-> `scripts/check-v130-published-immutable.py` and
-> CI. For modern reproductions, create *separate*
-> scripts outside `examples/published/` with traceable
-> differences.
+> **Absolute rule: eight Git-tracked article-era sources
+> in `examples/published/` are immutable. NEVER modify,
+> rename, delete, or commit added source there**, including
+> solver choice, imports, or formatting. The eight original
+> Git blobs are byte-for-byte guarded by
+> `scripts/check-v130-published-immutable.py` and CI.
+> **Local untracked simulation outputs are NOT archive source
+> changes**: they must be preserved, not scanned or rejected.
+> Root `.gitignore` excludes historic `outputs*/`
+> directories and `outputs*.zip` from Git tracking.
+> Modernized reproduction scripts belong outside
+> `examples/published/` with traceable differences.
 >
 > The bounded **real native sparse LU** preflight has
 > **passed 7/7** on the qualified image using

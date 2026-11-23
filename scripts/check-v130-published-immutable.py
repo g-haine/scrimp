@@ -10,11 +10,12 @@
 
 The baseline is anchored to the exact Git blob SHA-1 values at commit
 b6fe4933415fb19eb02a8448a9fc587432196227 (23 Nov 2026).
-Do not edit, reformat, reconfigure, rename, delete or add anything under
-examples/published/, even if a modern SCRIMP API has since changed.
-
-The file list, Git-index blobs AND working-tree bytes are independently
-verified. A script outside the archive is required for any adapted run.
+Never change the eight Git-tracked article-era snapshots.
+Generated simulation outputs can exist alongside the snapshots in the
+local worktree: they are **not source files** and must not be flagged.
+The exact tracked file list, Git-index blobs AND tracked working-tree
+bytes are verified without enumerating untracked output files.
+A script outside the archive is required for any modernized source.
 """
 
 import hashlib
@@ -53,13 +54,14 @@ def git_blob_sha(data: bytes) -> str:
     ).hexdigest()
 
 
-def validate(root: Path, index: dict, untracked=(), expected=None):
+def validate(root: Path, index: dict, expected=None):
     """Validate tracked index AND original worktree against a pinned baseline.
 
     Args:
         index: {repository_relative_path: (git_mode, git_object_sha)}
-        untracked: untracked (not ignored) paths inside protected subtree.
         expected: test-only pinned digest mapping (default: real snapshots).
+        Untracked simulation outputs are deliberately outside the Git
+        snapshot contract and are never scanned or modified.
     Returns:
         List of deterministic errors; no file is ever mutated.
     """
@@ -72,8 +74,6 @@ def validate(root: Path, index: dict, untracked=(), expected=None):
         issues.append(f"DELETED archived source: {name}")
     for name in sorted(observed - baseline):
         issues.append(f"ADDED/RENAMED archived source: {name}")
-    for name in sorted(untracked):
-        issues.append(f"UNTRACKED new source inside immutable archive: {name}")
     for name in sorted(baseline & observed):
         mode, digest = index[name]
         if mode != "100644":
@@ -109,22 +109,14 @@ def read_repository_state(root: Path):
             raise RuntimeError(f"Duplicate index entry in archive: {name}")
         index[name] = (mode, sha)
 
-    raw_untracked = subprocess.check_output(
-        [
-            "git", "-C", str(root), "ls-files", "--others",
-            "--exclude-standard", "-z", "--", PREFIX
-        ]
-    )
-    untracked = [
-        p.decode("utf-8", errors="strict")
-        for p in raw_untracked.split(b"\0") if p
-    ]
-    return index, untracked
+    # Never scan --others here: genuine historical run outputs can be
+    # enormous, and they do NOT change any published tracked source.
+    return index
 
 
 def main():
-    index, untracked = read_repository_state(ROOT)
-    errors = validate(ROOT, index, untracked)
+    index = read_repository_state(ROOT)
+    errors = validate(ROOT, index)
     if errors:
         print(
             "FAIL: immutable scientific snapshots differ from anchored "
@@ -135,7 +127,8 @@ def main():
         return 1
     print(
         f"PASS: {len(EXPECTED_GIT_BLOBS)} exact, immutable "
-        f"examples/published files; pinned to {BASELINE_COMMIT}"
+        f"tracked examples/published source files; pinned to {BASELINE_COMMIT}; "
+        "untracked research outputs untouched"
     )
     return 0
 

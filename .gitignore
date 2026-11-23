@@ -16,3 +16,9 @@ dist/
 .build/
 sandbox/outputs/
 docker-resolved-spec.txt
+
+# Publication snapshots are immutable Git source; their LOCAL numerical
+# results and archived output bundles are intentionally not versioned.
+# These rules only affect Git tracking; they do not touch the files.
+examples/published/**/outputs*/
+examples/published/**/outputs*.zip

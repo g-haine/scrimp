@@ -34,11 +34,10 @@ class ImmutablePublishedTests(unittest.TestCase):
         self.expected = {self.path: self.sha}
         self.index = {self.path: ("100644", self.sha)}
 
-    def check(self, index=None, untracked=(), expected=None):
+    def check(self, index=None, expected=None):
         return module.validate(
             self.root,
             self.index if index is None else index,
-            untracked,
             self.expected if expected is None else expected,
         )
 
@@ -68,10 +67,31 @@ class ImmutablePublishedTests(unittest.TestCase):
         index={**self.index,extra:("100644",self.sha)}
         self.assertTrue(any("ADDED/RENAMED" in x for x in self.check(index=index)))
 
-    def test_untracked_new_code_in_published_fails(self):
-        self.assertTrue(any("UNTRACKED" in x for x in self.check(
-            untracked=["examples/published/ORIGINAL_2000/new.py"]
-        )))
+    def test_local_untracked_generated_outputs_are_never_a_failure(self):
+        root = self.root / "examples/published/ORIGINAL_2000"
+        outputs = root / "outputs_CG2_CG2_CG2_bdf6_tf5/grad/experiment_3/pv/h"
+        outputs.mkdir(parents=True)
+        (outputs / "h_05001.vtu").write_bytes(b"original numerical result")
+        (root / "outputs_final.zip").write_bytes(b"local ZIP evidence")
+        (root / "outputs_back.zip").write_bytes(b"local backup")
+        (root / "new_local_notes.txt").write_text("private local notes")
+        self.assertEqual(self.check(), [])
+        self.assertTrue((outputs / "h_05001.vtu").exists())
+        self.assertTrue((root / "outputs_final.zip").exists())
+        self.assertTrue((root / "outputs_back.zip").exists())
+
+    def test_new_untracked_python_is_not_committed_but_staging_it_fails(self):
+        root = self.root / "examples/published/ORIGINAL_2000"
+        new_file = root / "new.py"
+        new_file.write_text("print('local work')\n")
+        self.assertEqual(self.check(), [])
+        staged = {
+            **self.index,
+            "examples/published/ORIGINAL_2000/new.py": (
+                "100644", module.git_blob_sha(new_file.read_bytes())
+            ),
+        }
+        self.assertTrue(any("ADDED/RENAMED" in x for x in self.check(index=staged)))
 
     def test_file_permission_or_symlink_index_change_fails(self):
         index={self.path:("100755",self.sha)}

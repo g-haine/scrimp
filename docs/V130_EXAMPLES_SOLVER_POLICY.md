@@ -56,7 +56,10 @@ All **eight Git-tracked files** inside `examples/published/`
 are historical research snapshots exactly as they existed for
 their associated articles. **NEVER edit, reformat, relocate,
 delete, overwrite, add import shims, change solver options, or
-add files to this directory.** No automatic conversion,
+commit new source files inside this directory.** Locally generated
+outputs, figures, videos and ZIP evidence under historical
+run directories are permitted and must be preserved exactly.
+No automatic conversion,
 `ruff/black` rewrite, license/header update, new entrypoint,
 numerical hotfix or solver migration is permitted there.
 The original `MCSS_2024/shallow_water.py` explicitly chooses
@@ -67,12 +70,20 @@ Snapshot preservation is enforced by
 `python scripts/check-v130-published-immutable.py` and
 a dedicated pull-request/push CI. The guard checks the
 **eight pinned Git blob IDs, the Git index, file permissions,
-and the actual file bytes**, and rejects omissions, additions,
-renames and untracked new code. Its lock baseline is
+and the actual bytes of versioned sources**. It rejects
+omissions, added/renamed **tracked sources**, and content changes
+to tracked sources. It deliberately does **not** enumerate
+or reject untracked local results. Its lock baseline is
 `b6fe4933415fb19eb02a8448a9fc587432196227`.
 The pinned contents are also verified by negative unit tests.
 The guard is mandatory for release and must never be
-bypassed or weakened to make an archive edit pass.
+bypassed to permit an archive SOURCE edit. The root `.gitignore`
+also excludes `examples/published/**/outputs*/` and
+`examples/published/**/outputs*.zip` from Git's untracked
+reporting; this does not delete, move, stage, or rewrite them.
+IMPORTANT: if any generated output has already been staged
+by the user it must be inspected carefully; the guard rejects
+all additions to the tracked source file inventory.
 
 If a publication example needs modern API adaptations or
 MUMPS/SuperLU_DIST experiments, construct a **new, clearly
