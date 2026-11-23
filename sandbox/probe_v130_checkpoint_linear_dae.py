@@ -338,7 +338,7 @@ def run():
     if mpi.rank==0:
         args.out.mkdir(parents=True,exist_ok=True)
         (args.out/"linear_report.json").write_text(
-            json.dumps(report,indent=2)+"\\n",encoding="utf-8"
+            json.dumps(report,indent=2)+"\n",encoding="utf-8"
         )
         np.savez_compressed(
             args.out/"linear_states.npz",
