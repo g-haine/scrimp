@@ -197,7 +197,10 @@ def write_checkpoint(path, *, z, t, provenance, ts_type, accepted, extra=None):
             )
             handle.flush()
             os.fsync(handle.fileno())
-        os.replace(tempname, destination)
+        # Atomic hard-link commit refuses overwriting previously accepted
+        # scientific evidence. Source and destination share one filesystem.
+        os.link(tempname, destination)
+        os.unlink(tempname)
     finally:
         if os.path.exists(tempname):
             os.unlink(tempname)
@@ -278,11 +281,20 @@ def collective_read(path, *, mpi, current_provenance, ts_type="cn"):
 def collective_write(path, *, mpi, z, t, provenance, ts_type="cn",
                      accepted, extra=None):
     """Persist only if *every* rank sees same accepted state and model."""
-    arr = _validate_state(z)
-    hashes = mpi.allgather((
-        sha256(arr.tobytes(order="C")),
-        provenance.get("fingerprint_sha256"), float(t), bool(accepted),
-    ))
+    # Ordinary per-rank validation failures must be collective:
+    # one rank must not throw before its peers enter allgather.
+    arr = None
+    try:
+        arr = _validate_state(z)
+        evidence = (
+            True, sha256(arr.tobytes(order="C")),
+            provenance.get("fingerprint_sha256"), float(t), bool(accepted),
+        )
+    except Exception as error:
+        evidence = (False, f"{type(error).__name__}: {error}")
+    hashes = mpi.allgather(evidence)
+    if any(item[0] is not True for item in hashes):
+        raise ValueError("MPI checkpoint source rejected: "+repr(hashes))
     if any(item != hashes[0] for item in hashes):
         raise ValueError("MPI inconsistent accepted state/time/model for checkpoint")
     result = None
