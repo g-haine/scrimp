@@ -72,30 +72,28 @@ class GetFEMMPITransferPolicyTests(unittest.TestCase):
     def setUpClass(cls):
         cls.policy = staticmethod(actual_transfer_policy())
 
-    def test_replicated_mpi2_rejected(self):
+    def test_mpi2_replicated_rejected(self):
         with self.assertRaisesRegex(ValueError, "requires .*distributed"):
-            self.policy(2, "replicated", "0", "csr")
+            self.policy(2, "replicated")
 
-    def test_distributed_ijv_remains_qualified_reference(self):
-        self.assertFalse(self.policy(2, "distributed", "0", "csr"))
-        self.assertFalse(self.policy(2, "distributed", "0", "coo"))
-        self.assertFalse(self.policy(1, "replicated", "0", "coo"))
+    def test_distributed_linear_mass_is_coo_eligible(self):
+        self.assertTrue(self.policy(1, "distributed"))
+        self.assertTrue(self.policy(2, "distributed"))
 
-    def test_coo_experiment_requires_explicit_opt_in(self):
-        self.assertTrue(self.policy(2, "distributed", "1", "coo"))
-        with self.assertRaisesRegex(ValueError, "Experimental"):
-            self.policy(2, "distributed", "1", "csr")
+    def test_serial_compatibility(self):
+        self.assertFalse(self.policy(1, "replicated"))
 
-    def test_invalid_mode_and_opt_in_fail_closed(self):
+    def test_invalid_modes_and_mpi_size_rejected(self):
         with self.assertRaises(ValueError):
-            self.policy(2, "unknown", "0", "csr")
+            self.policy(0, "distributed")
         with self.assertRaises(ValueError):
-            self.policy(2, "distributed", "yes", "coo")
+            self.policy(2, "invalid")
 
-    def test_actual_bridge_is_explicitly_gated(self):
-        src=PROJECTION.read_text(encoding="utf-8")
-        self.assertIn("coo_eligible = fe_projection_transfer_policy(",src)
-        self.assertIn("distributed_coo_eligible=coo_eligible",src)
+    def test_uses_existing_bridge_without_separate_coo_flag(self):
+        code = PROJECTION.read_text(encoding="utf-8")
+        self.assertIn("coo_eligible = fe_projection_transfer_policy(", code)
+        self.assertIn("distributed_coo_eligible=coo_eligible", code)
+        self.assertNotIn("SCRIMP_FE_INITIAL_COO", code)
 
 
 class GetFEMMPIProjectionRHSScaleTests(unittest.TestCase):

@@ -13,8 +13,8 @@ scalar/vector/derivative finite-element basis, including filtered regions.
 PETSc owns the sparse linear solve. No nodal coefficient assumptions.
 
 Historical interpolation is explicitly selectable since non-polynomial
-nodal interpolation differs from L2 projection. Distributed MPI1/2 IJV
-is qualified; COO remains experimental and DAE/PDE physics is separate.
+nodal interpolation differs from L2 projection. Distributed MPI1/2 reference IJV is qualified; the new default
+COO mass transfer must be qualified natively. DAE/PDE physics is separate.
 """
 
 import ast
@@ -193,37 +193,30 @@ def scale_getfem_projection_rhs(values, rhs_scale):
     return result
 
 
-def fe_projection_transfer_policy(mpi_size, matrix_mode, coo_opt_in, bridge_mode):
-    """Fail closed for MPI replicated GetFEM and gate experimental mass COO.
+def fe_projection_transfer_policy(mpi_size, matrix_mode):
+    """Select the same linear-mass GetFEM/PETSc bridge as DPHS.
 
-    The reference qualified GetFEM MPI2 mass transfer is distributed
-    IJV/ADD_VALUES. Matrix data on rank-local GetFEM are incomplete if
-    treated as fully replicated. Experimental COO must be explicitly
-    requested for this new linear-mass call site.
+    With distributed GetFEM assembly, linear mass matrices use the
+    standard COO-eligible path of convert_gmm_to_petsc. PETSc assembles
+    the resulting AIJ (CSR-like) matrix. The existing bridge retains
+    its explicit legacy IJV override for diagnostics; this is not a
+    separate numerical FE initialization method.
+
+    MPI>1 cannot treat rank-local GetFEM contributions as a complete
+    replicated global matrix. In serial, allow the historical
+    replicated mode for compatibility with existing applications.
     """
     if isinstance(mpi_size, bool) or int(mpi_size) < 1:
         raise ValueError("Invalid PETSc MPI size for FE initialization")
     mode = str(matrix_mode).strip().lower()
     if mode not in ("distributed", "replicated"):
         raise ValueError("Unknown GetFEM matrix mode for FE initialization")
-    choice = str(coo_opt_in).strip()
-    if choice not in ("0", "1"):
-        raise ValueError("SCRIMP_FE_INITIAL_COO must be 0 or 1")
-    bridge = str(bridge_mode).strip().lower()
     if int(mpi_size) > 1 and mode != "distributed":
         raise ValueError(
             "L2 FE initialization with MPI > 1 requires "
-            "SCRIMP_GETFEM_MATRIX_MODE=distributed; replicated "
-            "GetFEM mass contributions are not a global matrix"
+            "SCRIMP_GETFEM_MATRIX_MODE=distributed"
         )
-    if choice == "1" and (mode != "distributed" or bridge != "coo"):
-        raise ValueError(
-            "Experimental FE initialization COO requires "
-            "SCRIMP_GETFEM_MATRIX_MODE=distributed and "
-            "SCRIMP_GETFEM_BRIDGE_DISTRIBUTED=coo"
-        )
-    return choice == "1"
-
+    return mode == "distributed"
 
 def project_fe_initial_value(
     name, expression, fem, region, mim, *,
@@ -232,16 +225,14 @@ def project_fe_initial_value(
     """Compute L2 projection into the *exact* GetFEM FE coefficient basis.
 
     All ranks participate. With MPI>1 the matrix bridge requires the
-    qualified distributed IJV/ADD_VALUES semantics; an experimental COO
-    opt-in is separately gated. One global RHS is inserted on PETSc
+    established distributed GetFEM assembly semantics. Linear mass
+    matrices use the same COO-eligible PETSc bridge as DPHS. One global RHS is inserted on PETSc
     owned rows and the coefficient array is gathered for the original
     GetFEM model interface.
     """
     coo_eligible = fe_projection_transfer_policy(
         PETSc.COMM_WORLD.getSize(),
         os.environ.get("SCRIMP_GETFEM_MATRIX_MODE", "replicated"),
-        os.environ.get("SCRIMP_FE_INITIAL_COO", "0"),
-        os.environ.get("SCRIMP_GETFEM_BRIDGE_DISTRIBUTED", "coo"),
     )
     qdim = int(fem.qdim())
     source = python_expression_to_gwfl(expression, qdim)
