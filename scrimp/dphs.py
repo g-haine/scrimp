@@ -17,6 +17,7 @@ from scrimp.utils.linalg import convert_gmm_to_petsc, extract_gmm_to_scipy
 from scrimp.utils.profiling import TimingProfiler
 from scrimp.utils.initial_state import publish_accepted_pseudo_state
 from scrimp.utils.dae_initialization import initialize_linear_algebraic
+from scrimp.utils.fe_initialization import project_fe_initial_value
 from scrimp.utils.dae_checkpoint import (
     model_provenance as _checkpoint_model_provenance,
     collective_read as _checkpoint_collective_read,
@@ -1000,12 +1001,27 @@ class DPHS:
                 f"{name} has been initialized with the FEM of port: {name_port}"
             )
 
-    def set_initial_value(self, name_variable, expression):
-        """This function sets the initial value of the variable `name_variable` of the dphs from an expression
+    def set_initial_value(
+        self, name_variable, expression, *,
+        method="interpolation", projection_mim=None,
+    ):
+        """Set a field's initial GetFEM coefficients from a Python expression.
+
+        The historical `method="interpolation"` is preserved for
+        backward compatibility, including its original GetFEM.eval
+        semantics. An explicitly requested `method="l2"` computes a
+        variational L2 projection on the *actual* scalar/vector/derivative
+        FE basis, via GetFEM assembly and sparse PETSc MUMPS.
+
+        The two methods differ for nonpolynomial functions; the new
+        universal method is opt-in pending native MPI/physics validation.
 
         Args:
-            name_variable (str): the name of the variable to set
-            expression (str): the expression of the function to use
+            name_variable (str): initial dynamic variable
+            expression (str): SCRIMP Python/NumPy initial expression
+            method (str): "interpolation" (legacy) or "l2" (new opt-in)
+            projection_mim (gf.MeshIm, optional): override the domain's
+                integration rule, e.g. HCT composite integration.
         """
 
         if name_variable in self.initial_value_set.keys():
@@ -1015,7 +1031,13 @@ class DPHS:
             logging.error(f"Variable {name_variable} does not need initialization")
             raise ValueError
 
+        if method not in ("interpolation", "l2"):
+            raise ValueError(
+                "Initial FE method must be interpolation or l2"
+            )
         if name_variable in self.lumped_variables:
+            if method == "l2":
+                raise ValueError("L2 FE projection does not apply to lumped states")
             if name_variable not in self.initial_value_set:
                 raise ValueError(f"{name_variable} is not a dynamic state")
             try:
@@ -1028,6 +1050,38 @@ class DPHS:
                 raise ValueError("Initial value must be finite")
             self.gf_model.set_variable(name_variable, np.array([value]))
             self.initial_value_set[name_variable] = True
+            return
+
+        if method == "l2":
+            matches = [
+                port for port in self.ports.values()
+                if name_variable in (port.get_flow(), port.get_effort())
+            ]
+            if len(matches) != 1:
+                raise ValueError(
+                    f"Expected exactly one FE port for {name_variable}, "
+                    f"found {len(matches)}"
+                )
+            port = matches[0]
+            integration = (
+                projection_mim if projection_mim is not None
+                else self.domain._int_method[port.get_mesh_id()]
+            )
+            getfem_rhs_scale = (
+                _getfem_mpi_rhs_scale() if max_rank > 1 else 1.0
+            )
+            values = project_fe_initial_value(
+                name_variable, expression, port.get_fem(),
+                port.get_region(), integration,
+                rhs_scale=getfem_rhs_scale,
+            )
+            self.set_from_vector(name_variable, values)
+            self.initial_value_set[name_variable] = True
+            if rank == 0:
+                logging.info(
+                    f"{name_variable} initialized by GetFEM/PETSc L2 "
+                    f"projection from: {expression}"
+                )
             return
 
         evaluation = self.gf_model.mesh_fem_of_variable(name_variable).eval(

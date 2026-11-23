@@ -1,0 +1,119 @@
+# SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
+#
+# Copyright (C) 2015-2026 ISAE-SUPAERO -- GNU GPLv3
+# 
+# See the LICENSE file for license information.
+#
+# github: https://github.com/g-haine/scrimp
+
+"""Source-only contracts for the universal opt-in FE L2 initializer.
+
+The expression translator is extracted from actual production AST.
+This suite does not claim a native GetFEM/PETSc, MPI, or physics PASS.
+"""
+
+import ast
+import math
+from pathlib import Path
+import unittest
+
+
+ROOT = Path(__file__).resolve().parents[1]
+PROJECTION = ROOT / "scrimp/utils/fe_initialization.py"
+DPHS = ROOT / "scrimp/dphs.py"
+
+
+def actual_expression_translator():
+    tree = ast.parse(PROJECTION.read_text(encoding="utf-8"))
+    method = next(n for n in tree.body if isinstance(n, ast.FunctionDef)
+                  and n.name == "python_expression_to_gwfl")
+    env = {"ast": ast, "math": math, "_SCALAR_FUNCTIONS": frozenset((
+        "sin", "cos", "tan", "asin", "acos", "atan", "atan2",
+        "exp", "log", "log10", "sqrt", "abs", "sqr",
+    ))}
+    exec(compile(ast.Module(body=[method], type_ignores=[]),
+                 str(PROJECTION), "exec"), env)
+    return env["python_expression_to_gwfl"]
+
+
+class UniversalFEInitialExpressionTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.translate = staticmethod(actual_expression_translator())
+
+    def test_scalar_affine_and_nonpolynomial_numpy(self):
+        u = self.translate("5.*np.exp(-25*((x-0.6)**2+y*y))", 1)
+        self.assertIn("exp(", u)
+        self.assertIn("pow(", u)
+        self.assertIn("X(1)", u)
+        self.assertIn("X(2)", u)
+        self.assertNotIn("np.", u)
+        self.assertNotIn("**", u)
+
+    def test_vector_xy_and_numpy_array(self):
+        for s in ("[x+y,2.*y-x]", "np.array([x+y,2.*y-x])"):
+            u = self.translate(s, 2)
+            self.assertTrue(u.startswith("["))
+            self.assertIn(";", u)
+            self.assertIn("X(1)", u)
+            self.assertIn("X(2)", u)
+
+    def test_any_number_of_vector_components(self):
+        u = self.translate("[x,y,z]", 3)
+        self.assertEqual(u, "[X(1);X(2);X(3)]")
+
+    def test_math_constants_and_power(self):
+        u = self.translate("np.pi*np.sin(x)+math.sqrt(y**2)", 1)
+        self.assertIn("sin(", u)
+        self.assertIn("sqrt(", u)
+        self.assertIn("pow(", u)
+        self.assertNotIn("math.", u)
+
+    def test_bad_vector_shape_fails_closed(self):
+        with self.assertRaisesRegex(ValueError, "components"):
+            self.translate("[x,y]", 3)
+        with self.assertRaisesRegex(ValueError, "Expected"):
+            self.translate("x", 2)
+
+    def test_unsafe_and_unavailable_expressions_fail_closed(self):
+        for expr in (
+            "__import__('os').system('true')", "np.random.rand(5)",
+            "np.where(x>0,x,0)", "foo(x)", "x[0]", "x^2",
+            "np.array(x)", "float('nan')", "1/0 if x>0 else 0",
+        ):
+            with self.subTest(expression=expr):
+                with self.assertRaises((ValueError, SyntaxError)):
+                    self.translate(expr, 1)
+
+    def test_production_uses_sparse_petsc_not_dense_numpy(self):
+        src = PROJECTION.read_text(encoding="utf-8")
+        self.assertIn("convert_gmm_to_petsc(", src)
+        self.assertIn("PETSc.Mat().createAIJ(", src)
+        self.assertIn('pc.setFactorSolverType("mumps")', src)
+        self.assertIn("getOwnershipRange()", src)
+        self.assertIn("PETSc.Scatter().toAll(x)", src)
+        self.assertNotIn("np.linalg.solve(", src)
+
+    def test_production_legacy_default_unchanged_and_opt_in(self):
+        tree = ast.parse(DPHS.read_text(encoding="utf-8"))
+        cls = next(x for x in tree.body if isinstance(x, ast.ClassDef)
+                   and x.name == "DPHS")
+        method = next(x for x in cls.body if isinstance(x, ast.FunctionDef)
+                      and x.name == "set_initial_value")
+        self.assertEqual(len(method.args.kwonlyargs), 2)
+        self.assertEqual(
+            [arg.arg for arg in method.args.kwonlyargs],
+            ["method", "projection_mim"],
+        )
+        self.assertEqual(
+            [v.value for v in method.args.kw_defaults],
+            ["interpolation", None],
+        )
+        actual = ast.get_source_segment(DPHS.read_text(encoding="utf-8"),
+                                        method)
+        self.assertIn('if method == "l2":', actual)
+        self.assertIn("project_fe_initial_value(", actual)
+
+
+if __name__ == "__main__":
+    unittest.main()

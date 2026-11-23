@@ -111,3 +111,38 @@ as an independent, visible negative result. Only classical
 scalar CG/DG elements are required to preserve the known
 historical physical interpolation baseline in this pilot.
 **No production method has been changed.**
+
+## 23 November 2026 — universal 15/15 native gate and opt-in production candidate
+
+The original native user ZIP `v130-universal-fem-22890c8e-JnYxY8FX.zip`
+has been independently inspected. All 15 scalar/vector/high-regularity
+spaces passed on the pinned GetFEM/PETSc image, including all six
+advanced families; `unavailable` is empty. The worst relative
+physical L2 error is 2.7467e-13 (Argyris), far below 5e-8.
+
+Eight **silent** old-production physical errors are confirmed:
+CG1/DG1 vector, Hermite, Argyris, Morley, HCT, reduced HCT and BDM1.
+The first four scalar Lagrangian CG/DG positive controls retain
+physically correct old interpolation. All original example/published
+sources remain unchanged.
+
+The first production candidate adds an **explicit-only**
+`DPHS.set_initial_value(name, python_expression, method="l2")`.
+This is one mathematical L2 projection for every supported FEM:
+the only qdim distinction is between GWFL scalar multiplication and
+vector dot contraction. It uses the same GetFEM sparse matrix bridge
+and PETSc MUMPS backend as SCRIMP's linear solver. The default remains
+`method="interpolation"` because L2 and nodal interpolation are not
+equivalent for non-polynomial fields; silently changing the default
+would alter scientific initial conditions. A restricted Python AST
+translator supports x/y/z, NumPy/math common scalar calls,
+arithmetic, powers and explicit vectors; it refuses unsupported
+syntax before any GetFEM model mutation. For HCT composite spaces,
+callers can provide `projection_mim` to override the integration
+method, which must be valid for the FEM.
+
+**Native production evidence PENDING.** The source-only checks
+verify dispatch, expression translation and use of sparse PETSc,
+not actual native mass projection, MPI collectives, nonlinear
+DAE or pH physics. The probe `run-v130-production-fe-initialization.sh`
+is the next acceptance gate before a default change.
