@@ -1,5 +1,7 @@
 # SCRIMP v1.3.0 — release sprint, week 48 (23–29 November 2026)
 
+> **23 November 2026 — #29 qualification completed:** 13/13 host linear DAE tests and 4/4 original native MPI continuous-vs-restart comparisons PASS; corrected CN port-work and the per-step Hamiltonian identity verified without modifying the original archive. Production SWE checkpoint API was already 16/16 native PASS. Definitive evidence and limitations: [V130_CHECKPOINT_ISSUE29_QUALIFICATION.md](V130_CHECKPOINT_ISSUE29_QUALIFICATION.md). Dated earlier **pending** entries below remain as historical audit logs, not current gate status.
+
 **Decision recorded 20 November 2026.** The user's delivery objective is
 **during the week of 23 November 2026**; use **Friday 27 November**
 as the planning checkpoint, with the weekend as contingency rather

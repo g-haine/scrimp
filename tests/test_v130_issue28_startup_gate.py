@@ -1,8 +1,10 @@
 # SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
 #
 # Copyright (C) 2015-2026 ISAE-SUPAERO -- GNU GPLv3
+# 
+# See the LICENSE file for license information.
 #
-# See LICENSE for license information.
+# github: https://github.com/g-haine/scrimp
 
 """Synthetic host regression tests for #28/#6 startup-gate comparator.
 

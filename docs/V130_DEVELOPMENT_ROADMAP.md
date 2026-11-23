@@ -1,5 +1,7 @@
 # SCRIMP v1.3.0 — scope, limits, and further work
 
+> **Updated 23 November 2026:** issue #29's **qualified cold checkpoint/restart** criterion has passed (production SWE and second linear pH-DAE; cross-MPI 1↔2; CN energy/work at roundoff). Refer to [V130_CHECKPOINT_ISSUE29_QUALIFICATION.md](V130_CHECKPOINT_ISSUE29_QUALIFICATION.md). This does not imply a general DAE initializer or historical TS state restoration; release v1.3.0 remains untagged pending other gates.
+
 **Release plan (workstreams 0–9 and acceptance gates):** [V130_RELEASE_PLAN.md](V130_RELEASE_PLAN.md). The present file records the prior technical investigations and measured results; the release plan governs current scope and priorities.
 
 Status: **development / untagged release preparation** (updated 21 Nov 2026).
@@ -310,7 +312,7 @@ stability; these remain documented limitations/tests.
 
 ## v1.3.0 implementation and release gates
 
-- [ ] **P0 #29 — native-qualified generic checkpoint/restart** before
+- [x] **P0 #29 — native-qualified generic checkpoint/restart** before
   release: full accepted FE state and physical-time/mesh/control
   provenance, atomic save, cold restart without algebraic reinitialization,
   strict original `F_a` compatibility, same/cross MPI native split-vs-

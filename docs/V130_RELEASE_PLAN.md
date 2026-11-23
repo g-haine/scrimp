@@ -1,5 +1,7 @@
 # SCRIMP v1.3.0 — release plan and acceptance gates
 
+> **Qualification update — 23 November 2026:** issue #29 / gate 2C has passed the narrow **scientific/native** acceptance: production API Saint-Venant 16/16 native cases; independent linear wave pH-DAE 8/8 native segments, all four cross-MPI restarts, 13/13 host tests, and per-step CN power balance at roundoff. See [V130_CHECKPOINT_ISSUE29_QUALIFICATION.md](V130_CHECKPOINT_ISSUE29_QUALIFICATION.md). This does **not** certify unrelated v1.3.0 release gates or integrator-history restoration.
+
 **Scope agreed 18 November 2026.** This document is the authoritative
 *v1.3.0 work plan*; [V130_DEVELOPMENT_ROADMAP.md](V130_DEVELOPMENT_ROADMAP.md)
 retains the historical performance diagnostics, negative experiments
