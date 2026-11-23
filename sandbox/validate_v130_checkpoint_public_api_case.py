@@ -105,7 +105,7 @@ def verify_one(root, mesh, phase, ranks, source_ranks=None):
                 "Restart reconstructed a different GetFEM mesh or physical model")
         restored = r["initialization_report"]
         require(restored.get("status")==
-                "COMPLETE_DAE_STATE_COLD_RESTORED_IN_DHPS"
+                "COMPLETE_DAE_STATE_COLD_RESTORED_IN_DPHS"
                 and restored.get(
                     "all_GetFEM_and_GlobalVec_coefficients_restored_bitwise"
                 ) is True
