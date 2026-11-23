@@ -4488,3 +4488,165 @@ the user executes them. Do not close #29,
 claim a production DPHS checkpoint API,
 or claim a successful native MPI restart
 from the existing single-seed evidence.
+
+## 23 November 2026 — #29 original Saint-Venant native COLD checkpoint/restart pilot **16/16 PASSED**, production API staged separately
+
+**Qualified native sandbox evidence**:
+`sandbox/outputs/v130-issue29-cold-restart-d3c26930-nRhUY0qA/`,
+source `d3c269304cf0fe7fe6b46d45844f50b1120a84c2`,
+pinned immutable Docker `scrimp-mpi:v1.3.0-rc3`
+OCI `1d6d0c90115213298047b28237a7f38087563a35`.
+The user supplied actual final ZIP
+`v130-issue29-cold-restart-d3c26930-nRhUY0qA-restart.zip`,
+which was independently opened: **16 original
+real PETSc/GetFEM phase reports, 16 full state+power
+NPZ trajectories, 4 accepted full FE checkpoints,
+one immutable source manifest and complete
+`checkpoint_comparison.json`**. ZIP CRC intact,
+comparison status
+`NATIVE_COLD_CHECKPOINT_SPLIT_VS_CONTINUOUS_PILOT_PASSED`.
+All 17/17 checkpoint-state + 13/13 continuous/restart
+synthetic host regression controls PASS.
+
+Experiment: original curved P2 dissipative
+Saint-Venant with nonlinear mass, physical
+facet-tangent wall C1 rest-to-rotation
+from `h0=5,p0=0` (the previously
+qualified compatible sandbox initial state),
+`dt=.002`: real PETSc `0→.02` seed
+(10 accepted), `0→.024` reference
+(12 accepted), and `.02→.024`
+fresh PETSc TSCN from the full saved state
+(2 accepted). Both physical meshes
+h=.2/.1 and **all 1→1,1→2,2→1,2→2**
+source-to-target MPI ranks independently
+tested (8 true cold restarts). No
+PETSc TS/KSP/MUMPS history serialized;
+no pseudo/BDF init/projection on restart.
+
+**Bitwise checkpoint creation:** all 4
+accepted-state full vectors match their
+native seed's original `states[-1]`
+exactly and SHA256 checksum passes:
+3300 DOFs for nominal h=.2,
+10272 DOFs for h=.1, at absolute
+physical `t_*=0.02`. Each contains
+full original dynamic and algebraic
+GetFEM coefficients and immutable mesh/
+FE/order/weak-form/control provenance.
+
+**Observed genuine continuous-vs-split
+FULL FE vector L2 differences at `t=.024`:**
+
+| Nominal mesh | MPI 1→1 | 1→2 | 2→1 | 2→2 |
+|---|---:|---:|---:|---:|
+| h=.2 | 1.79515e-13 | 2.48915e-13 | 2.05195e-13 | 2.10372e-13 |
+| h=.1 | 1.67651e-13 | 1.52415e-13 | 1.69267e-13 | 1.71498e-13 |
+
+Hamiltonian **restart-time jump** max
+`7.55e-15`. Independent original
+h-weighted boundary+viscous+Hamiltonian
+cumulative physical `ΔH+D−W`
+difference between uninterrupted and
+two-segment cold restart max
+`3.02007e-14`; all algebraic rows
+at resumed t* were checked to about
+`1e-15`, and the two resumed
+original endpoint TSCN steps and
+volume balances were accepted
+without failed SNES or rejected steps.
+This establishes **native scientific
+validity of the narrow sandbox
+complete-accepted-state cold restart
+for this P2 viscous SWE experiment**.
+
+**Not established by this test:**
+general arbitrary high-index DAE
+initialization, long-term nonlinear-mass
+TSCN power/accuracy, a stationary
+interior rotating equilibrium, exact
+BDF/IMEX history restart,
+repartitioned/disparate FE numbering,
+or the PRODUCTION `DPHS` API.
+Do not close #29 on the sandbox pilot
+alone or silently qualify a BDF restart.
+
+**NEXT SOURCE ONLY: generic DPHS public
+checkpoint API staged** (no native
+results for this implementation yet):
+- `scrimp/utils/dae_checkpoint.py`
+  promotes the native-compatible
+  versioned atomic full FE + model/
+  mesh/FE DoF/weak-form fingerprint
+  checkpoint reader/writer into the
+  package.
+- `scrimp/dphs.py` now exposes
+  `save_checkpoint(path, extra=...)`
+  after a fully accepted final TS
+  and `load_checkpoint(path)`
+  on a FRESH assembled model.
+  The latter stages a complete state
+  without mutating the physical initial
+  differential variables until
+  after the real PETSc/GetFEM
+  assembly; before TS creation the
+  original algebraic rows
+  `F_a(t_*,z_*,0)` are rechecked.
+  The solve then uses absolute t*
+  and skips pseudo/BDF/algebraic
+  consistency initialization.
+  It is COLD state restart only,
+  with no integrator history.
+- Separate
+  `sandbox/probe_v130_checkpoint_public_api.py`,
+  `sandbox/compare_v130_checkpoint_public_api.py`,
+  `sandbox/validate_v130_checkpoint_public_api_case.py`,
+  `scripts/run-v130-checkpoint-public-api.sh`
+  repeat true 16-case original
+  physical SWE continuous/split and
+  MPI cross-rank campaign using
+  the actual **production DPHS
+  save/load methods**. Native pending.
+- `tests/test_v130_checkpoint_public_api.py`
+  has host-only API-method AST,
+  old/new file-schema interoperability
+  and fail-closed physical-control
+  regression checks. CI
+  `v130-issue29-checkpoint-host.yml`
+  now compiles the public API and
+  runs the new suite.
+- **Scientific gate still OPEN:**
+  test new generic public API on a
+  **second independent linear DAE
+  model** and qualify its
+  full native continuous/restart
+  energy and algebraic constraints.
+
+Preflight and **NEW API** native study:
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+
+python -m py_compile \
+  scrimp/dphs.py scrimp/utils/dae_checkpoint.py \
+  sandbox/probe_v130_checkpoint_public_api.py \
+  sandbox/compare_v130_checkpoint_public_api.py \
+  sandbox/validate_v130_checkpoint_public_api_case.py \
+  tests/test_v130_checkpoint_public_api.py
+python tests/test_v130_checkpoint_state.py
+python tests/test_v130_checkpoint_restart.py
+python tests/test_v130_checkpoint_public_api.py
+bash -n scripts/run-v130-checkpoint-public-api.sh
+
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-checkpoint-public-api.sh
+```
+
+**Important:** public API is currently
+source-only and may need further
+corrections from first real
+GETFEM/PETSc runs. The earlier
+16/16 **sandbox** evidence is not
+a substitute for native validation
+of the new production entry points.
