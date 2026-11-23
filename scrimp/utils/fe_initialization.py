@@ -121,7 +121,15 @@ def python_expression_to_gwfl(expression, qdim):
     if isinstance(tree, (ast.List, ast.Tuple)) or (
         isinstance(tree, ast.Call) and call_name(tree.func) == "array"
     ):
-        elements = tree.elts if isinstance(tree, (ast.List, ast.Tuple)) else tree.args[0].elts
+        if isinstance(tree, (ast.List, ast.Tuple)):
+            elements = tree.elts
+        else:
+            if (len(tree.args) != 1 or tree.keywords or
+                    not isinstance(tree.args[0], (ast.List, ast.Tuple))):
+                raise ValueError(
+                    "np.array initial FE field must contain a literal vector"
+                )
+            elements = tree.args[0].elts
         if len(elements) != qdim:
             raise ValueError(
                 f"Initial vector contains {len(elements)} components, "

@@ -9,6 +9,8 @@ on:
       - scrimp/utils/dae_initialization.py
       - scrimp/utils/fe_initialization.py
       - tests/test_v130_fe_initial_projection.py
+      - sandbox/probe_v130_production_fe_initialization.py
+      - scripts/run-v130-production-fe-initialization.sh
       - tests/test_v130_direct_linear_feedback.py
       - tests/test_v130_dae_substituted_intervals.py
       - sandbox/probe_v130_intrinsic_vector_fem_initialization.py
@@ -27,6 +29,8 @@ on:
       - scrimp/utils/dae_initialization.py
       - scrimp/utils/fe_initialization.py
       - tests/test_v130_fe_initial_projection.py
+      - sandbox/probe_v130_production_fe_initialization.py
+      - scripts/run-v130-production-fe-initialization.sh
       - tests/test_v130_direct_linear_feedback.py
       - tests/test_v130_dae_substituted_intervals.py
       - sandbox/probe_v130_intrinsic_vector_fem_initialization.py
@@ -52,13 +56,14 @@ jobs:
         run: python -m pip install 'numpy>=1.24,<3'
       - name: Syntax
         run: |
-          python -m py_compile scrimp/utils/fe_initialization.py tests/test_v130_fe_initial_projection.py
+          python -m py_compile scrimp/utils/fe_initialization.py tests/test_v130_fe_initial_projection.py sandbox/probe_v130_production_fe_initialization.py
           python -m py_compile scrimp/dphs.py scrimp/utils/dae_initialization.py tests/test_v130_direct_linear_feedback.py tests/test_v130_dae_substituted_intervals.py sandbox/probe_v130_intrinsic_vector_fem_initialization.py
           python -m py_compile sandbox/probe_v130_intrinsic_l2_projection.py sandbox/probe_v130_intrinsic_affine_projection.py sandbox/probe_v130_universal_fem_initialization.py
           bash -n scripts/run-v130-intrinsic-fem-initialization.sh
           bash -n scripts/run-v130-intrinsic-l2-projection.sh
           bash -n scripts/run-v130-intrinsic-affine-projection.sh
           bash -n scripts/run-v130-universal-fem-initialization.sh
+          bash -n scripts/run-v130-production-fe-initialization.sh
           python -m py_compile tests/test_v130_universal_fe_projection_spec.py
       - name: Actual DPHS control classification and GetFEM assembly routing
         run: python tests/test_v130_direct_linear_feedback.py
