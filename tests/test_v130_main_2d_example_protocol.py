@@ -76,7 +76,9 @@ class Main2DExampleProtocolTests(unittest.TestCase):
         self.assertIn('python3 - "$out" "${examples[@]}"',runner)
         self.assertIn("ENDPOINTS_ONLY_DIFFERENT_ADAPTIVE_CLOCKS",runner)
         self.assertIn("PHYSICAL_AUDIT_OPEN",runner)
-        self.assertNotIn('report["steps"]==4',runner)
+        # The revised CN Heat–Wave must have four accepted steps,
+        # while the independent Saint-Venant BDF2 remains adaptive.
+        self.assertIn('report["steps"]==4',runner)
         self.assertNotIn('trace["times"].shape==(5,)',runner)
 
     def test_original_2d_defaults_are_not_overridden_without_call_site(self):
