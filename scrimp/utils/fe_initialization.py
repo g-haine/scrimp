@@ -143,6 +143,36 @@ def python_expression_to_gwfl(expression, qdim):
     return value(tree)
 
 
+def real_getfem_projection_coefficients(values, *, tolerance=1e-12):
+    """Bridge PETSc scalar coefficients to a real GetFEM model safely.
+
+    PETSc may use complex ScalarType even when the GetFEM model and all
+    physical FE data are strictly real. GetFEM's `Model.set_variable`
+    accepts a DOUBLE REAL array, not complex128 (even with zero
+    imaginary part). Reject significant imaginary components instead
+    of discarding them silently, and always return contiguous float64.
+    """
+    a = np.asarray(values)
+    if a.ndim != 1 or not a.size or not np.issubdtype(a.dtype, np.number):
+        raise ValueError("GetFEM initial coefficients must be a nonempty 1D numeric array")
+    if not np.all(np.isfinite(a)):
+        raise ValueError("Non-finite PETSc initial projection coefficient")
+    if (not np.isfinite(tolerance) or tolerance <= 0):
+        raise ValueError("Invalid PETSc-to-GetFEM real conversion tolerance")
+    if np.iscomplexobj(a):
+        re = np.asarray(a.real)
+        im = np.asarray(a.imag)
+        bound = tolerance * max(1.0, float(np.max(np.abs(re))))
+        max_im = float(np.max(np.abs(im)))
+        if max_im > bound:
+            raise ValueError(
+                "PETSc FE projection has nonnegligible imaginary data "
+                f"({max_im:g} > {bound:g}); real GetFEM cannot store it"
+            )
+        a = re
+    return np.ascontiguousarray(a, dtype=np.float64)
+
+
 def project_fe_initial_value(
     name, expression, fem, region, mim, *,
     rhs_scale=1.0, relative_tolerance=1e-9,
@@ -238,8 +268,10 @@ def project_fe_initial_value(
             )
         scatter, gathered = PETSc.Scatter().toAll(x)
         scatter.scatter(x, gathered)
-        coefficients = np.asarray(gathered.getArray()).copy()
-        if coefficients.size != n or not np.all(np.isfinite(coefficients)):
+        coefficients = real_getfem_projection_coefficients(
+            gathered.getArray()
+        )
+        if coefficients.size != n:
             raise RuntimeError("Invalid gathered FE projection coefficients")
         return coefficients
     finally:

@@ -14,6 +14,7 @@ This suite does not claim a native GetFEM/PETSc, MPI, or physics PASS.
 
 import ast
 import math
+import numpy as np
 from pathlib import Path
 import unittest
 
@@ -21,6 +22,16 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 PROJECTION = ROOT / "scrimp/utils/fe_initialization.py"
 DPHS = ROOT / "scrimp/dphs.py"
+
+
+def actual_real_coefficient_bridge():
+    tree = ast.parse(PROJECTION.read_text(encoding="utf-8"))
+    method = next(n for n in tree.body if isinstance(n, ast.FunctionDef)
+                  and n.name == "real_getfem_projection_coefficients")
+    env = {"np": np}
+    exec(compile(ast.Module(body=[method], type_ignores=[]),
+                 str(PROJECTION), "exec"), env)
+    return env["real_getfem_projection_coefficients"]
 
 
 def actual_expression_translator():
@@ -34,6 +45,40 @@ def actual_expression_translator():
     exec(compile(ast.Module(body=[method], type_ignores=[]),
                  str(PROJECTION), "exec"), env)
     return env["python_expression_to_gwfl"]
+
+
+class RealGetFEMCoefficientBridgeTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.bridge = staticmethod(actual_real_coefficient_bridge())
+
+    def test_complex_petsc_real_coefficients_become_float64(self):
+        value = np.array([1+0j, -2+1e-15j, 0.5-1e-15j],
+                         dtype=np.complex128)
+        output = self.bridge(value)
+        self.assertEqual(output.dtype, np.dtype("float64"))
+        self.assertTrue(output.flags.c_contiguous)
+        np.testing.assert_array_equal(output, [1., -2., 0.5])
+
+    def test_real_coefficients_stay_exact(self):
+        data = np.array([0., 1.5, -7.], dtype=np.float64)
+        output = self.bridge(data)
+        np.testing.assert_array_equal(output, data)
+        self.assertTrue(output.flags.c_contiguous)
+
+    def test_reject_significant_imaginary_component(self):
+        with self.assertRaisesRegex(ValueError, "imaginary"):
+            self.bridge(np.array([1+1e-3j, 2+0j]))
+
+    def test_reject_invalid_real_projection_coefficients(self):
+        for case in (np.array([float("nan")]),
+                     np.array([float("inf")]),
+                     np.array([], dtype=float),
+                     np.array([[1.,2.]]),
+                     np.array(["1"], dtype=str)):
+            with self.subTest(case=repr(case)):
+                with self.assertRaises(ValueError):
+                    self.bridge(case)
 
 
 class UniversalFEInitialExpressionTests(unittest.TestCase):
@@ -92,6 +137,7 @@ class UniversalFEInitialExpressionTests(unittest.TestCase):
         self.assertIn('pc.setFactorSolverType("mumps")', src)
         self.assertIn("getOwnershipRange()", src)
         self.assertIn("PETSc.Scatter().toAll(x)", src)
+        self.assertIn("real_getfem_projection_coefficients(", src)
         self.assertNotIn("np.linalg.solve(", src)
 
     def test_production_legacy_default_unchanged_and_opt_in(self):

@@ -146,3 +146,21 @@ verify dispatch, expression translation and use of sparse PETSc,
 not actual native mass projection, MPI collectives, nonlinear
 DAE or pH physics. The probe `run-v130-production-fe-initialization.sh`
 is the next acceptance gate before a default change.
+
+## 23 November 2026 — initial native sparse production run failed before validation
+
+Original host output `v130-production-fe-l2-d00f42aa-25gzYEa2`,
+source `d00f42aa`: all 15 element cases and the Gaussian
+rejected with the same native GetFEM message,
+`Argument 4 should be a DOUBLE REAL data array`.
+This is **not** a failure of the already-qualified GetFEM L2 projection,
+nor evidence of a physical FE inconsistency. The output is consistent
+with passing a PETSc complex-valued coefficient vector into a
+`gf.Model("real")` setter. The source now explicitly converts
+real-valued PETSc solutions to contiguous `float64`, validating that
+any imaginary component is at roundoff scale (relative max tolerance
+`1e-12`) and rejecting anything larger; it never silently discards
+an actual complex physical state. The native runner prints complete
+per-case tracebacks on any remaining failure and records
+`PETSc_ScalarType` in the JSON to confirm the source of the mismatch.
+**Native rerun pending; production method opt-in only.**

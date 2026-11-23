@@ -81,6 +81,10 @@ def run_case(mesh, region, name, spec):
         adapter, "u", expression, method="l2", projection_mim=mim
     )
     coefficients = np.asarray(model.variable("u")).reshape(-1)
+    if coefficients.dtype != np.dtype("float64"):
+        raise RuntimeError(
+            f"Real GetFEM returned unexpected coefficient dtype {coefficients.dtype}"
+        )
     norm_expr, error_expr, _, _ = quantities(qdim, field)
     norm_sq = integral(mim, region, model, norm_expr)
     error_sq = integral(mim, region, model, error_expr)
@@ -191,6 +195,7 @@ def main():
                 "traceback": traceback.format_exc(),
             }
             print(f"PRODUCTION L2 FAIL {name}: {exc}", flush=True)
+            print(traceback.format_exc(), flush=True)
     try:
         rows["gaussian_cg1_scalar"] = nonpolynomial_case(mesh, region)
     except Exception as exc:
@@ -200,6 +205,7 @@ def main():
             "traceback": traceback.format_exc(),
         }
         print(f"PRODUCTION L2 FAIL Gaussian: {exc}", flush=True)
+        print(traceback.format_exc(), flush=True)
     good = (
         len(CASES) == 15 and
         all(rows[name]["status"] == "PASS_ACTUAL_DPHS_SPARSE_PETSC_L2"
@@ -213,6 +219,8 @@ def main():
         "cases": rows,
         "native_actual_DPHS_set_initial_value": True,
         "PETSc_sparse_MUMPS": True,
+        "PETSc_ScalarType": str(np.dtype(PETSc.ScalarType)),
+        "GetFEM_real_coefficients_enforced": True,
         "MPI2_qualified": False,
         "DAE_physics_qualified": False,
         "nodal_interpolation_default_unchanged": True,
