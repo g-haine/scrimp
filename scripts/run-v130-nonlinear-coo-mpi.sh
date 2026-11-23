@@ -47,7 +47,7 @@ for ranks in 1 2; do
    "$image" timeout -k 5s "${SCRIMP_V130_NL_COO_TIMEOUT:-240s}" \
    mpiexec --oversubscribe --bind-to none -n "$ranks" \
    python -u /workspace/scrimp/sandbox/probe_v130_nonlinear_coo_dynamic_graph.py \
-   --out /artifacts/dynamic_rank_${OMPI_COMM_WORLD_RANK:-0}.json \
+   --out /artifacts/dynamic.json \
    > "$out/${ranks}r/dynamic.host.log" 2>&1; then
   echo "FAIL dynamic COO graph MPI=$ranks; evidence $out" >&2
   tail -n 150 "$out/${ranks}r/dynamic.host.log" >&2; exit 1
