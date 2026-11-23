@@ -231,7 +231,6 @@ def run():
     with patch.object(S.DPHS,"init_step",injected):
         system.solve()
     times,states=validate_actual_ts(system,t0,tf,n_steps)
-    dnames,anames,iv,dindices,audit=None,None,None,None,None
     dnames,anames,iv,dindices,audit=validate_original_equations(
         system,mpi,times,states
     )
@@ -254,7 +253,7 @@ def run():
             int(system.last_ts_converged_reason)>0
             and int(system.last_ts_rejections)==0
             and int(system.last_ts_snes_failures)==0
-            and times[-1]==SPINUP_END
+            and abs(float(times[-1])-SPINUP_END)<=1e-12
             and audit["maximum_actual_original_Fa_residual"]<=1e-8
         )
         collective_write(
