@@ -140,10 +140,26 @@ class TestCoreDAEInitialization(unittest.TestCase):
         s.lumped_variables.add("a")
         with self.assertRaisesRegex(ValueError, "lumped"):
             self.helper._intervals(s)
+        # Substitution removes one GetFEM effort unknown, rather than
+        # rendering the layout intrinsically unsupported. A stale
+        # extra effort interval must still be rejected fail-closed.
         s = FakeSystem()
         s.ports["L"].substituted = True
-        with self.assertRaisesRegex(ValueError, "substituted"):
+        with self.assertRaisesRegex(ValueError, "Unclassified"):
             self.helper._intervals(s)
+        # Match the actual GetFEM registration of substituted L:
+        # only its flow U_L is an unknown, not effort Y_L.
+        del s.gf_model.slots["Y_L"]
+        n, differential, algebraic = self.helper._intervals(s)
+        self.assertEqual(n, 7)
+        self.assertEqual(differential["q"], (0, 2))
+        np.testing.assert_array_equal(
+            algebraic, np.array([3, 4, 5, 6], dtype=np.int64)
+        )
+        # Nonlinear-affine initialization has a separate unsupported
+        # substituted-port guard until native qualification.
+        with self.assertRaisesRegex(ValueError, "substituted"):
+            self.helper._intervals(s, allow_nonlinear=True)
 
     def test_unclassified_or_overlapping_variables_are_refused(self):
         s = FakeSystem()
