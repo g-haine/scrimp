@@ -351,3 +351,24 @@ permanent performance fallback. Separate native gates on the actual
 nonlinear shallow-water Jacobian in MPI1/2 and on an artificially
 changing COO graph are REQUIRED before qualification, even though the
 linear-mass/initial-state COO bridge was already qualified.
+
+## 23 November 2026 — native nonlinear COO acceptance gate (source-only)
+
+The next native gate `scripts/run-v130-nonlinear-coo-mpi.sh`
+checks both 1- and 2-rank distributed COO assembly on the
+original pinned Docker image, without changing any published sources.
+First, the *same* PETSc AIJ matrix is reassembled with four
+alternating GetFEM graphs (uncoupled -> coupled -> uncoupled ->
+coupled) with nonzero graph count, stored CSR and numeric values
+independently compared across MPI1/MPI2. Then the original
+`examples/shallow_water.py` nonlinear mass/stiffness Jacobian is
+checked against an independent directional finite-difference
+derivative with nonzero time derivative and fully explicit/frozen G.
+The native runner traces every actual GetFEM bridge operation as
+`effective=coo` and fails if any production bridge uses IJV.
+
+This is mandatory before claiming that nonlinear/dynamic PETSc
+COO is qualified. It does NOT qualify the nonlinear DAE initializer,
+complete physical time integration, or energy/power trajectories.
+Explicit `csr/ijv` is retained only for historical A/B benchmark
+reproduction, not as the production assembly choice.

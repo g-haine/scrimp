@@ -10,6 +10,8 @@ on:
       - scrimp/utils/fe_initialization.py
       - scrimp/utils/linalg.py
       - tests/test_v130_nonlinear_coo_assembly.py
+      - sandbox/probe_v130_nonlinear_coo_dynamic_graph.py
+      - scripts/run-v130-nonlinear-coo-mpi.sh
       - tests/test_v130_fe_initial_projection.py
       - sandbox/probe_v130_production_fe_initialization.py
       - scripts/run-v130-production-fe-initialization.sh
@@ -35,6 +37,8 @@ on:
       - scrimp/utils/fe_initialization.py
       - scrimp/utils/linalg.py
       - tests/test_v130_nonlinear_coo_assembly.py
+      - sandbox/probe_v130_nonlinear_coo_dynamic_graph.py
+      - scripts/run-v130-nonlinear-coo-mpi.sh
       - tests/test_v130_fe_initial_projection.py
       - sandbox/probe_v130_production_fe_initialization.py
       - scripts/run-v130-production-fe-initialization.sh
@@ -78,6 +82,8 @@ jobs:
           bash -n scripts/run-v130-fe-initial-mpi.sh
           bash -n scripts/run-v130-fe-initial-coo.sh
           python -m py_compile tests/test_v130_universal_fe_projection_spec.py tests/test_v130_nonlinear_coo_assembly.py
+          python -m py_compile sandbox/probe_v130_nonlinear_coo_dynamic_graph.py
+          bash -n scripts/run-v130-nonlinear-coo-mpi.sh
       - name: Actual DPHS control classification and GetFEM assembly routing
         run: python tests/test_v130_direct_linear_feedback.py
       - name: Source-only production substituted DAE interval classification
