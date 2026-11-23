@@ -21,7 +21,18 @@ from pathlib import Path
 
 import numpy as np
 
-from scrimp.utils.dae_checkpoint import read_checkpoint
+# Host-only audit must NOT import scrimp.__init__:
+# scrimp initializes PETSc with sys.argv and treats --evidence/--mesh
+# as unused PETSc options. Load this pure NumPy/JSON helper by exact file.
+import importlib.util
+ROOT = Path(__file__).resolve().parents[1]
+_spec = importlib.util.spec_from_file_location(
+    "_scrimp_native_checkpoint_host_audit",
+    ROOT / "scrimp" / "utils" / "dae_checkpoint.py",
+)
+_checkpoint_runtime = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_checkpoint_runtime)
+read_checkpoint = _checkpoint_runtime.read_checkpoint
 
 MESHES = (.2, .1)
 RANKS = (1, 2)
@@ -255,11 +266,12 @@ def compare(root):
         "general_high_index_DAE_initializer_qualified":False,
         "second_independent_linear_DAE_model_qualified":False,
         "interpretation":(
-            "Sandbox accepted-state GetFEM/PETSc cold restart and 1/2 cross "
-            "MPI replays match the true original physical continuous "
+            "Production DPHS save_checkpoint/load_checkpoint accepted-state "
+            "cross-MPI replays match the true original physical continuous "
             "Saint-Venant trajectory in whole FE vector, original DAE "
             "and weighted H+viscosity-boundary-work; "
-            "not a qualified production API or PETSc integrator-history reset."
+            "native SWE API qualified, but NOT independent linear DAE, general "
+            "checkpoint guarantees or PETSc integrator-history preservation."
         ),
     }
     (root/"checkpoint_public_api_comparison.json").write_text(
