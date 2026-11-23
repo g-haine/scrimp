@@ -43,6 +43,7 @@ python3 -m py_compile \
     sandbox/validate_v130_checkpoint_public_api_case.py
 python3 tests/test_v130_checkpoint_state.py
 python3 tests/test_v130_checkpoint_restart.py
+python3 tests/test_v130_checkpoint_public_api.py
 
 docker_exec() {
     if [[ "${SCRIMP_DOCKER_NO_SUDO:-0}" == 1 ]]; then
