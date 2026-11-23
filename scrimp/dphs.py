@@ -663,7 +663,7 @@ class DPHS:
             zd.destroy()
             vec.destroy()
         self.last_checkpoint_report = {
-            "status": "COMPLETE_DAE_STATE_COLD_RESTORED_IN_DHPS",
+            "status": "COMPLETE_DAE_STATE_COLD_RESTORED_IN_DPHS",
             "physical_time": time_saved,
             "original_algebraic_residual_l2": fa_norm,
             "model_sha256": header["model"]["fingerprint_sha256"],
