@@ -91,8 +91,11 @@ def segment(root, mesh, name, rank, source_rank=None):
             and report.get("general_high_index_initializer_qualified") is False
             and report.get("production_checkpoint_qualified") is False,
             "Unjustified PETSc history/production initialization qualification")
-    require(report.get("production_DPHS_save_load_methods_exercised") is True,
-            "Native production DPHS save/load methods not used")
+    require(
+        report.get("production_DPHS_save_load_methods_exercised")
+        is (name in ("seed", "resume")),
+        "Native production DPHS save/load use misstated for this phase"
+    )
     if name=="resume":
         init=report.get("initialization_report",{})
         require(init.get("status")=="COMPLETE_DAE_STATE_COLD_RESTORED_IN_DPHS"
