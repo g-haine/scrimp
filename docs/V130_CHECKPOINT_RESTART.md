@@ -184,3 +184,97 @@ SCRIMP_DOCKER_NO_SUDO=1 \
 SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
 bash scripts/run-v130-checkpoint-linear-dae.sh
 ```
+
+### 23 November 2026 — First native independent linear wave DAE: 10 accepted steps; PETSc index ABI mismatch in diagnostic (fixed)
+
+Host source `36aca5319a9770bc72157cf4978c18ab3d05f852`,
+immutable `scrimp-mpi:v1.3.0-rc3`, actual partial
+host evidence
+`sandbox/outputs/v130-issue29-linear-DAE-36aca531-aJYhtX7N/`
+and complete uploaded ZIP of that partial directory
+were inspected directly. **All 9/9 linear DAE synthetic
+host tests PASS**, alongside 17/17 checkpoint format and
+5/5 public API host tests.
+
+The first physical **second-model** run
+`wave_seed_mpi1` constructed the genuine
+2D linear-wave pH-DAE with 426 full
+GetFEM DOFs (h=.5 Rectangle, 22
+elements), and PETSc CN accepted
+**10/10 physical steps from 0 to 0.02**,
+0 rejections/0 SNES failures
+(`Elapsed time: 0.01631s`).
+It subsequently failed **after**
+the accepted TS in the independent
+post-solve audit `original_IFunction`,
+while filling newly constructed PETSc
+vectors via `Vec.setValues`. Python
+`np.arange(lo,hi,dtype=int)` had
+`dtype('int64')` on the user's host;
+the pinned native PETSc build uses
+`PetscInt` 32-bit. petsc4py correctly
+rejected unsafe conversion:
+`TypeError: Cannot cast array data
+from dtype('int64') to dtype('int32')
+according to the rule 'safe'`.
+This is NOT a time-solver convergence,
+FE physics or checkpoint data error,
+but **no native complete second-model
+residual/energy/port work nor accepted
+checkpoint was written** in this
+first failed run. Therefore *native*
+second DAE checkpoint restart
+remains **0/8 qualified**.
+
+**Source fix:** fill the owned
+`Vec.setValues` indices with
+`np.arange(lo,hi,dtype=PETSc.IntType)`
+for both state and time derivative
+PETSc vectors. `PETSc.IntType`
+selects the exact native `PetscInt`
+width (32- or 64-bit), independent
+of Python word size. A new host
+regression inspects the true
+`original_IFunction` source AST
+for this index selection and
+both `vec` and `vel` use sites;
+**10 host second-model tests now
+await rerun**. Solver/GetFEM
+weak forms, DAE tolerances,
+time stepping and runtime
+public checkpoint API unchanged.
+
+Because the old native phase
+produced only an incomplete log
+and no accepted-state file,
+do **not** use its directory with
+`--resume`: the strict
+evidence-preserving runner must
+reject that incomplete case.
+Run a **fresh** native pilot:
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+python -m py_compile \
+  sandbox/probe_v130_checkpoint_linear_dae.py \
+  sandbox/compare_v130_checkpoint_linear_dae.py \
+  tests/test_v130_checkpoint_linear_dae.py
+python tests/test_v130_checkpoint_linear_dae.py
+bash -n scripts/run-v130-checkpoint-linear-dae.sh
+
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-checkpoint-linear-dae.sh
+```
+
+**Evidence standard unchanged:** host
+tests and 10 accepted forward
+steps alone do not qualify checkpoint
+restoration; the 8 full independent
+real GetFEM/PETSc linear DAE phases
+and 4 true cross-MPI restarts must
+pass original algebraic/TSCN,
+all FE state, Hamiltonian and
+boundary-work comparisons before
+closing #29.
