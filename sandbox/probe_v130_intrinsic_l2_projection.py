@@ -1,9 +1,11 @@
 # SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
 #
 # Copyright (C) 2015-2026 ISAE-SUPAERO -- GNU GPLv3
-#
+# 
 # See the LICENSE file for license information.
 #
+# github: https://github.com/g-haine/scrimp
+
 """Native diagnosis of intrinsic-vector FE initial data.
 
 MeshFem.eval is documented for Lagrange nodal interpolation; RT/BDM/
@@ -142,7 +144,37 @@ def run_case(mesh, mim, region, name, descriptor):
     model.set_variable("q", c)
     stored = np.asarray(model.variable("q")).reshape(-1)
     storage_error = float(np.max(np.abs(stored - c)))
+    # GetFEM-quadrature check of the PHYSICAL reconstructed field, not
+    # merely the algebraic normal-equation residual M*c-b.
+    reference = float(np.asarray(
+        gf.asm_generic(mim, 0, "[1;2].[1;2]", region, model)
+    ).reshape(-1)[0])
+    projected_sq_error = float(np.asarray(
+        gf.asm_generic(mim, 0, "(q-[1;2]).(q-[1;2])", region, model)
+    ).reshape(-1)[0])
+    if not np.isfinite(reference) or reference <= 0:
+        raise RuntimeError("Nonpositive target physical L2 norm")
+    if not np.isfinite(projected_sq_error) or projected_sq_error < -1e-13*reference:
+        raise RuntimeError("Invalid reconstructed physical L2 integral")
+    physical_error = float(np.sqrt(max(0., projected_sq_error) / reference))
+    # RT1 and BDM1 are currently accepted by DPHS.set_initial_value
+    # only because eval() happens to return the same array length.
+    # Check their ACTUAL field rather than treating the return as PASS.
+    old_physical_error = None
+    if row["production_set_initial_value"] == "RETURNED":
+        old_sq_error = float(np.asarray(
+            gf.asm_generic(
+                mim, 0, "(q-[1;2]).(q-[1;2])", region,
+                production_model
+            )
+        ).reshape(-1)[0])
+        if not np.isfinite(old_sq_error) or old_sq_error < 0:
+            raise RuntimeError("Invalid old production L2 field integral")
+        old_physical_error = float(np.sqrt(old_sq_error / reference))
     row.update(
+        physical_target_L2_norm_squared=reference,
+        physical_projected_L2_error_relative=physical_error,
+        old_production_L2_error_relative=old_physical_error,
         projected_coefficient_count=int(c.size),
         getfem_mass_matrix_symmetry_rel=symmetry,
         getfem_mass_projection_residual_rel=relative_residual,
@@ -150,13 +182,15 @@ def run_case(mesh, mim, region, name, descriptor):
         projected_stored_coefficient_error_max=storage_error,
     )
     if (symmetry >= 1e-11 or relative_residual >= 1e-10 or
-            storage_error >= 1e-12 or not np.linalg.norm(c) > 0):
+            storage_error >= 1e-12 or physical_error >= 5e-8
+            or not np.linalg.norm(c) > 0):
         raise RuntimeError("Intrinsic L2 projection failed algebraic checks")
     row["status"] = "PASS_NATIVE_GETFEM_MASS_PROJECTION_ALGEBRA_ONLY"
     print(
         f"PROJECTION PASS {name} dofs={n} "
         f"moment_residual={relative_residual:.3g} "
-        f"production={row['production_set_initial_value']}",
+        f"physical_L2={physical_error:.3g} "
+        f"old_production_L2={old_physical_error}",
         flush=True)
     return row
 
@@ -202,7 +236,13 @@ def main():
         "available_cases_passed": passes,
         "failed_cases": failures,
         "production_initialization_qualified": False,
-        "physical_field_reconstruction_qualified": False,
+        "physical_field_reconstruction_qualified": bool(
+            baseline_pass and not failures
+        ),
+        "physical_qualification_scope": (
+            "Independent GetFEM quadrature on the constant vector [1;2], "
+            "MPI1, small mesh; no general interpolation, DAE or PDE claim"
+        ),
         "DAE_and_MPI_qualified": False,
         "source_expression_scope": "GWFL constant vector [1;2] only",
         "dense_mass_solve_not_a_production_scalability_strategy": True,
