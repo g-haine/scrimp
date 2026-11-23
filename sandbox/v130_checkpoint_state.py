@@ -83,6 +83,21 @@ def model_provenance(system):
                 "kind": parameter.get_kind(),
                 "expression": parameter.get_expression(),
             })
+        fem_dof_connectivity = None
+        fem_dof_offsets = None
+        fem_description = None
+        if fem is not None:
+            # Coordinates alone are insufficient: FE orientation and
+            # per-convex DOF numbering may differ with the same nodes.
+            native_connectivity = fem.basic_dof_from_cvid()
+            if (not isinstance(native_connectivity, (tuple,list))
+                    or len(native_connectivity) != 2):
+                raise ValueError(
+                    "GetFEM did not expose ordered per-convex FE DOFs"
+                )
+            fem_dof_connectivity = _digest_array(native_connectivity[0])
+            fem_dof_offsets = _digest_array(native_connectivity[1])
+            fem_description = fem.char()
         ports.append({
             "name": str(name), "flow": port.get_flow(),
             "effort": port.get_effort(), "kind": port.get_kind(),
@@ -92,6 +107,9 @@ def model_provenance(system):
             "fem_nodes": (
                 _digest_array(fem.basic_dof_nodes()) if fem is not None else None
             ),
+            "fem_descriptor": fem_description,
+            "fem_convex_dofs": fem_dof_connectivity,
+            "fem_convex_dof_offsets": fem_dof_offsets,
             "fem_nbdof": int(fem.nbdof()) if fem is not None else None,
             "parameters": params,
         })
