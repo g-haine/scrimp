@@ -51,6 +51,8 @@ jobs:
         run: python tests/test_v130_main_example_solver_policy.py
       - name: Original 2D example diagnostic and MPI write-safety guards
         run: python tests/test_v130_main_2d_example_protocol.py
+      - name: Install NumPy for the standalone physical diagnostic tests
+        run: python -m pip install numpy
       - name: Adaptive BDF2 and heat-wave physical diagnostic negative controls
         run: python tests/test_v130_heat_wave_physics_diagnostic.py
       - name: Published article-era code remains byte-for-byte unchanged
