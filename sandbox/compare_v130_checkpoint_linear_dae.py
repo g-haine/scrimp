@@ -257,9 +257,11 @@ def compare(root):
     require(len(fingerprints)==1,
             "Independent linear DAE original mesh, weak form or FE differ")
     checks={}
+    all_segments=[*baselines.values(),*seeds.values()]
     for source in RANKS:
         for target in RANKS:
             restart=segment(root,"resume",target,source)
+            all_segments.append(restart)
             baseline=baselines[target]
             seed=seeds[source]
             require(restart["report"]["fingerprint_sha256"] in fingerprints,
@@ -324,8 +326,7 @@ def compare(root):
         "no_PETSc_TS_history_claim":True,
         "generic_checkpoint_supported_CN_only":True,
         "native_segment_schema_versions":sorted({
-            x["report"]["schema"] for x in
-            [*baselines.values(),*seeds.values()]
+            x["report"]["schema"] for x in all_segments
         }),
         "original_native_evidence_mutated":False,
         "power_audit": {
@@ -334,9 +335,11 @@ def compare(root):
             "first_sample_power_is_instantaneous_not_CN_step":True,
             "prior_v1_trapezoid_has_inverted_sign_and_wrong_quadrature":True,
             "max_original_per_step_energy_power_defect":max(
-                x["max_step_power_defect"] for x in
-                [*baselines.values(),*seeds.values()]
+                x["max_step_power_defect"] for x in all_segments
             ),
+            "legacy_original_phase_reports_preserved":True,
+            "recomputed_work_source":"raw_native_GetFEM_port_power_arrays",
+            "model_requires_all_rank_checkpoints":True,
         },
     }
     (root/"linear_dae_comparison.json").write_text(
