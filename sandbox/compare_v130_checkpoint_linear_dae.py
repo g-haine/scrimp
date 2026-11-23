@@ -30,7 +30,14 @@ RANKS=(1,2)
 DT=.002
 TSTAR=.02
 TFINAL=.024
-SCHEMA="scrimp-v130-issue29-linear-DAE-public-API-v1"
+SCHEMA_V1="scrimp-v130-issue29-linear-DAE-public-API-v1"
+SCHEMA_V2="scrimp-v130-issue29-linear-DAE-public-API-v2"
+SCHEMAS=(SCHEMA_V1,SCHEMA_V2)
+# In native SCRIMP Port.compute(), P[k] (k>=1) is evaluated with
+# midpoint z_(k-1/2) and stored at t[k]. It is one FULL-STEP CN
+# power, not an instantaneous endpoint sample. P[0] uses z(t0)
+# and is NOT a step power. For this left boundary wave port,
+# the Hamiltonian balance is H[k]-H[k-1] = -dt * P[k].
 
 
 def require(condition,reason):
@@ -82,7 +89,7 @@ def segment(root,phase,ranks,source=None):
     end=TSTAR if phase=="seed" else TFINAL
     n=int(round((end-begin)/DT))
     require(
-        r.get("schema")==SCHEMA
+        r.get("schema") in SCHEMAS
         and r.get("status")==
             "NATIVE_LINEAR_DAE_SEGMENT_NOT_YET_CROSS_MPI_COMPARED"
         and r.get("phase")==phase
@@ -137,16 +144,56 @@ def segment(root,phase,ranks,source=None):
             and np.allclose(
                 times,np.linspace(begin,end,n+1),atol=1e-12,rtol=0.
             ),"Linear DAE original full vector/physical timeline incomplete")
-    require(np.all(np.abs(w-np.r_[0,np.cumsum(
-        .5*np.diff(times)*(powers[:-1]+powers[1:])
-    )])<1e-12),"Linear DAE independent boundary-work integration mismatch")
-    require(abs(w[-1])>1e-12,
+    # Two generations of native *diagnostic reports* are accepted.
+    # Native v1 stored a WRONG trapezoidal quadrature of per-step CN
+    # powers, with inverted supplied-work sign. Retain original
+    # reports/NPZ byte-for-byte for scientific provenance; VALIDATE
+    # their old convention and independently RECOMPUTE the correct
+    # physical work from their original native GetFEM port-power data.
+    # Native v2 records the corrected physical CN work directly.
+    dt=np.diff(times)
+    old_trapezoid=np.r_[0.,np.cumsum(
+        .5*dt*(powers[:-1]+powers[1:])
+    )]
+    physical_work=np.r_[0.,np.cumsum(-dt*powers[1:])]
+    if r["schema"]==SCHEMA_V1:
+        require(np.all(np.abs(w-old_trapezoid)<1e-12),
+                "Linear DAE legacy boundary-work integration mismatch")
+        archived_convention="legacy_trapezoidal_endpoint_v1_INCORRECT"
+    else:
+        require(
+            r.get("boundary_work_quadrature")==
+                "minus_CN_step_midpoint_port_power_times_dt"
+            and np.all(np.abs(w-physical_work)<1e-12),
+            "Linear DAE corrected CN boundary-work integration mismatch"
+        )
+        archived_convention="corrected_CN_step_port_power_v2"
+    require(
+        abs(float(h[0])-r["Hamiltonian_initial"])<1e-12
+        and abs(float(h[-1])-r["Hamiltonian_final"])<1e-12
+        and abs(float(w[-1])-r["boundary_work"])<1e-12
+        and abs(float(h[-1]-h[0]-w[-1])-r["dH_minus_W"])<1e-12,
+        "Native linear DAE original report/trace provenance mismatch"
+    )
+    # A structure-preserving CN wave with this incoming boundary
+    # convention must satisfy the DISCRETE step power identity.
+    # This is more exacting than simply comparing total integrals.
+    # DO NOT use power[0] in physical_work: at a restart its value
+    # is instantaneous z(t*) rather than a previous CN step power.
+    per_step_balance=np.diff(h)+dt*powers[1:]
+    max_balance=float(np.max(np.abs(per_step_balance)))
+    require(
+        max_balance<1e-11,
+        "Original linear pH-DAE CN per-step Hamiltonian/port POWER balance failed"
+    )
+    require(abs(physical_work[-1])>1e-12,
             "Linear DAE physical boundary drive and response vanished")
-    require(abs(float(h[0])-r["Hamiltonian_initial"])<1e-12
-            and abs(float(h[-1])-r["Hamiltonian_final"])<1e-12
-            and abs(float(w[-1])-r["boundary_work"])<1e-12
-            and abs(float(h[-1]-h[0]-w[-1])-r["dH_minus_W"])<1e-12,
-            "Native linear DAE Hamiltonian/work report differs from traces")
+    if r["schema"]==SCHEMA_V2:
+        require(
+            abs(float(r.get("maximum_discrete_energy_balance_defect",float("inf")))
+            -max_balance)<1e-12,
+            "Native v2 original CN per-step power report inconsistent"
+        )
     require(ckpt.sha256(states[0].tobytes())==r["initial_full_sha256"]
             and ckpt.sha256(states[-1].tobytes())==r["final_full_sha256"],
             "Linear DAE accepted full FE state checksum mismatch")
@@ -184,8 +231,12 @@ def segment(root,phase,ranks,source=None):
             )<1e-9,
             "Actual DPHS linear DAE resume projected/changed q0 or violated Fa"
         )
-    return dict(report=r,times=times,states=states,H=h,
-                work=w,power=powers)
+    return dict(
+        report=r,times=times,states=states,H=h,
+        work=physical_work, power=powers,
+        archived_work=w, archived_work_convention=archived_convention,
+        max_step_power_defect=max_balance,
+    )
 
 
 def compare(root):
@@ -237,9 +288,9 @@ def compare(root):
                  baseline["work"][-1])
             )
             require(hjump<1e-9
-                    and hdifference<1e-8
-                    and wdifference<1e-8
-                    and balance_difference<1e-8,
+                    and hdifference<1e-10
+                    and wdifference<1e-10
+                    and balance_difference<1e-10,
                     "Linear DAE Hamiltonian/boundary-work not continuous "
                     f"on MPI {source}->{target}")
             checks[f"{source}_to_{target}"]={
@@ -250,6 +301,12 @@ def compare(root):
                 "continuous_vs_split_signed_energy_defect_l1":balance_difference,
                 "DAE_constraints_verified_each_real_TS_step":True,
                 "cold_restart_exact_history_claimed":False,
+                "seed_max_CN_discrete_power_defect":
+                    seed["max_step_power_defect"],
+                "restart_max_CN_discrete_power_defect":
+                    restart["max_step_power_defect"],
+                "baseline_max_CN_discrete_power_defect":
+                    baseline["max_step_power_defect"],
             }
             print(
                 f"LINEAR DAE CHECKPOINT PASS MPI={source}->{target} "
@@ -258,7 +315,7 @@ def compare(root):
                 flush=True,
             )
     result={
-        "schema":"scrimp-v130-issue29-linear-DAE-comparison-v1",
+        "schema":"scrimp-v130-issue29-linear-DAE-comparison-v2",
         "status":"NATIVE_LINEAR_PHDae_DPHS_COLD_RESTART_PASSED",
         "cases":checks,
         "actual_original_model":"examples/wave.py linear mixed boundary DAE",
@@ -266,6 +323,21 @@ def compare(root):
         "SWE_or_sloshing_model":False,
         "no_PETSc_TS_history_claim":True,
         "generic_checkpoint_supported_CN_only":True,
+        "native_segment_schema_versions":sorted({
+            x["report"]["schema"] for x in
+            [*baselines.values(),*seeds.values()]
+        }),
+        "original_native_evidence_mutated":False,
+        "power_audit": {
+            "convention":"discrete_CN_midpoint_step_port_power",
+            "applied_work":"W=-sum(dt_k * P_k), k>=1",
+            "first_sample_power_is_instantaneous_not_CN_step":True,
+            "prior_v1_trapezoid_has_inverted_sign_and_wrong_quadrature":True,
+            "max_original_per_step_energy_power_defect":max(
+                x["max_step_power_defect"] for x in
+                [*baselines.values(),*seeds.values()]
+            ),
+        },
     }
     (root/"linear_dae_comparison.json").write_text(
         json.dumps(result,indent=2)+"\n",encoding="utf-8",
