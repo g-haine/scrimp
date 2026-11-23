@@ -312,7 +312,8 @@ def run():
         "cold_restart_not_identical_TS_history":True,
         "general_high_index_initializer_qualified":False,
         "production_checkpoint_qualified":False,
-        "production_DPHS_save_load_methods_exercised":True,
+        "production_DPHS_save_load_methods_exercised":
+            args.phase in ("seed", "resume"),
     }
     if mpi.rank==0:
         args.out.mkdir(parents=True,exist_ok=True)
