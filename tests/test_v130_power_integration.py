@@ -107,15 +107,42 @@ class PowerIntegrationTests(unittest.TestCase):
     def test_public_plot_uses_cn_step_or_explicit_legacy(self):
         s=(ROOT/"scrimp"/"dphs.py").read_text(encoding="utf-8")
         self.assertIn("from scrimp.utils.power_integration import integrate_port_power",s)
-        self.assertIn('scheme = self.time_scheme.getString("ts_type", "bdf").lower()',s)
-        self.assertIn('"cn_step" if scheme == "cn" else "legacy_trapezoid"',s)
+        self.assertIn('sampling = "cn_step" if ts_type == "cn" else "instantaneous"',s)
+        self.assertIn('sampling = port.get_power_sampling()',s)
+        self.assertIn('"instantaneous_trapezoid"',s)
         self.assertIn("values = integrate_port_power(",s)
         # The old direct trapezoid must not remain in plot_powers().
         body=s[s.index("    def plot_powers("):s.index("    def spy_Dirac(")]
         self.assertNotIn("power[k - 1] + power[k]",body)
-        # Original GetFEM stage semantics are preserved.
+        # Original GetFEM CN stage semantics are preserved but ONLY
+        # when Port.compute has been asked to use CN sampling.
         port=(ROOT/"scrimp"/"port.py").read_text(encoding="utf-8")
-        self.assertIn("0.5 * (solution[\"z\"][k] + solution[\"z\"][k - 1])",port)
+        self.assertIn('if sampling == "cn_step" and k > 0:',port)
+        self.assertIn('state = 0.5 * (solution["z"][k] + solution["z"][k - 1])',port)
+        self.assertIn("def get_power_sampling(self)",port)
+
+    def test_explicit_instantaneous_trapezoid_alias(self):
+        t=np.array([0.,.02,.06])
+        p=np.array([3.,8.,5.])
+        np.testing.assert_array_equal(
+            integrate_port_power(t,p,convention="instantaneous_trapezoid"),
+            integrate_port_power(t,p,convention="legacy_trapezoid"),
+        )
+
+    def test_instantaneous_trapezoid_requires_true_endpoint_samples(self):
+        t=np.array([0.,.01,.02])
+        # For the nodal states the instantaneous quadratic state
+        # observable is different from the CN-averaged step observable.
+        nodal=np.array([1.,9.,25.])
+        stage=np.array([1.,4.,16.])
+        actual=integrate_port_power(
+            t,nodal,convention="instantaneous_trapezoid"
+        )
+        wrong=integrate_port_power(
+            t,stage,convention="instantaneous_trapezoid"
+        )
+        np.testing.assert_allclose(actual,[0.,.05,.22],atol=1e-14)
+        self.assertGreater(abs(actual[-1]-wrong[-1]),.01)
 
 
 if __name__=="__main__":

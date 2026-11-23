@@ -1,7 +1,8 @@
 # SCRIMP v1.3.0 — Issue #30: physical CN port-power plotting quadrature
 
-**23 November 2026: SOURCE-LEVEL FIX STAGED, historical native
-data verification PENDING, public plotting smoke PENDING.**
+**23 November 2026: original 8-segment native data re-audit PASS;
+generic Port.compute source extension STAGED, true native
+Port.compute sampling/plotting smoke PENDING.**
 
 The separate checkpoint issue #29 has **already** passed. It exposed
 a real SCRIMP postprocessing defect, not a problem with PETSc, the
@@ -52,6 +53,94 @@ labeled **model-dependent**; it must not be cited as physical
 energy preservation without an independent model-specific
 power audit.
 
+## Generic `Port.compute()` sampling contract (new stage)
+
+The first postprocessing fix correctly recovered the original
+CN step quadrature in `DPHS.plot_powers()`, but retained the
+**non-generic** legacy `Port.compute()`: it unconditionally averaged
+`z[k-1]` and `z[k]`, regardless of PETSc's selected TS method.
+For BDF, ARKIMEX, or any other TS this could silently label
+a CN-averaged `P[k]` as a nodal value and then trapezoid it.
+
+This is corrected structurally, preserving the production
+CN physical results and original GetFEM weak forms:
+
+```python
+port.compute(solution, gf_model, domain)  # generic instantaneous default
+port.compute(solution, gf_model, domain, sampling="instantaneous")
+port.compute(solution, gf_model, domain, sampling="cn_step")
+
+port.get_power()           # original signed raw series
+port.get_power_sampling()  # "instantaneous" or "cn_step"
+```
+
+- **`instantaneous`**: evaluate original GetFEM form at each
+  `(t[k], z[k])`, for every time scheme, including BDF and
+  ARKIMEX. This is a mathematically well-defined *instantaneous
+  port-power sample*, independent of a numerical integrator.
+  Its nodal trapezoid is an **approximation**, not a claim
+  about BDF's actual discrete quadrature, RK intermediate
+  stages, or an exact Hamiltonian identity.
+- **`cn_step`**: preserve historical native-qualified
+  `Port.compute()` behavior bit-for-bit at each
+  `(t[k],(z[k-1]+z[k])/2)`, k>=1. `P[0]` remains
+  instantaneous; the original `t[k]` parameter evaluation
+  remains **unchanged**, even for time-dependent controls.
+  Correct discrete integral: `sum(dt[k]*P[k])`.
+- **`DPHS.compute_powers()`** dispatches the sampling based
+  on `self.time_scheme.ts_type` (CN vs other TS).
+  Consequently, `get_power()` retains its previous CN
+  meaning on an unmodified CN simulation, while the other
+  time schemes no longer receive a hidden CN averaging
+  operation. Direct `Port.compute()` now defaults to
+  instantaneous rather than making an unadvertised CN
+  assumption. This is an intentional correction of
+  previously misleading non-CN outputs.
+- **`DPHS.plot_powers()`** reads the stored sampling
+  metadata from **each Port**, instead of presuming that
+  all arrays share a convention merely because the
+  `time_scheme` attribute says CN. It integrates CN-step
+  samples by exact step sum and instantaneous samples
+  by an explicit *approximate* nodal trapezoid.
+  Unknown/external series refuse a misleading integral.
+  Legacy external `port.set_power(values)` remains callable;
+  callers must set `sampling=` explicitly before requesting
+  a corresponding integrated plot.
+- This does **not** expose PETSc internal BDF/IMEX stage
+  states or build a generic stage quadrature. A future
+  interface for exact multi-stage methods needs solver-stage
+  output captured during time integration; it cannot be
+  reconstructed from only accepted endpoints. Do not
+  use energy-conservation assertions on those methods
+  before native mathematical/numerical qualification.
+
+The new host-only AST tests **execute the real method body**
+with a fake GetFEM object, distinguishing endpoint values,
+CN step means, explicit `t[k]`, sampling metadata,
+invalid clocks and failed assembly. These tests are NOT
+a native PETSc/GetFEM qualification.
+
+### Original native data verification: PASS (user host)
+
+On 23 November 2026 the user executed
+`python tests/test_v130_power_integration.py`:
+**7/7 PASS**, followed by
+`sandbox/verify_v130_power_quadrature_native.py` on the
+immutable original #29 eight-wave segments.
+`PASS_PUBLIC_CN_STEP_INTEGRAL_ON_ORIGINAL_NATIVE_PORT_ARRAYS`:
+
+- maximal true original per-step
+  `abs(delta H + delta t * P[k]) = 2.439454888092385e-19`;
+- maximal restarted vs continuous signed physical-work
+  discrepancy `7.047314121155779e-19`;
+- maximal incorrect historical trapezoid vs
+  corrected stage-power work discrepancy
+  `2.8536249430776475e-05`.
+
+No physics rerun; original files remain immutable.
+This proves the **CN raw port numerical quadrature**,
+not the new generic BDF/IMEX sampling mode.
+
 ## Narrow code change, deliberately backwards-compatible
 
 - `scrimp/utils/power_integration.py` adds a pure NumPy
@@ -64,9 +153,10 @@ power audit.
   methods it **retains the original trapezoid exactly**,
   labeled legacy/approximate: their time-stage semantics
   remain a separate research/implementation task.
-- `Port.compute()`, nonlinear FE bricks, original physical
-  signs, PETSc TS/SNES/MUMPS, the MPI bridge and the
-  accepted-state checkpoint API are **unchanged**.
+- The generic `Port.compute()` **sampling API is now updated**,
+  but the CN state/time evaluation is unchanged. Nonlinear FE
+  bricks, physical signs, PETSc TS/SNES/MUMPS, the MPI bridge
+  and the accepted-state checkpoint API are **unchanged**.
 - Plotted legends explicitly identify the quadrature;
   no unwarranted universal “Balance must be constant” claim.
 - Dedicated source-only tests include wrong positive
@@ -95,10 +185,12 @@ a negative control deliberately distinguishing the wrong
 legacy trapezoid. It never edits or rewrites original
 scientific data and requires no GetFEM/PETSc/Docker reruns.
 
-**Do not mark issue #30 CLOSED until:** this re-audit and
-at least one genuine end-to-end public `plot_powers()`
-native plotting smoke demonstrate the corrected curve and
-the unqualified BDF/IMEX modes remain backward compatible.
+**Do not mark issue #30 CLOSED until:** the new generic sampling
+dispatch and at least one genuine end-to-end public
+`plot_powers()` native plotting smoke have been checked on
+the qualified GetFEM/PETSc host. The native #29 re-audit is
+already complete; preserve the honest "approximate" description
+for other BDF/IMEX time integrators.
 This targeted fix does not replace the separate #6
 native-qualified physical h-weighted dissipative SWE
 power audits, and does not imply a new proof of the

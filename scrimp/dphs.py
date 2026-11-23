@@ -3453,9 +3453,13 @@ class DPHS:
             plt.show()
 
     def compute_powers(self):
-        """Compute each power associated to each algebraic port if it is not substituted (because of the parameter-dependency if it is)
+        """Compute raw signed algebraic-port powers with typed sampling.
 
-        Wrapper to the function `compute` of Port class (loop on self.ports)
+        For CN, preserve the already validated step-associated GetFEM
+        powers exactly. For BDF/ARKIMEX/other schemes, compute generic
+        instantaneous powers on saved accepted states; PETSc's hidden
+        internal stages are NOT reconstructed from two endpoints.
+        The public Port.get_power_sampling() documents the choice.
         """
 
         try:
@@ -3470,8 +3474,13 @@ class DPHS:
             )
         
         start = time.perf_counter()
+        ts_type = self.time_scheme.getString("ts_type", "bdf").lower()
+        sampling = "cn_step" if ts_type == "cn" else "instantaneous"
+        self.powers_computed = False
         for _, port in self.ports.items():
-            port.compute(self.solution, self.gf_model, self.domain)
+            port.compute(
+                self.solution, self.gf_model, self.domain, sampling=sampling
+            )
 
         self.powers_computed = True
 
@@ -3483,17 +3492,19 @@ class DPHS:
     def plot_powers(self, ax=None, HamTot=None):
         """Plot each power associated to each algebraic port
 
-        For PETSc Crank--Nicolson, Port.compute() already stores step
-        powers P[k>=1] evaluated at the mean FE state. Their integral is
-        sum(dt[k] * P[k]) without an additional trapezoidal rule; P[0]
-        is an instantaneous initial-state sample, not a step power.
-        The sign is the original port's flow-effort orientation.
+        The numerical quadrature follows each Port's declared
+        get_power_sampling() convention: 'cn_step' integrates original
+        step powers P[k>=1] as sum(dt[k]*P[k]), never reusing
+        instantaneous P[0]; 'instantaneous' integrates actual nodal
+        P(t[k],z[k]) with a trapezoidal *approximation*. An unknown
+        convention fails explicitly, preventing a silent wrong plot.
 
-        Non-CN schemes retain the historical trapezoidal postprocessor
-        pending method-specific audit; no exact BDF/IMEX balance is claimed.
+        CN is already native-qualified for the tested mixed-boundary
+        wave; exact BDF/ARKIMEX stage quadrature is NOT claimed
+        without the underlying PETSc internal-stage data. Port signs
+        are the original raw flow-effort orientation.
         If HamTot is provided, the plotted Balance retains the historic
-        sign convention and is only a diagnostic; its constancy must
-        be verified for the particular model and port orientations.
+        sign convention; its constancy is model-dependent.
 
         ax (Matplotlib axis): the gca of matplotlib when this function
             is called from plot_Hamiltonian().
@@ -3514,17 +3525,21 @@ class DPHS:
         if HamTot is not None:
             SP_balance = HamTot.copy()
 
-        scheme = self.time_scheme.getString("ts_type", "bdf").lower()
-        convention = "cn_step" if scheme == "cn" else "legacy_trapezoid"
-        display_convention = ("CN step integral" if scheme == "cn"
-                              else "legacy trapezoid; unqualified")
         for _, port in self.ports.items():
             if port.get_algebraic() and not port.get_substituted():
                 power = port.get_power()
-                # P[0] is an instantaneous initial-state sample; the
-                # original Port.compute() P[k>=1] for CN is already
-                # evaluated at the mean FE state of step k. A second
-                # trapezoidal quadrature is mathematically incorrect.
+                sampling = port.get_power_sampling()
+                if sampling == "cn_step":
+                    convention = "cn_step"
+                    display_convention = "CN step integral"
+                elif sampling == "instantaneous":
+                    convention = "instantaneous_trapezoid"
+                    display_convention = "nodal trapezoid (approximate)"
+                else:
+                    raise ValueError(
+                        "Cannot integrate port " + port.get_name()
+                        + ": unknown power sampling convention"
+                    )
                 values = integrate_port_power(
                     t, power, convention=convention
                 )
@@ -3556,7 +3571,7 @@ class DPHS:
             ax.grid(axis="both")
             ax.set_xlabel("time t")
             ax.set_ylabel("Integrated signed port powers")
-            ax.set_title("Cumulative power terms (" + display_convention + ")")
+            ax.set_title("Cumulative power terms (sampling explicit)")
             plt.show()
 
     def spy_Dirac(self, t=None, state=None):

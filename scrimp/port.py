@@ -15,6 +15,7 @@
 
 import time
 import logging
+import numpy as np
 import getfem as gf
 from scrimp.fem import FEM
 from scrimp.domain import Domain
@@ -148,7 +149,11 @@ class Port:
         self.__fem = None  #: A getfem Meshfem object to discretize the `port`
         #: If any, the int of the region of mesh_id where the flow/effort variables belong
         self.__region = region
-        self.__power = list()  # : The power flowing through this port
+        self.__power = list()  # : The raw signed flow/effort products
+        # Sampling is part of the result, never an implicit CN convention.
+        # "unknown" preserves explicit user-set_power calls without
+        # misrepresenting their integration meaning.
+        self.__power_sampling = "unknown"
         # : A boolean flag that indicates if the powers of the `port` has been computed
         self.__is_computed = False
 
@@ -351,10 +356,18 @@ class Port:
                 return evaluation
         assert False, (f"Parameter '{name}' must be added before intialization")
 
-    def set_power(self, power):
-        """This function sets the power along time of the Port."""
+    def set_power(self, power, *, sampling="unknown"):
+        """Provide an externally calculated signed flow/effort series.
 
+        The caller must explicitly supply `sampling="instantaneous"`
+        or `sampling="cn_step"` before plot_powers can integrate it.
+        The historical one-argument call remains valid, but the
+        integration convention is deliberately UNKNOWN.
+        """
+        if sampling not in ("unknown", "instantaneous", "cn_step"):
+            raise ValueError("Unknown port power sampling convention")
         self.__power = power
+        self.__power_sampling = sampling
 
     def set_is_computed(self):
         """This function sets the power of the Port as computed."""
@@ -370,76 +383,124 @@ class Port:
 
         return self.__is_computed
 
-    def compute(self, solution: dict, gf_model: gf.Model, domain: Domain):
-        """Compute the power flowing through the algebraic port if it is not substituted (because of the parameter-dependency if it is)
+    def compute(
+        self, solution: dict, gf_model: gf.Model, domain: Domain,
+        *, sampling: str = "instantaneous",
+    ):
+        """Compute raw signed flow/effort powers for an algebraic port.
+
+        Sampling is explicit rather than hardcoding Crank--Nicolson for
+        every PETSc time integrator:
+
+        `instantaneous`: at every accepted (t[k], z[k]), suitable as
+        nodal *samples* independent of the time scheme. Trapezoidal
+        integration of these samples is approximate and not a claim
+        of BDF/ARKIMEX stage quadrature or a power identity.
+
+        `cn_step`: at (t[0], z[0]) for k=0; for k>=1, evaluate
+        at (t[k], 0.5*(z[k-1]+z[k])), preserving the already-native-
+        qualified SCRIMP CN convention exactly. In particular,
+        time-dependent GetFEM expressions are evaluated at t[k] as
+        they were historically, **not** at the physical midpoint time.
 
         Args:
-            - solutions (dict):         The solution of the dphs
-            - gf_model (GetFEM Model):  The model getfem of the dphs
-            - domain (Domain):          The domain of the dphs
+            solution: Accepted time/FE-state history, containing
+                matching `t` and `z` sequences.
+            gf_model: Original GetFEM model (collective MPI assembly).
+            domain: SCRIMP integration domain.
+            sampling: `instantaneous` (default) or `cn_step`.
+
+        The returned `get_power()` array preserves the original port
+        algebraic orientation. `get_power_sampling()` identifies the
+        numerical meaning of each stored value.
         """
+        if sampling not in ("instantaneous", "cn_step"):
+            raise ValueError("Unsupported port-power sampling: " + str(sampling))
 
         if self.get_algebraic() and not self.get_substituted():
             if rank == 0:
                 logging.info(
                     f"Start computing the power flowing through {self.get_name()}"
                 )
-            
+
             start = time.perf_counter()
-                
-            if self.get_region() == None:
+            if self.get_region() is None:
                 region = -1
             else:
                 region = self.get_region()
 
             if self.get_kind() == "scalar-field":
-                times = "*"
+                multiply = "*"
             elif self.get_kind() == "vector-field":
-                times = "."
+                multiply = "."
             elif self.get_kind() == "tensor-field":
-                times = ":"
+                multiply = ":"
             else:
-                logging.error(f"Unknown kind {self.get_kind()}")
-                raise ValueError
+                raise ValueError("Unknown port kind " + str(self.get_kind()))
 
-            form = self.get_flow() + times + self.get_effort()
+            form = self.get_flow() + multiply + self.get_effort()
+            times = np.asarray(solution["t"], dtype=float)
+            states = solution["z"]
+            if (times.ndim != 1 or len(times) == 0
+                    or len(times) != len(states)
+                    or not np.all(np.isfinite(times))
+                    or not np.all(np.diff(times) > 0.)):
+                raise ValueError("Invalid accepted port-power time/state history")
 
-            self.__power = []
-            for k, t in enumerate(solution["t"]):
-                # Both the state and the model time must match this sample;
-                # controls and constitutive parameters may depend on time.
+            # Do not leave stale data marked computed if a new assembly
+            # fails. Each rank runs the SAME GetFEM assembly sequence.
+            self.__is_computed = False
+            self.__power_sampling = "unknown"
+            powers = []
+            for k, t in enumerate(times):
+                # Both the FE state and model time must correspond to
+                # THIS sample. Controls may explicitly depend on time.
                 gf_model.set_time(float(t))
-                # Smoothed via Crank-Nicolson
-                if k == 0:
-                    gf_model.to_variables(solution["z"][k])
+                if sampling == "cn_step" and k > 0:
+                    state = 0.5 * (solution["z"][k] + solution["z"][k - 1])
                 else:
-                    smoothed = 0.5 * (solution["z"][k] + solution["z"][k - 1])
-                    gf_model.to_variables(smoothed)
-                power_value_at_t = gf.asm(
+                    state = solution["z"][k]
+                gf_model.to_variables(state)
+                value = gf.asm(
                     "generic",
                     domain._int_method[self.get_mesh_id()],
-                    0,
-                    form,
-                    region,
-                    gf_model,
+                    0, form, region, gf_model,
                 )
-                
-                self.__power.append(power_value_at_t)
+                scalar = np.asarray(value)
+                if (scalar.ndim != 0 or not np.isfinite(scalar)
+                        or (np.iscomplexobj(scalar) and
+                            abs(scalar.imag) > 1e-12 * max(1., abs(scalar.real)))):
+                    raise FloatingPointError(
+                        "Invalid original signed power in port "
+                        + self.get_name()
+                    )
+                powers.append(value)
 
+            self.__power = powers
+            self.__power_sampling = sampling
             self.set_is_computed()
+            if rank == 0:
+                logging.info(
+                    f"Power in {self.get_name()} computed ({sampling}) in "
+                    f"{time.perf_counter() - start} s"
+                )
+        elif rank == 0:
+            logging.info(
+                f"Power cannot be computed for dynamic or substituted port {self.get_name()}"
+            )
 
-            if rank == 0:
-                logging.info(
-                    f"Power in {self.get_name()} has been computed in {time.perf_counter() - start} s"
-                )
-        else:
-            if rank == 0:
-                logging.info(
-                    f"Power cannot be computed for dynamic or substituted port {self.get_name()}"
-                )
+    def get_power_sampling(self) -> str:
+        """Numerical meaning of the raw port-power history.
+
+        `instantaneous` means every P[k]=P(t[k], z[k]).
+        `cn_step` means P[0] is instantaneous while P[k>=1]
+        uses the mean CN state for the interval ending at t[k].
+        `unknown` means no integration convention was provided.
+        """
+        return self.__power_sampling
 
     def get_power(self):
-        """Gives access to the computed power of the port."""
+        """Return signed powers with the convention in get_power_sampling()."""
 
         try:
             assert self.__is_computed

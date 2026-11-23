@@ -8,10 +8,11 @@
 
 """Time-quadrature conventions for already-assembled SCRIMP port powers.
 
-Important: Port.compute() stores P[0] as an instantaneous power at t[0].
-For k >= 1 its historic GetFEM computation uses the Crank--Nicolson
-mean FE state 0.5*(z[k-1]+z[k]) and model time t[k], so P[k] is
-the sample associated with *step k*, not a nodal endpoint sample.
+Port.compute() now declares its sampling:
+- cn_step: P[0] instantaneous, P[k>=1] at the original GetFEM
+  CN mean state 0.5*(z[k-1]+z[k]) and model time t[k].
+- instantaneous: all P[k] at (t[k], z[k]) for any PETSc scheme,
+  suitable for approximate nodal quadrature.
 
 This module integrates the raw, **signed** GetFEM flow-effort products.
 It NEVER chooses the physical sign of a port, which depends on the
@@ -32,9 +33,12 @@ def integrate_port_power(times, samples, *, convention):
                 [t[k-1], t[k]] and is integrated as dt[k]*P[k].
                 P[0] is INITIAL INSTANTANEOUS power, never used as
                 the preceding step-power (critical for checkpoints).
-            'legacy_trapezoid' -- preserve the historical approximate
-                postprocessor for unqualified non-CN methods.
-                It is not an assertion that BDF/IMEX powers are nodal.
+            'instantaneous_trapezoid' -- integrate truly instantaneous
+                nodal powers by an explicitly approximate trapezoid,
+                with no claim to recover internal BDF/IMEX stages.
+            'legacy_trapezoid' -- retained numerical alias for
+                historical callers of this helper. The sampling
+                convention must still be known by the caller.
 
     Returns:
         NumPy float array with W[0]=0 and one cumulative value per
@@ -51,7 +55,7 @@ def integrate_port_power(times, samples, *, convention):
         raise ValueError("Expected strictly increasing accepted physical times")
     if convention == "cn_step":
         increments = dt * p[1:]
-    elif convention == "legacy_trapezoid":
+    elif convention in ("instantaneous_trapezoid", "legacy_trapezoid"):
         increments = .5 * dt * (p[:-1]+p[1:])
     else:
         raise ValueError("Unsupported port-power integration convention")

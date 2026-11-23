@@ -20,9 +20,15 @@
 > adaptive TS history restoration or mathematical energy accuracy:
 > [V130_ROTATING_CONTROLLED_INITIAL_STATE.md](V130_ROTATING_CONTROLLED_INITIAL_STATE.md).
 >
-> **Next implementation #30 (23 November): CN plot-port-power
-> quadrature source correction STAGED; native original-array
-> re-audit and end-to-end plotting smoke still PENDING.**
+> **Issue #30 (23 November): original 8-segment CN power-data
+> re-audit PASS (2.44e-19 per-step, 7.05e-19 split-work parity).
+> Generic Port.compute sampling API source STAGED; native
+> end-to-end plot/port smoke remains PENDING.**
+> Port.compute now declares instantaneous vs CN-step samples
+> explicitly, instead of silently using CN state means for
+> all PETSc integrators. Other TS use actual nodal powers
+> and honest approximate trapezoid plots; exact BDF/IMEX
+> stage quadratures are NOT inferred from endpoints.
 > `DPHS.plot_powers()` was mistakenly using trapezoids on
 > `Port.compute()`'s pre-evaluated CN step powers. New
 > explicit `cn_step` quadrature uses `dt*P[k]`, never
