@@ -5888,3 +5888,168 @@ incompatible Saint-Venant p0 remains unchanged;
 restored saved state is physically compatible,
 but reaching the C1 wall plateau does NOT imply
 interior stationary rotation.
+
+## 23 November 2026 — #29 independent linear wave pH-DAE: 8/8 native TS PASS; corrected original CN port-work **without re-running** (final comparator revalidation pending)
+
+**Immutable original native evidence (user-uploaded ZIP independently
+inspected, ZIP CRC PASS):**
+`sandbox/outputs/v130-issue29-linear-DAE-e795ac44-Bo62JD0X/`,
+source `e795ac4443e68973052fdfcc4c131ca53ebe1f03`,
+Docker `scrimp-mpi:v1.3.0-rc3` OCI
+`1d6d0c90115213298047b28237a7f38087563a35`.
+Host preflight: **17/17 checkpoint-format,
+5/5 public API, 10/10 linear-wave tests PASS**.
+The eight actual native physical runs finished:
+two 10-step seeds `0→.02`, two 12-step uninterrupted
+`0→.024`, and four two-step source-to-target
+MPI `1→1/1→2/2→1/2→2` cold restarts
+`.02→.024`, using the true production
+`DPHS.save_checkpoint/load_checkpoint`.
+All have **426 complete original FE DOFs**,
+positive PETSc convergence reason, zero
+rejected steps and zero SNES failures;
+original maximum `||F_a||=5.13e-17` and
+`||F_TSCN||=1.47e-15`.
+Both full original seed checkpoints are SHA-256 valid
+and **bit-identical** to the accepted source state;
+every resumed full original FE vector at t=.02
+is bit-identical to its source checkpoint.
+
+**Observed continuous-vs-restarted final
+full 426-coefficient L2 errors:**
+MPI `1→1: 1.10466e-13`,
+`1→2: 5.82907e-13`,
+`2→1: 6.42876e-13`,
+`2→2: 4.18018e-14`.
+Maximum Hamiltonian jump at checkpoint
+`5.42e-20` (practically zero).
+
+**Why the first comparator failed AFTER all native
+runs:** the original wave-port `Port.compute()`
+returns, for every `k≥1`, a **Crank–Nicolson
+mean-state STEP power** `P_k`, even though
+stored at endpoint `t_k`; only `P_0`
+is instantaneous initial-state power.
+The original wave's control-port orientation
+yields the exact discrete balance
+`H_k-H_{k-1}=-Δt_k P_k`, so
+physical supplied work is
+`W(t_n)=-Σ_{k=1}^n Δt_k P_k`.
+The *v1 diagnostic alone* incorrectly
+treated these as true endpoint powers and
+computed positive-sign trapezoidal
+`Σ Δt(P_{k-1}+P_k)/2`.
+At checkpoint, prior step
+`P_{10}=-0.02393131124488`
+is **not equal** to restarted first
+instantaneous sample
+`P_0=+0.00017376987419`,
+even though all 426 coefficients are
+restored bitwise. Combining the wrong
+v1 trapezoidal powers invented a
+`2.411e-5` split-versus-continuous
+energy-work mismatch, while the
+correctly reconstructed source physical
+Hamiltonian and port power show:
+
+- **Maximum native CN per-step discrete
+  Hamiltonian+port-work defect
+  `2.44e-19`** over all 8 original
+  segments, computed independently
+  from immutable NPZ arrays.
+- Maximum corrected split-versus-continuous
+  **total incoming boundary work difference
+  `5.42e-19`**.
+- Maximum corrected continuous-vs-split
+  **signed `ΔH-W` discrepancy
+  `1.90e-19`**.
+- The uninterrupted original physical
+  Hamiltonian increases to
+  `H(.024)=3.66098987026944e-4`,
+  and correctly computed incoming
+  discrete port work equals this
+  within `3.3e-19`.
+  Thus the original reported apparent
+  `dH-W=7.03835494e-4` was a
+  **diagnostic quadrature/sign error**,
+  *not* actual energy non-conservation.
+
+**Source correction isolated to diagnostic/qualification:**
+- `sandbox/compare_v130_checkpoint_linear_dae.py`
+  explicitly accepts both original **v1
+  native reports** and future **v2
+  reports**. It validates the archived
+  v1 trapezoid as the actual recorded
+  legacy convention, then independently
+  recomputes correct work using original
+  stored untouched `port_power[k≥1]`
+  arrays. It verifies CN Hamiltonian
+  identity **at every native step**, full
+  state SHA256/DAE continuity and all
+  four cross-MPI work comparisons.
+  It creates NEW
+  `linear_dae_comparison.json` v2
+  with correct per-step physics and
+  detailed original provenance, **without
+  overwriting/altering any original
+  native segment JSON, NPZ or checkpoint**.
+- `sandbox/probe_v130_checkpoint_linear_dae.py`
+  uses correct CN step-integrated signed
+  work and explicitly saves a **v2**
+  physical report for any future run.
+  No public runtime `DPHS`/
+  `Port.compute` or original weak
+  forms/time-step operators changed.
+- `tests/test_v130_checkpoint_linear_dae.py`
+  adds regressions distinguishing
+  a restored initial instantaneous
+  `P_0` from the previous CN step
+  `P_{10}`, validating immutable
+  v1 re-auditing, native-v2 semantics,
+  and deliberately corrupted
+  step-power/energy identity.
+  **13 host tests now need rerun**.
+- A separate follow-up
+  **[#30](https://github.com/g-haine/scrimp/issues/30)**
+  records the analogous generic
+  **`DPHS.plot_powers()` trapezoid
+  over stage powers** problem. This
+  needs a broader, time-scheme-aware
+  solution for visualizations, but
+  does not justify modifying the
+  physically qualified #29
+  checkpoint implementation.
+
+**MOST IMPORTANT: REUSE THE ALREADY QUALIFIED
+8 NATIVE RUNS. DO NOT RERUN DOCKER.**
+The only remaining immediate action is
+to run the new host regressions, then
+the **offline** corrected comparator
+against the existing evidence directory:
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+
+python -m py_compile \
+  sandbox/probe_v130_checkpoint_linear_dae.py \
+  sandbox/compare_v130_checkpoint_linear_dae.py \
+  tests/test_v130_checkpoint_linear_dae.py
+python tests/test_v130_checkpoint_linear_dae.py
+
+bash scripts/run-v130-checkpoint-linear-dae.sh --compare-only \
+  sandbox/outputs/v130-issue29-linear-DAE-e795ac44-Bo62JD0X
+```
+
+**Qualification reporting:** actual physical
+8/8 native linear-wave simulations are
+accepted and independent source NPZ reanalysis
+supports all original CN energy/state/MPI gates.
+The patched public comparator's final
+`NATIVE_LINEAR_PHDae_DPHS_COLD_RESTART_PASSED`
+output and 13/13 new host tests are **NOT
+YET OBSERVED**; issue #29 remains OPEN
+until their execution and evidence review.
+No BDF2/IMEX integrator-history replay
+or general inconsistent high-index
+initializer is claimed.
