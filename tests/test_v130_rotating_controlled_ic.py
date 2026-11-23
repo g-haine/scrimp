@@ -151,7 +151,7 @@ class RotatingControlledPreparationHostTest(unittest.TestCase):
         source = PILOT.read_text(encoding="utf-8")
         self.assertIn('"physical_precheck_report.json"', source)
         self.assertIn('"physical_precheck_trace.npz"', source)
-        self.assertIn('"step_balance_defect"', source)
+        self.assertIn("step_balance_defect=balance_step", source)
         self.assertIn('"checkpoint_created": False', source)
         self.assertLess(
             source.index('"physical_precheck_trace.npz"'),
