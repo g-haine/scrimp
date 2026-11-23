@@ -105,10 +105,12 @@ class HeatWaveObservableTests(unittest.TestCase):
                 SyntheticGetFEM(t),t,5.-1.2*t+1.
             )
         class BadD(SyntheticGetFEM):
-            def get_quantity(self, expression, region=-1):
+            def get_quantity(self, expression, region=-1, CN=False):
                 if expression=="e_Q.e_Q":
                     return -np.ones(len(self.t))
-                return super().get_quantity(expression,region)
+                return super().get_quantity(
+                    expression, region, CN=CN
+                )
         with self.assertRaisesRegex(ValueError,"negative"):
             physical.collect_heat_wave_physics(
                 BadD(t),t,5.-1.2*t
