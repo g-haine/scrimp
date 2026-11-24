@@ -2,41 +2,44 @@
 
 **23 November 2026 — actual MPI sparse LU preflight 7/7 PASS; all archived publication code protected by an immutable, byte-for-byte Git baseline.**
 
-## 24 November — First example in the REAL Sphinx order: 1D vibrating string
+## 24 November — First tutorial: 1D vibrating string (NATIVE PASS)
 
-The first scientific example read by a new user is
-`docs/source/started.rst`, **not** the 2D `examples/wave.py`
-page. Its original `sandbox/wave_1D.py` predates the strict
-DAE and typed CN-power work and has asymmetric boundary signs
-in its source that do not directly match the declared outward
-Neumann input/positive velocity-output convention.
+The first scientific example in the current Sphinx tree is
+`docs/source/started.rst`, not the 2D `examples/wave.py`.
+The former exploratory 1D sandbox script did not match the
+declared outward traction/positive observation port signs and
+is replaced by the maintained `examples/wave_1d.py`.
+The canonical initial strain is `q0=4*x*(1-x)`, exactly P2
+and compatible with zero initial Neumann inputs.
 
-A new, maintained `examples/wave_1d.py` is now staged
-with transparent port-Hamiltonian signs, an initially
-compatible tapered strain pulse, genuine fixed TSCN and
-strict algebraic projection, and a physical energy/work check.
-Its documentation is updated, with a scientific link to
-Haine–Matignon–Serhani (2023), DOI 10.4208/ijnam2023-1005,
-and Ferraro–Fournié–Haine (2024), DOI
-10.1016/j.ifacol.2024.08.267. No claim of reproducing
-either paper's numerical figures is made.
+**NATIVE PASS 24 November 2026:** MUMPS MPI1/MPI2,
+SuperLU MPI1, SuperLU_DIST MPI1/MPI2: all **five actual
+GetFEM/PETSc** cases, 128 DOFs, ten accepted fixed CN steps,
+strict algebraic DAE projection, nontrivial signed port
+work and maximal measured CN step energy defect
+**1.791e-16**. Full accepted trajectories agree to
+at most **2.22e-15**; all q/p PVD/VTU series are present.
+Evidence `v130-first-tutorial-wave1d-2a170c82-cwkGUoXC.zip`,
+source `2a170c8247f0f8aff09331747a3bb4812a04324f`.
+Not a performance benchmark.
 
-The native installation acceptance requires **five**
-meaningful solver/MPI choices: MUMPS MPI 1 and 2, serial
-SuperLU MPI 1, SuperLU_DIST MPI 1 and 2. This also tests
-actual FE trajectories, Hamiltonian, typed CN step work
-and q/p VTU/PVD output; factor solver PASS without
-physical parity is **not acceptable**. Source-only
-negative tests distinguish correct CN quadrature from
-wrong endpoint trapezoids and reject inverted power signs.
+The Sphinx beginner chapter now contains actual native
+energy-work and animated-strain/reconstructed-displacement
+SVG illustrations. The optional rendering script generates
+scientific PNG/SVG plots, user CSV/NPZ data and GIF from
+the original accepted FE states and GetFEM outputs.
+The optional **longer 1.5 s visual demonstration** is
+separate and **not yet native-executed**.
 
-**Status: SOURCE STAGED; NATIVE PENDING.**
-Rationale, precise sign differences, limits and command:
-`docs/V130_EXAMPLE_01_WAVE_1D.md`.
-Runner: `scripts/run-v130-first-wave-1d-acceptance.sh`.
-Do not start the next example until its real native result
-has been inspected. Do not touch `examples/published/`
-or any untracked scientific output.
+Scientific links: Haine–Matignon–Serhani (2023),
+DOI 10.4208/ijnam2023-1005, and
+Ferraro–Fournié–Haine (2024),
+DOI 10.1016/j.ifacol.2024.08.267.
+This short tutorial is an **illustration**, not a paper
+figure or convergence-study reproduction.
+
+Details: `docs/V130_EXAMPLE_01_WAVE_1D.md`.
+Eight immutable `examples/published/` sources untouched.
 
 ## Decision: stable release now, optional solver science later
 
