@@ -123,6 +123,9 @@ for refinement in ("internal_refine","right_gmres"):
                 and entry.get("factor_solver")=="superlu_dist"
                 and entry.get("ksp_type")==actual_solver_type
                 and entry.get("replace_tiny_pivot_requested")
+                and entry.get("correct_refinement_method_confirmed")
+                and (refinement!="right_gmres" or
+                     entry.get("right_gmres_true_residual_norm_confirmed") is True)
                 and entry.get("internal_iterative_refinement_requested")==(refinement=="internal_refine")
                 and entry.get("KSP_reason", -1)>0
                 and entry.get("relative_backward_residual") is not None
