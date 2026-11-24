@@ -145,7 +145,7 @@ class FirstTutorialTests(unittest.TestCase):
                 left, right = expression.split("*", 1)
                 self.assertRegex(
                     DOC_SOURCE,
-                    re.escape('"'+left)+r"\\s*\\*\\s*"+re.escape(right+'"'),
+                    re.escape('"'+left)+r"\s*\*\s*"+re.escape(right+'"'),
                 )
 
     def test_strict_initial_and_fixed_CN_discretization(self):
