@@ -14,9 +14,13 @@ The fake time series is ONLY for host logic and negative controls.
 """
 
 import ast
+import base64
+import importlib.util
 from pathlib import Path
+import struct
 import types
 import unittest
+import xml.etree.ElementTree as ET
 
 import numpy as np
 
@@ -78,6 +82,26 @@ class System:
         return self.H
 
 
+def original_vtk_reader():
+    """Load only the REAL user renderer's VTK reader (no GetFEM import)."""
+    path = ROOT/"scripts"/"render-v130-wave1d-doc.py"
+    spec = importlib.util.spec_from_file_location("wave1d_doc_renderer", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def binary_array(parent, name, values, *, ncomponents=None):
+    values = np.asarray(values, dtype="<f4")
+    el = ET.SubElement(parent, "DataArray", Name=name,
+                       type="Float32", format="binary")
+    if ncomponents is not None:
+        el.set("NumberOfComponents", str(ncomponents))
+    payload = struct.pack("<I", values.nbytes) + values.tobytes()
+    el.text = base64.b64encode(payload).decode("ascii")
+    return el
+
+
 class FirstTutorialTests(unittest.TestCase):
     def setUp(self):
         self.observe = original_observer()
@@ -137,6 +161,57 @@ class FirstTutorialTests(unittest.TestCase):
         sys.solution["z"][1,0] = np.nan
         with self.assertRaisesRegex(RuntimeError, "Nonfinite"):
             self.observe(sys)
+
+    def test_sphinx_uses_real_native_svg_figures_and_animation(self):
+        self.assertIn(".. only:: html", DOC_SOURCE)
+        folder = ROOT/"docs"/"source"/"_static"/"examples"/"wave_1d"
+        for name in ("wave_1d_power_balance.svg",
+                     "wave_1d_short_animation.svg"):
+            path = folder/name
+            self.assertTrue(path.is_file(), str(path))
+            parsed = ET.parse(path)
+            self.assertTrue(parsed.getroot().tag.endswith("svg"))
+            self.assertIn(name, DOC_SOURCE)
+            self.assertIn("2a170c8247f0f8aff09331747a3bb4812a04324f",
+                          path.read_text())
+        animated = ET.parse(folder/"wave_1d_short_animation.svg")
+        animated_nodes = [node for node in animated.iter()
+                          if node.tag.endswith("animate")]
+        self.assertEqual(len(animated_nodes), 2)
+        self.assertTrue(all(
+            node.attrib["repeatCount"] == "indefinite"
+            and len(node.attrib["values"].split(";")) == 11
+            for node in animated_nodes
+        ))
+
+    def test_real_renderer_reads_synthetic_float32_vtk(self):
+        module = original_vtk_reader()
+        vtk = ET.Element("VTKFile", type="UnstructuredGrid")
+        grid = ET.SubElement(vtk, "UnstructuredGrid")
+        piece = ET.SubElement(grid, "Piece",
+                              NumberOfPoints="3", NumberOfCells="2")
+        points = ET.SubElement(piece, "Points")
+        binary_array(points, "Points",
+                     [0.,0.,0.,.5,0.,0.,1.,0.,0.], ncomponents=3)
+        pointdata = ET.SubElement(piece, "PointData")
+        binary_array(pointdata, "q", [0.,1.,0.])
+        x, y, cells = module.native_vtu(ET.tostring(vtk), "q")
+        np.testing.assert_allclose(x, [0.,.5,1.])
+        np.testing.assert_allclose(y, [0.,1.,0.])
+        self.assertEqual(cells, 2)
+
+    def test_real_renderer_rejects_corrupt_binary_header(self):
+        module = original_vtk_reader()
+        node = ET.Element("DataArray", type="Float32", format="binary")
+        node.text = base64.b64encode(
+            struct.pack("<I", 999) + np.array([1.,2.],dtype="<f4").tobytes()
+        ).decode("ascii")
+        with self.assertRaisesRegex(ValueError, "header"):
+            module.vtk_float32(node)
+
+    def test_historical_duplicate_removed_after_native_success(self):
+        self.assertFalse((ROOT/"sandbox"/"wave_1D.py").exists())
+        self.assertTrue((ROOT/"examples"/"wave_1d.py").is_file())
 
     def test_public_solvers_honest_about_parallel_limitations(self):
         self.assertIn('choices=("mumps", "superlu", "superlu_dist")',
