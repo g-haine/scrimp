@@ -728,8 +728,39 @@ model with:
 
     python -m examples.wave_1d --solver mumps --check --plot
 
-Once the new native validation is complete, this plot can be
-included with its exact model parameters and provenance.
+The genuine five-solver native installation gate passed on 24 November
+2026 at source commit ``2a170c8``: **MUMPS MPI 1/2, SuperLU MPI 1,
+SuperLU_DIST MPI 1/2**, eleven accepted snapshots each, full 128-DOF
+trajectories agreeing to round-off, and per-step CN energy defects below
+:math:`1.8\times 10^{-16}`. All ten original GetFEM VTK time-series
+outputs (``q`` and ``p`` for five solver/MPI combinations) were
+included in the reproducible native archive. This is a **short physical
+installation smoke**, not a long-time wave propagation benchmark.
+
+.. only:: html
+
+   .. figure:: _static/examples/wave_1d/wave_1d_short_animation.svg
+      :width: 100%
+      :align: center
+
+      **Native-data animation (11 accepted CN frames)**. The upper
+      curve is the genuine finite-element strain :math:`q\).
+      The lower curve is the **incremental displacement**
+      :math:`w(x,t)-w(x,0)`, reconstructed from the original
+      quadratic strain and left boundary velocity (with initial
+      gauge :math:`w(0,0)=0`). This is an animated SVG for the
+      online documentation; no displacement variable was silently
+      substituted into the pH model.
+
+   .. figure:: _static/examples/wave_1d/wave_1d_power_balance.svg
+      :width: 100%
+      :align: center
+
+      **Actual power balance, not a theoretical drawing**:
+      :math:`\mathcal{H}^d(t)-\mathcal{H}^d(0)` and the integrated
+      signed boundary work coincide to machine precision.
+      The lower panel shows the ten individual CN residuals.
+
 For a valid run, the corrected numerical balance corresponds to
 
 .. math::
@@ -766,6 +797,77 @@ In parallel the ranks may compute concurrently, but SCRIMP
 writes a single shared ParaView series only if the complete
 FE states and meshes are confirmed identical on every rank.
 See :doc:`install` for the actual available PETSc backends.
+
+Working with simulation outputs
+--------------------------------
+
+SCRIMP also provides **reproducible post-processing of the original
+GetFEM/PETSc output**, independent of the solver. The following
+utility reads the full accepted FE states, signed port powers,
+``q`` and ``p`` VTU/PVD time series from a *previously
+qualified native acceptance archive*. It produces:
+
+* ``wave_1d_field_profiles.png`` / ``.svg`` — spatial snapshots of
+  strain :math:`q`, velocity :math:`p/\rho` and reconstructed
+  displacement :math:`w`;
+* ``wave_1d_spacetime.png`` / ``.svg`` — space-time diagrams
+  of all three quantities;
+* ``wave_1d_energy_balance.png`` / ``.svg`` — Hamiltonian
+  change, signed boundary work, each physical port power and
+  residual error;
+* ``wave_1d_solver_parity.png`` / ``.svg`` — numerical comparison
+  among the five genuinely qualified LU/MPI configurations;
+* ``wave_1d_string.gif`` — an actual short animated string,
+  suitable for the online documentation and presentations;
+* ``wave_1d_energy_and_ports.csv``, ``wave_1d_fields.csv``,
+  ``wave_1d_postprocessed.npz`` and ``provenance.json`` —
+  user-readable data, machine-readable fields and scientific
+  provenance for independent analysis.
+
+Once the acceptance script
+``scripts/run-v130-first-wave-1d-acceptance.sh`` has produced
+its ZIP under ``sandbox/outputs/``, render the figures in a
+directory owned by the user:
+
+.. code-block:: bash
+
+    python scripts/render-v130-wave1d-doc.py \
+        --input sandbox/outputs/<native-wave1d-evidence>.zip \
+        --output outputs/figures-wave1d
+
+Use your real archive name in place of the angle-bracket placeholder.
+The figures require Matplotlib; the GIF additionally requires
+Pillow. The native simulation does **not** need to run again
+for this post-processing.
+
+The short installation test lasts only 0.04 s, so the animation
+necessarily shows only the beginning of a wave. A **separate,
+optional long documentation demonstration** is available for
+illustrating propagation more clearly, without rerunning or
+changing the five-solver installation acceptance:
+
+.. code-block:: bash
+
+    SCRIMP_DOCKER_NO_SUDO=1 \
+    SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+    bash scripts/run-v130-wave1d-long-doc-demo.sh
+
+This longer **MUMPS MPI 1** demonstration simulates 150 fixed CN
+steps over 1.5 s, exports the actual 151 FE snapshots and renders
+PNG/SVG/GIF/CSV data in an isolated user-owned output directory.
+It is **optional and not yet native-qualified**. Its animation
+must be checked against the physical energy and port-power report
+before being added as a published documentation figure.
+
+The derived displacement requires an explicit convention:
+:math:`q=\partial_x w` determines only a *spatial*
+difference. The postprocessor first integrates the **piecewise
+quadratic FE strain exactly**, then reconstructs the unknown
+left-end translation using the accepted left boundary velocity
+and trapezoidal time quadrature, fixing :math:`w(0,0)=0`.
+This is an **interpretation/visualisation of the computed state**;
+it must not be confused with a separately solved displacement
+unknown, nor used instead of the original GetFEM energy audit.
 
 And now? It is time to see `more examples <examples.html>`_.
 
