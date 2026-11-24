@@ -954,28 +954,74 @@ pilot intentionally disabled those user I/O operations. Neither
 arbitrary FEM families/geometries nor default-on production use can
 be inferred from this very specific model.
 
-## Next steps (not implemented here)
+## Rank-isolated native ParaView diagnostic (pending)
 
-1. Native test on real 1D/2D/3D imported meshes and curved/high-order
-   elements; check different Gmsh physical group representations.
-2. Extend the ownership audit to the actual declared DPHS model, a full
-   GWFL expression/dependency resolver, and explicit rejection or handling
-   of ambiguous ports and cross-subdomain feedback.
-3. Defer registration of affected GetFEM filtered variables and bricks
-   until the side assignment is resolved. This requires a carefully
-   staged DPHS compilation path; `add_FEM` and `add_brick` currently
-   register immediately. Preserve legacy behavior outside conforming
-   two-sided interfaces.
-4. Bind automatic one-sided internal regions in the GetFEM model without
-   duplicate quadrature/DOFs; validate sign conventions for all
-   `Normal` terms and the port power accounting.
-5. Validate the revised, outward-normal Heat-Wave source with swapped
-   heat/wave regions, actual assembled Jacobians, strictly initialized
-   CN energy identities, physical nonzero exchange, MPI 1/2 and
-   external boundary regressions. The example's old geometric sign
-   factor has already been removed with explicit user authorization.
+Now that the original Heat-Wave physical simulation has passed MPI2
+in both orientations, the next independent gate concerns the
+**file-export path**. Existing `DPHS.export_to_pv()` creates and
+removes its output directory only on rank zero, but currently runs
+`open(...pvd)` and `MeshFem.export_to_vtu(...)` **on every rank
+with the same filename**. Concurrent writes could race, and it
+is still unknown whether each rank's exported VTK mesh represents
+the complete model or merely its MPI partition. Therefore a
+shared ParaView exporter is **not yet qualified**.
 
-**Do not silently auto-select an interface side from variable names,
-brick names, region numbers, geometry radii, or the ordering of bulk
-region IDs.** The resolved geometric normal and the physical interconnection
-law are separate concepts.
+An opt-in *sandbox-only* diagnostic has been prepared:
+
+```bash
+SCRIMP_DOCKER_NO_SUDO=1 \\
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \\
+bash scripts/run-v130-auto-interface-mpi-pv-diagnostic.sh
+```
+
+The driver reuses the same four *native* strict-DAE/CN/energy runs,
+but calls the original `export_to_pv()` with a **different parent
+path per MPI rank**. Each rank writes real `p` and `T` PVD/VTU
+files independently, without collisions. The host postprocessor
+validates five timesteps and XML VTK piece metadata, records
+SHA256/file sizes/point and cell counts, and compares mesh
+coverage to serial exports on each rank. The output's status is
+deliberately labeled
+`DIAGNOSTIC_MPI_RANK_ISOLATED_PV_FILES_COMPLETE_CN_ENERGY_PASSED`,
+**not** a parallel shared-production export PASS.
+
+A successful diagnostic would provide the evidence needed to
+choose and validate a correct production policy (e.g. collectively
+export rank-specific pieces with a global `.pvtu`, or a verified
+root-only complete-mesh export). No policy has been changed in
+SCRIMP production by this diagnostic. Serial and MPI2 numeric
+solver behavior remains independent.
+
+**This new export diagnostic has not yet been run natively.**
+
+## Remaining generality and production gates
+
+1. Establish a race-free, geometrically complete MPI2 ParaView
+   export policy. Validate both **field values and mesh coverage**
+   independently of successful numerical solves; do not consider
+   rank-isolated diagnostics equivalent to shared-file production I/O.
+2. Run **actual assembled and physically balanced** coupled
+   heat/elastic or Heat-Wave interfaces on at least one second
+   geometry (including two adjacent rectangles with a **partial
+   shared boundary**, already topology-qualified) without
+   Concentric-specific heuristics.
+3. Extend and test exact opposite-normal interface extraction on
+   1D and 3D imported meshes, Gmsh physical groups, curved
+   and higher-order facets.
+4. Qualify RT(k), BDM, and Nédélec elements on GetFEM versions
+   where the requested families actually exist. Validate
+   intrinsic H(div)/H(curl) traces rather than assuming CG
+   or one scalar DOF per mesh point.
+5. Test ambiguous/multiple interface physical labels, multi-region
+   interface forms, multiple meshes and supported lumped systems.
+   Fail closed with actionable errors for unsupported configurations.
+6. Run the full public baseline regression, multi-process,
+   long-time/large-mesh and release-install checks. Only then
+   decide whether the currently opt-in experimental compiler
+   can be enabled by default for the subset of proven-safe
+   conforming internal interfaces.
+
+**Never infer an interface side from variable names, brick names,
+mesh region numbers, geometric radii, or subdomain order.**
+Geometrical facet orientation and the user's physical
+interconnection signs remain separate responsibilities.
