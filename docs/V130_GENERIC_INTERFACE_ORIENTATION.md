@@ -1,5 +1,18 @@
 # SCRIMP v1.3.0 — Generic conforming interface orientation (stage 1)
 
+> **Mise à jour — 24 novembre 2026, sur `release/1.3.0-preparation`
+> UNIQUEMENT.** Le compilateur des interfaces internes conformes et
+> l'export ParaView MPI par le rang 0 sont désormais **des chemins de
+> code activés par défaut sur cette branche** (pas de tag, de merge
+> `master` ni de publication). Les mentions de « pilote désactivé »
+> plus bas retracent l'état des phases historiques et ne décrivent
+> **plus** la valeur par défaut du code de préparation. Les qualifications
+> natives, tous les échecs/correctifs, les exclusions et les options
+> de retour arrière sont consignés dans
+> [la décision de production du 24 novembre 2026](
+> V130_INTERFACE_PV_PRODUCTION_DECISION_20261124.md).
+> Le PASS natif des chemins **sans drapeaux** reste à exécuter.
+
 Status: **NATIVE GETFEM 2-D CONCENTRIC TOPOLOGY PASS (MPI1); NOT ACTIVE IN DPHS ASSEMBLY**.
 
 ## Contract
