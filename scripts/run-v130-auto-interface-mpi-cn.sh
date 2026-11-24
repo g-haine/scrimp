@@ -49,6 +49,11 @@ echo "REAL GetFEM/PETSc strict DAE / CN / sided pH energy: MPI1 vs MPI2"
 echo "Both 2D Heat-Wave orientations; original model and physical weak forms"
 pv_diagnostic="${SCRIMP_V130_MPI_PV_DIAGNOSTIC:-0}"
 pv_root_only="${SCRIMP_V130_MPI_PV_ROOT_ONLY:-0}"
+production_default_smoke="${SCRIMP_V130_PRODUCTION_DEFAULT_SMOKE:-0}"
+[[ "$production_default_smoke" == 0 || "$production_default_smoke" == 1 ]] || {
+  echo "SCRIMP_V130_PRODUCTION_DEFAULT_SMOKE must be 0 or 1" >&2
+  exit 2
+}
 [[ "$pv_diagnostic" == 0 || "$pv_diagnostic" == 1 ]] || {
   echo "SCRIMP_V130_MPI_PV_DIAGNOSTIC must be 0 or 1" >&2; exit 2
 }
@@ -60,6 +65,21 @@ pv_root_only="${SCRIMP_V130_MPI_PV_ROOT_ONLY:-0}"
   exit 2
 }
 pv_args=()
+# Production smoke runs without either deprecated feature flag:
+# it must exercise both new defaults inside the pinned Docker image.
+# The old pilot route is retained for historical evidence replay.
+feature_env=()
+if [[ "$production_default_smoke" == 0 ]]; then
+  feature_env=(
+    --env SCRIMP_V130_AUTO_INTERFACE_PILOT=1
+    --env SCRIMP_V130_PV_ROOT_ONLY_PILOT="$pv_root_only"
+  )
+elif [[ "$pv_root_only" != 1 ]]; then
+  echo "Production-default smoke requires a full root-only PV validation" >&2
+  exit 2
+else
+  echo "PRODUCTION DEFAULTS: no legacy or new feature-toggle env variables"
+fi
 if [[ "$pv_root_only" == 1 ]]; then
   pv_args=(--pv-root-only)
   echo "MPI ParaView ROOT-ONLY PILOT: shared VTU/PVD written by rank0"
@@ -82,8 +102,7 @@ for heat in 1 2; do
     --user "$(id -u):$(id -g)" --env HOME=/tmp --env MPLBACKEND=Agg \
     --env OMP_NUM_THREADS=1 --env OPENBLAS_NUM_THREADS=1 \
     --env PYTHONPATH=/workspace/scrimp:/workspace/scrimp/sandbox \
-    --env SCRIMP_V130_AUTO_INTERFACE_PILOT=1 \
-    --env SCRIMP_V130_PV_ROOT_ONLY_PILOT="$pv_root_only" \
+    "${feature_env[@]}" \
     --env SCRIMP_GETFEM_MATRIX_MODE=distributed \
     --env SCRIMP_GETFEM_BRIDGE_DISTRIBUTED=coo \
     --env SCRIMP_MATRIX_MEMORY_MODE=compact \
