@@ -904,6 +904,56 @@ routines **are unchanged** by this corrective commit.
 The new in-process tests and native MPI2 energy comparison must
 still be rerun; no physics PASS is inferred from this patch.
 
+## Automatic Heat-Wave MPI2 strict DAE / CN / physical energy — NATIVE PASS (2026-11-24)
+
+The user executed `scripts/run-v130-auto-interface-mpi-cn.sh`
+at commit `c22e274` and uploaded the full native evidence archive
+`v130-auto-interface-MPI-CN-c22e2748-MTltxsjk.zip` (26 entries).
+Its final status is
+**`PASS_BOTH_AUTO_INTERFACE_ORIENTATIONS_MPI2_DAE_CN_ENERGY_PARITY`**.
+The archive's 4 independent run logs, six per-rank JSON reports and
+six complete NPZ trajectories were inspected independently of the
+host summary. All **50** source-only tests and the 8 immutable
+published-example source checks pass.
+
+| Physical configuration | MPI2 DOFs | Strict DAE residual | Accepted fixed CN steps | Maximum total CN energy defect | Maximum closed-interface power defect |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Heat=1, Wave=2 | 7689 | 9.782179042671012e-14 | 4/4, no rejects/SNES failures | 9.610368056911511e-16 | 8.881784197001252e-16 |
+| Heat=2, Wave=1 | 8056 | 9.853778732954403e-14 | 4/4, no rejects/SNES failures | 2.6853519408120974e-15 | 4.440892098500626e-16 |
+
+- Both interface excitations are nonvacuous: peak individual
+  CN power **3.5690759218838686** and **4.3904579711455245**;
+  maximum heat dissipations **32.04166757122651** and
+  **39.50200106717281**, respectively.
+- The full **5 × 7689** / **5 × 8056** FE state histories
+  agree MPI1 vs MPI2 with maximum absolute differences
+  **2.2e-12** and **1.45e-11**; accepted times and
+  Hamiltonian totals are identical.
+- On each MPI2 run, rank0 and rank1 have **bitwise-identical full
+  recorded trajectories**, including all physical GetFEM traces;
+  rank SHA256 fingerprints agree.
+- All 10 gates per case are true: strict algebraic DAE, accepted CN
+  steps, nonzero thermal dissipation, nontrivial interface exchange,
+  total/heat/wave energy balances, closed signed interface power,
+  negligible homogeneous outer work, and decreasing Hamiltonian.
+- Effective one-sided GetFEM regions are **21/22** for heat=1/wave=2
+  and **22/21** in the opposite assignment; public interface region
+  remains **10**. The live `examples/heat_wave.py` uses the paper's
+  outward-normal transmission law; it was not rewritten by the pilot.
+- The heat=1/wave=2 case uses its separately qualified clamped
+  exterior wave initial condition. The reversed heat=2/wave=1 case
+  uses the original, unmodified L2-projected Gaussian.
+
+**Resulting qualification scope:** for this original, conforming 2D
+Concentric Heat-Wave model, the opt-in automatic interface compiler is
+qualified **end to end** for both region permutations through exact
+geometry, GetFEM/PETSc K, genuine MPI1/MPI2 strict DAE/CN and
+nontrivial port-Hamiltonian energy identities. There are **no**
+parallel export/plot results in this audit, because the qualification
+pilot intentionally disabled those user I/O operations. Neither
+arbitrary FEM families/geometries nor default-on production use can
+be inferred from this very specific model.
+
 ## Next steps (not implemented here)
 
 1. Native test on real 1D/2D/3D imported meshes and curved/high-order
