@@ -59,6 +59,33 @@ def _pairs(value, context):
     return arr
 
 
+def _geotrans_by_convex(mesh, convex_ids):
+    """Decode GetFEM's (unique transformations, convex-to-GT indices).
+
+    GetFEM returns a compressed catalog, not one GeoTrans per convex.
+    CV2GT is indexed in the requested convex ID ordering (Python 0-base).
+    """
+    ids = np.asarray(convex_ids, dtype=np.int64).reshape(-1)
+    if not ids.size:
+        return {}
+    response = mesh.geotrans(ids)
+    if not isinstance(response, (tuple, list)) or len(response) != 2:
+        raise InterfaceTopologyError(
+            "Expected GetFEM geotrans result (transforms, convex_to_transform)"
+        )
+    unique, lookup = response
+    unique = list(unique)
+    lookup = np.asarray(lookup, dtype=np.int64).reshape(-1)
+    if (lookup.size != ids.size or not unique
+            or np.any(lookup < 0) or np.any(lookup >= len(unique))):
+        raise InterfaceTopologyError(
+            "Invalid GetFEM geotrans catalog or convex mapping"
+        )
+    return {
+        int(cv): unique[int(gt)] for cv, gt in zip(ids, lookup)
+    }
+
+
 def _bulk_convexes(mesh, dimension, region):
     raw = _pairs(mesh.region(region), f"bulk {region}")
     convex_ids = np.unique(raw[0])
@@ -67,12 +94,9 @@ def _bulk_convexes(mesh, dimension, region):
     # A GetFEM Gmsh-with-lower-dim-elt import can include embedded line
     # elements. Node counts cannot determine dimensions for Qk, prisms,
     # or curved geometric elements. Inspect each geometric transformation.
-    transformations = mesh.geotrans(convex_ids)
-    if len(transformations) != len(convex_ids):
-        raise InterfaceTopologyError("GetFEM geotrans lookup size mismatch")
+    transforms = _geotrans_by_convex(mesh, convex_ids)
     result = np.asarray(
-        [cv for cv, transform in zip(convex_ids, transformations)
-         if int(transform.dim()) == dimension],
+        [cv for cv in convex_ids if int(transforms[int(cv)].dim()) == dimension],
         dtype=np.int64,
     )
     if not result.size:
@@ -94,7 +118,7 @@ def _region_keys(mesh, dimension, region):
     if not entries.shape[1]:
         raise InterfaceTopologyError(f"Empty logical interface {region}")
     ids = np.unique(entries[0])
-    transforms = dict(zip((int(x) for x in ids), mesh.geotrans(ids)))
+    transforms = _geotrans_by_convex(mesh, ids)
     keys = set()
     for i in range(entries.shape[1]):
         cv, local_face = (int(v) for v in entries[:, i])
