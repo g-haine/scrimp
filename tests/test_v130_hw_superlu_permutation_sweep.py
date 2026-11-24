@@ -37,15 +37,29 @@ class IdenticalCNMatrixSuperLUPermutationTests(unittest.TestCase):
         s=RUNNER.read_text()
         for name in (
             "default:default:baseline",
-            "LargeDiag_MC64:MMD_AT_PLUS_A:mc64_mmd",
+            "default:MMD_AT_PLUS_A:default_mmd",
+            "default:MMD_ATA:default_ata",
+            "NOROWPERM:MMD_AT_PLUS_A:norow_mmd",
+            "NOROWPERM:MMD_ATA:norow_ata",
+            "NOROWPERM:METIS_AT_PLUS_A:norow_metis",
+            "NOROWPERM:NATURAL:norow_natural",
             "LargeDiag_AWPM:MMD_AT_PLUS_A:awpm_mmd",
             "LargeDiag_AWPM:METIS_AT_PLUS_A:awpm_metis",
-            "LargeDiag_MC64:MMD_ATA:mc64_mmd_ata",
-            "NOROWPERM:MMD_AT_PLUS_A:norow_mmd",
             "first_cn_J_001.petscbin",
             "check-v130-published-immutable.py",
         ):
             self.assertIn(name,s)
+
+    def test_nonredistributable_mc64_never_invoked_and_optional_awpm_isolated(self):
+        s=RUNNER.read_text(encoding="utf-8")
+        self.assertNotIn('"LargeDiag_MC64:MMD_AT_PLUS_A:mc64_mmd"',s)
+        self.assertNotIn('"LargeDiag_MC64:MMD_ATA:mc64_mmd_ata"',s)
+        self.assertIn("NOT_ATTEMPTED_HSL_NONREDISTRIBUTABLE",s)
+        self.assertIn("CombBLAS",s)
+        self.assertIn('printf \'%s\\n\' "$rc" > "$out/$label.exitcode"',s)
+        self.assertIn("DIAGNOSTIC_PARTIAL_UNEXPECTED_PROCESS_FAILURE",s)
+        self.assertIn("if unexpected:",s)
+        self.assertIn('"heat_wave_CN_trajectory_qualified": False',s)
 
 
 if __name__=="__main__":

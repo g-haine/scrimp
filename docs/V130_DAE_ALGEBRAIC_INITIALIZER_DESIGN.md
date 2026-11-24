@@ -5129,3 +5129,35 @@ is explicitly FALSE; **no tiny pivot replacement, no
 diagonal perturbation and no TS tolerance changes**.
 Even a successful direct LU replay is only a candidate
 for a later complete Heat-Wave CN/physical power test.
+
+## 24 November 2026 — permutation sweep v1 aborted on unavailable HSL MC64
+
+The original user native log at source `5a77530b` records the
+`baseline` invocation, then an **abort(6)** from the *second*
+requested trial `LargeDiag_MC64/MMD_AT_PLUS_A`. The pinned
+Conda/Docker `libsuperlu_dist.so.9` explicitly prints:
+`MC64 functionality not available. (It uses code under a non-free HSL
+licence which does not permit redistribution).` The abort is an
+unsupported dependency, **not a numerical pivoting failure** and not
+evidence for or against the unexecuted permutations. Keep the
+unmodified original PETSc 7,689 x 7,689 CN matrix and its stored CSR
+SHA. Do not add HSL dependencies to the redistributable image.
+
+The revised sweep **does not invoke MC64 at all** and reports
+`NOT_ATTEMPTED_HSL_NONREDISTRIBUTABLE`. It compares combinations of
+PETSc defaults or `NOROWPERM` with `MMD_AT_PLUS_A`, `MMD_ATA`,
+`METIS_AT_PLUS_A` and `NATURAL`. An additional **optional**
+`LargeDiag_AWPM` pass is attempted in separate processes; its
+weighted parallel matching requires a SuperLU_DIST build with
+**CombBLAS**, which is not guaranteed by this Docker image. If the
+native library reports CombBLAS/AWPM unavailable, the case is
+explicitly marked unavailable and its original log is retained;
+other cases continue. Any unrelated process failure is recorded,
+full evidence is archived, and the runner returns nonzero, rather
+than silently returning a false numerical PASS.
+
+The numerical acceptance gate remains a reproduced known-state LU
+solution with relative residual <1e-9 and relative state error
+<1e-6, exact binary matrix hash before and after, and actual
+PETSc row/column options verified. A successful replay does NOT
+qualify the full Heat-Wave CN trajectory or its energy/power balances.

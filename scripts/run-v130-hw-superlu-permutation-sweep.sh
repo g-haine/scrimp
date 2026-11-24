@@ -5,8 +5,10 @@
 #
 # See the LICENSE file for license information.
 #
-# Run different true PETSc SuperLU_DIST permutations on the SAME
-# original CN matrix captured in the previous campaign, MPI1.
+# Run native PETSc SuperLU_DIST permutations on ONE original CN Mat.
+# MC64 is unavailable in the pinned redistribution-safe build (HSL).
+# AWPM also requires CombBLAS; skip build-disabled variants with evidence
+# rather than aborting before testing usable row/column permutations.
 set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
@@ -38,20 +40,28 @@ echo "SAME original first Heat-Wave CN 7689x7689 matrix / immutable SHA"
 echo "SuperLU_DIST row/column permutations only, fresh process per case"
 echo "No tiny-pivot replacement, no regularization, no physical TS inference"
 echo "EVIDENCE: $out"
-# first is the default reproduction; subsequent cases vary only
-# documented SuperLU_DIST row/column permutations.
+# The pinned image provably lacks MC64/HSL. DO NOT invoke
+# LargeDiag_MC64: it calls abort(6) in libsuperlu_dist.so.
+# LargeDiag_AWPM is optional and needs the CombBLAS build feature.
+# All cases run in separate processes so one unsupported backend
+# cannot silently invalidate other factorization evidence.
 cases=(
  "default:default:baseline"
- "LargeDiag_MC64:MMD_AT_PLUS_A:mc64_mmd"
+ "default:MMD_AT_PLUS_A:default_mmd"
+ "default:MMD_ATA:default_ata"
+ "NOROWPERM:MMD_AT_PLUS_A:norow_mmd"
+ "NOROWPERM:MMD_ATA:norow_ata"
+ "NOROWPERM:METIS_AT_PLUS_A:norow_metis"
+ "NOROWPERM:NATURAL:norow_natural"
  "LargeDiag_AWPM:MMD_AT_PLUS_A:awpm_mmd"
  "LargeDiag_AWPM:METIS_AT_PLUS_A:awpm_metis"
- "LargeDiag_MC64:MMD_ATA:mc64_mmd_ata"
- "NOROWPERM:MMD_AT_PLUS_A:norow_mmd"
 )
+echo "SKIP rowperm=LargeDiag_MC64: HSL MC64 was not compiled into pinned SuperLU_DIST"
 for item in "${cases[@]}"; do
  IFS=: read -r rowperm colperm label <<<"$item"
  echo "RUN $label row=$rowperm col=$colperm"
- if ! "${docker_cmd[@]}" run --rm --user "$(id -u):$(id -g)" \
+ rc=0
+ "${docker_cmd[@]}" run --rm --user "$(id -u):$(id -g)" \
  --env HOME=/tmp --env OMP_NUM_THREADS=1 --env OPENBLAS_NUM_THREADS=1 \
  --volume "$(dirname "$matrix"):/original:ro" \
  --volume "$root/sandbox/probe_v130_hw_cn_identical_lu.py:/replay_base.py:ro" \
@@ -62,50 +72,134 @@ for item in "${cases[@]}"; do
  python -u /probe.py --matrix /original/first_cn_J_001.petscbin \
  --rowperm "$rowperm" --colperm "$colperm" \
  --output "/artifacts/$label.json" \
- > "$out/$label.host.log" 2>&1; then
-  echo "UNEXPECTED infrastructure error in $label; logs retained in $out" >&2
-  tail -n 100 "$out/$label.host.log" >&2; exit 1
+ > "$out/$label.host.log" 2>&1 || rc=$?
+ printf '%s\n' "$rc" > "$out/$label.exitcode"
+ if [[ "$rc" -ne 0 ]]; then
+  if [[ "$rowperm" == "LargeDiag_AWPM" ]] && \
+    grep -Eiq 'CombBLAS.*(not available|not enabled|disabled)|AWPM.*(unavailable|not available)' "$out/$label.host.log"; then
+   echo "SKIP $label: this SuperLU_DIST build lacks CombBLAS/AWPM; original log retained"
+  else
+   echo "FAIL subprocess $label exit=$rc; preserving log and continuing other cases" >&2
+   tail -n 35 "$out/$label.host.log" >&2
+  fi
  fi
 done
 python3 - "$out" <<'PY'
-import json,sys,zipfile
+import json
+import re
+import sys
+import zipfile
 from pathlib import Path
-out=Path(sys.argv[1])
-items={}
-for label in ("baseline","mc64_mmd","awpm_mmd","awpm_metis",
-              "mc64_mmd_ata","norow_mmd"):
- data=json.loads((out/f"{label}.json").read_text())
- assert data["input_CSR_SHA256"]==data["output_CSR_SHA256"]
- assert data["input_CSR_SHA256"]=="c94c69c4e4307d7a5aa61d9eba186782c0495b49431cadcb7281d7a7b5bffaff"
- assert data["tiny_pivot_replacement_disabled"]
- items[label]={
-  "rowperm":data["rowperm_requested"],
-  "colperm":data["colperm_requested"],
-  "status":data["status"],
-  "KSP":data["KSP_reason"],"PC":data["PC_failed"],
-  "relative_linear_residual":data["relative_linear_residual"],
-  "relative_state_error":data["relative_state_error"],
-  "selected_options_verified":(
-   data["selected_rowperm_verified"] and data["selected_colperm_verified"]),
-  "actual_factor_options":data.get("factor_options_excerpt"),
- }
-passing=[label for label,x in items.items() if x["status"].startswith("PASS_")]
-summary={
- "schema":"scrimp-v130-superlu-CN-permutation-sweep-v1",
- "status":"DIAGNOSTIC_COMPLETE_NOT_PHYSICAL_QUALIFICATION",
- "identical_original_CSR_SHA256":"c94c69c4e4307d7a5aa61d9eba186782c0495b49431cadcb7281d7a7b5bffaff",
- "successful_LU_orderings":passing,
- "cases":items,
- "tiny_pivot_replacement_or_regularization":False,
- "heat_wave_CN_trajectory_qualified":False,
- "original_sources_unchanged":True,
+
+out = Path(sys.argv[1])
+identity = "c94c69c4e4307d7a5aa61d9eba186782c0495b49431cadcb7281d7a7b5bffaff"
+cases = (
+    ("default", "default", "baseline"),
+    ("default", "MMD_AT_PLUS_A", "default_mmd"),
+    ("default", "MMD_ATA", "default_ata"),
+    ("NOROWPERM", "MMD_AT_PLUS_A", "norow_mmd"),
+    ("NOROWPERM", "MMD_ATA", "norow_ata"),
+    ("NOROWPERM", "METIS_AT_PLUS_A", "norow_metis"),
+    ("NOROWPERM", "NATURAL", "norow_natural"),
+    ("LargeDiag_AWPM", "MMD_AT_PLUS_A", "awpm_mmd"),
+    ("LargeDiag_AWPM", "METIS_AT_PLUS_A", "awpm_metis"),
+)
+items = {}
+unavailable = {}
+unexpected = {}
+for row, col, label in cases:
+    logfile = out / f"{label}.host.log"
+    exitfile = out / f"{label}.exitcode"
+    if not logfile.is_file() or not exitfile.is_file():
+        raise RuntimeError(f"Missing native process provenance for {label}")
+    log = logfile.read_text(encoding="utf-8", errors="replace")
+    code = int(exitfile.read_text().strip())
+    missing_combblas = bool(re.search(
+        r"CombBLAS.*(?:not available|not enabled|disabled)"
+        r"|AWPM.*(?:unavailable|not available)", log, re.I
+    ))
+    if missing_combblas and row == "LargeDiag_AWPM":
+        items[label] = {
+            "rowperm": row, "colperm": col, "exit_code": code,
+            "status": "NOT_RUN_TO_COMPLETION_AWPM_NEEDS_COMBBLAS",
+            "factorization_validated": False,
+        }
+        unavailable[label] = items[label]["status"]
+        continue
+    if code != 0:
+        items[label] = {
+            "rowperm": row, "colperm": col, "exit_code": code,
+            "status": "UNEXPECTED_NATIVE_PROCESS_FAILURE_NOT_A_NUMERICAL_RESULT",
+            "last_log_lines": log.splitlines()[-12:],
+        }
+        unexpected[label] = items[label]["status"]
+        continue
+    resultfile = out / f"{label}.json"
+    if not resultfile.is_file():
+        items[label] = {
+            "rowperm": row, "colperm": col, "exit_code": code,
+            "status": "UNEXPECTED_MISSING_JSON",
+        }
+        unexpected[label] = items[label]["status"]
+        continue
+    data = json.loads(resultfile.read_text())
+    if (data["input_CSR_SHA256"] != identity
+            or data["output_CSR_SHA256"] != identity
+            or not data["tiny_pivot_replacement_disabled"]
+            or data["rowperm_requested"] != row
+            or data["colperm_requested"] != col):
+        raise RuntimeError(f"Unqualified or altered CN matrix in {label}")
+    items[label] = {
+        "rowperm": row,
+        "colperm": col,
+        "exit_code": code,
+        "status": data["status"],
+        "KSP": data["KSP_reason"],
+        "PC": data["PC_failed"],
+        "relative_linear_residual": data["relative_linear_residual"],
+        "relative_state_error": data["relative_state_error"],
+        "selected_options_verified": bool(
+            data["selected_rowperm_verified"]
+            and data["selected_colperm_verified"]
+        ),
+        "actual_factor_options": data.get("factor_options_excerpt"),
+    }
+
+passing = [label for label, entry in items.items()
+           if entry["status"] ==
+           "PASS_IDENTICAL_CN_MATRIX_SOLVED_WITH_THIS_ORDERING"]
+summary = {
+    "schema": "scrimp-v130-superlu-CN-permutation-sweep-v2",
+    "status": (
+        "DIAGNOSTIC_PARTIAL_UNEXPECTED_PROCESS_FAILURE"
+        if unexpected else
+        "DIAGNOSTIC_COMPLETE_WITH_UNAVAILABLE_BUILD_FEATURES"
+    ),
+    "original_source_failure": "HSL MC64 unavailable, abort(6)",
+    "MC64_cases": {
+        "mc64_mmd": "NOT_ATTEMPTED_HSL_NONREDISTRIBUTABLE",
+        "mc64_mmd_ata": "NOT_ATTEMPTED_HSL_NONREDISTRIBUTABLE",
+    },
+    "optional_AWPM_unavailable": unavailable,
+    "unexpected_native_failures": unexpected,
+    "identical_original_CSR_SHA256": identity,
+    "successful_LU_orderings": passing,
+    "cases": items,
+    "tiny_pivot_replacement_or_regularization": False,
+    "heat_wave_CN_trajectory_qualified": False,
+    "original_sources_unchanged": True,
 }
-(out/"comparison.json").write_text(json.dumps(summary,indent=2)+"\n")
-archive=Path(str(out)+".zip")
-with zipfile.ZipFile(archive,"x",compression=zipfile.ZIP_DEFLATED) as z:
- for f in sorted(out.glob("*")):
-  if f.is_file(): z.write(f,arcname=f.name)
-print(json.dumps(summary,indent=2))
-print("ORIGINAL PETSc SUPERLU DIST PERMUTATION EVIDENCE:",archive)
+(out / "comparison.json").write_text(
+    json.dumps(summary, indent=2) + "\n", encoding="utf-8"
+)
+archive = Path(str(out) + ".zip")
+with zipfile.ZipFile(archive, "x", compression=zipfile.ZIP_DEFLATED) as z:
+    for file in sorted(out.glob("*")):
+        if file.is_file():
+            z.write(file, arcname=file.name)
+print(json.dumps(summary, indent=2))
+print("ORIGINAL PETSc SUPERLU DIST PERMUTATION EVIDENCE:", archive)
+if unexpected:
+    raise SystemExit("Unexpected native process failures: see archived logs")
 PY
 echo "COMPLETE original SuperLU_DIST permutation sweep: $out"
