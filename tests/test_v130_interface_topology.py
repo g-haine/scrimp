@@ -126,6 +126,17 @@ class InterfaceTopologyTests(unittest.TestCase):
         self.assertEqual([transforms[cv].dim() for cv in (1, 2, 90)],
                          [2, 2, 1])
 
+    def test_single_geotrans_proxy_is_not_an_iterable(self):
+        """GetFEM Python unwraps a one-entry catalog to one GeoTrans."""
+        mesh = TwoCellMesh()
+        mesh.geotrans = lambda ids: (
+            Transform(2), np.zeros(np.asarray(ids).size, dtype=np.int64)
+        )
+        transforms = interface_module._geotrans_by_convex(
+            mesh, np.asarray([1, 2], dtype=np.int64)
+        )
+        self.assertEqual([transforms[cv].dim() for cv in (1, 2)], [2, 2])
+
     def test_invalid_geotrans_map_is_rejected(self):
         mesh = TwoCellMesh()
         mesh.geotrans = lambda ids: (
