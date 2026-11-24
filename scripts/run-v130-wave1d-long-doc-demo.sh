@@ -23,7 +23,13 @@ expected="1d6d0c90115213298047b28237a7f38087563a35"
   echo "Cannot render with unqualified pinned GetFEM/PETSc image" >&2
   exit 2
 }
-python3 -m py_compile scripts/render-v130-wave1d-doc.py examples/wave_1d.py
+python3 -m py_compile \
+  scripts/render-v130-wave1d-doc.py \
+  scrimp/utils/trajectory_sampling.py \
+  tests/test_v130_trajectory_sampling.py \
+  examples/wave_1d.py
+python3 tests/test_v130_trajectory_sampling.py
+python3 tests/test_v130_wave_1d_tutorial.py
 bash -n "$0"
 mkdir -p sandbox/outputs
 out="$(mktemp -d "$root/sandbox/outputs/v130-wave1d-long-doc-$(git rev-parse --short=8 HEAD)-XXXXXXXX")"
