@@ -31,6 +31,9 @@ import numpy as np
 from petsc4py import PETSc
 
 from scrimp.dphs import DPHS
+from scrimp.utils.production_policy import (
+    auto_interface_enabled, pv_export_mode,
+)
 from examples.heat_wave import heat_wave_eq
 from measure_v130_hw_dual_facet_physics import (
     collect_heat_wave_dual_facet_physics,
@@ -78,15 +81,16 @@ def main():
     rank, size = comm.rank, comm.size
     if (size not in (1, 2)
             or PETSc.COMM_WORLD.getSize() != size
-            or os.environ.get("SCRIMP_V130_AUTO_INTERFACE_PILOT") != "1"):
+            or not auto_interface_enabled()):
         raise RuntimeError("Explicit real MPI1/MPI2 auto-interface gate required")
     if not args.out.is_dir():
         raise RuntimeError("Shared evidence output directory must exist")
-    if args.pv_root_only and (
-        os.environ.get("SCRIMP_V130_PV_ROOT_ONLY_PILOT") != "1"
+    if args.pv_root_only and size > 1 and (
+        pv_export_mode(mpi_size=size) != "root"
     ):
         raise RuntimeError(
-            "Root-only ParaView test requires explicit export pilot flag"
+            "Root-only ParaView test requires an enabled one-writer "
+            "export policy on MPI2"
         )
 
     old_init = DPHS.init_step
