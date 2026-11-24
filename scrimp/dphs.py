@@ -37,6 +37,7 @@ from scrimp.utils.async_binary_trajectory import (
 from scrimp.utils.production_policy import (
     auto_interface_enabled, pv_export_mode,
 )
+from scrimp.utils.trajectory_sampling import saved_time_is_due
 from scrimp.hamiltonian import Hamiltonian
 from scrimp.brick import Brick
 from scrimp.control import Control_Port
@@ -3615,6 +3616,15 @@ class DPHS:
             current_dt = float(TS.getTimeStep())
             remaining_time = ((float(self.time_scheme["t_f"])+current_dt)/(t+current_dt)-1) * spent_time
             progress = int(100*t/float(self.time_scheme["t_f"]))
+            # PETSc accepted time and (last archive time + dt_save)
+            # may differ by an ULP even when mathematically equal.
+            # Use a *bounded*, roundoff-only due-time test. Otherwise,
+            # t=1.49 was skipped in a 150-step 1D wave run with
+            # t_f=1.5/dt=dt_save=0.01, yielding 150 saved states
+            # for 151 legitimate CN endpoints and corrupting the
+            # interpretation of adjacent saved power samples.
+            # This does NOT interpolate or change the PETSc solve.
+            #
             # Store the exact final state of coupled PDE/ODE runs even if
             # the next dt_save threshold would otherwise skip it.
             final_lumped_step = (
@@ -3624,7 +3634,8 @@ class DPHS:
                 )
             )
             if (
-                (i == 0) or (next_saved_at_t - t <= 0)
+                (i == 0)
+                or saved_time_is_due(t, next_saved_at_t, dt_save)
                 or (i == -1) or self.stop_TS or final_lumped_step
             ):
                 if rank == 0:
