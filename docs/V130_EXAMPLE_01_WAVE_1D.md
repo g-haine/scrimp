@@ -336,6 +336,53 @@ Les résultats sont conservés dans des dossiers
 Sphinx et la source `wave_1d.py` exposent
 exactement la même configuration physique.
 
+## 4bis. Revue de cohérence entre Sphinx et la source (24 novembre 2026)
+
+**Audit demandé après qualification : des écarts étaient encore présents
+dans les fragments pédagogiques**, même si les cinq exécutions natives
+et les formulations faibles étaient correctes.
+
+Différences corrigées, sans changement du programme qualifié :
+
+| Élément | Ancien bloc `started.rst` | Source native `examples/wave_1d.py` |
+|---|---|---|
+| Taille du maillage | `h=0.01` | `mesh_size=0.05` |
+| Identifiants d'objet | `wave`, `alpha_q`, `alpha_p` | `system`, `q`, `p` |
+| Paramètre de tension | `Young's modulus` | `String tension` |
+| Projection initiale | `init_step_ts_type="algebraic"` seulement | `init_step=True` également |
+| Solveur linéaire | options implicites | `ksp_type="gmres"`, `pc_type="lu"`, backend optionnel |
+| Terme et tracé d'énergie | nom générique, ordre des termes inversé, tracé minimal | potentielle puis cinétique, appel de tracé et nom de fichier explicites |
+
+Les **14 briques GetFEM GWFL** ont été
+resynchronisées **textuellement** avec les expressions
+du code canonique, et les conditions initiales et commandes
+restent exactement celles de la preuve native.
+La documentation conserve une présentation progressive,
+mais l'utilisateur peut désormais exécuter ses blocs
+dans l'ordre pour construire **le même modèle**.
+Les variables de configuration reprennent exactement
+les valeurs par défaut de `wave_1d()`.
+
+Un test source dédié,
+`tests/test_v130_wave_1d_doc_parity.py`,
+extrait les **11 blocs Python** de la section
+`Coding within SCRIMP`, vérifie leur compilation
+successive, compare les AST des appels réels SCRIMP
+(états, ports, FEM, paramètres, briques, commandes,
+DAE, schéma temporel, Hamiltonien, visualisation)
+et confronte leurs paramètres aux défauts de la fonction.
+La CI exécute désormais ce test. Les différences de
+mise en page sont autorisées, mais pas les différences
+d'arguments ni les chaînes GWFL.
+
+**Périmètre :** cet audit concerne uniquement
+les extraits du tutoriel d'onde 1D. Les exemples
+indépendants de ports lumped en amont du chapitre
+ne doivent pas être interprétés comme des fragments
+du modèle de corde. Le test source supplémentaire
+reste à exécuter dans l'environnement utilisateur
+après ces changements documentaires.
+
 ## 5. Publications scientifiques associées
 
 - **Haine, Matignon, Serhani (2023)**,
