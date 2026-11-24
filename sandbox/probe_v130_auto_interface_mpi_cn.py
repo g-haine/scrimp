@@ -209,11 +209,33 @@ def main():
             "full_state_shape": list(states.shape),
         }), flush=True)
 
-    # Actual collective GetFEM integrations on every rank. Keep
-    # energy and signed port power separate from mere TS convergence.
-    system.compute_Hamiltonian()
+    # The original example has ALREADY evaluated get_Hamiltonian()
+    # when preparing its logarithmic energy plot. Hamiltonian.compute()
+    # appends values (it does not replace them), so invoking it a
+    # second time would produce 10 entries for five accepted states.
+    # Avoid that unintended recomputation on EVERY MPI rank; if the
+    # current example ever changes to skip the calculation, perform
+    # exactly one collective computation instead.
+    already_computed = bool(system.hamiltonian.get_is_computed())
+    if not already_computed:
+        system.compute_Hamiltonian()
+    term_lengths = {
+        term.get_description(): len(term.get_values())
+        for term in system.hamiltonian.get_terms()
+    }
+    if not term_lengths or any(
+        count != len(times) for count in term_lengths.values()
+    ):
+        raise RuntimeError(
+            f"Hamiltonian term history does not match the accepted "
+            f"trajectory ({len(times)} entries): {term_lengths}"
+        )
+
+    # Port.compute remains a genuine GetFEM integration on ALL ranks.
     system.compute_powers()
     H = _real(system.get_Hamiltonian(), "physical Hamiltonian").reshape(-1)
+    if H.shape != times.shape:
+        raise RuntimeError("Hamiltonian time history has inconsistent length")
     traces, physical = collect_heat_wave_dual_facet_physics(
         system, times, H, heat_faces=heat_faces, wave_faces=wave_faces,
         heat_bulk=args.heat, wave_bulk=wave,
@@ -279,6 +301,9 @@ def main():
         "MPI_ranks": size, "rank": rank,
         "initial_candidate": init_capture[0],
         "true_strict_DAE_initializer": system.initialization_report,
+        "hamiltonian_was_already_computed_by_example": already_computed,
+        "hamiltonian_terms_have_one_value_per_accepted_time": True,
+        "hamiltonian_term_lengths": term_lengths,
         "real_PETSc_CN_steps": int(system.last_ts_steps),
         "full_state_shape": list(states.shape),
         "automatic_interface": manifest,
