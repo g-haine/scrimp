@@ -67,6 +67,7 @@ def prepare_fake_evidence(root):
                     "physical_gates": {"fake_physics": True},
                     "plot_and_ParaView_export_skipped_on_all_ranks": True,
                     "MPI_rank_isolated_real_ParaView_export_diagnostic": False,
+                    "MPI_root_only_shared_ParaView_export_pilot": False,
                     "physical_GetFEM_assembly_executed_on_all_ranks": True,
                     "rank_fingerprints": [{"sha": "same"}] * size,
                     "automatic_interface": {"logical_region": 10},
