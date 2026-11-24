@@ -199,6 +199,36 @@ class FirstTutorialTests(unittest.TestCase):
             for node in animated_nodes
         ))
 
+    def test_long_native_visuals_are_embedded_with_authentic_provenance(self):
+        folder = ROOT/"docs"/"source"/"_static"/"examples"/"wave_1d"
+        source = "7e2e95a46645762ac09027428b5bb2abe8cff7a0"
+        names = (
+            "wave_1d_long_native_energy.svg",
+            "wave_1d_long_native_animation.svg",
+        )
+        for name in names:
+            with self.subTest(name=name):
+                file = folder/name
+                self.assertTrue(file.is_file(), str(file))
+                root = ET.parse(file).getroot()
+                self.assertTrue(root.tag.endswith("svg"))
+                self.assertIn(source, file.read_text())
+                self.assertIn(name, DOC_SOURCE)
+        animated = ET.parse(
+            folder/"wave_1d_long_native_animation.svg"
+        )
+        sequences = [
+            node for node in animated.iter()
+            if node.tag.endswith("animate")
+        ]
+        self.assertEqual(len(sequences), 2)
+        for item in sequences:
+            self.assertEqual(item.attrib["repeatCount"], "indefinite")
+            self.assertEqual(item.attrib["calcMode"], "discrete")
+            self.assertEqual(len(item.attrib["values"].split(";")), 16)
+        self.assertIn("151 accepted FE states", DOC_SOURCE)
+        self.assertIn("3.44\\times 10^{-16}", DOC_SOURCE)
+
     def test_real_renderer_reads_synthetic_float32_vtk(self):
         module = original_vtk_reader()
         vtk = ET.Element("VTKFile", type="UnstructuredGrid")
