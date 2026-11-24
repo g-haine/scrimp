@@ -605,7 +605,7 @@ loop using a python *list*
         ]
     
     for brick in bricks:
-        wave.add_brick(brick)
+        system.add_brick(brick)
 
 
 The first argument of a *brick* is a human-readable name, the second one
@@ -628,15 +628,10 @@ controls and the initial values of the states before solving
 
 .. code:: python
 
-    expression_left = "sin(2*pi*t)"
-    expression_right = "0."
-    wave.set_control("Boundary control (left)", expression_left)
-    wave.set_control("Boundary control (right)", expression_right)
-    
-    q_init = "4*x*(1-x)"
-    p_init = "0."
-    wave.set_initial_value("q", q_init)
-    wave.set_initial_value("p", p_init)
+    system.set_control("Boundary control (left)", "sin(2*pi*t)")
+    system.set_control("Boundary control (right)", "0.")
+    system.set_initial_value("q", "4*x*(1-x)")
+    system.set_initial_value("p", "0.")
 
 
 At ``t=0``, both boundary tractions are zero. The initial
@@ -653,13 +648,22 @@ installation test needs only a short physical time interval:
 
 .. code:: python
 
-    wave.set_time_scheme(
-        init_step_ts_type="algebraic",
+    final_time = 0.04
+    time_step = 0.004
+    factor_solver = None  # Default MUMPS; other options via --solver
+
+    options = {}
+    if factor_solver is not None:
+        options["pc_factor_mat_solver_type"] = factor_solver
+    system.set_time_scheme(
+        init_step_ts_type="algebraic", init_step=True,
         ts_type="cn", ts_adapt_type="none",
         ts_exact_final_time="matchstep",
-        t_0=0.0, t_f=0.04, dt=0.004, dt_save=0.004,
+        ksp_type="gmres", pc_type="lu",
+        t_0=0., t_f=final_time, dt=time_step, dt_save=time_step,
+        **options,
     )
-    wave.solve()
+    system.solve()
 
 PETSc's default direct factorization backend is MUMPS; select
 SuperLU for serial operation only, or SuperLU_DIST in MPI:
@@ -683,17 +687,26 @@ of each port to the balance equation
 
 .. code:: python
 
-    wave.hamiltonian.set_name("Mechanical energy")
-    terms = [
-        S.Term("Kinetic energy", "0.5*p*p/rho", [1]),
+    system.hamiltonian.set_name("Mechanical energy of a vibrating string")
+    for term in (
         S.Term("Potential energy", "0.5*q*T*q", [1]),
-    ]
-    
-    for term in terms:
-        wave.hamiltonian.add_term(term)
-    
-    wave.plot_Hamiltonian(with_powers=True)
+        S.Term("Kinetic energy", "0.5*p*p/rho", [1]),
+    ):
+        system.hamiltonian.add_term(term)
 
+    # Optional, corresponding to --plot on the command line:
+    plot = False
+    if plot:
+        system.plot_Hamiltonian(
+            with_powers=True, save_figure=True,
+            filename="wave_1d_energy_and_power.png",
+        )
+
+
+This matches the actual ``wave_1d()`` function: by default it
+returns the solved ``system`` without plotting, and the CLI flag
+``--plot`` activates the saved figure. Energy terms are registered
+**after** the time integration but **before** evaluating the Hamiltonian.
 
 The script performs the check explicitly from the accepted FE
 trajectory and the two signed boundary port powers. For the
