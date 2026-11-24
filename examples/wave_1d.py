@@ -106,12 +106,13 @@ def wave_1d(*, final_time=0.04, time_step=0.004, mesh_size=0.05,
     for brick in bricks:
         system.add_brick(brick)
 
-    # Compatible t=0 data: the tapered Gaussian strain vanishes
-    # at each boundary, where the two imposed tractions are zero.
+    # Compatible t=0 data: this exactly P2-representable quadratic
+    # strain vanishes at both endpoints, where the tractions are zero.
+    # This avoids an uncontrolled boundary L2 projection defect.
     system.set_control("Boundary control (left)", "sin(2*pi*t)")
     system.set_control("Boundary control (right)", "0.")
     system.set_initial_value(
-        "q", "2*x*(1-x)*np.exp(-50*(x-0.5)*(x-0.5))",
+        "q", "4*x*(1-x)",
     )
     system.set_initial_value("p", "0.")
 
