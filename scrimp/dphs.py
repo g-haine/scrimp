@@ -3994,9 +3994,27 @@ class DPHS:
                 signature.update(z.dtype.str.encode("ascii"))
                 signature.update(np.ascontiguousarray(z).view(np.uint8))
 
-            port = self.ports.get(name_variable)
-            if port is None:
-                raise ValueError(f"Unknown export variable {name_variable!r}")
+            # A SCRIMP port is indexed by its public port NAME, not
+            # necessarily by both of its GetFEM variable names. In
+            # particular State("q") is keyed as "q" while its effort
+            # variable "e_q" belongs to the SAME underlying mesh/FEM.
+            # Resolve by flow/effort ownership, NOT dict-key lookup:
+            # q/p and e_q/e_p must be equally safe under MPI export.
+            owners = [
+                port for port in self.ports.values()
+                if name_variable in (port.get_flow(), port.get_effort())
+            ]
+            if len(owners) != 1:
+                if not owners:
+                    raise ValueError(
+                        f"Unknown export variable {name_variable!r}: "
+                        "no matching flow/effort on any SCRIMP port"
+                    )
+                raise ValueError(
+                    f"Ambiguous export variable {name_variable!r}: "
+                    f"{len(owners)} SCRIMP ports claim this field"
+                )
+            port = owners[0]
             mesh_id = int(port.get_mesh_id())
             mesh = self.domain.get_mesh()[mesh_id]
             geometry = hashlib.sha256()
