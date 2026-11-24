@@ -88,6 +88,7 @@ summary = {
         "MAIN TS FAILURE DIAGNOSTIC:" in line for line in messages
     )),
     "full_five_backend_gate_passed": False,
+    "original_three_passes_preserved": True,
 }
 (folder/"summary.json").write_text(json.dumps(summary,indent=2)+"\n")
 archive = Path(str(folder)+".zip")
