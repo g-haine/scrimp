@@ -353,300 +353,244 @@ conventions. The later :doc:`wave_coenergy`
 chapter changes the state variables and adds
 spatially localized damping.
 
-2B — Adding damping to the DPHS
--------------------------------
+2B — Adding a resistive port: heterogeneous damping
+----------------------------------------------------
 
 .. automodule:: examples.wave_dissipative
    :members:
    :undoc-members:
    :show-inheritance:
 
-The remining part of the notebook is focused on the way to deal with
-*dissipativity*, hence using an **algebraic port**.
+What changes relative to 2A?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Let us come back to the continuous system. Adding a (fluid) damping
-consists in an additive term in Newton second law, which is proportional
-to the velocity (in the linear case). More precisely, denoting
-:math:`\nu\ge0` the viscous parameter, one has:
+This second example introduces **one new physical feature**:
+distributed viscous damping of the 2D anisotropic membrane.
+The independent, executable source is
+`examples/wave_dissipative.py`. Its rectangle,
+material tensor, density, normal directions, four boundary
+control ports, finite-element spaces for `q` and `p`,
+initial conditions and fixed Crank--Nicolson scheme
+are *identical* to those of :ref:`Wave_2D`.
 
-.. math::
-
-
-       \rho(x) \partial_{tt}^2 w(t,x) - {\rm div} \left( T(x) \cdot {\rm grad} \left( w(t,x) \right) \right) + \nu(x) \partial_t w(t,x) = 0.
-
-Using the framework of port-Hamiltonian system, this rewrites:
-
-.. math::
-
-
-       \begin{pmatrix} \partial_t \alpha_q \\ \partial_t \alpha_p \end{pmatrix}
-       =
-       \begin{bmatrix} 0 & {\rm grad} \\ {\rm div} & 0 \end{bmatrix}
-       \begin{pmatrix} e_q \\ e_p \end{pmatrix}
-       +
-       \begin{pmatrix} 0 \\ - \nu e_p \end{pmatrix}.
-
-One could include :math:`-\nu` inside the matrix of operators, this is
-the so-called :math:`J-R` framework. However, it does not exhibit the
-underlying Dirac structure, as it hides the resistive port. Let us
-introduce this hidden port, by denoting :math:`f_r` the flow and
-:math:`e_r` the effort, as follows:
-
-.. math::
-    :label: with-diss
-
-       \begin{pmatrix} \partial_t \alpha_q \\ \partial_t \alpha_p \\ f_r \end{pmatrix}
-       =
-       \begin{bmatrix} 0 & {\rm grad} & 0 \\ {\rm div} & 0 & -I \\ 0 & I^\top & 0 \end{bmatrix}
-       \begin{pmatrix} e_q \\ e_p \\ e_r \end{pmatrix},
-
-and supplemented by the resistive constitutive relation
-:math:`e_r = \nu f_r`.
-
-Of course, at the discrete level, this will increase the number of
-degrees of freedom, as two extra variables have to be discretized.
-Nevertheless, in more complicated situations (*e.g.* dealing with
-non-linearities), this is the price to pay to recover a correct discrete
-power balance.
-
-The **power balance** satisfied by the **Hamiltonian** is then
+On :math:`\Omega=(0,2)\times(0,1)`, the equation now reads
 
 .. math::
 
+   \rho(x)\,\partial_{tt}w
+   -\operatorname{div}(T(x,y)\nabla w)
+   +\nu(x)\,\partial_t w=0,
 
-       \frac{\rm d}{{\rm d}t} \mathcal{H}(t) = \underbrace{-\int_\Omega \nu(x) f_r^2(t,x)}_{\text{dissipated power}} \underbrace{+ \left\langle y_N(t,\cdot), u_N(t,\cdot)\right\rangle_{\Gamma_N}}_{\text{power flowing through }\Gamma_N} \underbrace{+ \left\langle u_D(t,\cdot), y_D(t,\cdot) \right\rangle_{\Gamma_D}}_{\text{power flowing through }\Gamma_D},
+with the same symmetric positive-definite tension and mass as
+example 2A and the additional nonnegative, spatially varying
+damping coefficient
 
-Another simulation
-------------------
+.. math::
 
-Let us start a new simulation with damping.
+   \nu(x)=\tfrac12(2-x)\geq0.
 
-.. code:: python
+The damping is nonzero throughout the interior except on the
+right boundary. We may choose a nonnegative strength multiplier
+in the executable; the default is `damping_strength=1.0`.
+**Damping does not change the Hamiltonian:**
 
+.. math::
 
-    # Define a new dphs
-    wave_diss = S.DPHS("real")
+   \mathcal H(q,p)=\tfrac12\int_\Omega
+   \left(q\cdot Tq+\frac{p^2}{\rho}\right)\,\mathrm dx.
 
-    # Set the domain (using the built-in geometry `Rectangle`)
-    # Labels: Omega = 1, Gamma_Bottom = 10, Gamma_Right = 11, Gamma_Top = 12, Gamma_Left = 13
-    rectangle = S.Domain("Rectangle", {"L": 2.0, "l": 1.0, "h": 0.1})
+Why add a separate resistive port?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    # On the rectangle domain
-    wave_diss.set_domain(rectangle)
+We retain the *skew-adjoint* interconnection of 2A and
+expose the dissipation as a new scalar algebraic port
+`(f_r,e_r)`. The state and co-energy variables are still
 
-    # Define the variables
-    states = [
-        S.State("q", "Strain", "vector-field"),
-        S.State("p", "Linear momentum", "scalar-field"),
-    ]
-    costates = [
-        S.CoState("e_q", "Stress", states[0]),
-        S.CoState("e_p", "Velocity", states[1]),
-    ]
+.. math::
 
-    # Add them to the dphs
-    for (state,costate) in zip(states,costates):
-        wave_diss.add_state(state)
-        wave_diss.add_costate(costate)
+   q=\nabla w,\quad p=\rho\,\partial_t w,\qquad
+   e_q=Tq,\quad e_p=p/\rho.
 
-    # Define the control ports
-    control_ports = [
-        S.Control_Port(
-            "Boundary control (bottom)",
-            "U_B",
-            "Normal force",
-            "Y_B",
-            "Velocity trace",
-            "scalar-field",
-            region=10,
-        ),
-        S.Control_Port(
-            "Boundary control (right)",
-            "U_R",
-            "Normal force",
-            "Y_R",
-            "Velocity trace",
-            "scalar-field",
-            region=11,
-        ),
-        S.Control_Port(
-            "Boundary control (top)",
-            "U_T",
-            "Normal force",
-            "Y_T",
-            "Velocity trace",
-            "scalar-field",
-            region=12,
-        ),
-        S.Control_Port(
-            "Boundary control (left)",
-            "U_L",
-            "Velocity trace",
-            "Y_L",
-            "Normal force",
-            "scalar-field",
-            region=13,
-            position="flow",
-        ),
-    ]
+The additional constitutive and coupling equations are
 
-    # Add them to the dphs
-    for ctrl_port in control_ports:
-        wave_diss.add_control_port(ctrl_port)
+.. math::
 
-The additional port is defined, added to the system ``wave_diss`` and a
-``FEM`` is attached to it. Remark that we use the previously defined
-objects, *i.e.* we only append the ``FEM`` of the resistive port to the
-list of previously defined ``FEM`` objects. We choose continuous
-Galerkin of order 2, as the resistive effort is of :math:`p`-type.
+   f_r=-e_p,\qquad e_r=\nu f_r,
 
-.. code:: python
+.. math::
 
-    # Define a dissipative port
-    port_diss = S.Port("Damping", "f_r", "e_r", "scalar-field")
+   \begin{pmatrix}\partial_t q\\ \partial_t p\\ f_r\end{pmatrix}
+   =
+   \begin{bmatrix}
+   0&\nabla&0\\
+   \operatorname{div}&0&I\\
+   0&-I&0
+   \end{bmatrix}
+   \begin{pmatrix}e_q\\e_p\\e_r\end{pmatrix}.
 
-    # Add it to the dphs
-    wave_diss.add_port(port_diss)
+Indeed, `e_r=-\nu e_p` and
+`\partial_t p=\operatorname{div}e_q-\nu e_p`.
+The discrete resistive port introduces **two algebraic
+fields** `f_r` and `e_r` (both CG2), while
+preserving the mechanical variables and boundary ports
+from example 2A.
 
-    # Define the Finite Elements Method of each port
-    FEMs = [
-        S.FEM(states[0].get_name(), 1, "DG"),
-        S.FEM(states[1].get_name(), 2, "CG"),
-        S.FEM(control_ports[0].get_name(), 1, "DG"),
-        S.FEM(control_ports[1].get_name(), 1, "DG"),
-        S.FEM(control_ports[2].get_name(), 1, "DG"),
-        S.FEM(control_ports[3].get_name(), 1, "DG"),
-        S.FEM("Damping", 2, "CG"),
-    ]
+The dissipation power is *positive*:
 
-    # Add all of them to the dphs
-    for FEM in FEMs:
-        wave_diss.add_FEM(FEM)
+.. math::
+   :label: wave2b_dissipated_power
 
-The parameter :math:`\nu` is obviously linked to the ``Damping`` port.
-It can be heterogeneous, as for the other parameters.
+   D(t)=\int_\Omega f_r\,e_r\,\mathrm dx
+       =\int_\Omega \nu\,f_r^2\,\mathrm dx\geq0.
 
-.. code:: python
+Consequently, for the same boundary work
+:math:`W_\partial(t)` as 2A,
 
-    # Define physical parameters
-    parameters = [
-        S.Parameter("T", "Young's modulus", "tensor-field", "[[5+x,x*y],[x*y,2+y]]", "q"),
-        S.Parameter("rho", "Mass density", "scalar-field", "3-x", "p"),
-        S.Parameter("nu", "viscosity", "scalar-field", "0.5*(2.0-x)", "Damping"),
-    ]
+.. math::
+   :label: wave2b_energy_dissipation
 
-    # Add them to the dphs
-    for parameter in parameters:
-        wave_diss.add_parameter(parameter)
+   \mathcal H(t)-\mathcal H(0)
+   = W_\partial(t)-\int_0^t D(s)\,\mathrm ds.
 
-Looking at :eq:`with-diss`, only 3 non-zero block matrices have to be
-added to the list of the already constructed bricks, for the Dirac
-structure part. And finally, 2 bricks are needed to discretize the resistive constitutive
-relation.
+A dissipative system can **still gain mechanical energy**
+if its boundary ports inject more power than it dissipates.
+The correct identity is therefore
+:math:`\Delta H=W_\partial-L_\nu`, *not*
+the unconditional monotonicity of :math:`H`.
 
-.. code:: python
+Build the actual GetFEM/PETSc model
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    # Define the pHs via `Brick` == non-zero block matrices == variational terms
-    bricks = [
-        ## Define the Dirac structure
-        # Define the mass matrices from the left-hand side: the `flow` part of the Dirac structure
-        S.Brick("M_q", "q.Test_q", [1], dt=True, position="flow"),
-        S.Brick("M_p", "p*Test_p", [1], dt=True, position="flow"),
-        S.Brick("M_Y_B", "Y_B*Test_Y_B", [10], position="flow"),
-        S.Brick("M_Y_R", "Y_R*Test_Y_R", [11], position="flow"),
-        S.Brick("M_Y_T", "Y_T*Test_Y_T", [12], position="flow"),
-        # Mass matrix
-        S.Brick("M_r", "f_r*Test_f_r", [1], position="flow"),
-        # The Dirichlet term is applied via Lagrange multiplier == the colocated output
-        S.Brick("M_Y_L", "U_L*Test_Y_L", [13], position="flow"),
-        # Define the matrices from the right-hand side: the `effort` part of the Dirac structure
-        S.Brick("D", "Grad(e_p).Test_q", [1], position="effort"),
-        S.Brick("-D^T", "-e_q.Grad(Test_p)", [1], position="effort"),
-        S.Brick("B_B", "U_B*Test_p", [10], position="effort"),
-        S.Brick("B_R", "U_R*Test_p", [11], position="effort"),
-        S.Brick("B_T", "U_T*Test_p", [12], position="effort"),
-        # The "Identity" operator
-        S.Brick("I_r", "e_r*Test_p", [1], position="effort"),
-        # Minus its transpose
-        S.Brick("-I_r^T", "-e_p*Test_f_r", [1], position="effort"),
-        # The Dirichlet term is applied via Lagrange multiplier == the colocated output
-        S.Brick("B_L", "Y_L*Test_p", [13], position="effort"),
-        S.Brick("C_B", "-e_p*Test_Y_B", [10], position="effort"),
-        S.Brick("C_R", "-e_p*Test_Y_R", [11], position="effort"),
-        S.Brick("C_T", "-e_p*Test_Y_T", [12], position="effort"),
-        S.Brick("C_L", "-e_p*Test_Y_L", [13], position="effort"),
-        ## Define the constitutive relations
-        # Hooke's law under implicit form `- M_e_q e_q + CR_q q = 0`
-        S.Brick("-M_e_q", "-e_q.Test_e_q", [1]),
-        S.Brick("CR_q", "q.T.Test_e_q", [1]),
-        # Linear momentum definition under implicit form `- M_e_p e_p + CR_p p = 0`
-        S.Brick("-M_e_p", "-e_p*Test_e_p", [1]),
-        S.Brick("CR_p", "p/rho*Test_e_p", [1]),
-        # Constitutive relation: linear viscous fluid damping `- M_e_r e_r + CR_r f_r = 0`
-        S.Brick("-M_e_r", "-e_r*Test_e_r", [1]),
-        S.Brick("CR_r", "nu*f_r*Test_e_r", [1]),
-    ]
+The following code fragments are **read directly from**
+`examples/wave_dissipative.py`; they are not second,
+manually maintained versions of the solver.
 
-Again, we use the previsouly defined ``Brick`` objects, thus, the whole
-system is constructed by adding all the bricks.
+**1. Construct the same 2D physical and co-energy states:**
 
-.. code:: python
+.. literalinclude:: ../../../examples/wave_dissipative.py
+   :language: python
+   :start-after: # TUTORIAL 2B-01:
+   :end-before: # TUTORIAL 2B-02:
+   :dedent: 4
 
-    # Add all these `Bricks` to the dphs
-    for brick in bricks:
-        wave_diss.add_brick(brick)
+**2. Reuse the exact 2A mixed boundary control:**
 
-The initialization and solve steps are identical to the previous
-conservative case.
+.. literalinclude:: ../../../examples/wave_dissipative.py
+   :language: python
+   :start-after: # TUTORIAL 2B-02:
+   :end-before: # TUTORIAL 2B-03:
+   :dedent: 4
 
-.. code:: python
+**3. Add precisely one scalar dissipative port:**
 
-    ## Initialize the problem
-    # The controls expression, ordered as the control_ports
-    t_f = 5.
-    expressions = ["0.", "0.", "0.", f"0.1*sin(4.*t)*sin(4*pi*y)*exp(-10.*pow((0.5*{t_f}-t),2))"]
+.. literalinclude:: ../../../examples/wave_dissipative.py
+   :language: python
+   :start-after: # TUTORIAL 2B-03:
+   :end-before: # TUTORIAL 2B-04:
+   :dedent: 4
 
-    # Add each expression to its control_port
-    for control_port, expression in zip(control_ports, expressions):
-        # Set the control functions: it automatically constructs the related `Brick`s such that `- M_u u + f(t) = 0`
-        wave_diss.set_control(control_port.get_name(), expression)
+**4. Reuse DG1/CG2 and add CG2 for damping,
+with the same tensor and density:**
 
-    # Set the initial data
-    q_0 = "[0., 0.]"
-    wave_diss.set_initial_value("q", q_0)
-    p_0 = "3**(-20*((x-0.5)*(x-0.5)+(y-0.5)*(y-0.5)))"
-    wave_diss.set_initial_value("p", p_0)
+.. literalinclude:: ../../../examples/wave_dissipative.py
+   :language: python
+   :start-after: # TUTORIAL 2B-04:
+   :end-before: # TUTORIAL 2B-05:
+   :dedent: 4
 
-    ## Solve in time
-    # Define the time scheme
-    wave_diss.set_time_scheme(ts_type="cn",
-                              t_f=t_f,
-                              dt_save=0.01,
-                              )
+**5. Keep all 20 original 2A weak-form bricks
+and add exactly five resistive ones.**
 
-    # Solve
-    wave_diss.solve()
+.. literalinclude:: ../../../examples/wave_dissipative.py
+   :language: python
+   :start-after: # TUTORIAL 2B-05:
+   :end-before: # TUTORIAL 2B-06:
+   :dedent: 4
 
-Now one can define and plot the Hamiltonian.
+The extra bricks are `M_r`, `I_r`,
+`-I_r^T`, `-M_e_r` and `CR_r`.
+Their orientations implement
+`f_r=-e_p` and `e_r=\nu f_r`.
+In particular, adding a negative `e_r` term by hand
+to the Hamiltonian would be wrong: the port itself
+carries the positive dissipated power in
+:eq:`wave2b_dissipated_power`.
 
-.. code:: python
+**6. Start with the same compatible states and control pulse:**
 
-    ## Post-processing
-    # Set Hamiltonian's name
-    wave_diss.hamiltonian.set_name("Mechanical energy")
+.. literalinclude:: ../../../examples/wave_dissipative.py
+   :language: python
+   :start-after: # TUTORIAL 2B-06:
+   :end-before: # TUTORIAL 2B-07:
+   :dedent: 4
 
-    # Define each Hamiltonian Term (needed to overwrite the previously computed solution)
-    terms = [
-        S.Term("Potential energy", "0.5*q.T.q", [1]),
-        S.Term("Kinetic energy", "0.5*p*p/rho", [1]),
-    ]
+**7. Apply the same strict algebraic DAE initialization
+and fixed CN step, without pseudo-time relaxation:**
 
-    # Add them to the Hamiltonian
-    for term in terms:
-        wave_diss.hamiltonian.add_term(term)
+.. literalinclude:: ../../../examples/wave_dissipative.py
+   :language: python
+   :start-after: # TUTORIAL 2B-07:
+   :end-before: # TUTORIAL 2B-08:
+   :dedent: 4
 
-    # Plot the Hamiltonian and save the output
-    wave_diss.plot_Hamiltonian(save_figure=True, filename="Hamiltonian_Wave_2D_Dissipative.png")
-    
-.. image:: Wave_Hamiltonian_dissipative.png
+**8. Compute the unchanged physical Hamiltonian:**
 
+.. literalinclude:: ../../../examples/wave_dissipative.py
+   :language: python
+   :start-after: # TUTORIAL 2B-08:
+   :end-before: # TUTORIAL 2B-09:
+   :dedent: 4
+
+Physical qualification: original boundary work minus dissipation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+For each *accepted* CN step, the program measures the original
+GetFEM Hamiltonian and all four port powers on the **mean
+finite-element state**. The resistive power is computed by
+SCRIMP's native `Port.compute()`, and checked independently
+by a second GetFEM volume quadrature of `nu*f_r*f_r`.
+The intended stepwise residual is
+
+.. math::
+
+   \mathcal R_k
+   =\mathcal H_k-\mathcal H_{k-1}
+   -\Delta t_k\sum_{\Gamma}P_{\Gamma,k}
+   +\Delta t_k D_k \simeq0.
+
+The script also verifies the cumulative
+:eq:`wave2b_energy_dissipation`, the nonnegativity
+of the actual dissipated power, the resistive
+flow equation, and the consistency of the
+11-snapshot accepted FE history. Because
+`\nu f_r` has higher polynomial degree than
+the CG2 space of `e_r`, the constitutive
+relationship is **discrete weak projection**;
+a pointwise zero `L^2` error is **not**
+an appropriate acceptance criterion.
+
+Run a short, *real* GetFEM/PETSc check (not a
+standalone LU smoke):
+
+.. code-block:: console
+
+   python -m examples.wave_dissipative --solver mumps \
+       --mesh-size 0.2 --final-time 0.08 --time-step 0.008 \
+       --damping-strength 1 --check --export \
+       --output outputs/my_wave_2d_dissipative
+
+The native qualification runner below checks **MUMPS MPI1/2**
+and all six finite-element exports (`q`, `p`,
+`e_q`, `e_p`, `f_r`, `e_r`).
+Its physical results must be inspected **before**
+declaring this example qualified:
+
+.. code-block:: console
+
+   SCRIMP_DOCKER_NO_SUDO=1 \
+   SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+   bash scripts/run-v130-wave2d-dissipative-pilot.sh
+
+The progressive example **2C**, :doc:`wave_coenergy`,
+will then introduce an explicitly different co-energy
+formulation, instead of merely renaming these variables.
