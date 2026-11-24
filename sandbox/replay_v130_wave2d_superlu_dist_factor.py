@@ -76,21 +76,37 @@ def build_exact_owned_aij(comm, indptr, indices, data):
                 np.asarray(data[start:stop], dtype=PETSc.ScalarType),
             )
     matrix.assemble()
+    # Verify the STORED graph AND each original coefficient. Exactly
+    # ten explicit-zero diagonal entries belong to Y_L. Losing or
+    # introducing structural zeros changes the SuperLU_DIST test!
+    rp, ci, vv = matrix.getValuesCSR()
+    if len(rp) != (last-first)+1:
+        raise RuntimeError("Unexpected rank-local PETSc CSR row layout")
     row_max = 0.0
+    graph_mismatches = 0
     for row in range(first, last):
-        cols = np.asarray(indices[indptr[row]:indptr[row+1]],
-                          dtype=np.int32)
-        if cols.size:
-            actual = np.asarray(matrix.getValues([row], cols))[0]
-            original = np.asarray(data[indptr[row]:indptr[row+1]])
-            row_max = max(
-                row_max, float(np.max(np.abs(actual-original)))
+        local_index = row-first
+        a, b = int(indptr[row]), int(indptr[row+1])
+        c, d = int(rp[local_index]), int(rp[local_index+1])
+        original_order = np.argsort(indices[a:b])
+        local_order = np.argsort(ci[c:d])
+        orig_cols = indices[a:b][original_order]
+        local_cols = ci[c:d][local_order]
+        if not np.array_equal(orig_cols, local_cols):
+            graph_mismatches += 1
+            continue
+        if len(orig_cols):
+            delta = np.abs(
+                np.asarray(vv[c:d])[local_order] -
+                np.asarray(data[a:b])[original_order]
             )
+            row_max = max(row_max, float(np.max(delta)))
+    graph_errors = comm.allreduce(graph_mismatches, op=MPI.SUM)
     global_max = comm.allreduce(row_max, op=MPI.MAX)
-    if global_max != 0.:
+    if graph_errors or global_max != 0.:
         raise RuntimeError(
-            f"PETSc-owned assembled coefficients differ from archive: "
-            f"{global_max}"
+            "Actual PETSc CSR differs from original factorized operator: "
+            f"graph_mismatched_rows={graph_errors}, max_delta={global_max}"
         )
     return matrix, first, last
 
@@ -111,9 +127,12 @@ def main():
         comm, indptr, indices, data
     )
     known = mat.createVecRight()
-    with known.localForm() as local:
-        offset = np.arange(row_lo, row_hi, dtype=np.float64)
-        local.array[:] = np.sin(.013 * offset) + .25
+    offset = np.arange(row_lo, row_hi, dtype=np.float64)
+    known.setValues(
+        np.arange(row_lo, row_hi, dtype=np.int32),
+        np.sin(.013 * offset) + .25,
+    )
+    known.assemble()
     rhs = mat.createVecLeft()
     mat.mult(known, rhs)
     solution = mat.createVecRight()
@@ -195,7 +214,7 @@ def main():
         "owned_rows": [row_lo, row_hi],
         "matrix_n": N,
         "original_full_P_M_K_SHA256": checksum,
-        "PETSc_owned_values_identical_to_archive": True,
+        "PETSc_owned_CSR_graph_and_values_identical_to_archive": True,
         "original_J_not_modified": True,
         "ksp_type": "preonly",
         "PC_type": "lu",
