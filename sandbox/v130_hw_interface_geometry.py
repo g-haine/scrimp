@@ -18,6 +18,13 @@ diagnostic 28495b42; no mesh or production source is modified here.
 import numpy as np
 
 
+# Retained from the already native-tested one-sided facet diagnostic.
+# These are GetFEM region labels, not physical domain dimensions.
+FACE_HEAT = 30
+FACE_WAVE = 31
+REGION_ORIGINAL = 10
+
+
 def region_description(mesh, region):
     ids=np.asarray(mesh.region(region),dtype=np.int64)
     if ids.ndim!=2 or ids.shape[0]!=2:

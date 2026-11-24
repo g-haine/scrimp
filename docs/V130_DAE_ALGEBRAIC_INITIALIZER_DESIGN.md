@@ -5526,3 +5526,28 @@ constructor. Its new source regression executes the import with
 of SCRIMP, original physical collectors or other sandbox scripts.
 Native baseline/dual-sided GetFEM stiffness results remain OPEN until
 the rerun. No physical solver and no published example is changed.
+
+## 24 November 2026 — missing region-label constants in autonomous facet helper
+
+Original user native stdout for assembly pilot `4519eba6`
+shows that the original `Concentric` mesh was created successfully
+(1642 points, 3154 triangles); execution then failed in the NEW
+sandbox helper `v130_hw_interface_geometry.py` with
+`NameError: FACE_HEAT is not defined`. Extracting three geometry
+functions from the earlier standalone physical collector omitted
+three required module-level integer constants:
+`FACE_HEAT=30`, `FACE_WAVE=31`,
+`REGION_ORIGINAL=10`. This failure occurred BEFORE
+any baseline stiffness assembly, so its log supplies no
+new evidence for or against the physical interface correction.
+
+The three constants are restored with their exact original values.
+Unlike the previous import-only regression, a new unit test
+actually executes `new_one_sided_regions` against an isolated
+fake P1 Concentric GetFEM-compatible mesh with both sides of
+the interface, normals, outer facets and volume triangles.
+It verifies the side-30/31 regions are created, original
+region 10 remains immutable, and the missing names are
+resolved through the runtime. This test is source-compatible
+and needs no GetFEM/PETSc runtime. Native dual-sided
+GetFEM/PETSc stiffness qualification still remains OPEN.
