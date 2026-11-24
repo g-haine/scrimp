@@ -48,9 +48,11 @@ jobs:
         run: |
           python -m py_compile \
             examples/wave.py \
+            sandbox/probe_v130_wave2d_superlu_dist_ordering.py \
             tests/test_v130_wave2d_conservative_pilot.py
           bash -n scripts/run-v130-wave2d-conservative-acceptance.sh \
-            scripts/run-v130-wave2d-superlu-dist-diagnostic.sh
+            scripts/run-v130-wave2d-superlu-dist-diagnostic.sh \
+            scripts/run-v130-wave2d-superlu-dist-ordering-study.sh
           python tests/test_v130_wave2d_conservative_pilot.py
           python scripts/check-v130-published-immutable.py
 
