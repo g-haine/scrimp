@@ -541,6 +541,71 @@ strict DAE/CN energy qualification for the heat=2/wave=1 variant
 is required. This diagnostic has not yet been executed natively.
 
 
+## Native swapped Heat-Wave outward-sign K blocks — PASS (2026-11-24)
+
+The user ran `scripts/run-v130-swapped-interface-sign-K.sh` at
+commit `1c08c78`, provided the archive
+`v130-swapped-interface-sign-K-1c08c78b-0cTy2vOb.zip`,
+and confirmed:
+
+- `PASS_SWAPPED_OUTWARD_SIGN_CHANGE_LOCALIZED_IN_TWO_INTERFACE_BLOCKS`.
+- Heat in **annulus 2**, wave in **disk 1**; one-sided physical regions
+  are assigned **22** (heat) and **21** (wave).
+- Full GetFEM/PETSc assembled matrix: **8056 × 8056**;
+  **390** nonzero difference entries between the reconstructed
+  historical and current physical sign conventions.
+- Exactly two sign-reversed blocks:
+  `e_Q <- U_T` (**156 entries**) and
+  `U_w <- Y_T` (**234 entries**).
+- All other blocks identical: unexplained nonzeros **0**.
+- Source-only suites: 4 outward-law, 10 topology, 6 port-owner,
+  7 brick-plan, 5 deferred tests passed. The 8 historically published
+  source snapshots remain untouched.
+
+**Scope**: This verifies intended GetFEM *assembly* changes caused
+by replacing the historical common-normal sign compensation with
+the mathematical outward-normal transmission convention. It is not
+proof of strict DAE initialization, energy preservation or MPI2
+for the heat=2/wave=1 configuration.
+
+## Swapped Heat-Wave actual strict DAE / CN physical qualification (pending)
+
+`sandbox/measure_v130_hw_dual_facet_physics.py` now accepts
+`heat_bulk` and `wave_bulk` explicitly, in addition to the
+dynamically resolved `heat_faces` and `wave_faces`; the existing
+default test remains heat=1/wave=2. The volume Hamiltonians and
+heat dissipation are integrated on the correct physical bulk
+subdomains. The signed outer-boundary power is **positive** when
+the exterior belongs to the wave equation, **negative** when it
+belongs to the heat equation; the published outer control is
+homogeneous, and the new test verifies its work is negligible.
+
+The new pinned-image diagnostic
+`sandbox/probe_v130_swapped_interface_cn.py` runs the **current**
+`examples/heat_wave.py` with heat=2, wave=1 and the opt-in
+automatic compiler. Unlike the previous wave-annulus case,
+the **outer boundary belongs to the heat equation**, so the
+wave velocity field must not be artificially clamped at the
+outer perimeter. The test initially uses the original
+L2-projected Gaussian fields **without any compatibility patch**.
+An incompatible projected initial state will be reported as a
+real DAE failure; it will not be converted to an energy PASS.
+
+The test verifies actual DAE, four accepted CN steps, full state
+dimension (8056), separate heat/wave/total energy and interface
+power balances, nontrivial interface excitation, zero prescribed
+outer-boundary work, and public `Port.compute` sided CN power:
+
+```bash
+SCRIMP_DOCKER_NO_SUDO=1 \\
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \\
+bash scripts/run-v130-swapped-interface-cn.sh
+```
+
+A genuine native **PASS** would qualify MPI1 swapped Heat-Wave
+dynamics and physical balance for the revised outward-normal laws,
+not yet MPI2 or generic higher-order/multiphysics interfaces.
+
 ## Next steps (not implemented here)
 
 1. Native test on real 1D/2D/3D imported meshes and curved/high-order
