@@ -46,6 +46,7 @@ import numpy as np
 import scrimp as S
 
 
+# TUTORIAL 2A-00: boundary names and GetFEM region identifiers
 BOUNDARIES = (
     ("bottom", 10, "B"),
     ("right", 11, "R"),
@@ -190,6 +191,7 @@ def wave_eq(
     system.hamiltonian.add_term(S.Term(
         "Kinetic energy", "0.5*p*p/rho", [1],
     ))
+    # TUTORIAL 2A-08: end of code shown progressively in Sphinx
     return system
 
 
