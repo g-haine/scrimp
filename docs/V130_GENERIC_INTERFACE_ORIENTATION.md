@@ -873,6 +873,37 @@ DAE/CN algorithms and original Heat-Wave example are untouched.
 parity**, with the original status target
 `PASS_BOTH_AUTO_INTERFACE_ORIENTATIONS_MPI2_DAE_CN_ENERGY_PARITY`.
 
+## Host comparator regression preflight: subprocess SIGKILL (2026-11-24)
+
+The user reran `scripts/run-v130-auto-interface-mpi-cn.sh` at
+commit `f81f6ff`. All previously qualified 45 source-only tests passed,
+but the five newly added *host comparator* regression tests did not:
+the test that should have accepted generated synthetic 1/2-rank
+reports launched a second Python interpreter through
+`subprocess.run([sys.executable, "-c", ...])`. That child process
+terminated with **signal 9 (SIGKILL, returncode -9)**, so none of
+the four synthetic comparator cases could produce
+`comparison.json`. The exact external cause of SIGKILL is **not
+established** by this trace; it is not evidence of a failed GetFEM
+assembly or DAE/CN solve, because the shell driver stopped **before
+starting Docker** at the failed preflight. No new native MPI2 physics
+result was obtained from this run.
+
+The source-only test now compiles and executes the **actual inline
+Python comparator code in the same test process**, using
+`unittest.mock.patch.object(sys, "argv", ...)` and redirected
+stdout/stderr, and explicitly catches the comparator's
+`SystemExit(1)` to preserve the same success/failure semantics.
+This eliminates a second Python/NumPy interpreter while retaining
+the intended tests of normal success, numerical mismatch, native
+exit failure, malformed rank metadata, and archive generation.
+
+The production MPI2/DAE/CN/energy pilot, the actual inline comparator
+it uses, all original Heat-Wave physical forms, and SCRIMP's numerical
+routines **are unchanged** by this corrective commit.
+The new in-process tests and native MPI2 energy comparison must
+still be rerun; no physics PASS is inferred from this patch.
+
 ## Next steps (not implemented here)
 
 1. Native test on real 1D/2D/3D imported meshes and curved/high-order
