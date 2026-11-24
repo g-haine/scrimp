@@ -134,8 +134,15 @@ class Mixed2DWavePilot(unittest.TestCase):
         self.assertIn("wave_coenergy", doc)
         self.assertIn("wave_dissipative", doc)
         self.assertIn(r"q\cdot Tq", doc)
-        self.assertEqual(doc.count(".. literalinclude:: ../../../examples/wave.py"), 7)
+        self.assertEqual(doc.count(".. literalinclude:: ../../../examples/wave.py"), 8)
         self.assertEqual(doc.count("   :dedent: 4"), 7)
+        self.assertIn("# TUTORIAL 2A-00:", code)
+        self.assertIn("# TUTORIAL 2A-08:", code)
+        self.assertIn("   :start-after: # TUTORIAL 2A-00:", doc)
+        self.assertIn("   :end-before: # TUTORIAL 2A-08:", doc)
+        self.assertIn("mesh_size = 0.2", doc)
+        self.assertIn("final_time = 0.08", doc)
+        self.assertIn("time_step = 0.008", doc)
         for j in range(1, 8):
             token=f"# TUTORIAL 2A-0{j}:"
             with self.subTest(step=j):
