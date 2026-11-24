@@ -44,6 +44,15 @@ jobs:
           python -m py_compile scrimp/utils/mesh.py scrimp/utils/ph_block_layout.py sandbox/audit_ph_blocks.py sandbox/compare_ph_block_audits.py sandbox/diagnose_ph_block_parity.py sandbox/compare_raw_getfem_petsc.py tests/test_ph_block_layout.py tests/test_ph_block_comparison.py tests/test_getfem_bridge_localization.py tests/test_concentric_region_integrity.py
           bash -n sandbox/run_ph_block_audit.sh
           python -m unittest -v tests.test_ph_block_layout tests.test_ph_block_comparison tests.test_getfem_bridge_localization tests.test_concentric_region_integrity
+      - name: Source-check next 2D conservative wave physics pilot (no native PASS implied)
+        run: |
+          python -m py_compile \
+            sandbox/probe_v130_wave2d_conservative.py \
+            tests/test_v130_wave2d_conservative_pilot.py
+          bash -n scripts/run-v130-wave2d-conservative-pilot.sh
+          python tests/test_v130_wave2d_conservative_pilot.py
+          python scripts/check-v130-published-immutable.py
+
       - name: Verify first user tutorial and authentic scientific visualization pipeline (source-only)
         run: |
           python -m py_compile \
