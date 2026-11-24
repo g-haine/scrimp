@@ -3965,69 +3965,96 @@ class DPHS:
             os.makedirs(path)
         comm.barrier()
 
-        # Get the dofs of name_variable
-        I = self.gf_model.interval_of_variable(name_variable)
-        J = range(I[0], I[0] + I[1])
+        # Pilot only. Previous MPI2 Heat-Wave audit established that each
+        # rank owns the full, identical GetFEM visualization mesh and the
+        # complete accepted FE state. Avoid concurrent writes to the same
+        # VTU/PVD filenames by allowing only PETSc rank 0 to export.
+        # Keep this disabled by default until a native root-only gate
+        # qualifies actual GetFEM export without hidden MPI collectives.
+        root_only_pilot = (
+            os.environ.get("SCRIMP_V130_PV_ROOT_ONLY_PILOT", "0") == "1"
+        )
+        export_error = None
+        if not root_only_pilot or rank == 0:
+            try:
 
-        if t == "All":
-            if rank == 0:
-                logging.info(
-                    f"Export all time values of {name_variable} is starting..."
-                )
-            with open(os.path.join(path, name_variable + ".pvd"), "w") as pvd_file:
-                pvd_file.write('<?xml version="1.0"?>\n')
-                pvd_file.write('<VTKFile type="Collection" version="0.1">\n')
-                pvd_file.write("  <Collection>\n")
-                for k, _ in enumerate(self.solution["t"]):
-                    z = self.solution["z"][k][J]
+                # Get the dofs of name_variable
+                I = self.gf_model.interval_of_variable(name_variable)
+                J = range(I[0], I[0] + I[1])
+        
+                if t == "All":
+                    if rank == 0:
+                        logging.info(
+                            f"Export all time values of {name_variable} is starting..."
+                        )
+                    with open(os.path.join(path, name_variable + ".pvd"), "w") as pvd_file:
+                        pvd_file.write('<?xml version="1.0"?>\n')
+                        pvd_file.write('<VTKFile type="Collection" version="0.1">\n')
+                        pvd_file.write("  <Collection>\n")
+                        for k, _ in enumerate(self.solution["t"]):
+                            z = self.solution["z"][k][J]
+                            FEM = self.gf_model.mesh_fem_of_variable(name_variable)
+                            FEM.export_to_vtu(
+                                os.path.join(path, name_variable + f"_{k:05d}.vtu"),
+                                FEM,
+                                z,
+                                name_variable,
+                            )
+                            pvd_file.write(
+                                '    <DataSet timestep="'
+                                + str(self.solution["t"][k])
+                                + '" file="'
+                                + name_variable
+                                + f"_{k:05d}.vtu"
+                                + '" />\n'
+                            )
+                            if rank == 0:
+                                sys.stdout.write("\rExport time %f" % self.solution["t"][k])
+                                sys.stdout.flush()
+                        pvd_file.write("  </Collection>\n")
+                        pvd_file.write("</VTKFile>")
+                    pvd_file.close()
+                    if rank == 0:
+                        logging.info("\rExport is done              ")
+                elif t == "Init":
+                    if rank == 0:
+                        logging.info(f"Export initial value of {name_variable}")
+                    z = self.solution["z"][0][J]
                     FEM = self.gf_model.mesh_fem_of_variable(name_variable)
                     FEM.export_to_vtu(
-                        os.path.join(path, name_variable + f"_{k:05d}.vtu"),
+                        os.path.join(path, name_variable + "_init.vtu"),
                         FEM,
                         z,
                         name_variable,
                     )
-                    pvd_file.write(
-                        '    <DataSet timestep="'
-                        + str(self.solution["t"][k])
-                        + '" file="'
-                        + name_variable
-                        + f"_{k:05d}.vtu"
-                        + '" />\n'
-                    )
+                elif t == "Final":
                     if rank == 0:
-                        sys.stdout.write("\rExport time %f" % self.solution["t"][k])
-                        sys.stdout.flush()
-                pvd_file.write("  </Collection>\n")
-                pvd_file.write("</VTKFile>")
-            pvd_file.close()
-            if rank == 0:
-                logging.info("\rExport is done              ")
-        elif t == "Init":
-            if rank == 0:
-                logging.info(f"Export initial value of {name_variable}")
-            z = self.solution["z"][0][J]
-            FEM = self.gf_model.mesh_fem_of_variable(name_variable)
-            FEM.export_to_vtu(
-                os.path.join(path, name_variable + "_init.vtu"),
-                FEM,
-                z,
-                name_variable,
-            )
-        elif t == "Final":
-            if rank == 0:
-                logging.info(f"Export final value of {name_variable}")
-            z = self.solution["z"][-1][J]
-            FEM = self.gf_model.mesh_fem_of_variable(name_variable)
-            FEM.export_to_vtu(
-                os.path.join(path, name_variable + "_final.vtu"),
-                FEM,
-                z,
-                name_variable,
-            )
-        else:
-            logging.error(f"t must be `All`, `Init` or `Final`. Unknown value: {t}")
-            raise ValueError
+                        logging.info(f"Export final value of {name_variable}")
+                    z = self.solution["z"][-1][J]
+                    FEM = self.gf_model.mesh_fem_of_variable(name_variable)
+                    FEM.export_to_vtu(
+                        os.path.join(path, name_variable + "_final.vtu"),
+                        FEM,
+                        z,
+                        name_variable,
+                    )
+                else:
+                    logging.error(f"t must be `All`, `Init` or `Final`. Unknown value: {t}")
+                    raise ValueError
+            except Exception as exc:
+                if not root_only_pilot:
+                    raise
+                export_error = f"{type(exc).__name__}: {exc}"
+        if root_only_pilot:
+            # All ranks must enter this communication, whether or not
+            # root's GetFEM export succeeded, to avoid a silent partial
+            # output or rank-asymmetric failure.
+            failures = comm.tompi4py().allgather(export_error)
+            if any(error is not None for error in failures):
+                raise RuntimeError(
+                    "Rank-0 GetFEM ParaView export failed: "
+                    + "; ".join(error for error in failures if error is not None)
+                )
 
     def get_solution(self, name_variable) -> list:
         """This functions is useful (especially in 1D) to handle post-processing
