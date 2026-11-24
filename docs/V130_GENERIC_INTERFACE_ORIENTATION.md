@@ -133,6 +133,41 @@ For `heat_region=1, wave_region=2`, it must report
 `"Interface Heat": 1` and `"Interface Wave": 2` and 78 matched faces.
 No actual simulation is claimed.
 
+## Geometric regression: two adjacent rectangles (native pending)
+
+A two-sided interface is generally **not the full boundary** of either
+subdomain. For two adjacent rectangles, the shared vertical segment is a
+proper subset of BOTH rectangle perimeters. The topology resolver
+constructs both full subdomain boundary maps, intersects their facet
+keys, then checks the logical interface exactly matches that shared set.
+Nonshared exterior facets are deliberately excluded. If the region
+label fails to identify some truly shared facets, the resolver rejects
+the mismatch rather than silently discarding them.
+
+```bash
+python sandbox/probe_v130_two_rectangles_interface.py
+```
+
+This independent **native** GetFEM probe constructs 8 Cartesian
+quadrangles across two adjacent rectangles, identifies the two shared
+interface facets, verifies that other exterior facets are untouched,
+checks subdomain-permutation invariance, and rejects a deliberately
+incomplete logical interface. It does not invoke a PETSc time solver,
+mass-matrix projection or reorientation of existing DPHS weak forms.
+The native probe must be executed before claiming validation.
+
+## Native declared-model audit: projection avoidance (pending)
+
+`sandbox/probe_v130_native_interface_ownership.py` now intercepts
+the first `DPHS.set_initial_value` call, after all original Heat-Wave
+ports, bricks and controls have been declared but **before** any
+L2 initial-value projection. The preceding attempt intercepted
+`DPHS.solve` too late and failed on a local petsc4py installation
+without `Mat.setPreallocationCOO`. That failure is not evidence of
+wrong interface ownership; nor is it solved by this audit-only
+interception. Production PETSc COO compatibility remains a separate
+environment qualification.
+
 ## Next steps (not implemented here)
 
 1. Native test on real 1D/2D/3D imported meshes and curved/high-order
