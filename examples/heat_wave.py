@@ -33,11 +33,12 @@ def heat_wave_eq(
     closed interconnection in an interpretable power balance.
 
     Interface normals always mean each subdomain's outward normal.
-    The two-sided conforming interface compiler must be active for
-    this physical convention; SCRIMP's historical default assembly
-    still uses the original doubled logical region 10. Until the
-    compiler is enabled by default after its release qualification,
-    set SCRIMP_V130_AUTO_INTERFACE_PILOT=1 for physical simulations.
+    The conservative two-sided conforming interface compiler is
+    enabled by default in the v1.3.0 release-preparation source.
+    Physical labels, FEM declarations and weak forms are unchanged.
+    Ambiguous or unsupported interfaces fail explicitly; use
+    SCRIMP_AUTO_INTERFACE=0 only to recover legacy manual assembly
+    if your model was already oriented by hand.
 
     Args:
         heat_region: domain label of the heat equation (1 or 2).
