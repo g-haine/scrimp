@@ -183,6 +183,25 @@ class Domain:
 
                 self._mesh[k].display()  # GetFEM infos
 
+    def resolve_interface(self, interface, subdomains, mesh_id=0):
+        """Resolve one logical interface into outward faces of two subdomains.
+
+        This is a non-mutating topology query, independent of the physical
+        port law. It supports conforming subdomains on a single GetFEM mesh.
+        The returned sides use the parent convexes' outward normals.
+        Unsupported/non-matching interfaces raise InterfaceTopologyError.
+        """
+        from scrimp.interface import resolve_conforming_interface
+
+        if not self._isSet:
+            raise ValueError("Domain must be set before resolving interfaces")
+        if not isinstance(mesh_id, int) or not 0 <= mesh_id < len(self._mesh):
+            raise ValueError(f"Invalid mesh_id for interface: {mesh_id}")
+        return resolve_conforming_interface(
+            self._mesh[mesh_id], self._dim[mesh_id],
+            interface, subdomains,
+        )
+
     def get_name(self) -> str:
         """This function get the name of the domain.
 
