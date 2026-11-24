@@ -111,6 +111,40 @@ class CollectorRegionTests(unittest.TestCase):
         self.assertEqual((report["interface_heat_region"],
                           report["interface_wave_region"]), (30, 31))
 
+    def test_swapped_bulk_regions_and_outward_external_heat_power(self):
+        system = FakeSystem([1, 2, 10, 20, 21, 22])
+        times = np.arange(5, dtype=float) * 0.001
+        energy = np.full(5, 2.0)
+        traces, report = MODULE.collect_heat_wave_dual_facet_physics(
+            system, times, energy, heat_faces=22, wave_faces=21,
+            heat_bulk=2, wave_bulk=1,
+        )
+        self.assertIn((".5*T*T", 2, False), system.calls)
+        self.assertIn((".5*p*p", 1, False), system.calls)
+        self.assertIn((".5*q.q", 1, False), system.calls)
+        self.assertIn(("e_Q.e_Q", 2, True), system.calls)
+        self.assertIn(("U_T*Y_T", 22, True), system.calls)
+        self.assertIn(("U_w*Y_w", 21, True), system.calls)
+        self.assertEqual(report["heat_bulk_region"], 2)
+        self.assertEqual(report["wave_bulk_region"], 1)
+        self.assertEqual(report["outer_boundary_physical_owner"], 2)
+        self.assertEqual(
+            report["outer_boundary_signed_power_convention"],
+            "-U_bnd*Y_bnd",
+        )
+        self.assertEqual(
+            report["CN_interface_power_balance_weak_form_expected_sign"],
+            "-heat_region22 + wave_region21",
+        )
+        self.assertEqual(traces["CN_per_step_H_balance_error"].shape, (5,))
+
+    def test_invalid_bulk_partition_rejected(self):
+        with self.assertRaisesRegex(RuntimeError, "heat/wave bulk"):
+            self.run_collector(
+                [1, 2, 10, 20, 21, 22], heat_faces=21, wave_faces=22,
+                heat_bulk=1, wave_bulk=1,
+            )
+
     def test_reject_invalid_or_missing_facets(self):
         times = np.arange(5, dtype=float) * 0.001
         energy = np.full(5, 2.0)
