@@ -149,6 +149,8 @@ class Port:
         self.__fem = None  #: A getfem Meshfem object to discretize the `port`
         #: If any, the int of the region of mesh_id where the flow/effort variables belong
         self.__region = region
+        # Resolved GetFEM region is private; the public logical ID stays.
+        self.__assembly_region = None
         self.__power = list()  # : The raw signed flow/effort products
         # Sampling is part of the result, never an implicit CN convention.
         # "unknown" preserves explicit user-set_power calls without
@@ -261,6 +263,17 @@ class Port:
         """
 
         return self.__region
+
+    def set_assembly_region(self, region):
+        """Bind the verified internal one-sided assembly region once."""
+        if self.__assembly_region is not None:
+            raise ValueError("Port assembly region is already bound")
+        self.__assembly_region = int(region)
+
+    def get_assembly_region(self):
+        """Effective GetFEM region, preserving the public get_region()."""
+        return (self.__region if self.__assembly_region is None
+                else self.__assembly_region)
 
     def get_fem(self):
         """This function returns the fetfem Meshfem object to discretize the port.
@@ -424,10 +437,10 @@ class Port:
                 )
 
             start = time.perf_counter()
-            if self.get_region() is None:
+            if self.get_assembly_region() is None:
                 region = -1
             else:
-                region = self.get_region()
+                region = self.get_assembly_region()
 
             if self.get_kind() == "scalar-field":
                 multiply = "*"
