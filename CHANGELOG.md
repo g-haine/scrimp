@@ -5,6 +5,46 @@ Changes to SCRIMP are recorded here. See also the
 
 ## 1.3.0 — in development (not released)
 
+### Onde 2D conservative : modèle canonique et deux rangs MPI qualifiés (24 novembre 2026)
+
+- **Second pilote natif MUMPS MPI1/MPI2 entièrement PASS**
+  sur `cf42089d`, archive
+  `v130-wave2d-mixed-conservative-cf42089d-pI8VXuBa.zip` :
+  2230 DOFs, dix pas CN, initialisation DAE stricte,
+  puissance gauche non nulle (`0.0489964`),
+  défaut énergétique par pas < `3e-18`,
+  tous les champs physiques et coénergies
+  `q,p,e_q,e_p` exportés en **88 VTU**
+  avec huit PVD. Les trajectoires des deux
+  rangs MPI2 sont identiques ; écart
+  MPI1/MPI2 `4.16e-14`.
+- Le candidat temporaire de `sandbox/` a été
+  **promu dans `examples/wave.py`**, en gardant
+  l'API publique `wave_eq()`. Les briques,
+  paramètres et données nativement qualifiés
+  ont été conservés ; le double script de
+  simulation et son lanceur exploratoire
+  sont retirés (historiques Git conservés).
+- **La page Sphinx `examples/wave.rst`
+  est reconstruite** pour la conservative :
+  vrai tenseur de tension anisotrope,
+  traction scalaire `n·e_q`, commande
+  gauche en vitesse, conservation à chaque
+  pas. Les huit étapes `literalinclude`
+  lisent le code Python réel et évitent
+  la dérive d'expressions GWFL ;
+  la section dissipative reste indépendante.
+- **Acceptation cinq backends en attente** :
+  `scripts/run-v130-wave2d-conservative-acceptance.sh`
+  vérifie MUMPS MPI1/2, SuperLU MPI1,
+  SuperLU_DIST MPI1/2, états, Hamiltonien,
+  puissances des quatre frontières et
+  géométries/fichiers VTK.
+  Les simulations dissipatives et coénergie
+  ne sont pas encore qualifiées dans ce lot.
+  Aucun changement sur `master` ou dans
+  `examples/published/`.
+
 ### Export ParaView MPI : coénergies et champs d'effort 2D (24 novembre 2026)
 
 - Premier pilote natif onde 2D anisotrope **MUMPS MPI1 et MPI2** :
