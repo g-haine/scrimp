@@ -32,6 +32,7 @@ python3 tests/test_v130_interface_topology.py
 python3 tests/test_v130_interface_ownership.py
 python3 tests/test_v130_interface_assembly_plan.py
 python3 tests/test_v130_interface_deferred.py
+python3 tests/test_v130_hw_facet_collector_regions.py
 python3 tests/test_v130_heat_wave_outward_signs.py
 python3 scripts/check-v130-published-immutable.py
 
