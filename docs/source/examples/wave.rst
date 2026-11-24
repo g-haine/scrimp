@@ -158,6 +158,28 @@ not merely assumed from the matrix layout.
 Build the real SCRIMP model
 ---------------------------
 
+To reproduce the snippets in a notebook, begin with these
+imports and the *same tested defaults* (the command-line entry
+point accepts other values):
+
+.. code-block:: python
+
+   import numpy as np
+   import scrimp as S
+
+   mesh_size = 0.2
+   final_time = 0.08
+   time_step = 0.008
+   factor_solver = None  # Production default: MUMPS
+
+The four boundary identifiers are taken directly from
+the Python module, too:
+
+.. literalinclude:: ../../../examples/wave.py
+   :language: python
+   :start-after: # TUTORIAL 2A-00:
+   :end-before: def wave_eq(
+
 The following seven sections are taken **literally** from
 ``examples/wave.py:wave_eq()``; no duplicate hand-written
 Python excerpts are maintained in Sphinx. The boundary
@@ -241,7 +263,7 @@ actual finite-element fields.
 .. literalinclude:: ../../../examples/wave.py
    :language: python
    :start-after: # TUTORIAL 2A-07:
-   :end-before: def measure_wave_2d(
+   :end-before: # TUTORIAL 2A-08:
    :dedent: 4
 
 To reproduce the complete program, use the canonical
