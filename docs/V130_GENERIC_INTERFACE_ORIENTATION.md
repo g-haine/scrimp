@@ -649,6 +649,41 @@ physical CN balance and nontrivial power exchange in **MPI1**.
 Automatic compilation remains test-only/off by default; **MPI2 and
 other geometric/FE configurations are NOT qualified by this result**.
 
+## MPI2 first gate: actual distributed assembled stiffness (native pending)
+
+`sandbox/probe_v130_auto_interface_mpi_K.py` and
+`scripts/run-v130-auto-interface-mpi-K.sh` now test the **actual
+automatic interface compilation** on the **current outward-normal**
+Heat-Wave example for both bulk assignments, on **1 and 2 real MPI
+ranks**. The pinned PETSc/GetFEM image and original FEM/weak forms are
+retained. At the point immediately before strict algebraic
+initialization, each PETSc rank writes ONLY its owned CSR rows and
+records its PETSc ownership interval. The driver reconstructs the full
+stiffness matrices, validates complete and disjoint row ownership,
+checks that each rank sees the same oriented-interface manifest,
+and compares both full MPI2 operators to their MPI1 counterparts.
+No dense allgather, no rank-zero-only GetFEM assembly, and no fake
+MPI2 implementation.
+
+```bash
+SCRIMP_DOCKER_NO_SUDO=1 \\
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \\
+bash scripts/run-v130-auto-interface-mpi-K.sh
+```
+
+Success target:
+`PASS_BOTH_AUTO_INTERFACE_ORIENTATIONS_MPI2_K_PARITY`.
+The script archives raw per-rank matrices and metadata plus logs,
+and fails rather than claiming a PASS if a rank fails, row coverage
+is invalid or a numerical coefficient differs beyond tolerance.
+
+**This gate has not yet been executed natively.** It is strictly
+assembled-`K` qualification. Even a PASS will **not** qualify MPI2
+initial DAE, Crank–Nicolson trajectories, energy/port-power identities,
+parallel ParaView output, other geometries or arbitrary FEM families.
+Those are separate later stages; the automatically oriented compiler
+remains disabled by default.
+
 ## Next steps (not implemented here)
 
 1. Native test on real 1D/2D/3D imported meshes and curved/high-order
