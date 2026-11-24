@@ -101,7 +101,7 @@ class FirstTutorialTests(unittest.TestCase):
 
     def test_strict_initial_and_fixed_CN_discretization(self):
         for value in ('init_step_ts_type="algebraic"', 'ts_type="cn"',
-                      'ts_adapt_type="none"', "2*x*(1-x)*np.exp("):
+                      'ts_adapt_type="none"', '"4*x*(1-x)"'):
             self.assertIn(value, EXAMPLE_SOURCE)
 
     def test_actual_observer_accepts_correct_step_work(self):
