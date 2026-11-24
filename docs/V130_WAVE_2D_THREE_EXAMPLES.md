@@ -363,6 +363,56 @@ SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
 bash scripts/run-v130-wave2d-superlu-dist-matrix-audit.sh
 ```
 
+### Analyse de matrice : échec SuperLU_DIST isolé sans singularité du Jacobien
+
+La preuve native
+`v130-wave2d-first-cn-jacobian-574d9c71-NKqIZ0BZ.zip`
+montre que les opérateurs **MUMPS et
+SuperLU_DIST sont exactement identiques**
+(`P,K,M` : écart maximal 0,
+`P=K+250M` exact). Rang structurel
+`2230/2230`, dix diagonales nulles
+**uniquement sur `Y_L`** (contrainte
+de traction), aucune ligne vide.
+Une factorisation SciPy/SuperLU du
+vrai Jacobien réussit avec résidu
+relatif < `6e-15` sans régularisation.
+Condition en norme 1 estimée
+`≈4.28e5`, non la valeur exacte.
+
+Pour isoler définitivement le
+chemin de factorisation, un replay
+PETSc indépendant du système
+`GetFEM→TS` a été préparé :
+`scripts/run-v130-wave2d-superlu-dist-factor-replay.sh`.
+Il charge **le vrai CSR conservé**,
+vérifie son SHA256, le distribue
+aux rangs MPI1/MPI2, teste
+SuperLU_DIST standard puis avec
+**`ReplaceTinyPivot` explicitement
+activé**. Ce dernier est une
+**modification numérique du LU**
+et n'est pas introduit dans
+`examples/wave.py`. La vérification
+porte sur le vrai résidu `Px−b`
+et l'erreur par rapport à une
+solution connue, sur tous les rangs.
+**Replay natif à exécuter.**
+
+```bash
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-wave2d-superlu-dist-factor-replay.sh
+```
+
+Un PASS du replay ne serait
+pas un PASS de la simulation
+ni une raison de modifier
+immédiatement la politique LU
+de SCRIMP. **3/5 backends
+physiques seulement sont
+qualifiés à ce jour.**
+
 Une fois ces cinq cas qualifiés et leurs
 preuves inspectées, produire les
 **figures scientifiques 2D** :
