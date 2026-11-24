@@ -793,6 +793,101 @@ sur les dix pas CN, les quatre puissances
 de bord, l'Hamiltonien et les VTU MPI.
 **Acceptation actuelle de l'onde 2D : 3/5.**
 
+## SuperLU_DIST : raffinement interne enfin PASS sur le Jacobien exact (24 novembre)
+
+**Preuve native originale :**
+`v130-wave2d-superlu-dist-refinement-ad2d58a6-unyfltIn.zip`,
+source `ad2d58a60f2bc79f35c9bcff47968eaa5bd10461`.
+Les tests source préalables ont réussi **6/6** ;
+les quatre exécutions originales ont été réalisées
+en PETSc/MPI dans `scrimp-mpi:v1.3.0-rc3`.
+Tous les essais utilisent exactement le CSR
+(P=K+250M) issu du premier pas CN, avec
+le SHA256 précédemment qualifié et
+`ReplaceTinyPivot=true`. Il s'agit
+d'un **replay de facteur**, pas de la
+simulation physique complète.
+
+| Variante | MPI | KSP / PC | Résidu arrière relatif sur le vrai `Px-b` | Erreur relative `x-x*` | Résultat |
+|---|---:|---|---:|---:|---|
+| `IterRefine` interne SuperLU_DIST | 1 | `4 / 0` | `9.541996498414314e-17` | `2.007285126672514e-14` | **PASS** |
+| `IterRefine` interne SuperLU_DIST | 2 | `4 / 0` sur les deux rangs | `1.272266199788575e-16` | `2.2559753193576045e-14` | **PASS** |
+| GMRES `PC_RIGHT`, résidu non préconditionné | 1 | `2 / 0` | `1.9711896124742606e-10` | `1.8807418577168255e-08` | **FAIL résidu** |
+| GMRES `PC_RIGHT`, résidu non préconditionné | 2 | `2 / 0` sur les deux rangs | `2.3300343615571625e-10` | `1.1213346996440907e-08` | **FAIL résidu** |
+
+Les seuils d'acceptation restent strictement
+`relative_backward_residual < 1e-11` et
+`relative_known_solution_error < 1e-7`.
+Le `KSP_reason>0` ne suffit donc pas
+à lui seul : la branche GMRES est à
+juste titre marquée **FAIL**.
+
+**Conclusion expérimentale :** le mécanisme
+`ReplaceTinyPivot=true` **plus** le raffinement
+**interne** `mat_superlu_dist_iterrefine=true`
+permet une solution d'une précision comparable
+à celle d'une factorisation LU classique
+sur la **matrice originale**, aussi bien
+en MPI1 qu'en MPI2. C'est un résultat
+solide sur le **rejeu isolé** et non
+une validation du modèle 2D complet.
+
+### Porte suivante : véritable simulation port-Hamiltonienne
+
+Le candidat
+`sandbox/probe_v130_wave2d_refined_superlu_dist.py`
+ne modifie **aucune** brique, FEM,
+paramètre, condition initiale ni commande
+de `examples/wave.py`. Il intercepte
+`DPHS.set_time_scheme()` uniquement pour
+enregistrer ces **deux options PETSc**
+explicitement et après la création
+de la DPHS, avant `TS/SNES/KSP.setFromOptions`.
+Il impose le solveur réel `superlu_dist`
+et la demande de qualification par
+`SCRIMP_V130_WAVE2D_ENABLE_REFINED_DIST=1`.
+La modification des defaults de SCRIMP
+est **hors périmètre**.
+
+Le lanceur
+`scripts/run-v130-wave2d-refined-superlu-dist-physical.sh`
+exécute la **véritable onde anisotrope 2D**
+en MPI 1 puis MPI 2, avec **dix pas CN
+fixes**, initialisation DAE algébrique,
+2230 inconnues, quatre puissances
+physiques, énergie originale
+`0.5*q.T.q+0.5*p*p/rho`,
+rejets et échecs SNES nuls.
+Il conserve les **11 états complets** et
+les 11 sorties ParaView pour chacun
+des champs `q,p,e_q,e_p`,
+vérifie chaque rang, puis compare
+les trajectoires, Hamiltoniens, puissances
+et géométries au **MUMPS MPI1
+précédemment qualifié**
+(`v130-wave2d-conservative-five-lu-99d99f2d-tEOjqgHy.zip`)
+**sans refaire ses calculs**.
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+conda activate scrimp
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-wave2d-refined-superlu-dist-physical.sh
+```
+
+**Statut : SOURCE READY, validation physique
+native MPI1/MPI2 EN ATTENTE.**
+Un succès établirait un **candidat
+SuperLU_DIST raffiné opt-in**
+sur cette équation, **pas**
+la qualification du solveur
+SuperLU_DIST ordinaire. L'acceptation
+cinq solveurs par défaut reste
+**3/5**, tant que cette distinction
+n'a pas été tranchée et documentée.
+
 ## Critère de passage à l'étape suivante
 
 Conserver cette fiche comme **audit initial**, et enregistrer
