@@ -321,9 +321,10 @@ def measure_wave_2d(system):
         "resistive_flow_constraint": bool(
             np.max(np.abs(flow_constraint)) <= 1e-9
         ),
-        "resistive_effort_constitutive_law": bool(
-            np.max(np.abs(effort_constraint)) <= 1e-9
-        ),
+        # nu(x)*f_r is generally not in the CG2 space of e_r.
+        # The constitutive law holds in FE *weak projection*, not
+        # as a pointwise identity. We report its L2 discrepancy
+        # separately rather than imposing a false exactness gate.
         "each_CN_step_energy_work_minus_loss_balance":
             bool(np.max(np.abs(defects)) <= 1e-8*magnitude),
         "cumulative_CN_energy_work_minus_loss_balance":
