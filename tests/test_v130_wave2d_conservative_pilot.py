@@ -166,6 +166,28 @@ class Mixed2DWavePilot(unittest.TestCase):
         self.assertIn("PASS_WAVE2D_CONSERVATIVE_FIVE_LU_MPI_CN_PORTS_VTK", runner)
         self.assertNotIn("probe_v130_wave2d_conservative.py", runner)
 
+    def test_superlu_dist_first_step_diagnostic_is_isolated(self):
+        runner=source(
+            ROOT/"scripts"/"run-v130-wave2d-superlu-dist-diagnostic.sh"
+        )
+        self.assertIn("SCRIMP_TS_FAILURE_DIAGNOSTICS=1", runner)
+        self.assertIn('python -u -m examples.wave', runner)
+        self.assertIn('--solver superlu_dist', runner)
+        self.assertIn('--final-time 0.008 --time-step 0.008', runner)
+        self.assertIn("MAIN TS FAILURE DIAGNOSTIC:", runner)
+        self.assertIn("SUPERLU_DIST_UNQUALIFIED", runner)
+        self.assertIn("original_three_passes_preserved", runner)
+        self.assertNotIn("run-v130-wave2d-conservative-acceptance.sh", runner)
+        self.assertNotIn('--solver mumps', runner)
+        self.assertNotIn('--solver superlu ', runner)
+
+    def test_five_backend_report_records_both_failed_dist_variants(self):
+        runner=source(ROOT/"scripts"/"run-v130-wave2d-conservative-acceptance.sh")
+        self.assertIn('for solver,ranks in cases:', runner)
+        self.assertIn('report["cases"][name]={', runner)
+        self.assertIn('for name,case in report["cases"].items():', runner)
+        self.assertIn('if case["exit_code"] != 0:', runner)
+
     def test_qualified_models_are_not_modified_as_hidden_prerequisite(self):
         text = source(WAVE)
         self.assertNotIn("examples.published", text)
