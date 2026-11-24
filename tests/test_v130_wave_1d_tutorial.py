@@ -17,6 +17,7 @@ import ast
 import base64
 import importlib.util
 import json
+import re
 from pathlib import Path
 import tempfile
 import struct
@@ -132,11 +133,20 @@ class FirstTutorialTests(unittest.TestCase):
         self.assertNotIn('"-U_L*Test_p"', EXAMPLE_SOURCE)
 
     def test_observations_are_physical_velocity_and_negative_flow_side(self):
+        # Real GWFL sign, checked both in the maintained model and in
+        # Sphinx. Whitespace around '*' is not a physical distinction:
+        # the separate AST-parity suite enforces exact code/argument parity.
         for name in ("L", "R"):
-            self.assertIn(f'"-Y_{name}*Test_Y_{name}"', EXAMPLE_SOURCE)
-            self.assertIn(f'"-e_p*Test_Y_{name}"', EXAMPLE_SOURCE)
-        self.assertIn('"-Y_L * Test_Y_L"', DOC_SOURCE)
-        self.assertIn('"-Y_R * Test_Y_R"', DOC_SOURCE)
+            for expression in (
+                f"-Y_{name}*Test_Y_{name}",
+                f"-e_p*Test_Y_{name}",
+            ):
+                self.assertIn(f'"{expression}"', EXAMPLE_SOURCE)
+                left, right = expression.split("*", 1)
+                self.assertRegex(
+                    DOC_SOURCE,
+                    re.escape('"'+left)+r"\\s*\\*\\s*"+re.escape(right+'"'),
+                )
 
     def test_strict_initial_and_fixed_CN_discretization(self):
         for value in ('init_step_ts_type="algebraic"', 'ts_type="cn"',
