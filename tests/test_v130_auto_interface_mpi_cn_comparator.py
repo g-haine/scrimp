@@ -105,7 +105,7 @@ def compare(root):
                     exit_code = int(exc.code) if isinstance(exc.code, int) else 1
                 except Exception:
                     traceback.print_exc()
-                exit_code = 1
+                    exit_code = 1
     return SimpleNamespace(
         returncode=exit_code, stdout=stdout.getvalue(),
         stderr=stderr.getvalue(),
