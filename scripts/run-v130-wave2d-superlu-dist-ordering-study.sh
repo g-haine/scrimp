@@ -119,12 +119,27 @@ for selection in ("rowperm_awpm","colperm_mmd"):
     outcome["ordering_confirmed"]=(
         "V130_SUPERLU_DIST_ORDERING_APPLIED "+selection in log
     )
+    option_name = (
+        "mat_superlu_dist_rowperm" if selection == "rowperm_awpm"
+        else "mat_superlu_dist_colperm"
+    )
+    # Do not mistake an inserted-but-ignored PETSc option for a
+    # successful ordering experiment: inspect PETSc's unused list.
+    unused_lines = [line for line in log.splitlines()
+                    if "Option left:" in line and option_name in line]
+    outcome["ordering_option_consumed"]=not bool(unused_lines)
+    outcome["unused_ordering_lines"]=unused_lines
     if rc:
         outcome["status"]="FAIL_FIRST_CN_OR_SOLVER"
         continue
     try:
         if not outcome["ordering_confirmed"]:
             raise RuntimeError("Configured PETSc permutation not confirmed")
+        if not outcome["ordering_option_consumed"]:
+            raise RuntimeError(
+                "PETSc did not consume intended ordering option "
+                + option_name
+            )
         meta=json.loads((path/"rank0.json").read_text())
         if (meta["status"]!="PASS_ORIGINAL_FE_PHYSICS"
             or meta["MPI"]!=1 or meta["requested_LU"]!="superlu_dist"
