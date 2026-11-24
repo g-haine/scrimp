@@ -624,17 +624,19 @@ controls and the initial values of the states before solving
     wave.set_control("Boundary control (left)", expression_left)
     wave.set_control("Boundary control (right)", expression_right)
     
-    q_init = "2*x*(1-x)*np.exp(-50*(x-0.5)*(x-0.5))"
+    q_init = "4*x*(1-x)"
     p_init = "0."
     wave.set_initial_value("q", q_init)
     wave.set_initial_value("p", p_init)
 
 
 At ``t=0``, both boundary tractions are zero. The initial
-strain is multiplied by ``x*(1-x)`` so that its boundary values
-are zero too. This makes the prescribed differential initial
-data compatible with the boundary constraints, while still
-exciting an interior wave.
+strain is the exact quadratic ``4*x*(1-x)``: it vanishes at
+both endpoints and belongs exactly to the ``P2`` finite-element
+space selected for ``q``. This makes the prescribed differential
+initial data compatible with the zero boundary tractions, with no
+uncontrolled boundary projection error. It excites a nontrivial
+interior wave.
 
 For the reproducible tutorial we use fixed Crank--Nicolson steps
 and the **strict algebraic** DAE initializer. A brief, non-graphical
