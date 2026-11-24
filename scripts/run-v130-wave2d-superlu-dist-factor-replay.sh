@@ -111,7 +111,7 @@ for mode in ("default","replace_tiny_pivot"):
                 e.get("factorization_passed_all_ranks") and
                 e.get("original_full_P_M_K_SHA256") ==
                     "24346856f358e4f81cf332ebc974e329dc084c60f5d6b98bfbcd788fdff37f54" and
-                e.get("PETSc_owned_values_identical_to_archive") and
+                e.get("PETSc_owned_CSR_graph_and_values_identical_to_archive") and
                 e.get("factor_solver")=="superlu_dist" and
                 e.get("relative_backward_residual") is not None and
                 e["relative_backward_residual"] < 1e-11 and
