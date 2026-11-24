@@ -54,6 +54,9 @@ class Brick:
         self._form = form
         self._mesh_id = mesh_id
         self._regions = regions
+        # Keep the public region declaration independent of the
+        # resolved one-sided region passed to GetFEM.
+        self._assembly_regions = None
         self._linear = linear
         self._dt = dt
         self._position = position
@@ -112,6 +115,17 @@ class Brick:
         """
 
         return self._regions
+
+    def set_assembly_regions(self, regions):
+        """Bind the verified one-sided GetFEM region(s), once only."""
+        if self._assembly_regions is not None:
+            raise ValueError("Brick assembly regions are already bound")
+        self._assembly_regions = tuple(int(r) for r in regions)
+
+    def get_assembly_regions(self):
+        """Actual GetFEM regions, or original user-declared regions."""
+        return (self._regions if self._assembly_regions is None
+                else list(self._assembly_regions))
 
     def get_linear(self) -> bool:
         """This function returns the boolean that defines wether the brick is linear or not.
