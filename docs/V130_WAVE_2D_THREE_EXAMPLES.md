@@ -413,6 +413,53 @@ de SCRIMP. **3/5 backends
 physiques seulement sont
 qualifiés à ce jour.**
 
+### SuperLU_DIST : pivot remplacé, précision encore insuffisante
+
+Le rejeu natif de la matrice `P=K+250M`
+réellement utilisée lors du premier pas
+conservatif est consigné dans
+`v130-wave2d-superlu-dist-factor-replay-e87b20d1-H7IgKhB8.zip`.
+Quatre cas ont été réellement exécutés :
+SuperLU_DIST standard MPI1/2 échoue
+encore avec `PC_FAILED=2`, tandis que
+`ReplaceTinyPivot=true` supprime
+l'échec de LU et donne `KSP_reason=4`
+sur les deux nombres de rangs.
+**Le remplacement de pivot NE PASSE
+pas les critères de précision** :
+résidu arrière ≈ `5.084e-10`
+(exigence < `1e-11`), erreur de
+solution ≈ `7.3e-7`
+(exigence < `1e-7`).
+Ce résultat ne doit pas être désigné PASS.
+
+L'étape suivante examine une **correction
+de solution, pas de modèle** : le
+raffinement interne de SuperLU_DIST,
+et un GMRES à droite contrôlant le
+véritable résidu non préconditionné.
+Deux cas × MPI1/MPI2, avec
+`ReplaceTinyPivot` activé uniquement
+dans ces essais isolés, les mêmes
+coefficients et les mêmes seuils.
+Les contrôles sources sont dans
+`tests/test_v130_wave2d_refinement.py`.
+Commande native :
+
+```bash
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-wave2d-superlu-dist-refinement.sh
+```
+
+**Aucun changement du modèle pédagogique
+conservatif, dissipatif ou coénergie**.
+Les trois passes historiques restent
+qualifiées ; SuperLU_DIST demeure
+non qualifié jusqu'au passage de
+l'intégralité des dix pas CN et des
+contrôles physiques et MPI.
+
 Une fois ces cinq cas qualifiés et leurs
 preuves inspectées, produire les
 **figures scientifiques 2D** :
