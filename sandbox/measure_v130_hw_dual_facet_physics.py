@@ -39,23 +39,40 @@ def numeric(system, times, expr, region, *, cn=False):
     return arr
 
 
-def collect_heat_wave_dual_facet_physics(system, times, H_total):
-    """Real GetFEM nodal energies and CN-midpoint separately sided powers."""
+def collect_heat_wave_dual_facet_physics(
+    system, times, H_total, *, heat_faces=HEAT_FACES, wave_faces=WAVE_FACES,
+):
+    """Real GetFEM nodal energies and CN-midpoint separately sided powers.
+
+    Optional explicit region IDs allow the experimental generic compiler
+    to supply actual oriented faces. Historical callers retain the 30/31
+    default unchanged; no mutation of module globals is necessary.
+    """
+    heat_faces = int(heat_faces)
+    wave_faces = int(wave_faces)
+    if heat_faces == wave_faces or 10 in (heat_faces, wave_faces):
+        raise RuntimeError("Physical power requires two distinct one-sided regions")
     times=np.asarray(times,dtype=float).reshape(-1)
     H=np.asarray(H_total,dtype=float).reshape(-1)
     if (times.shape!=(5,) or H.shape!=times.shape
             or not np.allclose(times,np.arange(5)*.001,atol=1e-12,rtol=0)
             or not np.all(np.isfinite(H))):
         raise RuntimeError("Wrong original 4-step Heat-Wave physical history")
-    if 30 not in system.domain.get_mesh()[0].regions() or 31 not in system.domain.get_mesh()[0].regions():
-        raise RuntimeError("Original corrected 2D facet regions missing")
+    available = {int(r) for r in np.asarray(
+        system.domain.get_mesh()[0].regions(), dtype=np.int64
+    ).reshape(-1)}
+    if heat_faces not in available or wave_faces not in available:
+        raise RuntimeError(
+            "Oriented physical interface facet regions missing: "
+            f"heat={heat_faces}, wave={wave_faces}, available={sorted(available)}"
+        )
     definitions={
         "H_heat":(".5*T*T",1),
         "H_wave_kinetic":(".5*p*p",2),
         "H_wave_potential":(".5*q.q",2),
         "D_heat_flux":("e_Q.e_Q",1),
-        "P_interface_heat":("U_T*Y_T",HEAT_FACES),
-        "P_interface_wave":("U_w*Y_w",WAVE_FACES),
+        "P_interface_heat":("U_T*Y_T",heat_faces),
+        "P_interface_wave":("U_w*Y_w",wave_faces),
         "P_outer":("U_bnd*Y_bnd",20),
     }
     traces={
@@ -64,13 +81,13 @@ def collect_heat_wave_dual_facet_physics(system, times, H_total):
     }
     for name,expr,reg in (
         ("CN_D_heat_flux","e_Q.e_Q",1),
-        ("CN_P_interface_heat","U_T*Y_T",HEAT_FACES),
-        ("CN_P_interface_wave","U_w*Y_w",WAVE_FACES),
+        ("CN_P_interface_heat","U_T*Y_T",heat_faces),
+        ("CN_P_interface_wave","U_w*Y_w",wave_faces),
         ("CN_P_outer","U_bnd*Y_bnd",20),
-        ("CN_interface_heat_effort_squared","U_T*U_T",HEAT_FACES),
-        ("CN_interface_heat_output_squared","Y_T*Y_T",HEAT_FACES),
-        ("CN_interface_wave_effort_squared","U_w*U_w",WAVE_FACES),
-        ("CN_interface_wave_output_squared","Y_w*Y_w",WAVE_FACES),
+        ("CN_interface_heat_effort_squared","U_T*U_T",heat_faces),
+        ("CN_interface_heat_output_squared","Y_T*Y_T",heat_faces),
+        ("CN_interface_wave_effort_squared","U_w*U_w",wave_faces),
+        ("CN_interface_wave_output_squared","Y_w*Y_w",wave_faces),
     ):
         traces[name]=numeric(system,times,expr,reg,cn=True)
 
@@ -104,13 +121,13 @@ def collect_heat_wave_dual_facet_physics(system, times, H_total):
     unavailable={}
     for name,expr,region in (
         ("CN_U_T_minus_Y_w_L2_sq",
-         "(U_T-Y_w)*(U_T-Y_w)",HEAT_FACES),
+         "(U_T-Y_w)*(U_T-Y_w)",heat_faces),
         ("CN_U_w_minus_Y_T_L2_sq",
-         "(U_w-Y_T)*(U_w-Y_T)",WAVE_FACES),
+         "(U_w-Y_T)*(U_w-Y_T)",wave_faces),
         ("CN_heat_surface_power_density_squared",
-         "(U_T*Y_T)*(U_T*Y_T)",HEAT_FACES),
+         "(U_T*Y_T)*(U_T*Y_T)",heat_faces),
         ("CN_wave_surface_power_density_squared",
-         "(U_w*Y_w)*(U_w*Y_w)",WAVE_FACES),
+         "(U_w*Y_w)*(U_w*Y_w)",wave_faces),
     ):
         try:
             optional[name]=numeric(system,times,expr,region,cn=True)
@@ -141,8 +158,8 @@ def collect_heat_wave_dual_facet_physics(system, times, H_total):
     result={
         "schema":"scrimp-v130-HW-dual-facet-CN-physical-audit-v1",
         "scientific_status":"DIAGNOSTIC_ONLY_CORRECTED_INTERFACE_NOT_YET_QUALIFIED",
-        "interface_heat_region":HEAT_FACES,
-        "interface_wave_region":WAVE_FACES,
+        "interface_heat_region":heat_faces,
+        "interface_wave_region":wave_faces,
         "old_doubled_interface_region_excluded_from_physical_power":True,
         "source":"unmodified original heat_wave_eq, runtime dual-face remapping",
         "Hamiltonian_terms_max_difference":trace_error,
@@ -174,7 +191,7 @@ def collect_heat_wave_dual_facet_physics(system, times, H_total):
         "interface_exchange_ratio_to_heat_dissipation":ratio,
         "interface_exchange_nontrivial":bool(ratio>1e-8),
         "CN_interface_power_balance_weak_form_expected_sign":
-            "-heat_region30 + wave_region31",
+            f"-heat_region{heat_faces} + wave_region{wave_faces}",
         "individual_CN_interface_power_heat":signed_heat.tolist(),
         "individual_CN_interface_power_wave":signed_wave.tolist(),
         "max_interface_heat_power_density_integral_l2_sq":(
