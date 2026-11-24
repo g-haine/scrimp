@@ -41,6 +41,7 @@ def numeric(system, times, expr, region, *, cn=False):
 
 def collect_heat_wave_dual_facet_physics(
     system, times, H_total, *, heat_faces=HEAT_FACES, wave_faces=WAVE_FACES,
+    heat_bulk=1, wave_bulk=2,
 ):
     """Real GetFEM nodal energies and CN-midpoint separately sided powers.
 
@@ -50,6 +51,12 @@ def collect_heat_wave_dual_facet_physics(
     """
     heat_faces = int(heat_faces)
     wave_faces = int(wave_faces)
+    heat_bulk = int(heat_bulk)
+    wave_bulk = int(wave_bulk)
+    if {heat_bulk, wave_bulk} != {1, 2}:
+        raise RuntimeError(
+            "Concentric physical collector needs heat/wave bulk 1 and 2"
+        )
     if heat_faces == wave_faces or 10 in (heat_faces, wave_faces):
         raise RuntimeError("Physical power requires two distinct one-sided regions")
     times=np.asarray(times,dtype=float).reshape(-1)
@@ -67,10 +74,10 @@ def collect_heat_wave_dual_facet_physics(
             f"heat={heat_faces}, wave={wave_faces}, available={sorted(available)}"
         )
     definitions={
-        "H_heat":(".5*T*T",1),
-        "H_wave_kinetic":(".5*p*p",2),
-        "H_wave_potential":(".5*q.q",2),
-        "D_heat_flux":("e_Q.e_Q",1),
+        "H_heat":(".5*T*T",heat_bulk),
+        "H_wave_kinetic":(".5*p*p",wave_bulk),
+        "H_wave_potential":(".5*q.q",wave_bulk),
+        "D_heat_flux":("e_Q.e_Q",heat_bulk),
         "P_interface_heat":("U_T*Y_T",heat_faces),
         "P_interface_wave":("U_w*Y_w",wave_faces),
         "P_outer":("U_bnd*Y_bnd",20),
@@ -80,7 +87,7 @@ def collect_heat_wave_dual_facet_physics(
         for name,(expr,reg) in definitions.items()
     }
     for name,expr,reg in (
-        ("CN_D_heat_flux","e_Q.e_Q",1),
+        ("CN_D_heat_flux","e_Q.e_Q",heat_bulk),
         ("CN_P_interface_heat","U_T*Y_T",heat_faces),
         ("CN_P_interface_wave","U_w*Y_w",wave_faces),
         ("CN_P_outer","U_bnd*Y_bnd",20),
@@ -94,17 +101,25 @@ def collect_heat_wave_dual_facet_physics(
     H_wave=traces["H_wave_kinetic"]+traces["H_wave_potential"]
     H_parts=traces["H_heat"]+H_wave
     dt=np.diff(times)
-    # Original heat-region=1 disk orientation is its outward normal on 30.
-    # Original model control interconnection has U_T=Y_w, U_w=Y_T.
-    # The port-Hamiltonian power orientation follows the existing
-    # model's weak-form convention: -U_T Y_T + U_w Y_w + P_outer.
+    # Normal is outward from EACH owning subdomain. For the mixed
+    # heat and grad-grad wave forms, interface power is always
+    # -U_T Y_T + U_w Y_w. Region 20 belongs to the WAVE equation
+    # when wave_bulk=2, and to the HEAT equation when heat_bulk=2.
+    # Its signed contribution changes accordingly. The published
+    # example prescribes U_bnd=0, but still measure that power. 
     signed_heat=traces["CN_P_interface_heat"][1:]
     signed_wave=traces["CN_P_interface_wave"][1:]
     outer=traces["CN_P_outer"][1:]
     dissipation=traces["CN_D_heat_flux"][1:]
-    port_exchange=-signed_heat+signed_wave+outer
-    defect_heat=np.diff(traces["H_heat"])+dt*(dissipation+signed_heat)
-    defect_wave=np.diff(H_wave)-dt*(signed_wave+outer)
+    outer_is_wave = (wave_bulk == 2)
+    physical_outer = outer if outer_is_wave else -outer
+    port_exchange = -signed_heat + signed_wave + physical_outer
+    defect_heat = np.diff(traces["H_heat"]) + dt*(
+        dissipation + signed_heat + (0. if outer_is_wave else outer)
+    )
+    defect_wave = np.diff(H_wave) - dt*(
+        signed_wave + (outer if outer_is_wave else 0.)
+    )
     defect_total=np.diff(H)+dt*(dissipation-port_exchange)
     cumulative_dissipation=np.r_[0.,np.cumsum(dt*dissipation)]
     cumulative_ports=np.r_[0.,np.cumsum(dt*port_exchange)]
@@ -160,6 +175,13 @@ def collect_heat_wave_dual_facet_physics(
         "scientific_status":"DIAGNOSTIC_ONLY_CORRECTED_INTERFACE_NOT_YET_QUALIFIED",
         "interface_heat_region":heat_faces,
         "interface_wave_region":wave_faces,
+        "heat_bulk_region":heat_bulk,
+        "wave_bulk_region":wave_bulk,
+        "outer_boundary_region":20,
+        "outer_boundary_physical_owner":wave_bulk if outer_is_wave else heat_bulk,
+        "outer_boundary_signed_power_convention":(
+            "+U_bnd*Y_bnd" if outer_is_wave else "-U_bnd*Y_bnd"
+        ),
         "old_doubled_interface_region_excluded_from_physical_power":True,
         "source":"unmodified original heat_wave_eq, runtime dual-face remapping",
         "Hamiltonian_terms_max_difference":trace_error,
