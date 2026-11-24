@@ -5449,3 +5449,59 @@ original P1 triangle/segment geometry and refuses unexpected
 higher-order element connectivities instead of claiming a
 generic region classifier. Correct regions and actual normal
 fluxes 10/30/31 still require the next native run.
+
+## 24 November 2026 — original interface geometric cancellation CONFIRMED; dual-sided assembly pilot
+
+Original native archive `v130-hw-one-sided-facet-28495b42-PIrsBsTC.zip`
+directly checked (source `28495b42`). Original region 10 is
+**156 oriented 2D parent faces**, precisely the 78 disk-side
+faces (region 30) PLUS the 78 annulus-side faces (region 31);
+they are distinct faces with coincident physical locations and
+opposite unit normals. Bulk regions 1 and 2 contain 1148 and
+2006 full triangles; GetFEM's 16-bit sentinel `65535`,
+**not negative -1**, labels whole convexes in the downloaded
+native region table. The original source-only '-1' assumption
+was the sole reason for the previous diagnostic script failure.
+
+On the original unchanged physical trajectory, the true normal
+heat power `int U_T*(e_Q.Normal)` is ~`8.15e-14` on
+the DOUBLE-SIDED 10 but exactly `+605.55046` on disk
+region 30 and `-605.55046` on annulus region 31 initially.
+At final CN time `0.004`, it is `~ -9.58e-16` on
+region 10 versus `+26.92724` on 30 and `-26.92724`
+on 31. All five archived times show the same cancellation.
+`int (e_Q.Normal)^2` on region 10 is exactly twice
+the one-sided integral. The normals are unit length on each
+side, and the original NATIVE stiffness sub-blocks
+`K[Y_T,e_Q]` and `K[e_Q,U_T]` were ~1e-17.
+This is now reproducible physical evidence of incorrect
+DOUBLED INTERFACE INTEGRATION for the weak thermal
+transmission flux, not an LU/factorization or time-stepping
+problem. The old energy closure remains valid for an
+artificially decoupled matrix, not as coupled-model proof.
+
+**First repair candidate, NOT YET physically qualified:**
+keep every original weak-form expression and the original
+published source bytes, but construct both 2D-parent one-sided
+regions during domain creation at runtime, and retarget the
+existing original Heat Control_Port and B_T/B_T^T/M_Y_T
+bricks to disk-side region 30; retarget the Wave Control_Port
+and B_w/B_w^T/M_Y_w bricks to annulus-side region 31.
+Generated linear control-feedback bricks inherit their
+Control_Port's region. This is a reversible SANDBOX
+constructor interception and does not alter global
+`Concentric`, the production example, or SCRIMP
+default linear-solver policies.
+
+The next runner `scripts/run-v130-hw-dual-sided-assembly.sh`
+runs two independent original GetFEM/PETSc stiffness
+assemblies (unchanged baseline and dual-sided pilot), then
+STOPS intentionally before the strict DAE initializer or
+PETSc CN. It audits explicit interval sizes and sparse
+norms for both missing thermal flux-normal couplings,
+wave-side trace blocks, and the **cross-side feedback**
+blocks. No CN physical acceptance is claimed from an
+assembled matrix, even if all blocks appear nonzero.
+The normalized physical energy and constraint tests need
+a separate native follow-up ONLY after assembly is
+established and any DAE data compatibility is addressed.
