@@ -684,6 +684,62 @@ parallel ParaView output, other geometries or arbitrary FEM families.
 Those are separate later stages; the automatically oriented compiler
 remains disabled by default.
 
+## MPI1 vs genuine MPI2 automatic stiffness: source evidence PASS; comparator corrected (2026-11-24)
+
+The user ran the original MPI1/MPI2 native assembly pilot at commit
+`83cf20b` and supplied the full archived logs and **six per-rank CSR
+matrices** for 4 runs (heat=1/2 × MPI1/2), archived as
+`v130-auto-interface-MPI-K-83cf20b5-zgjERGVM.zip`.
+
+The FOUR actual PETSc/GetFEM assemblies and per-rank owned-row
+exports **completed** (rank ownership [0:3845,3845:7689] and
+[0:4028,4028:8056] for the MPI2 cases). The original offline
+comparison raised `TypeError: iteration over a 0-d array` from
+passing a **generator**, instead of a sequence, to
+`scipy.sparse.vstack()`. Therefore the original driver printed
+`FAIL_OR_UNQUALIFIED_AUTO_INTERFACE_MPI2_K`, **not because any
+native assembly failed**, but because its comparison script crashed.
+
+Independent direct reanalysis of the original archived CSR matrices
+found:
+
+| Bulk assignment | Matrix shape | Raw MPI1/MPI2 stored nnz | Explicit stored zeros MPI1/MPI2 | Canonical numerical nnz, both | Difference |
+|---|---:|---:|---:|---:|---:|
+| Heat=1, Wave=2 | 7689 × 7689 | 46935 / 46953 | 5490 / 5508 | 41445 | 0 |
+| Heat=2, Wave=1 | 8056 × 8056 | 47570 / 47594 | 4381 / 4405 | 43189 | 0 |
+
+PETSc stores respectively **18 and 24 more explicit zeros** in MPI2.
+After `sum_duplicates()`, `eliminate_zeros()`, and canonical
+index sorting, the **entire indptr, indices, and data arrays are
+bitwise identical** in MPI1 and MPI2, for both configurations.
+Numerical maximum absolute difference is precisely **0**.
+The compiler manifest matches between MPI1/2 and across MPI2 ranks,
+with continuous, disjoint owned-row partitions. No numerical tolerance
+was needed for this independent retrospective conclusion.
+
+Thus the **original native assembly evidence itself establishes
+MPI2 assembled-`K` parity**, but the original on-host script did
+not print a PASS due to its postprocessor bug. The fix:
+
+- Changes `vstack(generator)` into `vstack(list)`.
+- Introduces `sandbox/v130_interface_csr_parity.py` with an
+  explicit canonical nonzero comparison that reports **both** raw
+  PETSc stored nnz/explicit-zero counts and canonical numerical nnz.
+- Adds `tests/test_v130_interface_mpi_csr_parity.py` covering
+  false negatives caused by stored zeros, genuine coefficient
+  differences, changed numerical sparsity, wrong dimensions,
+  nonfinite values and rank-row stacking.
+
+Re-executing `scripts/run-v130-auto-interface-mpi-K.sh` with the
+corrected comparison is still required to give the on-host test its
+intended final status
+`PASS_BOTH_AUTO_INTERFACE_ORIENTATIONS_MPI2_K_PARITY`.
+
+**Scope:** MPI2 GetFEM/PETSc **assembled stiffness K only**.
+This evidence does NOT qualify MPI2 DAE initialization, numerical
+CN trajectories, physical port energy or parallel plotting/exports.
+Automatic orientation remains disabled by default.
+
 ## Next steps (not implemented here)
 
 1. Native test on real 1D/2D/3D imported meshes and curved/high-order
