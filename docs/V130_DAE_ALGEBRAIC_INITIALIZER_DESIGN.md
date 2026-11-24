@@ -5309,3 +5309,56 @@ identity or physics law. A weak interface is reported
 OPEN even if both solvers reproduce the same trajectory
 with roundoff errors. The test is MPI1 and no production
 PC or ParaView parallel path changes are made.
+
+## 24 November 2026 — complete four-way Heat-Wave CN LU parity PASS; interface excitation OPEN
+
+The uploaded original archive `v130-hw-cn-matched-parity-b368b024-CDym4qhL.zip`
+was opened and all four real source-backed trajectories and physical
+traces independently checked. `clamp` and `constrained_l2` each
+converge in four fixed CN steps with no rejections, once using real
+MUMPS and once using the experimental serial PC Python row-matched
+SuperLU_DIST on true production Jacobians. Strict algebraic DAE
+initial feasibility succeeds in every case. Complete original
+7689-dimensional state backend parity is `1.493182286e-15`
+scaled maximum for clamp and `1.323222384e-15` for
+constrained L2. Hamiltonian backend differences are <=2.23e-16,
+all existing per-subsystem CN energy balances close within
+2.42e-15, and no individual observable parity failures were
+reported. The published source files remain immutable.
+
+Yet this trajectory has **NEGLIGIBLE PHYSICAL INTERFACE EXCHANGE**:
+max individual CN interface port power `1.50747e-14`
+compared with max midpoint heat dissipation `638.24386`,
+a ratio `2.36e-17`. Wave potential energy grows
+from 0 to ~3.45e-4, but the total wave Hamiltonian is
+constant to roundoff: no appreciable net wave/heat energy
+transfer. This weakly coupled test cannot on its own qualify
+the intended multiphysics transmission.
+
+Additional existing optional trace diagnostics are not small:
+`int_Gamma (T-p)^2 = 6.39391` initially and
+`int_Gamma (q.Normal+e_Q.Normal)^2 = 116450.1`.
+**Do not treat these raw strong-trace differences as proof
+of violating the exact discretized weak interface conditions**:
+T uses DG0 and e_Q/q use RT0 while their control/observation
+variables live in separate CG1 trace spaces. The source
+weak forms and port causality must be examined before drawing
+scientific conclusions.
+
+The new isolated native diagnostic
+`scripts/run-v130-hw-interface-weak-coupling.sh`
+replays just one original MUMPS/clamp/strict-DAE CN trajectory,
+using an original physical collector wrapper. It collects
+true GetFEM interface-10 norms of U_T, Y_w, U_w, Y_T,
+p and T; squared LOCAL interface power density (to distinguish
+sign cancellation from inactive ports); complete original
+per-port coefficient norms and algebraic weak Kz residuals;
+and numerically nonzero/Frobenius norms of all GetFEM/PETSc
+stiffness sub-blocks linking physical and port variables.
+No new forcing, weak-form changes, production PC policy,
+or source changes. A diagnostic GWFL expression that cannot
+be evaluated is archived as an explicit error, never a
+fabricated zero. The output remains
+`DIAGNOSTIC_ONLY_INTERFACE_COUPLING_PHYSICS_OPEN` until
+actual nontrivial interface exchange and its energy identity
+are independently established.
