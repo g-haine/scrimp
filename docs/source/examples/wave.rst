@@ -1,5 +1,5 @@
-The wave equation
-=================
+The wave equation — 2A: conservative anisotropic membrane
+==============================================================
 
 .. _Wave_2D:
 
@@ -8,557 +8,330 @@ The wave equation
    :undoc-members:
    :show-inheritance:
 
-Setting
--------
+Why this example?
+-----------------
 
-Let us consider the 2D wave equation with *mixed* boundary controls on a
-bounded rectangle :math:`\Omega := (0, L) \times (0, \ell)`, with boundaries
-:math:`\Gamma_N := \left( (0, L) \times \{ 0, \ell \} \right) \cup \left( \{ L \} \times (0, \ell) \right)` and :math:`\Gamma_D := \{ 0 \} \times (0, \ell)`.
+The :doc:`first tutorial <../started>` showed a **one-dimensional**
+string and its two boundary ports. Our next model is genuinely
+**two-dimensional**, heterogeneous and anisotropic, with **mixed
+boundary control**: three boundary segments prescribe an outward
+normal traction, while the fourth prescribes a *velocity*. We will
+keep exactly the same materials, mesh and boundary convention when
+we add an internal dissipative port in example **2B**. We will
+then study the complementary co-energy formulation in example
+**2C** (:doc:`wave_coenergy`).
 
-The deflection of the membrane from the equilibrium :math:`w` satisfies
-classicaly
+This page describes the actual code in ``examples/wave.py`.
+Its snippets are included **directly from that file**, avoiding
+manual discrepancies between the tutorial and the program.
+The validated source is the same for all PETSc solver backends.
 
-.. math::
+The physical model
+------------------
 
-
-       \left\lbrace
-       \begin{array}{rcl}
-       \rho(x) \partial_{tt}^2 w(t,x) - {\rm div} \left( T(x) \cdot {\rm grad} \left( w(t,x) \right) \right) &=& 0, \qquad t \ge 0, x \in \Omega, \\
-       \partial_t w(0,x) &=& v_0(x), \qquad x \in \Omega, \\
-       \partial_x w(0,x) &=& s_0(x), \qquad x \in \Omega, \\
-       T(s) \cdot {\rm grad} \left( w(t,s) \right) &=& u_N(t,s), \qquad t \ge 0, s \in \Gamma_N, \\
-       \partial_t w(t,s) &=& u_D(t,s), \qquad t \ge 0, s \in \Gamma_D,
-       \end{array}
-       \right.
-
-where :math:`\rho` is the mass density and :math:`T` the Young’s
-modulus. The subscript :math:`N` stands for **Neumann**, while the
-subscript :math:`D` stands for **Dirichlet** (to be fair, this is not
-really a Dirichlet boundary condition, as it imposes
-:math:`\partial_t w` and not :math:`w` at the boundary
-:math:`\Gamma_D`).
-
-Let us state the physics in the port-Hamiltonian formalism.
-
-Port-Hamiltonian framework
---------------------------
-
-Let :math:`\alpha_q := {\rm grad} w` denotes the *strain* and
-:math:`\alpha_p := \rho \partial_t w` the *linear momentum*. One can
-express the total mechanical energy lying in the system
-:math:`\mathcal{H}`, the **Hamiltonian**, as
+Let :math:`\Omega=(0,2)\times(0,1)` and let :math:`w(t,x,y)`
+denote the transverse displacement of a membrane. We consider
 
 .. math::
 
+   \rho(x)\,\partial_{tt} w
+   - \operatorname{div}(T(x,y)\nabla w)=0,
 
-       \mathcal{H}(t) = \mathcal{H}(\alpha_q(t,x), \alpha_p(t,x)) := \underbrace{\frac{1}{2} \int_\Omega \alpha_q(t,x) \cdot T(x) \cdot \alpha_q(t,x) {\rm d}x}_{\text{Potential energy}} + \underbrace{\frac{1}{2} \int_\Omega \frac{\alpha_p(t,x)^2}{\rho(x)} {\rm d}x}_{\text{Kinetic energy}}.
-
-The **co-energy variables** are, as in the 1D case
-
-.. math::
-
-
-       e_q := \delta_{\alpha_q} \mathcal{H} = T \cdot \alpha_q, \qquad e_p := \delta_{\alpha_p} \mathcal{H} = \frac{\alpha_p}{\rho},
-
-that is the *stress* and the *velocity* respectively.
-
-Newton’s second law and Schwarz’s lemma give the following dynamics
+where the in-plane tension tensor and areal mass density are
 
 .. math::
 
+   T(x,y)=\begin{bmatrix}5+x&xy\\xy&2+y\end{bmatrix},
+   \qquad \rho(x)=3-x.
 
-       \begin{pmatrix} \partial_t \alpha_q \\ \partial_t \alpha_p \end{pmatrix}
-       =
-       \begin{bmatrix} 0 & {\rm grad} \\ {\rm div} & 0 \end{bmatrix}
-       \begin{pmatrix} e_q \\ e_p \end{pmatrix}.
-
-Of course, this system allows to recover the initial wave equation in
-second-order form.
-
-The port-Hamiltonian system representing a (linear) vibrating membrane
-with mixed boundary controls then writes
+Here :math:`T` is **not** a scalar Young modulus. It is a
+symmetric, positive-definite anisotropic tensor; both :math:`T`
+and :math:`\rho` vary spatially. The lower, right and upper
+boundaries are :math:`\Gamma_N` (GetFEM regions 10, 11 and 12).
+The left boundary is :math:`\Gamma_D` (region 13). Writing
+:math:`n` for the **outward** unit normal, the controls are
 
 .. math::
 
+   n\cdot(T\nabla w)=u_N \quad\hbox{on }\Gamma_N,
+   \qquad \partial_t w=u_D \quad\hbox{on }\Gamma_D.
 
-       \begin{pmatrix} \partial_t \alpha_q \\ \partial_t \alpha_p \end{pmatrix}
-       =
-       \begin{bmatrix} 0 & {\rm grad} \\ {\rm div} & 0 \end{bmatrix}
-       \begin{pmatrix} e_q \\ e_p \end{pmatrix},
+The second condition prescribes *velocity*, **not** displacement.
+This is sometimes called a velocity-Dirichlet port in the
+port-Hamiltonian literature.
 
-.. math::
+Energy variables, co-energy variables and power
+-----------------------------------------------
 
-
-       \left\lbrace
-       \begin{array}{rcl}
-       e_q(t,s) &=& u_N(t,s), \qquad t \ge 0, s \in \Gamma_N, \\
-       e_p(t,s) &=& u_D(t,s), \qquad t \ge 0, s \in \Gamma_D, \\
-       y_N(t,s) &=& e_p(t,s), \qquad t \ge 0, s \in \Gamma_N, \\
-       y_D(t,s) &=& e_q(t,s), \qquad t \ge 0, s \in \Gamma_D,
-       \end{array}
-       \right.
+We choose the energy states
 
 .. math::
 
+   q=\nabla w,\qquad p=\rho\,\partial_t w,
 
-       \left\lbrace
-       \begin{array}{rcl}
-       e_q &=& T \cdot \alpha_q, \\
-       e_p &=& \frac{\alpha_p}{\rho}.
-       \end{array}
-       \right.
-
-The **power balance** satisfied by the **Hamiltonian** is
+and their conjugate co-energies
 
 .. math::
 
+   e_q=Tq,\qquad e_p=p/\rho.
 
-       \frac{\rm d}{{\rm d}t} \mathcal{H}(t) = \underbrace{\left\langle y_N(t,\cdot), u_N(t,\cdot)\right\rangle_{\Gamma_N}}_{\text{power flowing through }\Gamma_N} + \underbrace{\left\langle u_D(t,\cdot), y_D(t,\cdot) \right\rangle_{\Gamma_D}}_{\text{power flowing through }\Gamma_D},
-
-where :math:`\left\langle \cdot, \cdot \right\rangle_{\Gamma}` is a
-boundary duality bracket :math:`H^\frac12, H^{-\frac12}` at the boundary
-:math:`\Gamma`.
-
-Structure-preserving discretization
------------------------------------
-
-Let :math:`\varphi_q` and :math:`\varphi_p` be smooth test functions on
-:math:`\Omega`, and :math:`\psi_N` and :math:`\psi_D` be smooth test
-functions on :math:`\Gamma_N` and :math:`\Gamma_D` respectively. One can
-write the weak formulation of the **Dirac Structure** as follows
-
-.. math::
-    :label: weak-form
-
-       \left\lbrace
-       \begin{array}{rcl}
-       \int_\Omega \partial_t \alpha_q(t,x) \varphi_q(x) {\rm d}x &=& \int_\Omega {\rm grad} \left( e_p(t,x) \right) \cdot \varphi_q(x) {\rm d}x, \\
-       \int_\Omega \partial_t \alpha_p(t,x) \varphi_p(x) {\rm d}x &=& \int_\Omega {\rm div} \left( e_q(t,x) \right) \varphi_p(x) {\rm d}x, \\
-       \left\langle y_N, \psi_N \right\rangle_{\Gamma_N} &=& \left\langle e_p, \psi_N \right\rangle_{\Gamma_N}, \\
-       \left\langle u_D, \psi_D \right\rangle_{\Gamma_D} &=& \left\langle e_p, \psi_D \right\rangle_{\Gamma_D}.
-       \end{array}
-       \right.
-
-Integrating by parts the second line make the control :math:`u_N` and
-the observation :math:`y_D` appear
+Thus :math:`q` and :math:`e_q` are **vectors**,
+whereas :math:`p` and :math:`e_p` are **scalars**. The
+first-order port-Hamiltonian dynamics are
 
 .. math::
 
+   \partial_t q=\nabla e_p,\qquad
+   \partial_t p=\operatorname{div}e_q.
 
-       \int_\Omega \partial_t \alpha_p(t,x) \varphi_p(x) {\rm d}x = - \int_\Omega e_q(t,x) \cdot {\rm grad} \left( \varphi_p(x) \right) {\rm d}x + \left\langle \varphi_p, u_N \right\rangle_{\Gamma_N} + \left\langle \varphi_p, y_D \right\rangle_{\Gamma_D}.
-
-Now, let :math:`(\varphi_q^i)_{1 \le i \le N_q} \subset L^2(\Omega)` and
-:math:`(\varphi_p^k)_{1 \le k \le N_p} \subset H^1(\Omega)` be two
-finite families of approximations for the :math:`q`-type port and the
-:math:`p`-type port respectively, typically discontinuous and continuous
-Galerkin finite elements respectively. Denote also
-:math:`(\psi_N^m)_{1 \le m_N \le N_N} \subset H^{\frac12}(\Gamma_N)` and
-:math:`(\psi_D^m)_{1 \le m_D \le N_D} \subset H^{\frac12}(\Gamma_D)`. In
-particular, the latter choices imply that the duality brackets at the
-boundary reduce to simple :math:`L^2` scalar products.
-
-Writing the discrete weak formulation with those families, one has for
-all :math:`1 \le i \le N_q`, all :math:`1 \le k \le N_p`, all
-:math:`1 \le m_N \le N_N` and all :math:`1 \le m_D \le N_D`
+The physical Hamiltonian is
 
 .. math::
-    :label: weak-form-IBP
+   :label: wave_2d_conservative_energy
 
-       \left\lbrace
-       \begin{array}{rcl}
-       \sum_{j=1}^{N_q} \int_\Omega \varphi_q^j(x) \varphi_q^i(x) {\rm d}x \, \frac{\rm d}{{\rm d}t} \alpha_q^j(t) &=& \sum_{\ell=1}^{N_p} \int_\Omega {\rm grad} \left( \varphi_p^\ell(x) \right) \cdot \varphi_q^i(x) {\rm d}x \, e_p^\ell(t), \\
-       \sum_{\ell=1}^{N_p} \int_\Omega \varphi_p^\ell(x) \varphi_p^k(x) {\rm d}x \, \frac{\rm d}{{\rm d}t} \alpha_p^\ell(t) &=& - \sum_{j=1}^{N_q} \int_\Omega \varphi_q^j(x) \cdot {\rm grad} \left( \varphi_p^k(x) \right) {\rm d}x \, e_q^j(t) \\
-       && \quad + \sum_{n_N=1}^{N_N} \int_{\Gamma_N} \varphi_p^k(s) \psi_N^{n_N}(s) {\rm d}s \, u_N^{n_N}(t) \\
-       && \qquad + \sum_{n_D=1}^{N_D} \int_{\Gamma_D} \varphi_p^k(s) \psi_D^{n_D}(s) {\rm d}s \, y_D^{n_D}(t), \\
-       \sum_{n_N=1}^{N_N} \left\langle \psi_N^{n_N}, \psi_N^{m_N} \right\rangle_{\Gamma_N} \, y_N^{n_N}(t) &=& \sum_{\ell=1}^{N_p} \int_{\Gamma_N} \varphi_p^\ell(s) \psi_N^{m_N}(s) {\rm d}s \, e_p^\ell(t), \\
-       \sum_{n_D=1}^{N_D} \left\langle \psi_D^{n_D}, \psi_D^{m_D} \right\rangle_{\Gamma_D} \, u_D^{n_D}(t) &=& \sum_{\ell=1}^{N_p} \int_{\Gamma_D} \varphi_p^\ell(s) \psi_D^{m_D}(s) {\rm d}s \, e_p^\ell(t),
-       \end{array}
-       \right.
+   \mathcal H(q,p)=\tfrac12\int_{\Omega}
+   \left(q\cdot Tq+\frac{p^2}{\rho}\right)\,\mathrm dx.
 
-which rewrites in matrix form
+In the **GetFEM Generic Weak Form Language** (GWFL),
+``q.T.q`` denotes :math:`q\cdot Tq`: ``T`` is the
+**tensor parameter's identifier**, not the transpose
+operator from Python/NumPy. The actual code therefore
+correctly uses ``"0.5*q.T.q"``.
+
+With our boundary orientation, the collocated outputs are
 
 .. math::
 
+   y_N=e_p \quad\hbox{on }\Gamma_N,\qquad
+   y_D=n\cdot e_q \quad\hbox{on }\Gamma_D.
 
-       \underbrace{\begin{bmatrix}
-       M_q & 0 & 0 & 0 \\
-       0 & M_p & 0 & 0 \\
-       0 & 0 & M_N & 0 \\
-       0 & 0 & 0 & M_D
-       \end{bmatrix}}_{= M}
-       \begin{pmatrix}
-       \frac{\rm d}{{\rm d}t} \underline{\alpha_q}(t) \\
-       \frac{\rm d}{{\rm d}t} \underline{\alpha_p}(t) \\
-       -\underline{y_N}(t) \\
-       \underline{u_D}(t)
-       \end{pmatrix}
-       =
-       \underbrace{\begin{bmatrix}
-       0 & D & 0 & 0 \\
-       -D^\top & 0 & B_N & -B_D^T \\
-       0 & -B_N^\top & 0 & 0 \\
-       0 & B_D & 0 & 0
-       \end{bmatrix}}_{= J}
-       \begin{pmatrix}
-       \underline{e_q}(t) \\
-       \underline{e_p}(t) \\
-       \underline{u_N}(t) \\
-       -\underline{y_D}(t)
-       \end{pmatrix},
-
-where
-:math:`\underline{\star}(t) := \begin{pmatrix} \star^1(t) & \cdots & \star^{N_\star} \end{pmatrix}^\top`
-and
+The energy exchanged with the environment is
 
 .. math::
-    :label: weak-form-matrices-1
+   :label: wave_2d_conservative_power
 
-       (M_q)_{ij} := \int_\Omega \varphi_q^j(x) \cdot \varphi_q^i(x) {\rm d}x,
-       \qquad
-       (M_p)_{k\ell} := \int_\Omega \varphi_p^\ell(x) \varphi_p^k(x) {\rm d}x,
+   \frac{\mathrm d\mathcal H}{\mathrm dt}
+   =\int_{\Gamma_N}u_N y_N\,\mathrm ds
+    +\int_{\Gamma_D}u_D y_D\,\mathrm ds.
 
-.. math::
-    :label: weak-form-matrices-2
+Our short demonstration uses **zero** Neumann tractions,
+with a nontrivial prescribed left velocity. Thus the
+left-hand boundary supplies the entire mechanical work;
+the right, top and bottom boundary powers are zero.
 
-       (M_N)_{m_Nn_N} := \int_{\Gamma_N} \psi_N^{n_N}(s) \psi_N^{m_N}(s) {\rm d}s,
-       \qquad
-       (M_D)_{m_Dn_D} := \int_{\Gamma_D} \psi_D^{n_D}(s) \psi_D^{m_D}(s) {\rm d}s,
+From the strong equation to PFEM
+--------------------------------
+
+Integrating :math:`\partial_t p=\operatorname{div}e_q`
+against a test function :math:`\varphi_p` gives
 
 .. math::
 
+   \int_\Omega\partial_t p\,\varphi_p
+   =-\int_\Omega e_q\cdot\nabla\varphi_p
+    +\int_{\Gamma_N}u_N\varphi_p
+    +\int_{\Gamma_D}y_D\varphi_p.
 
-       (D)_{i\ell} := \int_\Omega {\rm grad} \left( \varphi_p^\ell(x) \right) \cdot \varphi_q^i(x) {\rm d}x,
-
-.. math::
-
-
-       (B_N)_{n_Nk} := \int_{\Gamma_N} \varphi_p^k(s) \psi_N^{n_N}(s) {\rm d}s,
-       \qquad
-       (B_D)_{m_D\ell} := \int_{\Gamma_D} \varphi_p^\ell(s) \psi_D^{m_D}(s) {\rm d}s,
-
-Now one can approximate the **constitutive relations** in those families
-by projection of their weak formulations
+The first equation is tested without integration by parts:
 
 .. math::
 
+   \int_\Omega\partial_t q\cdot\varphi_q
+   =\int_\Omega\nabla e_p\cdot\varphi_q.
 
-       \left\lbrace
-       \begin{array}{rcl}
-       \int_\Omega e_q(t,x) \cdot \varphi_q(x) {\rm d}x &=& \int_\Omega \alpha_q(t,x) \cdot T(x) \cdot \varphi_q(x) {\rm d}x, \\
-       \int_\Omega e_p(t,x) \varphi_p(x) {\rm d}x &=&  \int_\Omega \frac{\alpha_p(t,x)}{\rho(x)} \varphi_p(x) {\rm d}x,
-       \end{array}
-       \right.
+These two choices yield the partitioned finite-element
+discretization (PFEM): ``DG1`` for vector strain
+:math:`q`, ``CG2`` for scalar momentum :math:`p`,
+and ``DG1`` boundary traces. The exact finite-element
+spaces and material definitions are shown below.
 
-from which one can deduce the matrix form of the discrete weak
-formulation of the constitutive relation
+In SCRIMP's assembly convention, the *flow-side*
+algebraic variables for the Neumann velocity observations
+are **``-Y_B``, ``-Y_R``, ``-Y_T``**, and the
+velocity input on the left appears as **``-U_L``**.
+The corresponding effort-side test terms are negative
+velocity traces. The signs make the measured
+powers consistent with :eq:`wave_2d_conservative_power`.
+They have been checked by native GetFEM/PETSc simulations,
+not merely assumed from the matrix layout.
+
+Build the real SCRIMP model
+---------------------------
+
+The following seven sections are taken **literally** from
+``examples/wave.py:wave_eq()``; no duplicate hand-written
+Python excerpts are maintained in Sphinx. The boundary
+index tuple ``BOUNDARIES`` is defined at module level.
+
+**1. Instantiate the DPHS, domain, states and co-states.**
+
+.. literalinclude:: ../../../examples/wave.py
+   :language: python
+   :start-after: # TUTORIAL 2A-01:
+   :end-before: # TUTORIAL 2A-02:
+   :dedent: 4
+
+**2. Define the four mixed boundary ports.** Only the left port
+uses ``position="flow"``, since it imposes the velocity
+instead of the normal traction.
+
+.. literalinclude:: ../../../examples/wave.py
+   :language: python
+   :start-after: # TUTORIAL 2A-02:
+   :end-before: # TUTORIAL 2A-03:
+   :dedent: 4
+
+**3. Choose the PFEM spaces and material coefficients.**
+GetFEM's nested GWFL matrix definition is symmetric and
+represents the actual inhomogeneous tensor :math:`T`.
+
+.. literalinclude:: ../../../examples/wave.py
+   :language: python
+   :start-after: # TUTORIAL 2A-03:
+   :end-before: # TUTORIAL 2A-04:
+   :dedent: 4
+
+**4. Assemble the Dirac structure and constitutive laws.**
+The rows with ``dt=True`` represent the differential
+part of the port-Hamiltonian DAE. Boundary observations and
+constraints are algebraic; the signs are visible here.
+
+.. literalinclude:: ../../../examples/wave.py
+   :language: python
+   :start-after: # TUTORIAL 2A-04:
+   :end-before: # TUTORIAL 2A-05:
+   :dedent: 4
+
+**5. Prescribe compatible initial data and controls.**
+We set :math:`q_0=p_0=0`, so :math:`e_q=e_p=0`
+at the initial instant, and apply
 
 .. math::
 
+   u_D(t,y)=0.2\sin(4\pi t)\sin(\pi y).
 
-       \left\lbrace
-       \begin{array}{rcl}
-       M_q \underline{e_q}(t) &=& M_T \underline{\alpha_q}(t), \\
-       M_p \underline{e_p}(t) &=& M_\rho \underline{\alpha_p}(t),
-       \end{array}
-       \right.
+This input also vanishes at :math:`t=0` and at the
+corners of the left boundary. It is already nonzero
+during the ten-step installation smoke.
 
-where
+.. literalinclude:: ../../../examples/wave.py
+   :language: python
+   :start-after: # TUTORIAL 2A-05:
+   :end-before: # TUTORIAL 2A-06:
+   :dedent: 4
+
+**6. Solve the actual DAE.** The ``algebraic`` initial
+projection is strict and preserves the prescribed
+differential data. For the quick installation check
+we use fixed Crank--Nicolson,
+:math:`t_f=0.08`, :math:`\Delta t=0.008`,
+and ten accepted time steps, not a five-second
+publication reproduction.
+
+.. literalinclude:: ../../../examples/wave.py
+   :language: python
+   :start-after: # TUTORIAL 2A-06:
+   :end-before: # TUTORIAL 2A-07:
+   :dedent: 4
+
+**7. Register the real anisotropic Hamiltonian.**
+The two integrals are evaluated by GetFEM on the
+actual finite-element fields.
+
+.. literalinclude:: ../../../examples/wave.py
+   :language: python
+   :start-after: # TUTORIAL 2A-07:
+   :end-before: def measure_wave_2d(
+   :dedent: 4
+
+To reproduce the complete program, use the canonical
+entry point, which encapsulates the steps above
+(and defines ``BOUNDARIES``):
+
+.. code-block:: bash
+
+   python -m examples.wave --solver mumps --check --export --output outputs/my_wave_2d
+
+Installation and genuine scientific checks
+------------------------------------------
+
+The result must be a real **GetFEM/PETSc** solve, not an LU
+factorization smoke. The common ``measure_wave_2d()``
+function checks convergence, the strict initial DAE
+projection, nonzero left power and the mechanical
+energy/work equality **at every accepted CN step**:
 
 .. math::
-    :label: weak-form-matrices-3
 
-       (M_T)_{ij} := \int_\Omega \varphi_q^j(x) \cdot T(x) \cdot \varphi_q^i(x) {\rm d}x,
-       \qquad
-       (M_\rho)_{k\ell} := \int_\Omega \frac{\varphi_p^\ell(x)}{\rho(x)} \varphi_p^k(x) {\rm d}x.
+   \mathcal H(t_k)-\mathcal H(t_{k-1})
+   -\Delta t_k\left(P_{B,k}+P_{R,k}+P_{T,k}+P_{L,k}\right)
+   \simeq 0.
 
-Finally, the **discrete Hamiltonian** :math:`\mathcal{H}^d` is defined
-as the evaluation of :math:`\mathcal{H}` on the approximation of the
-**state variables**
+The port powers :math:`P_{\ast,k}` are the genuine
+``cn_step`` GetFEM integrals sampled on the **mean FE
+state** of the accepted step, not instantaneous endpoint
+powers. Never trapezoid-integrate the ``P[0]`` sample.
 
-.. math::
+The **initial MUMPS native pilot** passed in MPI 1
+and MPI 2, with 2,230 DOFs, ten accepted steps and
+numerical energy/power defects below
+:math:`3\times10^{-18}`. Both ranks had identical
+full trajectories; the MPI 1/MPI 2 state difference
+was below :math:`4.2\times10^{-14}`. All four
+fields (``q``, ``p``, ``e_q``, ``e_p``)
+were exported as valid, root-only shared VTU/PVD,
+with **11 time frames per field**. This is a
+qualified **MUMPS MPI1/2** result only, not yet
+a five-backend installation acceptance.
 
+The complete installation acceptance requires:
+MUMPS (MPI 1/2), sequential SuperLU (MPI 1),
+and SuperLU_DIST (MPI 1/2). The three backends
+must reproduce the same state, Hamiltonian,
+physical powers, and ParaView outputs.
+SuperLU standard is **serial-only**.
 
-       \mathcal{H}^d(t) := \mathcal{H}(\alpha_q^d(t,x), \alpha_p^d(t)) = \frac{1}{2} \underline{\alpha_q}(t)^\top M_T \underline{\alpha_q}(t) + \frac{1}{2} \underline{\alpha_p}(t)^\top M_\rho \underline{\alpha_p}(t). 
+To save the four original GetFEM variable series,
+open ``outputs/my_wave_2d/pv/q/q.pvd``,
+``pv/p/p.pvd``, ``pv/e_q/e_q.pvd`` or
+``pv/e_p/e_p.pvd`` in ParaView and play the
+11 frames. The vector fields ``q`` and
+``e_q`` may be displayed with arrows; the
+velocity is ``e_p`` (not momentum ``p``).
 
-The **discrete power balance** is then easily deduced from the above
-matrix formulations, thanks to the symmetry of :math:`M` and the
-skew-symmetry of :math:`J`
+**A future longer simulation** will supply richer
+2D propagation maps, boundary work figures,
+PNG/SVG plots and online animation. Keep the
+short five-backend installation test separate
+from expensive documentation rendering.
+The displacement ``w`` is not an independent
+variable of this energy-based DAE; do not label
+the strain ``q`` as membrane deflection.
+Any animation of ``w`` must identify its
+reconstruction method and gauge.
 
-.. math::
+Scientific references
+---------------------
 
+This introductory 2D example illustrates the
+PFEM framework analyzed by **Haine, Matignon and
+Serhani (2023)**, *Numerical Analysis of a
+Structure-Preserving Space-Discretization for an
+Anisotropic and Heterogeneous Boundary Controlled
+N-Dimensional Wave Equation As a Port-Hamiltonian
+System*, DOI `10.4208/ijnam2023-1005`, and
+the mixed-boundary-control work of **Brugnoli,
+Haine and Matignon (2022)**. The tutorial is
+**not** a numerical reproduction of either paper.
 
-       \frac{\rm d}{{\rm d}t} \mathcal{H}^d(t) = \underline{y_N}(t)^\top M_N \underline{u_N}(t) + \underline{u_D}(t)^\top M_D \underline{y_D}(t).
+The next section introduces a physically distinct
+**resistive port** in ``examples/wave_dissipative.py`
+while keeping the same material, domain and
+conventions. The later :doc:`wave_coenergy`
+chapter changes the state variables and adds
+spatially localized damping.
 
-Simulation
-----------
-
-Let us start by importing the scrimp package
-
-.. code:: python
-
-    # Import scrimp
-    import scrimp as S
-
-Now define a real Distributed Port-Hamiltonian System
-
-.. code:: python
-
-    # Init the distributed port-Hamiltonian system
-    wave = S.DPHS("real")
-
-The domain is 2-dimensional, and is a rectangle of length 2 and width 1.
-We use the built-in geometry ``Rectangle`` and choose a mesh size
-parameter of 0.1 with the following command.
-
-.. code:: python
-
-    # Set the domain (using the built-in geometry `Rectangle`)
-    # Labels: Omega = 1, Gamma_Bottom = 10, Gamma_Right = 11, Gamma_Top = 12, Gamma_Left = 13
-    rectangle = S.Domain("Rectangle", {"L": 2.0, "l": 1.0, "h": 0.1})
-    
-    # And add it to the dphs
-    wave.set_domain(rectangle)
-
-Defining the states and co-states, care must be taken: the Strain is a
-**vector-field**.
-
-.. code:: python
-
-    # Define the variables and their discretizations
-    states = [
-        S.State("q", "Strain", "vector-field"),
-        S.State("p", "Linear momentum", "scalar-field"),
-    ]
-    costates = [
-        S.CoState("e_q", "Stress", states[0]),
-        S.CoState("e_p", "Velocity", states[1]),
-    ]
-    
-    # Add them to the dphs
-    for state in states:
-        wave.add_state(state)
-    for costate in costates:
-        wave.add_costate(costate)
-
-As the domain is the built-in geometry ``Rectangle``, the boundary is
-composed of four parts, with indices 10, 11, 12 and 13, respectively for
-the lower, right, upper and left edge. Each of them will have its own
-control port, allowing *e.g.* **mixed** boundary conditions.
-
-Indeed in the above example, we choose Neumann boundary condition on
-:math:`\Gamma_N`, *i.e.* on 10, 11 and 12, while we choose Dirichlet
-boundary condition on :math:`\Gamma_D`, *i.e.* on 13.
-
-The choice to integrate by part the second line of :eq:`weak-form` has
-a consequence for the port at boundary 13, as it is then in the *flow*
-part of the Dirac structure, as can be seen in :eq:`weak-form-IBP`. We
-indicate this using the keyword ``position="flow"``.
-
-.. code:: python
-
-    # Define the control ports
-    control_ports = [
-        S.Control_Port(
-            "Boundary control (bottom)",
-            "U_B",
-            "Normal force",
-            "Y_B",
-            "Velocity trace",
-            "scalar-field",
-            region=10,
-        ),
-        S.Control_Port(
-            "Boundary control (right)",
-            "U_R",
-            "Normal force",
-            "Y_R",
-            "Velocity trace",
-            "scalar-field",
-            region=11,
-        ),
-        S.Control_Port(
-            "Boundary control (top)",
-            "U_T",
-            "Normal force",
-            "Y_T",
-            "Velocity trace",
-            "scalar-field",
-            region=12,
-        ),
-        S.Control_Port(
-            "Boundary control (left)",
-            "U_L",
-            "Velocity trace",
-            "Y_L",
-            "Normal force",
-            "scalar-field",
-            region=13,
-            position="flow",
-        ),
-    ]
-    
-    # Add them to the dphs
-    for ctrl_port in control_ports:
-        wave.add_control_port(ctrl_port)
-
-The choice for the finite element families is often the first difficulty
-of a simulation. Indeed, it can result in a failing time scheme, or a
-very instable solution. A key-point to take a first decision is to
-remember which field needs regularity (in the :math:`L^2`-sense) in the
-Dirac structure. In our case, the :math:`p`-type variables should be at
-least :math:`H^1(\Omega)`, as can be inferred from :eq:`weak-form-IBP`.
-Hence, a first choice for the :math:`p`-type variables is to take
-continuous Galerkin finite elements of order :math:`k`. Since the time
-derivative of :math:`q` will be, more or less, a gradient of a
-:math:`p`-type variable, it will be a discontinuous Galerkin of order
-:math:`k-1` approximation. Finally, at least one trace of these
-variables, either the control, or the observation, is at most a
-discontinuous Galerkin of order :math:`k-1` approximation. Hence the
-following choices, with :math:`k=2`.
-
-.. code:: python
-
-    # Define the Finite Elements Method of each port
-    FEMs = [
-        S.FEM(states[0].get_name(), 1, "DG"),
-        S.FEM(states[1].get_name(), 2, "CG"),
-        S.FEM(control_ports[0].get_name(), 1, "DG"),
-        S.FEM(control_ports[1].get_name(), 1, "DG"),
-        S.FEM(control_ports[2].get_name(), 1, "DG"),
-        S.FEM(control_ports[3].get_name(), 1, "DG"),
-    ]
-    
-    # Add them to the dphs
-    for FEM in FEMs:
-        wave.add_FEM(FEM)
-
-We can assume anisotropy and heterogeneity in our model by defining the
-parameters as follows. It has to be kept in mind that a parameter is
-always linked to a port (*i.e.*, to a pair *flow-effort*). In
-particular, a parameter linked to a port that is a vector-field, should
-be a **tensor-field**.
-
-.. code:: python
-
-    # Define physical parameters
-    parameters = [
-        S.Parameter("T", "Young's modulus", "tensor-field", "[[5+x,x*y],[x*y,2+y]]", "q"),
-        S.Parameter("rho", "Mass density", "scalar-field", "3-x", "p"),
-    ]
-    
-    # Add them to the dphs
-    for parameter in parameters:
-        wave.add_parameter(parameter)
-
-It is time to define the bricks of our model, *i.e.* the block matrices
-of our discretization, providing the weak forms given in
-:eq:`weak-form-matrices-1`, :eq:`weak-form-matrices-2`, and
-:eq:`weak-form-matrices-3`.
-
-This is probably the most difficult part of the process, and care must
-be taken. Remember that the syntax is the Generic Weak-Form Language
-(GWFL), for which an on-line documentation exists on the `GetFEM
-site <https://getfem.org/userdoc/gasm_high.html?highlight=gwfl>`__.
-
-For the block matrices appearing against time derivative of a variable,
-it is crucial not to forget the keyword ``dt=True``.
-
-.. code:: python
-
-    # Define the pHs via `Brick` == non-zero block matrices == variational terms
-    bricks = [
-        ## Define the Dirac structure
-        # Define the mass matrices from the left-hand side: the `flow` part of the Dirac structure
-        S.Brick("M_q", "q.Test_q", [1], dt=True, position="flow"),
-        S.Brick("M_p", "p*Test_p", [1], dt=True, position="flow"),
-        S.Brick("M_Y_B", "Y_B*Test_Y_B", [10], position="flow"),
-        S.Brick("M_Y_R", "Y_R*Test_Y_R", [11], position="flow"),
-        S.Brick("M_Y_T", "Y_T*Test_Y_T", [12], position="flow"),
-        # The Dirichlet term is applied via Lagrange multiplier == the colocated output
-        S.Brick("M_Y_L", "U_L*Test_Y_L", [13], position="flow"),
-        # Define the matrices from the right-hand side: the `effort` part of the Dirac structure
-        S.Brick("D", "Grad(e_p).Test_q", [1], position="effort"),
-        S.Brick("-D^T", "-e_q.Grad(Test_p)", [1], position="effort"),
-        S.Brick("B_B", "U_B*Test_p", [10], position="effort"),
-        S.Brick("B_R", "U_R*Test_p", [11], position="effort"),
-        S.Brick("B_T", "U_T*Test_p", [12], position="effort"),
-        # The Dirichlet term is applied via Lagrange multiplier == the colocated output
-        S.Brick("B_L", "Y_L*Test_p", [13], position="effort"),
-        S.Brick("C_B", "-e_p*Test_Y_B", [10], position="effort"),
-        S.Brick("C_R", "-e_p*Test_Y_R", [11], position="effort"),
-        S.Brick("C_T", "-e_p*Test_Y_T", [12], position="effort"),
-        S.Brick("C_L", "-e_p*Test_Y_L", [13], position="effort"),
-        ## Define the constitutive relations
-        # Hooke's law under implicit form `- M_e_q e_q + CR_q q = 0`
-        S.Brick("-M_e_q", "-e_q.Test_e_q", [1]),
-        S.Brick("CR_q", "q.T.Test_e_q", [1]),
-        # Linear momentum definition under implicit form `- M_e_p e_p + CR_p p = 0`
-        S.Brick("-M_e_p", "-e_p*Test_e_p", [1]),
-        S.Brick("CR_p", "p/rho*Test_e_p", [1]),
-    ]
-    
-    # Add all these `Bricks` to the dphs
-    for brick in bricks:
-        wave.add_brick(brick)
-
-The last step is to initialize the dphs, by providing the control
-functions and the initial values for :math:`q` and :math:`p` (*i.e.*,
-the variables that are derivated in time in the model).
-
-.. code:: python
-
-    ## Initialize the problem
-    # The controls expression, ordered as the control_ports
-    t_f = 5.0
-    expressions = ["0.", "0.", "0.", f"0.1*sin(4.*t)*sin(4*pi*y)*exp(-10.*pow((0.5*{t_f}-t),2))"]
-    
-    # Add each expression to its control_port
-    for control_port, expression in zip(control_ports, expressions):
-        # Set the control functions: it automatically constructs the related `Brick`s such that `- M_u u + f(t) = 0`
-        wave.set_control(control_port.get_name(), expression)
-    
-    # Set the initial data
-    q_0 = "[0., 0.]"
-    wave.set_initial_value("q", q_0)
-    p_0 = "3**(-20*((x-0.5)*(x-0.5)+(y-0.5)*(y-0.5)))"
-    wave.set_initial_value("p", p_0)
-
-It remains to solve!
-
-.. code:: python
-
-    ## Solve in time
-    # Define the time scheme ("cn" is Crank-Nicolson)
-    wave.set_time_scheme(ts_type="cn",
-                         t_f=t_f, 
-                         dt_save=0.01,
-                         )
-    
-    # Solve
-    wave.solve()
-
-Now we can set the Hamiltonian and plot it.
-
-.. code:: python
-
-    ## Post-processing
-    # Set Hamiltonian's name
-    wave.hamiltonian.set_name("Mechanical energy")
-    # Define each Hamiltonian Term
-    terms = [
-        S.Term("Potential energy", "0.5*q.T.q", [1]),
-        S.Term("Kinetic energy", "0.5*p*p/rho", [1]),
-    ]
-    # Add them to the Hamiltonian
-    for term in terms:
-        wave.hamiltonian.add_term(term)
-    
-    # Plot the Hamiltonian and save the output
-    wave.plot_Hamiltonian(save_figure=True, filename="Hamiltonian_Wave_2D_Conservative.png")
-    
-.. image:: Wave_Hamiltonian_conservative.png
-
-Adding Damping to the dphs
+2B — Adding damping to the DPHS
 --------------------------
 
 .. automodule:: examples.wave_dissipative
