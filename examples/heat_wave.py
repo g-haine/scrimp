@@ -32,6 +32,13 @@ def heat_wave_eq(
     Dirichlet condition are used to expose the heat dissipation and
     closed interconnection in an interpretable power balance.
 
+    Interface normals always mean each subdomain's outward normal.
+    The two-sided conforming interface compiler must be active for
+    this physical convention; SCRIMP's historical default assembly
+    still uses the original doubled logical region 10. Until the
+    compiler is enabled by default after its release qualification,
+    set SCRIMP_V130_AUTO_INTERFACE_PILOT=1 for physical simulations.
+
     Args:
         heat_region: domain label of the heat equation (1 or 2).
         wave_region: domain label of the wave equation (the other one).
@@ -86,10 +93,11 @@ def heat_wave_eq(
     # temperature (Dirichlet). Its port causality depends on the
     # adjacent subsystem, NOT on the user-selected LU factorization.
     outer_is_wave = (wave_region == 2)
-    # GetFEM's interface Normal is oriented away from the inner disk
-    # for either subdomain. Convert it to outward HEAT normal:
-    # +1 when heat is disk, -1 when heat is annulus.
-    heat_normal_orientation = 1 if heat_region == 1 else -1
+    # On the interface, Normal is the outward normal of the bulk
+    # subdomain owning the tested variable. The automatic conforming
+    # interface compiler selects that side, independently of whether
+    # heat occupies the disk or the annulus. The weak transmission law
+    # below therefore needs NO correction based on region numbering.
 
     # Define the control ports
     control_ports = [
@@ -171,12 +179,11 @@ def heat_wave_eq(
         
         S.Brick("D_T", "-Div(e_Q)*Test_T", [heat_region], position="effort"),
         S.Brick("D_T^T", "T*Div(Test_e_Q)", [heat_region], position="effort"),
-        # With e_Q=-grad(T), the boundary temperature term enters
-        # with a minus: T=U_T on the interface in the mixed weak form.
+        # With e_Q=-grad(T) and the outward HEAT normal, T=U_T
+        # enters with a minus in the mixed boundary weak form,
+        # for either assignment of heat_region.
         S.Brick(
-            "B_T",
-            "-U_T*Test_e_Q.Normal" if heat_normal_orientation == 1
-            else "U_T*Test_e_Q.Normal",
+            "B_T", "-U_T*Test_e_Q.Normal",
             [10], position="effort",
         ),
         S.Brick("B_T^T", "e_Q.Normal*Test_Y_T", [10], position="effort"),
@@ -219,18 +226,13 @@ def heat_wave_eq(
         hw.add_brick(brick)
     
     # Set the controls
-    # Physical continuity (2.2): T=p, J_Q.n_heat=q.n_wave.
-    # The heat temperature input U_T equals the wave velocity Y_w.
-    # The heat flux output Y_T uses GetFEM's common interface Normal,
-    # not always the outward heat-domain normal. Convert that normal
-    # via heat_normal_orientation when prescribing wave traction U_w.
-    # The physical signed power is
-    # -heat_normal_orientation*U_T*Y_T + U_w*Y_w = 0.
+    # Physical continuity (2.2): T=p, J_Q.n_heat=q.n_wave, with
+    # each Normal outward from its OWN subdomain. The two interface
+    # controls impose U_T=Y_w and U_w=Y_T in both region assignments.
+    # For the mixed/grad-grad formulation above, the signed interface
+    # power is -U_T*Y_T + U_w*Y_w = 0. No disk/annulus sign factor.
     hw.set_control("Interface Heat", "Y_w")
-    hw.set_control(
-        "Interface Wave",
-        "Y_T" if heat_normal_orientation == 1 else "-Y_T",
-    ) 
+    hw.set_control("Interface Wave", "Y_T")
     # === Dirichlet boundary condition
     hw.set_control("Boundary", "0.")
 
