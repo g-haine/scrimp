@@ -5,6 +5,42 @@ Changes to SCRIMP are recorded here. See also the
 
 ## 1.3.0 — in development (not released)
 
+### Onde 2D : SuperLU_DIST PC numeric zero pivot et permutations sans régularisation (24 novembre 2026)
+
+- Diagnostic **natif** d'un premier pas de `examples/wave.py`
+  avec SuperLU_DIST MPI1, preuve
+  `v130-wave2d-superlu-dist-first-step-62fb8765-QIaYkugY.zip` :
+  `SNES_reason=-3`, `KSP_reason=-11`,
+  `KSP_iter=0`, `PC_failed=2`,
+  `factor_solver=superlu_dist`. Selon l'énumération
+  officielle PETSc, **PC_failed=2 = PC_FACTOR_NUMERIC_ZEROPIVOT**.
+  La TS a rejeté le premier pas jusqu'à
+  `dt=1.9073486328125e-09`.
+  La singularité mathématique de la matrice
+  n'est **pas** démontrée par ce code de retour.
+- Expérience de discrimination **non régularisante**
+  prête : `sandbox/probe_v130_wave2d_superlu_dist_ordering.py`
+  et `scripts/run-v130-wave2d-superlu-dist-ordering-study.sh`.
+  Test de permutations SuperLU_DIST
+  `LargeDiag_AWPM` et `MMD_AT_PLUS_A`
+  sur le même modèle physique, sans remplacement
+  de pivots, sans substitution de MUMPS ni
+  changement d'énergie/DAE/CN.
+  Vraie qualification de dix pas MPI1,
+  quatre puissances, quatre exports VTK,
+  comparaison aux **états FE complets MUMPS
+  déjà archivés**, diagnostic de lignes nulles.
+- **À exécuter nativement** : un succès de
+  permutation n'est pas encore la qualification
+  de SuperLU_DIST **par défaut** ni en MPI2.
+  Le banc d'installation reste **3/5 PASS**.
+  La CI vérifie les scripts, les contraintes
+  physiques et l'absence de correctif
+  de pivot appliqué aveuglément.
+- `examples/wave.py`, `scrimp/dphs.py`,
+  `master` et `examples/published/` inchangés
+  dans ce diagnostic.
+
 ### Onde 2D conservative : trois LU réussis, diagnostic SuperLU_DIST isolé (24 novembre 2026)
 
 - **Campagne cinq configurations nativement exécutée**
