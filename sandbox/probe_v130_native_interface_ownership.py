@@ -26,37 +26,44 @@ class StopAtAudit(Exception):
 def main():
     original_solve = DPHS.solve
     reports = []
+    active = {"heat": None, "wave": None}
 
     def audit_at_solve(system):
         report = system.audit_interface_ownership(10, (1, 2))
-        expected = {"Interface Heat": 1, "Interface Wave": 2}
+        expected = {
+            "Interface Heat": active["heat"],
+            "Interface Wave": active["wave"],
+        }
         if report["port_owners"] != expected:
             raise AssertionError(
                 f"Original model's interface owners changed: {report['port_owners']}"
             )
         if report["facets_per_side"] != 78:
             raise AssertionError("Unexpected original Concentric interface")
-        reports.append(report)
+        reports.append({"heat_region": active["heat"],
+                        "wave_region": active["wave"], **report})
         raise StopAtAudit
 
     try:
         DPHS.solve = audit_at_solve
-        try:
-            heat_wave_eq(
-                heat_region=1, wave_region=2,
-                final_time=.004, time_step=.001, save_step=.001,
-            )
-        except StopAtAudit:
-            pass
+        for heat, wave in ((1, 2), (2, 1)):
+            active.update(heat=heat, wave=wave)
+            try:
+                heat_wave_eq(
+                    heat_region=heat, wave_region=wave,
+                    final_time=.004, time_step=.001, save_step=.001,
+                )
+            except StopAtAudit:
+                pass
     finally:
         DPHS.solve = original_solve
 
-    if len(reports) != 1:
-        raise AssertionError("Original model did not reach ownership audit")
+    if len(reports) != 2:
+        raise AssertionError("Both original model permutations must be audited")
     print(json.dumps({
         "schema": "scrimp-v130-native-declared-interface-ownership-v1",
         "status": "PASS_DECLARED_DPHS_INTERFACE_OWNERSHIP_ONLY",
-        "report": reports[0],
+        "cases": reports,
         "original_example_source_unchanged": True,
         "getfem_weak_forms_reoriented": False,
         "PETSc_TS_executed": False,
