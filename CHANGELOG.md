@@ -5,6 +5,59 @@ Changes to SCRIMP are recorded here. See also the
 
 ## 1.3.0 — in development (not released)
 
+### Onde 2D : matrices CN égales bit à bit, rang plein et replay SuperLU_DIST de l'opérateur exact (24 novembre 2026)
+
+- Archive native originale
+  `v130-wave2d-first-cn-jacobian-574d9c71-NKqIZ0BZ.zip`
+  examinée : **deux captures PETSc
+  `P,K,M` complètement identiques**
+  entre MUMPS et SuperLU_DIST (SHA256
+  commun `24346856f358e4f81cf332ebc974e329dc084c60f5d6b98bfbcd788fdff37f54`),
+  `P=K+250M` sans différence,
+  2230 DOFs, 25801 coefficients stockés
+  dont 25791 non nuls. Les **dix
+  diagonales nulles sont les DOFs
+  80–89 de `Y_L`** ; elles correspondent
+  aux contraintes algébriques du
+  port gauche, pas à des lignes vides.
+- Le rang structurel réel est
+  `2230/2230`. Un appariement biparti
+  maximum couvre toutes les lignes.
+  La vraie matrice est factorizable
+  sans régularisation avec SciPy/SuperLU
+  (`COLAMD` résidu relatif
+  `2.28e-15`; `MMD_AT_PLUS_A`
+  `5.54e-15`). Estimation
+  `cond_1≈4.28e5`. L'échec
+  `PC_FACTOR_NUMERIC_ZEROPIVOT`
+  appartient donc au chemin numérique
+  PETSc/SuperLU_DIST, pas à un Jacobien
+  différent ou structurellement déficient.
+- Nouveau **replay PETSc indépendant**
+  `sandbox/replay_v130_wave2d_superlu_dist_factor.py`
+  et lanceur
+  `scripts/run-v130-wave2d-superlu-dist-factor-replay.sh` :
+  charge uniquement le **CSR original
+  SHA256 vérifié**, distribue les
+  lignes locales MPI1/MPI2 et contrôle
+  chaque coefficient. Compare
+  SuperLU_DIST **par défaut** puis avec
+  `mat_superlu_dist_replacetinypivot=true`,
+  option volontairement **non activée
+  dans SCRIMP**. Contrôles natifs
+  du résidu arrière `Px-b` et
+  d'une solution exacte, sans aucun
+  changement de modèle, de CN ni
+  recours caché à MUMPS.
+- Ajout de six tests source et d'un
+  préflight CI ; **replay natif
+  EN ATTENTE**. Un PASS de
+  factorisation isolée ne garantit
+  ni les dix pas CN, ni les quatre
+  puissances, ni la qualification
+  MPI du programme canonique.
+  **Statut d'installation toujours 3/5**.
+
 ### Onde 2D : permutations SuperLU_DIST rejetées et diagnostic exact du Jacobien (24 novembre 2026)
 
 - **Étude native des permutations MPI1 FAIL**,
