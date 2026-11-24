@@ -318,6 +318,51 @@ Le résultat natif reste à obtenir. Voir
 `docs/V130_EXAMPLE_02_WAVE_2D_AUDIT.md`
 pour les valeurs exactes du diagnostic.
 
+### Résultats des permutations et contrôle de rang
+
+La campagne native `8cb2a51f`,
+archive
+`v130-wave2d-superlu-dist-ordering-8cb2a51f-422NJxVt.zip`,
+confirme **deux échecs SuperLU_DIST MPI1** :
+
+- `LargeDiag_AWPM` : **segfault 139**
+  immédiatement après `CombBLAS is not available`
+  (chemin de permutation indisponible
+  dans la configuration binaire) ;
+- `MMD_AT_PLUS_A` : **premier pas rejeté**
+  avec `PC_FACTOR_NUMERIC_ZEROPIVOT`.
+
+Le Jacobien `2230×2230` contient
+**25801 coefficients CSR**, dix diagonales
+numériquement nulles (80–89), **aucune ligne
+entièrement nulle** et aucune entrée non finie.
+La présence de ces diagonales nulles n'implique
+**pas** une perte de rang dans un système
+pH-DAE à structure de point-selle.
+
+Il faut désormais capturer la **vraie matrice
+de préconditionnement** que PETSc tente de
+factoriser, comparer MUMPS et SuperLU_DIST,
+identifier les dix variables GetFEM concernées,
+et calculer le rang **structurel** séparément
+de la factorisation **numérique**.
+
+Un banc ciblé existe désormais :
+`scripts/run-v130-wave2d-superlu-dist-matrix-audit.sh`,
+avec capture native `P,K,M` à
+`t=0.008`, `sigma=250`, étude indépendante
+SciPy et tests synthétiques de matrices
+à diagonales nulles néanmoins inversibles.
+Il ne change ni `examples/wave.py` ni
+le code de SCRIMP. **Exécution native
+en attente.**
+
+```bash
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-wave2d-superlu-dist-matrix-audit.sh
+```
+
 Une fois ces cinq cas qualifiés et leurs
 preuves inspectées, produire les
 **figures scientifiques 2D** :
