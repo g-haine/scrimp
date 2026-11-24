@@ -580,33 +580,27 @@ loop using a python *list*
 .. code:: python
 
     bricks = [
-        # M matrix, on the flow side
-        S.Brick("M_q", "q * Test_q", [1], dt=True, position="flow"),
-        S.Brick("M_p", "p * Test_p", [1], dt=True, position="flow"),
-        S.Brick("-M_Y_L", "-Y_L * Test_Y_L", [10], position="flow"),
-        S.Brick("-M_Y_R", "-Y_R * Test_Y_R", [11], position="flow"),
-        
-        # J matrix, on the effort side
-        S.Brick("D", "Grad(e_p) * Test_q", [1], position="effort"),
-    
-        S.Brick("-D^T", "-e_q * Grad(Test_p)", [1], position="effort"),
-        S.Brick("B_L", "U_L * Test_p", [10], position="effort"),
-        S.Brick("B_R", "U_R * Test_p", [11], position="effort"),
-    
-        S.Brick("-B_L^T", "-e_p * Test_Y_L", [10], position="effort"),
-        S.Brick("-B_R^T", "-e_p * Test_Y_R", [11], position="effort"),
-        
-        # Constitutive relations
-        S.Brick("-M_e_q", "-e_q * Test_e_q", [1]),
-        S.Brick("CR_q", "q*T * Test_e_q", [1]),
-    
-        S.Brick("-M_e_p", "-e_p * Test_e_p", [1]),
-        S.Brick("CR_p", "p/rho * Test_e_p", [1]),
-        ]
-    
+        # Time-derivative mass matrix M.
+        S.Brick("M_q", "q*Test_q", [1], dt=True, position="flow"),
+        S.Brick("M_p", "p*Test_p", [1], dt=True, position="flow"),
+        # Flow-side boundary entries are -y, not +y.
+        S.Brick("-M_Y_L", "-Y_L*Test_Y_L", [10], position="flow"),
+        S.Brick("-M_Y_R", "-Y_R*Test_Y_R", [11], position="flow"),
+        # Antisymmetric Dirac interconnection and outward traction.
+        S.Brick("D", "Grad(e_p)*Test_q", [1], position="effort"),
+        S.Brick("-D^T", "-e_q*Grad(Test_p)", [1], position="effort"),
+        S.Brick("B_L", "U_L*Test_p", [10], position="effort"),
+        S.Brick("B_R", "U_R*Test_p", [11], position="effort"),
+        S.Brick("-B_L^T", "-e_p*Test_Y_L", [10], position="effort"),
+        S.Brick("-B_R^T", "-e_p*Test_Y_R", [11], position="effort"),
+        # Linear constitutive laws, implicit zero-residual form.
+        S.Brick("-M_e_q", "-e_q*Test_e_q", [1]),
+        S.Brick("CR_q", "q*T*Test_e_q", [1]),
+        S.Brick("-M_e_p", "-e_p*Test_e_p", [1]),
+        S.Brick("CR_p", "p/rho*Test_e_p", [1]),
+    ]
     for brick in bricks:
         system.add_brick(brick)
-
 
 The first argument of a *brick* is a human-readable name, the second one
 is the form, the third is a list (hence the [ and ]) of integers,
