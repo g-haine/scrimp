@@ -277,6 +277,47 @@ diagnostic identifie la cause : il faudra
 un vrai run de dix pas avec toutes les preuves
 pour l'accepter.
 
+### Facteur de défaillance SuperLU_DIST identifié
+
+Le second diagnostic nativement exécuté, preuve
+`v130-wave2d-superlu-dist-first-step-62fb8765-QIaYkugY.zip`,
+confirme **PC_FAILED=2 =
+PC_FACTOR_NUMERIC_ZEROPIVOT** (énumération PETSc),
+`KSP_DIVERGED_PC_FAILED=-11`, SNES `-3`,
+TS `-2`. Le pas a été réessayé jusqu'à
+`dt=1.9073486328125e-09` et n'a jamais été
+accepté : il s'agit d'un blocage numérique
+du facteur LU, **pas** d'une réfutation du
+bilan port-Hamiltonien du problème.
+
+Une expérience supplémentaire sur les **permutations
+réelles de SuperLU_DIST** est préparée, sans
+utiliser `ReplaceTinyPivot` ni modifier
+la matrice. Elle compare le modèle complet
+contre les **états FE MUMPS déjà archivés**,
+avec `SCRIMP_MPI_TRACE=1` pour examiner les
+lignes/diagonales nulles, et maintient les
+vérifications énergétiques.
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+conda activate scrimp
+
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-wave2d-superlu-dist-ordering-study.sh
+```
+
+Ce lanceur éprouve `LargeDiag_AWPM` sur
+les lignes, puis `MMD_AT_PLUS_A` sur
+les colonnes ; **un éventuel PASS ne
+concernera que le candidat MPI1 testé,
+et non l'acceptation cinq backends**.
+Le résultat natif reste à obtenir. Voir
+`docs/V130_EXAMPLE_02_WAVE_2D_AUDIT.md`
+pour les valeurs exactes du diagnostic.
+
 Une fois ces cinq cas qualifiés et leurs
 preuves inspectées, produire les
 **figures scientifiques 2D** :
