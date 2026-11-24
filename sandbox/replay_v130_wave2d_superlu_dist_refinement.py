@@ -212,10 +212,26 @@ def main():
         )
         check.destroy()
         diff.destroy()
+    # Do not mistake a solver that ignored PC_RIGHT or the true
+    # unpreconditioned norm for a valid GMRES correction. PREONLY
+    # deliberately has no Krylov iterations; GMRES must have at least 1.
+    right_true_norm = bool(
+        ksp.getPCSide() == PETSc.PC.Side.RIGHT
+        and ksp.getNormType() == PETSc.KSP.NormType.UNPRECONDITIONED
+    )
+    correct_method = bool(
+        (args.refinement == "internal_refine"
+         and str(ksp.getType()).lower() == "preonly")
+        or (args.refinement == "right_gmres"
+            and str(ksp.getType()).lower() == "gmres"
+            and right_true_norm
+            and int(ksp.getIterationNumber()) > 0)
+    )
     candidate_ok = (
         error is None
         and reason > 0
         and factor_solver == "superlu_dist"
+        and correct_method
         and rel_backward is not None
         and np.isfinite(rel_backward)
         and rel_backward < 1e-11
@@ -242,6 +258,10 @@ def main():
         "ksp_iterations": int(ksp.getIterationNumber()),
         "ksp_norm_type": str(ksp.getNormType()),
         "ksp_pc_side": str(ksp.getPCSide()),
+        "right_gmres_true_residual_norm_confirmed": (
+            right_true_norm if args.refinement == "right_gmres" else None
+        ),
+        "correct_refinement_method_confirmed": correct_method,
         "ksp_convergence_tolerances": tuple(
             float(x) if i < 3 else int(x)
             for i,x in enumerate(ksp.getTolerances())
