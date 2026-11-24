@@ -1,6 +1,6 @@
 # SCRIMP v1.3.0 — Generic conforming interface orientation (stage 1)
 
-Status: **SOURCE IMPLEMENTED; NATIVE GETFEM VALIDATION PENDING; NOT ACTIVE IN DPHS ASSEMBLY**.
+Status: **NATIVE GETFEM 2-D CONCENTRIC TOPOLOGY PASS (MPI1); NOT ACTIVE IN DPHS ASSEMBLY**.
 
 ## Contract
 
@@ -57,6 +57,29 @@ all original GetFEM regions. No example is modified.
 The previous `sandbox/probe_v130_hw_dual_sided_cn.py` establishes
 physical CN behavior only for its own reversible sandbox re-targeting,
 which is not yet in core.
+
+## Native evidence — 2026-11-24
+
+User-run local GetFEM/PETSc environment on the 2-D Concentric mesh,
+branch `release/1.3.0-preparation` at `4981299`:
+
+- `python tests/test_v130_interface_topology.py`: **10 tests, OK**.
+- `python -m py_compile`: passed.
+- `python sandbox/probe_v130_generic_interface_topology.py`:
+  `PASS_ORIENTED_TOPOLOGY_ONLY`.
+- Logical interface region: **10**; subdomains: **1, 2**.
+- Facets per side: **78**.
+- Maximum opposite-normal *vector* defect:
+  **2.482534153247273e-16**.
+- Permutation invariant: **true**.
+- Original logical interface region unchanged: **true**.
+- No additional GetFEM regions allocated: **true**.
+
+The genuine native run confirms the 2-D topology and the Python
+`mesh.geotrans()` behavior (compressed GT catalog, singleton proxy).
+These are **not** FE-assembly, DAE, discrete-energy, 3-D, or MPI2
+qualifications. See the separate reversible Heat-Wave CN audit for
+the numerical evidence on manually separated sides.
 
 ## Next steps (not implemented here)
 
