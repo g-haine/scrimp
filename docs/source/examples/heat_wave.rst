@@ -22,6 +22,17 @@ already been studied.
 The objective of this example is to deal with interconnection in the
 sense of port-Hamiltonian systems.
 
+.. note::
+
+   For mixed finite-element saddle-point systems, a solver's
+   permutation strategy is distinct from **swapping heat/wave
+   subdomains** or correcting **interface normal orientations**.
+   See :doc:`../solver_saddle_points` for an evidence-based comparison
+   of Heat--Wave and the conservative 2D wave LU diagnostics.
+   The code shown on this page also retains historical tutorial
+   snippets; consult the maintained `examples/heat_wave.py` source
+   for the currently implemented interface signs and FEM choices.
+
 We are interested in the coupled heat-wave system which can be
 formulated as follows: let :math:`\Omega := \Omega_W \cup \Omega_H` be a
 bounded domain in :math:`\mathbb{R}^2` such that
