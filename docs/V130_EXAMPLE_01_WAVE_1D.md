@@ -163,6 +163,68 @@ La documentation en ligne peut employer l'animation
 SVG courte dès maintenant ; la future animation GIF
 longue ne sera publiée qu'après examen des preuves.
 
+## 3bis. Incident de la démonstration longue : t=1,49 non archivé
+
+**24 novembre 2026 — PREMIER ESSAI LONG : ÉCHEC SCIENTIFIQUE
+DU CONTRÔLE D'ARCHIVAGE, PAS DE LA RÉSOLUTION PETSc.**
+Archive initiale exacte :
+`v130-wave1d-long-doc-f0b589a9-uOwc7fiY.zip`,
+source `f0b589a9c94185eef12f4048407b0a5456646288`.
+Elle contient le journal natif et le manifeste, mais aucun
+fichier de sortie `rank0.npz` ni VTK valide ; ne surtout
+pas l'utiliser pour produire des illustrations.
+
+Dans cette simulation `t_f=1,5`, `dt=dt_save=0,01`,
+la vraie TS PETSc a réussi **150/150 pas**, sans rejet
+ni échec non linéaire. L'initialisation algébrique
+était compatible avec un résidu de
+`2.48139079e-17`; GetFEM a pu calculer les termes
+du Hamiltonien et les puissances des deux ports.
+
+Le monitor original de `DPHS` évaluait
+`next_saved_at_t - t <= 0` avec des flottants.
+Au pas accepté **i=149, t≈1,49**, l'arrondi du
+calcul `previous_saved_time + dt_save` donnait
+une valeur supérieure de seulement **un ULP**
+au temps PETSc accepté. Le moniteur l'a donc
+**ignoré**, puis enregistré `i=150` ; les
+états sauvegardés étaient au nombre de **150**
+plutôt que **151**. Le contrôle strict du
+tutoriel a alors levé une exception :
+`Real PETSc CN convergence or energy positivity failed`.
+Il n'est **pas** établi que l'énergie soit devenue
+négative : cette erreur agrégée déclenche aussi
+sur le nombre de snapshots incorrect.
+
+**Correction du code commun** : ajout de
+`scrimp/utils/trajectory_sampling.py` et appel
+à `saved_time_is_due()` depuis
+`DPHS.monitor()`. Le seuil s'autorise au
+maximum **16 ULP** d'écart numérique, plafonnés
+à `1e-6*dt_save`. Il **n'invente aucun état**
+et ne doit pas avancer une échéance physique
+d'un intervalle appréciable ; les sorties
+avec `dt_save>dt` restent volontairement
+sous-échantillonnées.
+
+Le nouveau
+`tests/test_v130_trajectory_sampling.py`
+reproduit le flottant raté à `i=149`, prouve
+que les 151 états des 150 pas sont de nouveau
+retenus, et vérifie l'absence de déclenchement
+anticipé/sous-échantillonnage modifié. Le
+contrôle de l'exemple reste **strict** :
+`last_ts_steps == len(times)-1`, défaut
+énergétique pas-à-pas et bilan global.
+
+**État actuel : correction SOURCE PRÊTE, nouveau
+PASS NATIF LONG EN ATTENTE.** Cet incident ne
+change en rien la qualification antérieure
+des cinq solveurs ni les illustrations issues
+du test court. La nouvelle démonstration longue
+doit être exécutée et son GIF réellement
+inspecté avant publication dans Sphinx.
+
 ## 4. Reproductibilité
 
 ```bash
