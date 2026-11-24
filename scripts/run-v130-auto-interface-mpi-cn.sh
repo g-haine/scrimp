@@ -47,11 +47,22 @@ printf '{"schema":"scrimp-v130-MPI1-MPI2-auto-interface-DAE-CN-v1","source":"%s"
 echo "REAL GetFEM/PETSc strict DAE / CN / sided pH energy: MPI1 vs MPI2"
 echo "Both 2D Heat-Wave orientations; original model and physical weak forms"
 pv_diagnostic="${SCRIMP_V130_MPI_PV_DIAGNOSTIC:-0}"
+pv_root_only="${SCRIMP_V130_MPI_PV_ROOT_ONLY:-0}"
 [[ "$pv_diagnostic" == 0 || "$pv_diagnostic" == 1 ]] || {
   echo "SCRIMP_V130_MPI_PV_DIAGNOSTIC must be 0 or 1" >&2; exit 2
 }
+[[ "$pv_root_only" == 0 || "$pv_root_only" == 1 ]] || {
+  echo "SCRIMP_V130_MPI_PV_ROOT_ONLY must be 0 or 1" >&2; exit 2
+}
+[[ "$pv_diagnostic" != 1 || "$pv_root_only" != 1 ]] || {
+  echo "Choose either rank-isolated or root-only ParaView diagnostics" >&2
+  exit 2
+}
 pv_args=()
-if [[ "$pv_diagnostic" == 1 ]]; then
+if [[ "$pv_root_only" == 1 ]]; then
+  pv_args=(--pv-root-only)
+  echo "MPI ParaView ROOT-ONLY PILOT: shared VTU/PVD written by rank0"
+elif [[ "$pv_diagnostic" == 1 ]]; then
   pv_args=(--pv-diagnostic)
   echo "ParaView DIAGNOSTIC: real VTU/PVD with isolated files on each MPI rank"
   echo "Shared production MPI exports are NOT qualified by this test"
@@ -71,6 +82,7 @@ for heat in 1 2; do
     --env OMP_NUM_THREADS=1 --env OPENBLAS_NUM_THREADS=1 \
     --env PYTHONPATH=/workspace/scrimp:/workspace/scrimp/sandbox \
     --env SCRIMP_V130_AUTO_INTERFACE_PILOT=1 \
+    --env SCRIMP_V130_PV_ROOT_ONLY_PILOT="$pv_root_only" \
     --env SCRIMP_GETFEM_MATRIX_MODE=distributed \
     --env SCRIMP_GETFEM_BRIDGE_DISTRIBUTED=coo \
     --env SCRIMP_MATRIX_MEMORY_MODE=compact \
@@ -108,6 +120,8 @@ results = {}
 any_failure = False
 host_error = None  # success path must also serialize a complete report
 pv_diagnostic = os.environ.get("SCRIMP_V130_MPI_PV_DIAGNOSTIC", "0") == "1"
+pv_root_only = os.environ.get("SCRIMP_V130_MPI_PV_ROOT_ONLY", "0") == "1"
+pv_export_active = pv_diagnostic or pv_root_only
 pv_evidence = {}
 try:
     for heat in (1, 2):
@@ -131,9 +145,11 @@ try:
                         or raw["real_PETSc_CN_steps"] != 4
                         or not all(raw["physical_gates"].values())
                         or raw["plot_and_ParaView_export_skipped_on_all_ranks"]
-                           == pv_diagnostic
+                           == pv_export_active
                         or raw.get("MPI_rank_isolated_real_ParaView_export_diagnostic")
                            != pv_diagnostic
+                        or raw.get("MPI_root_only_shared_ParaView_export_pilot")
+                           != pv_root_only
                         or not raw["physical_GetFEM_assembly_executed_on_all_ranks"]):
                     raise RuntimeError(f"Native rank report gate failed: {label}/{rank}")
                 record["rank_reports"].append(raw)
@@ -194,14 +210,15 @@ try:
 
     # Optional REAL VTK file diagnostic. Rank-isolated file integrity
     # does NOT qualify concurrent shared-file production exports.
-    if pv_diagnostic:
+    if pv_export_active:
         for heat in (1, 2):
             for size in (1, 2):
                 label = f"heat{heat}_mpi{size}"
-                for rank in range(size):
+                for rank in (range(size) if pv_diagnostic else (0,)):
                     entry = {}
                     for name in ("p", "T"):
-                        folder = root / label / f"rank{rank}" / "pv" / name
+                        folder = (root / label / f"rank{rank}" / "pv" / name
+                                  if pv_diagnostic else root / label / "pv" / name)
                         pvd = folder / f"{name}.pvd"
                         collection = ET.parse(pvd)
                         datasets = collection.findall(".//DataSet")
@@ -233,6 +250,11 @@ try:
                             })
                         entry[name] = meta
                     pv_evidence[f"{label}_rank{rank}"] = entry
+                if pv_root_only and (root / label / "rank1").exists():
+                    raise RuntimeError(
+                        f"Unexpected MPI rank1 output directory: {label}"
+                    )
+
 
 except Exception as exc:
     any_failure = True
@@ -242,34 +264,43 @@ summary = {
     "schema": "scrimp-v130-genuine-auto-interface-MPI2-DAE-CN-physics-v1",
     "status": (
         (
-            "DIAGNOSTIC_MPI_RANK_ISOLATED_PV_FILES_COMPLETE_CN_ENERGY_PASSED"
-            if pv_diagnostic else
+            (
+                "PASS_MPI2_ROOT_ONLY_SHARED_VTU_PVD_COMPLETE_CN_ENERGY"
+                if pv_root_only else
+                "DIAGNOSTIC_MPI_RANK_ISOLATED_PV_FILES_COMPLETE_CN_ENERGY_PASSED"
+            )
+            if pv_export_active else
             "PASS_BOTH_AUTO_INTERFACE_ORIENTATIONS_MPI2_DAE_CN_ENERGY_PARITY"
         )
         if not any_failure else
         (
             "FAIL_OR_UNQUALIFIED_AUTO_INTERFACE_MPI2_DAE_CN_OR_PV_DIAGNOSTIC"
-            if pv_diagnostic else
+            if pv_export_active else
             "FAIL_OR_UNQUALIFIED_AUTO_INTERFACE_MPI2_DAE_CN_PHYSICS"
         )
     ),
     "cases": results,
     "host_comparison_failure": host_error,
     "isolated_MPI_ParaView_diagnostic_executed": pv_diagnostic,
+    "root_only_shared_ParaView_export_tested": pv_root_only,
     "isolated_MPI_ParaView_evidence": pv_evidence,
-    "shared_production_MPI_ParaView_qualified": False,
+    "shared_production_MPI_ParaView_qualified": (
+        pv_root_only and not any_failure
+    ),
     "rank_isolated_VTU_PVD_mesh_parity_by_field": {},
     "current_original_example_source_unchanged": True,
     "all_GetFEM_physical_integrals_on_all_ranks": True,
     "parallel_PNG_and_ParaView_qualified": False,
     "production_auto_compiler_enabled_by_default": False,
 }
-if pv_diagnostic and not any_failure:
+if pv_export_active and not any_failure:
     mesh_comparison = {}
     for heat in (1, 2):
         serial = pv_evidence[f"heat{heat}_mpi1_rank0"]
         for rank in (0, 1):
             multi = pv_evidence[f"heat{heat}_mpi2_rank{rank}"]
+            if not multi and pv_root_only:
+                raise RuntimeError("Missing shared rank0 VTK evidence")
             for name in ("p", "T"):
                 expected = [
                     (rec["points"], rec["cells"]) for rec in serial[name]
