@@ -35,12 +35,24 @@ Changes to SCRIMP are recorded here. See also the
   ancien libellé d'échec de comparateur, risque d'écritures VTK
   concurrentes. Voir
   `docs/V130_INTERFACE_PV_PRODUCTION_DECISION_20261124.md`.
+- **PASS final des chemins par défaut** sans drapeaux expérimentaux
+  au commit `241f58fb`, test natif
+  `scripts/run-v130-production-defaults.sh` dans l'image RC3 figée :
+  **71/71 tests source**, 8 instantanés publiés immuables,
+  quatre simulations GetFEM/PETSc en MPI1/MPI2, strict DAE,
+  quatre pas CN acceptés par simulation, zéro échec SNES,
+  bilans énergétiques et puissances d'interface vérifiés,
+  trajectoires MPI2 identiques entre rangs, fichiers
+  ParaView partagés et valeurs physiques MPI1/MPI2 conformes.
+  Archive `v130-auto-interface-MPI-CN-241f58fb-YEJXJhSK.zip`.
+  Le rapport original conservait une ancienne métadonnée
+  `production_auto_compiler_enabled_by_default=false`
+  codée en dur ; sa correction est **report-only** (`942e23e`)
+  et ne modifie aucune simulation.
 - **Limites assumées** : les tests natifs ne couvrent pas la géométrie
   générique, les autres familles d'EF ni les trajectoires non
-  répliquées. Une validation native supplémentaire des chemins
-  *sans drapeaux expérimentaux* est à exécuter après promotion
-  via `scripts/run-v130-production-defaults.sh`. Aucun PASS
-  nouveau n'est présumé avant cette exécution.
+  répliquées. Le PASS final est spécifique aux deux orientations
+  Heat-Wave en MPI1/2. Aucun tag, fusion ou publication.
 
 ### Performance and MPI
 - Use exact `on_change` MUMPS factor reuse by default. Reuse the
