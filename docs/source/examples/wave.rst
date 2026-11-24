@@ -24,11 +24,7 @@ then study the complementary co-energy formulation in example
 This page describes the actual code in ``examples/wave.py`.
 Its snippets are included **directly from that file**, avoiding
 manual discrepancies between the tutorial and the program.
-The validated physical model is the same for all PETSc solver backends.
-The sparse LU factorization may nevertheless require explicit
-backend-specific options. The tested SuperLU_DIST configuration,
-the ten algebraic zero diagonals and its native MPI validation
-are explained in :doc:`../solver_saddle_points`.
+The validated source is the same for all PETSc solver backends.
 
 The physical model
 ------------------
