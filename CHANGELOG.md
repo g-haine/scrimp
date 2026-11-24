@@ -5,6 +5,54 @@ Changes to SCRIMP are recorded here. See also the
 
 ## 1.3.0 — in development (not released)
 
+### Onde 2D : permutations SuperLU_DIST rejetées et diagnostic exact du Jacobien (24 novembre 2026)
+
+- **Étude native des permutations MPI1 FAIL**,
+  preuve
+  `v130-wave2d-superlu-dist-ordering-8cb2a51f-422NJxVt.zip`.
+  Avec `LargeDiag_AWPM`, SuperLU_DIST
+  imprime `CombBLAS is not available`
+  puis subit un **segfault 139** avant tout
+  pas accepté ; avec `MMD_AT_PLUS_A`,
+  retour identique
+  `PC_FACTOR_NUMERIC_ZEROPIVOT`.
+  Aucun de ces essais ne constitue un
+  contournement validé.
+- Diagnostic PETSc des matrices réellement
+  assemblées au premier pas CN :
+  `J=K+250M`, **2230×2230**,
+  **25801 coefficients stockés**,
+  dix diagonales nulles (indices 80–89),
+  **aucune ligne entièrement nulle**,
+  pas de NaN/Inf. Ces diagonales
+  ne prouvent pas la singularité d'une
+  matrice de point-selle.
+- Nouveau banc de diagnostic
+  `scripts/run-v130-wave2d-superlu-dist-matrix-audit.sh`
+  (code de capture
+  `sandbox/probe_v130_wave2d_factor_matrix.py`,
+  analyse
+  `sandbox/analyze_v130_wave2d_factor_matrix.py`).
+  Il conserve les **vraies matrices PETSc
+  P, K, M** depuis le callback IJacobian
+  avant la LU, comparées entre MUMPS et
+  SuperLU_DIST, avec la liste des
+  intervalles d'inconnues GetFEM,
+  le rang structurel SciPy, les dix
+  indices à diagonale nulle et un essai
+  de factorisation SciPy **sans
+  régularisation**. Les tests vérifient
+  qu'un point-selle avec dix diagonales
+  nulles peut rester de rang plein.
+- **Ce nouveau diagnostic est EN
+  ATTENTE de vraie exécution native.**
+  L'acceptation de l'onde 2D reste
+  **MUMPS MPI1/2 et SuperLU MPI1 PASS,
+  SuperLU_DIST MPI1/2 FAIL**.
+  `examples/wave.py`, `scrimp/dphs.py`,
+  `master` et `examples/published/`
+  restent inchangés par ce banc.
+
 ### Onde 2D : SuperLU_DIST PC numeric zero pivot et permutations sans régularisation (24 novembre 2026)
 
 - Diagnostic **natif** d'un premier pas de `examples/wave.py`
