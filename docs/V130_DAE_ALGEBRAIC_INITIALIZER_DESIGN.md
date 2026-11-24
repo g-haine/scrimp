@@ -5593,3 +5593,54 @@ T, p and q coefficients must remain bitwise unchanged.
 Unexpected native errors are archived, not mistaken
 for DAE infeasibility. Physically coupled CN energy
 is still unqualified.
+
+## 24 November 2026 — corrected dual-facet initial index-2 DAE PASSES all cases
+
+The directly uploaded original archive
+`v130-hw-dual-interface-DAE-2757701d-Q4mwLHIw.zip`
+was opened and all three native PETSc DAE reports inspected.
+The original doubled-interface/clamp control passes strict
+algebraic compatibility with native `||F_a||_2=8.954423366e-14`.
+On the actual **one-sided corrected GetFEM stiffness**
+with `K[Y_T,e_Q]` and `K[e_Q,U_T]` Frobenius
+`0.3017528584643`, the strict PETSc LSQR DAE projection
+also PASSES:
+- corrected/clamp `||F_a||_2=9.620818005e-14`,
+  feasibility tol `8.1813826857e-09`;
+- corrected/constrained_l2 `||F_a||_2=9.914920225e-14`,
+  feasibility tol `8.1813831673e-09`.
+
+The tighter `1e-11` accuracy targets are also met, all
+the source T,p,q differential initial coefficients are
+bitwise preserved after imposing the true exterior
+Dirichlet p constraint, all three statuses are
+`PASS_NATIVE_STRICT_DAE_FEASIBILITY_ONLY`, and no
+unexpected exits or pseudo TS occurred. The previous
+DAE diagnostic STOPPED BEFORE CN in all three runs;
+therefore this is NOT a completed physical coupling gate.
+
+The next sandbox-only experiment
+`scripts/run-v130-hw-dual-sided-cn.sh` performs real
+original MUMPS four-step CN integrations, with corrected
+thermal forms on disk oriented faces 30 and wave forms
+on annulus inner oriented faces 31, both `clamp`
+and `constrained_l2` p0. It reuses the strict DAE
+initializer, the original full-state trajectory and
+Hamiltonian/ParaView exports, but substitutes a separate
+*corrected-interface* GetFEM stage-mean FE port-power
+collector. The original doubly-oriented region 10
+MUST NOT be used to compute corrected heat or wave
+interface power. The heat power is sampled on 30 and
+wave power on 31 with separate outward normals, and
+the original weak-form port-power signs are checked
+using both subsystem and total CN energy identities.
+
+It separately records CN step success, physical
+midpoint energy identities, weak port exchange cancellation,
+and **nonvacuous individual interface energy transfer**
+relative to heat dissipation. A numerical CN PASS,
+or near-zero sum of two near-zero interface powers,
+must not be reported as a full multiphysics physics PASS.
+MUMPS is used first, BEFORE attempting SuperLU_DIST
+on the corrected Jacobian, whose new sparsity/values
+have not yet been separately qualified.
