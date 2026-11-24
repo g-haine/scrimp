@@ -63,10 +63,15 @@ class TwoCellMesh:
         raise KeyError(number)
 
     def geotrans(self, cvids=None):
-        return [
-            Transform(self.dimension - 1 if int(cv) == 90 else self.dimension)
-            for cv in np.asarray(cvids).reshape(-1)
-        ]
+        """Native GetFEM convention: (distinct GeoTrans, CV2GT)."""
+        ids = np.asarray(cvids).reshape(-1)
+        # Deliberately keep a compact transformation catalog (2 entries)
+        # even when more than two convexes are requested.
+        unique = [Transform(self.dimension), Transform(self.dimension - 1)]
+        mapping = np.asarray(
+            [1 if int(cv) == 90 else 0 for cv in ids], dtype=np.int64
+        )
+        return unique, mapping
 
     def pid_from_cvid(self, cvids):
         if np.asarray(cvids).tolist() != [90]:
@@ -111,6 +116,25 @@ class InterfaceTopologyTests(unittest.TestCase):
                 self.assertEqual(result.for_subdomain(1).tolist(), [[1], [0]])
                 self.assertEqual(result.for_subdomain(2).tolist(), [[2], [0]])
                 np.testing.assert_array_equal(mesh.region(10), mesh.original)
+
+    def test_getfem_compressed_geotrans_catalog(self):
+        mesh = TwoCellMesh()
+        transforms = interface_module._geotrans_by_convex(
+            mesh, np.asarray([1, 2, 90], dtype=np.int64)
+        )
+        self.assertEqual(tuple(sorted(transforms)), (1, 2, 90))
+        self.assertEqual([transforms[cv].dim() for cv in (1, 2, 90)],
+                         [2, 2, 1])
+
+    def test_invalid_geotrans_map_is_rejected(self):
+        mesh = TwoCellMesh()
+        mesh.geotrans = lambda ids: (
+            [Transform(2)], np.asarray([0, 1, 0], dtype=np.int64)
+        )
+        with self.assertRaisesRegex(TopologyError, "geotrans catalog"):
+            interface_module._geotrans_by_convex(
+                mesh, np.asarray([1, 2, 90], dtype=np.int64)
+            )
 
     def test_permutation_does_not_change_outward_parent_faces(self):
         mesh = TwoCellMesh()
