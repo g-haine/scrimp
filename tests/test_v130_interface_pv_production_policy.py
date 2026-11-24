@@ -58,6 +58,9 @@ class Mesh:
     def nbcvs(self):
         return 2
 
+    def cvid(self):
+        return np.array([0, 1], dtype=np.int64)
+
     def pid_from_cvid(self, ids):
         assert list(ids) == [0, 1]
         return np.array([0, 1, 1, 2]), np.array([0, 2, 4])
