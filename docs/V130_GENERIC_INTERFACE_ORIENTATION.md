@@ -994,6 +994,41 @@ solver behavior remains independent.
 
 **This new export diagnostic has not yet been run natively.**
 
+## Rank-isolated ParaView preflight: stale host failure label (2026-11-24)
+
+The first user execution of
+`scripts/run-v130-auto-interface-mpi-pv-diagnostic.sh` at commit
+`3f1d10c` stopped in the **source-only host comparator preflight
+before Docker**. The previous 45 source-only tests passed and four
+of five comparator checks passed. One old regression fixture
+expected the original failure string
+`FAIL_OR_UNQUALIFIED_AUTO_INTERFACE_MPI2_DAE_CN_PHYSICS`,
+but the extended host comparator used the new joint
+`FAIL_OR_UNQUALIFIED_AUTO_INTERFACE_MPI2_DAE_CN_OR_PV_DIAGNOSTIC`
+string even when PV diagnostics were **disabled**.
+
+The host comparator now **preserves the original status when
+PV diagnostics are disabled** and uses the extended string only
+when `SCRIMP_V130_MPI_PV_DIAGNOSTIC=1`. This is a
+compatibility fix to test infrastructure; no FEM, solver,
+physics, production export or source example was changed.
+
+Two additional dependency-light tests exercise the **actual
+embedded comparator**, with *synthetically generated XML* files,
+for isolated-PV success (6 per-rank reports, five PVD timesteps
+per p/T and eight serial-vs-parallel mesh-comparison entries)
+and for native-failure archiving with the PV-specific status.
+All synthetic evidence is explicitly test-only and cannot
+qualify the real GetFEM VTU exporter. The test fixtures write
+valid JSON/line endings.
+
+The expanded comparator suite now contains **7 tests** (52 total
+source-only checks when combined with the other 45).
+The corrective preflight and the new genuine four-run VTU export
+diagnostic remain **not yet executed in the user's environment**.
+No physical or parallel I/O conclusion is inferred from the
+failed preflight.
+
 ## Remaining generality and production gates
 
 1. Establish a race-free, geometrically complete MPI2 ParaView
