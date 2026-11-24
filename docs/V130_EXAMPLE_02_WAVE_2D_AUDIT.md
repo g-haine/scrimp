@@ -7,6 +7,19 @@ avant « Adding Damping to the dphs »), `examples/wave.py`,
 `examples/wave_dissipative.py`, `docs/source/biblio.rst` et
 `docs/V130_PORT_POWER_QUADRATURE_ISSUE30.md`.
 
+## Rectification explicite de l'audit
+
+**Après réouverture des trois codes et de la syntaxe GetFEM,**
+la conclusion antérieure sur `q.T.q` était incorrecte :
+la chaîne GWFL contient bien le **nom du paramètre `T`**.
+Le terme d'énergie potentielle est donc déjà la contraction
+physique anisotrope. La mise en production ne doit
+pas introduire une prétendue correction de ce terme.
+La distinction avec `wave_coenergy.py` est essentielle :
+ce dernier utilise le **paramètre de compliance**
+`Tinv` en lieu et place de la tension `T`,
+dans `q.Tinv.q` après substitution des coétats.
+
 ## Ordre pédagogique de Sphinx
 
 Le premier chapitre « Getting started » avec la corde 1D est **terminé** :
@@ -55,16 +68,21 @@ n'est inféré de la seule écriture théorique**.
 
 ## Incohérences et questions scientifiques à traiter AVANT les solveurs
 
-1. **ERREUR D'ÉNERGIE à corriger et à qualifier.**
-   `examples/wave.py` affiche
-   `S.Term("Potential energy", "0.5*q.T.q", [1])`.
-   Or `T(x,y)` est une matrice anisotrope :
-   l'énergie physique est `(1/2) q·Tq`, et **pas**
-   `(1/2)|q|²`. La première expression rendrait
-   erroné un audit Hamiltonien/travail. Ne pas
-   choisir une syntaxe GWFL de remplacement non
-   testée : vérifier réellement l'intégrale
-   anisotrope dans GetFEM et sa positivité.
+1. **ÉNERGIE TENSORIELLE : AUDIT RECTIFIÉ.**
+   `S.Term("Potential energy", "0.5*q.T.q", [1])`
+   est **correct** en syntaxe GetFEM GWFL :
+   `q.T.q` est la contraction `q·T·q` avec le
+   **paramètre tensoriel `T`**, et NON le produit
+   `q^Tq` au sens d'une expression Python.
+   L'audit initial identifiait à tort une omission
+   de `T` dans ce terme. **Ne pas le remplacer
+   par `q.T.T.q` ni par `q.q`.** La validation
+   native du véritable Hamiltonien (positivité,
+   anisotropie et bilan de puissance) reste à faire.
+   Comparer ultérieurement le terme GetFEM aux
+   intégrales alternatives `q.(T*q)` si le
+   langage GWFL utilisé le permet, sans modifier
+   la physique pour rendre un test artificiellement vert.
 2. **ÉCRITURE DE BORD À PRÉCISER.**
    La documentation écrit notamment `e_q=u_N`
    et `y_D=e_q` sur les frontières ; ce sont des
@@ -192,7 +210,7 @@ comme exactement reproduit par l'exemple actuel.**
 Conserver cette fiche comme **audit initial**, et enregistrer
 séparément chaque PASS/FAIL GetFEM/PETSc natif.
 Ne pas marquer l'exemple 02 PASS avant la
-validation de la **véritable énergie anisotrope**,
+validation native de l'**énergie anisotrope déjà correctement écrite**,
 de l'initialisation DAE, des commandes mixtes,
 du bilan de puissance et des cinq backends/MPI.
 La référence `examples/published/` ne doit pas être
