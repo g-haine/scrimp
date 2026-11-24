@@ -34,6 +34,9 @@ from scrimp.utils.power_integration import integrate_port_power
 from scrimp.utils.async_binary_trajectory import (
     RankSender, LazyTrajectory, wait_for_manifest,
 )
+from scrimp.utils.production_policy import (
+    auto_interface_enabled, pv_export_mode,
+)
 from scrimp.hamiltonian import Hamiltonian
 from scrimp.brick import Brick
 from scrimp.control import Control_Port
@@ -405,11 +408,11 @@ class DPHS:
         self.bricks = dict()
         #: The dict of `controls`, collecting information about control ports. Also appear in `ports` entries
         self.controls = dict()
-        # Experimental deferred internal interface compilation. Disabled by
-        # default until full native K/DAE/CN/MPI qualification.
-        self._auto_internal_interface_pilot = (
-            os.environ.get("SCRIMP_V130_AUTO_INTERFACE_PILOT", "0") == "1"
-        )
+        # Production: resolve only genuinely conforming internal
+        # interfaces, in their parent domains' outward orientations.
+        # Unsupported/ambiguous topologies fail closed. Opt-out:
+        # SCRIMP_AUTO_INTERFACE=0 (legacy PILOT flag remains an alias).
+        self._auto_internal_interface_pilot = auto_interface_enabled()
         self._internal_interface_compiler = None
         #: The `Hamiltonian` of a dphs is a list of dict containing several useful information for each term
         self.hamiltonian = Hamiltonian("Hamiltonian")
@@ -809,13 +812,13 @@ class DPHS:
             logging.info(f"port: {port.get_name()} has been added {where}")
 
     def _compile_internal_interfaces_if_needed(self):
-        """Finish experimental deferred registration before using GetFEM."""
+        """Finish validated conforming-interface registration before GetFEM."""
         pilot = self._internal_interface_compiler
         if pilot is not None and not pilot.completed and not pilot.replaying:
             report = pilot.compile(self)
             if rank == 0:
                 logging.info(
-                    "Experimental internal interface compiler: %s",
+                    "Conforming internal interface compiler: %s",
                     report["status"],
                 )
 
@@ -3938,6 +3941,92 @@ class DPHS:
         if path == None:
             path = outputs_path
 
+    def _validate_root_only_pv_replication(self, name_variable, t):
+        """Fail closed if root-only shared VTK lacks a full MPI replica.
+
+        Check every selected accepted FE state and the actual geometric
+        mesh. All ranks enter the same small MPI metadata allgather;
+        only rank0 will subsequently write the complete VTK files.
+        This must never be interpreted as a domain-decomposed .pvtu
+        exporter. Explicit legacy mode remains available as an opt-out.
+        """
+        import hashlib
+
+        error = None
+        metadata = None
+        try:
+            times = np.asarray(self.solution["t"], dtype=np.float64)
+            states = self.solution["z"]
+            total = int(self.gf_model.nbdof())
+            if len(states) != len(times) or not len(times) or total <= 0:
+                raise ValueError("Missing complete accepted FE trajectory")
+            if t == "All":
+                selected = range(len(times))
+            elif t == "Init":
+                selected = (0,)
+            elif t == "Final":
+                selected = (len(times) - 1,)
+            else:
+                raise ValueError(f"Unknown ParaView time selector {t!r}")
+
+            signature = hashlib.sha256()
+            signature.update(np.ascontiguousarray(times).view(np.uint8))
+            for idx in selected:
+                z = np.asarray(states[idx])
+                if z.ndim != 1 or z.size != total:
+                    raise ValueError(
+                        f"FE snapshot {idx} has {z.size} DOFs, expected "
+                        f"full GetFEM model dimension {total}"
+                    )
+                if not np.all(np.isfinite(z)):
+                    raise ValueError(f"Nonfinite accepted FE snapshot {idx}")
+                signature.update(z.dtype.str.encode("ascii"))
+                signature.update(np.ascontiguousarray(z).view(np.uint8))
+
+            port = self.ports.get(name_variable)
+            if port is None:
+                raise ValueError(f"Unknown export variable {name_variable!r}")
+            mesh_id = int(port.get_mesh_id())
+            mesh = self.domain.get_mesh()[mesh_id]
+            geometry = hashlib.sha256()
+            pts = np.asarray(mesh.pts())
+            geometry.update(np.ascontiguousarray(pts).view(np.uint8))
+            cvs = np.arange(int(mesh.nbcvs()), dtype=np.int64)
+            pids, offsets = mesh.pid_from_cvid(cvs)
+            geometry.update(
+                np.ascontiguousarray(np.asarray(pids)).view(np.uint8)
+            )
+            geometry.update(
+                np.ascontiguousarray(np.asarray(offsets)).view(np.uint8)
+            )
+            metadata = (
+                total,
+                len(times),
+                int(self.gf_model.mesh_fem_of_variable(name_variable).nbdof()),
+                tuple(pts.shape),
+                int(mesh.nbcvs()),
+                geometry.hexdigest(),
+                signature.hexdigest(),
+            )
+        except Exception as exc:
+            error = f"{type(exc).__name__}: {exc}"
+        records = comm.tompi4py().allgather((metadata, error))
+        failures = [f"rank {i}: {err}" for i, (_, err) in enumerate(records)
+                    if err is not None]
+        if failures:
+            raise RuntimeError(
+                "Cannot safely export a replicated rank-0 VTK series: "
+                + "; ".join(failures)
+                + ". Use a supported full-replica model or explicitly "
+                  "choose SCRIMP_PV_EXPORT_MODE=legacy."
+            )
+        if any(meta != records[0][0] for meta, _ in records):
+            raise RuntimeError(
+                "Root-only VTK requires identical complete mesh and FE "
+                "state replicas on all MPI ranks. This model is not "
+                "eligible for rank-0-only export."
+            )
+
     def export_to_pv(self, name_variable, path=None, t="All"):
         """Export the solution to .vtu file(s) (for ParaView), with associated .pvd if t='All'
 
@@ -3965,15 +4054,15 @@ class DPHS:
             os.makedirs(path)
         comm.barrier()
 
-        # Pilot only. Previous MPI2 Heat-Wave audit established that each
-        # rank owns the full, identical GetFEM visualization mesh and the
-        # complete accepted FE state. Avoid concurrent writes to the same
-        # VTU/PVD filenames by allowing only PETSc rank 0 to export.
-        # Keep this disabled by default until a native root-only gate
-        # qualifies actual GetFEM export without hidden MPI collectives.
-        root_only_pilot = (
-            os.environ.get("SCRIMP_V130_PV_ROOT_ONLY_PILOT", "0") == "1"
-        )
+        # Production: a single writer prevents concurrent overwrites
+        # of the same shared PVD/VTU files. In MPI, fail closed unless
+        # all ranks own the same COMPLETE FE states and geometric mesh.
+        # Opt-out: SCRIMP_PV_EXPORT_MODE=legacy. In serial, preserve
+        # the historical default path. The old pilot flag remains an
+        # alias for existing pinned qualification scripts.
+        root_only_pilot = pv_export_mode(mpi_size=max_rank) == "root"
+        if root_only_pilot and max_rank > 1:
+            self._validate_root_only_pv_replication(name_variable, t)
         export_error = None
         if not root_only_pilot or rank == 0:
             try:
