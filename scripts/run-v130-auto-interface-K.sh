@@ -32,6 +32,7 @@ python3 -m py_compile \
 python3 tests/test_v130_interface_topology.py
 python3 tests/test_v130_interface_ownership.py
 python3 tests/test_v130_interface_assembly_plan.py
+python3 tests/test_v130_interface_deferred.py
 python3 scripts/check-v130-published-immutable.py
 
 mkdir -p sandbox/outputs
