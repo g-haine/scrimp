@@ -3991,7 +3991,11 @@ class DPHS:
             geometry = hashlib.sha256()
             pts = np.asarray(mesh.pts())
             geometry.update(np.ascontiguousarray(pts).view(np.uint8))
-            cvs = np.arange(int(mesh.nbcvs()), dtype=np.int64)
+            # GetFEM convex identifiers need not be contiguous after
+            # remeshing/removal. Use the actual list of convex IDs.
+            cvs = np.asarray(mesh.cvid(), dtype=np.int64).reshape(-1)
+            if not cvs.size:
+                raise ValueError("Empty visualization mesh")
             pids, offsets = mesh.pid_from_cvid(cvs)
             geometry.update(
                 np.ascontiguousarray(np.asarray(pids)).view(np.uint8)
