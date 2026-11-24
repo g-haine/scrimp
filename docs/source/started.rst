@@ -831,11 +831,13 @@ directory owned by the user:
 
 .. code-block:: bash
 
+    wave1d_zip="$(ls -t sandbox/outputs/v130-first-tutorial-wave1d-*.zip | head -n 1)"
     python scripts/render-v130-wave1d-doc.py \
-        --input sandbox/outputs/<native-wave1d-evidence>.zip \
+        --input "$wave1d_zip" \
         --output outputs/figures-wave1d
 
-Use your real archive name in place of the angle-bracket placeholder.
+The shell variable points to the most recent qualified
+five-backend wave-1D archive in your workspace.
 The figures require Matplotlib; the GIF additionally requires
 Pillow. The native simulation does **not** need to run again
 for this post-processing.
