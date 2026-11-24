@@ -65,15 +65,21 @@ def main():
                 raise RuntimeError(
                     f"PETSc did not register required option {option!r}"
                 )
-        invoked[0] += 1
-        print(
-            "V130_WAVE2D_REFINED_SUPERLU_DIST_ENABLED "
-            "solver=superlu_dist "
-            "mat_superlu_dist_replacetinypivot=true "
-            "mat_superlu_dist_iterrefine=true "
-            f"invocation={invoked[0]}",
-            flush=True,
-        )
+        # DPHS._solve_impl() may call set_time_scheme() again with
+        # zero kwargs; the numerical options must survive that call.
+        # Recheck the two options each time, but announce the single
+        # physical-system opt-in only once per DPHS instance/rank.
+        if not getattr(system, "_v130_refined_dist_enabled", False):
+            system._v130_refined_dist_enabled = True
+            invoked[0] += 1
+            print(
+                "V130_WAVE2D_REFINED_SUPERLU_DIST_ENABLED "
+                "solver=superlu_dist "
+                "mat_superlu_dist_replacetinypivot=true "
+                "mat_superlu_dist_iterrefine=true "
+                f"instance={invoked[0]}",
+                flush=True,
+            )
         return result
 
     S.DPHS.set_time_scheme = enable_refined_superlu_dist
