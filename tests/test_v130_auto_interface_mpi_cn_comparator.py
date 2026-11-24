@@ -99,7 +99,7 @@ def prepare_fake_pv_evidence(root):
                 report = json.loads(report_path.read_text())
                 report["plot_and_ParaView_export_skipped_on_all_ranks"] = False
                 report["MPI_rank_isolated_real_ParaView_export_diagnostic"] = True
-                report_path.write_text(json.dumps(report) + "\\n")
+                report_path.write_text(json.dumps(report) + "\n")
                 for field in ("p", "T"):
                     folder = base / "pv" / field
                     folder.mkdir(parents=True)
@@ -231,7 +231,7 @@ class HostComparatorRegression(unittest.TestCase):
             root.mkdir()
             prepare_fake_evidence(root)
             prepare_fake_pv_evidence(root)
-            (root / "heat2_mpi2.exitcode").write_text("1\\n")
+            (root / "heat2_mpi2.exitcode").write_text("1\n")
             outcome = compare(root, pv_diagnostic=True)
             self.assertNotEqual(outcome.returncode, 0)
             report = json.loads((root / "comparison.json").read_text())
