@@ -124,7 +124,9 @@ class NativeJacobianAuditSourceTests(unittest.TestCase):
         self.assertIn('--final-time 0.008 --time-step 0.008',script)
         self.assertIn('first_main_CN_factor.npz',script)
         self.assertIn('sparse_matrix_analysis.json',script)
-        self.assertIn('SUPERLU_DIST',script)
+        # PETSc backend names are lowercase in the actual CLI, and the
+        # loop above explicitly includes both mumps and superlu_dist.
+        self.assertIn('--solver "$solver"', script)
         self.assertIn('three_original_native_LU_passes_preserved',script)
         self.assertIn('"full_five_backend_gate_still": "FAIL"',script)
         self.assertNotIn('--solver superlu ',script)
