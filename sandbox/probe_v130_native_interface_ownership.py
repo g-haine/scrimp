@@ -30,7 +30,7 @@ def main():
     active = {"heat": None, "wave": None}
 
     def audit_before_initialization(system, *args, **kwargs):
-        report = system.audit_interface_ownership(10, (1, 2))
+        report = system.audit_interface_brick_plan(10, (1, 2))
         expected = {
             "Interface Heat": active["heat"],
             "Interface Wave": active["wave"],
@@ -41,6 +41,28 @@ def main():
             )
         if report["facets_per_side"] != 78:
             raise AssertionError("Unexpected original Concentric interface")
+        expected_bricks = {
+            "M_Y_T": active["heat"],
+            "B_T": active["heat"],
+            "B_T^T": active["heat"],
+            "M_Y_w": active["wave"],
+            "B_w": active["wave"],
+            "B_w^T": active["wave"],
+            "M_U_T": active["heat"],
+            "U_T_feedback": active["heat"],
+            "M_U_w": active["wave"],
+            "U_w_feedback": active["wave"],
+        }
+        actual_bricks = {
+            entry["brick"]: entry["owner"]
+            for entry in report["brick_plan"]
+        }
+        if actual_bricks != expected_bricks:
+            raise AssertionError(
+                f"Unexpected declared interface brick placement: {actual_bricks}"
+            )
+        if report["getfem_assembly_modified"]:
+            raise AssertionError("Audit must not change actual assembly")
         reports.append({"heat_region": active["heat"],
                         "wave_region": active["wave"], **report})
         raise StopAtAudit
@@ -63,10 +85,11 @@ def main():
         raise AssertionError("Both original model permutations must be audited before projection")
     print(json.dumps({
         "schema": "scrimp-v130-native-declared-interface-ownership-v1",
-        "status": "PASS_DECLARED_DPHS_INTERFACE_OWNERSHIP_ONLY",
+        "status": "PASS_DECLARED_DPHS_INTERFACE_OWNERSHIP_AND_BRICK_PLAN_ONLY",
         "cases": reports,
         "original_example_source_unchanged": True,
         "getfem_weak_forms_reoriented": False,
+        "all_ten_original_interface_bricks_placed_per_case": True,
         "PETSc_TS_executed": False,
         "initial_value_projection_executed": False,
         "physical_energy_qualified": False,
