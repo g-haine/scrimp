@@ -108,6 +108,33 @@ def main():
                 or not physical["old_doubled_interface_region_excluded_from_physical_power"]):
             raise RuntimeError("Physical power used incorrect interface faces")
 
+        # Qualify the PUBLIC algebraic Port.compute API as well as the
+        # separate GetFEM physical collector. The port must use its
+        # resolved effective side; evaluating on doubled region 10
+        # would generally give the wrong interface power.
+        port_power_defects = {}
+        for port, trace_name in (
+            (heat_port, "CN_P_interface_heat"),
+            (wave_port, "CN_P_interface_wave"),
+        ):
+            port.compute(
+                system.solution, system.gf_model, system.domain,
+                sampling="cn_step",
+            )
+            actual = np.asarray(port.get_power(), dtype=float).reshape(-1)
+            expected = np.asarray(traces[trace_name], dtype=float).reshape(-1)
+            if actual.shape != expected.shape or not np.all(np.isfinite(actual)):
+                raise RuntimeError("Invalid publicly integrated interface port power")
+            discrepancy = float(np.max(np.abs(actual - expected)))
+            if not np.allclose(actual, expected, rtol=1e-10, atol=1e-10):
+                raise RuntimeError(
+                    f"Port.compute disagrees with sided physical trace "
+                    f"for {port.get_name()}: {discrepancy}"
+                )
+            port_power_defects[port.get_name()] = discrepancy
+        physical["public_port_compute_uses_resolved_side"] = True
+        physical["public_port_compute_cn_max_defect"] = port_power_defects
+
         captures.append({
             "compiler": report,
             "one_sided_heat_region": heat,
