@@ -5,6 +5,47 @@ Changes to SCRIMP are recorded here. See also the
 
 ## 1.3.0 — in development (not released)
 
+### Exemple 2B : onde 2D dissipative, extension stricte de 2A (24 novembre 2026)
+
+- `examples/wave_dissipative.py` harmonisé avec le code canonique
+  `examples/wave.py` : même rectangle, tenseur T, masse rho,
+  FEM DG1/CG2, quatre ports mixtes, excitation gauche,
+  initialisation DAE algébrique et 10 pas CN.
+  Les **20 briques conservatives sont identiques**. L'extension
+  ajoute uniquement le port résistif `f_r=-e_p`,
+  `e_r=nu*f_r`, `nu=0.5*(2-x)>=0`,
+  deux inconnues CG2 et **cinq briques** résistives.
+- Audit énergétique basé sur **deux vraies intégrales GetFEM** :
+  `D_port=∫f_r*e_r` via `Port.compute()` et
+  `D_volume=∫nu*f_r*f_r` via assemblage indépendant,
+  tous deux sur l'état CN moyen. Contrôle signé strict
+  `H-H0-W_boundary+L_viscous=0` à chaque pas et en cumulé,
+  avec dissipation non négative et non triviale.
+  Les défauts constitutifs ponctuels ne sont pas
+  confondus avec les équations faibles de projection FEM.
+- Le nouveau pilote
+  `scripts/run-v130-wave2d-dissipative-pilot.sh`
+  demande **MUMPS MPI1/2** sur le véritable problème à 10 pas,
+  compare les trajectoires complètes entre rangs,
+  vérifie 6 sorties VTK/PVD × 11 images
+  (`q,p,e_q,e_p,f_r,e_r`) et archive les erreurs
+  **sans les requalifier**.
+  Tests source `tests/test_v130_wave2d_dissipative_source.py`
+  et Sphinx 2B reliés par **8 literalinclude** natifs.
+- **Qualification 2B native EN ATTENTE** : ne pas annoncer
+  PASS avant les véritables logs et preuves physiques.
+  SCRIMP, `master` et les 8 exemples publiés restent inchangés.
+  L'autodiagnostic des points-selles n'est pas ajouté en v1.3.0 ;
+  la question historique Heat--Wave est différée.
+- **2A précédemment validée** avec SuperLU_DIST
+  `ReplaceTinyPivot+IterRefine` explicitement configuré,
+  MPI1/2 : les 10 pas CN, les quatre puissances,
+  les 2230 DOFs et les exports q/p/e_q/e_p sont PASS
+  (archive `v130-wave2d-refined-dist-physical-95fbd8b2-HfwaSFgK.zip`).
+  SuperLU_DIST *ordinaire* reste non qualifié sur 2A
+  et le seuil des cinq configurations par défaut reste 3/5.
+
+
 ### Onde 2D : raffinement interne SuperLU_DIST à précision machine, prochain test physique (24 novembre 2026)
 
 - Le dernier rejeu natif PETSc de la
