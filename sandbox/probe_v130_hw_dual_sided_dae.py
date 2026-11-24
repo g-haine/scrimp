@@ -248,6 +248,12 @@ def main():
                     "Actual DAE initializer changed differential "+name
                 )
         result["native_initialization"]=native
+        # Feasibility and tighter optional accuracy are separate
+        # scientific gates: never reinterpret an initializer PASS as
+        # an infrastructure failure when its accuracy goal is unmet.
+        result["native_accuracy_target_met"]=bool(
+            native["accuracy_target_met"]
+        )
         result["incompatibility_exception"]=incompatible
         norm=float(native["native_final_residual_l2"])
         threshold=float(native["feasibility_tolerance"])
@@ -258,8 +264,7 @@ def main():
                 )
             result["status"]="INCOMPATIBLE_INITIAL_DAE_UNALTERED_PHYSICS"
         else:
-            if (native["status"]!="PASS" or norm>threshold
-                    or not native["accuracy_target_met"]):
+            if native["status"]!="PASS" or norm>threshold:
                 raise RuntimeError(
                     "Native DAE returned without successful strict feasibility"
                 )
