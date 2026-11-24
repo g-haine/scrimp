@@ -92,6 +92,7 @@ import numpy as np
 root = Path(sys.argv[1])
 results = {}
 any_failure = False
+host_error = None  # success path must also serialize a complete report
 try:
     for heat in (1, 2):
         run = {}
