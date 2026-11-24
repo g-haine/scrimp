@@ -330,7 +330,17 @@ summary = {
     "current_original_example_source_unchanged": True,
     "all_GetFEM_physical_integrals_on_all_ranks": True,
     "parallel_PNG_and_ParaView_qualified": False,
-    "production_auto_compiler_enabled_by_default": False,
+    # Proven by the DEFAULTS launcher: feature_env is empty, so no
+    # legacy/new compiler or MPI export flag is sent to the container.
+    # This describes how this run was invoked; it is NOT a generic
+    # claim that every FEM/geometry is physically qualified.
+    "production_auto_compiler_enabled_by_default": (
+        os.environ.get("SCRIMP_V130_PRODUCTION_DEFAULT_SMOKE") == "1"
+        and not any_failure
+    ),
+    "production_defaults_no_feature_flags": (
+        os.environ.get("SCRIMP_V130_PRODUCTION_DEFAULT_SMOKE") == "1"
+    ),
 }
 if pv_export_active and not any_failure:
     mesh_comparison = {}
