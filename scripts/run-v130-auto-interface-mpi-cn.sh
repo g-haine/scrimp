@@ -257,9 +257,20 @@ try:
                         f"Unexpected MPI rank1 output directory: {label}"
                     )
     if pv_root_only and not any_failure:
-        from sandbox.v130_pv_root_only_audit import audit_root_only_pv
-        # Decode actual scalar PointData and all VTK mesh arrays.
-        pv_root_evidence = audit_root_only_pv(root)
+        # The host driver runs Python from stdin, while the unit-test
+        # harness executes the SAME inline code via exec(). Load this
+        # private verification helper by its checkout path so neither
+        # context depends on an implicit 'sandbox' package on sys.path.
+        import importlib.util
+        module_path = Path.cwd() / "sandbox" / "v130_pv_root_only_audit.py"
+        spec = importlib.util.spec_from_file_location(
+            "scrimp_v130_pv_root_only_audit", module_path
+        )
+        if spec is None or spec.loader is None:
+            raise RuntimeError("Cannot load checked-out VTK audit helper")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        pv_root_evidence = module.audit_root_only_pv(root)
 
 
 
