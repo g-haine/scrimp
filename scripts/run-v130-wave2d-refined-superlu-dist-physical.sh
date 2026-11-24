@@ -196,6 +196,7 @@ try:
                 or base_meta.get("selected_LU") != "mumps"
                 or base_meta.get("steps") != 10
                 or base_meta.get("DOFs") != 2230
+                or len(base_meta.get("physical_gates",{})) != 7
                 or not all(base_meta.get("physical_gates",{}).values())):
             raise RuntimeError("Original archived MUMPS baseline not qualified")
         if baseline["z"].shape != (11,2230):
@@ -244,6 +245,7 @@ try:
                 or meta.get("DOFs") != 2230
                 or meta.get("DAE_initialization",{}).get("status") != "PASS"
                 or not meta.get("DAE_initialization",{}).get("differential_initial_exact")
+                or len(meta.get("physical_gates",{})) != 7
                 or not all(meta.get("physical_gates",{}).values())
                 or any(key not in arrays for key in keys)
             ):
