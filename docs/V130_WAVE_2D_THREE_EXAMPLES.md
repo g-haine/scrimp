@@ -1,8 +1,8 @@
 # SCRIMP v1.3.0 — Parcours progressif des trois ondes 2D
 
 **Branche de travail :** `release/1.3.0-preparation`.  
-**État du 24 novembre 2026 :** étape **2A CANDIDATE SOURCE**, aucune
-nouvelle qualification GetFEM/PETSc.  
+**État du 24 novembre 2026 :** étape **2A MUMPS MPI1/2 native PASS** ;
+acceptation complète à cinq backends **EN ATTENTE**.  
 **Ordre dans Sphinx :** `examples/wave.rst` comporte la conservative
 puis sa section « Adding Damping to the dphs » ; la page
 `examples/wave_coenergy.rst` suit séparément. Cet ordre est conservé.
@@ -102,32 +102,91 @@ La simulation courte de validation
 d'une **illustration longue** destinée aux champs
 2D, cartes de densité d'énergie et animations.
 
-## État actuel : étape 2A — premier banc scientifique
+## État actuel : 2A conservative qualifiée avec MUMPS MPI1/2
 
-Le candidat est enregistré dans
-`sandbox/probe_v130_wave2d_conservative.py`,
-**sans remplacer encore le code livré**
-`examples/wave.py` ni ses blocs Sphinx.
-La simulation effectue le **véritable** assemblage
-GetFEM et la vraie intégration PETSc :
+Le **candidat scientifique a été promu** dans
+`examples/wave.py`, avec sa fonction publique historique
+`wave_eq()`, après un vrai pilote MUMPS sur 1 et 2 rangs.
+Le double fichier exploratoire
+`sandbox/probe_v130_wave2d_conservative.py` est retiré :
+la source destinée aux utilisateurs est maintenant
+**unique et autonome**, avec des options CLI.
 
-- q vectoriel DG1, p scalaire CG2, traces DG1,
-  paramètres tensoriels et densité d'origine ;
-- quatre véritables ports avec orientation
-  Neumann/Dirichlet explicitée dans les briques ;
-- initialisation DAE `algebraic` stricte à
-  données différentielles conservées ;
-- 10 pas CN fixes et enregistrement de tous
-  les 11 états acceptés ;
-- calcul original `H`, puissances séparées des
-  quatre ports `cn_step`, intégrale du travail,
-  défauts énergétiques **à chaque pas** ;
-- états PETSc complets, diagnostics de rang,
-  exports ParaView q, p, e_q et e_p.
+**Preuve native confirmée du pilote :**
+`v130-wave2d-mixed-conservative-cf42089d-pI8VXuBa.zip`.
+Le pilote et le modèle promu partagent les **mêmes
+briques, paramètres, conditions initiales et contrôles** ;
+la source promue a seulement renommé la fonction
+(`wave_2d_candidate` → `wave_eq`) et ajouté
+des marqueurs/commentaires destinés à Sphinx.
+Les fonctionnalités natives n'ont pas été modifiées.
 
-**Premier gate : MUMPS MPI 1/2 seulement**, car
-une erreur mathématique éventuelle doit être
-comprise avant de multiplier les solveurs.
+| Mesure | MUMPS MPI1 | MUMPS MPI2 |
+|---|---:|---:|
+| États et DOFs | 11 × 2230 | 11 × 2230 sur chaque rang |
+| Pas CN acceptés | 10 | 10 |
+| Initialisation algébrique stricte | PASS, résidu 0 | PASS, résidu 0 |
+| Défaut énergétique maximal par pas | 2.98156e−18 | 1.78893e−18 |
+| Défaut énergétique cumulé | 5.42101e−18 | 3.03577e−18 |
+| Puissance maximale au bord gauche | 0.0489963892 | 0.0489963892 |
+| Champs VTU/PVD | q, p, e_q, e_p | q, p, e_q, e_p |
+| Instantanés par champ | 11 | 11 |
+
+**Les traces FE des deux rangs MPI2 sont
+identiques exactement**, et l'écart maximal
+des trajectoires globales MPI1/MPI2 reste
+`4.16334e-14`. Il s'agit bien de la
+**vraie énergie tensorielle GetFEM**
+et des puissances `cn_step` des quatre ports.
+
+Le tout premier pilote
+`v130-wave2d-mixed-conservative-abea0401-Jm7S0brY.zip`
+était **FAIL en export MPI du champ `e_q`** :
+le validateur associait incorrectement les
+variables de coénergie aux clés du dictionnaire
+des ports. Le correctif générique
+`get_flow()/get_effort()` conserve la protection
+de réplication entre rangs ; le second pilote
+`cf42089d` a **entièrement passé** l'export.
+
+### Documentation harmonisée
+
+La partie **2A** de `docs/source/examples/wave.rst`
+présente désormais le problème de Cauchy
+dynamique cohérent, le tenseur et la densité
+hétérogènes, les tractions
+`n·e_q`, la commande de vitesse gauche,
+les signes et le bilan exact à chaque pas.
+Les fragments de code utilisent directement
+**huit inclusions `literalinclude`**
+depuis `examples/wave.py` : la source Python
+est la référence et aucune deuxième
+copie des briques GetFEM n'est conservée
+dans la documentation.
+
+La partie **2B dissipative** de cette page
+et `examples/wave_dissipative.py` sont
+conservés pour leur propre qualification ;
+l'exemple **2C coénergie**
+(`examples/wave_coenergy.py`) suivra
+après le port dissipatif.
+
+### Prochaine étape native : cinq backends sur 2A
+
+Le nouveau script
+`scripts/run-v130-wave2d-conservative-acceptance.sh`
+lance **le véritable programme publié**
+`python -m examples.wave`
+dans cinq configurations : MUMPS MPI 1/2,
+SuperLU **séquentiel** MPI 1, et
+SuperLU_DIST MPI 1/2. Il produit
+les états FE complets, les vrais
+Hamiltoniens/puissances, les sorties VTK/PVD
+des quatre variables `q,p,e_q,e_p`,
+les comparaisons inter-rangs et inter-solveurs,
+et une archive en cas d'échec comme de succès.
+Aucun résultat pour SuperLU/SuperLU_DIST
+n'est encore revendiqué.
 
 ```bash
 cd ~/Simulations/scrimp
@@ -136,69 +195,28 @@ conda activate scrimp
 
 SCRIMP_DOCKER_NO_SUDO=1 \
 SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
-bash scripts/run-v130-wave2d-conservative-pilot.sh
+bash scripts/run-v130-wave2d-conservative-acceptance.sh
 ```
 
 Résultat **recherché, pas encore obtenu** :
 
 ```text
-PASS_WAVE2D_CONSERVATIVE_TENSOR_MIXED_MUMPS_MPI1_MPI2
+PASS_WAVE2D_CONSERVATIVE_FIVE_LU_MPI_CN_PORTS_VTK
 ```
 
-Le script produit une archive indépendante comprenant
-les journaux natifs même en cas d'échec ; aucun FAIL
-n'est réinterprété comme un PASS, et aucun résultat
-n'est inventé. Les tests source associés sont
-`tests/test_v130_wave2d_conservative_pilot.py`.
-
-Si la physique du candidat passe, **promouvoir 2A**
-vers `examples/wave.py`, réécrire les seuls blocs
-conservatifs de `wave.rst` en parfaite parité AST,
-puis qualifier MUMPS/SuperLU/SuperLU_DIST, MPI1/2.
-Produire SVG/PNG 2D, ParaView, GIF et CSV/NPZ depuis
-les sorties originales. Une fois **2A achevé**,
-reprendre les mêmes paramètres pour **2B** et
-qualifier le terme `D`, puis adapter le domaine et
-la compliance pour **2C**.
-
-## Résultat du premier pilote 2A et correction de l'export MPI
-
-**24 novembre 2026 : les deux vraies simulations MUMPS MPI1
-et MPI2 réussissent la physique du modèle conservatif** :
-10 pas CN acceptés et 11 états par rang,
-2230 DOFs, DAE initialisée strictement
-(résidu 0), puissance gauche non triviale
-(`max|P_L|≈0.0489964`) et défaut d'énergie
-par pas au plus `2.982e-18`. Le test de
-réplication MPI donne **exactement les mêmes
-états sur les deux rangs**, avec un écart
-global MPI1/MPI2 de `4.08e-14`.
-
-**Le premier lanceur reste FAILED** parce que
-le validateur root-only de ParaView ignorait
-les champs d'effort/coénergie `e_q` et
-`e_p` en recherchant `self.ports.get("e_q")`
-au lieu de reconnaître le propriétaire
-`q↔e_q`. Le MPI1 avait pourtant exporté
-tous les 44 VTU des quatre champs (11 chacun),
-et le MPI2 avait déjà produit les 22 VTU
-de `q` et `p`.
-
-Le validateur est corrigé **génériquement**
-pour résoudre l'unique propriétaire de
-chaque variable par `get_flow()/get_effort()`,
-sans neutraliser la vérification du maillage et
-des états MPI ni autoriser des sorties concurrentes.
-Régressions source élargies, dont champs
-`q,p,e_q,e_p`, variables de bord, propriétaire
-ambigu et inconnus. La **nouvelle validation
-MPI1/MPI2 complète reste à exécuter** avant
-de promouvoir le candidat.
-
-Preuve initiale :
-`v130-wave2d-mixed-conservative-abea0401-Jm7S0brY.zip`.
-Détails chiffrés :
-`docs/V130_EXAMPLE_02_WAVE_2D_AUDIT.md`.
+Une fois ces cinq cas qualifiés et leurs
+preuves inspectées, produire les
+**figures scientifiques 2D** :
+snapshots `q,p,e_q,e_p`, vitesse,
+carte anisotrope d'énergie, puissance
+de chaque frontière, bilan
+`H-H0-W`, parité LU/MPI.
+La simulation courte est un test
+d'installation ; une simulation
+plus longue apportera une **animation
+physique plus lisible**. Ne pas
+représenter `q=∇w` comme un
+déplacement directement résolu.
 
 ## Publications liées (présentes dans la bibliographie Sphinx)
 
