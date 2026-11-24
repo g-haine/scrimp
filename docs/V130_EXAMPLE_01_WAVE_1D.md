@@ -62,11 +62,13 @@ changer un signe vaut preuve physique**.
 
 ## Pourquoi ce scénario et ces données
 
-On choisit q0=2*x*(1-x)*exp(-50*(x-.5)^2), p0=0.
-Le facteur x*(1-x) annule la traction initiale aux
-extrémités ; les commandes sont u_L(t)=sin(2*pi*t),
-u_R=0. L'instant initial est ainsi conçu pour être
-compatible avec l'initialiseur DAE strict du code.
+On choisit **q0=4*x*(1-x)**, p0=0. Cette déformation
+quadratique est représentable exactement dans l'espace P2
+déclaré pour q, et s'annule aux extrémités ; les commandes
+sont u_L(t)=sin(2*pi*t), u_R=0. L'instant initial est
+conçu pour être compatible avec l'initialiseur DAE strict
+**sans erreur d'approximation des tractions de bord**.
+Cette simplicité mathématique est délibérément pédagogique.
 Une courte simulation t=0..0.04, dt=0.004 avec
 Crank–Nicolson fixe donne dix pas et onze snapshots.
 
