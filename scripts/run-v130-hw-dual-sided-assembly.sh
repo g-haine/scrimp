@@ -19,7 +19,7 @@ rev="$("${docker_cmd[@]}" image inspect \
 [[ "$rev" == "1d6d0c90115213298047b28237a7f38087563a35" ]] || {
  echo "Pinned original GetFEM/PETSc container required: $rev" >&2;exit 2
 }
-python3 -m py_compile sandbox/probe_v130_hw_dual_sided_assembly.py
+python3 -m py_compile sandbox/v130_hw_interface_geometry.py sandbox/probe_v130_hw_dual_sided_assembly.py
 python3 tests/test_v130_hw_dual_sided_assembly.py
 python3 tests/test_v130_hw_dual_sided_assembly.py
 python3 scripts/check-v130-published-immutable.py
@@ -46,7 +46,7 @@ for variant in baseline dual_sided; do
   --env SCRIMP_NONLINEAR_RESIDUAL_FORM=direct_getfem \
   --volume "$root/scrimp:/workspace/scrimp/scrimp:ro" \
   --volume "$root/examples/heat_wave.py:/workspace/scrimp/examples/heat_wave.py:ro" \
-  --volume "$root/sandbox/probe_v130_hw_one_sided_facets.py:/workspace/scrimp/sandbox/probe_v130_hw_one_sided_facets.py:ro" \
+  --volume "$root/sandbox/v130_hw_interface_geometry.py:/workspace/scrimp/sandbox/v130_hw_interface_geometry.py:ro" \
   --volume "$root/sandbox/probe_v130_hw_dual_sided_assembly.py:/workspace/scrimp/sandbox/probe_v130_hw_dual_sided_assembly.py:ro" \
   --volume "$out/$variant:/artifacts:rw" \
   --volume "$out/work_$variant:/scrimp-work:rw" --workdir /scrimp-work \

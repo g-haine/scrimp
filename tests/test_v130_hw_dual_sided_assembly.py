@@ -8,6 +8,8 @@
 
 """Source-only guards for reversible original Heat-Wave interface pilot."""
 
+import ast
+import importlib.util
 from pathlib import Path
 import unittest
 
@@ -51,6 +53,53 @@ class OriginalHeatWaveDualFaceAssemblyTests(unittest.TestCase):
             '"DAE_initialized":False',
         ):
             self.assertIn(token,s)
+
+    def test_geometry_helper_is_standalone_and_explicitly_mounted(self):
+        """Catch unmounted transitive sandbox dependencies before native run."""
+        source=PILOT.read_text(encoding="utf-8")
+        script=RUN.read_text(encoding="utf-8")
+        helper=ROOT/"sandbox/v130_hw_interface_geometry.py"
+        self.assertTrue(helper.is_file())
+        self.assertIn(
+            "from v130_hw_interface_geometry import new_one_sided_regions",
+            source,
+        )
+        self.assertNotIn(
+            "from probe_v130_hw_one_sided_facets import",
+            source,
+        )
+        self.assertIn(
+            '--volume "$root/sandbox/v130_hw_interface_geometry.py:',
+            script,
+        )
+        self.assertNotIn(
+            '--volume "$root/sandbox/probe_v130_hw_one_sided_facets.py:',
+            script,
+        )
+        root_ast=ast.parse(helper.read_text(encoding="utf-8"))
+        modules={
+            alias.name.split(".")[0]
+            for n in root_ast.body
+            if isinstance(n,ast.Import)
+            for alias in n.names
+        }
+        from_modules={
+            n.module.split(".")[0] for n in root_ast.body
+            if isinstance(n,ast.ImportFrom) and n.module
+        }
+        self.assertEqual(modules,{"numpy"})
+        self.assertFalse(from_modules)
+        self.assertEqual(
+            {n.name for n in root_ast.body
+             if isinstance(n,ast.FunctionDef)},
+            {"region_description","bulk_2d_convexes","new_one_sided_regions"},
+        )
+        spec=importlib.util.spec_from_file_location(
+            "v130_hw_interface_geometry",helper
+        )
+        module=importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        self.assertTrue(callable(module.new_one_sided_regions))
 
     def test_runner_compares_both_original_assemblies_but_no_ts(self):
         s=RUN.read_text(encoding="utf-8")

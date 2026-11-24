@@ -28,6 +28,7 @@ on:
       - sandbox/probe_v130_hw_one_sided_facets.py
       - scripts/run-v130-hw-one-sided-facets.sh
       - sandbox/probe_v130_hw_dual_sided_assembly.py
+      - sandbox/v130_hw_interface_geometry.py
       - scripts/run-v130-hw-dual-sided-assembly.sh
       - tests/test_v130_hw_dual_sided_assembly.py
       - tests/test_v130_hw_one_sided_facets.py
@@ -92,6 +93,7 @@ on:
       - sandbox/probe_v130_hw_one_sided_facets.py
       - scripts/run-v130-hw-one-sided-facets.sh
       - sandbox/probe_v130_hw_dual_sided_assembly.py
+      - sandbox/v130_hw_interface_geometry.py
       - scripts/run-v130-hw-dual-sided-assembly.sh
       - tests/test_v130_hw_dual_sided_assembly.py
       - tests/test_v130_hw_one_sided_facets.py
@@ -168,7 +170,7 @@ jobs:
           bash -n scripts/run-v130-hw-interface-weak-coupling.sh
           python -m py_compile sandbox/probe_v130_hw_one_sided_facets.py tests/test_v130_hw_one_sided_facets.py
           bash -n scripts/run-v130-hw-one-sided-facets.sh
-          python -m py_compile sandbox/probe_v130_hw_dual_sided_assembly.py tests/test_v130_hw_dual_sided_assembly.py
+          python -m py_compile sandbox/v130_hw_interface_geometry.py sandbox/probe_v130_hw_dual_sided_assembly.py tests/test_v130_hw_dual_sided_assembly.py
           bash -n scripts/run-v130-hw-dual-sided-assembly.sh
           python -m py_compile sandbox/probe_v130_intrinsic_l2_projection.py sandbox/probe_v130_intrinsic_affine_projection.py sandbox/probe_v130_universal_fem_initialization.py
           bash -n scripts/run-v130-intrinsic-fem-initialization.sh

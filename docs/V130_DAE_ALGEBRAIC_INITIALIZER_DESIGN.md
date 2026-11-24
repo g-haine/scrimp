@@ -5505,3 +5505,24 @@ assembled matrix, even if all blocks appear nonzero.
 The normalized physical energy and constraint tests need
 a separate native follow-up ONLY after assembly is
 established and any DAE data compatibility is addressed.
+
+## 24 November 2026 — dual-sided assembly harness import correction
+
+The native user log for commit `de6bfc76` ended before even
+creating GetFEM's original baseline model, with
+`ModuleNotFoundError: No module named 'probe_v130_main_2d_examples'`.
+The source-only unit tests and immutable example checks passed; this
+was a transitive sandbox import mistake in the newly mounted
+`probe_v130_hw_one_sided_facets.py` module, not a coupled-interface
+assembly result.
+
+The corrected assembly harness imports the exact previously verified
+`region_description`, `bulk_2d_convexes` and
+`new_one_sided_regions` helper functions from an independent
+`sandbox/v130_hw_interface_geometry.py` NumPy-only module.
+The Docker runner mounts ONLY this dependency for the region
+constructor. Its new source regression executes the import with
+`importlib` and confirms the helper has no transitive imports
+of SCRIMP, original physical collectors or other sandbox scripts.
+Native baseline/dual-sided GetFEM stiffness results remain OPEN until
+the rerun. No physical solver and no published example is changed.

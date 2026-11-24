@@ -34,7 +34,7 @@ from petsc4py import PETSc
 import scrimp as S
 from scrimp.dphs import DPHS
 from examples.heat_wave import heat_wave_eq
-from probe_v130_hw_one_sided_facets import new_one_sided_regions
+from v130_hw_interface_geometry import new_one_sided_regions
 
 
 HEAT_BRICKS = frozenset(("M_Y_T", "B_T", "B_T^T"))
