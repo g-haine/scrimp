@@ -456,7 +456,7 @@ def main():
     if args.export:
         # Required collective: root-only writer first validates rank
         # replication before producing shared native VTK/PVD.
-        for name in ("q", "p", "e_q", "e_p"):
+        for name in ("q", "p", "e_q", "e_p", "f_r", "e_r"):
             system.export_to_pv(name, path=str(args.output), t="All")
     if comm.rank == 0:
         print(json.dumps({
