@@ -11,7 +11,12 @@
 > de retour arrière sont consignés dans
 > [la décision de production du 24 novembre 2026](
 > V130_INTERFACE_PV_PRODUCTION_DECISION_20261124.md).
-> Le PASS natif des chemins **sans drapeaux** reste à exécuter.
+> Le PASS natif des chemins **sans drapeaux** est désormais
+> **confirmé** (code `241f58fb`, 71 tests source et quatre
+> simulations MPI1/2 DAE/CN/énergie/ParaView ; archive
+> `v130-auto-interface-MPI-CN-241f58fb-YEJXJhSK.zip`).
+> Se reporter à la décision de production pour les limites
+> et l'anomalie historique de métadonnée du rapport corrigée ensuite.
 
 Status: **NATIVE GETFEM 2-D CONCENTRIC TOPOLOGY PASS (MPI1); NOT ACTIVE IN DPHS ASSEMBLY**.
 
