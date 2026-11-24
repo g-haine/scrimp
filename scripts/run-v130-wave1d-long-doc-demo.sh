@@ -10,13 +10,13 @@
 # OPTIONAL one-solver long visualisation run (not a five-solver parity test).
 # Genuine GetFEM/PETSc fixed CN, actual q/p VTU/PVD, PNG/SVG/GIF.
 set -euo pipefail
-root="$(cd "$(dirname "\${BASH_SOURCE[0]}")/.." && pwd)"
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
 [[ $# == 0 ]] || { echo "Usage: $0" >&2; exit 2; }
 docker_cmd=(sudo docker)
-if [[ "\${SCRIMP_DOCKER_NO_SUDO:-0}" == 1 ]]; then docker_cmd=(docker); fi
-image="\${SCRIMP_V130_DAE_IMAGE:-scrimp-mpi:v1.3.0-rc3}"
-revision="$("\${docker_cmd[@]}" image inspect \
+if [[ "${SCRIMP_DOCKER_NO_SUDO:-0}" == 1 ]]; then docker_cmd=(docker); fi
+image="${SCRIMP_V130_DAE_IMAGE:-scrimp-mpi:v1.3.0-rc3}"
+revision="$("${docker_cmd[@]}" image inspect \
  --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$image")"
 expected="1d6d0c90115213298047b28237a7f38087563a35"
 [[ "$revision" == "$expected" ]] || {
@@ -34,7 +34,7 @@ echo "OPTIONAL real native wave 1D longer documentation illustration"
 echo "150 fixed CN steps, 151 accepted states, true GetFEM VTU/PVD"
 echo "EVIDENCE: $out"
 status=0
-"\${docker_cmd[@]}" run --rm \
+"${docker_cmd[@]}" run --rm \
  --user "$(id -u):$(id -g)" \
  --env HOME=/tmp --env MPLBACKEND=Agg \
  --env OMP_NUM_THREADS=1 --env OPENBLAS_NUM_THREADS=1 \
@@ -49,7 +49,7 @@ status=0
  --volume "$out/native:/artifacts:rw" \
  --volume "$out/work:/scrimp-work:rw" \
  --workdir /scrimp-work \
- "$image" timeout -k 5s "\${SCRIMP_V130_WAVE1D_LONG_TIMEOUT:-300s}" \
+ "$image" timeout -k 5s "${SCRIMP_V130_WAVE1D_LONG_TIMEOUT:-300s}" \
  mpiexec --oversubscribe --bind-to none -n 1 \
  python -u -m examples.wave_1d --solver mumps \
  --mesh-size 0.05 --time-step 0.01 --final-time 1.5 \
