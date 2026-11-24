@@ -5,6 +5,48 @@ Changes to SCRIMP are recorded here. See also the
 
 ## 1.3.0 — in development (not released)
 
+### Onde 2D conservative : trois LU réussis, diagnostic SuperLU_DIST isolé (24 novembre 2026)
+
+- **Campagne cinq configurations nativement exécutée**
+  sur le code utilisateur `examples/wave.py`,
+  source `99d99f2d`, archive
+  `v130-wave2d-conservative-five-lu-99d99f2d-tEOjqgHy.zip`.
+  MUMPS MPI1, MUMPS MPI2 et SuperLU MPI1 sont
+  **PASS**, 2230 DOFs, 10/10 pas CN, trois
+  bilans énergétiques par pas < `3.1e-18`,
+  quatre séries VTU/PVD et puissance gauche
+  `0.048996389`. Les différences de
+  trajectoires à MUMPS MPI1 sont
+  `9.25e-14` et `1.61e-13` respectivement.
+- **SuperLU_DIST MPI1 et MPI2 échouent au
+  tout premier pas** avec PETSc code 91
+  `DIVERGED_STEP_REJECTED`, après
+  assemblages GetFEM et initialisation
+  DAE exacte (`||F_a||=0`). La cause
+  profonde SNES/KSP/PC n'est pas visible
+  dans cette archive ; ne pas en déduire
+  une erreur de physique ou un pivot nul
+  sans preuve. **Gate globale : FAIL 3/5.**
+- Nouveau lanceur **strictement diagnostic**
+  `scripts/run-v130-wave2d-superlu-dist-diagnostic.sh` :
+  un seul pas `dt=0.008` avec SuperLU_DIST
+  dans l'image figée, activation du diagnostic
+  natif préexistant
+  `SCRIMP_TS_FAILURE_DIAGNOSTICS=1`
+  pour obtenir TS/SNES/KSP/PC en séquentiel,
+  et archivage d'échec sans changer
+  les équations, paramètres ou solveurs.
+  **Nouvelle exécution native en attente.**
+- Le rapport de l'acceptation à cinq backends
+  est renforcé : après exécution des cinq,
+  il consigne désormais **tous leurs
+  codes de retour**, et non plus seulement
+  le premier échec rencontré pendant
+  la vérification scientifique.
+  Aucun retour à MUMPS ni assouplissement
+  des contrôles de conservation n'est
+  autorisé silencieusement.
+
 ### Onde 2D conservative : modèle canonique et deux rangs MPI qualifiés (24 novembre 2026)
 
 - **Second pilote natif MUMPS MPI1/MPI2 entièrement PASS**
