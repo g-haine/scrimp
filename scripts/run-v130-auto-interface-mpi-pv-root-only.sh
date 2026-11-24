@@ -17,4 +17,8 @@ cd "$root"
 [[ $# == 0 ]] || { echo "Usage: $0" >&2; exit 2; }
 export SCRIMP_V130_MPI_PV_ROOT_ONLY=1
 unset SCRIMP_V130_MPI_PV_DIAGNOSTIC
+# First native test also probes whether GetFEM's VTK writer can be
+# entered by root only. Bound a potential hidden MPI collective hang
+# before retrying with a longer user-selected deadline.
+export SCRIMP_V130_MPI_CN_TIMEOUT="${SCRIMP_V130_MPI_CN_TIMEOUT:-90s}"
 exec bash scripts/run-v130-auto-interface-mpi-cn.sh
