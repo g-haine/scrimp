@@ -25,10 +25,19 @@ It accepts ``--mesh-size``, ``--time-step``, ``--final-time``,
 discrete mechanical power balance. A successful Python import or
 LU factorization alone is not a physical acceptance test.
 
-**Native status:** the updated 1D sign convention, strict initial
-projection and multi-backend tests are being qualified for v1.3.0.
-Until the complete native campaign passes, do not treat this new
-tutorial as a reproduced publication benchmark.
+**Native qualification:** the same physical configuration was
+validated on 24 November 2026 with MUMPS MPI 1/2, SuperLU MPI 1,
+and SuperLU_DIST MPI 1/2. A separate 1.5 s MUMPS demonstration
+was also qualified for visualisation. These are genuine
+GetFEM/PETSc tests, **not** numerical reproductions of the
+published wave-equation figures.
+
+The incremental Python blocks below use the **same identifiers,
+expressions and numerical settings** as the maintained
+``wave_1d()`` function. In the source they are encapsulated
+inside that function, while here they are shown one block at
+a time for teaching. The optional CLI and evidence export
+are implemented by ``main()`` in the same file.
 
 To understand the coding philosophy of **SCRIMP**, let us consider the 1D wave equation with Neumann boundary control as a first example
 
@@ -426,13 +435,13 @@ The snippets below follow the maintained version; its function
 ``wave_1d()`` exposes mesh/time resolution, LU backend and plotting.
 
 To start, import **SCRIMP** and create a *distributed port-Hamiltonian
-system* (DPHS) called, *e.g.*, ``wave``
+system* (DPHS) called ``system``, as in ``wave_1d()``
 
 .. code:: python
 
     import scrimp as S
-        
-    wave = S.DPHS("real")
+
+    system = S.DPHS("real")
 
 
 Then, define the domain :math:`\Omega = (0,1)`, with a mesh-size
@@ -440,8 +449,8 @@ parameter :math:`h`, and add it to the *DPHS*
 
 .. code:: python
 
-    domain = S.Domain("Interval", {"L": 1., "h": 0.01})
-    wave.set_domain(domain)
+    mesh_size = 0.05
+    system.set_domain(S.Domain("Interval", {"L": 1., "h": mesh_size}))
     
 
 
@@ -459,35 +468,35 @@ On this domain, we define two **states** and add them to the *DPHS*
 
 .. code:: python
 
-    alpha_q = S.State("q", "Strain", "scalar-field")
-    alpha_p = S.State("p", "Linear momentum", "scalar-field")
-    wave.add_state(alpha_q)
-    wave.add_state(alpha_p)
+    q = S.State("q", "Strain", "scalar-field")
+    p = S.State("p", "Linear momentum", "scalar-field")
+    system.add_state(q)
+    system.add_state(p)
 
 
 and the two associated **co-states**
 
 .. code:: python
 
-    e_q = S.CoState("e_q", "Stress", alpha_q)
-    e_p = S.CoState("e_p", "Velocity", alpha_p)
-    wave.add_costate(e_q)
-    wave.add_costate(e_p)
+    system.add_costate(S.CoState("e_q", "Stress", q))
+    system.add_costate(S.CoState("e_p", "Velocity", p))
 
 
 These latter calls create automatically two *non-algebraic* **ports**,
-named after their respective **state**. Note that we simplify the
-notations and do not write ``alpha_q`` and ``alpha_p`` but ``q`` and
-``p`` for the sake of readability.
+named after their respective **state**. Their names ``q`` and
+``p`` correspond to the variables ``\alpha_q`` and
+``\alpha_p`` in the mathematical development above.
 
 Finally, we create and add the two control-observation **ports** with
 
 .. code:: python
 
-    left_end = S.Control_Port("Boundary control (left)", "U_L", "Normal force", "Y_L", "Velocity", "scalar-field", region=10)
-    right_end = S.Control_Port("Boundary control (right)", "U_R", "Normal force", "Y_R", "Velocity", "scalar-field", region=11)
-    wave.add_control_port(left_end)
-    wave.add_control_port(right_end)
+    for side, region, suffix in (("left", 10, "L"), ("right", 11, "R")):
+        system.add_control_port(S.Control_Port(
+            f"Boundary control ({side})", f"U_{suffix}",
+            "Outward traction", f"Y_{suffix}", "Velocity",
+            "scalar-field", region=region,
+        ))
 
 
 Note the *crucial* keyword ``region`` to restrict each port to its end.
@@ -509,10 +518,12 @@ Only two arguments are mandatory: the *name* of the port and the
 
 .. code:: python
 
-    V_q = S.FEM("q", 2)
-    V_p = S.FEM("p", 1)
-    V_L = S.FEM("Boundary control (left)", 1)
-    V_R = S.FEM("Boundary control (right)", 1)
+    for finite_element in (
+        S.FEM("q", 2), S.FEM("p", 1),
+        S.FEM("Boundary control (left)", 1),
+        S.FEM("Boundary control (right)", 1),
+    ):
+        system.add_FEM(finite_element)
 
 This will construct a family of Lagrange finite elements (default
 choice) for each port, with the prescribed order. Remember that the
@@ -520,15 +531,11 @@ boundary is only 2 disconnected points in this 1D case, so the only
 possibility for the finite element is 1 degree of freedom on each of
 them: Lagrange elements of order 1 is the easy way to do that.
 
-Of course, this *FEM* must be added to the *DPHS*
+The loop constructs and immediately registers all four finite-element
+spaces with ``system.add_FEM()``. The spatial fields are
+approximated by ``P2`` (``q``) and ``P1`` (``p``),
+while each endpoint control has its own boundary space.
 
-.. code:: python
-
-    wave.add_FEM(V_q)
-    wave.add_FEM(V_p)
-    wave.add_FEM(V_L)
-    wave.add_FEM(V_R)
-    
 
 
 Finally, the physical parameters of the experiment have to be defined.
@@ -536,10 +543,12 @@ In **SCRIMP**, a *parameter* is associated to a *port*.
 
 .. code:: python
 
-    T = S.Parameter("T", "Young's modulus", "scalar-field", "1", "q")
-    rho = S.Parameter("rho", "Mass density", "scalar-field", "1 + x*(1-x)", "p")
-    wave.add_parameter(T)
-    wave.add_parameter(rho)
+    system.add_parameter(S.Parameter(
+        "T", "String tension", "scalar-field", "1", "q",
+    ))
+    system.add_parameter(S.Parameter(
+        "rho", "Linear mass density", "scalar-field", "1+x*(1-x)", "p",
+    ))
 
 
 The first argument will be **the string that can be used in forms**, the
