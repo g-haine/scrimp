@@ -16,12 +16,16 @@ in the SUCCESS path, and checks archiving even when a comparison
 fails or a native MPI rank exited nonzero.
 """
 
+import contextlib
+import io
 import json
 from pathlib import Path
-import subprocess
+from types import SimpleNamespace
 import sys
 import tempfile
+import traceback
 import unittest
+from unittest.mock import patch
 
 import numpy as np
 
@@ -78,9 +82,30 @@ def prepare_fake_evidence(root):
 
 
 def compare(root):
-    return subprocess.run(
-        [sys.executable, "-c", inline_comparator(), str(root)],
-        capture_output=True, text=True, timeout=15,
+    """Execute the EXACT production inline comparator in this process.
+
+    Starting another Python interpreter is unnecessary to test an inline
+    script and has been observed to terminate with SIGKILL (-9) in the
+    native conda environment. Running in-process avoids a second Python
+    process (and an independent NumPy/BLAS import) while still exercising
+    the actual comparator source, with its real sys.argv and exit code.
+    All global state and captured streams are restored on exit.
+    """
+    stdout, stderr = io.StringIO(), io.StringIO()
+    exit_code = 0
+    namespace = {"__name__": "__main__", "__file__": str(DRIVER)}
+    with patch.object(sys, "argv", [str(DRIVER), str(root)]):
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            try:
+                exec(compile(inline_comparator(), str(DRIVER), "exec"), namespace)
+            except SystemExit as exc:
+                exit_code = int(exc.code) if isinstance(exc.code, int) else 1
+            except Exception:
+                traceback.print_exc()
+                exit_code = 1
+    return SimpleNamespace(
+        returncode=exit_code, stdout=stdout.getvalue(),
+        stderr=stderr.getvalue(),
     )
 
 
