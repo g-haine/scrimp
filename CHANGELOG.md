@@ -5,6 +5,43 @@ Changes to SCRIMP are recorded here. See also the
 
 ## 1.3.0 — in development (not released)
 
+### Promotion des interfaces conformes et des exports ParaView MPI (24 novembre 2026)
+
+- **Branche `release/1.3.0-preparation` uniquement, sans fusion dans
+  `master`, publication ni nouveau tag.** Les chemins de code par défaut
+  utilisent désormais la compilation automatique prudente des interfaces
+  internes conformes et l'export MPI partagé par le rang 0 si tous les
+  rangs possèdent les mêmes états complets et la même géométrie.
+  Les interfaces ambiguës et les données non répliquées **échouent
+  explicitement** au lieu de produire un opérateur ou des VTU incomplets.
+- Options de retour arrière :
+  `SCRIMP_AUTO_INTERFACE=0` et
+  `SCRIMP_PV_EXPORT_MODE=legacy` (ce dernier réintroduit l'ancien
+  risque d'écritures concurrentes). Les anciens drapeaux
+  `SCRIMP_V130_*_PILOT` restent des alias de compatibilité ;
+  les nouvelles options ont priorité.
+- **PASS native** dans l'image figée `scrimp-mpi:v1.3.0-rc3` :
+  K manuel/automatique et MPI1/MPI2 ; initialisation DAE
+  algébrique stricte ; 4/4 pas CN ; bilans énergétiques/échanges
+  non triviaux ; géométrie et champs VTU/PVD ; export MPI2 partagé
+  du rang 0. Deux affectations Heat-Wave sur le disque/anneau
+  (`heat=1,wave=2` et `heat=2,wave=1`), 7689 / 8056 DOF,
+  défauts énergétiques ≤ 2.69e-15 et 54/54 tests source précédents.
+- **Échecs et correctifs consignés** : mesure initiale codant des
+  facettes `30/31`, corrections des signes à normales extérieures,
+  `scipy.sparse.vstack(generator)`, zéros CSR stockés en MPI2,
+  Hamiltonien calculé deux fois, `host_error` non initialisé,
+  sous-processus de tests tué par SIGKILL (cause externe inconnue),
+  ancien libellé d'échec de comparateur, risque d'écritures VTK
+  concurrentes. Voir
+  `docs/V130_INTERFACE_PV_PRODUCTION_DECISION_20261124.md`.
+- **Limites assumées** : les tests natifs ne couvrent pas la géométrie
+  générique, les autres familles d'EF ni les trajectoires non
+  répliquées. Une validation native supplémentaire des chemins
+  *sans drapeaux expérimentaux* est à exécuter après promotion
+  via `scripts/run-v130-production-defaults.sh`. Aucun PASS
+  nouveau n'est présumé avant cette exécution.
+
 ### Performance and MPI
 - Use exact `on_change` MUMPS factor reuse by default. Reuse the
   symbolic factor when the assembled PETSc CSR graph is unchanged and
