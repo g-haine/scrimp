@@ -460,6 +460,54 @@ non qualifié jusqu'au passage de
 l'intégralité des dix pas CN et des
 contrôles physiques et MPI.
 
+### SuperLU_DIST : récupération de précision sur le facteur CN
+
+L'archive native
+`v130-wave2d-superlu-dist-refinement-ad2d58a6-unyfltIn.zip`
+confirme le succès **strict** de l'option
+SuperLU_DIST `ReplaceTinyPivot` **associée
+au raffinement interne `IterRefine`**,
+sur le Jacobien original : résidus arrière
+`9.54e-17` (MPI1) et `1.27e-16`
+(MPI2), erreurs sur solution connue
+`2.01e-14` et `2.26e-14`.
+La variante GMRES préconditionnée à droite
+échoue toujours au critère de résidu
+(≈ `2e-10`), malgré un
+`KSP_reason` convergé.
+
+L'**essai physique intégral**,
+désormais préparé, garde le
+**modèle utilisateur original**
+`examples/wave.py` complètement
+inchangé. Seules les deux options
+numériques, sélectionnées
+**explicitement en mode recherche**,
+sont injectées avant l'appel natif
+`TS.setFromOptions`. Il vérifie
+dix pas CN, les **2230 états FE**, le
+bilan Hamiltonien/travail aux **quatre
+ports**, les deux rangs MPI1/2 et
+les quatre séries originales
+VTK/PVD de 11 temps chacune.
+Chaque grandeur sera comparée à
+l'archive MUMPS MPI1 déjà validée,
+sans relancer les autres solveurs.
+
+```bash
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-wave2d-refined-superlu-dist-physical.sh
+```
+
+**Exécution native encore requise.**
+Même avec un succès complet, le
+résultat concernera le **solveur
+SuperLU_DIST explicitement raffiné**,
+et non l'option ordinaire par défaut.
+La qualification initiale de
+l'installation demeure **3/5**.
+
 Une fois ces cinq cas qualifiés et leurs
 preuves inspectées, produire les
 **figures scientifiques 2D** :
