@@ -16,10 +16,12 @@ in the SUCCESS path, and checks archiving even when a comparison
 fails or a native MPI rank exited nonzero.
 """
 
+import base64
 import contextlib
 import io
 import json
 import os
+import struct
 from pathlib import Path
 from types import SimpleNamespace
 from xml.etree import ElementTree as ET
@@ -126,7 +128,64 @@ def prepare_fake_pv_evidence(root):
                     )
 
 
-def compare(root, *, pv_diagnostic=False):
+def prepare_fake_root_only_pv_evidence(root):
+    """Create tiny synthetic GetFEM-like scalar/mesh binary VTK arrays.
+
+    This qualifies only HOST validation logic; the real native pilot
+    must demonstrate full GetFEM mesh and accurate numerical values.
+    """
+    def array(parent, name, dtype, values, *, components=None, field=False):
+        a = ET.SubElement(parent, "DataArray", Name=name, type=dtype,
+                          format="binary")
+        if components is not None:
+            a.set("NumberOfComponents", str(components))
+        values = np.asarray(values, dtype="<f4" if dtype == "Float32" else "<i4")
+        prefix = (np.float32(len(values)).tobytes()
+                  if field else struct.pack("<I", values.nbytes))
+        a.text = base64.b64encode(prefix + values.tobytes()).decode("ascii")
+
+    for heat in (1, 2):
+        for size in (1, 2):
+            label = f"heat{heat}_mpi{size}"
+            # Existing report records were created by prepare_fake_evidence.
+            for rank in range(size):
+                report_path = root / label / f"rank{rank}.json"
+                report = json.loads(report_path.read_text())
+                report["plot_and_ParaView_export_skipped_on_all_ranks"] = False
+                report["MPI_root_only_shared_ParaView_export_pilot"] = True
+                report_path.write_text(json.dumps(report) + "\n")
+            for field in ("p", "T"):
+                folder = root / label / "pv" / field
+                folder.mkdir(parents=True)
+                collection_root = ET.Element("VTKFile", type="Collection")
+                collection = ET.SubElement(collection_root, "Collection")
+                for step in range(5):
+                    filename = f"{field}_{step:05d}.vtu"
+                    ET.SubElement(collection, "DataSet",
+                                  timestep=str(step*0.001), file=filename)
+                    vtk_root = ET.Element("VTKFile", type="UnstructuredGrid")
+                    grid = ET.SubElement(vtk_root, "UnstructuredGrid")
+                    piece = ET.SubElement(grid, "Piece",
+                                          NumberOfPoints="5",
+                                          NumberOfCells="3")
+                    pts = ET.SubElement(piece, "Points")
+                    array(pts, "Points", "Float32",
+                          np.arange(15, dtype=np.float32), components=3)
+                    cells = ET.SubElement(piece, "Cells")
+                    array(cells, "connectivity", "Int32", np.arange(9))
+                    array(cells, "offsets", "Int32", [3, 6, 9])
+                    array(cells, "types", "Int32", [5, 5, 5])
+                    pointdata = ET.SubElement(piece, "PointData")
+                    data = np.full(5, step*.001+heat,
+                                   dtype=np.float32)
+                    array(pointdata, field, "Float32", data, field=True)
+                    (folder / filename).write_bytes(ET.tostring(vtk_root))
+                (folder / f"{field}.pvd").write_bytes(
+                    ET.tostring(collection_root)
+                )
+
+
+def compare(root, *, pv_diagnostic=False, pv_root_only=False):
     """Execute the EXACT production inline comparator in this process.
 
     Starting another Python interpreter is unnecessary to test an inline
@@ -141,6 +200,7 @@ def compare(root, *, pv_diagnostic=False):
     namespace = {"__name__": "__main__", "__file__": str(DRIVER)}
     with patch.dict(os.environ, {
         "SCRIMP_V130_MPI_PV_DIAGNOSTIC": "1" if pv_diagnostic else "0",
+        "SCRIMP_V130_MPI_PV_ROOT_ONLY": "1" if pv_root_only else "0",
     }):
         with patch.object(sys, "argv", [str(DRIVER), str(root)]):
             with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
@@ -241,6 +301,50 @@ class HostComparatorRegression(unittest.TestCase):
                 "FAIL_OR_UNQUALIFIED_AUTO_INTERFACE_MPI2_DAE_CN_OR_PV_DIAGNOSTIC",
             )
             self.assertTrue(Path(str(root) + ".zip").is_file())
+
+    def test_root_only_shared_vtu_host_mode_parses_real_scalar_layout(self):
+        with tempfile.TemporaryDirectory(prefix="v130-mpi-pv-root-") as d:
+            root = Path(d) / "run"
+            root.mkdir()
+            prepare_fake_evidence(root)
+            prepare_fake_root_only_pv_evidence(root)
+            outcome = compare(root, pv_root_only=True)
+            self.assertEqual(outcome.returncode, 0, outcome.stderr+outcome.stdout)
+            report = json.loads((root / "comparison.json").read_text())
+            self.assertEqual(
+                report["status"],
+                "PASS_MPI2_ROOT_ONLY_SHARED_VTU_PVD_COMPLETE_CN_ENERGY",
+            )
+            self.assertTrue(report["shared_production_MPI_ParaView_qualified"])
+            audit = report["shared_MPI_root_only_field_and_mesh_data_audit"]
+            self.assertEqual(set(audit), {"heat1_p", "heat1_T", "heat2_p", "heat2_T"})
+            self.assertTrue(all(
+                all(row["field_within_float32_tolerance"]
+                    and row["same_mesh_binary_data"] for row in rows)
+                for rows in audit.values()
+            ))
+            self.assertTrue(Path(str(root)+".zip").is_file())
+
+    def test_root_only_changed_field_fails_and_archives_evidence(self):
+        with tempfile.TemporaryDirectory(prefix="v130-mpi-pv-root-bad-") as d:
+            root = Path(d) / "run"
+            root.mkdir()
+            prepare_fake_evidence(root)
+            prepare_fake_root_only_pv_evidence(root)
+            path = root / "heat1_mpi2" / "pv" / "p" / "p_00004.vtu"
+            xml = ET.fromstring(path.read_bytes())
+            data = xml.find(".//PointData/DataArray")
+            raw = base64.b64decode(data.text)
+            values = np.frombuffer(raw, dtype="<f4").copy()
+            values[-1] += 1.
+            data.text = base64.b64encode(values.tobytes()).decode("ascii")
+            path.write_bytes(ET.tostring(xml))
+            outcome = compare(root, pv_root_only=True)
+            self.assertNotEqual(outcome.returncode, 0)
+            report = json.loads((root / "comparison.json").read_text())
+            self.assertIn("Root-only MPI2 VTK mismatch",
+                          report["host_comparison_failure"])
+            self.assertTrue(Path(str(root)+".zip").is_file())
 
     def test_nonzero_native_rank_exit_fails_with_archive(self):
         with tempfile.TemporaryDirectory(prefix="v130-mpi-cn-native-fail-") as d:
