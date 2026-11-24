@@ -152,7 +152,7 @@ class Wave2BDissipativeSourceTests(unittest.TestCase):
         ):
             with self.subTest(quantity=term):
                 self.assertIn(term, self.source2b)
-        self.assertIn('for name in ("q", "p", "e_q", "e_p")',
+        self.assertIn('for name in ("q", "p", "e_q", "e_p", "f_r", "e_r")',
                       self.source2b)
 
     def test_pilot_is_only_original_mumps_model_and_immutable_published(self):
