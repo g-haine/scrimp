@@ -188,6 +188,54 @@ class Mixed2DWavePilot(unittest.TestCase):
         self.assertIn('for name,case in report["cases"].items():', runner)
         self.assertIn('if case["exit_code"] != 0:', runner)
 
+    def test_ordering_probe_uses_only_real_superlu_dist_permutations(self):
+        research=source(
+            ROOT/"sandbox"/"probe_v130_wave2d_superlu_dist_ordering.py"
+        )
+        ast.parse(research)
+        self.assertIn("S.DPHS.set_time_scheme = with_ordering", research)
+        self.assertIn("S.DPHS.set_time_scheme = original", research)
+        self.assertIn('"mat_superlu_dist_rowperm": "LargeDiag_AWPM"', research)
+        self.assertIn('"mat_superlu_dist_colperm": "MMD_AT_PLUS_A"', research)
+        self.assertIn('actual_solver != "superlu_dist"', research)
+        self.assertIn("from examples.wave import main", research)
+        # Reject ad hoc mathematical regularization, backend fallback
+        # or alteration of the original target wave.py equations.
+        for banned in (
+            "replacetinypivot", "pc_factor_shift",
+            "factor_solver=\"mumps\"", "TSStepRetry",
+            "set_initial_value(", "S.Brick(",
+        ):
+            self.assertNotIn(banned, research)
+
+    def test_ordering_study_preserves_all_real_physics_and_baseline(self):
+        runner=source(
+            ROOT/"scripts"/"run-v130-wave2d-superlu-dist-ordering-study.sh"
+        )
+        self.assertIn(
+            "v130-wave2d-conservative-five-lu-99d99f2d-tEOjqgHy.zip",
+            runner,
+        )
+        self.assertIn("rowperm_awpm colperm_mmd", runner)
+        self.assertIn('"SCRIMP_MPI_TRACE=1"', runner.replace(
+            "--env SCRIMP_MPI_TRACE=1", '"SCRIMP_MPI_TRACE=1"'
+        ))
+        self.assertIn("SCRIMP_TS_FAILURE_DIAGNOSTICS=1", runner)
+        self.assertIn("python -u /workspace/scrimp/sandbox/", runner)
+        self.assertIn('--solver superlu_dist', runner)
+        self.assertIn('--final-time 0.08 --time-step 0.008', runner)
+        self.assertIn("--check --export --output /artifacts", runner)
+        self.assertIn('actual[key]', runner)
+        self.assertIn('baseline[key]', runner)
+        self.assertIn('"power_left"', runner)
+        self.assertIn('"energy_step_defects"', runner)
+        self.assertIn('meta["selected_LU"]!="superlu_dist"', runner)
+        self.assertIn('"full_five_solver_gate_passed":False', runner)
+        for banned in ("mat_superlu_dist_replacetinypivot",
+                       "--solver mumps", "--solver superlu ",
+                       "pc_factor_shift"):
+            self.assertNotIn(banned, runner)
+
     def test_qualified_models_are_not_modified_as_hidden_prerequisite(self):
         text = source(WAVE)
         self.assertNotIn("examples.published", text)
