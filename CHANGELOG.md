@@ -5,6 +5,51 @@ Changes to SCRIMP are recorded here. See also the
 
 ## 1.3.0 — in development (not released)
 
+### Onde 2D : remplacement de pivots opérationnel mais insuffisamment précis (24 novembre 2026)
+
+- Archive native
+  `v130-wave2d-superlu-dist-factor-replay-e87b20d1-H7IgKhB8.zip`
+  examinée : **quatre vrais replays**
+  SuperLU_DIST d'un même Jacobien
+  original de 2230 DOFs, avec
+  vérification stricte du SHA256,
+  du graphe creux et des
+  coefficients PETSc sur 1/2 rangs.
+- SuperLU_DIST **standard** : échec
+  `KSP=-11`, `PC_FAILED=2`
+  (zéro pivot numérique) sur MPI1/2.
+  Avec `mat_superlu_dist_replacetinypivot=true` :
+  **factorisation opérationnelle**
+  `KSP_reason=4`, `PC_FAILED=0`,
+  sur les deux cas. MAIS
+  **aucune réussite numérique**
+  : résidu arrière `~5.084e-10`
+  (tolérance < `1e-11`),
+  erreur de solution `~7.3e-7`
+  (tolérance < `1e-7`).
+  Les sorties restent **FAIL**
+  conformément aux exigences.
+- Nouveau test **strictement isolé**
+  `sandbox/replay_v130_wave2d_superlu_dist_refinement.py`
+  et `scripts/run-v130-wave2d-superlu-dist-refinement.sh` :
+  expérimente en MPI1/2 le
+  `mat_superlu_dist_iterrefine=true`
+  (raffinement interne SuperLU_DIST)
+  et `KSPGMRES` avec `PC_RIGHT` et
+  norme `UNPRECONDITIONED`.
+  Les deux gardent le remplacement
+  de pivots activé **uniquement**
+  dans ce banc et contrôlent les
+  vraies erreurs sur le Jacobien
+  original, sans tolérance allégée.
+  Six tests source et CI ajoutés.
+  **Exécution native encore attendue.**
+- Modèle canonique, noyau numérique,
+  huit `examples/published/` et
+  `master` inchangés.
+  Installation onde 2D = **3/5
+  configurations physiquement qualifiées**.
+
 ### Onde 2D : matrices CN égales bit à bit, rang plein et replay SuperLU_DIST de l'opérateur exact (24 novembre 2026)
 
 - Archive native originale
