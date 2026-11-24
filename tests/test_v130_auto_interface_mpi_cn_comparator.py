@@ -19,6 +19,7 @@ fails or a native MPI rank exited nonzero.
 import contextlib
 import io
 import json
+import os
 from pathlib import Path
 from types import SimpleNamespace
 import sys
@@ -94,7 +95,8 @@ def compare(root):
     stdout, stderr = io.StringIO(), io.StringIO()
     exit_code = 0
     namespace = {"__name__": "__main__", "__file__": str(DRIVER)}
-    with patch.object(sys, "argv", [str(DRIVER), str(root)]):
+    with patch.dict(os.environ, {"SCRIMP_V130_MPI_PV_DIAGNOSTIC": "0"}):
+      with patch.object(sys, "argv", [str(DRIVER), str(root)]):
         with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
             try:
                 exec(compile(inline_comparator(), str(DRIVER), "exec"), namespace)
