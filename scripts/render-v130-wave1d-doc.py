@@ -53,6 +53,14 @@ class Evidence:
         else:
             raise FileNotFoundError(path)
 
+    def exists(self, relative):
+        relative = Path(relative)
+        if relative.is_absolute() or ".." in relative.parts:
+            raise ValueError("Unsafe evidence filename")
+        if self.archive is not None:
+            return relative.as_posix() in self.archive.namelist()
+        return (self.path / relative).is_file()
+
     def read(self, relative):
         relative = Path(relative)
         if relative.is_absolute() or ".." in relative.parts:
@@ -109,12 +117,28 @@ def read_run(data, case):
     """Validate five-solver acceptance before preparing visual figures."""
     if case not in VALID_CASES:
         raise ValueError("Not a qualified direct-solver case")
-    summary = json.loads(data.read("summary.json"))
-    if summary["status"] != NATIVE_PASS:
-        raise ValueError("No valid complete native wave 1D acceptance")
-    if summary["cases"][case]["status"] != "PASS_NATIVE_REAL_DAE_CN_ENERGY_AND_VTK":
-        raise ValueError("Chosen native run was not accepted")
-    with np.load(io.BytesIO(data.read(f"{case}/rank0.npz")),
+    if data.exists("summary.json"):
+        summary = json.loads(data.read("summary.json"))
+        if summary["status"] != NATIVE_PASS:
+            raise ValueError("No valid complete native wave 1D acceptance")
+        if summary["cases"][case]["status"] != (
+            "PASS_NATIVE_REAL_DAE_CN_ENERGY_AND_VTK"
+        ):
+            raise ValueError("Chosen native run was not accepted")
+        prefix = f"{case}/"
+    else:
+        # A longer, SINGLE-solver demonstration can reuse the SAME
+        # physical GetFEM observer without rerunning the five-solver
+        # matrix. No backend parity is claimed for this standalone run.
+        report = json.loads(data.read("rank0.json"))
+        if (not report["physical_gates"]
+                or not all(report["physical_gates"].values())
+                or report["MPI"] != 1
+                or report["selected_PETSc_option"] != case.split("_mpi")[0]):
+            raise ValueError("Standalone tutorial model is not physically qualified")
+        summary = {"comparisons": {}}
+        prefix = ""
+    with np.load(io.BytesIO(data.read(f"{prefix}rank0.npz")),
                  allow_pickle=False) as bundle:
         trace = {name: bundle[name].copy() for name in bundle.files}
     times = trace["times"]
@@ -123,7 +147,7 @@ def read_run(data, case):
         raise ValueError("Invalid accepted FE simulation times")
     original = {}
     for field in ("q", "p"):
-        directory = f"{case}/pv/{field}"
+        directory = f"{prefix}pv/{field}"
         entries = ET.fromstring(
             data.read(f"{directory}/{field}.pvd")
         ).findall(".//DataSet")
@@ -249,6 +273,8 @@ def make_plots(out, trace, fields, summary, case):
 
     parity = summary["comparisons"]
     names = [x for x in parity if x != "mumps_mpi1"]
+    if not names:
+        return
     fig, ax = plt.subplots(figsize=(9, 4), layout="constrained")
     xx = np.arange(len(names))
     for j, (key, caption) in enumerate((
@@ -369,7 +395,7 @@ def export_data(out, trace, fields, manifest, case, source_sha256):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", type=Path, required=True,
-                        help="Native accepted five-backend ZIP or its directory")
+                        help="Accepted five-backend ZIP/dir OR a standalone native demo dir")
     parser.add_argument("--output", type=Path, required=True,
                         help="Host-owned docs / user image output directory")
     parser.add_argument("--case", choices=VALID_CASES, default="mumps_mpi1")
@@ -380,7 +406,10 @@ def main():
         parser.error("Animation frame duration must be 70..3000 ms")
     data = Evidence(args.input)
     summary, trace, fields = read_run(data, args.case)
-    manifest = json.loads(data.read("manifest.json"))
+    if data.exists("manifest.json"):
+        manifest = json.loads(data.read("manifest.json"))
+    else:
+        raise ValueError("Rendering requires genuine native provenance manifest.json")
     args.output.mkdir(parents=True, exist_ok=True)
     sha = (hashlib.sha256(args.input.read_bytes()).hexdigest()
            if args.input.is_file() else None)
