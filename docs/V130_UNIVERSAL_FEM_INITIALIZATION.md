@@ -1,14 +1,21 @@
-# SCRIMP v1.3.0 — universal FE initialization diagnostic
+# SCRIMP v1.3.0 — universal L2 FE initialization and distributed COO
 
-**23 November 2026, experimental; scalar/high-regularity native gate pending.**
+**Qualification status, 24 November 2026.** The default GetFEM/PETSc
+L2 initialization has passed native physical reconstruction in 15
+scalar, vector and derivative-DOF FEM families plus a Gaussian
+(MPI1), and an eight-case representative comparison with
+MPI1/MPI2 on distributed COO. Real GetFEM/PETSc nonlinear
+mass/stiffness tangents and a deliberately changing COO graph have
+also passed the MPI1/MPI2 native gate. **Coupled DAE initialization,
+full physical Heat-Wave power/energy balances, and temporal trajectories
+are distinct open gates**; do not infer release readiness from
+matrix-assembly correctness.
 
-The `dbfa7f1a` original native pilot qualified exact **affine**
-field reconstruction in six intrinsic vector GetFEM families:
-RT0/1/2, BDM1/2, lowest Nedelec. Every actual reconstructed
-field has relative L2 error between 1.65e-16 and 4.70e-14;
-every mass-system residual is at roundoff. The initial
-scalar/vector classification question remains open until direct
-scalar and higher-regularity tests.
+The original six intrinsic-vector affine-accuracy proof at
+`dbfa7f1a` covered RT0/1/2, BDM1/2 and lowest Nedelec, with
+physical relative L2 errors between 1.65e-16 and 4.70e-14.
+Subsequent scalar/high-regularity, actual production and MPI
+campaigns are recorded chronologically below.
 
 ## Single projection algorithm, many finite element spaces
 
@@ -420,3 +427,54 @@ sign-zero semantics checked explicitly.
 GetFEM/PETSc image to reach both physical shallow-water Jacobians
 and complete MPI1/2 graph comparison. No published example, solver
 MUMPS policy or legacy interpolation has been modified.
+
+## 24 November 2026 — PASS: complete native nonlinear COO MPI1/2 gate
+
+The user-provided original evidence archive
+`v130-nonlinear-coo-0ac9e685-Ae1FIhC4.zip` was independently
+inspected. Its manifest pins Git commit
+`0ac9e68585d2c4bd7edc48e97235d3079f595c1e`
+and frozen native image revision
+`1d6d0c90115213298047b28237a7f38087563a35`.
+`comparison.json` records the final gate:
+`PASS_NONLINEAR_COO_DYNAMIC_GRAPH_AND_SWE_JACOBIAN_MPI1_2`.
+
+**Dynamic graph on the same PETSc Mat.** The synthetic GetFEM
+two-field matrix alternates uncoupled/coupled/uncoupled/coupled
+in both MPI1 and MPI2. The global stored nonzero count is
+`32 -> 64 -> 32 -> 64` in each configuration. The full
+assembled global 12x12 matrices are byte-equivalent at floating
+precision between MPI1 and MPI2, and returning to a previous
+graph reproduces the entire stored matrix exactly (maximum
+entry drift `0.0`); no obsolete off-diagonal couplings survive
+the graph shrink. The archived rank-local CSR ownership was
+also independently reconstructed, rather than relying solely on
+pilot status strings.
+
+**Actual original nonlinear Saint-Venant Jacobian.** The
+unaltered `examples/shallow_water.py` has 1246 DOFs under this
+mesh configuration. Independent directional finite-difference
+checks of its IJacobian including nonzero time derivative give
+maximum relative error `1.1098606237681408e-08` on MPI1
+and `1.069846189441822e-08` on MPI2 (threshold `1e-5`).
+The accepted-state explicit gyro source remains nonzero and
+frozen (`frozen_explicit_RHS_drift = 0.0`), avoiding an
+artificially easy zero-input test. Native logs contain 4 + 28
+COO bridge traces on MPI1 and 8 + 56 on MPI2 (dynamic
++ shallow-water) and **zero IJV traces**.
+
+**Scope of acceptance.** COO mass/stiffness assembly and
+reassembly, including nonlinear state-dependent tangents and
+changing sparsity, is qualified for these MPI1/2 native tests.
+The source-only tests passed 24 FE-initial tests and 5
+nonlinear-COO tests on the host; all 8 pinned published
+sources were immutable. The external runner explicitly
+recorded `DAE_or_time_trajectory_qualified: false`.
+No main PETSc TS integration took place. Therefore the next
+physical gate should independently rerun the actual Heat-Wave
+2D solver with the now-default L2 initial projection,
+followed by coupled DAE consistency and full energy/power
+balance qualifications. Nonpolynomial nodal interpolation and
+L2-projected initialization intentionally give different
+discrete states: previous heat-wave trajectories are not a
+surrogate for a rerun after this policy change.
