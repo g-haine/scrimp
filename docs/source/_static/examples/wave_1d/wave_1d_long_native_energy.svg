@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1020" height="700" viewBox="0 0 1020 700" role="img" aria-label="Real GetFEM 150-step vibrating string mechanical energy equal to signed boundary work, with measured left and right port powers">
+<title>1.5-second vibrating string — authentic Hamiltonian and signed boundary work</title>
+<desc>Measured original GetFEM/PETSc native data: source 7e2e95a46645762ac09027428b5bb2abe8cff7a0, pinned scrimp-mpi:v1.3.0-rc3, MUMPS MPI1, 150 accepted TSCN steps, 151 native FE snapshots, dt=0.01, h=0.05, 128 DOFs. Plot samples every five accepted frames for compact SVG only. Full native physics gate: maximal per-step energy defect 3.434752482434078e-16, maximal cumulative defect 7.216449660063518e-16. H and work match within double precision; plotted curves coincide, not a rounded manufactured equality. Right port power is identically zero because U_R=0. Original evidence v130-wave1d-long-doc-7e2e95a4-75oCWG1T.zip.</desc>
+<rect width="1020" height="700" fill="white"/>
+<rect x="52" y="82" width="858" height="284" rx="12" fill="#f8fafc"/>
+<rect x="52" y="375" width="858" height="252" rx="12" fill="#f8fafc"/>
+<g font-family="DejaVu Sans,Arial,sans-serif">
+<text x="55" y="32" font-size="22" font-weight="650" fill="#0f172a">Energy exchange through a controlled boundary</text>
+<text x="55" y="55" font-size="13" fill="#475569">Native 1D PFEM · 150 Crank–Nicolson steps · t = 0–1.5 s · MUMPS / MPI 1</text>
+<text x="66" y="109" font-size="15" font-weight="600" fill="#0f172a">Mechanical energy variation and boundary work</text>
+<text x="66" y="404" font-size="15" font-weight="600" fill="#0f172a">Signed boundary power Pᴸ + Pᴿ</text>
+<text x="497" y="654" font-size="13" text-anchor="middle" fill="#334155">Physical time t (s)</text>
+<text x="55" y="676" font-size="11" fill="#64748b">Maximum exact CN step defect 3.43 × 10⁻¹⁶ · cumulative 7.22 × 10⁻¹⁶ · full validation on all 151 states</text>
+</g>
+<g stroke="#e2e8f0" stroke-width="1">
+<line x1="90" y1="129" x2="90" y2="588"/>
+<line x1="218" y1="129" x2="218" y2="588"/>
+<line x1="346" y1="129" x2="346" y2="588"/>
+<line x1="474" y1="129" x2="474" y2="588"/>
+<line x1="602" y1="129" x2="602" y2="588"/>
+<line x1="730" y1="129" x2="730" y2="588"/>
+<line x1="858" y1="129" x2="858" y2="588"/>
+<line x1="90" y1="143" x2="858" y2="143"/>
+<line x1="90" y1="185" x2="858" y2="185"/>
+<line x1="90" y1="228" x2="858" y2="228"/>
+<line x1="90" y1="271" x2="858" y2="271"/>
+<line x1="90" y1="314" x2="858" y2="314"/>
+<line x1="90" y1="430" x2="858" y2="430"/>
+<line x1="90" y1="472" x2="858" y2="472"/>
+<line x1="90" y1="514" x2="858" y2="514"/>
+<line x1="90" y1="556" x2="858" y2="556"/>
+<line x1="90" y1="588" x2="858" y2="588"/>
+</g>
+<g fill="#475569" font-size="12" font-family="DejaVu Sans,Arial,sans-serif">
+<text x="90" y="612" text-anchor="middle">0.00</text>
+<text x="218" y="612" text-anchor="middle">0.25</text>
+<text x="346" y="612" text-anchor="middle">0.50</text>
+<text x="474" y="612" text-anchor="middle">0.75</text>
+<text x="602" y="612" text-anchor="middle">1.00</text>
+<text x="730" y="612" text-anchor="middle">1.25</text>
+<text x="858" y="612" text-anchor="middle">1.50</text>
+<text x="79" y="327" text-anchor="end">0</text>
+<text x="79" y="149" text-anchor="end">0.5</text>
+<text x="79" y="400" text-anchor="end">1.8</text>
+<text x="79" y="563" text-anchor="end">0</text>
+<text x="79" y="592" text-anchor="end">−0.3</text>
+</g>
+<path d="M 90.0,326.0 L 115.6,325.1 L 141.2,318.9 L 166.8,305.0 L 192.4,282.3 L 218.0,254.4 L 243.6,224.5 L 269.2,198.8 L 294.8,179.4 L 320.4,169.0 L 346.0,166.0 L 371.6,167.8 L 397.2,171.3 L 422.8,172.9 L 448.4,172.3 L 474.0,168.8 L 499.6,164.7 L 525.2,161.2 L 550.8,159.6 L 576.4,159.7 L 602.0,160.1 L 627.6,159.1 L 653.2,155.8 L 678.8,149.3 L 704.4,141.7 L 730.0,133.2 L 755.6,127.8 L 781.2,125.2 L 806.8,126.9 L 832.4,130.2 L 858.0,132.1" fill="none" stroke="#0f766e" stroke-width="4.5" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M 90.0,326.0 L 115.6,325.1 L 141.2,318.9 L 166.8,305.0 L 192.4,282.3 L 218.0,254.4 L 243.6,224.5 L 269.2,198.8 L 294.8,179.4 L 320.4,169.0 L 346.0,166.0 L 371.6,167.8 L 397.2,171.3 L 422.8,172.9 L 448.4,172.3 L 474.0,168.8 L 499.6,164.7 L 525.2,161.2 L 550.8,159.6 L 576.4,159.7 L 602.0,160.1 L 627.6,159.1 L 653.2,155.8 L 678.8,149.3 L 704.4,141.7 L 730.0,133.2 L 755.6,127.8 L 781.2,125.2 L 806.8,126.9 L 832.4,130.2 L 858.0,132.1" fill="none" stroke="#ea580c" stroke-width="2.5" stroke-dasharray="9 8" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M 90.0,562.7 L 115.6,550.8 L 141.2,517.9 L 166.8,472.5 L 192.4,434.7 L 218.0,412.5 L 243.6,416.0 L 269.2,442.6 L 294.8,482.5 L 320.4,526.6 L 346.0,560.1 L 371.6,577.2 L 397.2,579.8 L 422.8,564.9 L 448.4,555.6 L 474.0,539.2 L 499.6,545.0 L 525.2,545.6 L 550.8,560.4 L 576.4,564.3 L 602.0,563.5 L 627.6,553.9 L 653.2,538.7 L 678.8,526.6 L 704.4,520.8 L 730.0,523.2 L 755.6,541.5 L 781.2,557.3 L 806.8,578.2 L 832.4,578.9 L 858.0,565.4" fill="none" stroke="#7c3aed" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/>
+<line x1="90" y1="562.7" x2="858" y2="562.7" stroke="#475569" stroke-width="2" stroke-dasharray="5 6"/>
+<g font-family="DejaVu Sans,Arial,sans-serif" font-size="12" fill="#334155">
+<line x1="605" y1="125" x2="633" y2="125" stroke="#0f766e" stroke-width="4"/>
+<text x="643" y="129">H(t) − H(0)</text>
+<line x1="605" y1="145" x2="633" y2="145" stroke="#ea580c" stroke-dasharray="6 4" stroke-width="3"/>
+<text x="643" y="149">CN-integrated signed work</text>
+<line x1="620" y1="402" x2="649" y2="402" stroke="#7c3aed" stroke-width="3"/>
+<text x="659" y="406">Left port Pᴸ</text>
+<line x1="620" y1="422" x2="649" y2="422" stroke="#475569" stroke-width="2" stroke-dasharray="5 5"/>
+<text x="659" y="426">Right port Pᴿ = 0</text>
+</g>
+</svg>
