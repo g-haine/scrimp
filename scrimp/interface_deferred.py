@@ -6,15 +6,19 @@
 #
 # github: https://github.com/g-haine/scrimp
 
-"""Experimental, deferred GetFEM compilation of internal interfaces.
+"""Production, conservative GetFEM compilation of conforming interfaces.
 
-Enabled ONLY with SCRIMP_V130_AUTO_INTERFACE_PILOT=1, pending native
-matrix/DAE/energy/MPI qualification. The public region declarations
-remain unchanged. Register all FE variables and bricks in their original
-order, after ownership of every internal interface has been resolved.
+Enabled automatically when a two-sided conforming internal interface
+has an unambiguous geometric label and weak-form owner. The original
+public regions are immutable; register all FEs/bricks in their
+declared order after resolving each parent-convex outward normal.
 
-The pilot deliberately rejects unsupported/ambiguous interface forms
-instead of assembling a wrong double-sided operator.
+This compiler FAILS CLOSED on ambiguous, nonconforming, multi-labeled
+or unsupported forms; it is not a universal H(div)/H(curl) trace
+compiler. Two concentric Heat-Wave region permutations were qualified
+with real K/DAE/CN/energy MPI1/2 and physical VTK. Other families and
+geometries are not automatically certified by that evidence.
+SCRIMP_AUTO_INTERFACE=0 opts out; legacy PILOT env flag is accepted.
 """
 
 from scrimp.interface_discovery import discover_conforming_interfaces
@@ -148,13 +152,22 @@ class DeferredInterfaceCompiler:
         self.completed = True
         self.report = {
             "schema": "scrimp-v130-deferred-auto-internal-interface-v1",
-            "status": "EXPERIMENTAL_COMPILED_NOT_PHYSICALLY_QUALIFIED",
+            "status": "COMPILED_CONFORMING_INTERFACE",
             "interfaces": manifests,
             "fem_count": len(self.fems),
             "brick_count": len(self.bricks),
             "declaration_order_preserved": True,
             "original_logical_region_labels_preserved": True,
+            # These flags distinguish the generic compiler's
+            # unqualified configurations from its proven Heat-Wave
+            # reference; successful construction alone never proves a
+            # model's physical power balance or MPI2 equivalence.
             "physically_qualified": False,
             "MPI2_qualified": False,
+            "reference_qualification": (
+                "2D concentric Heat-Wave, heat/wave=1/2 and 2/1; "
+                "real strict DAE, CN, pH energy, MPI1/2 and rank0 VTK"
+            ),
+            "production_default": True,
         }
         return self.report
