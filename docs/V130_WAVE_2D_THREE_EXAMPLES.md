@@ -1,11 +1,82 @@
 # SCRIMP v1.3.0 — Parcours progressif des trois ondes 2D
 
 **Branche de travail :** `release/1.3.0-preparation`.  
-**État du 24 novembre 2026 :** étape **2A MUMPS MPI1/2 native PASS** ;
-acceptation complète à cinq backends **EN ATTENTE**.  
+**État du 24 novembre 2026 :** étape **2A native PASS** en
+MUMPS MPI1/2, SuperLU MPI1 et SuperLU_DIST explicitement raffiné
+MPI1/2 ; l'option standard SuperLU_DIST reste FAIL (gate 3/5).
+Étape **2B : code, documentation et contrôle source prêts ; qualification
+physique GetFEM/PETSc MUMPS MPI1/2 EN ATTENTE**.  
 **Ordre dans Sphinx :** `examples/wave.rst` comporte la conservative
 puis sa section « Adding Damping to the dphs » ; la page
 `examples/wave_coenergy.rst` suit séparément. Cet ordre est conservé.
+
+## Passage opérationnel de 2A à 2B
+
+Le modèle **2A conservatif** a passé les 10 pas CN en MUMPS MPI1/2,
+SuperLU MPI1 et également avec SuperLU_DIST **explicitement**
+`ReplaceTinyPivot + IterRefine` en MPI1/2, sans changer
+`examples/wave.py`. La dernière preuve est
+`v130-wave2d-refined-dist-physical-95fbd8b2-HfwaSFgK.zip`.
+Ce résultat qualifie l'option expérimentale, **pas**
+SuperLU_DIST ordinaire. Les choix numériques du noyau SCRIMP
+v1.3.0 restent inchangés.
+
+L'étape suivante ne cherche **pas** à requalifier toutes les
+politiques de factorisation : elle introduit une difficulté physique
+nouvelle dans un **second fichier indépendant**,
+`examples/wave_dissipative.py`.
+
+**Invariant pédagogique :** les 20 briques, les quatre commandes
+de bord, les données initiales exactes, le tenseur anisotrope,
+la densité, DG1/CG2 et le pas CN de 2A sont identiques à 2B.
+**Extension unique :** port dissipatif
+`(f_r,e_r)`, deux champs CG2, paramètre
+`nu(x)=0.5*(2-x)>=0` et cinq briques
+`M_r`, `I_r`, `-I_r^T`, `-M_e_r`, `CR_r`.
+
+La puissance volumique de dissipation est vérifiée
+sur les **vraies valeurs de GetFEM** de deux manières
+indépendantes :
+`D_port=integral f_r*e_r` et
+`D_volume=integral nu*f_r*f_r`.
+Pour chaque pas CN, à l'état FE moyen,
+le nouveau critère strict est
+
+```text
+deltaH_k - dt_k*(P_B+P_R+P_T+P_L)_k + dt_k*D_k = 0,
+H(t)-H(0)-W_boundary(t)+L_viscous(t) = 0,
+L_viscous(t)>=0.
+```
+
+Le diagnostic vérifie également le résidu du flux
+`f_r+e_p`, la dissipation effectivement non nulle,
+les **onze vrais états complets** et les **six**
+séries GetFEM/ParaView
+`q,p,e_q,e_p,f_r,e_r`. La relation faible
+`e_r=nu*f_r` est une **projection FEM** :
+`nu*f_r` n'est pas en général dans CG2 et il serait
+incorrect d'exiger un résidu L2 pointwise nul.
+
+La section 2B de `docs/source/examples/wave.rst`
+utilise maintenant **huit `literalinclude`** depuis le
+programme canonique, exactement comme 2A.
+Le premier essai natif est volontairement limité
+à **MUMPS MPI1/2** ; les variantes LU seront
+étudiées ensuite, une fois la physique qualifiée.
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+conda activate scrimp
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-wave2d-dissipative-pilot.sh
+```
+
+**Statut scientifique 2B : aucune exécution native validée
+à cette étape ; PASS/FAIL à établir sur le ZIP.**
+L'exemple 2C coénergie reste volontairement indépendant
+et suivra après cette qualification.
 
 ## Le fil conducteur scientifique
 
