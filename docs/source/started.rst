@@ -420,10 +420,10 @@ Coding within SCRIMP
 --------------------
 
 The maintained tutorial lives in ``examples/wave_1d.py``.
-The older ``sandbox/wave_1D.py`` is retained as an historical
-example, not used as the v1.3.0 installation gate. The snippets below
-follow the maintained version; its function ``wave_1d()`` exposes
-mesh/time resolution, LU backend and optional plotting.
+It replaces the former exploratory 1D sandbox script, which was
+removed after the genuine five-solver native acceptance succeeded.
+The snippets below follow the maintained version; its function
+``wave_1d()`` exposes mesh/time resolution, LU backend and plotting.
 
 To start, import **SCRIMP** and create a *distributed port-Hamiltonian
 system* (DPHS) called, *e.g.*, ``wave``
