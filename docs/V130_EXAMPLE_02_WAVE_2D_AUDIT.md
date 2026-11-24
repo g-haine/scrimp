@@ -323,6 +323,75 @@ Une nouvelle preuve est nécessaire pour
 promouvoir le résultat *global* de l'exemple
 2A à une qualification d'installation.
 
+## Campagne cinq solveurs sur le code canonique : trois PASS, deux FAIL
+
+**Date : 24 novembre 2026.**
+Source `99d99f2d94c82fe95aac3b39a3aaf3a4c4c27eb8`,
+archive `v130-wave2d-conservative-five-lu-99d99f2d-tEOjqgHy.zip`.
+La campagne utilise bien `python -m examples.wave`,
+sans exécuter le pilote abandonné.
+
+**Trois configurations qualifiées :**
+MUMPS MPI 1/2, SuperLU MPI 1. Chacune
+effectue dix pas CN acceptés, 2230 DOFs,
+projection DAE algébrique à résidu nul,
+puissance de bord gauche non nulle et
+44 VTU (quatre séries `q,p,e_q,e_p` de
+11 instants). Les défauts énergétiques
+par pas culminent respectivement à
+`2.9815559743351372e-18`,
+`1.6263032587282567e-18` et
+`3.0899761915836876e-18`.
+
+Comparaison indépendante depuis les
+`rank0.npz` de l'archive : par rapport
+à MUMPS MPI1, écarts maximaux FE sur
+les 2230 DOFs
+`9.248157795127554e-14` (MUMPS MPI2)
+et `1.61259894326804e-13` (SuperLU MPI1).
+Énergies finales
+`0.0015763111255133718`,
+`0.0015763111255133748` et
+`0.0015763111255133716`.
+
+**Deux configurations NON QUALIFIÉES :**
+SuperLU_DIST MPI1 et MPI2.
+Les deux réussissent l'assemblage GetFEM
+et la projection DAE initiale à résidu
+nul ; aucun pas CN n'est accepté. Le premier
+`TSStep()` échoue avec
+`DIVERGED_STEP_REJECTED` (PETSc code 91).
+**Ce message ne détermine pas à lui seul
+s'il s'agit de factorisation, KSP, SNES,
+pivotage ou résidu non linéaire.**
+Aucun reparamétrage ne sera appliqué
+à l'aveugle.
+
+**Correctif de diagnostic source uniquement :**
+`scripts/run-v130-wave2d-superlu-dist-diagnostic.sh`
+active le chemin **déjà existant**
+`SCRIMP_TS_FAILURE_DIAGNOSTICS=1`,
+sur SuperLU_DIST MPI1 pour un seul pas
+`dt=0.008`. Il recueille les raisons
+TS/SNES/KSP/PC et archive les erreurs,
+sans modifier la formulation ou les
+tolérances. L'extension MPI2
+(`SCRIMP_V130_WAVE2D_DIAG_RANKS=2`)
+est disponible, mais le diagnostic
+interne détaillé n'est pas encore activé
+en MPI : commencer par MPI1.
+
+Le rapport d'acceptation à cinq cas a
+également été amélioré pour **conserver
+les deux échecs SuperLU_DIST** dans
+`summary.json`, même si le premier
+arrête l'analyse détaillée.
+
+**État scientifique : 3/5 PASS,
+2/5 FAIL, diagnostic natif approfondi PENDING.**
+Les exemples 2B dissipatif et 2C coénergie
+restent hors du périmètre de cette campagne.
+
 ## Critère de passage à l'étape suivante
 
 Conserver cette fiche comme **audit initial**, et enregistrer
