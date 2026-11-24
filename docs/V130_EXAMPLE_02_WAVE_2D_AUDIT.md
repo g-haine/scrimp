@@ -699,6 +699,100 @@ ne sera pas modifiée à ce stade.
 **Statut : exécution native du replay PENDING ;
 campagne originale toujours 3/5 PASS.**
 
+## Rejeu PETSc SuperLU_DIST sur l'opérateur original : quatre calculs, aucun PASS
+
+**Preuve native fournie :**
+`v130-wave2d-superlu-dist-factor-replay-e87b20d1-H7IgKhB8.zip`,
+source `e87b20d108d980ca9648cbf14d38aed96b37f4d3`.
+L'archive a été ouverte et ses **six JSON de rang**
+et quatre journaux natifs inspectés. Le test source
+préalable était **6/6 PASS**. Le CSR original
+`2230×2230` est vérifié avec
+`SHA256=24346856f358e4f81cf332ebc974e329dc084c60f5d6b98bfbcd788fdff37f54`.
+Tous les rangs déclarent le **même graphe CSR et
+les mêmes coefficients** que l'archive initiale.
+
+| PETSc réel (matrice inchangée) | MPI1 | MPI2 |
+|---|---|---|
+| SuperLU_DIST standard, `preonly` | `KSP=-11, PC_failed=2`, pas de solution | Même échec sur les 2 rangs |
+| `ReplaceTinyPivot=true`, `preonly` | `KSP=4, PC_failed=0`, mais seuils de précision manqués | Même résultat sur les 2 rangs |
+
+Pour le **remplacement des pivots** :
+
+| Erreur réellement mesurée | MPI1 | MPI2 | Acceptation exigée |
+|---|---:|---:|---:|
+| Résidu arrière relatif sur `Px-b` | `5.083978939457479e-10` | `5.083978914609362e-10` | < `1e-11` |
+| Erreur relative sur le vecteur connu `x*` | `7.280665330727204e-7` | `7.231143229884494e-7` | < `1e-7` |
+
+L'option `ReplaceTinyPivot` permet donc **de
+factoriser et de résoudre sans déclencher
+`PC_FACTOR_NUMERIC_ZEROPIVOT`**. Elle ne
+fournit toutefois **pas une solution suffisamment
+précise** dans les tests numériques actuels.
+PETSc annonce `KSP_reason=4` (PREONLY terminé),
+ce qui ne constitue **pas** une validation des
+résidus véritables ou de l'erreur de solution.
+La qualification du replay est bien
+`FAIL_OR_INCOMPLETE_OPTIONAL_PIVOT_PETSC_LU_REPLAY` ;
+**aucun PASS n'a été réinterprété**.
+
+### Expérience suivante : deux raffinement itératifs, seuils inchangés
+
+La documentation PETSc expose
+`mat_superlu_dist_iterrefine` (booléen,
+raffinement interne en double précision), et
+`KSPGMRES` accepte le préconditionnement
+**à droite** avec contrôle du **résidu
+non préconditionné**. Le nouveau driver
+`sandbox/replay_v130_wave2d_superlu_dist_refinement.py`
+réutilise strictement le CSR et le
+second membre `b=P*x*` précédents,
+avec `ReplaceTinyPivot=true` dans
+les deux cas :
+
+- `internal_refine` : SuperLU_DIST
+  `IterRefine=true`, KSP `PREONLY` ;
+- `right_gmres` : `KSPGMRES`,
+  `PC_RIGHT`,
+  `NORM_UNPRECONDITIONED`,
+  `rtol=1e-12`, `atol=1e-14`,
+  `max_it=30`.
+
+Dans **chaque** cas, le résidu arrière
+relatif original reste < `1e-11`
+et l'erreur sur la solution exacte
+< `1e-7`, sans possibilité de
+PASS sur le seul `KSP_reason`.
+Le test vérifie la configuration
+**réellement active** de la méthode,
+la présence des coefficients CSR
+originaux (zéros structurels compris)
+et la non-utilisation d'un solveur
+de remplacement. Les versions MPI1
+et MPI2 seront toutes deux exécutées.
+Un cas n'est acceptable que si
+les deux rangs réussissent strictement.
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+conda activate scrimp
+
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-wave2d-superlu-dist-refinement.sh
+```
+
+**Statut : ce nouveau raffinement natif
+n'a pas encore été exécuté.** Il ne
+modifie ni l'onde conservative canonique,
+ni le Jacobien, ni `scrimp/dphs.py`.
+Une réussite serait seulement un
+**candidat LU isolé** à qualifier ensuite
+sur les dix pas CN, les quatre puissances
+de bord, l'Hamiltonien et les VTU MPI.
+**Acceptation actuelle de l'onde 2D : 3/5.**
+
 ## Critère de passage à l'étape suivante
 
 Conserver cette fiche comme **audit initial**, et enregistrer
