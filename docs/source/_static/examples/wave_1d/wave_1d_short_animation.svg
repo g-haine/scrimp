@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="510" viewBox="0 0 900 510" role="img" aria-label="Actual GetFEM wave 1D accepted strain and reconstructed incremental deflection animation">
+<title>Native 1D wave: strain and reconstructed incremental displacement</title>
+<desc>Native data from 2a170c8247f0f8aff09331747a3bb4812a04324f, MUMPS MPI1, t=0..0.04 (eleven frames). Spatially decimated from original 41 VTK P2 points for portable SVG. Incremental deflection derived from P2 strain and left boundary velocity with w(0,0)=0. Short smoke run; propagation over a longer time is not demonstrated by this animation.</desc>
+<style>
+  .bg{fill:#fff}.axis{stroke:#94a3b8;stroke-width:1}.grid{stroke:#e2e8f0;stroke-width:1}
+  .ttl{font-family:DejaVu Sans,Arial,sans-serif;fill:#0f172a}
+  .small{font:12px DejaVu Sans,Arial,sans-serif;fill:#475569}
+</style>
+<rect x="0" y="0" width="900" height="510" class="bg"/>
+<text x="48" y="34" font-size="20" font-weight="600" class="ttl">Vibrating string: 11 real saved FE states</text>
+<text x="48" y="55" class="small">10 fixed Crank–Nicolson steps (0 ≤ t ≤ 0.04 s) • MUMPS MPI 1 • 128 DOFs</text>
+<text x="48" y="91" font-size="14" class="ttl">Strain q = ∂x w, P2 finite elements</text>
+<text x="48" y="311" font-size="14" class="ttl">Incremental displacement Δw = w(x,t) − w(x,0) (derived; initial gauge w(0,0)=0)</text>
+<line x1="96" y1="112" x2="96" y2="441" class="grid"/>
+<line x1="240" y1="112" x2="240" y2="441" class="grid"/>
+<line x1="384" y1="112" x2="384" y2="441" class="grid"/>
+<line x1="528" y1="112" x2="528" y2="441" class="grid"/>
+<line x1="672" y1="112" x2="672" y2="441" class="grid"/>
+<line x1="816" y1="112" x2="816" y2="441" class="grid"/>
+<line x1="96" y1="142" x2="816" y2="142" class="grid"/>
+<line x1="96" y1="185" x2="816" y2="185" class="grid"/>
+<line x1="96" y1="228" x2="816" y2="228" class="grid"/>
+<line x1="96" y1="354" x2="816" y2="354" class="grid"/>
+<line x1="96" y1="396" x2="816" y2="396" class="grid"/>
+<line x1="96" y1="438" x2="816" y2="438" class="grid"/>
+<line x1="96" y1="254" x2="816" y2="254" class="axis"/>
+<line x1="96" y1="441" x2="816" y2="441" class="axis"/>
+<text x="84" y="243" text-anchor="end" class="small">0</text>
+<text x="84" y="119" text-anchor="end" class="small">1</text>
+<text x="84" y="398" text-anchor="end" class="small">0</text>
+<text x="84" y="329" text-anchor="end" class="small">0.009</text>
+<text x="84" y="445" text-anchor="end" class="small">−0.005</text>
+<text x="96" y="463" text-anchor="middle" class="small">0.0</text>
+<text x="240" y="463" text-anchor="middle" class="small">0.2</text>
+<text x="384" y="463" text-anchor="middle" class="small">0.4</text>
+<text x="528" y="463" text-anchor="middle" class="small">0.6</text>
+<text x="672" y="463" text-anchor="middle" class="small">0.8</text>
+<text x="816" y="463" text-anchor="middle" class="small">1.0</text>
+<text x="454" y="486" text-anchor="middle" class="small">Position x on the string (0 to 1)</text>
+<path d="M 96.0,237.78 L 168.0,195.13 L 240.0,161.95 L 312.0,138.25 L 384.0,124.03 L 456.0,119.29 L 528.0,124.03 L 600.0,138.25 L 672.0,161.95 L 744.0,195.13 L 816.0,237.78" fill="none" stroke="#0f766e" stroke-width="2.7">
+<animate attributeName="d" values="M 96.0,237.78 L 168.0,195.13 L 240.0,161.95 L 312.0,138.25 L 384.0,124.03 L 456.0,119.29 L 528.0,124.03 L 600.0,138.25 L 672.0,161.95 L 744.0,195.13 L 816.0,237.78;M 96.0,237.81 L 168.0,195.14 L 240.0,161.96 L 312.0,138.26 L 384.0,124.04 L 456.0,119.30 L 528.0,124.04 L 600.0,138.26 L 672.0,161.96 L 744.0,195.14 L 816.0,237.79;M 96.0,237.92 L 168.0,195.16 L 240.0,161.98 L 312.0,138.28 L 384.0,124.06 L 456.0,119.32 L 528.0,124.06 L 600.0,138.28 L 672.0,161.98 L 744.0,195.16 L 816.0,237.82;M 96.0,238.17 L 168.0,195.21 L 240.0,162.02 L 312.0,138.31 L 384.0,124.09 L 456.0,119.35 L 528.0,124.09 L 600.0,138.31 L 672.0,162.02 L 744.0,195.21 L 816.0,237.87;M 96.0,238.63 L 168.0,195.28 L 240.0,162.07 L 312.0,138.36 L 384.0,124.13 L 456.0,119.39 L 528.0,124.13 L 600.0,138.36 L 672.0,162.07 L 744.0,195.27 L 816.0,237.94;M 96.0,239.33 L 168.0,195.36 L 240.0,162.14 L 312.0,138.42 L 384.0,124.19 L 456.0,119.45 L 528.0,124.19 L 600.0,138.42 L 672.0,162.14 L 744.0,195.35 L 816.0,238.03;M 96.0,240.31 L 168.0,195.47 L 240.0,162.22 L 312.0,138.49 L 384.0,124.26 L 456.0,119.51 L 528.0,124.26 L 600.0,138.49 L 672.0,162.22 L 744.0,195.45 L 816.0,238.13;M 96.0,241.60 L 168.0,195.61 L 240.0,162.32 L 312.0,138.58 L 384.0,124.34 L 456.0,119.59 L 528.0,124.34 L 600.0,138.58 L 672.0,162.32 L 744.0,195.57 L 816.0,238.25;M 96.0,243.20 L 168.0,195.78 L 240.0,162.44 L 312.0,138.68 L 384.0,124.43 L 456.0,119.68 L 528.0,124.43 L 600.0,138.68 L 672.0,162.44 L 744.0,195.70 L 816.0,238.37;M 96.0,245.13 L 168.0,195.99 L 240.0,162.57 L 312.0,138.80 L 384.0,124.54 L 456.0,119.79 L 528.0,124.54 L 600.0,138.80 L 672.0,162.57 L 744.0,195.86 L 816.0,238.51;M 96.0,247.36 L 168.0,196.25 L 240.0,162.72 L 312.0,138.93 L 384.0,124.66 L 456.0,119.90 L 528.0,124.66 L 600.0,138.92 L 672.0,162.71 L 744.0,196.03 L 816.0,238.65" calcMode="discrete" dur="3.3s" repeatCount="indefinite"/>
+</path>
+<path d="M 96.0,399.00 L 168.0,399.00 L 240.0,399.00 L 312.0,399.00 L 384.0,399.00 L 456.0,399.00 L 528.0,399.00 L 600.0,399.00 L 672.0,399.00 L 744.0,399.00 L 816.0,399.00" fill="none" stroke="#2563eb" stroke-width="2.7">
+<animate attributeName="d" values="M 96.0,399.00 L 168.0,399.00 L 240.0,399.00 L 312.0,399.00 L 384.0,399.00 L 456.0,399.00 L 528.0,399.00 L 600.0,399.00 L 672.0,399.00 L 744.0,399.00 L 816.0,399.00;M 96.0,398.68 L 168.0,398.84 L 240.0,398.84 L 312.0,398.92 L 384.0,399.00 L 456.0,399.00 L 528.0,399.08 L 600.0,399.08 L 672.0,399.08 L 744.0,399.16 L 816.0,399.32;M 96.0,397.64 L 168.0,398.28 L 240.0,398.44 L 312.0,398.68 L 384.0,398.84 L 456.0,399.00 L 528.0,399.16 L 600.0,399.32 L 672.0,399.48 L 744.0,399.72 L 816.0,400.04;M 96.0,395.64 L 168.0,397.24 L 240.0,397.80 L 312.0,398.20 L 384.0,398.60 L 456.0,398.92 L 528.0,399.32 L 600.0,399.80 L 672.0,400.12 L 744.0,400.68 L 816.0,401.32;M 96.0,392.52 L 168.0,395.88 L 240.0,396.84 L 312.0,397.64 L 384.0,398.36 L 456.0,398.92 L 528.0,399.64 L 600.0,400.36 L 672.0,401.08 L 744.0,401.96 L 816.0,403.08;M 96.0,388.12 L 168.0,394.04 L 240.0,395.56 L 312.0,396.84 L 384.0,397.96 L 456.0,398.92 L 528.0,399.96 L 600.0,401.08 L 672.0,402.20 L 744.0,403.64 L 816.0,405.32;M 96.0,382.28 L 168.0,391.80 L 240.0,394.04 L 312.0,395.88 L 384.0,397.40 L 456.0,398.84 L 528.0,400.36 L 600.0,401.96 L 672.0,403.64 L 744.0,405.64 L 816.0,408.04;M 96.0,374.84 L 168.0,389.16 L 240.0,392.28 L 312.0,394.68 L 384.0,396.84 L 456.0,398.84 L 528.0,400.84 L 600.0,403.00 L 672.0,405.32 L 744.0,408.04 L 816.0,411.24;M 96.0,365.80 L 168.0,386.04 L 240.0,390.20 L 312.0,393.32 L 384.0,396.12 L 456.0,398.76 L 528.0,401.40 L 600.0,404.20 L 672.0,407.24 L 744.0,410.76 L 816.0,414.92;M 96.0,355.08 L 168.0,382.60 L 240.0,387.88 L 312.0,391.80 L 384.0,395.40 L 456.0,398.68 L 528.0,402.04 L 600.0,405.56 L 672.0,409.40 L 744.0,413.88 L 816.0,419.00;M 96.0,342.68 L 168.0,378.84 L 240.0,385.32 L 312.0,390.12 L 384.0,394.52 L 456.0,398.60 L 528.0,402.76 L 600.0,407.08 L 672.0,411.80 L 744.0,417.40 L 816.0,423.56" calcMode="discrete" dur="3.3s" repeatCount="indefinite"/>
+</path>
+<text x="685" y="96" font-size="11" fill="#475569">11 data frames looped</text>
+</svg>
