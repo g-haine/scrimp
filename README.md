@@ -29,6 +29,41 @@ The easiest way to install SCRIMP is to use a conda environment.
 5. Activate the environment:  ```conda activate scrimp```
 6. Finish with pip: ```pip install -e .```
 
+## v1.3.0 release preparation: conforming interfaces and MPI ParaView
+
+**On the `release/1.3.0-preparation` branch only**, SCRIMP now
+automatically resolves conforming internal interfaces and, for MPI
+with complete identical mesh/FE-state replicas, uses **rank 0 as the
+single writer** of shared ParaView `.pvd`/`.vtu` outputs.
+Both implementations are part of the default code paths rather
+than opt-in pilots; **there is no published v1.3.0 release yet**.
+
+An ambiguous/nonconforming interface or a ParaView model with
+incomplete or inconsistent per-rank states **fails explicitly**,
+rather than silently guessing orientation or exporting partial data.
+The documented native qualification covers the 2D concentric
+Heat-Wave model in both subdomain orientations at MPI 1 and 2;
+other elements, geometries and truly distributed-only VTK data
+are not implied.
+
+To temporarily restore the previous behavior:
+
+```bash
+export SCRIMP_AUTO_INTERFACE=0
+export SCRIMP_PV_EXPORT_MODE=legacy
+```
+
+**Warning:** the historical MPI `legacy` export may let
+several ranks write the same file concurrently. For complete
+per-rank replicas the new default is safer.
+
+See the [dated production-path decision, successful native evidence,
+corrected failures and explicit scope limitations](
+docs/V130_INTERFACE_PV_PRODUCTION_DECISION_20261124.md).
+The last native default-path smoke on the pinned v1.3.0 RC3 image
+is available as `scripts/run-v130-production-defaults.sh` and
+remains to be executed after these source changes.
+
 ## v1.3.0 preview: start your own SCRIMP project in VS Code
 
 The upcoming v1.3.0 user workflow separates **installation** from
