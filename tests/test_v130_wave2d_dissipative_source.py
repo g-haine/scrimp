@@ -155,6 +155,26 @@ class Wave2BDissipativeSourceTests(unittest.TestCase):
         self.assertIn('for name in ("q", "p", "e_q", "e_p", "f_r", "e_r")',
                       self.source2b)
 
+    def test_2b_sphinx_is_literal_native_source_and_accurate_physics(self):
+        document=(ROOT/"docs"/"source"/"examples"/"wave.rst").read_text(
+            encoding="utf-8"
+        ).split("2B — Adding a resistive port: heterogeneous damping")[1]
+        self.assertEqual(document.count(
+            ".. literalinclude:: ../../../examples/wave_dissipative.py"
+        ),8)
+        for k in range(1,9):
+            start=f":start-after: # TUTORIAL 2B-{k:02d}:"
+            end=f":end-before: # TUTORIAL 2B-{k+1:02d}:"
+            with self.subTest(marker=k):
+                self.assertIn(start,document)
+                self.assertIn(end,document)
+        for term in ("f_r=-e_p", "e_r=\\nu f_r",
+                     "nu*f_r*f_r", "H", "four",
+                     "Port.compute()", "weak projection"):
+            with self.subTest(term=term):
+                self.assertIn(term,document)
+        self.assertNotIn('init_step_ts_type="pseudo"',document)
+
     def test_pilot_is_only_original_mumps_model_and_immutable_published(self):
         script=PILOT.read_text(encoding="utf-8")
         self.assertIn('for ranks in 1 2; do',script)
