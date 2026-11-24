@@ -62,10 +62,15 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--heat", type=int, choices=(1, 2), required=True)
     parser.add_argument("--out", type=Path, required=True)
-    parser.add_argument(
+    pv_mode = parser.add_mutually_exclusive_group()
+    pv_mode.add_argument(
         "--pv-diagnostic", action="store_true",
-        help="Isolate REAL original ParaView VTU/PVD exports per MPI rank; "
-             "does not qualify shared production output",
+        help="Isolate REAL original ParaView VTU/PVD exports per MPI rank",
+    )
+    pv_mode.add_argument(
+        "--pv-root-only", action="store_true",
+        help="Qualify production exporter with only rank 0 writing "
+             "complete shared VTU/PVD files (pilot flag required)",
     )
     args = parser.parse_args()
     wave = 3 - args.heat
@@ -77,6 +82,12 @@ def main():
         raise RuntimeError("Explicit real MPI1/MPI2 auto-interface gate required")
     if not args.out.is_dir():
         raise RuntimeError("Shared evidence output directory must exist")
+    if args.pv_root_only and (
+        os.environ.get("SCRIMP_V130_PV_ROOT_ONLY_PILOT") != "1"
+    ):
+        raise RuntimeError(
+            "Root-only ParaView test requires explicit export pilot flag"
+        )
 
     old_init = DPHS.init_step
     old_plot = DPHS.plot_Hamiltonian
@@ -146,7 +157,12 @@ def main():
         skipped["plot"] += 1
 
     def skip_export(system, name_variable, path=None, t="All"):
-        if args.pv_diagnostic:
+        if args.pv_root_only:
+            # REAL production exporter is called on every rank with
+            # the SAME shared parent path. Only rank0 should write;
+            # all others must enter its collective completion call.
+            old_export(system, name_variable, path=str(args.out), t=t)
+        elif args.pv_diagnostic:
             # Keep GetFEM's actual production export_to_pv() and all
             # collectives. Give every rank its own output directory:
             # production shared-file writes currently need a distinct
@@ -335,9 +351,11 @@ def main():
         "physical_diagnostics": physical,
         "public_port_power_max_differences": power_checks,
         "plot_and_ParaView_export_skipped_on_all_ranks":
-            not args.pv_diagnostic,
+            not (args.pv_diagnostic or args.pv_root_only),
         "MPI_rank_isolated_real_ParaView_export_diagnostic":
             args.pv_diagnostic,
+        "MPI_root_only_shared_ParaView_export_pilot":
+            args.pv_root_only,
         "parallel_PNG_and_ParaView_shared_export_qualified": False,
         "physical_GetFEM_assembly_executed_on_all_ranks": True,
         "source_model_signs_unchanged": True,
