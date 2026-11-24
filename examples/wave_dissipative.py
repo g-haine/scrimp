@@ -176,7 +176,7 @@ def wave_eq(
     for brick in bricks:
         system.add_brick(brick)
 
-    # TUTORIAL 2B-05: compatible physical initial and boundary inputs
+    # TUTORIAL 2B-06: same compatible 2A initial conditions and inputs
     # Exactly compatible at t=0 (zero stress and zero velocity).
     # The left boundary injects energy immediately after t=0.
     for side, _, _ in BOUNDARIES:
@@ -188,7 +188,7 @@ def wave_eq(
     system.set_initial_value("q", "[0., 0.]")
     system.set_initial_value("p", "0.")
 
-    # TUTORIAL 2B-06: strict DAE initialization, fixed Crank-Nicolson
+    # TUTORIAL 2B-07: strict DAE initialization, fixed Crank-Nicolson
     options = {}
     if factor_solver is not None:
         options["pc_factor_mat_solver_type"] = factor_solver
@@ -203,7 +203,7 @@ def wave_eq(
     )
     system.solve()
 
-    # TUTORIAL 2B-07: exact tensor Hamiltonian from the original GetFEM field
+    # TUTORIAL 2B-08: unchanged tensor Hamiltonian
     system.hamiltonian.set_name(
         "Anisotropic membrane mechanical energy (mixed boundary control)"
     )
@@ -213,7 +213,7 @@ def wave_eq(
     system.hamiltonian.add_term(S.Term(
         "Kinetic energy", "0.5*p*p/rho", [1],
     ))
-    # TUTORIAL 2B-08: end of code shown progressively in Sphinx
+    # TUTORIAL 2B-09: end of physical model shown in Sphinx
     return system
 
 
