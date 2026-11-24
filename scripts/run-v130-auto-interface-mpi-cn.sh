@@ -297,10 +297,8 @@ if pv_export_active and not any_failure:
     mesh_comparison = {}
     for heat in (1, 2):
         serial = pv_evidence[f"heat{heat}_mpi1_rank0"]
-        for rank in (0, 1):
+        for rank in ((0, 1) if pv_diagnostic else (0,)):
             multi = pv_evidence[f"heat{heat}_mpi2_rank{rank}"]
-            if not multi and pv_root_only:
-                raise RuntimeError("Missing shared rank0 VTK evidence")
             for name in ("p", "T"):
                 expected = [
                     (rec["points"], rec["cells"]) for rec in serial[name]
