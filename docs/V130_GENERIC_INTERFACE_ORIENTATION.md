@@ -105,6 +105,34 @@ python tests/test_v130_interface_ownership.py
 No GetFEM region, FEM variable, brick, physical sign or power-report
 policy is changed by this addition.
 
+## DPHS declaration-level audit (stage 3, native check pending)
+
+`DPHS.audit_interface_ownership(interface, (a,b), mesh_id=0)` is a
+new **explicit, read-only** model inspection method. It combines the
+native geometry of `Domain.resolve_interface` with the actual declared
+SCRIMP `Port` and `Brick` objects. It derives bulk-variable ownership
+from port regions and derives interface-port ownership only from weak
+forms anchored by those bulk variables. It returns the owner for each
+interface port and the verified geometric facet count.
+
+This method is NOT invoked by `DPHS.solve`, `add_FEM`, `add_brick`
+or `set_control`. It does not allocate GetFEM regions, change the weak
+forms, alter control expressions, affect Jacobians or DAE initialization,
+or imply the energy law is correct. It is deliberately not an implicit
+feature flag or production orientation policy.
+
+The native source-immutable audit of the existing Heat-Wave example is:
+
+```bash
+python sandbox/probe_v130_native_interface_ownership.py
+```
+
+The probe intercepts the final `DPHS.solve` call, inspects the complete
+set of already declared ports/bricks, and exits before the TS solver.
+For `heat_region=1, wave_region=2`, it must report
+`"Interface Heat": 1` and `"Interface Wave": 2` and 78 matched faces.
+No actual simulation is claimed.
+
 ## Next steps (not implemented here)
 
 1. Native test on real 1D/2D/3D imported meshes and curved/high-order
