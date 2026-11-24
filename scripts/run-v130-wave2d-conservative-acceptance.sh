@@ -103,15 +103,22 @@ report={
   "not_a_paper_reproduction": True,
 }
 trace_by_case={}
+cases=(("mumps",1),("mumps",2),("superlu",1),
+       ("superlu_dist",1),("superlu_dist",2))
+# All five actual simulations have already finished before this
+# reporter starts. Record EVERY exit status, even when the first
+# failed case prevents qualifying the following cases physically.
+for solver,ranks in cases:
+    name=f"{solver}_mpi{ranks}"
+    report["cases"][name]={
+        "exit_code":int((folder/f"{name}.exitcode").read_text())
+    }
 try:
-    cases=(("mumps",1),("mumps",2),("superlu",1),
-           ("superlu_dist",1),("superlu_dist",2))
     grids={}
     for solver,ranks in cases:
         name=f"{solver}_mpi{ranks}"
         case=folder/name
-        result={"exit_code":int((folder/f"{name}.exitcode").read_text())}
-        report["cases"][name]=result
+        result=report["cases"][name]
         if result["exit_code"] != 0:
             raise RuntimeError(f"Native simulation failed: {name} exit={result['exit_code']}")
         rank_data=[]
@@ -209,6 +216,13 @@ try:
     report["status"]="PASS_WAVE2D_CONSERVATIVE_FIVE_LU_MPI_CN_PORTS_VTK"
 except Exception as exc:
     report["errors"].append(f"{type(exc).__name__}: {exc}")
+# Report all failed native configurations, not only the first one
+# encountered by the sequential scientific data verifier.
+for name,case in report["cases"].items():
+    if case["exit_code"] != 0:
+        message=f"Native {name} ended with exit={case['exit_code']}"
+        if message not in report["errors"]:
+            report["errors"].append(message)
 
 (folder/"summary.json").write_text(json.dumps(report,indent=2)+"\n")
 archive=Path(str(folder)+".zip")
