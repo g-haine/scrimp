@@ -185,8 +185,11 @@ Hamiltoniens/puissances, les sorties VTK/PVD
 des quatre variables `q,p,e_q,e_p`,
 les comparaisons inter-rangs et inter-solveurs,
 et une archive en cas d'échec comme de succès.
-Aucun résultat pour SuperLU/SuperLU_DIST
-n'est encore revendiqué.
+La campagne native au commit `99d99f2d` a désormais
+confirmé **SuperLU MPI1 PASS**, en plus des deux
+cas MUMPS, mais **SuperLU_DIST MPI1/2 FAIL au
+premier pas CN**. Les résultats ne doivent
+pas être amalgamés.
 
 ```bash
 cd ~/Simulations/scrimp
@@ -203,6 +206,76 @@ Résultat **recherché, pas encore obtenu** :
 ```text
 PASS_WAVE2D_CONSERVATIVE_FIVE_LU_MPI_CN_PORTS_VTK
 ```
+
+### Campagne cinq backends : résultats réels, novembre 2026
+
+Preuve : `v130-wave2d-conservative-five-lu-99d99f2d-tEOjqgHy.zip`,
+**source canonique** `99d99f2d94c82fe95aac3b39a3aaf3a4c4c27eb8`,
+image native `scrimp-mpi:v1.3.0-rc3` inchangée.
+
+| Solveur / rangs | Résultat natif 10 pas CN | Defaut maximal énergétique par pas |
+|---|---|---:|
+| MUMPS / 1 | **PASS** | 2.9815559743351372e-18 |
+| MUMPS / 2 | **PASS** | 1.6263032587282567e-18 |
+| SuperLU / 1 | **PASS** | 3.0899761915836876e-18 |
+| SuperLU_DIST / 1 | **FAIL premier pas, PETSc error 91** | Indisponible |
+| SuperLU_DIST / 2 | **FAIL premier pas, PETSc error 91** | Indisponible |
+
+Les trois résultats PASS comprennent les 2230 DOFs,
+la totalité des 11 états CN, une puissance gauche non
+nulle (`max|P_L|=0.0489963892`), les quatre ports,
+quatre séries de 11 VTU/PVD et l'initialisation
+DAE algébrique exacte. Une comparaison directe des
+états originaux à MUMPS MPI1 donne
+`max|Δz|=9.248157795127554e-14`
+(MUMPS MPI2) et
+`1.61259894326804e-13`
+(SuperLU MPI1). Les puissances concordent
+à `1.3e-16` ou mieux.
+
+Les deux scénarios SuperLU_DIST assemblent la masse et
+la raideur, effectuent la projection initiale DAE
+(`||F_a||=0`) et atteignent le moniteur
+`i=0, t=0`, **sans accepter de pas physique**.
+PETSc retourne `TSStep DIVERGED_STEP_REJECTED`
+(code 91). Le journal ne renseigne **pas encore**
+la raison profonde SNES/KSP/PC : aucune conclusion
+définitive sur un pivot nul, l'ordonnancement
+SuperLU_DIST ou le conditionnement de la
+matrice n'est justifiée. Ne pas changer la
+physique, les tolérances CN/DAE, ni substituer
+silencieusement MUMPS à SuperLU_DIST.
+
+Le diagnostic désormais disponible réutilise
+`SCRIMP_TS_FAILURE_DIAGNOSTICS=1` dans
+`scrimp/dphs.py` ; il inspecte le solveur
+PETSc réel après l'échec **sans réassemblage,
+relance du solveur ou changement de paramètres**.
+Il exécute uniquement **le premier pas**
+SuperLU_DIST MPI1 dans l'image figée :
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+conda activate scrimp
+
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-wave2d-superlu-dist-diagnostic.sh
+```
+
+Le lanceur écrit
+`v130-wave2d-superlu-dist-first-step-*.zip`,
+conserve ses logs et retourne **échec réel**
+en cas de divergence. La clé
+`MAIN TS FAILURE DIAGNOSTIC:` devrait
+renseigner `SNES_reason`, `KSP_reason`,
+`PC_failed` et le type réel de
+factorisation. La qualification
+**cinq backends reste FAIL**, même si le
+diagnostic identifie la cause : il faudra
+un vrai run de dix pas avec toutes les preuves
+pour l'accepter.
 
 Une fois ces cinq cas qualifiés et leurs
 preuves inspectées, produire les
