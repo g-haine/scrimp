@@ -486,27 +486,60 @@ disabled by default. It does **not** qualify a swapped heat/wave
 physical sign convention, MPI2, arbitrary geometries with dynamic
 solvers, mixed/nonmatching meshes or higher-order FEM spaces.
 
-## Orientation and physical transmission signs: separate obligations
+## Physical transmission signs: updated live Heat-Wave example
 
-The current unchanged published `examples/heat_wave.py` contains
-geometry-specific `heat_normal_orientation = 1 if heat_region == 1 else -1`.
-For heat=2 it uses both `+U_T*Test_e_Q.Normal` for the heat interface
-brick and `set_control("Interface Wave", "-Y_T")`, because it was
-written assuming a *common* interface normal. With resolved outward
-parent-face normals, the same expressions represent a different
-physical transmission convention.
+The numerical example `examples/heat_wave.py` has now been **explicitly
+updated with user authorization** at commit `5042705` to follow
+the mathematical model with **an outward normal on each bulk subdomain**.
 
-The automatic compiler chooses the **correct geometric side**, but
-must not silently rewrite the *user's physical equations*. In a
-physical outward-normal convention where the heat mixed boundary
-input is `T=U_T`, the corresponding heat interface weak term is
-`-U_T*Test_e_Q.Normal` independent of its numbered subdomain; its
-power-conserving cross-system feedback for this Heat-Wave model is
-`U_w=Y_T`. The heat=2 **published form** needs a separate
-documented physical reformulation/validation before one may claim
-that permutation preserves the same transmission model. That
-mathematical/physical model decision is distinct from the
-topology and automatic GetFEM region assignment.
+For both heat=1/wave=2 and heat=2/wave=1, the constitutive transmission
+uses the **same expressions**:
+
+```python
+S.Brick("B_T", "-U_T*Test_e_Q.Normal", [10], position="effort")
+hw.set_control("Interface Heat", "Y_w")
+hw.set_control("Interface Wave", "Y_T")
+```
+
+In the mixed heat/grad-grad wave weak form this represents the signed
+interface power `-U_T*Y_T+U_w*Y_w = 0`. The former disk-based
+`heat_normal_orientation` factor was part of a legacy **common**
+interface normal, not a physical parameter of the paper model.
+Now SCRIMP resolves each outward parent-face normal automatically;
+the application must **not** apply the legacy factor a second time.
+
+The source change **does not modify the eight scientific snapshots**
+under `examples/published/`, which remain protected by
+`scripts/check-v130-published-immutable.py`. The historical native
+Heat-Wave acceptance evidence recorded above used the earlier live
+example source before this user-authorized improvement. For
+heat=1/wave=2, both old and new text specify identical forms.
+
+**Important compatibility gate:** the corrected example requires
+the oriented-interface compiler for physical validity. The
+experimental compiler is still *off by default* in SCRIMP v1.3.0
+release preparation; enable it with
+`SCRIMP_V130_AUTO_INTERFACE_PILOT=1` for the corrected physics.
+The legacy doubled logical region `10` is not an acceptable
+substitute for separately outward-oriented face integration.
+
+### Swapped geometric placement versus physical sign diagnostics
+
+`tests/test_v130_heat_wave_outward_signs.py` guards the new
+region-number-independent law at source level.
+`sandbox/probe_v130_swapped_interface_sign_K.py` and
+`scripts/run-v130-swapped-interface-sign-K.sh` compare real GetFEM
+stiffness on the heat=2/wave=1 configuration, using current live
+example as-is for the `outward` arm, and reconstructing the
+pre-5042705 historical signs **only inside the sandbox** for the
+`published` arm.
+
+The test must show that the old/new changes are localized to the
+`(e_Q,U_T)` and `(U_w,Y_T)` stiffness blocks, with a full sign
+reversal there. This is an **assembly-only** contrast; a separate
+strict DAE/CN energy qualification for the heat=2/wave=1 variant
+is required. This diagnostic has not yet been executed natively.
+
 
 ## Next steps (not implemented here)
 
@@ -523,10 +556,11 @@ topology and automatic GetFEM region assignment.
 4. Bind automatic one-sided internal regions in the GetFEM model without
    duplicate quadrature/DOFs; validate sign conventions for all
    `Normal` terms and the port power accounting.
-5. Validate original Heat-Wave both ways, actual assembled Jacobians,
-   strictly initialized CN energy identities, physical nonzero exchange,
-   MPI 1/2, and external boundary regressions. Only then remove the
-   example's manual geometric sign adaptation.
+5. Validate the revised, outward-normal Heat-Wave source with swapped
+   heat/wave regions, actual assembled Jacobians, strictly initialized
+   CN energy identities, physical nonzero exchange, MPI 1/2 and
+   external boundary regressions. The example's old geometric sign
+   factor has already been removed with explicit user authorization.
 
 **Do not silently auto-select an interface side from variable names,
 brick names, region numbers, geometry radii, or the ordering of bulk
