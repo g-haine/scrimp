@@ -27,8 +27,10 @@ class FirstCNFactorReplaySourceTests(unittest.TestCase):
         self.assertIn(HASH, src)
         self.assertIn('matrix.getOwnershipRange()', src)
         self.assertIn("PETSc.Mat.Option.IGNORE_ZERO_ENTRIES, False", src)
-        self.assertIn("original_full_P_M_K_SHA256",
-        "PETSc_owned_CSR_graph_and_values_identical_to_archive", src)
+        self.assertIn("original_full_P_M_K_SHA256", src)
+        self.assertIn(
+            "PETSc_owned_CSR_graph_and_values_identical_to_archive", src
+        )
         self.assertIn('"P_indptr"', src)
         self.assertIn('"P_indices"', src)
         self.assertIn('"P_data"', src)
