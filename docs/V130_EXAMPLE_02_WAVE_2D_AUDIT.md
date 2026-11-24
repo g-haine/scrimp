@@ -484,6 +484,107 @@ sur MPI2, avec tous les bilans physiques
 et contrôles VTK, avant décision de
 politique backend pour SCRIMP.
 
+## Permutations non régularisantes : échec documenté et nouveau diagnostic matriciel
+
+**Archive native analysée :**
+`v130-wave2d-superlu-dist-ordering-8cb2a51f-422NJxVt.zip`,
+source `8cb2a51f` ; les 13 tests source
+associés ont réussi. Le résultat est
+`FAIL_OR_UNQUALIFIED_SUPERLU_DIST_ORDERING_EXPERIMENT`.
+
+Deux expériences **SuperLU_DIST MPI1** ont réellement échoué :
+
+| Option | Échec | Indice objectif |
+|---|---|---|
+| `mat_superlu_dist_rowperm=LargeDiag_AWPM` | **139**, segmentation fault pendant la factorisation | Message natif `CombBLAS is not available` immédiatement avant le segfault ; le chemin AWPM est non opérationnel avec cette compilation SuperLU_DIST. |
+| `mat_superlu_dist_colperm=MMD_AT_PLUS_A` | **1**, zéro pivot numérique | `KSP_reason=-11`, `PC_failed=2`, `SNES_reason=-3` et aucun pas accepté, comme sans permutation. |
+
+Le log complet contient le **premier vrai
+Jacobien CN** `J=K+250M`, de dimension
+`2230×2230`, avec **25801 coefficients stockés**.
+Aucune valeur infinie/NaN, **aucune ligne
+numériquement nulle**, mais exactement **dix
+diagonales nulles aux indices globaux 80–89**.
+Les mêmes caractéristiques sont observées lors
+des essais de pas raccourcis. Ces dix diagonales
+nulles sont **compatibles avec une matrice de
+point-selle pH-DAE** ; elles ne démontrent
+en aucun cas que la matrice est singulière.
+
+Le message `CombBLAS is not available` est
+cohérent avec le code SuperLU_DIST qui tente
+d'utiliser CombBLAS pour cette permutation ;
+ce chemin a été vérifié dans les sources
+SuperLU_DIST. **Ne plus lancer AWPM** sur
+l'image Docker figée tant que cette capacité
+n'a pas été rétablie et isolément qualifiée.
+Il ne faut pas interpréter ce segfault
+comme une défaillance de la formulation PFEM.
+
+### Étape suivante : PREUVE sur l'opérateur exact
+
+**Aucune nouvelle permutation ni remplacement
+des petits pivots par défaut.** Les fichiers
+suivants préparent un diagnostic reproductible :
+
+- `sandbox/probe_v130_wave2d_factor_matrix.py`
+  capture **après le vrai callback IJacobian
+  et avant la factorisation** les CSR
+  de `P` (préconditionneur réellement factorisé
+  par PETSc), `K` et `M`, ainsi que
+  l'instant `t=0.008`, le shift `250`
+  et les intervalles des **variables GetFEM**.
+  Cette capture, pour MPI1 seulement, ne
+  change ni le solveur ni le code utilisateur.
+- `sandbox/analyze_v130_wave2d_factor_matrix.py`
+  vérifie indépendamment dans **SciPy**
+  `P=K+250M`, compare numériquement les
+  matrices effectivement construites avec
+  **MUMPS et SuperLU_DIST**, calcule le
+  **rang structurel** (sur les non-zéros
+  numériques, sans compter les zéros stockés),
+  identifie les variables propriétaires des
+  dix indices, puis tente `splu` avec
+  pivotage numérique actif,
+  **sans régularisation**.
+  Les résidus des factorisations réussies
+  sont calculés sur un second membre
+  déterministe compatible avec la matrice.
+- `tests/test_v130_wave2d_factor_matrix.py`
+  reproduit une matrice de point-selle
+  de dimension 2230 avec **dix diagonales
+  nulles mais un rang structurel plein**,
+  ainsi qu'un cas réellement déficient.
+  Il détecte également toute divergence
+  entre matrices de référence.
+
+Commande :
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+conda activate scrimp
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-wave2d-superlu-dist-matrix-audit.sh
+```
+
+Le script effectue **un seul pas** avec
+MUMPS MPI1 (contrôle) et SuperLU_DIST MPI1
+(échec attendu), mais capture les matrices
+**avant** l'éventuel échec de LU. Il
+produit un JSON, les trois CSR dans chaque
+répertoire et une archive ZIP même si la
+factorisation SuperLU_DIST échoue.
+**Ce n'est pas une acceptation cinq solveurs.**
+
+**Statut : SOURCE prête ; diagnostic matriciel
+natif EN ATTENTE.** Aucun changement du
+modèle `examples/wave.py` ni de
+`scrimp/dphs.py` n'est requis.
+Les anciens trois PASS demeurent valables ;
+**SuperLU_DIST MPI1/2 reste non qualifié**.
+
 ## Critère de passage à l'étape suivante
 
 Conserver cette fiche comme **audit initial**, et enregistrer
