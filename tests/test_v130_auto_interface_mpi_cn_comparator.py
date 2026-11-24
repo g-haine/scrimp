@@ -65,6 +65,7 @@ def prepare_fake_evidence(root):
                     "real_PETSc_CN_steps": 4,
                     "physical_gates": {"fake_physics": True},
                     "plot_and_ParaView_export_skipped_on_all_ranks": True,
+                    "MPI_rank_isolated_real_ParaView_export_diagnostic": False,
                     "physical_GetFEM_assembly_executed_on_all_ranks": True,
                     "rank_fingerprints": [{"sha": "same"}] * size,
                     "automatic_interface": {"logical_region": 10},
@@ -96,14 +97,14 @@ def compare(root):
     exit_code = 0
     namespace = {"__name__": "__main__", "__file__": str(DRIVER)}
     with patch.dict(os.environ, {"SCRIMP_V130_MPI_PV_DIAGNOSTIC": "0"}):
-      with patch.object(sys, "argv", [str(DRIVER), str(root)]):
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            try:
-                exec(compile(inline_comparator(), str(DRIVER), "exec"), namespace)
-            except SystemExit as exc:
-                exit_code = int(exc.code) if isinstance(exc.code, int) else 1
-            except Exception:
-                traceback.print_exc()
+        with patch.object(sys, "argv", [str(DRIVER), str(root)]):
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                try:
+                    exec(compile(inline_comparator(), str(DRIVER), "exec"), namespace)
+                except SystemExit as exc:
+                    exit_code = int(exc.code) if isinstance(exc.code, int) else 1
+                except Exception:
+                    traceback.print_exc()
                 exit_code = 1
     return SimpleNamespace(
         returncode=exit_code, stdout=stdout.getvalue(),
