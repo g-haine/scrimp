@@ -737,6 +737,58 @@ outputs (``q`` and ``p`` for five solver/MPI combinations) were
 included in the reproducible native archive. This is a **short physical
 installation smoke**, not a long-time wave propagation benchmark.
 
+The longer, **separately qualified** documentation simulation now
+runs for :math:`1.5` seconds (150 accepted CN steps), enabling an
+actual visual study of wave propagation, reflection and the
+effect of the left boundary traction. Its real MUMPS/MPI1
+evidence is ``v130-wave1d-long-doc-7e2e95a4-75oCWG1T.zip``
+(source ``7e2e95a``, pinned image
+``scrimp-mpi:v1.3.0-rc3``).
+
+All **151 accepted FE states** and their ``q``/``p``
+ParaView time series are available in the archive.
+The longest per-step signed CN energy-balance residual is
+:math:`3.44\times 10^{-16}`, and the largest cumulative
+residual is below :math:`7.3\times 10^{-16}`.
+The strict DAE projection has an initial final
+algebraic residual below :math:`2.5\times 10^{-17}`.
+These are measurements, **not** visual-fit metrics.
+
+.. only:: html
+
+   .. figure:: _static/examples/wave_1d/wave_1d_long_native_animation.svg
+      :width: 100%
+      :align: center
+
+      **Long native simulation, 1.5 s:** finite-element strain
+      :math:`q=\partial_x w` and reconstructed incremental
+      displacement :math:`w(x,t)-w(x,0)`. For a lightweight
+      browser animation, this SVG displays 16 **actual**
+      snapshots (every tenth accepted state), with 11 display
+      points along the string; the complete 151-frame GIF and
+      all 41 native P2 visualization values are reproducible
+      from the archive. No extra dynamics or interpolation in
+      time is implied by the animated SVG.
+
+   .. figure:: _static/examples/wave_1d/wave_1d_long_native_energy.svg
+      :width: 100%
+      :align: center
+
+      **Long-time physical power balance:** the change
+      in Hamiltonian follows the signed work at the
+      controlled boundary to roundoff; the second
+      panel shows the non-trivial left port power
+      and the identically zero right port power.
+      The complete 150-step numerical residual is
+      checked from original GetFEM/PETSc data, not
+      the subsampled SVG curves.
+
+For comparison, the following figures come from the
+**much shorter five-solver installation acceptance**
+(:math:`t_f=0.04` s, ten CN steps). They help distinguish a
+software installation check from an illustrative physical
+simulation.
+
 .. only:: html
 
    .. figure:: _static/examples/wave_1d/wave_1d_short_animation.svg
@@ -766,7 +818,9 @@ For a valid run, the corrected numerical balance corresponds to
 .. math::
 
 
-       \mathcal{H}^d(t) - \int_0^t u_R(s) y_R(s) {\rm d}s - \int_0^t u_L(s) y_L(s) {\rm d}s.
+       \mathcal{H}^d(t)-\mathcal{H}^d(0)
+       - \int_0^t \big(u_L(s)y_L(s)+u_R(s)y_R(s)\big)\,{\rm d}s
+       = 0.
 
 
 This example illustrates the same port-Hamiltonian/PFEM framework
@@ -901,11 +955,12 @@ power balance is checked with the **original GetFEM
 Hamiltonian/port-power arrays**, not with these derived
 Float32 visualization points.
 
-The short installation test lasts only 0.04 s, so the animation
-necessarily shows only the beginning of a wave. A **separate,
-optional long documentation demonstration** is available for
-illustrating propagation more clearly, without rerunning or
-changing the five-solver installation acceptance:
+The short installation test lasts only 0.04 s, so its
+animation necessarily shows only the beginning of a wave.
+The **separate, now natively qualified long documentation
+demonstration** is available for illustrating propagation
+more clearly, without rerunning or modifying the five-solver
+installation acceptance:
 
 .. code-block:: bash
 
@@ -913,12 +968,14 @@ changing the five-solver installation acceptance:
     SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
     bash scripts/run-v130-wave1d-long-doc-demo.sh
 
-This longer **MUMPS MPI 1** demonstration simulates 150 fixed CN
+This **MUMPS MPI 1** demonstration simulates 150 fixed CN
 steps over 1.5 s, exports the actual 151 FE snapshots and renders
 PNG/SVG/GIF/CSV data in an isolated user-owned output directory.
-It is **optional and not yet native-qualified**. Its animation
-must be checked against the physical energy and port-power report
-before being added as a published documentation figure.
+**It has passed the native physical gates**, and its animation,
+snapshots and energy plots have been reviewed. The online
+figures above are derived from those accepted numerical results.
+The longer demonstration is optional and is not part of the
+five-solver installation smoke.
 
 The derived displacement requires an explicit convention:
 :math:`q=\partial_x w` determines only a *spatial*
