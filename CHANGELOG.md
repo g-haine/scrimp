@@ -5,6 +5,45 @@ Changes to SCRIMP are recorded here. See also the
 
 ## 1.3.0 — in development (not released)
 
+### Tutoriel initial : corde vibrante 1D, cinq solveurs et figures natives (24 novembre 2026)
+
+- **Exemple 01 qualifié** sur les chemins utilisateurs
+  `examples/wave_1d.py`, avec les cinq vrais solveurs/tailles MPI
+  admissibles : MUMPS (1/2), SuperLU (1), SuperLU_DIST (1/2).
+  Conditions initiales P2 exactement compatibles,
+  128 DOFs, dix pas CN fixes, ports de bord orientés
+  et bilan énergétique à `1.791e-16`.
+  Preuve native :
+  `v130-first-tutorial-wave1d-2a170c82-cwkGUoXC.zip`.
+- **Démonstration illustrative longue également PASS
+  nativement** après le correctif d'archivage :
+  `t_f=1.5`, 150 pas CN acceptés, 151 états enregistrés,
+  MUMPS MPI1, aucun rejet/SNES, résidu d'initialisation
+  DAE `2.481390789592951e-17`, défaut d'énergie
+  par pas `3.434752482434078e-16`, cumulatif
+  `7.216449660063518e-16`. Les **302 VTU**
+  `q`/`p` ont été relus indépendamment.
+  Preuve : `v130-wave1d-long-doc-7e2e95a4-75oCWG1T.zip`.
+  Elle ne remplace pas la validation des cinq backends
+  à horizon court.
+- La documentation Sphinx `Getting started` comprend
+  une **animation SVG légère de 1,5 s issue des vrais
+  états acceptés** et un diagramme vectoriel du
+  Hamiltonien, du travail et des puissances de bord.
+  Le GIF complet de **151 images** et les cartes
+  spatio-temporelles, profils, CSV et NPZ se
+  régénèrent avec `scripts/render-v130-wave1d-doc.py`,
+  sans versionner les nombreux fichiers binaires.
+  Le GIF a fait l'objet d'une revue visuelle, et
+  toute reconstruction de déplacement est identifiée
+  explicitement, avec sa jauge.
+- L'ancien fichier exploratoire
+  `sandbox/wave_1D.py` a été supprimé ;
+  `examples/wave_1d.py` reste l'unique tutoriel
+  canonique, lié aux publications ISAE-SUPAERO
+  pertinentes. Aucun changement dans
+  `examples/published/` ni `master`.
+
 ### Moniteur PETSc TS : échéances d'archivage à l'ULP (24 novembre 2026)
 
 - Correction d'un problème d'**arrondi flottant** dans
@@ -37,11 +76,13 @@ Changes to SCRIMP are recorded here. See also the
   l'Hamiltonien et les puissances sont conservés
   dans des fichiers `rank*.failed.npz/json`
   marqués **NON QUALIFIÉS**, pour diagnostic.
-- **État : correctif source et tests ajoutés,
-  nouvelle simulation native longue en attente.**
-  Les cinq validations LU/MPI précédentes et leurs
-  illustrations issues de la simulation courte
-  restent acquises.
+- **État final : correctif validé nativement.**
+  La nouvelle simulation longue sauvegarde 151/151
+  états, passe les portes énergétiques et produit
+  302 fichiers VTU complets et le GIF vérifié.
+  Archive `v130-wave1d-long-doc-7e2e95a4-75oCWG1T.zip`.
+  La preuve de l'échec initial est conservée,
+  sans assouplissement des contrôles physiques.
 
 ### Promotion des interfaces conformes et des exports ParaView MPI (24 novembre 2026)
 
