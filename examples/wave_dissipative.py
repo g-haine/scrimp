@@ -300,6 +300,12 @@ def measure_wave_2d(system):
         and system.last_ts_rejections == 0
         and system.last_ts_snes_failures == 0
     )
+    cv = (
+        system.last_ts_converged_reason > 0
+        and system.last_ts_steps == len(t)-1
+        and system.last_ts_rejections == 0
+        and system.last_ts_snes_failures == 0
+    )
     magnitude = max(1., float(np.max(np.abs(H))))
     gates = {
         "native_TS_fixed_CN_complete_accepted_samples": bool(cv),
