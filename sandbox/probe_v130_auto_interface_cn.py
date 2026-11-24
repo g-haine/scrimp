@@ -48,8 +48,6 @@ def main():
         raise RuntimeError("Refusing existing evidence directory")
 
     old_collector = main2d.collect_heat_wave_physics
-    old_heat = facet_physics.HEAT_FACES
-    old_wave = facet_physics.WAVE_FACES
     old_argv = sys.argv
     captures = []
 
@@ -90,32 +88,25 @@ def main():
         if original_mesh_region.shape != (2, 156):
             raise RuntimeError("Original doubled logical region was overwritten")
 
-        # Existing physical balance collector is kept byte-for-byte
-        # unchanged. Its two region identifiers are replaced ONLY for
-        # the duration of this actual physical midpoint measurement.
-        # All numerical definitions and thresholds remain identical.
-        facet_physics.HEAT_FACES = heat
-        facet_physics.WAVE_FACES = wave
-        try:
-            traces, physical = facet_physics.collect_heat_wave_dual_facet_physics(
-                system, times, hamiltonian,
-            )
-        finally:
-            facet_physics.HEAT_FACES = old_heat
-            facet_physics.WAVE_FACES = old_wave
+        # Pass the compiler-resolved oriented faces explicitly. The
+        # historical collector defaults (30/31) remain stable for
+        # reference tests, with no mutable module-level switching.
+        traces, physical = facet_physics.collect_heat_wave_dual_facet_physics(
+            system, times, hamiltonian,
+            heat_faces=heat, wave_faces=wave,
+        )
         if (physical["interface_heat_region"] != heat
                 or physical["interface_wave_region"] != wave
                 or not physical["old_doubled_interface_region_excluded_from_physical_power"]):
             raise RuntimeError("Physical power used incorrect interface faces")
-        # The reference collector's literal 30/31 provenance strings are
-        # valid only for the historical sandbox. Rewrite metadata, NOT
-        # the actual formula or measurements, for dynamically allocated
-        # oriented regions. This prevents a misleading scientific report.
+        # The collector itself now reports the resolved-face convention
+        # directly. Only the experimental assembly's provenance differs.
+        if physical["CN_interface_power_balance_weak_form_expected_sign"] != (
+            f"-heat_region{heat} + wave_region{wave}"
+        ):
+            raise RuntimeError("CN physical sign metadata names wrong facet regions")
         physical["source"] = (
             "unmodified original heat_wave_eq, automatic DPHS compilation"
-        )
-        physical["CN_interface_power_balance_weak_form_expected_sign"] = (
-            f"-heat_region{heat} + wave_region{wave}"
         )
 
         # Qualify the PUBLIC algebraic Port.compute API as well as the
@@ -166,8 +157,6 @@ def main():
         compatible_cn.main()
     finally:
         main2d.collect_heat_wave_physics = old_collector
-        facet_physics.HEAT_FACES = old_heat
-        facet_physics.WAVE_FACES = old_wave
         sys.argv = old_argv
 
     if len(captures) != 1:
