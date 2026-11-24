@@ -121,8 +121,8 @@ cd ~/Simulations/scrimp
 git pull --ff-only
 conda activate scrimp
 
-SCRIMP_DOCKER_NO_SUDO=1 \\
-SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \\
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
 bash scripts/run-v130-first-wave-1d-acceptance.sh
 ```
 
