@@ -4909,3 +4909,42 @@ incompatible Saint-Venant p0 remains unchanged;
 restored saved state is physically compatible,
 but reaching the C1 wall plateau does NOT imply
 interior stationary rotation.
+
+## 24 November 2026 — physical Heat-Wave 2D initial feasibility: failed correctly
+
+Native Heat-Wave 2D from source `573d9d93` used **default L2
+projection and distributed COO** to initialize T, p, q and assemble
+both matrices. Its true index-2 algebraic DAE initializer then
+rejected the fixed differential initial data with
+`||F_a||=0.00762918411` and
+`feasibility_tolerance=1.26173797e-08`.
+No main CN TS, energy/power trajectory or backend parity took
+place. This is not evidence against COO or the 15-family
+L2 projection.
+
+The original `examples/heat_wave.py` prescribes the same analytic
+Gaussian to heat T (DG0 on disk) and wave p (CG1 on annulus),
+with q=0, and homogeneous wave-velocity Dirichlet data
+`p|Gamma_outer=0`. The continuous Gaussian at (x,y)=(1,0)
+is `5*exp(-4) > 0`: **the continuous initial data violate the
+exterior prescribed trace**. Further incompatibility can arise
+from independently projecting the same Gaussian into two
+different FEM families, making the interface traces disagree
+despite analytic equality.
+
+Do not silently raise DAE tolerances, mutate the differential
+coefficients in the algebraic-only initializer, or use pseudo-TS
+to conceal this issue. Production now reports the *actual
+IFunction* algebraic residual per named port variable and region
+on infeasibility, strictly verifies that block norms reconstruct
+the full algebraic norm, and still rejects the candidate
+without publishing it. A dedicated native diagnostic runner
+expects the incompatibility and records its report; this is
+**not** an acceptance of the full physical Heat-Wave example.
+
+A future *separate and explicit* compatible initial-data policy
+may minimize physical discrete L2 distance jointly over dynamic
+and algebraic coefficients subject to all algebraic constraints.
+Such a constrained projection is mathematically distinct from
+independent unconstrained FE L2 projection and must be qualified
+with actual outer/interface trace and energy/power tests.

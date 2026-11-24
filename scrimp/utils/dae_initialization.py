@@ -133,6 +133,61 @@ def _collective_error(mpi, local_error):
         )
 
 
+def _algebraic_residual_by_variable(system, residual, mpi):
+    """Diagnose the *native* algebraic IFunction rows without modifying them.
+
+    Identify the same flow/effort intervals as _intervals(). Values are
+    collective L2 norms of algebraic residual coefficients, *not*
+    boundary physical L2 trace norms. This is evidence for deciding
+    which compatibility condition needs an independent physical test.
+    """
+    lo, hi = map(int, residual.getOwnershipRange())
+    owned_values = np.asarray(residual.getArray(readonly=True))
+    if owned_values.size != hi-lo:
+        raise ValueError("Wrong PETSc native residual ownership")
+    seen = set()
+    details = {}
+    for port in system.ports.values():
+        if port.get_algebraic():
+            names = [port.get_flow()]
+            if not port.get_substituted():
+                names.append(port.get_effort())
+        elif port.get_substituted():
+            names = []
+        else:
+            names = [port.get_effort()]
+        for name in names:
+            if not name or name in seen:
+                continue
+            seen.add(name)
+            start, width = map(
+                int, system.gf_model.interval_of_variable(name)
+            )
+            local_start = max(start, lo)
+            local_end = min(start+width, hi)
+            local_sq = 0.0
+            if local_end > local_start:
+                part = owned_values[
+                    local_start-lo:local_end-lo
+                ]
+                local_sq = float(np.vdot(part, part).real)
+            total_sq = float(mpi.allreduce(local_sq, op=MPI.SUM))
+            if not np.isfinite(total_sq) or total_sq < 0.0:
+                raise ValueError(
+                    "Non-finite algebraic residual decomposition"
+                )
+            details[name] = {
+                "residual_l2": float(np.sqrt(total_sq)),
+                "dofs": int(width),
+                "port": str(port.get_name()),
+                "region": (
+                    None if port.get_region() is None
+                    else int(port.get_region())
+                ),
+            }
+    return details
+
+
 def initialize_linear_algebraic(system):
     """Initialize compatible algebraic variables while preserving states.
 
@@ -346,14 +401,51 @@ def initialize_linear_algebraic(system):
             "ksp_options_prefix": ksp.getOptionsPrefix(),
             "passes": history,
         }
+        if final_norm > tolerance:
+            # Preserve the actual native algebraic row content before
+            # restoring the rejected algebraic candidate. Never
+            # reinterpret weak row norms as physical boundary traces.
+            by_variable = _algebraic_residual_by_variable(
+                system, residual, mpi
+            )
+            sum_sq = sum(
+                part["residual_l2"]**2
+                for part in by_variable.values()
+            )
+            if not np.isclose(
+                sum_sq, final_norm**2,
+                rtol=1e-7, atol=1e-18
+            ):
+                raise RuntimeError(
+                    "Algebraic residual variable partition disagrees "
+                    "with the native IFunction algebraic-row norm"
+                )
+            ranking = sorted(
+                by_variable.items(),
+                key=lambda item: item[1]["residual_l2"],
+                reverse=True,
+            )
+            report["algebraic_residual_by_variable"] = by_variable
+            report["dominant_algebraic_variables"] = [
+                {
+                    "variable": name,
+                    **detail,
+                }
+                for name, detail in ranking[:5]
+            ]
         system.initialization_report = report
         if final_norm > tolerance:
+            leaders = ", ".join(
+                f"{a['variable']}={a['residual_l2']:.4g}"
+                for a in report["dominant_algebraic_variables"][:3]
+            )
             raise InconsistentDAEInitialData(
                 "Fixed prescribed dynamic initial data do not admit "
                 "an algebraic state at the requested numerical tolerance "
                 f"(||F_a||={final_norm:.9g}, tolerance={tolerance:.9g}); "
-                "consider revising boundary/initial data or explicitly "
-                "requesting historical pseudo/BDF initial relaxation"
+                f"largest native algebraic blocks: {leaders}; "
+                "consider revising physically incompatible initial/"
+                "boundary data, not silently relaxing the constraints"
             )
         accepted = True
         return report
