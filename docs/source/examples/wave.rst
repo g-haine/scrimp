@@ -1,5 +1,5 @@
 The wave equation — 2A: conservative anisotropic membrane
-==============================================================
+=========================================================
 
 .. _Wave_2D:
 
@@ -332,7 +332,7 @@ chapter changes the state variables and adds
 spatially localized damping.
 
 2B — Adding damping to the DPHS
---------------------------
+-------------------------------
 
 .. automodule:: examples.wave_dissipative
    :members:
