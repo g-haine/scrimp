@@ -6,16 +6,15 @@
 #
 # github: https://github.com/g-haine/scrimp
 
-"""Swapped heat=2/wave=1: distinguish geometric and legacy physical signs.
+"""Swapped heat=2/wave=1: compare historical and outward-normal laws.
 
-Actual pinned GetFEM/PETSc *stiffness* assembly from the unmodified
-original Heat-Wave example with the experimental automatic internal
-interface compiler. Two independent sandbox variants differ ONLY in
-the heat mixed boundary term and wave feedback sign.
+Real GetFEM/PETSc stiffness assembly from the current Heat-Wave example.
+The outward variant uses the source AS-IS. The historical variant
+recreates the previous disk-based sign corrections *only inside this
+sandbox diagnostic*, without editing the example.
 
-This is NOT a production rewrite of the user's transmission laws.
-It proves which operator blocks those two historical normal-convention
-compensations alter; no DAE, CN or energy result is claimed here.
+A matrix contrast cannot by itself validate physical correctness.
+No DAE/CN or energy claims.
 """
 
 import argparse
@@ -57,20 +56,20 @@ def main():
 
     def brick_constructor(*pos, **kwargs):
         if pos and pos[0] == "B_T":
-            if len(pos) < 3 or pos[1] != "U_T*Test_e_Q.Normal":
-                raise RuntimeError("Original swapped heat interface form changed")
+            if len(pos) < 3 or pos[1] != "-U_T*Test_e_Q.Normal":
+                raise RuntimeError("Current outward heat interface form changed")
             intercepted["brick"] += 1
-            if args.variant == "outward":
-                pos = (pos[0], "-U_T*Test_e_Q.Normal", *pos[2:])
+            if args.variant == "published":
+                pos = (pos[0], "U_T*Test_e_Q.Normal", *pos[2:])
         return original_brick(*pos, **kwargs)
 
     def control_law(system, name, expression):
         if name == "Interface Wave":
-            if expression != "-Y_T":
-                raise RuntimeError("Original swapped wave transmission law changed")
+            if expression != "Y_T":
+                raise RuntimeError("Current outward wave transmission law changed")
             intercepted["feedback"] += 1
-            if args.variant == "outward":
-                expression = "Y_T"
+            if args.variant == "published":
+                expression = "-Y_T"
         return original_set_control(system, name, expression)
 
     def after_native_assembly(system):
@@ -128,14 +127,15 @@ def main():
             "status": "DIAGNOSTIC_SWAPPED_NATIVE_ASSEMBLY_ONLY",
             "variant": args.variant,
             "physical_meaning": (
-                "as-published historical common-normal sign compensation"
+                "pre-5042705 historical disk-based sign compensation, "
+                "reconstructed only in the sandbox"
                 if args.variant == "published"
-                else "outward-normal T=U_T and U_w=Y_T transmission convention"
+                else "current outward-normal T=U_T and U_w=Y_T convention"
             ),
             "original_example_source_modified": False,
             "runtime_only_physical_sign_overrides": (
-                [] if args.variant == "published"
-                else ["B_T", "set_control(Interface Wave)"]
+                ["B_T", "set_control(Interface Wave)"]
+                if args.variant == "published" else []
             ),
             "logical_interface_region": 10,
             "effective_heat_region": heat_port.get_assembly_region(),
