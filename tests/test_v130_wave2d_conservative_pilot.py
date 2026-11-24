@@ -133,7 +133,7 @@ class Mixed2DWavePilot(unittest.TestCase):
         self.assertIn("Neumann", doc)
         self.assertIn("wave_coenergy", doc)
         self.assertIn("wave_dissipative", doc)
-        self.assertIn("q\\cdot Tq", doc)
+        self.assertIn(r"q\cdot Tq", doc)
         self.assertEqual(doc.count(".. literalinclude:: ../../../examples/wave.py"), 7)
         self.assertEqual(doc.count("   :dedent: 4"), 7)
         for j in range(1, 8):
@@ -143,7 +143,7 @@ class Mixed2DWavePilot(unittest.TestCase):
                 self.assertIn(f"   :start-after: {token}", doc)
         # The Sphinx code is included by reference, not copied
         # from another file whose arguments can drift.
-        self.assertNotIn("init_step_ts_type=\\\"pseudo\\\"", doc[:doc.index(
+        self.assertNotIn('init_step_ts_type="pseudo"', doc[:doc.index(
             "2B — Adding damping to the DPHS"
         )])
         self.assertIn("Adding damping", doc)
@@ -152,7 +152,7 @@ class Mixed2DWavePilot(unittest.TestCase):
         runner=source(ROOT/"scripts"/"run-v130-wave2d-conservative-acceptance.sh")
         self.assertIn("mumps:1 mumps:2 superlu:1 superlu_dist:1 superlu_dist:2", runner)
         self.assertIn('python -u -m examples.wave', runner)
-        self.assertIn('state', runner)
+        self.assertIn('"z"', runner)
         self.assertIn("power_left", runner)
         self.assertIn("e_q", runner)
         self.assertIn("e_p", runner)
