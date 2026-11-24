@@ -872,6 +872,49 @@ class DPHS:
             "assembled_with_oriented_faces": False,
         }
 
+    def audit_interface_brick_plan(self, interface, subdomains, mesh_id=0):
+        """Compute a read-only plan for all declared interface bricks.
+
+        Each form is assigned to the subdomain owning its tested
+        variable(s). In cross-domain feedback, the receiving test
+        variable fixes the side; the source variable does not. This
+        method does not allocate regions, alter FEM DOFs, or reassemble
+        GetFEM. In particular it does not qualify physical port signs.
+        """
+        from scrimp.interface_assembly_plan import plan_brick_sides
+
+        ownership = self.audit_interface_ownership(
+            interface, subdomains, mesh_id=mesh_id,
+        )
+        bulk = {}
+        port_fields = {}
+        for port in self.ports.values():
+            if port.get_mesh_id() != mesh_id:
+                continue
+            region = port.get_region()
+            names = (port.get_flow(), port.get_effort())
+            if region in subdomains:
+                for name in names:
+                    if name:
+                        bulk[name] = int(region)
+            elif region == interface:
+                port_fields[port.get_name()] = names
+
+        bricks = (
+            (brick.get_name(), brick.get_regions(), brick.get_form())
+            for brick in self.bricks.values()
+            if brick.get_mesh_id() == mesh_id
+        )
+        plan = plan_brick_sides(
+            interface, subdomains, port_fields, bulk,
+            ownership["port_owners"], bricks,
+        )
+        return {
+            **ownership,
+            "brick_plan": plan,
+            "getfem_assembly_modified": False,
+        }
+
     def add_FEM(self, fem: FEM):
         """This function adds a FEM (Finite Element Method) for the variables associated to a port of the dphs
 
