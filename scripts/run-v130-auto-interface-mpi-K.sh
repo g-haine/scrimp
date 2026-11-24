@@ -27,13 +27,16 @@ revision="$("${docker_cmd[@]}" image inspect \
 python3 -m py_compile \
   scrimp/interface.py scrimp/interface_discovery.py scrimp/interface_deferred.py \
   scrimp/dphs.py scrimp/port.py scrimp/brick.py examples/heat_wave.py \
-  sandbox/probe_v130_auto_interface_mpi_K.py
+  sandbox/probe_v130_auto_interface_mpi_K.py \
+  sandbox/v130_interface_csr_parity.py \
+  tests/test_v130_interface_mpi_csr_parity.py
 python3 tests/test_v130_interface_topology.py
 python3 tests/test_v130_interface_ownership.py
 python3 tests/test_v130_interface_assembly_plan.py
 python3 tests/test_v130_interface_deferred.py
 python3 tests/test_v130_hw_facet_collector_regions.py
 python3 tests/test_v130_heat_wave_outward_signs.py
+python3 tests/test_v130_interface_mpi_csr_parity.py
 python3 scripts/check-v130-published-immutable.py
 
 mkdir -p sandbox/outputs
@@ -83,6 +86,7 @@ import json, sys, zipfile
 from pathlib import Path
 import numpy as np
 from scipy.sparse import load_npz, vstack
+from sandbox.v130_interface_csr_parity import compare_assembled_csr
 
 root = Path(sys.argv[1])
 summary = {"schema": "scrimp-v130-auto-interface-actual-MPI-K-parity-v1",
@@ -127,7 +131,10 @@ try:
         for x in ranges[1:]:
             if x[2]["interface_compiler"] != ranges[0][2]["interface_compiler"]:
                 raise RuntimeError(f"MPI ranks disagree on oriented compiler: {label}")
-        K = vstack((x[3] for x in ranges), format="csr")
+        # scipy.sparse.vstack requires a SEQUENCE, not a generator.
+        # A generator is interpreted as a 0-D object array and raises:
+        # TypeError: iteration over a 0-d array.
+        K = vstack([x[3] for x in ranges], format="csr")
         K.sum_duplicates()
         K.sort_indices()
         return K, identity
@@ -136,33 +143,23 @@ try:
     for heat in (1, 2):
         A, owned1 = reconstruct(f"heat{heat}_mpi1", 1)
         B, owned2 = reconstruct(f"heat{heat}_mpi2", 2)
-        delta = (A - B).tocsr()
-        delta.eliminate_zeros()
-        abs_max = float(np.max(np.abs(delta.data))) if delta.nnz else 0.
-        ref_max = float(np.max(np.abs(A.data))) if A.nnz else 0.
-        threshold = 1e-12 + 1e-11 * ref_max
-        strict_CSR = bool(
-            np.array_equal(A.indptr, B.indptr)
-            and np.array_equal(A.indices, B.indices)
-            and np.array_equal(A.data, B.data)
-        )
         expected_n = 7689 if heat == 1 else 8056
-        passed = bool(
-            A.shape == B.shape == (expected_n, expected_n)
-            and A.nnz == B.nnz and abs_max <= threshold
-            and len(owned2) == 2 and owned2[0]["rows"][1] ==
-                owned2[1]["rows"][0]
+        # PETSc distributed COO may store extra EXPLICIT zeros in the
+        # MPI2 matrix. They are reported but eliminated for canonical
+        # numerical CSR comparison. Real sparsity/value differences
+        # still cause a fail-closed outcome.
+        parity = compare_assembled_csr(A, B, expected_n)
+        rows_valid = bool(
+            len(owned2) == 2 and owned2[0]["rows"][0] == 0
+            and owned2[0]["rows"][1] == owned2[1]["rows"][0]
+            and owned2[1]["rows"][1] == expected_n
         )
+        passed = bool(parity["passed"] and rows_valid)
         summary["cases"][f"heat{heat}_wave{3-heat}"] = {
             "status": "PASS_MPI2_ASSEMBLED_K_PARITY" if passed
                       else "FAIL_MPI2_ASSEMBLED_K_NOT_EQUAL",
-            "global_shape": list(A.shape),
-            "MPI1_nnz": int(A.nnz),
-            "MPI2_nnz": int(B.nnz),
-            "difference_nnz": int(delta.nnz),
-            "max_abs_difference": abs_max,
-            "threshold": threshold,
-            "bitwise_CSR_identical": strict_CSR,
+            **parity,
+            "MPI2_owned_row_partition_valid": rows_valid,
             "MPI1_owned_rows": owned1,
             "MPI2_owned_rows": owned2,
         }
