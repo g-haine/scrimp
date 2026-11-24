@@ -4948,3 +4948,33 @@ and algebraic coefficients subject to all algebraic constraints.
 Such a constrained projection is mathematically distinct from
 independent unconstrained FE L2 projection and must be qualified
 with actual outer/interface trace and energy/power tests.
+
+## 24 November 2026 — targeted compatible Heat-Wave initial-data candidates
+
+User original native evidence `v130-heat-wave-dae-feasibility-2646e2a4-TbczyIrM.zip`
+has been inspected: the strict algebraic initializer correctly rejects
+the original Gaussian field. The entire residual
+`7.629184109516763e-3` is accounted for by the exterior
+`U_bnd` and `Y_bnd` norms `5.39464781876e-3` each.
+All other blocks, including interface 10 and heat flux e_Q,
+are at roundoff (`<=1.01e-12`). The original analytic wave
+velocity at exterior (1,0) is `5*exp(-4)=0.0915781944436709`,
+while its prescribed Dirichlet value is zero.
+
+An isolated new probe tests two **explicit** corrected initial
+velocity fields on the unmodified original example, after the
+usual mass L2 projection but before the true DAE initializer:
+(1) zero only the CG1 boundary DOFs; (2) find the closest
+zero-boundary CG1 field in the actual physical L2 norm
+`||p - p_L2||_M`, solving
+`M_FF Delta_F = M_FB (p_L2)_B`
+with the standard distributed COO GetFEM/PETSc sparse
+mass bridge and MUMPS. Both preserve T and q and run the
+unchanged strict DAE initializer: no pseudo-time, no
+massaging tolerances, and no publication-era source edits.
+The native pilot terminates before PETSc TS, so even
+a successful DAE feasibility correction must NOT be
+misrepresented as complete Heat-Wave physical power/energy
+qualification. The new runner archives both candidate
+reports and all native logs and explicitly distinguishes
+PASS from unresolved strict feasibility.
