@@ -5,6 +5,44 @@ Changes to SCRIMP are recorded here. See also the
 
 ## 1.3.0 — in development (not released)
 
+### Moniteur PETSc TS : échéances d'archivage à l'ULP (24 novembre 2026)
+
+- Correction d'un problème d'**arrondi flottant** dans
+  `DPHS.monitor()` : le test strict
+  `next_saved_at_t - t <= 0` pouvait ignorer un véritable
+  pas CN accepté lorsque `last_saved_t+dt_save` dépassait
+  `t` de **un ULP**.
+- Reproduction native exacte : le tutoriel onde 1D prolongé
+  jusqu'à `t=1.5` (`dt=dt_save=0.01`) a réussi
+  **150/150 pas PETSc**, sans rejet ni échec SNES,
+  avec un résidu DAE initial `2.48139079e-17`,
+  mais n'a pas archivé l'état **i=149, t≈1.49**.
+  La comparaison scientifique a **correctement refusé**
+  l'archive de 150 états au lieu de 151, avant
+  l'export VTK. Preuve de l'échec :
+  `v130-wave1d-long-doc-f0b589a9-uOwc7fiY.zip`.
+- La nouvelle fonction pure
+  `scrimp/utils/trajectory_sampling.py:saved_time_is_due()`
+  tolère au plus **16 ULP**, plafonnés à
+  `1e-6 * dt_save`, sans fabriquer de solution
+  ni déformer la grille physique ; le sous-échantillonnage
+  explicite `dt_save>dt` est conservé.
+  Régressions ciblées :
+  `tests/test_v130_trajectory_sampling.py`,
+  y compris l'oubli exact du pas 149.
+- Le contrôle scientifique `last_ts_steps == len(saved_t)-1`
+  et les bilans CN restent stricts ; l'exception
+  explique désormais quelle quantité manque.
+  En cas de nouvel échec, les états FE acceptés,
+  l'Hamiltonien et les puissances sont conservés
+  dans des fichiers `rank*.failed.npz/json`
+  marqués **NON QUALIFIÉS**, pour diagnostic.
+- **État : correctif source et tests ajoutés,
+  nouvelle simulation native longue en attente.**
+  Les cinq validations LU/MPI précédentes et leurs
+  illustrations issues de la simulation courte
+  restent acquises.
+
 ### Promotion des interfaces conformes et des exports ParaView MPI (24 novembre 2026)
 
 - **Branche `release/1.3.0-preparation` uniquement, sans fusion dans
