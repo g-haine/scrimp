@@ -157,11 +157,17 @@ SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
 bash scripts/run-v130-wave1d-long-doc-demo.sh
 ```
 
-**Ce scénario long n'est pas encore qualifié nativement.**
-Il ne remet pas en question les cinq PASS déjà obtenus.
-La documentation en ligne peut employer l'animation
-SVG courte dès maintenant ; la future animation GIF
-longue ne sera publiée qu'après examen des preuves.
+**Le scénario long est désormais qualifié nativement** à
+`7e2e95a` (MUMPS MPI1, 150 pas CN, 151 états acceptés),
+indépendamment des cinq simulations de validation
+d'installation courtes. Le GIF de 151 trames et les
+figures ont été examinés visuellement, et les **302 VTU**
+ont été analysés avec leurs métadonnées PVD, leur contenu
+`Float32` et les deux maillages d'éléments finis.
+La documentation Sphinx intègre des **SVG animés et
+statiques légers** issus de cette simulation, tandis
+que le GIF complet reste reproductible depuis l'archive.
+Voir la qualification détaillée ci-dessous.
 
 ## 3bis. Incident de la démonstration longue : t=1,49 non archivé
 
@@ -217,13 +223,89 @@ contrôle de l'exemple reste **strict** :
 `last_ts_steps == len(times)-1`, défaut
 énergétique pas-à-pas et bilan global.
 
-**État actuel : correction SOURCE PRÊTE, nouveau
-PASS NATIF LONG EN ATTENTE.** Cet incident ne
-change en rien la qualification antérieure
-des cinq solveurs ni les illustrations issues
-du test court. La nouvelle démonstration longue
-doit être exécutée et son GIF réellement
-inspecté avant publication dans Sphinx.
+**État final : RÉSOLU, PASS NATIF LONG OBTENU.**
+Le second essai au commit `7e2e95a` conserve les
+151 instants attendus et satisfait les bilans
+énergétiques stricts. Le GIF et les figures ont
+été vérifiés sur les vrais résultats de GetFEM.
+L'archive d'échec initiale demeure conservée comme
+preuve et test de non-régression ; le correctif de
+l'archivage n'a pas nécessité d'assouplir les
+critères de conservation.
+
+## 3ter. Qualification native de la démonstration longue : PASS
+
+**Source exacte :**
+`7e2e95a46645762ac09027428b5bb2abe8cff7a0`.  
+**Image native figée :** `scrimp-mpi:v1.3.0-rc3`,
+révision `1d6d0c90115213298047b28237a7f38087563a35`.  
+**Archive complète :**
+`v130-wave1d-long-doc-7e2e95a4-75oCWG1T.zip`
+(319 entrées, ~3,5 Mo compressés).
+
+**Résultat effectif du script :
+`PASS_REAL_NATIVE_LONG_WAVE_1D_DOC_FIGURES`.**
+Les dix régressions d'archivage et les seize tests
+du tutoriel passent dans le préflight.
+
+| Grandeur contrôlée | Résultat natif |
+|---|---|
+| Modèle | Corde 1D, 128 DOFs, `h=0,05` |
+| Résolution | PETSc CN fixe, MUMPS, MPI1 |
+| Horizon | `t=[0,1,5]`, `dt=dt_save=0,01` |
+| Pas de temps / états effectivement conservés | **150 / 151** |
+| Rejets TS / échecs SNES | **0 / 0** |
+| Initialisation algébrique finale | `2,481390789592951e-17` |
+| Hamiltonien min / max | `0,2666666667 / 0,8271913855` |
+| Puissance totale min / max | `-0,2030118 / 1,6987573` |
+| Défaut maximal par pas CN | `3,434752482434078e-16` |
+| Défaut maximal cumulé `H-H0-W` | `7,216449660063518e-16` |
+| VTK `q` (P2) | **151 VTU, 41 points, 20 cellules** |
+| VTK `p` (P1) | **151 VTU, 21 points, 20 cellules** |
+| PVD | **2 séries, 151 instants corrects chacune** |
+
+Les **302 fichiers VTU** ont été relus indépendamment
+du message `PASS` : chaque XML contient un champ
+`Float32` fini et un maillage de dimension correcte.
+Les traces originales enregistrent les 151 vrais
+temps de PETSc ; aucune interpolation de trajectoire
+n'a été ajoutée par le correctif de moniteur.
+
+**Revue visuelle :** le GIF contient 151 trames, de
+dimensions 880×770, et montre clairement la
+propagation, le changement de signe de la déformation
+et les réflexions. Le déplacement présenté n'est
+**pas** une variable supplémentaire de la DAE :
+il est reconstruit de façon documentée, avec la
+jauge initiale `w(0,0)=0`.
+
+La documentation HTML intègre des fichiers
+texte SVG peu volumineux :
+
+- `wave_1d_long_native_animation.svg` : 16 vrais
+  instantanés espacés de 0,1 s, extraits parmi les
+  151 états acceptés (11 des 41 points P2
+  affichés). La réduction est **uniquement visuelle**.
+- `wave_1d_long_native_energy.svg` : bilan
+  (H(t)-H(0)=W_{\partial\Omega}(t)) et puissance
+  de bord signée, sous-échantillonnés pour la figure,
+  avec seuil de conservation calculé sur toutes
+  les 150 étapes originales.
+
+Les ressources graphiques complètes
+`wave_1d_string.gif`, PNG/SVG et CSV/NPZ
+sont générables depuis la simulation validée avec
+`scripts/render-v130-wave1d-doc.py`; elles n'ont
+pas été copiées intégralement dans le dépôt.
+Le GIF et les données riches restent dans
+l'archive de preuve, afin de ne pas encombrer
+les sources et la documentation Sphinx.
+
+**Limite :** ceci qualifie la simulation longue
+**MUMPS MPI1 seulement** ; les cinq combinaisons
+LU/MPI demeurent qualifiées séparément sur le test
+d'installation court. Aucun benchmark de temps
+de calcul ou d'ordre de convergence n'est inféré.
 
 ## 4. Reproductibilité
 
@@ -276,9 +358,12 @@ tests de convergence.
 
 **Premier exemple SCIENTIFIQUEMENT QUALIFIÉ
 et correctement exposé dans le guide utilisateur.**
-Restent à vérifier avant d'éventuelles figures de
-propagation longue : l'exécution native séparée,
-ses bilans énergétiques et les images produites.
+Les simulations courte et longue sont maintenant
+qualifiées, avec des figures et animations effectivement
+reproduites depuis les données natives. Le contrôle
+Sphinx HTML/LaTeX de ces nouvelles références
+graphiques reste à exécuter après cette intégration
+documentaire, sans rouvrir la physique du modèle.
 La suppression de l'ancien fichier
 `sandbox/wave_1D.py` constitue un nettoyage
 de dépôt **sans perte d'un code publié**.
