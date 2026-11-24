@@ -5,6 +5,33 @@ Changes to SCRIMP are recorded here. See also the
 
 ## 1.3.0 — in development (not released)
 
+### Synchronisation stricte des blocs Sphinx du tutoriel onde 1D (24 novembre 2026)
+
+- Revue **bloc par bloc** de `docs/source/started.rst`
+  face à la source scientifique qualifiée
+  `examples/wave_1d.py`. Correction du maillage
+  documenté (`h=0.05` au lieu de `0.01`),
+  des noms Python, de la description de la tension
+  physique, de `init_step=True`, des options
+  explicites de solveur `gmres/lu`, de l'ordre des
+  énergies et des paramètres de visualisation.
+- **14/14 appels GWFL Brick** documentés sont
+  désormais identiques à ceux de la source,
+  y compris les deux ports signés. Les **11
+  blocs Python** constituent une recette exécutable
+  dans leur ordre d'apparition et conservent
+  exactement les paramètres numériques du programme.
+- Nouveau test `tests/test_v130_wave_1d_doc_parity.py`
+  dans la CI : comparaison **AST** des constructeurs,
+  briques, FEM, commandes, DAE/CN, solveurs et
+  appels Hamiltonien ; échec explicite si
+  la documentation dérive du code natif.
+- Modifications **exclusivement documentaires
+  et de tests** : les résultats physiques natifs
+  des cinq solveurs et de la démonstration longue
+  restent valides. Contrôle source supplémentaire
+  à exécuter sur l'environnement de l'utilisateur.
+
 ### Tutoriel initial : corde vibrante 1D, cinq solveurs et figures natives (24 novembre 2026)
 
 - **Exemple 01 qualifié** sur les chemins utilisateurs
