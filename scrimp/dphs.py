@@ -796,6 +796,82 @@ class DPHS:
         if rank == 0:
             logging.info(f"port: {port.get_name()} has been added {where}")
 
+    def audit_interface_ownership(self, interface, subdomains, mesh_id=0):
+        """Audit an interface against this DPHS's declared ports and bricks.
+
+        The public GetFEM interface region is not modified. The domain
+        verifies real two-sided geometry; the ownership audit then uses
+        *only* explicit bulk-variable anchors in actual registered weak
+        forms. It never silently reorients FEMs or bricks and must not
+        be interpreted as a physical/model/DAE qualification.
+
+        Call after defining the ports and bricks (including controls).
+        Raises InterfaceOwnershipError for missing/conflicting owners,
+        and InterfaceTopologyError for unsupported interface geometry.
+        """
+        from scrimp.interface_ownership import (
+            InterfaceOwnershipError, infer_interface_port_owners,
+        )
+
+        if self.domain is None or not self.domain.get_isSet():
+            raise ValueError("Domain must be set before interface audit")
+        if not isinstance(mesh_id, int) or not 0 <= mesh_id < len(self.domain.get_mesh()):
+            raise ValueError(f"Invalid mesh_id for interface: {mesh_id}")
+        subdomains = tuple(int(r) for r in subdomains)
+        if len(subdomains) != 2 or len(set(subdomains)) != 2:
+            raise InterfaceOwnershipError("Two distinct subdomains required")
+        interface = int(interface)
+
+        # Prove topology first, including opposing parent-face normals.
+        sides = self.domain.resolve_interface(
+            interface, subdomains, mesh_id=mesh_id,
+        )
+
+        bulk_variables = {}
+        interface_variables = {}
+        for port in self.ports.values():
+            if port.get_mesh_id() != mesh_id:
+                continue
+            region = port.get_region()
+            names = (port.get_flow(), port.get_effort())
+            if region in subdomains:
+                for name in names:
+                    if not name:
+                        continue
+                    previous = bulk_variables.setdefault(name, int(region))
+                    if previous != int(region):
+                        raise InterfaceOwnershipError(
+                            f"Bulk variable {name} belongs to multiple regions"
+                        )
+            elif region == interface:
+                interface_variables[port.get_name()] = names
+
+        if not interface_variables:
+            raise InterfaceOwnershipError(
+                f"No declared interface ports on region {interface}"
+            )
+        forms = (
+            (brick.get_regions(), brick.get_form())
+            for brick in self.bricks.values()
+            if brick.get_mesh_id() == mesh_id
+        )
+        owners = infer_interface_port_owners(
+            interface, interface_variables, bulk_variables, forms,
+        )
+        if not set(owners.values()).issubset(set(subdomains)):
+            raise InterfaceOwnershipError(
+                "Interface port owner is not an adjacent subdomain"
+            )
+        return {
+            "interface": interface,
+            "mesh_id": mesh_id,
+            "subdomains": subdomains,
+            "facets_per_side": len(sides.facet_keys),
+            "port_owners": owners,
+            "topology_verified": True,
+            "assembled_with_oriented_faces": False,
+        }
+
     def add_FEM(self, fem: FEM):
         """This function adds a FEM (Finite Element Method) for the variables associated to a port of the dphs
 
