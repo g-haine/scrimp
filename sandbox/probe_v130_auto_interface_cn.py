@@ -107,6 +107,16 @@ def main():
                 or physical["interface_wave_region"] != wave
                 or not physical["old_doubled_interface_region_excluded_from_physical_power"]):
             raise RuntimeError("Physical power used incorrect interface faces")
+        # The reference collector's literal 30/31 provenance strings are
+        # valid only for the historical sandbox. Rewrite metadata, NOT
+        # the actual formula or measurements, for dynamically allocated
+        # oriented regions. This prevents a misleading scientific report.
+        physical["source"] = (
+            "unmodified original heat_wave_eq, automatic DPHS compilation"
+        )
+        physical["CN_interface_power_balance_weak_form_expected_sign"] = (
+            f"-heat_region{heat} + wave_region{wave}"
+        )
 
         # Qualify the PUBLIC algebraic Port.compute API as well as the
         # separate GetFEM physical collector. The port must use its
