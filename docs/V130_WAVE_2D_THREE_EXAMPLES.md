@@ -161,6 +161,45 @@ reprendre les mêmes paramètres pour **2B** et
 qualifier le terme `D`, puis adapter le domaine et
 la compliance pour **2C**.
 
+## Résultat du premier pilote 2A et correction de l'export MPI
+
+**24 novembre 2026 : les deux vraies simulations MUMPS MPI1
+et MPI2 réussissent la physique du modèle conservatif** :
+10 pas CN acceptés et 11 états par rang,
+2230 DOFs, DAE initialisée strictement
+(résidu 0), puissance gauche non triviale
+(`max|P_L|≈0.0489964`) et défaut d'énergie
+par pas au plus `2.982e-18`. Le test de
+réplication MPI donne **exactement les mêmes
+états sur les deux rangs**, avec un écart
+global MPI1/MPI2 de `4.08e-14`.
+
+**Le premier lanceur reste FAILED** parce que
+le validateur root-only de ParaView ignorait
+les champs d'effort/coénergie `e_q` et
+`e_p` en recherchant `self.ports.get("e_q")`
+au lieu de reconnaître le propriétaire
+`q↔e_q`. Le MPI1 avait pourtant exporté
+tous les 44 VTU des quatre champs (11 chacun),
+et le MPI2 avait déjà produit les 22 VTU
+de `q` et `p`.
+
+Le validateur est corrigé **génériquement**
+pour résoudre l'unique propriétaire de
+chaque variable par `get_flow()/get_effort()`,
+sans neutraliser la vérification du maillage et
+des états MPI ni autoriser des sorties concurrentes.
+Régressions source élargies, dont champs
+`q,p,e_q,e_p`, variables de bord, propriétaire
+ambigu et inconnus. La **nouvelle validation
+MPI1/MPI2 complète reste à exécuter** avant
+de promouvoir le candidat.
+
+Preuve initiale :
+`v130-wave2d-mixed-conservative-abea0401-Jm7S0brY.zip`.
+Détails chiffrés :
+`docs/V130_EXAMPLE_02_WAVE_2D_AUDIT.md`.
+
 ## Publications liées (présentes dans la bibliographie Sphinx)
 
 - **Haine, Matignon et Serhani (2023)**,
