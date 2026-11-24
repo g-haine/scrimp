@@ -205,6 +205,74 @@ Déjà présentes dans `docs/source/biblio.rst` :
 **Aucun de ces articles n'est encore revendiqué
 comme exactement reproduit par l'exemple actuel.**
 
+## Premier essai natif — 24 novembre 2026 — physique PASS, export de coénergie MPI à corriger
+
+**Source du premier essai :** `abea0401`.  
+**Archive exacte :**
+`v130-wave2d-mixed-conservative-abea0401-Jm7S0brY.zip`
+(fournie et relue ; 86 entrées).
+Le statut global du lanceur est bien
+`FAIL_OR_UNQUALIFIED_WAVE2D_MIXED_TENSOR_CN_MPI` :
+**ne pas le rebaptiser PASS**.
+
+### Mesures originales
+
+| Contrôle réel GetFEM/PETSc | MUMPS MPI1 | MUMPS MPI2 |
+|---|---:|---:|
+| DOFs | 2230 | 2230 |
+| Pas CN acceptés | 10/10 | 10/10 |
+| Rejets TS / échecs SNES | 0 / 0 | 0 / 0 |
+| Initialisation algébrique | PASS, résidu 0 | PASS, résidu 0 |
+| Défaut énergétique maximal par pas | 2.9815559743351372e-18 | 1.2468324983583301e-18 |
+| Défaut énergétique cumulé maximal | 5.421010862427522e-18 | 2.6020852139652106e-18 |
+| Puissance absolue gauche maximale | 0.04899638915980502 | 0.048996389159805157 |
+| Sept contrôles physiques | tous PASS | tous PASS |
+| Export q et p | 11 VTU chacun | 11 VTU chacun |
+| Export e_q et e_p | 11 VTU chacun | ÉCHEC avant e_q |
+| Statut du processus | 0 | 1 |
+
+L'archive contient les traces FE **complètes** des
+deux rangs MPI 2. Une comparaison indépendante des
+`rank0.npz` et `rank1.npz` montre une **égalité exacte**
+de tous les champs enregistrés, y compris les
+états de 2230 DOFs ; l'écart maximal de
+**MPI1 vs MPI2** sur tous les états est
+`4.08006961549745e-14`. Les puissances et
+Hamiltoniens concordent également à l'arrondi.
+
+### Origine de l'échec
+
+Au moment de l'export MPI de `e_q`, le code
+`DPHS._validate_root_only_pv_replication()`
+utilisait `self.ports.get(name_variable)`.
+Or le port d'état est indexé `q`, même si
+son champ d'effort `e_q` est une **vraie
+variable GetFEM** sur le même maillage.
+Ce n'était **ni un champ manquant**, ni un
+problème de réplication MPI. Le code séquentiel
+exporte les 11 VTU de `e_q` et `e_p`
+sans difficulté.
+
+La correction **générique** résout le
+port propriétaire par
+`name_variable in (port.get_flow(), port.get_effort())`,
+avec cardinalité obligatoirement égale à 1.
+Les noms inconnus et les appartenances ambiguës
+restent des erreurs collectives : **aucune
+désactivation du contrôle MPI** ni retour
+à la concurrence d'écriture n'est autorisé.
+Les tests source du véritable validateur, dans
+`tests/test_v130_interface_pv_production_policy.py`,
+couvrent désormais `q, p, e_q, e_p, U_L, Y_L`,
+ainsi que les contrôles négatifs de sécurité.
+
+**Statut après correctif : SOURCE MODIFIÉE, NOUVEL
+PASS NATIF MPI2 EN ATTENTE.** Relancer le même
+lanceur avec l'image Docker figée, en conservant
+les états de référence initialement fournis.
+Si tout passe, seulement alors promouvoir
+`examples/wave.py` et aligner Sphinx.
+
 ## Critère de passage à l'étape suivante
 
 Conserver cette fiche comme **audit initial**, et enregistrer
