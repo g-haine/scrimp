@@ -6,11 +6,12 @@
 #
 # github: https://github.com/g-haine/scrimp
 
-"""Inspect original Heat-Wave DPHS declarations before any TS time step.
+"""Inspect original Heat-Wave DPHS declarations before initialization.
 
-This is a reversible native diagnostic of the current production API:
-no source example is edited; no GetFEM matrix is reassembled or
-reoriented by the new ownership analysis. Exit deliberately at solve().
+This reversible native diagnostic captures the fully declared ports,
+bricks and controls at the FIRST initial-value call. It must not run
+L2 projection, PETSc COO allocation or a time-integration step.
+No original example is edited; no GetFEM weak form is reoriented.
 """
 
 import json
@@ -24,11 +25,11 @@ class StopAtAudit(Exception):
 
 
 def main():
-    original_solve = DPHS.solve
+    original_initial = DPHS.set_initial_value
     reports = []
     active = {"heat": None, "wave": None}
 
-    def audit_at_solve(system):
+    def audit_before_initialization(system, *args, **kwargs):
         report = system.audit_interface_ownership(10, (1, 2))
         expected = {
             "Interface Heat": active["heat"],
@@ -45,7 +46,7 @@ def main():
         raise StopAtAudit
 
     try:
-        DPHS.solve = audit_at_solve
+        DPHS.set_initial_value = audit_before_initialization
         for heat, wave in ((1, 2), (2, 1)):
             active.update(heat=heat, wave=wave)
             try:
@@ -56,10 +57,10 @@ def main():
             except StopAtAudit:
                 pass
     finally:
-        DPHS.solve = original_solve
+        DPHS.set_initial_value = original_initial
 
     if len(reports) != 2:
-        raise AssertionError("Both original model permutations must be audited")
+        raise AssertionError("Both original model permutations must be audited before projection")
     print(json.dumps({
         "schema": "scrimp-v130-native-declared-interface-ownership-v1",
         "status": "PASS_DECLARED_DPHS_INTERFACE_OWNERSHIP_ONLY",
@@ -67,6 +68,7 @@ def main():
         "original_example_source_unchanged": True,
         "getfem_weak_forms_reoriented": False,
         "PETSc_TS_executed": False,
+        "initial_value_projection_executed": False,
         "physical_energy_qualified": False,
         "MPI2_qualified": False,
     }, indent=2))
