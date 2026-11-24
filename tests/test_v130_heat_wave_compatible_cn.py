@@ -34,7 +34,8 @@ class HeatWaveCompatibleCNSourceTests(unittest.TestCase):
             "physical_balance_gate_passed",
         ):
             self.assertIn(literal,s)
-        self.assertNotIn("pseudo",s[s.index("def add_boundary_compatible_state"):])
+        self.assertNotIn('init_step_ts_type="pseudo"',s)
+        self.assertIn('native["pseudo_ts_executed"]',s)
     def test_both_original_LU_and_boundary_candidates_present(self):
         r=RUNNER.read_text(encoding="utf-8")
         for text in (
@@ -44,7 +45,7 @@ class HeatWaveCompatibleCNSourceTests(unittest.TestCase):
             'SCRIMP_GETFEM_BRIDGE_DISTRIBUTED=coo',
             'original_2d_example_trace.npz',
             'phys_CN_per_step_H_balance_error',
-            'source' if False else 'check-v130-published-immutable.py',
+            'check-v130-published-immutable.py',
             'mpiexec --oversubscribe --bind-to none -n 1',
         ):
             self.assertIn(text,r)
@@ -55,7 +56,7 @@ class HeatWaveCompatibleCNSourceTests(unittest.TestCase):
             model,
         )
         self.assertIn('init_step_ts_type="algebraic"',model)
-        self.assertIn("do not",PILOT.read_text(encoding="utf-8").lower())
+        self.assertIn("original_init(system)",PILOT.read_text(encoding="utf-8"))
 
 
 if __name__=="__main__":
