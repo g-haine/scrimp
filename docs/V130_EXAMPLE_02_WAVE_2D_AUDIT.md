@@ -585,6 +585,120 @@ modèle `examples/wave.py` ni de
 Les anciens trois PASS demeurent valables ;
 **SuperLU_DIST MPI1/2 reste non qualifié**.
 
+## Preuve matricielle : rang plein et LU sans régularisation (24 novembre 2026)
+
+**Archive fournie et inspectée :**
+`v130-wave2d-first-cn-jacobian-574d9c71-NKqIZ0BZ.zip`,
+code `574d9c71`. Le script de capture a réellement
+enregistré les matrices originales du premier
+pas CN, **avant** la factorisation, pour MUMPS
+MPI1 et SuperLU_DIST MPI1.
+
+**Résultat du diagnostic (et non du solveur) :**
+`PASS_EXACT_FIRST_CN_JACOBIAN_CAPTURE_ANALYSIS_NOT_SOLVER_ACCEPTANCE`.
+Le solveur MUMPS accepte le pas ; le solveur
+SuperLU_DIST conserve `PC_FAILED=2`.
+
+Mesures vérifiées indépendamment depuis les
+matrices originales (CSR) :
+
+| Mesure | Valeur |
+|---|---|
+| Dimensions de `P=K+250M` | **2230 × 2230** |
+| Non-zéros stockés / non-zéros numériques | **25801 / 25791** |
+| Écart `P−(K+250M)` | **0 exactement** |
+| Différence MUMPS/SuperLU_DIST sur `P`, `K` et `M` | **0 exactement** |
+| Rang structurel des non-zéros numériques | **2230/2230** |
+| Lignes vides | **0** |
+| Diagonales nulles | **80–89**, exactement dix |
+| Propriétaire des dix indices | **`Y_L`**, variable algébrique de traction gauche |
+
+Ces dix lignes constituent les **contraintes du
+port mixte**, elles ne sont pas des équations absentes.
+L'inspection de leurs vrais coefficients révèle un
+couplage non nul avec `U_L` et `e_p`.
+Un appariement biparti maximal indépendant
+sur la matrice réelle fournit **2230
+correspondances sur 2230** et des colonnes
+de pivot non diagonales pour les dix lignes
+`Y_L`.
+
+Une **véritable** factorisation SciPy/SuperLU
+de ce même CSR (aucune modification des
+coefficients) a réussi dans les deux cas :
+
+| Réordonnancement | `min(abs(diag(U)))` | Résidu relatif |
+|---|---:|---:|
+| `COLAMD` | `5.6579925859605124e-05` | `2.2847109146099756e-15` |
+| `MMD_AT_PLUS_A` | `0.00067651748410936` | `5.539095647629999e-15` |
+
+Une estimation de la condition en norme 1,
+à partir de la LU SciPy, donne
+`cond_1(P)≈4.28e5` (estimation, pas un
+calcul exact des valeurs singulières).
+
+**Conclusion justifiée :** ce Jacobien est
+structurellement de rang plein et possède
+une factorisation LU numérique exploitable,
+même avec ses dix diagonales nulles.
+L'échec `PC_FACTOR_NUMERIC_ZEROPIVOT`
+est spécifique au **chemin de factorisation**
+SuperLU_DIST/PETSc employé dans l'image,
+pas à une différence de données GetFEM.
+On ne peut pas encore identifier la cause
+exacte à l'intérieur de SuperLU_DIST
+(scaling, permutations effectives, critère
+de pivot ou autre chemin numérique).
+
+### Expérience suivante, volontairement circonscrite
+
+Le driver
+`sandbox/replay_v130_wave2d_superlu_dist_factor.py`
+et le lanceur
+`scripts/run-v130-wave2d-superlu-dist-factor-replay.sh`
+rejouent le **CSR original**, reconnu par le
+SHA256 `24346856f358e4f81cf332ebc974e329dc084c60f5d6b98bfbcd788fdff37f54`.
+Aucun assemblage GetFEM n'est relancé.
+Les données sont distribuées uniquement
+aux lignes locales PETSc, avec contrôle
+de l'égalité de chaque coefficient.
+
+Le banc compare en MPI1 **et** MPI2 la
+factorisation SuperLU_DIST ordinaire et
+l'option opt-in PETSc
+`mat_superlu_dist_replacetinypivot=true`
+(désactivée par défaut). Celle-ci peut
+**modifier la factorisation numérique** ;
+elle n'est donc pas présentée comme une
+permutation non régularisante. Le banc
+construit un vrai `b=P*x*` avec `x*`
+connu, résout avec le **véritable
+KSP/PC PETSc SuperLU_DIST** et impose
+un résidu relatif arrière < `1e-11`
+et une erreur relative de solution
+< `1e-7`, sur **tous les rangs**.
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+conda activate scrimp
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-wave2d-superlu-dist-factor-replay.sh
+```
+
+**Une réussite de ce replay isolé ne
+qualifie pas la simulation des dix
+pas CN, les puissances de bord ou
+l'export MPI**. Elle permettrait
+seulement d'envisager un essai complet
+de la véritable onde 2D, avec une option
+explicitement choisie et tracée.
+La politique générale de SCRIMP
+ne sera pas modifiée à ce stade.
+**Statut : exécution native du replay PENDING ;
+campagne originale toujours 3/5 PASS.**
+
 ## Critère de passage à l'étape suivante
 
 Conserver cette fiche comme **audit initial**, et enregistrer
