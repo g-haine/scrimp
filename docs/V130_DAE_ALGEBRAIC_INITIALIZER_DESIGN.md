@@ -5206,3 +5206,44 @@ solution. All original and matched matrix checksums, unmatched
 and unmatched row counts, and all native diagnostics are archived.
 This remains a single-linear-solve experiment; no main TS/CN
 trajectory or physical pH energy/power balance is qualified by it.
+
+## 24 November 2026 — original LU row matching PASS on exact CN operator; next TS gate
+
+The user original `v130-hw-cn-row-matching-30dd1044-haVswwSx.zip`,
+source `30dd1044`, has been inspected directly, including each
+native candidate report. On the exact original 7689-square
+Heat-Wave first CN operator, `NATURAL` without matching fails
+SuperLU_DIST numeric LU pivoting (KSP=-11, PC=2). The same
+bipartite matching of numerically NONZERO sparse entries moves
+252 rows, eliminates the 126 zero diagonal entries, and
+preserves all 65100 stored values. Matching SHA256:
+`a20e1fe5d92639816cc4af5c196a1ffad894423838ee461b38b402d63fed583e`.
+
+With the original RHS permuted identically, MUMPS, and
+SuperLU_DIST/NATURAL, /MMD_AT_PLUS_A, /METIS_AT_PLUS_A
+ALL solve the known-state original equations to
+`~2e-16..4e-16` relative linear residual and
+`~3e-15..5e-15` known state error.
+This qualifies a **single immutable linear operator only**,
+not the full PETSc TS, nonlinear Newton updates, MPI2,
+or physical pH balance.
+
+A subsequent opt-in serial prototype uses PETSc's
+documented `PC.Type.PYTHON` protocol. For each actual
+preconditioner setup, it computes the matching from
+the currently supplied PETSc original operator (not a
+frozen row map), factors the fresh sparse `PA`
+with SuperLU_DIST and applies `(PA)^{-1}P r` to each
+new original-order KSP residual. The **outer KSP operator,
+SNES IFunction/Jacobian, original GetFEM example, and
+DAE initialization remain unchanged**. After a frozen
+snapshot KSP sanity check, a second stage runs the genuine
+original four-step Heat-Wave CN TS with the already
+qualified clamp-compatible initial p and original
+scientific Hamiltonian/dissipation/interface-power audits.
+All context installation is confined to a sandbox
+DPHS.IJacobian wrapper and restored afterwards; no
+production solver policy is changed, and MPI2 is explicitly
+unqualified. A full numerical TS PASS does not imply a
+scientific energy/power PASS unless all recorded independent
+physical gates are satisfied.
