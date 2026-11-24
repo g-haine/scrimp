@@ -5,6 +5,55 @@ Changes to SCRIMP are recorded here. See also the
 
 ## 1.3.0 — in development (not released)
 
+### Onde 2D : raffinement interne SuperLU_DIST à précision machine, prochain test physique (24 novembre 2026)
+
+- Le dernier rejeu natif PETSc de la
+  matrice CN originale, archive
+  `v130-wave2d-superlu-dist-refinement-ad2d58a6-unyfltIn.zip`,
+  confirme **ReplaceTinyPivot + IterRefine
+  interne SuperLU_DIST PASS** sur 1 et
+  2 rangs : `KSP_reason=4`, `PC_failed=0`,
+  erreurs arrière sur `Px-b`
+  `9.542e-17 / 1.272e-16`,
+  erreurs sur solution connue
+  `2.007e-14 / 2.256e-14`.
+  Les seuils initiaux `1e-11 / 1e-7`
+  sont strictement respectés.
+- Le candidat alternatif GMRES
+  `PC_RIGHT` reste **FAIL** :
+  résidu arrière `1.97e-10 / 2.33e-10`
+  même après convergence KSP.
+  Ne pas confondre l'indication
+  de convergence de PETSc avec un
+  résidu réel suffisamment précis.
+- Ajout du **pilotage opt-in uniquement**
+  `sandbox/probe_v130_wave2d_refined_superlu_dist.py`
+  et du lanceur
+  `scripts/run-v130-wave2d-refined-superlu-dist-physical.sh`.
+  Le candidat appelle **sans modification**
+  `examples.wave.main()` ; il n'ajoute que
+  les deux options de LU après la création
+  de la DPHS, avant les solveurs PETSc,
+  et exige `superlu_dist` authentique.
+  La vraie validation physique
+  **10 pas CN, 2230 DOFs, énergie
+  anisotrope, 4 puissances signées,
+  deux rangs MPI, 4×11 VTU**
+  est comparée aux trajectoires
+  complètes MUMPS MPI1 déjà
+  archivées, sans re-simulation MUMPS.
+- Sept tests de contrat source plus
+  test de syntaxe AST du validateur
+  scientifique, intégrés à la CI.
+  **Qualification physique native
+  de ce candidat toujours EN ATTENTE**.
+  Aucun changement du solveur
+  SuperLU_DIST par défaut, de
+  `scrimp/dphs.py`, du modèle
+  `examples/wave.py` ou de
+  `master`. La qualification
+  habituelle reste **3/5**.
+
 ### Onde 2D : remplacement de pivots opérationnel mais insuffisamment précis (24 novembre 2026)
 
 - Archive native
