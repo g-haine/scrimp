@@ -21,6 +21,9 @@ on:
       - sandbox/probe_v130_hw_matched_pc_snapshot.py
       - sandbox/probe_v130_hw_matched_pc_cn.py
       - scripts/run-v130-hw-matched-PC-cn.sh
+      - sandbox/compare_v130_hw_cn_matched_lu_parity.py
+      - scripts/run-v130-hw-cn-matched-lu-parity.sh
+      - tests/test_v130_hw_cn_matched_lu_parity.py
       - tests/test_v130_hw_matched_pc.py
       - sandbox/probe_v130_hw_cn_exact_row_matching.py
       - tests/test_v130_hw_cn_exact_row_matching.py
@@ -73,6 +76,9 @@ on:
       - sandbox/probe_v130_hw_matched_pc_snapshot.py
       - sandbox/probe_v130_hw_matched_pc_cn.py
       - scripts/run-v130-hw-matched-PC-cn.sh
+      - sandbox/compare_v130_hw_cn_matched_lu_parity.py
+      - scripts/run-v130-hw-cn-matched-lu-parity.sh
+      - tests/test_v130_hw_cn_matched_lu_parity.py
       - tests/test_v130_hw_matched_pc.py
       - sandbox/probe_v130_hw_cn_exact_row_matching.py
       - tests/test_v130_hw_cn_exact_row_matching.py
@@ -138,6 +144,8 @@ jobs:
           bash -n scripts/run-v130-hw-cn-exact-row-matching.sh
           python -m py_compile sandbox/probe_v130_hw_matching_pc.py sandbox/probe_v130_hw_matched_pc_snapshot.py sandbox/probe_v130_hw_matched_pc_cn.py tests/test_v130_hw_matched_pc.py
           bash -n scripts/run-v130-hw-matched-PC-cn.sh
+          python -m py_compile sandbox/compare_v130_hw_cn_matched_lu_parity.py tests/test_v130_hw_cn_matched_lu_parity.py
+          bash -n scripts/run-v130-hw-cn-matched-lu-parity.sh
           python -m py_compile sandbox/probe_v130_intrinsic_l2_projection.py sandbox/probe_v130_intrinsic_affine_projection.py sandbox/probe_v130_universal_fem_initialization.py
           bash -n scripts/run-v130-intrinsic-fem-initialization.sh
           bash -n scripts/run-v130-intrinsic-l2-projection.sh
@@ -170,6 +178,8 @@ jobs:
         run: python tests/test_v130_hw_cn_exact_row_matching.py
       - name: Original TS Python row-matched PC source contracts
         run: python tests/test_v130_hw_matched_pc.py
+      - name: Original Heat-Wave four-CN MUMPS vs row-matched LU parity
+        run: python tests/test_v130_hw_cn_matched_lu_parity.py
       - name: Universal FE pilot scope and GWFL polynomial grammar (source only)
         run: python tests/test_v130_universal_fe_projection_spec.py
       - name: Universal source-only FE L2 initialization and expression grammar

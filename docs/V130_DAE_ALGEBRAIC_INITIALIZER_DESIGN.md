@@ -5247,3 +5247,65 @@ production solver policy is changed, and MPI2 is explicitly
 unqualified. A full numerical TS PASS does not imply a
 scientific energy/power PASS unless all recorded independent
 physical gates are satisfied.
+
+## 24 November 2026 — original Heat-Wave full 4-step CN with matched SuperLU_DIST PASS
+
+Evidence `v130-hw-matched-PC-04d1a987-z5R7rQXk.zip`
+was opened directly. The source is `04d1a987`, the pinned
+GetFEM image is unchanged, and *both* sandbox stages passed:
+(1) original 7689-square first CN Jacobian, real PETSc Python
+PC applying `(P A)^(-1) P r`, original relative residual
+`2.032099374713631e-16` and state error `3.513692767881802e-15`;
+(2) actual original physically revised Heat-Wave with strict
+DAE-compatible *clamp* initial p, all **four fixed CN steps**,
+no rejected steps or SNES failures, actual MUMPS-independent
+SuperLU_DIST inside the Python PC (four setups / four applies,
+max native original-order preconditioner residual
+`1.3965209267332266e-16`). Source first CN matrix stored
+CSR SHA was identical in all four setups and row matching
+moved 252 rows each time. The source example was not modified
+by the experiment.
+
+Initial H=`0.7836421211876778`, final H=`0.5091846090896894`,
+CN-cumulative dissipated energy=`0.2744575120979884`,
+max CN midpoint total-H balance defect=`1.370431546e-15`,
+heat and wave defects below `1e-15`, and interface
+power sum defect `3.818086781e-28`. These establish numerical
+and discrete CN power/energy identity PASS in **this trajectory**.
+
+**Scientific caution: interface excitation is weak.**
+The ARCHIVED native trace shows individual physical interface
+powers `phys_CN_P_interface_heat` and
+`phys_CN_P_interface_wave` are only `O(1e-14)`,
+versus nonzero midpoint heat flux dissipation between
+`23.2` and `638.2`. The min/max of wave potential
+energy are 0 and `3.44655e-4`; total wave H stays
+nearly constant. A near-zero sum of almost-zero interface
+powers is NOT a nontrivial test of coupling exchange.
+Moreover, the *nodal* dissipation trapezoid leads to
+a `0.50056877` physical-balance discrepancy, whereas
+the CN stage-midpoint budget closes at `1e-15`; never
+use the nodal trapezoid for CN energy acceptance.
+The independent original physics audit retains
+`scientific_status=DIAGNOSTIC_ONLY_MODEL_NOT_YET_QUALIFIED`.
+The sandbox balance thresholds passing must not be
+mistaken for full multiphysics release qualification.
+
+A NEW four-run native campaign
+`scripts/run-v130-hw-cn-matched-lu-parity.sh` crosses
+`clamp` and strict DAE-compatible mass-optimal
+`constrained_l2` initial p against MUMPS and
+experimental row-matched SuperLU_DIST. It independently
+compares complete original 7689-state trajectories,
+individual pH fields, all GetFEM port powers,
+dissipation, and Hamiltonians; full CN midpoint energy
+balances must pass in all runs.
+**Crucially, it separately reports a non-vacuous interface
+power criterion**: maximum absolute INDIVIDUAL interface
+port power divided by maximum heat dissipation must exceed
+`1e-8` for interface exchange to be physically qualified.
+This is an experimental excitation diagnostic, not an
+identity or physics law. A weak interface is reported
+OPEN even if both solvers reproduce the same trajectory
+with roundoff errors. The test is MPI1 and no production
+PC or ParaView parallel path changes are made.
