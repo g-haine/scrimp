@@ -405,6 +405,12 @@ class DPHS:
         self.bricks = dict()
         #: The dict of `controls`, collecting information about control ports. Also appear in `ports` entries
         self.controls = dict()
+        # Experimental deferred internal interface compilation. Disabled by
+        # default until full native K/DAE/CN/MPI qualification.
+        self._auto_internal_interface_pilot = (
+            os.environ.get("SCRIMP_V130_AUTO_INTERFACE_PILOT", "0") == "1"
+        )
+        self._internal_interface_compiler = None
         #: The `Hamiltonian` of a dphs is a list of dict containing several useful information for each term
         self.hamiltonian = Hamiltonian("Hamiltonian")
         #: To check if the powers have been computed
@@ -725,6 +731,12 @@ class DPHS:
         """
 
         self.domain = domain
+        if self._auto_internal_interface_pilot:
+            from scrimp.interface_deferred import DeferredInterfaceCompiler
+            pilot = DeferredInterfaceCompiler(domain)
+            self._internal_interface_compiler = (
+                pilot if pilot.interfaces else None
+            )
         if rank == 0:
             logging.info(f"domain: {domain.get_name()} has been set")
 
@@ -795,6 +807,17 @@ class DPHS:
 
         if rank == 0:
             logging.info(f"port: {port.get_name()} has been added {where}")
+
+    def _compile_internal_interfaces_if_needed(self):
+        """Finish experimental deferred registration before using GetFEM."""
+        pilot = self._internal_interface_compiler
+        if pilot is not None and not pilot.completed and not pilot.replaying:
+            report = pilot.compile(self)
+            if rank == 0:
+                logging.info(
+                    "Experimental internal interface compiler: %s",
+                    report["status"],
+                )
 
     def audit_interface_ownership(self, interface, subdomains, mesh_id=0):
         """Audit an interface against this DPHS's declared ports and bricks.
@@ -939,6 +962,11 @@ class DPHS:
             logging.error(f"Port {name_port} does not exist")
             raise err
 
+        pilot = self._internal_interface_compiler
+        if pilot is not None and not pilot.replaying:
+            pilot.record_fem(fem)
+            return
+
         # Select the dimension, according to the `kind` of the `port`
         port = self.ports[name_port]
         if port.get_kind() == "scalar-field":
@@ -960,22 +988,22 @@ class DPHS:
 
         # If `region` is not None, the variable is restricted to the `region` of mesh_id. Useful for boundary ports or interconnected dphs on the same mesh.
         # Add the FEM to the `flow variable` of the `port` in getfem
-        if port.get_region() is not None:
+        if port.get_assembly_region() is not None:
             self.gf_model.add_filtered_fem_variable(
                 port.get_flow(),
                 port.get_fem(),
-                port.get_region(),
+                port.get_assembly_region(),
             )
         else:
             self.gf_model.add_fem_variable(port.get_flow(), port.get_fem())
 
         # If the port is algebraic AND not substituted, we also add the FEM to the `effort variable` of the `port` in getfem
         if port.get_algebraic() and not port.get_substituted():
-            if port.get_region() is not None:
+            if port.get_assembly_region() is not None:
                 self.gf_model.add_filtered_fem_variable(
                     port.get_effort(),
                     port.get_fem(),
-                    port.get_region(),
+                    port.get_assembly_region(),
                 )
             else:
                 self.gf_model.add_fem_variable(port.get_effort(), port.get_fem())
@@ -990,11 +1018,11 @@ class DPHS:
                 )
                 raise err
             if not port.get_substituted():
-                if port.get_region() is not None:
+                if port.get_assembly_region() is not None:
                     self.gf_model.add_filtered_fem_variable(
                         port.get_effort(),
                         port.get_fem(),
-                        port.get_region(),
+                        port.get_assembly_region(),
                     )
                 else:
                     self.gf_model.add_fem_variable(
@@ -1015,6 +1043,12 @@ class DPHS:
         supported. Global Test_* functions can be used in volumetric GWFL
         forms; divide by the domain measure for an ordinary ODE residual.
         """
+        if self._internal_interface_compiler is not None:
+            from scrimp.interface_deferred import InterfaceCompilationError
+            raise InterfaceCompilationError(
+                "Global lumped ports are not yet supported by the "
+                "experimental deferred internal interface compiler"
+            )
         if self.domain is None or not self.domain.get_isSet():
             raise ValueError("Set a domain before adding a lumped port")
         if name_port not in self.ports:
@@ -1143,6 +1177,8 @@ class DPHS:
                 integration rule, e.g. HCT composite integration.
         """
 
+        self._compile_internal_interfaces_if_needed()
+
         if name_variable in self.initial_value_set.keys():
             if self.initial_value_set[name_variable]:
                 logging.warning(f"defining again the initial value of {name_variable}")
@@ -1261,6 +1297,7 @@ class DPHS:
             x (numpy array): the vector of values
         """
 
+        self._compile_internal_interfaces_if_needed()
         self.gf_model.set_variable(name_variable, x)
 
         if rank == 0:
@@ -1291,6 +1328,10 @@ class DPHS:
                 "assembled consistently"
             )
         self.bricks[name_brick] = brick
+        pilot = self._internal_interface_compiler
+        if pilot is not None and not pilot.replaying:
+            pilot.record_brick(brick)
+            return
 
         # Preserve the original weak-form sign: flow bricks and
         # nonlinear explicit bricks are negated when registered.
@@ -1299,7 +1340,7 @@ class DPHS:
         if position == "flow" or brick.get_explicit():
             form = "-(" + form + ")"
 
-        for region in brick.get_regions():
+        for region in brick.get_assembly_regions():
             if brick.get_linear() and not brick.get_position() == "source":
                 id_brick = self.gf_model.add_linear_term(
                     self.domain._int_method[mesh_id], form, region
@@ -2642,6 +2683,7 @@ class DPHS:
         Enable SCRIMP_PROFILE=1 before creating the system, then call
         get_profile() on ALL MPI ranks to aggregate the timing report.
         """
+        self._compile_internal_interfaces_if_needed()
         self.profiler.reset()
         self._profile_phase = "setup"
         # Avoid publishing a stale successful algebraic result when a
