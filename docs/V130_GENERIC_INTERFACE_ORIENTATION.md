@@ -243,6 +243,38 @@ resolved face sets and compare assembled sparse matrices with the
 previous native qualified two-sided pilot. No production assembly policy
 is activated yet.
 
+## Full native assembled stiffness parity (stage 5, pending)
+
+`scripts/run-v130-generic-interface-K-parity.sh` runs two instances
+of the **original unchanged published Heat-Wave example** inside the
+pinned `scrimp-mpi:v1.3.0-rc3` image. Both runs use identical,
+reference-qualified one-sided placement of interface control ports
+and bricks. They vary **only** the source of the oriented
+facets: (1) the historical geometry-specific Concentric helper,
+versus (2) `scrimp.interface.resolve_conforming_interface`.
+
+The sandbox wrapper
+`sandbox/probe_v130_generic_interface_matrix_parity.py` reuses the
+existing native assembly auditor, but captures the **entire**
+PETSc stiffness matrix as a sparse NPZ on each run. The driver checks
+the full matrix dimensions, stored nonzero counts, and maximum
+entrywise absolute difference, with explicit absolute/relative
+tolerances. It writes both full matrices, individual logs,
+`comparison.json`, and a zip archive of the evidence.
+
+```bash
+SCRIMP_DOCKER_NO_SUDO=1 \\
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \\
+bash scripts/run-v130-generic-interface-K-parity.sh
+```
+
+**This remains a sandbox test, not automatic assembly.**
+The same manual constructor region remapping is intentionally
+present in both arms, so any mismatch isolates the geometry-selection
+algorithm. A PASS would establish MPI1 assembled-K parity only;
+not mass-matrix identity, PETSc TS/CN conservation, DAE initialization,
+production compilation, arbitrary FEM-family support or MPI2.
+
 ## Next steps (not implemented here)
 
 1. Native test on real 1D/2D/3D imported meshes and curved/high-order
