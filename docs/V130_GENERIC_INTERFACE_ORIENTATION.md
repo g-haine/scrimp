@@ -275,6 +275,74 @@ algorithm. A PASS would establish MPI1 assembled-K parity only;
 not mass-matrix identity, PETSc TS/CN conservation, DAE initialization,
 production compilation, arbitrary FEM-family support or MPI2.
 
+## Full native GetFEM/PETSc assembled-K parity — PASS (2026-11-24)
+
+The user ran `scripts/run-v130-generic-interface-K-parity.sh`
+in the pinned Docker image at commit `734b628` and supplied the entire
+native evidence archive. Its two original-example stiffness matrices
+(`generic/stiffness_audit.npz`,
+`reference/stiffness_audit.npz`) were independently compared:
+
+- Matrix dimension: **7689 × 7689**.
+- Stored CSR entries: **46935** in each.
+- **All CSR indptr, indices and data arrays are exactly identical**.
+- Difference matrix nnz: **0**.
+- Maximum absolute difference: **0.0**.
+- The unchanged published Heat-Wave example and its manually
+  selected reference port/brick regions were identical in both arms.
+  Only the geometric facet discovery algorithm changed.
+- No DAE initialization, CN energy test, or MPI2 result was claimed.
+
+Status:
+`PASS_NATIVE_GENERIC_AND_REFERENCE_ASSEMBLED_K_PARITY_ONLY`.
+The archive also contains raw logs and both sparse matrices.
+
+## Experimental deferred DPHS compilation (stage 6; NOT qualified)
+
+The source now contains a **test-only, disabled-by-default**
+deferred GetFEM compiler. Enable it **only for qualification** with:
+
+```bash
+SCRIMP_V130_AUTO_INTERFACE_PILOT=1
+```
+
+In this mode, `DPHS` discovers uniquely labeled conforming internal
+interfaces from the `Domain` physical-region topology, defers the
+GetFEM FEM-variable and brick registration, and compiles them before
+initial values or `solve()`, once the original user-defined weak
+forms have revealed their tested-variable ownership. Two oriented
+GetFEM regions are allocated from currently unused numerical IDs.
+The user-facing `Port.get_region()` and `Brick.get_regions()` keep
+their original logical labels. Effective assembly regions are stored
+privately. Variable and brick declaration order is replayed unchanged.
+`Port.compute()` integrates power on its effective one-sided region.
+
+For now, unsupported or ambiguous cases **fail closed**: e.g. global
+lumped ports in the deferred model, unlabeled or multiply labeled
+shared interfaces, multi-region internal bricks, interface prescribed
+sources lacking a residual test owner, and unresolved GWFL macros.
+This is not a general mortar or nonmatching-mesh implementation.
+The baseline solver is unaffected when the environment switch is unset.
+
+**The experimental compiler has NOT yet passed native assembly, CN,
+energy or MPI2 tests. Do not use it for production simulations.**
+
+The next qualification runs the *unchanged original published*
+Heat-Wave source both ways: reference manually mapped one-sided
+interfaces versus experimental automatic compilation. It compares the
+entire GetFEM/PETSc assembled stiffness K, including exact original
+DOFs and CSR structure, not just block norms:
+
+```bash
+python tests/test_v130_interface_deferred.py
+SCRIMP_DOCKER_NO_SUDO=1 \\
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \\
+bash scripts/run-v130-auto-interface-K.sh
+```
+
+A PASS would qualify the experimental **MPI1 assembled stiffness K**
+only; the strict DAE/CN/physical power and MPI2 gates remain open.
+
 ## Next steps (not implemented here)
 
 1. Native test on real 1D/2D/3D imported meshes and curved/high-order
