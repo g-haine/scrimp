@@ -92,84 +92,89 @@ import numpy as np
 root = Path(sys.argv[1])
 results = {}
 any_failure = False
-for heat in (1, 2):
-    run = {}
-    for size in (1, 2):
-        label = f"heat{heat}_mpi{size}"
-        code = int((root/f"{label}.exitcode").read_text())
-        record = {"exit_code": code, "rank_reports": [], "rank_traces": []}
-        run[size] = record
-        if code:
-            record["status"] = "FAIL_NATIVE_MPI_DAE_CN_OR_PHYSICS"
-            any_failure = True
-            continue
-        for rank in range(size):
-            path = root/label
-            raw = json.loads((path/f"rank{rank}.json").read_text())
-            if (raw["MPI_ranks"] != size or raw["heat_region"] != heat
-                    or raw["rank"] != rank
-                    or raw["status"] != "PASS_RANK_MPI_CN_AND_PHYSICAL_GATES"
-                    or not raw["rank_consensus"]
-                    or raw["real_PETSc_CN_steps"] != 4
-                    or not all(raw["physical_gates"].values())
-                    or not raw["plot_and_ParaView_export_skipped_on_all_ranks"]
-                    or not raw["physical_GetFEM_assembly_executed_on_all_ranks"]):
-                raise RuntimeError(f"Native rank report gate failed: {label}/{rank}")
-            record["rank_reports"].append(raw)
-            record["rank_traces"].append(str(path/f"rank{rank}.npz"))
-        if any(
-            item["rank_fingerprints"] != record["rank_reports"][0]["rank_fingerprints"]
-            or item["automatic_interface"] != record["rank_reports"][0]["automatic_interface"]
-            for item in record["rank_reports"]
-        ):
-            raise RuntimeError(f"Cross-rank automatic-interface mismatch: {label}")
-        record["status"] = "PASS_NATIVE_MPI_RANK_DAE_CN_PHYSICS"
-    candidate = {}
-    if not any(s["exit_code"] != 0 for s in run.values()):
-        reference = np.load(run[1]["rank_traces"][0])
-        parallel = np.load(run[2]["rank_traces"][0])
-        if set(reference.files) != set(parallel.files):
-            raise RuntimeError(
-                f"Different MPI1/MPI2 physical trace fields for heat={heat}"
-            )
-        passed = True
-        for name in reference.files:
-            a = np.asarray(reference[name], dtype=float)
-            b = np.asarray(parallel[name], dtype=float)
-            if (a.shape != b.shape or not np.all(np.isfinite(a))
-                    or not np.all(np.isfinite(b))):
+try:
+    for heat in (1, 2):
+        run = {}
+        for size in (1, 2):
+            label = f"heat{heat}_mpi{size}"
+            code = int((root/f"{label}.exitcode").read_text())
+            record = {"exit_code": code, "rank_reports": [], "rank_traces": []}
+            run[size] = record
+            if code:
+                record["status"] = "FAIL_NATIVE_MPI_DAE_CN_OR_PHYSICS"
+                any_failure = True
+                continue
+            for rank in range(size):
+                path = root/label
+                raw = json.loads((path/f"rank{rank}.json").read_text())
+                if (raw["MPI_ranks"] != size or raw["heat_region"] != heat
+                        or raw["rank"] != rank
+                        or raw["status"] != "PASS_RANK_MPI_CN_AND_PHYSICAL_GATES"
+                        or not raw["rank_consensus"]
+                        or raw["real_PETSc_CN_steps"] != 4
+                        or not all(raw["physical_gates"].values())
+                        or not raw["plot_and_ParaView_export_skipped_on_all_ranks"]
+                        or not raw["physical_GetFEM_assembly_executed_on_all_ranks"]):
+                    raise RuntimeError(f"Native rank report gate failed: {label}/{rank}")
+                record["rank_reports"].append(raw)
+                record["rank_traces"].append(str(path/f"rank{rank}.npz"))
+            if any(
+                item["rank_fingerprints"] != record["rank_reports"][0]["rank_fingerprints"]
+                or item["automatic_interface"] != record["rank_reports"][0]["automatic_interface"]
+                for item in record["rank_reports"]
+            ):
+                raise RuntimeError(f"Cross-rank automatic-interface mismatch: {label}")
+            record["status"] = "PASS_NATIVE_MPI_RANK_DAE_CN_PHYSICS"
+        candidate = {}
+        if not any(s["exit_code"] != 0 for s in run.values()):
+            reference = np.load(run[1]["rank_traces"][0])
+            parallel = np.load(run[2]["rank_traces"][0])
+            if set(reference.files) != set(parallel.files):
                 raise RuntimeError(
-                    f"Nonfinite/mismatched MPI trajectory: heat={heat}, {name}"
+                    f"Different MPI1/MPI2 physical trace fields for heat={heat}"
                 )
-            max_abs = float(np.max(np.abs(a-b))) if a.size else 0.
-            equal = bool(np.allclose(a, b, rtol=2e-8, atol=5e-10))
-            candidate[name] = {
-                "shape": list(a.shape),
-                "max_abs_difference": max_abs,
-                "within_explicit_tolerance": equal,
-            }
-            passed = passed and equal
-        # MPI2 rank1 and rank0 must produce exactly matching full FE
-        # history and physical traces, independently of MPI1/2 tolerances.
-        with np.load(run[2]["rank_traces"][1]) as second:
-            with np.load(run[2]["rank_traces"][0]) as first:
-                rank_equal = all(np.array_equal(first[k], second[k])
-                                 for k in first.files)
-        passed = passed and rank_equal
-    else:
-        passed = False
-        rank_equal = None
-    results[f"heat{heat}_wave{3-heat}"] = {
-        "status": (
-            "PASS_REAL_MPI2_DAE_CN_AND_PHYSICAL_PARITY"
-            if passed else "FAIL_OR_UNQUALIFIED_MPI2_DAE_CN_PARITY"
-        ),
-        "MPI1": {k:v for k,v in run[1].items() if k != "rank_traces"},
-        "MPI2": {k:v for k,v in run[2].items() if k != "rank_traces"},
-        "trace_comparison": candidate,
-        "MPI2_rank0_rank1_full_trace_bitwise_identical": rank_equal,
-    }
-    any_failure = any_failure or not passed
+            passed = True
+            for name in reference.files:
+                a = np.asarray(reference[name], dtype=float)
+                b = np.asarray(parallel[name], dtype=float)
+                if (a.shape != b.shape or not np.all(np.isfinite(a))
+                        or not np.all(np.isfinite(b))):
+                    raise RuntimeError(
+                        f"Nonfinite/mismatched MPI trajectory: heat={heat}, {name}"
+                    )
+                max_abs = float(np.max(np.abs(a-b))) if a.size else 0.
+                equal = bool(np.allclose(a, b, rtol=2e-8, atol=5e-10))
+                candidate[name] = {
+                    "shape": list(a.shape),
+                    "max_abs_difference": max_abs,
+                    "within_explicit_tolerance": equal,
+                }
+                passed = passed and equal
+            # MPI2 rank1 and rank0 must produce exactly matching full FE
+            # history and physical traces, independently of MPI1/2 tolerances.
+            with np.load(run[2]["rank_traces"][1]) as second:
+                with np.load(run[2]["rank_traces"][0]) as first:
+                    rank_equal = all(np.array_equal(first[k], second[k])
+                                     for k in first.files)
+            passed = passed and rank_equal
+        else:
+            passed = False
+            rank_equal = None
+        results[f"heat{heat}_wave{3-heat}"] = {
+            "status": (
+                "PASS_REAL_MPI2_DAE_CN_AND_PHYSICAL_PARITY"
+                if passed else "FAIL_OR_UNQUALIFIED_MPI2_DAE_CN_PARITY"
+            ),
+            "MPI1": {k:v for k,v in run[1].items() if k != "rank_traces"},
+            "MPI2": {k:v for k,v in run[2].items() if k != "rank_traces"},
+            "trace_comparison": candidate,
+            "MPI2_rank0_rank1_full_trace_bitwise_identical": rank_equal,
+        }
+        any_failure = any_failure or not passed
+    
+except Exception as exc:
+    any_failure = True
+    host_error = f"{type(exc).__name__}: {exc}"
 
 summary = {
     "schema": "scrimp-v130-genuine-auto-interface-MPI2-DAE-CN-physics-v1",
@@ -179,6 +184,7 @@ summary = {
         "FAIL_OR_UNQUALIFIED_AUTO_INTERFACE_MPI2_DAE_CN_PHYSICS"
     ),
     "cases": results,
+    "host_comparison_failure": host_error,
     "current_original_example_source_unchanged": True,
     "all_GetFEM_physical_integrals_on_all_ranks": True,
     "parallel_PNG_and_ParaView_qualified": False,
