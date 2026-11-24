@@ -392,6 +392,98 @@ arrête l'analyse détaillée.
 Les exemples 2B dissipatif et 2C coénergie
 restent hors du périmètre de cette campagne.
 
+## SuperLU_DIST : preuve native du pivot numérique nul
+
+Le **diagnostic du premier pas** au commit `62fb8765`
+est disponible dans
+`v130-wave2d-superlu-dist-first-step-62fb8765-QIaYkugY.zip`.
+Son archive native a été examinée intégralement,
+y compris `native.host.log`, le manifest et
+`summary.json` :
+
+```text
+MAIN TS FAILURE DIAGNOSTIC:
+ TS_reason=-2, TS_step=0, TS_time=0
+ TS_dt=1.9073486328125e-09
+ SNES_reason=-3, SNES_iter=0
+ SNES_norm=4.240793672320428e-09
+ KSP_reason=-11, KSP_iter=0, KSP_norm=inf
+ PC_type=lu, PC_failed=2, factor_solver=superlu_dist
+```
+
+D'après l'énumération officielle **PETSc PCFailedReason**,
+`PC_failed=2` signifie
+`PC_FACTOR_NUMERIC_ZEROPIVOT`. `KSP_reason=-11`
+signifie `KSP_DIVERGED_PC_FAILED`.
+La divergence TS n'est que la **conséquence** de
+l'échec de factorisation. Ce constat ne démontre
+**pas** la singularité mathématique de la
+matrice DAE : MUMPS MPI1/2 et SuperLU MPI1
+ont résolu exactement la même formulation,
+avec bilans énergétiques vérifiés.
+
+La bibliothèque PETSc permet plusieurs
+**ordres de permutation** SuperLU_DIST
+(`mat_superlu_dist_rowperm`,
+`mat_superlu_dist_colperm`) ; le remplacement
+des pivots minuscules est **désactivé par
+défaut** dans son interface officielle.
+Aucune pseudo-régularisation des pivots
+n'est ici appliquée sans preuve.
+
+### Expérience de discrimination, sans nouveau modèle
+
+Le fichier
+`sandbox/probe_v130_wave2d_superlu_dist_ordering.py`
+injecte une option à la fois **après** l'initialisation
+de `DPHS.set_time_scheme()`, car SCRIMP efface
+la base PETSc au moment de construire une DPHS.
+Il importe ensuite `examples.wave.main()`
+**sans modifier** son code scientifique.
+
+Le script
+`scripts/run-v130-wave2d-superlu-dist-ordering-study.sh`
+étudie en séquentiel :
+
+1. `LargeDiag_AWPM` (permutation des lignes) ;
+2. `MMD_AT_PLUS_A` (permutation des colonnes).
+
+Chacun exécute les **dix pas CN** originaux
+`dt=0.008`, `t_f=0.08`, `2230 DOFs`,
+SuperLU_DIST réel. Le test continue de vérifier
+la conservation de l'Hamiltonien anisotrope et
+les **quatre puissances de bord**, enregistre
+les quatre champs VTU, et confronte les vrais
+états finis à l'archive MUMPS
+`v130-wave2d-conservative-five-lu-99d99f2d-tEOjqgHy.zip`
+**sans relancer MUMPS**. Il enregistre les
+statistiques d'assemblage de la matrice
+(`SCRIMP_MPI_TRACE=1`) et refuse une
+configuration dont l'option de permutation
+est signalée **non utilisée** par PETSc.
+
+Commande native :
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+conda activate scrimp
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-wave2d-superlu-dist-ordering-study.sh
+```
+
+**Statut : diagnostic ciblé prêt, exécution
+native EN ATTENTE.** Même si une permutation
+passe en MPI1, cela ne qualifie **pas**
+SuperLU_DIST par défaut en MPI1/2 et ne
+clôture pas la campagne cinq solveurs.
+Le succès éventuel sera seulement un
+**candidat non régularisant**, à confirmer
+sur MPI2, avec tous les bilans physiques
+et contrôles VTK, avant décision de
+politique backend pour SCRIMP.
+
 ## Critère de passage à l'étape suivante
 
 Conserver cette fiche comme **audit initial**, et enregistrer
