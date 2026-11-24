@@ -25,7 +25,7 @@ class FirstCNFactorReplaySourceTests(unittest.TestCase):
         src = REPLAY.read_text(encoding="utf-8")
         ast.parse(src)
         self.assertIn(HASH, src)
-        self.assertIn('mat.getOwnershipRange()', src)
+        self.assertIn('matrix.getOwnershipRange()', src)
         self.assertIn("PETSc.Mat.Option.IGNORE_ZERO_ENTRIES, False", src)
         self.assertIn("original_full_P_M_K_SHA256", src)
         self.assertIn('"P_indptr"', src)
