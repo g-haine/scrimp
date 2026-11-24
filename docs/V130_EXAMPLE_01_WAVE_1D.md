@@ -180,8 +180,9 @@ SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
 bash scripts/run-v130-first-wave-1d-acceptance.sh
 
 # Rendu séparé des sorties à partir de l'archive déjà qualifiée
+wave1d_zip="$(ls -t sandbox/outputs/v130-first-tutorial-wave1d-*.zip | head -n 1)"
 python scripts/render-v130-wave1d-doc.py \
-  --input sandbox/outputs/<archive-native>.zip \
+  --input "$wave1d_zip" \
   --output outputs/wave1d-doc-figures
 ```
 
