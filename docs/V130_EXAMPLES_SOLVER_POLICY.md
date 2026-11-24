@@ -41,6 +41,56 @@ figure or convergence-study reproduction.
 Details: `docs/V130_EXAMPLE_01_WAVE_1D.md`.
 Eight immutable `examples/published/` sources untouched.
 
+## Pedagogical evidence contract for EACH subsequent example
+
+The first vibrating-string example now establishes the standard
+for the remaining release examples. Work through the **current Sphinx
+order**, one example at a time; do not mechanically preserve an old
+mesh, loading or source snippet when it obscures the mathematical
+phenomenon. A model and its documentation are one jointly reviewed
+scientific artifact. When a configuration changes, its mathematics,
+source and published figure provenance must change together.
+
+For every example, require:
+
+1. **Scientific question and reproducible physics:** identify
+   domain, state/co-state, physical parameters and dimension,
+   boundary/control ports, expected mechanical/thermal balance
+   and the numerical property being illustrated. Explicitly
+   distinguish the genuine example from any cited ISAE-SUPAERO
+   publication's original numerical experiment.
+2. **Learnable SCRIMP API:** show real code that a first-time
+   user can adapt; avoid burying the port-Hamiltonian mathematics
+   under PETSc/VTK plumbing. Resolve conflicting signs, GWFL
+   matrix conventions, incompatible initial data and FE spaces
+   before reporting physical PASS.
+3. **Actual install acceptance:** test MUMPS and SuperLU_DIST
+   with 1/2 MPI ranks, and serial SuperLU with 1 rank where
+   the model supports that backend. Compare original accepted
+   FE states, converged PETSc time steps, nontrivial measured
+   energies and port powers. Do not declare success solely
+   from a LU factorization.
+4. **Useful original outputs:** preserve native VTK/PVD as
+   appropriate, and supply documented PNG/SVG figures, CSV/NPZ
+   data, an optional animated GIF/SVG for online Sphinx and
+   JSON provenance (image revision, source commit, solver,
+   mesh, dt, accepted/rejected steps). Explain any
+   postprocessed/reconstructed variable separately from
+   the solved state, including its gauge and approximation.
+5. **Evidence and maintenance:** retain one canonical source
+   per example, remove obsolete duplicates once replacement
+   is natively qualified, keep `examples/published/` byte-for-byte
+   unchanged, validate both HTML/LaTeX Sphinx links, and
+   record the exact native PASS/FAIL archive, including
+   known scientific limits. Keep time-expensive demonstrations
+   separate from the fast install smoke.
+
+The first example now satisfies the five-case native solver
+and scientific physical gates, and ships a measured SVG
+power balance and a native-data browser animation. Its optional
+**long 1.5-second** animation is still an unqualified
+follow-up, not a release-blocking condition.
+
 ## Decision: stable release now, optional solver science later
 
 The already-qualified `scrimp-mpi:v1.3.0-rc3` PETSc environment
