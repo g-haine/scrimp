@@ -24,7 +24,8 @@ revision="$("${docker_cmd[@]}" image inspect \
   echo "Unqualified native Docker image revision: $revision" >&2
   exit 2
 }
-python3 -m py_compile examples/wave.py
+python3 -m py_compile examples/wave.py tests/test_v130_wave2d_conservative_pilot.py
+python3 tests/test_v130_wave2d_conservative_pilot.py
 python3 scripts/check-v130-published-immutable.py
 mkdir -p sandbox/outputs
 out="$(mktemp -d "$root/sandbox/outputs/v130-wave2d-superlu-dist-first-step-$(git rev-parse --short=8 HEAD)-XXXXXXXX")"
