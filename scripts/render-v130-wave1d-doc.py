@@ -27,8 +27,13 @@ import csv
 import hashlib
 import io
 import json
+import os
 from pathlib import Path
 import xml.etree.ElementTree as ET
+
+# This is an offline figure/GIF renderer, not an interactive Qt app.
+# Use the backend that works in SSH, CI, native Conda and Docker.
+os.environ.setdefault("MPLBACKEND", "Agg")
 import zipfile
 
 import numpy as np
