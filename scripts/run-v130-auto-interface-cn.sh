@@ -26,11 +26,13 @@ python3 -m py_compile scrimp/dphs.py scrimp/port.py scrimp/brick.py \
  scrimp/interface.py scrimp/interface_deferred.py scrimp/interface_discovery.py \
  sandbox/probe_v130_auto_interface_cn.py \
  sandbox/probe_v130_hw_dual_sided_cn.py \
- sandbox/measure_v130_hw_dual_facet_physics.py
+ sandbox/measure_v130_hw_dual_facet_physics.py \
+ tests/test_v130_hw_facet_collector_regions.py
 python3 tests/test_v130_interface_topology.py
 python3 tests/test_v130_interface_ownership.py
 python3 tests/test_v130_interface_assembly_plan.py
 python3 tests/test_v130_interface_deferred.py
+python3 tests/test_v130_hw_facet_collector_regions.py
 python3 scripts/check-v130-published-immutable.py
 
 mkdir -p sandbox/outputs
