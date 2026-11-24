@@ -241,19 +241,44 @@ except Exception as exc:
 summary = {
     "schema": "scrimp-v130-genuine-auto-interface-MPI2-DAE-CN-physics-v1",
     "status": (
-        "PASS_BOTH_AUTO_INTERFACE_ORIENTATIONS_MPI2_DAE_CN_ENERGY_PARITY"
+        (
+            "DIAGNOSTIC_MPI_RANK_ISOLATED_PV_FILES_COMPLETE_CN_ENERGY_PASSED"
+            if pv_diagnostic else
+            "PASS_BOTH_AUTO_INTERFACE_ORIENTATIONS_MPI2_DAE_CN_ENERGY_PARITY"
+        )
         if not any_failure else
-        "FAIL_OR_UNQUALIFIED_AUTO_INTERFACE_MPI2_DAE_CN_PHYSICS"
+        "FAIL_OR_UNQUALIFIED_AUTO_INTERFACE_MPI2_DAE_CN_OR_PV_DIAGNOSTIC"
     ),
     "cases": results,
     "host_comparison_failure": host_error,
     "isolated_MPI_ParaView_diagnostic_executed": pv_diagnostic,
     "isolated_MPI_ParaView_evidence": pv_evidence,
+    "shared_production_MPI_ParaView_qualified": False,
+    "rank_isolated_VTU_PVD_mesh_parity_by_field": {},
     "current_original_example_source_unchanged": True,
     "all_GetFEM_physical_integrals_on_all_ranks": True,
     "parallel_PNG_and_ParaView_qualified": False,
     "production_auto_compiler_enabled_by_default": False,
 }
+if pv_diagnostic and not any_failure:
+    mesh_comparison = {}
+    for heat in (1, 2):
+        serial = pv_evidence[f"heat{heat}_mpi1_rank0"]
+        for rank in (0, 1):
+            multi = pv_evidence[f"heat{heat}_mpi2_rank{rank}"]
+            for name in ("p", "T"):
+                expected = [
+                    (rec["points"], rec["cells"]) for rec in serial[name]
+                ]
+                observed = [
+                    (rec["points"], rec["cells"]) for rec in multi[name]
+                ]
+                mesh_comparison[f"heat{heat}_MPI2rank{rank}_{name}"] = {
+                    "serial_piece_counts": expected,
+                    "parallel_piece_counts": observed,
+                    "same_as_serial": expected == observed,
+                }
+    summary["rank_isolated_VTU_PVD_mesh_parity_by_field"] = mesh_comparison
 (root/"comparison.json").write_text(json.dumps(summary,indent=2)+"\n")
 with zipfile.ZipFile(str(root)+".zip", "x", compression=zipfile.ZIP_DEFLATED,
                      compresslevel=4,allowZip64=True) as z:
