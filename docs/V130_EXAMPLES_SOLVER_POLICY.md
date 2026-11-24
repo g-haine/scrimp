@@ -28,8 +28,22 @@ energy-work and animated-strain/reconstructed-displacement
 SVG illustrations. The optional rendering script generates
 scientific PNG/SVG plots, user CSV/NPZ data and GIF from
 the original accepted FE states and GetFEM outputs.
-The optional **longer 1.5 s visual demonstration** is
-separate and **not yet native-executed**.
+The separate **1.5 s long visual demonstration now
+also passes natively** (MUMPS MPI1 only, source
+`7e2e95a`, 150/150 accepted CN steps and
+151 saved snapshots, maximum true per-step energy
+defect `3.434752482434078e-16`). Its complete
+`q`/`p` VTK output consists of **302 checked VTUs**;
+the original 151-frame GIF and energy plots have
+been inspected. Compact, data-derived SVG animations
+and energy figures are included in the first Sphinx
+chapter; full binary PNG/GIF/CSV/NPZ evidence remains
+user-reproducible and is not bulk-committed.
+The native proof archive is
+`v130-wave1d-long-doc-7e2e95a4-75oCWG1T.zip`.
+This long run is **not** an MPI2/SuperLU backend
+qualification; those claims remain tied to the
+short five-solver installation acceptance.
 
 Scientific links: Haine–Matignon–Serhani (2023),
 DOI 10.4208/ijnam2023-1005, and
