@@ -99,11 +99,13 @@ For every example, require:
    known scientific limits. Keep time-expensive demonstrations
    separate from the fast install smoke.
 
-The first example now satisfies the five-case native solver
-and scientific physical gates, and ships a measured SVG
-power balance and a native-data browser animation. Its optional
-**long 1.5-second** animation is still an unqualified
-follow-up, not a release-blocking condition.
+The first example satisfies the five-case native solver
+and scientific physical gates and also has a **separately
+validated 1.5-second MUMPS/MPI1 documentation simulation**.
+The reviewed full GIF and native VTK data remain reproducible;
+Sphinx ships compact energy and animated SVG figures from
+that genuine long run. The extra long visualization is
+not part of the five-backend installation smoke.
 
 ## Decision: stable release now, optional solver science later
 
