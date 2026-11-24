@@ -51,6 +51,7 @@ for candidate in clamp constrained_l2; do
    --env OMP_NUM_THREADS=1 --env OPENBLAS_NUM_THREADS=1 \
    --volume "$root/scrimp:/workspace/scrimp/scrimp:ro" \
    --volume "$root/examples/heat_wave.py:/workspace/scrimp/examples/heat_wave.py:ro" \
+   --volume "$root/examples/shallow_water.py:/workspace/scrimp/examples/shallow_water.py:ro" \
    --volume "$root/sandbox/probe_v130_main_2d_examples.py:/workspace/scrimp/sandbox/probe_v130_main_2d_examples.py:ro" \
    --volume "$root/sandbox/measure_v130_heat_wave_physics.py:/workspace/scrimp/sandbox/measure_v130_heat_wave_physics.py:ro" \
    --volume "$root/sandbox/probe_v130_heat_wave_boundary_compatibility.py:/workspace/scrimp/sandbox/probe_v130_heat_wave_boundary_compatibility.py:ro" \
