@@ -273,6 +273,56 @@ les états de référence initialement fournis.
 Si tout passe, seulement alors promouvoir
 `examples/wave.py` et aligner Sphinx.
 
+## Promotion de la source et préparation de l'acceptation LU (24 novembre)
+
+**Le deuxième essai natif est PASS de bout en bout :**
+`v130-wave2d-mixed-conservative-cf42089d-pI8VXuBa.zip`,
+`PASS_WAVE2D_CONSERVATIVE_TENSOR_MIXED_MUMPS_MPI1_MPI2`.
+Deux simulations physiques MUMPS (MPI 1/2), dix pas
+CN acceptés, 2230 DOFs, données initiales DAE préservées,
+puissance de bord non triviale, défaut énergétique
+par pas **2.982e−18** (MPI1) et **1.789e−18**
+(MPI2), avec **88 véritables VTU** (11 × 4 × 2)
+et les huit PVD associés. Les états sauvegardés
+par les deux rangs MPI2 sont identiques ; écart
+maximal MPI1/MPI2 **4.16334e−14**.
+
+À partir de cette preuve, l'ancien candidat
+`sandbox/probe_v130_wave2d_conservative.py`
+a été **promu dans `examples/wave.py`**, en
+conservant le nom de fonction historique `wave_eq()`
+et ses équations, paramètres et contrôles nativement
+qualifiés. Seuls l'encapsulation en API canonique,
+la documentation et les commentaires ont changé.
+Le pilote temporaire et son lanceur ont été retirés :
+leurs anciennes sources et leur preuve sont toujours
+retrouvables dans l'historique Git/ZIP.
+
+La partie conservative de
+`docs/source/examples/wave.rst`
+a été **reconstruite sans doublons des briques** :
+huit `literalinclude` lient directement
+les champs, ports, FEM, paramètres, briques,
+contrôles, pas CN et Hamiltonien de la source
+qualifiée. La partie **dissipative**, toujours
+dans la même page, **n'est pas encore modifiée
+ni qualifiée** ; la formulation coénergie est
+également réservée à l'étape 2C.
+
+Le nouvel outil
+`scripts/run-v130-wave2d-conservative-acceptance.sh`
+lancera directement `examples/wave.py` en
+**MUMPS MPI 1/2, SuperLU MPI 1,
+SuperLU_DIST MPI 1/2** et comparera
+les trajectoires, Hamiltoniens, puissances
+et quatre champs ParaView entre backends.
+
+**Statut scientifique : MUMPS MPI 1/2 PASS
+acquis. Cinq LU/MPI PENDING.**
+Une nouvelle preuve est nécessaire pour
+promouvoir le résultat *global* de l'exemple
+2A à une qualification d'installation.
+
 ## Critère de passage à l'étape suivante
 
 Conserver cette fiche comme **audit initial**, et enregistrer
