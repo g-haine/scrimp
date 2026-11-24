@@ -195,6 +195,54 @@ python sandbox/probe_v130_native_interface_ownership.py
 The tests and the updated native audit have not yet been executed in
 the qualified GetFEM environment.
 
+## Native qualification completed — 2026-11-24
+
+The user reran the stage-4 source-only suites and original Heat-Wave
+declaration-level audit at commit `da9cb8f`:
+
+- Interface topology: **10/10 PASS**.
+- Port ownership: **6/6 PASS**.
+- Residual-side brick plan: **7/7 PASS**.
+- Native original Heat-Wave declarative audit:
+  `PASS_DECLARED_DPHS_INTERFACE_OWNERSHIP_AND_BRICK_PLAN_ONLY`.
+- Both `(heat,wave)=(1,2)` and `(2,1)` assign the
+  ten interface bricks to the intended side, including both feedback
+  equations and masses.
+- No GetFEM weak-form reorientation, DAE initialization, CN, or MPI2
+  execution occurred. The PETSc `-isset` unused-options warning
+  is incidental to early diagnostic exit.
+
+The user also ran
+`sandbox/probe_v130_two_rectangles_interface.py` successfully
+at commit `c2d64b4`:
+`PASS_PARTIAL_BOUNDARY_INTERFACE_TOPOLOGY_ONLY`,
+with 8 quadrangles (4 in each rectangle), 2 shared facets out of 8
+boundary facets on each side, and rejection of incomplete labeling.
+
+## Reference-facet parity gate (native pending)
+
+`sandbox/probe_v130_generic_interface_reference_parity.py` compares
+the generic `Domain.resolve_interface(10, (1,2))` face sets against the
+previous physically qualified, geometry-specific Heat-Wave sandbox
+helper. Exact parent convex and local face IDs must match, not merely
+their coordinates or numbers. This pilot creates temporary legacy
+reference regions 30/31 *only after* generic facet resolution; the
+original logical region 10 stays unchanged.
+
+Run from the qualified environment with the sandbox module on the
+Python search path:
+
+```bash
+PYTHONPATH="$PWD/sandbox:$PWD" \\
+  python sandbox/probe_v130_generic_interface_reference_parity.py
+```
+
+This is geometric parity, not yet assembly parity. The next gate must
+construct the actual GetFEM variables and bricks from the automatically
+resolved face sets and compare assembled sparse matrices with the
+previous native qualified two-sided pilot. No production assembly policy
+is activated yet.
+
 ## Next steps (not implemented here)
 
 1. Native test on real 1D/2D/3D imported meshes and curved/high-order
