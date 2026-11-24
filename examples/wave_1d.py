@@ -188,7 +188,21 @@ def observe_wave_1d(system):
             or system.last_ts_rejections != 0
             or system.last_ts_snes_failures != 0
             or not np.all(H >= -1e-12)):
-        raise RuntimeError("Real PETSc CN convergence or energy positivity failed")
+        # Preserve the strict gate: a dropped archive sample makes
+        # adjacent saved states NON-consecutive TSCN steps, and CN
+        # step-power quadrature would become physically invalid.
+        raise RuntimeError(
+            "Real PETSc CN acceptance/sampling/energy check failed: "
+            f"accepted_TS_steps={system.last_ts_steps}, "
+            f"saved_FE_states={len(times)}, "
+            f"TS_reason={system.last_ts_converged_reason}, "
+            f"rejected_steps={system.last_ts_rejections}, "
+            f"SNES_failures={system.last_ts_snes_failures}, "
+            f"min_Hamiltonian={float(np.min(H)):.12g}, "
+            f"last_saved_time={float(times[-1]):.12g}. "
+            "For dt_save=dt, every genuine accepted CN endpoint "
+            "(including the initial state) must be archived."
+        )
     scale = max(1., float(np.max(np.abs(H))))
     init = system.initialization_report
     gates = {
