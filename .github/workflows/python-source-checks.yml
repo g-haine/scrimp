@@ -44,6 +44,36 @@ jobs:
           python -m py_compile scrimp/utils/mesh.py scrimp/utils/ph_block_layout.py sandbox/audit_ph_blocks.py sandbox/compare_ph_block_audits.py sandbox/diagnose_ph_block_parity.py sandbox/compare_raw_getfem_petsc.py tests/test_ph_block_layout.py tests/test_ph_block_comparison.py tests/test_getfem_bridge_localization.py tests/test_concentric_region_integrity.py
           bash -n sandbox/run_ph_block_audit.sh
           python -m unittest -v tests.test_ph_block_layout tests.test_ph_block_comparison tests.test_getfem_bridge_localization tests.test_concentric_region_integrity
+      - name: Validate promoted conforming interfaces and MPI VTK defaults (no GetFEM/PETSc)
+        run: |
+          python -m py_compile \
+            scrimp/utils/production_policy.py \
+            scrimp/interface.py \
+            scrimp/interface_discovery.py \
+            scrimp/interface_deferred.py \
+            scrimp/interface_ownership.py \
+            scrimp/interface_assembly_plan.py \
+            sandbox/v130_pv_root_only_audit.py \
+            sandbox/v130_interface_csr_parity.py \
+            sandbox/probe_v130_auto_interface_mpi_cn.py \
+            tests/test_v130_interface_pv_production_policy.py
+          bash -n \
+            scripts/run-v130-production-defaults.sh \
+            scripts/run-v130-auto-interface-mpi-cn.sh \
+            scripts/run-v130-auto-interface-mpi-pv-root-only.sh
+          for source_test in \
+            tests/test_v130_interface_topology.py \
+            tests/test_v130_interface_ownership.py \
+            tests/test_v130_interface_assembly_plan.py \
+            tests/test_v130_interface_deferred.py \
+            tests/test_v130_hw_facet_collector_regions.py \
+            tests/test_v130_heat_wave_outward_signs.py \
+            tests/test_v130_interface_mpi_csr_parity.py \
+            tests/test_v130_auto_interface_mpi_cn_comparator.py \
+            tests/test_v130_interface_pv_production_policy.py; do
+            python "$source_test"
+          done
+          python scripts/check-v130-published-immutable.py
       - name: Validate coenergy MPI physical power and full-trajectory gates (no PETSc)
         run: |
           python -m py_compile sandbox/verify_coenergy_power_mpi.py sandbox/compare_coenergy_power_mpi.py tests/test_coenergy_power_mpi.py
