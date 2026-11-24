@@ -447,6 +447,67 @@ SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \\
 bash scripts/run-v130-auto-interface-cn.sh
 ```
 
+## Full automatic Heat-Wave DAE/CN energy equivalence — PASS (2026-11-24)
+
+The user ran the pinned Docker physical comparison at commit `b001f2e`,
+and supplied its complete 86-file evidence archive
+`v130-auto-interface-CN-b001f2eb-7wIwM8qq.zip`. The run is a
+**genuine, original, unmodified Heat-Wave** execution with
+`SCRIMP_V130_AUTO_INTERFACE_PILOT=1`, comparing to separately mapped
+historical one-sided interfaces.
+
+- Status: **`PASS_BOTH_AUTO_INTERFACE_CANDIDATES_DAE_CN_ENERGY_PARITY`**.
+- All 32 source-only unit tests passed; immutable example audit passed.
+- Both `clamp` and `constrained_l2` passed original strict algebraic
+  DAE initial projection, 4/4 fixed CN accepted steps, 0 rejects,
+  0 nonlinear solver failures.
+- Full accepted state vectors (**5 × 7689**), all saved times,
+  Hamiltonians and T/p/q trajectories were **elementwise identical
+  to the reference** (maximum absolute difference 0).
+- All compared physical energy and interface-power diagnostics were
+  **numerically identical** between automatic and reference.
+- `clamp`: max total CN step balance defect
+  **5.457440055423035e-15**, max interface-power defect
+  **8.881784197001252e-16**.
+- `constrained_l2`: max total balance defect
+  **6.893791093531831e-15**, max interface-power defect
+  **3.1086244689504383e-15**.
+- Strongly nonvacuous exchange: max individual CN interface power
+  about **3.56907**, relative to heat dissipation about **0.11139**.
+- Compiled internal heat and wave side regions: **21**, **22**;
+  original public logical interface region **10** unchanged.
+- Both physical collector and public `Port.compute(cn_step)` used
+  the one-sided effective regions.
+
+**Scope:** This qualifies the opt-in automatic interface compiler for
+original Heat-Wave **heat=1, wave=2, MPI1 only**, including strict
+DAE/CN and nontrivial pH energy identities. The flag is still
+disabled by default. It does **not** qualify a swapped heat/wave
+physical sign convention, MPI2, arbitrary geometries with dynamic
+solvers, mixed/nonmatching meshes or higher-order FEM spaces.
+
+## Orientation and physical transmission signs: separate obligations
+
+The current unchanged published `examples/heat_wave.py` contains
+geometry-specific `heat_normal_orientation = 1 if heat_region == 1 else -1`.
+For heat=2 it uses both `+U_T*Test_e_Q.Normal` for the heat interface
+brick and `set_control("Interface Wave", "-Y_T")`, because it was
+written assuming a *common* interface normal. With resolved outward
+parent-face normals, the same expressions represent a different
+physical transmission convention.
+
+The automatic compiler chooses the **correct geometric side**, but
+must not silently rewrite the *user's physical equations*. In a
+physical outward-normal convention where the heat mixed boundary
+input is `T=U_T`, the corresponding heat interface weak term is
+`-U_T*Test_e_Q.Normal` independent of its numbered subdomain; its
+power-conserving cross-system feedback for this Heat-Wave model is
+`U_w=Y_T`. The heat=2 **published form** needs a separate
+documented physical reformulation/validation before one may claim
+that permutation preserves the same transmission model. That
+mathematical/physical model decision is distinct from the
+topology and automatic GetFEM region assignment.
+
 ## Next steps (not implemented here)
 
 1. Native test on real 1D/2D/3D imported meshes and curved/high-order
