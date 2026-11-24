@@ -29,6 +29,7 @@ python3 -m py_compile \
  scrimp/dphs.py scrimp/port.py scrimp/interface_deferred.py \
  sandbox/probe_v130_auto_interface_mpi_cn.py \
  sandbox/measure_v130_hw_dual_facet_physics.py \
+ sandbox/v130_pv_root_only_audit.py \
  tests/test_v130_auto_interface_mpi_cn_comparator.py
 python3 tests/test_v130_interface_topology.py
 python3 tests/test_v130_interface_ownership.py
@@ -123,6 +124,7 @@ pv_diagnostic = os.environ.get("SCRIMP_V130_MPI_PV_DIAGNOSTIC", "0") == "1"
 pv_root_only = os.environ.get("SCRIMP_V130_MPI_PV_ROOT_ONLY", "0") == "1"
 pv_export_active = pv_diagnostic or pv_root_only
 pv_evidence = {}
+pv_root_evidence = {}
 try:
     for heat in (1, 2):
         run = {}
@@ -254,6 +256,11 @@ try:
                     raise RuntimeError(
                         f"Unexpected MPI rank1 output directory: {label}"
                     )
+    if pv_root_only and not any_failure:
+        from sandbox.v130_pv_root_only_audit import audit_root_only_pv
+        # Decode actual scalar PointData and all VTK mesh arrays.
+        pv_root_evidence = audit_root_only_pv(root)
+
 
 
 except Exception as exc:
@@ -283,6 +290,7 @@ summary = {
     "host_comparison_failure": host_error,
     "isolated_MPI_ParaView_diagnostic_executed": pv_diagnostic,
     "root_only_shared_ParaView_export_tested": pv_root_only,
+    "shared_MPI_root_only_field_and_mesh_data_audit": pv_root_evidence,
     "isolated_MPI_ParaView_evidence": pv_evidence,
     "shared_production_MPI_ParaView_qualified": (
         pv_root_only and not any_failure
