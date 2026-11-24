@@ -4978,3 +4978,45 @@ misrepresented as complete Heat-Wave physical power/energy
 qualification. The new runner archives both candidate
 reports and all native logs and explicitly distinguishes
 PASS from unresolved strict feasibility.
+
+## 24 November 2026 — boundary-compatible original Heat-Wave initial DAE PASS
+
+Original native attached evidence
+`v130-heat-wave-boundary-2730ca76-kTyZ92BN.zip`, source
+`2730ca767f04c1b5ab66aa2b74a276891c718ab6`, image
+`1d6d0c90115213298047b28237a7f38087563a35`,
+has been opened and its candidate reports verified.
+Both original differential initial-data corrections satisfy strict
+PETSc linear algebraic DAE feasibility with T and q exactly fixed.
+`clamp`: 126/1105 CG1 wave p boundary DOFs zero,
+relative coefficient change 0.010078436220965385;
+original IFunction residual 8.95442336636538e-14.
+`constrained_l2`: the L2-mass-minimal zero-boundary
+corrected p differs by relative coefficient norm
+0.01048399404862387 but minimizes the **physical
+mass norm** (correction 0.005472287031715921,
+stationarity on free DOFs 8.879617962796226e-15);
+strict IFunction residual 8.812824629488875e-14.
+Both are below unchanged DAE feasibility tolerances
+~1.2617e-08 and accuracy target 1e-11.
+Neither ran main PETSc TS; no physical energy conclusion yet.
+
+A new independent native **four-step original CN** campaign
+`scripts/run-v130-heat-wave-compatible-cn.sh` runs the
+unchanged public Heat-Wave model and postprocessing with
+each candidate and both PETSc LU backends (MUMPS and
+SuperLU_DIST), preserving the original 8 published files.
+A controlled sandbox wrapper intervenes only at the start
+of `DPHS.init_step()` to make the requested correction,
+calls the original strict DAE initializer, and then
+continues into the unchanged main CN time stepper.
+It reuses the production original Heat-Wave stage-mean
+physical observable collector, checks accepted times,
+source-independent backend parity, and separately reports
+CN midpoint Hamiltonian/dissipation and boundary/interface
+power defects. A numerical solver PASS alone does not imply
+physical power/energy PASS; failure to meet explicit scientific
+thresholds remains visible as `PHYSICAL_SCIENCE_OPEN`.
+ParaView remains serial/MPI1 because concurrent public
+file writing is not yet qualified. This native campaign is
+pending the requested original-image run.

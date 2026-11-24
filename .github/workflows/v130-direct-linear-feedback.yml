@@ -11,6 +11,9 @@ on:
       - sandbox/probe_v130_heat_wave_dae_feasibility.py
       - scripts/run-v130-heat-wave-dae-feasibility.sh
       - scripts/run-v130-heat-wave-boundary-compatibility.sh
+      - sandbox/probe_v130_heat_wave_compatible_cn.py
+      - scripts/run-v130-heat-wave-compatible-cn.sh
+      - tests/test_v130_heat_wave_compatible_cn.py
       - sandbox/probe_v130_heat_wave_boundary_compatibility.py
       - tests/test_v130_heat_wave_boundary_compatibility.py
       - scrimp/utils/fe_initialization.py
@@ -44,6 +47,9 @@ on:
       - sandbox/probe_v130_heat_wave_dae_feasibility.py
       - scripts/run-v130-heat-wave-dae-feasibility.sh
       - scripts/run-v130-heat-wave-boundary-compatibility.sh
+      - sandbox/probe_v130_heat_wave_compatible_cn.py
+      - scripts/run-v130-heat-wave-compatible-cn.sh
+      - tests/test_v130_heat_wave_compatible_cn.py
       - sandbox/probe_v130_heat_wave_boundary_compatibility.py
       - tests/test_v130_heat_wave_boundary_compatibility.py
       - scrimp/utils/fe_initialization.py
@@ -88,6 +94,8 @@ jobs:
           bash -n scripts/run-v130-heat-wave-dae-feasibility.sh
           python -m py_compile sandbox/probe_v130_heat_wave_boundary_compatibility.py tests/test_v130_heat_wave_boundary_compatibility.py
           bash -n scripts/run-v130-heat-wave-boundary-compatibility.sh
+          python -m py_compile sandbox/probe_v130_heat_wave_compatible_cn.py tests/test_v130_heat_wave_compatible_cn.py
+          bash -n scripts/run-v130-heat-wave-compatible-cn.sh
           python -m py_compile sandbox/probe_v130_intrinsic_l2_projection.py sandbox/probe_v130_intrinsic_affine_projection.py sandbox/probe_v130_universal_fem_initialization.py
           bash -n scripts/run-v130-intrinsic-fem-initialization.sh
           bash -n scripts/run-v130-intrinsic-l2-projection.sh
@@ -108,6 +116,8 @@ jobs:
         run: python tests/test_v130_dae_algebraic_block_diagnostics.py
       - name: Boundary-compatible Heat-Wave candidate source contracts
         run: python tests/test_v130_heat_wave_boundary_compatibility.py
+      - name: Original Heat-Wave corrected initial-state CN full trajectory source tests
+        run: python tests/test_v130_heat_wave_compatible_cn.py
       - name: Universal FE pilot scope and GWFL polynomial grammar (source only)
         run: python tests/test_v130_universal_fe_projection_spec.py
       - name: Universal source-only FE L2 initialization and expression grammar
