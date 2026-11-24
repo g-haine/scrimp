@@ -18,7 +18,7 @@ On exactly the same SHA256-pinned factor matrix, try:
 Both methods require the opt-in ReplaceTinyPivot; both are diagnostic
 only. No GetFEM reassembly, changes to the Jacobian, shift, algebraic
 port, physical energy or any SCRIMP implementation.
-""
+"""
 
 import argparse
 import hashlib
