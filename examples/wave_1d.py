@@ -226,6 +226,60 @@ def observe_wave_1d(system):
     }
 
 
+def save_rejected_wave_diagnostic(system, directory, rank, error):
+    """Keep original accepted FE evidence if an audit fails closed.
+
+    Files are deliberately named '*.failed.*' and never carry a
+    physical PASS status. A failed postprocessor must not discard
+    a long, genuinely converged native PETSc trajectory when the
+    cause of the failure needs scientific investigation.
+    """
+    directory = Path(directory)
+    directory.mkdir(parents=True, exist_ok=True)
+    result = {
+        "status": "UNQUALIFIED_NATIVE_TRAJECTORY_DIAGNOSTIC_ONLY",
+        "observer_error": f"{type(error).__name__}: {error}",
+        "rank": rank,
+        "ts_steps": int(system.last_ts_steps),
+        "ts_reason": int(system.last_ts_converged_reason),
+        "ts_rejections": int(system.last_ts_rejections),
+        "snes_failures": int(system.last_ts_snes_failures),
+        "raw_state_count": len(system.solution["t"]),
+    }
+    raw = {}
+    try:
+        raw["times"] = np.asarray(system.solution["t"], dtype=float)
+        raw["states"] = np.asarray(system.solution["z"], dtype=float)
+        raw["H"] = np.asarray(system.get_Hamiltonian(), dtype=float)
+        for name, key in (
+            ("Boundary control (left)", "power_left"),
+            ("Boundary control (right)", "power_right"),
+        ):
+            raw[key] = np.asarray(
+                system.ports[name].get_power(), dtype=float
+            )
+        result["raw_H_min"] = (
+            float(np.min(raw["H"])) if raw["H"].size else None
+        )
+        result["raw_H_max"] = (
+            float(np.max(raw["H"])) if raw["H"].size else None
+        )
+        result["saved_final_time"] = (
+            float(raw["times"][-1]) if raw["times"].size else None
+        )
+        np.savez_compressed(
+            directory/f"rank{rank}.failed.npz", **raw
+        )
+    except Exception as diagnostic_error:
+        result["snapshot_diagnostic_error"] = (
+            f"{type(diagnostic_error).__name__}: {diagnostic_error}"
+        )
+    (directory/f"rank{rank}.failed.json").write_text(
+        json.dumps(result, indent=2, default=str)+"\\n",
+        encoding="utf-8",
+    )
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -255,7 +309,14 @@ def main():
         mesh_size=args.mesh_size, factor_solver=args.solver,
         plot=args.plot,
     )
-    report = observe_wave_1d(system)
+    try:
+        report = observe_wave_1d(system)
+    except Exception as error:
+        if args.output is not None:
+            save_rejected_wave_diagnostic(
+                system, args.output, comm.rank, error
+            )
+        raise
     if args.output is not None:
         args.output.mkdir(parents=True, exist_ok=True)
         np.savez_compressed(
