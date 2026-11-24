@@ -223,6 +223,8 @@ def main():
     parser.add_argument("--output", type=Path, default=None,
                         help="Optional persistent result directory")
     parser.add_argument("--plot", action="store_true")
+    parser.add_argument("--export", action="store_true",
+                        help="Write real q/p ParaView VTU/PVD under --output")
     parser.add_argument("--check", action="store_true",
                         help="Fail on genuine DAE/CN/energy defects")
     args = parser.parse_args()
@@ -231,6 +233,8 @@ def main():
     comm = MPI.COMM_WORLD
     if args.solver == "superlu" and comm.size != 1:
         parser.error("SuperLU is sequential; use SuperLU_DIST or MUMPS with MPI")
+    if args.export and args.output is None:
+        parser.error("--export requires --output for persistent user-owned files")
     system = wave_1d(
         final_time=args.final_time, time_step=args.time_step,
         mesh_size=args.mesh_size, factor_solver=args.solver,
@@ -265,6 +269,11 @@ def main():
         (args.output/f"rank{comm.rank}.json").write_text(
             json.dumps(metadata, indent=2)+"\n", encoding="utf-8",
         )
+    if args.export:
+        # All ranks MUST enter the real GetFEM writer, even though the
+        # default validated MPI policy writes from rank0 only.
+        system.export_to_pv("q", path=str(args.output), t="All")
+        system.export_to_pv("p", path=str(args.output), t="All")
     passed = all(report["gates"].values())
     if comm.rank == 0:
         print(json.dumps({
