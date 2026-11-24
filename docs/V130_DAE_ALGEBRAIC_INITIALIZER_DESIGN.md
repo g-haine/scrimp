@@ -5362,3 +5362,63 @@ fabricated zero. The output remains
 `DIAGNOSTIC_ONLY_INTERFACE_COUPLING_PHYSICS_OPEN` until
 actual nontrivial interface exchange and its energy identity
 are independently established.
+
+## 24 November 2026 — true heat-interface flux coupling nearly zero: focus on mesh facet semantics
+
+The uploaded original native archive
+`v130-hw-interface-audit-31897065-z19UQyLo.zip` was
+opened, including original `Concentric.msh`, all GetFEM
+interface traces, actual 7689-state coefficient blocks,
+and actual PETSc stiffness block norms.
+The heat-flux boundary coupling is NUMERICALLY ABSENT:
+`||K[Y_T,e_Q]||_F=6.555326985e-17` and
+`||K[e_Q,U_T]||_F=6.930214859e-17`. Compare the
+genuinely nonzero wave/interface and direct feedback
+blocks of norm `0.6035057169`:
+`K[Y_w,p]`, `K[U_T,Y_w]`, `K[U_w,Y_T]`,
+and `K[p,U_w]`. Thus just changing the initial Gaussian
+cannot restore physical heat-to-wave energy transfer.
+
+The user archive further confirms `U_T` and `Y_w`
+have squared trace `~12.7`, while `Y_T` and `U_w`
+are `~1e-28`; the integral of squared local interface
+power density is `~1e-26`. Hence there is no cancellation
+of large positive and negative local power densities.
+Meanwhile actual `e_Q.Normal` squared trace is
+`116450.1` initially. The measured assembled operator
+is effectively a one-way coupling despite its precisely
+closed, but physically VACUOUS, interface power balance.
+The original 4-step energy and LU parity remain valid for
+that assembled operator only. Mark full multiphysics
+physics gate OPEN.
+
+Source of plausible geometric inconsistency:
+`scrimp/utils/mesh.py:Concentric` imports the Gmsh mesh
+with `gmsh_with_lower_dim_elt`, keeps a region 10 built
+by merging physical 1-D arc labels 11 and 12, but the
+Heat-Wave bricks `e_Q.Normal*Test_Y_T` and
+`U_T*Test_e_Q.Normal` require one-sided NORMAL TRACES
+from 2-D parent elements. Gmsh lower-dimensional convex
+regions and oriented parent-element faces are not
+interchangeable in GetFEM. This is a **hypothesis** until
+native parent-face region semantics have been verified.
+Do not modify the Concentric production volume regions:
+a past regression showed lower-dimensional convex
+merging into bulk domains corrupts physics and MPI.
+
+The new independent original-image probe
+`scripts/run-v130-hw-one-sided-facets.sh` runs the
+unchanged original MUMPS, strict DAE, four-step CN pilot
+and only AFTER its physics collector it creates
+diagnostic regions 30 (outer 2-D disk faces) and
+31 (inner 2-D annulus faces). It records region 10
+whole-convex versus facet composition, real oriented
+face normals, GetFEM stage-mean squared normal flux
+and candidate cross-field/power traces on all three
+regions. A failed cross-field GetFEM trace is marked
+unavailable, NOT replaced by zero. No original source,
+weak form, solver, or initial-state policy changes.
+Only if parent-face fields reveal the missing normal
+integration do we have enough evidence to prototype a
+different interface discretization (and then retest
+true transmission plus nonvacuous CN energy transfer).
