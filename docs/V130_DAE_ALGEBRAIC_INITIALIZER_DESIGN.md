@@ -5082,3 +5082,50 @@ Thus any observed difference is a difference in handling
 conditions, GetFEM assembly or a changing time step.
 A snapshot or replay success is diagnostic only; the
 full physical CN energy/power gate remains unqualified.
+
+## 24 November 2026 — actual first CN sparse matrix and pivot strategy
+
+Native original source `1f4829c4`, attached
+`v130-hw-cn-identical-lu-1f4829c4-NeuvQaHo.zip`, was opened and
+its PETSc binary matrix independently decoded (big-endian PETSc AIJ
+complex128). All 65,100 STORED entries are finite and have
+exactly zero imaginary part; 64,974 are NUMERICALLY nonzero.
+The 126 exact stored diagonal zeros occupy global rows
+`1508..1633`. These rows have nonzero couplings; no row or column
+is numerically empty. Deleting all stored numerical zeros from the
+sparse pattern and **recomputing bipartite structural rank**
+still yields full rank `7689/7689` (a graph-only fact, not proof
+of numerical nonsingularity).
+
+MUMPS solves the identical PETSc snapshot with relative
+linear residual `6.369971556538017e-16` and known-state
+error `6.41920269434316e-14`, whereas SuperLU_DIST
+reports `KSP_DIVERGED_PC_FAILED=-11` and
+`PC_FACTOR_NUMERIC_ZEROPIVOT=2`. The matrix's stored-CSR
+SHA256 remains identical:
+`c94c69c4e4307d7a5aa61d9eba186782c0495b49431cadcb7281d7a7b5bffaff`.
+
+A LOCAL independent SciPy/SuperLU sequential reconstruction
+of the exact same PETSc binary matrix with ordinary numerical
+pivoting (`permc_spec=COLAMD`, `diag_pivot_thresh=1.0`)
+succeeds: relative linear residual `3.23e-16` and known
+state error `7.31e-14`. Disabling the diagonal pivot threshold
+in the sequential library produces an invalid, enormous
+residual despite formal factorization completion. This
+supports investigating permutations/pivot strategy, but
+serial SuperLU is NOT SuperLU_DIST: do not claim its
+configuration is fixed from SciPy results.
+
+The next original-image test
+`scripts/run-v130-hw-superlu-permutation-sweep.sh`
+reuses the PREVIOUSLY ARCHIVED FIRST CN PETSc snapshot. Each
+isolated MPI1 Docker invocation tests a different documented
+SuperLU_DIST row/column ordering. The factor matrix is viewed
+through PETSc to verify what permutation was ACTUALLY selected.
+All cases use the same exact CSR SHA and manufactured known
+solution, recording KSP/PC status, linear residual, solution
+error, and immutable matrix hash. `mat_superlu_dist_replacetinypivot`
+is explicitly FALSE; **no tiny pivot replacement, no
+diagonal perturbation and no TS tolerance changes**.
+Even a successful direct LU replay is only a candidate
+for a later complete Heat-Wave CN/physical power test.

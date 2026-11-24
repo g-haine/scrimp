@@ -15,6 +15,9 @@ on:
       - scripts/run-v130-heat-wave-compatible-cn.sh
       - scripts/run-v130-heat-wave-superlu-step-diagnostic.sh
       - scripts/run-v130-hw-cn-identical-lu.sh
+      - scripts/run-v130-hw-superlu-permutation-sweep.sh
+      - sandbox/probe_v130_hw_superlu_permutation_sweep.py
+      - tests/test_v130_hw_superlu_permutation_sweep.py
       - sandbox/probe_v130_hw_cn_identical_lu.py
       - tests/test_v130_hw_cn_identical_lu.py
       - tests/test_v130_heat_wave_superlu_step_diagnostic.py
@@ -56,6 +59,9 @@ on:
       - scripts/run-v130-heat-wave-compatible-cn.sh
       - scripts/run-v130-heat-wave-superlu-step-diagnostic.sh
       - scripts/run-v130-hw-cn-identical-lu.sh
+      - scripts/run-v130-hw-superlu-permutation-sweep.sh
+      - sandbox/probe_v130_hw_superlu_permutation_sweep.py
+      - tests/test_v130_hw_superlu_permutation_sweep.py
       - sandbox/probe_v130_hw_cn_identical_lu.py
       - tests/test_v130_hw_cn_identical_lu.py
       - tests/test_v130_heat_wave_superlu_step_diagnostic.py
@@ -110,6 +116,8 @@ jobs:
           bash -n scripts/run-v130-heat-wave-superlu-step-diagnostic.sh
           python -m py_compile sandbox/probe_v130_hw_cn_identical_lu.py tests/test_v130_hw_cn_identical_lu.py
           bash -n scripts/run-v130-hw-cn-identical-lu.sh
+          python -m py_compile sandbox/probe_v130_hw_superlu_permutation_sweep.py tests/test_v130_hw_superlu_permutation_sweep.py
+          bash -n scripts/run-v130-hw-superlu-permutation-sweep.sh
           python -m py_compile sandbox/probe_v130_intrinsic_l2_projection.py sandbox/probe_v130_intrinsic_affine_projection.py sandbox/probe_v130_universal_fem_initialization.py
           bash -n scripts/run-v130-intrinsic-fem-initialization.sh
           bash -n scripts/run-v130-intrinsic-l2-projection.sh
@@ -136,6 +144,8 @@ jobs:
         run: python tests/test_v130_heat_wave_superlu_step_diagnostic.py
       - name: Heat-Wave identical CN Jacobian LU replay source gates
         run: python tests/test_v130_hw_cn_identical_lu.py
+      - name: SuperLU_DIST original CN permutation sweep source gates
+        run: python tests/test_v130_hw_superlu_permutation_sweep.py
       - name: Universal FE pilot scope and GWFL polynomial grammar (source only)
         run: python tests/test_v130_universal_fe_projection_spec.py
       - name: Universal source-only FE L2 initialization and expression grammar
