@@ -15,9 +15,9 @@ Hamiltonian 0.5*q.T.q, where T is the full tensor parameter.
 
 Physical outward-normal traction: u_N=n.e_q at bottom/right/top;
 observation y_N=e_p. Left side prescribes u_D=e_p (velocity) and
-observes y_D=n.e_q (traction). The pH energy balance is
+observes y_D=n.e_q (traction). The physical pH energy balance is
 
-    H(t)-H(0) = integral (u_N*y_N + u_D*y_D) dt.
+    H(t)-H(0) = W_boundary(t) - integral_0^t D(s) ds.
 
 The signed algebraic boundary rows impose Y_N=e_p and U_D=e_p.
 The additional port obeys f_r=-e_p, e_r=nu*f_r with nu>=0.
