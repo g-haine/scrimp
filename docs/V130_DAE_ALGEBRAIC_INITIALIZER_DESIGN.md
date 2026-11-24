@@ -5551,3 +5551,45 @@ region 10 remains immutable, and the missing names are
 resolved through the runtime. This test is source-compatible
 and needs no GetFEM/PETSc runtime. Native dual-sided
 GetFEM/PETSc stiffness qualification still remains OPEN.
+
+## 24 November 2026 — corrected Heat-Wave interface physical K coupling: native assembly PASS
+
+The user-provided original `v130-hw-dual-interface-K-a3cd035d-YJ9puqOx.zip`
+was independently inspected. Both original and pilot use 7,689
+identical GetFEM unknown intervals. The baseline stiffness
+contains 46,842 stored entries (41,352 numerically nonzero);
+the repaired interface stiffness has 46,935 (41,445 nonzero).
+Actual original wave and heat bulk blocks are identical.
+
+With original duplicated 156-face interface 10,
+`||K[Y_T,e_Q]||_F=6.555326985e-17`,
+`||K[e_Q,U_T]||_F=6.930214859e-17`;
+both are `0.30175285846431277` on the one-sided heat
+disk faces 30. Four wave and feedback interface blocks
+reduce from `0.60350571693` to `0.30175285846`,
+consistent with removing duplication while preserving
+all intended state/port connections. Actual native GetFEM
+logs show all six interface bricks redirected and
+two port control regions separated in the pilot. This
+**qualifies sparse assembly**, not rank, consistent DAE,
+CN dynamics or energy/power conservation.
+
+Next isolated diagnostic `scripts/run-v130-hw-dual-sided-dae.sh`
+compares the baseline/clamp initial data with dual-sided
+clamp and dual-sided L2-constrained wave initial p. All
+three use the same public original model at source level,
+the same default original GetFEM FE L2 projection,
+the same non-relaxed PETSc index-2 strict algebraic
+LSQR initializer, actual COO-assembled K and M, and
+the existing *physical* exterior wave Dirichlet
+condition. The hook stops immediately after DAE
+initialization BEFORE the public PETSc TS/CN and
+Hamiltonian postprocessing. A real
+`InconsistentDAEInitialData` is preserved with the
+native rejected algebraic residual report and dominant
+variable names; it is not silently converted to a
+pseudo-time scheme or a physical PASS. Differential
+T, p and q coefficients must remain bitwise unchanged.
+Unexpected native errors are archived, not mistaken
+for DAE infeasibility. Physically coupled CN energy
+is still unqualified.

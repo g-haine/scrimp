@@ -30,6 +30,9 @@ on:
       - sandbox/probe_v130_hw_dual_sided_assembly.py
       - sandbox/v130_hw_interface_geometry.py
       - scripts/run-v130-hw-dual-sided-assembly.sh
+      - sandbox/probe_v130_hw_dual_sided_dae.py
+      - scripts/run-v130-hw-dual-sided-dae.sh
+      - tests/test_v130_hw_dual_sided_dae.py
       - tests/test_v130_hw_dual_sided_assembly.py
       - tests/test_v130_hw_one_sided_facets.py
       - tests/test_v130_hw_interface_weak_coupling.py
@@ -95,6 +98,9 @@ on:
       - sandbox/probe_v130_hw_dual_sided_assembly.py
       - sandbox/v130_hw_interface_geometry.py
       - scripts/run-v130-hw-dual-sided-assembly.sh
+      - sandbox/probe_v130_hw_dual_sided_dae.py
+      - scripts/run-v130-hw-dual-sided-dae.sh
+      - tests/test_v130_hw_dual_sided_dae.py
       - tests/test_v130_hw_dual_sided_assembly.py
       - tests/test_v130_hw_one_sided_facets.py
       - tests/test_v130_hw_interface_weak_coupling.py
@@ -172,6 +178,8 @@ jobs:
           bash -n scripts/run-v130-hw-one-sided-facets.sh
           python -m py_compile sandbox/v130_hw_interface_geometry.py sandbox/probe_v130_hw_dual_sided_assembly.py tests/test_v130_hw_dual_sided_assembly.py
           bash -n scripts/run-v130-hw-dual-sided-assembly.sh
+          python -m py_compile sandbox/probe_v130_hw_dual_sided_dae.py tests/test_v130_hw_dual_sided_dae.py
+          bash -n scripts/run-v130-hw-dual-sided-dae.sh
           python -m py_compile sandbox/probe_v130_intrinsic_l2_projection.py sandbox/probe_v130_intrinsic_affine_projection.py sandbox/probe_v130_universal_fem_initialization.py
           bash -n scripts/run-v130-intrinsic-fem-initialization.sh
           bash -n scripts/run-v130-intrinsic-l2-projection.sh
@@ -212,6 +220,8 @@ jobs:
         run: python tests/test_v130_hw_one_sided_facets.py
       - name: Original heat-wave one-sided dual interface stiffness audit source tests
         run: python tests/test_v130_hw_dual_sided_assembly.py
+      - name: Original Heat-Wave strict DAE on corrected 2D one-sided interface
+        run: python tests/test_v130_hw_dual_sided_dae.py
       - name: Universal FE pilot scope and GWFL polynomial grammar (source only)
         run: python tests/test_v130_universal_fe_projection_spec.py
       - name: Universal source-only FE L2 initialization and expression grammar
