@@ -44,6 +44,15 @@ jobs:
           python -m py_compile scrimp/utils/mesh.py scrimp/utils/ph_block_layout.py sandbox/audit_ph_blocks.py sandbox/compare_ph_block_audits.py sandbox/diagnose_ph_block_parity.py sandbox/compare_raw_getfem_petsc.py tests/test_ph_block_layout.py tests/test_ph_block_comparison.py tests/test_getfem_bridge_localization.py tests/test_concentric_region_integrity.py
           bash -n sandbox/run_ph_block_audit.sh
           python -m unittest -v tests.test_ph_block_layout tests.test_ph_block_comparison tests.test_getfem_bridge_localization tests.test_concentric_region_integrity
+      - name: Validate exact first-CN sparse Jacobian audit (no GetFEM/PETSc)
+        run: |
+          python -m py_compile \
+            sandbox/probe_v130_wave2d_factor_matrix.py \
+            sandbox/analyze_v130_wave2d_factor_matrix.py \
+            tests/test_v130_wave2d_factor_matrix.py
+          bash -n scripts/run-v130-wave2d-superlu-dist-matrix-audit.sh
+          python tests/test_v130_wave2d_factor_matrix.py
+
       - name: Source-check canonical 2D wave science, Sphinx source inclusion and five-LU gate
         run: |
           python -m py_compile \
