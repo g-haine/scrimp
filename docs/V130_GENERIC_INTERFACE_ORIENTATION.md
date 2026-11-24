@@ -81,12 +81,37 @@ These are **not** FE-assembly, DAE, discrete-energy, 3-D, or MPI2
 qualifications. See the separate reversible Heat-Wave CN audit for
 the numerical evidence on manually separated sides.
 
+## Source-only ownership analysis (stage 2, no assembly change)
+
+`scrimp/interface_ownership.py` now contains a conservative
+`infer_interface_port_owners(...)` helper. For each logical interface,
+it associates a port with a unique owning subdomain only if interface
+weak forms explicitly reference a variable whose physical bulk region
+is known. Interface-only masses and cross-feedback equations are *not*
+used as ownership anchors: feedback such as
+`Y_w*Test_U_T` intentionally crosses subsystem boundaries.
+
+It is a **standalone audit only**: its string tokenization is NOT a full
+GWFL syntax parser. In particular, nontrivial user macros, aliases,
+multi-region forms and implicit operators must be handled or explicitly
+rejected before the production compiler can rely on it. Source-only
+unit tests verify positive Heat-Wave-style ownership and negative
+ambiguous/contradictory cases:
+
+```bash
+python tests/test_v130_interface_ownership.py
+```
+
+No GetFEM region, FEM variable, brick, physical sign or power-report
+policy is changed by this addition.
+
 ## Next steps (not implemented here)
 
 1. Native test on real 1D/2D/3D imported meshes and curved/high-order
    elements; check different Gmsh physical group representations.
-2. Define variable/port ownership of one-sided interface traces, including
-   ambiguous ports and feedback across both subdomains.
+2. Extend the ownership audit to the actual declared DPHS model, a full
+   GWFL expression/dependency resolver, and explicit rejection or handling
+   of ambiguous ports and cross-subdomain feedback.
 3. Defer registration of affected GetFEM filtered variables and bricks
    until the side assignment is resolved. This requires a carefully
    staged DPHS compilation path; `add_FEM` and `add_brick` currently
