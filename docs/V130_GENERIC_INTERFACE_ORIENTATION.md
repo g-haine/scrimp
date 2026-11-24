@@ -343,6 +343,68 @@ bash scripts/run-v130-auto-interface-K.sh
 A PASS would qualify the experimental **MPI1 assembled stiffness K**
 only; the strict DAE/CN/physical power and MPI2 gates remain open.
 
+## Experimental fully automatic MPI1 K parity — PASS (2026-11-24)
+
+User-run pinned-Docker audit at commit `f0d3fa7`, with original
+Heat-Wave source unchanged, compared manual one-sided reference
+assembly to the **production-path DPHS** deferred compiler enabled
+only by `SCRIMP_V130_AUTO_INTERFACE_PILOT=1`:
+
+- 10 topology, 6 port ownership, 7 brick placement and 5 deferred
+  compiler source-only tests passed (**28/28**).
+- `PASS_EXPERIMENTAL_AUTOMATIC_INTERNAL_INTERFACE_K_IDENTICAL`.
+- GetFEM/PETSc K shape **7689 × 7689**, nnz **46935** in both runs.
+- **Strict bitwise CSR parity**: indptr, indices and data arrays exactly
+  equal; difference nnz **0**; max absolute difference **0.0**.
+- Compiler spontaneously chose oriented region IDs **21** (heat)
+  and **22** (wave) from available labels, preserved logical region
+  **10**, assigned all 10 interface bricks correctly, and replayed
+  **7 FEM** plus **23 bricks** in original declaration order.
+- MUMPS/Gmsh/ParaView source examples remained immutable; production
+  automatic mode was disabled in the reference arm.
+- Both the run's archive and complete numerical CSR arrays were
+  independently examined. This is not DAE/CN/physics/MPI2 evidence.
+
+## Genuine strict DAE / CN / interface-energy qualification (pending)
+
+`sandbox/probe_v130_auto_interface_cn.py` exercises the existing
+unchanged published original Heat-Wave example with **actual** automatic
+DPHS compilation and **no** runtime port, brick or domain-constructor
+region overrides. At postprocessing it obtains effective heat/wave
+interface regions (e.g., 21/22) directly from `Port.get_assembly_region()`,
+and measures CN surface powers on the correct oriented sides instead of
+hardcoded reference labels 30/31 or doubled logical region 10.
+The existing physical collector and its numerical balances/thresholds
+are otherwise unchanged. The pilot also checks that the normal public
+`Port.compute(..., sampling="cn_step")` computes those same sided
+physical traces.
+
+`scripts/run-v130-auto-interface-cn.sh` runs the strict native
+DAE + four-step PETSc TSCN/MUMPS for **both** boundary-compatible
+initialization candidates (`clamp`, `constrained_l2`), each with
+the reference manually sided interface and the new automatic compiler.
+It compares accepted times, **full FE trajectories**, Hamiltonians,
+original state components, individual heat and wave power/energy
+defects, nontrivial interface excitation and DAE initial consistency.
+Separate gates ensure that physical balance PASS is not inferred from
+solver convergence.
+
+```bash
+SCRIMP_DOCKER_NO_SUDO=1 \\
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \\
+bash scripts/run-v130-auto-interface-cn.sh
+```
+
+Success target:
+`PASS_BOTH_AUTO_INTERFACE_CANDIDATES_DAE_CN_ENERGY_PARITY`.
+
+These new native gates have **not been run yet**. They validate only
+the specific 2-D `heat_region=1, wave_region=2` Heat-Wave convention;
+the reversed physical sign convention from the unchanged published
+example still requires an explicit separate mathematical audit.
+The baseline default mode remains unchanged, and no MPI2 or arbitrary
+higher-order/nonconforming family is qualified.
+
 ## Next steps (not implemented here)
 
 1. Native test on real 1D/2D/3D imported meshes and curved/high-order
