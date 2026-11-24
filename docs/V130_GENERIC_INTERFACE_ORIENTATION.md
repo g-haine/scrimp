@@ -814,6 +814,65 @@ Expected status:
 arbitrary conforming or nonconforming FE spaces, and enabling the
 compiler by default remain independent gates.
 
+## Native MPI2 strict DAE and CN: solver PASS, postprocessing blocker (2026-11-24)
+
+The user ran `scripts/run-v130-auto-interface-mpi-cn.sh` at
+commit `48dc01d` and supplied the complete native archive
+`v130-auto-interface-MPI-CN-48dc01d7-wMhkOOwQ.zip`.
+**All four real original Heat-Wave simulations completed their
+strict algebraic DAE initializations and four accepted PETSc
+Crank–Nicolson steps** with zero rejects / SNES failures:
+
+| Heat / Wave | MPI | Real algebraic DAE residual | CN accepted |
+|---|---:|---:|---:|
+| 1 / 2 | 1 | 9.620818004658717e-14 | 4/4 |
+| 1 / 2 | 2 | 9.782179042671012e-14 | 4/4 |
+| 2 / 1 | 1 | 9.758748179398196e-14 | 4/4 |
+| 2 / 1 | 2 | 9.853778732954403e-14 | 4/4 |
+
+Both MPI2 ranks reached completion and public port powers were
+computed successfully. The boundary-compatible heat=1/wave=2 case
+used its qualified `clamp` initial state; the inverted case used
+the unmodified original Gaussian.
+
+**No MPI2 physical energy PASS can be claimed from this run.**
+Each of four runs stopped in the sandbox postprocessing due to an
+unconditional second `system.compute_Hamiltonian()`. The original
+live Heat-Wave example had already computed each Hamiltonian term
+once (five saved accepted instants). `Hamiltonian.compute()`
+appends, rather than replacing old values, so the sandbox made
+each term history length ten, and the subsequent
+`DPHS.get_Hamiltonian()` raised
+`ValueError: operands could not be broadcast together with shapes
+(5,) (10,) (5,)`.
+
+A second, independent *host-comparator-only* issue then raised
+`NameError: name 'host_error' is not defined`, as `host_error`
+had only been assigned in the `except` block of the inline
+comparator. This masked the proper final failure summary/archive
+report (the original native archive itself was nevertheless supplied).
+
+Corrections are limited to sandbox/host test infrastructure:
+
+- If the original example's Hamiltonian is already computed, the
+  sandbox reuses it. It computes once only if absent, and checks
+  explicitly that every term has exactly one sample per accepted
+  time, before proceeding to real independent GetFEM quadratures.
+- Initialize `host_error = None` before the comparator's `try`
+  to guarantee valid success and failure report serialization.
+- Add `tests/test_v130_auto_interface_mpi_cn_comparator.py`,
+  which runs the **actual inline comparator Python** on generated
+  synthetic MPI1/MPI2 reports and traces, checking success,
+  numerical mismatch, native nonzero exit, corrupt metadata and
+  archive creation. Synthetic data serve *only* to test the host
+  comparator, not to claim GetFEM/PETSc qualification.
+
+The actual auto interface compiler, native weak forms, PETSc
+DAE/CN algorithms and original Heat-Wave example are untouched.
+**A new full native run is mandatory for MPI2 energy and full-trajectory
+parity**, with the original status target
+`PASS_BOTH_AUTO_INTERFACE_ORIENTATIONS_MPI2_DAE_CN_ENERGY_PARITY`.
+
 ## Next steps (not implemented here)
 
 1. Native test on real 1D/2D/3D imported meshes and curved/high-order
