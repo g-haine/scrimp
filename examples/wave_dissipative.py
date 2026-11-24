@@ -218,7 +218,7 @@ def wave_eq(
 
 
 def measure_wave_2d(system):
-    """Measure ORIGINAL GetFEM energy and all four signed port powers."""
+    """Measure original GetFEM H, boundary work and independent resistive loss."""
     t = np.asarray(system.solution["t"], dtype=float)
     z = np.asarray(system.solution["z"], dtype=float)
     H = np.asarray(system.get_Hamiltonian(), dtype=float)
@@ -230,16 +230,22 @@ def measure_wave_2d(system):
             dtype=float,
         ) for side, _, _ in BOUNDARIES
     }
+    resistive = system.ports["Damping"]
+    dissipated_power = np.asarray(resistive.get_power(), dtype=float)
     sampling = {
         side: system.ports[f"Boundary control ({side})"].get_power_sampling()
         for side, _, _ in BOUNDARIES
     }
+    if resistive.get_power_sampling() != "cn_step":
+        raise RuntimeError("Resistive port power must be genuine CN-step data")
     if any(v != "cn_step" for v in sampling.values()):
         raise RuntimeError(f"Expected REAL step-averaged CN powers: {sampling}")
     if (t.ndim != 1 or len(t) < 2
             or z.ndim != 2 or z.shape[0] != len(t)
             or H.shape != t.shape
             or any(p.shape != t.shape for p in port_power.values())
+            or dissipated_power.shape != t.shape
+            or not np.all(np.isfinite(dissipated_power))
             or not np.all(np.isfinite(t))
             or not np.all(np.diff(t) > 0)
             or not np.all(np.isfinite(z))
@@ -247,11 +253,41 @@ def measure_wave_2d(system):
             or any(not np.all(np.isfinite(p)) for p in port_power.values())):
         raise RuntimeError("Malformed native accepted FE/Hamiltonian/port history")
 
+    # Independent GetFEM volume quadrature at the true CN midpoint.
+    # This is intentionally NOT the Port.get_power() implementation.
+    # It also checks the two algebraic resistive constitutive laws.
+    import getfem as gf
+    volume_loss = np.zeros_like(t)
+    flow_constraint = np.zeros_like(t)
+    effort_constraint = np.zeros_like(t)
+    mesh_id = resistive.get_mesh_id()
+    for k, tk in enumerate(t):
+        system.gf_model.set_time(float(tk))
+        mean = 0.5*(z[k-1]+z[k]) if k else z[k]
+        system.gf_model.to_variables(mean)
+        volume_loss[k] = gf.asm(
+            "generic", system.domain._int_method[mesh_id], 0,
+            "nu*f_r*f_r", 1, system.gf_model,
+        )
+        flow_constraint[k] = gf.asm(
+            "generic", system.domain._int_method[mesh_id], 0,
+            "(f_r+e_p)*(f_r+e_p)", 1, system.gf_model,
+        )
+        effort_constraint[k] = gf.asm(
+            "generic", system.domain._int_method[mesh_id], 0,
+            "(e_r-nu*f_r)*(e_r-nu*f_r)", 1, system.gf_model,
+        )
+    if not all(np.all(np.isfinite(a))
+               for a in (volume_loss, flow_constraint, effort_constraint)):
+        raise RuntimeError("Invalid independent GetFEM resistive-volume audit")
+
     total = sum(port_power.values())
     step_work = np.diff(t) * total[1:]
+    step_loss = np.diff(t) * dissipated_power[1:]
     step_deltaH = np.diff(H)
-    defects = step_deltaH - step_work
+    defects = step_deltaH - step_work + step_loss
     W = np.concatenate(([0.], np.cumsum(step_work)))
+    L = np.concatenate(([0.], np.cumsum(step_loss)))
     init = system.initialization_report
     init_ok = (
         isinstance(init, dict)
@@ -275,10 +311,23 @@ def measure_wave_2d(system):
         "zero_power_from_three_unforced_Neumann_boundaries":
             all(float(np.max(np.abs(port_power[side]))) < 1e-10
                 for side in ("bottom", "right", "top")),
-        "each_CN_step_mechanical_energy_balance":
+        "strictly_nonnegative_nontrivial_volume_dissipation":
+            bool(np.min(dissipated_power[1:]) >= -1e-11
+                 and np.max(dissipated_power[1:]) > 1e-10
+                 and L[-1] > 1e-12),
+        "independent_volume_quadrature_matches_resistive_port":
+            bool(np.max(np.abs(volume_loss-dissipated_power))
+                 <= 1e-9*magnitude),
+        "resistive_flow_constraint": bool(
+            np.max(np.abs(flow_constraint)) <= 1e-9
+        ),
+        "resistive_effort_constitutive_law": bool(
+            np.max(np.abs(effort_constraint)) <= 1e-9
+        ),
+        "each_CN_step_energy_work_minus_loss_balance":
             bool(np.max(np.abs(defects)) <= 1e-8*magnitude),
-        "cumulative_CN_mechanical_energy_balance":
-            bool(np.max(np.abs(H-H[0]-W)) <= 1e-8*magnitude),
+        "cumulative_CN_energy_work_minus_loss_balance":
+            bool(np.max(np.abs(H-H[0]-W+L)) <= 1e-8*magnitude),
     }
     return dict(
         t=t, z=z, H=H,
@@ -287,9 +336,16 @@ def measure_wave_2d(system):
         power_top=port_power["top"],
         power_left=port_power["left"],
         signed_work=W,
+        cumulative_loss=L,
+        dissipated_power=dissipated_power,
+        independently_assembled_volume_loss=volume_loss,
+        resistive_flow_constraint=flow_constraint,
+        resistive_effort_constraint=effort_constraint,
         energy_step_defects=defects,
         max_abs_step_defect=float(np.max(np.abs(defects))),
-        max_abs_cumulative_defect=float(np.max(np.abs(H-H[0]-W))),
+        max_abs_cumulative_defect=float(np.max(np.abs(H-H[0]-W+L))),
+        total_dissipated_energy=float(L[-1]),
+        max_dissipation_rate=float(np.max(dissipated_power)),
         max_abs_left_power=float(np.max(np.abs(port_power["left"]))),
         gates=gates,
     )
@@ -351,12 +407,13 @@ def main():
         )
         metadata = {
             "status": (
-                "PASS_ORIGINAL_FE_PHYSICS"
+                "PASS_NATIVE_2B_DISSIPATIVE_FE_PHYSICS"
                 if all(observations["gates"].values())
-                else "FAIL_ORIGINAL_FE_PHYSICS"
+                else "FAIL_NATIVE_2B_DISSIPATIVE_FE_PHYSICS"
             ),
             "rank": comm.rank,
             "MPI": comm.size,
+            "damping_strength": args.damping_strength,
             "requested_LU": args.solver,
             "selected_LU": system.time_scheme.getString(
                 "pc_factor_mat_solver_type", ""
@@ -368,7 +425,11 @@ def main():
             "max_abs_step_defect": observations["max_abs_step_defect"],
             "max_abs_cumulative_defect":
                 observations["max_abs_cumulative_defect"],
+            "total_dissipated_energy":
+                observations["total_dissipated_energy"],
             "max_abs_left_power": observations["max_abs_left_power"],
+            "total_dissipated_energy": observations["total_dissipated_energy"],
+            "max_dissipation_rate": observations["max_dissipation_rate"],
             "physical_gates": observations["gates"],
             "state_SHA256": hashlib.sha256(
                 np.ascontiguousarray(observations["z"]).tobytes()
@@ -381,15 +442,15 @@ def main():
     if args.check and not all(observations["gates"].values()):
         if comm.rank == 0:
             print(json.dumps({
-                "status": "FAIL_WAVE2D_MIXED_NATIVE_PHYSICS",
+                "status": "FAIL_WAVE2D_DISSIPATIVE_NATIVE_PHYSICS",
                 "physical_gates": observations["gates"],
                 "max_step_defect": observations["max_abs_step_defect"],
                 "max_cumulative_defect":
                     observations["max_abs_cumulative_defect"],
             }, indent=2), flush=True)
         raise RuntimeError(
-            "Original GetFEM tensor Hamiltonian/mixed boundary work "
-            "failed scientific acceptance; no PASS assumed"
+            "Original GetFEM tensor Hamiltonian/boundary work or "
+            "resistive energy loss failed scientific acceptance"
         )
     if args.export:
         # Required collective: root-only writer first validates rank
@@ -398,7 +459,7 @@ def main():
             system.export_to_pv(name, path=str(args.output), t="All")
     if comm.rank == 0:
         print(json.dumps({
-            "status": "PASS_WAVE2D_MIXED_NATIVE_PHYSICS",
+            "status": "PASS_WAVE2D_DISSIPATIVE_NATIVE_PHYSICS",
             "solver": args.solver,
             "MPI": comm.size,
             "steps": int(system.last_ts_steps),
