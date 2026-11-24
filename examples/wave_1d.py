@@ -275,7 +275,7 @@ def save_rejected_wave_diagnostic(system, directory, rank, error):
             f"{type(diagnostic_error).__name__}: {diagnostic_error}"
         )
     (directory/f"rank{rank}.failed.json").write_text(
-        json.dumps(result, indent=2, default=str)+"\\n",
+        json.dumps(result, indent=2, default=str)+"\n",
         encoding="utf-8",
     )
 
