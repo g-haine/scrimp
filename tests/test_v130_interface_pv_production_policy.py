@@ -46,7 +46,8 @@ class Model:
         return 4
 
     def mesh_fem_of_variable(self, name):
-        if name != "p":
+        # Real GetFEM exposes the FEM of BOTH state and costate.
+        if name not in ("q", "e_q", "p", "e_p", "U_L", "Y_L"):
             raise KeyError(name)
         return types.SimpleNamespace(nbdof=lambda: 4)
 
@@ -83,16 +84,39 @@ class Comm:
         return [data, data]
 
 
-def fake_system(*, bad_size=False, nan=False):
+class FakePort:
+    def __init__(self, flow, effort, mesh_id=0):
+        self.flow = flow
+        self.effort = effort
+        self.mesh_id = mesh_id
+
+    def get_flow(self):
+        return self.flow
+
+    def get_effort(self):
+        return self.effort
+
+    def get_mesh_id(self):
+        return self.mesh_id
+
+
+def fake_system(*, bad_size=False, nan=False, ambiguous=False):
     z = np.array([1., 2., 3., 4.])
     if bad_size:
         z = z[:3]
     if nan:
         z[1] = np.nan
+    ports = {
+        "q": FakePort("q", "e_q"),
+        "p": FakePort("p", "e_p"),
+        "Boundary control (left)": FakePort("U_L", "Y_L"),
+    }
+    if ambiguous:
+        ports["duplicate false owner"] = FakePort("extra", "e_q")
     return types.SimpleNamespace(
         solution={"t": [0., .001], "z": [z.copy(), z.copy()]},
         gf_model=Model(),
-        ports={"p": types.SimpleNamespace(get_mesh_id=lambda: 0)},
+        ports=ports,
         domain=types.SimpleNamespace(get_mesh=lambda: [Mesh()]),
     )
 
@@ -168,6 +192,25 @@ class RootOnlyReplicatedVTKTests(unittest.TestCase):
 
     def test_real_validator_accepts_identical_full_states_and_mesh(self):
         self.validate(fake_system(), "p", "All")
+        self.assertEqual(self.comm.seen, 1)
+
+    def test_real_validator_accepts_state_and_costate_same_mesh(self):
+        # Regression: before the fix self.ports.get('e_q') returned
+        # None even though GetFEM could export that variable natively.
+        for field in ("q", "e_q", "p", "e_p"):
+            with self.subTest(field=field):
+                self.validate(fake_system(), field, "All")
+        self.assertEqual(self.comm.seen, 4)
+
+    def test_real_validator_accepts_boundary_control_flow_and_effort(self):
+        for field in ("U_L", "Y_L"):
+            with self.subTest(field=field):
+                self.validate(fake_system(), field, "Final")
+        self.assertEqual(self.comm.seen, 2)
+
+    def test_real_validator_rejects_ambiguous_costate_owner(self):
+        with self.assertRaisesRegex(RuntimeError, "Ambiguous export variable 'e_q'"):
+            self.validate(fake_system(ambiguous=True), "e_q", "All")
         self.assertEqual(self.comm.seen, 1)
 
     def test_real_validator_rejects_incomplete_global_state(self):
