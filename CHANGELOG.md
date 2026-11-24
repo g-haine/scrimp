@@ -5,6 +5,42 @@ Changes to SCRIMP are recorded here. See also the
 
 ## 1.3.0 — in development (not released)
 
+### Export ParaView MPI : coénergies et champs d'effort 2D (24 novembre 2026)
+
+- Premier pilote natif onde 2D anisotrope **MUMPS MPI1 et MPI2** :
+  véritable physique PASS (2230 DOFs, 10 pas CN sans
+  rejet, projection DAE stricte, bilans énergétiques
+  au niveau `1e-18`, puissance de bord gauche
+  `≈0.049`) ; archive originale
+  `v130-wave2d-mixed-conservative-abea0401-Jm7S0brY.zip`.
+- **Première qualification complète FAIL** sur
+  l'export MPI de `e_q` : le validateur de
+  réplication recherchait `self.ports["e_q"]`,
+  alors que le port propriétaire est `q` et
+  que son coétat `e_q` est une variable
+  GetFEM parfaitement exportable. MPI1 avait
+  déjà écrit ses 11 VTU de `e_q` et `e_p`.
+  Les **deux rangs MPI2 possèdent des
+  trajectoires FE identiques bit-à-bit** ;
+  écart maximal MPI1/MPI2 `4.08e-14`.
+- Correction générique `DPHS._validate_root_only_pv_replication` :
+  localiser **exactement un** port propriétaire
+  d'une variable par ses noms `flow` ou `effort`.
+  Les variables de ports d'état, leurs coénergies
+  et les ports de contrôle reçoivent la même
+  validation collective de géométrie/DOFs/FE.
+  Champs inconnus et propriétaires ambigus
+  restent explicitement rejetés.
+- Régressions source du **vrai validateur**
+  étendues dans
+  `tests/test_v130_interface_pv_production_policy.py`.
+  Le lanceur du 2D les exécute en préflight.
+  **Nouveau run natif complet en attente** :
+  ne pas présenter le premier échec de
+  qualification d'export comme un PASS de bout en bout.
+  Aucune promotion vers `examples/wave.py`
+  ou modification de `master` pour cet essai.
+
 ### Synchronisation stricte des blocs Sphinx du tutoriel onde 1D (24 novembre 2026)
 
 - Revue **bloc par bloc** de `docs/source/started.rst`
