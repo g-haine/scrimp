@@ -127,8 +127,8 @@ The native source-immutable audit of the existing Heat-Wave example is:
 python sandbox/probe_v130_native_interface_ownership.py
 ```
 
-The probe intercepts the final `DPHS.solve` call, inspects the complete
-set of already declared ports/bricks, and exits before the TS solver.
+The probe intercepts the first `DPHS.set_initial_value` call, inspects
+all declared ports/bricks, and exits before projection or the TS solver.
 For `heat_region=1, wave_region=2`, it must report
 `"Interface Heat": 1` and `"Interface Wave": 2` and 78 matched faces.
 No actual simulation is claimed.
@@ -167,6 +167,33 @@ without `Mat.setPreallocationCOO`. That failure is not evidence of
 wrong interface ownership; nor is it solved by this audit-only
 interception. Production PETSc COO compatibility remains a separate
 environment qualification.
+
+## Read-only weak-form placement plan (stage 4; native pending)
+
+`DPHS.audit_interface_brick_plan(interface, (a, b), mesh_id=0)`
+combines the already native-qualified topology and declared-port
+ownership with a **non-mutating placement proposal** for each brick
+on the logical interface. The decisive criterion for a residual-form
+brick is its `Test_...` variable. In particular, the cross-subdomain
+feedback `Y_w*Test_U_T` is placed on the **heat** side (the owner
+of `U_T`), not the wave side (the owner of `Y_w`).
+
+The diagnostic now verifies both region permutations and the ten
+declared original Heat-Wave interface bricks before initial-value
+projection. Every actual region 10 GetFEM brick still assembles as
+before: **the proposal does not modify any FEM, face region, Jacobian,
+port power, or weak form**. This is not yet the generic compiler.
+Non-test interface forms, ambiguous multi-owner residuals, unknown
+macro aliases and unsupported nonconforming couplings must be
+rejected or explicitly handled before enabling automatic assembly.
+
+```bash
+python tests/test_v130_interface_assembly_plan.py
+python sandbox/probe_v130_native_interface_ownership.py
+```
+
+The tests and the updated native audit have not yet been executed in
+the qualified GetFEM environment.
 
 ## Next steps (not implemented here)
 
