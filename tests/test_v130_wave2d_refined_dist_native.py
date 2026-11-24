@@ -54,6 +54,9 @@ class RefinedWave2DPhysicalSourceTests(unittest.TestCase):
                       self.driver)
         self.assertIn("canonical_wave_main()", self.driver)
         self.assertIn("invoked[0] != 1", self.driver)
+        self.assertIn('getattr(system, "_v130_refined_dist_enabled", False)',
+                      self.driver)
+        self.assertIn("system._v130_refined_dist_enabled = True", self.driver)
         self.assertIn("S.DPHS.set_time_scheme = original", self.driver)
         self.assertNotIn("S.Brick(",self.driver)
         self.assertNotIn("set_initial_value(",self.driver)
