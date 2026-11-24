@@ -62,6 +62,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--heat", type=int, choices=(1, 2), required=True)
     parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument(
+        "--pv-diagnostic", action="store_true",
+        help="Isolate REAL original ParaView VTU/PVD exports per MPI rank; "
+             "does not qualify shared production output",
+    )
     args = parser.parse_args()
     wave = 3 - args.heat
     comm = MPI.COMM_WORLD
@@ -140,7 +145,22 @@ def main():
     def skip_plot(system, *args_, **kwargs):
         skipped["plot"] += 1
 
-    def skip_export(system, *args_, **kwargs):
+    def skip_export(system, name_variable, path=None, t="All"):
+        if args.pv_diagnostic:
+            # Keep GetFEM's actual production export_to_pv() and all
+            # collectives. Give every rank its own output directory:
+            # production shared-file writes currently need a distinct
+            # qualification gate because all ranks use the same names.
+            rank_path = args.out / f"rank{rank}"
+            target = rank_path / "pv" / name_variable
+            if rank != 0:
+                # Production exporter creates its leaf directory only
+                # on rank 0. It must already exist on other ranks when
+                # using an isolated path per rank.
+                target.mkdir(parents=True, exist_ok=True)
+            comm.Barrier()
+            old_export(system, name_variable, path=str(rank_path), t=t)
+            comm.Barrier()
         skipped["export"] += 1
 
     DPHS.init_step = compatible_init
@@ -314,7 +334,11 @@ def main():
         "physical_gates": gates,
         "physical_diagnostics": physical,
         "public_port_power_max_differences": power_checks,
-        "plot_and_ParaView_export_skipped_on_all_ranks": True,
+        "plot_and_ParaView_export_skipped_on_all_ranks":
+            not args.pv_diagnostic,
+        "MPI_rank_isolated_real_ParaView_export_diagnostic":
+            args.pv_diagnostic,
+        "parallel_PNG_and_ParaView_shared_export_qualified": False,
         "physical_GetFEM_assembly_executed_on_all_ranks": True,
         "source_model_signs_unchanged": True,
         "MPI2_parallel_visual_exports_qualified": False,
