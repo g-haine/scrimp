@@ -405,6 +405,48 @@ example still requires an explicit separate mathematical audit.
 The baseline default mode remains unchanged, and no MPI2 or arbitrary
 higher-order/nonconforming family is qualified.
 
+## Native automatic CN run at a44a80d — solver PASS, collector BLOCKER (2026-11-24)
+
+The user provided the full pinned-Docker evidence archive of
+`scripts/run-v130-auto-interface-cn.sh` at commit `a44a80d`.
+For both boundary-compatible initializations (`clamp` and
+`constrained_l2`), original unchanged Heat-Wave with the experimental
+automatic compiler completed the real strict DAE and full four-step
+fixed-step PETSc CN with **zero rejected steps and zero SNES failures**.
+The algebraic initialization residuals were approximately
+`9.620818e-14` and `9.91492022e-14`, respectively. Original
+Hamiltonian and public `Port.compute(cn_step)` processing completed.
+
+**Neither automatic case passed the physics postprocessing stage**:
+the reference `measure_v130_hw_dual_facet_physics.py` collector
+validated the *literal* region labels 30/31 even though the compiler
+generated 21/22, and raised `Original corrected 2D facet regions missing`.
+The reference manual-facet arms were physically qualified in the
+same archive (4 CN steps and nontrivial port exchange); for `clamp`
+its total CN energy defect was about `5.46e-15`, and for
+`constrained_l2` about `6.89e-15`.
+
+Corrective change: the physical collector now accepts explicit
+`heat_faces` and `wave_faces` keyword arguments with historical
+defaults **30/31**, validating and using those IDs for **all** power
+expressions and reporting. The automatic native pilot passes its
+resolved one-sided region IDs as arguments instead of temporarily
+overriding module globals. A dependency-light regression suite
+`tests/test_v130_hw_facet_collector_regions.py` covers default
+reference regions, dynamic 21/22 regions, the absence of global
+state leakage, and missing/doubled region rejection.
+
+This correction is **postprocessing only**: no DAE, finite element,
+matrix assembly, PETSc CN or user example source was changed.
+It does **not** convert the failed postprocessing run into a
+physical PASS retroactively. The new complete native run is required:
+
+```bash
+SCRIMP_DOCKER_NO_SUDO=1 \\
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \\
+bash scripts/run-v130-auto-interface-cn.sh
+```
+
 ## Next steps (not implemented here)
 
 1. Native test on real 1D/2D/3D imported meshes and curved/high-order
