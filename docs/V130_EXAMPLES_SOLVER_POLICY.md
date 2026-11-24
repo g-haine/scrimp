@@ -2,6 +2,42 @@
 
 **23 November 2026 — actual MPI sparse LU preflight 7/7 PASS; all archived publication code protected by an immutable, byte-for-byte Git baseline.**
 
+## 24 November — First example in the REAL Sphinx order: 1D vibrating string
+
+The first scientific example read by a new user is
+`docs/source/started.rst`, **not** the 2D `examples/wave.py`
+page. Its original `sandbox/wave_1D.py` predates the strict
+DAE and typed CN-power work and has asymmetric boundary signs
+in its source that do not directly match the declared outward
+Neumann input/positive velocity-output convention.
+
+A new, maintained `examples/wave_1d.py` is now staged
+with transparent port-Hamiltonian signs, an initially
+compatible tapered strain pulse, genuine fixed TSCN and
+strict algebraic projection, and a physical energy/work check.
+Its documentation is updated, with a scientific link to
+Haine–Matignon–Serhani (2023), DOI 10.4208/ijnam2023-1005,
+and Ferraro–Fournié–Haine (2024), DOI
+10.1016/j.ifacol.2024.08.267. No claim of reproducing
+either paper's numerical figures is made.
+
+The native installation acceptance requires **five**
+meaningful solver/MPI choices: MUMPS MPI 1 and 2, serial
+SuperLU MPI 1, SuperLU_DIST MPI 1 and 2. This also tests
+actual FE trajectories, Hamiltonian, typed CN step work
+and q/p VTU/PVD output; factor solver PASS without
+physical parity is **not acceptable**. Source-only
+negative tests distinguish correct CN quadrature from
+wrong endpoint trapezoids and reject inverted power signs.
+
+**Status: SOURCE STAGED; NATIVE PENDING.**
+Rationale, precise sign differences, limits and command:
+`docs/V130_EXAMPLE_01_WAVE_1D.md`.
+Runner: `scripts/run-v130-first-wave-1d-acceptance.sh`.
+Do not start the next example until its real native result
+has been inspected. Do not touch `examples/published/`
+or any untracked scientific output.
+
 ## Decision: stable release now, optional solver science later
 
 The already-qualified `scrimp-mpi:v1.3.0-rc3` PETSc environment
