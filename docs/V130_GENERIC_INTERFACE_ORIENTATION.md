@@ -1118,6 +1118,29 @@ model. Enabling that policy by default for all supported
 MPI cases requires an additional release decision and
 regression checks.
 
+### Root-only preflight hardening
+
+Before the first native root-only run, the shared-PV driver received
+additional protections:
+
+- The exact host-side comparator is exercised by **9** dependency-light
+  tests, including generated GetFEM-like base64 scalar PVD/VTU arrays,
+  a valid MPI1/MPI2 shared-file comparison, and an intentionally
+  corrupted MPI2 scalar which must fail with a preserved archive.
+- The Python helper is loaded from the current checkout by absolute
+  path, since the native driver uses Python standard input and the
+  unit-test process has a different initial `sys.path`.
+- Root-only writer mode is **off by default** in production; it is
+  enabled only by the pinned native runner. The new runner also uses
+  a bounded 90-second per-case timeout by default to detect a
+  potential hidden MPI collective inside GetFEM's exporter without
+  waiting for the general CN timeout.
+- If this native test passes, it establishes safe root-only shared
+  export for the two tested fully replicated GetFEM Heat-Wave cases
+  only. Domain-decomposed meshes, vector fields, and truly
+  rank-partitioned field histories still require other export
+  strategies; no global default policy is being silently changed.
+
 ## Remaining generality and production gates
 
 1. Establish a race-free, geometrically complete MPI2 ParaView
