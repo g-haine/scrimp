@@ -74,7 +74,17 @@ def _geotrans_by_convex(mesh, convex_ids):
             "Expected GetFEM geotrans result (transforms, convex_to_transform)"
         )
     unique, lookup = response
-    unique = list(unique)
+    # The Python binding unwraps a one-entry GetFEM cell array to a
+    # single GeoTrans proxy. It is NOT necessarily an iterable.
+    if hasattr(unique, "dim") and callable(unique.dim):
+        unique = [unique]
+    else:
+        try:
+            unique = list(unique)
+        except TypeError as exc:
+            raise InterfaceTopologyError(
+                "GetFEM geotrans catalog is neither GeoTrans nor a sequence"
+            ) from exc
     lookup = np.asarray(lookup, dtype=np.int64).reshape(-1)
     if (lookup.size != ids.size or not unique
             or np.any(lookup < 0) or np.any(lookup >= len(unique))):
