@@ -44,6 +44,16 @@ jobs:
           python -m py_compile scrimp/utils/mesh.py scrimp/utils/ph_block_layout.py sandbox/audit_ph_blocks.py sandbox/compare_ph_block_audits.py sandbox/diagnose_ph_block_parity.py sandbox/compare_raw_getfem_petsc.py tests/test_ph_block_layout.py tests/test_ph_block_comparison.py tests/test_getfem_bridge_localization.py tests/test_concentric_region_integrity.py
           bash -n sandbox/run_ph_block_audit.sh
           python -m unittest -v tests.test_ph_block_layout tests.test_ph_block_comparison tests.test_getfem_bridge_localization tests.test_concentric_region_integrity
+      - name: Guard full anisotropic 2D wave with opt-in refined SuperLU_DIST
+        run: |
+          python -m py_compile \
+            sandbox/probe_v130_wave2d_refined_superlu_dist.py \
+            tests/test_v130_wave2d_refined_dist_native.py \
+            examples/wave.py
+          bash -n scripts/run-v130-wave2d-refined-superlu-dist-physical.sh
+          python tests/test_v130_wave2d_refined_dist_native.py
+          python scripts/check-v130-published-immutable.py
+
       - name: Guard strict SuperLU_DIST iterative refinement of original first-CN matrix
         run: |
           python -m py_compile \
