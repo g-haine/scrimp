@@ -48,11 +48,14 @@ jobs:
         run: |
           python -m py_compile \
             examples/wave_1d.py \
+            scrimp/utils/trajectory_sampling.py \
             scripts/render-v130-wave1d-doc.py \
+            tests/test_v130_trajectory_sampling.py \
             tests/test_v130_wave_1d_tutorial.py
           bash -n \
             scripts/run-v130-first-wave-1d-acceptance.sh \
             scripts/run-v130-wave1d-long-doc-demo.sh
+          python tests/test_v130_trajectory_sampling.py
           python tests/test_v130_wave_1d_tutorial.py
           python scripts/check-v130-published-immutable.py
       - name: Validate promoted conforming interfaces and MPI VTK defaults (no GetFEM/PETSc)
