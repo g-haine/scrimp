@@ -60,9 +60,14 @@ per-rank replicas the new default is safer.
 See the [dated production-path decision, successful native evidence,
 corrected failures and explicit scope limitations](
 docs/V130_INTERFACE_PV_PRODUCTION_DECISION_20261124.md).
-The last native default-path smoke on the pinned v1.3.0 RC3 image
-is available as `scripts/run-v130-production-defaults.sh` and
-remains to be executed after these source changes.
+The native **default-path smoke has PASSED**, without experimental
+feature flags, at commit `241f58fb` in the pinned v1.3.0 RC3 image:
+71 source tests, four MPI1/MPI2 genuine Heat-Wave DAE/CN runs,
+energy/port-power balances and complete shared ParaView output.
+The reproducible check is `scripts/run-v130-production-defaults.sh`;
+evidence is `v130-auto-interface-MPI-CN-241f58fb-YEJXJhSK.zip`.
+This proves only the documented Heat-Wave test scope; it is not
+a tagged or published v1.3.0 release.
 
 ## v1.3.0 preview: start your own SCRIMP project in VS Code
 
