@@ -22,6 +22,7 @@ import json
 import os
 from pathlib import Path
 from types import SimpleNamespace
+from xml.etree import ElementTree as ET
 import sys
 import tempfile
 import traceback
@@ -83,7 +84,48 @@ def prepare_fake_evidence(root):
                 )
 
 
-def compare(root):
+def prepare_fake_pv_evidence(root):
+    """Construct *synthetic* parsable PVD/VTU files for host logic tests.
+
+    These files do not represent GetFEM meshes; only the native
+    diagnostic can establish actual parallel VTK export correctness.
+    """
+    for heat in (1, 2):
+        for size in (1, 2):
+            label = f"heat{heat}_mpi{size}"
+            for rank in range(size):
+                base = root / label / f"rank{rank}"
+                report_path = root / label / f"rank{rank}.json"
+                report = json.loads(report_path.read_text())
+                report["plot_and_ParaView_export_skipped_on_all_ranks"] = False
+                report["MPI_rank_isolated_real_ParaView_export_diagnostic"] = True
+                report_path.write_text(json.dumps(report) + "\\n")
+                for field in ("p", "T"):
+                    folder = base / "pv" / field
+                    folder.mkdir(parents=True)
+                    pvd_root = ET.Element("VTKFile", type="Collection")
+                    collection = ET.SubElement(pvd_root, "Collection")
+                    for step in range(5):
+                        name = f"{field}_{step:05d}.vtu"
+                        ET.SubElement(
+                            collection, "DataSet",
+                            timestep=str(step*0.001), file=name,
+                        )
+                        vtk_root = ET.Element("VTKFile", type="UnstructuredGrid")
+                        grid = ET.SubElement(vtk_root, "UnstructuredGrid")
+                        ET.SubElement(
+                            grid, "Piece",
+                            NumberOfPoints="5", NumberOfCells="3",
+                        )
+                        (folder / name).write_bytes(
+                            ET.tostring(vtk_root, encoding="utf-8")
+                        )
+                    (folder / f"{field}.pvd").write_bytes(
+                        ET.tostring(pvd_root, encoding="utf-8")
+                    )
+
+
+def compare(root, *, pv_diagnostic=False):
     """Execute the EXACT production inline comparator in this process.
 
     Starting another Python interpreter is unnecessary to test an inline
@@ -96,7 +138,9 @@ def compare(root):
     stdout, stderr = io.StringIO(), io.StringIO()
     exit_code = 0
     namespace = {"__name__": "__main__", "__file__": str(DRIVER)}
-    with patch.dict(os.environ, {"SCRIMP_V130_MPI_PV_DIAGNOSTIC": "0"}):
+    with patch.dict(os.environ, {
+        "SCRIMP_V130_MPI_PV_DIAGNOSTIC": "1" if pv_diagnostic else "0",
+    }):
         with patch.object(sys, "argv", [str(DRIVER), str(root)]):
             with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
                 try:
@@ -157,6 +201,45 @@ class HostComparatorRegression(unittest.TestCase):
             )
             self.assertIsNone(summary["host_comparison_failure"])
             self.assertTrue(Path(str(root) + ".zip").exists())
+
+    def test_opt_in_pv_diagnostic_parses_all_synthetic_rank_files(self):
+        with tempfile.TemporaryDirectory(prefix="v130-mpi-pv-success-") as d:
+            root = Path(d) / "run"
+            root.mkdir()
+            prepare_fake_evidence(root)
+            prepare_fake_pv_evidence(root)
+            outcome = compare(root, pv_diagnostic=True)
+            self.assertEqual(
+                outcome.returncode, 0, outcome.stderr + outcome.stdout
+            )
+            report = json.loads((root / "comparison.json").read_text())
+            self.assertEqual(
+                report["status"],
+                "DIAGNOSTIC_MPI_RANK_ISOLATED_PV_FILES_COMPLETE_CN_ENERGY_PASSED",
+            )
+            self.assertTrue(report["isolated_MPI_ParaView_diagnostic_executed"])
+            self.assertFalse(report["shared_production_MPI_ParaView_qualified"])
+            self.assertEqual(len(report["isolated_MPI_ParaView_evidence"]), 6)
+            comparisons = report["rank_isolated_VTU_PVD_mesh_parity_by_field"]
+            self.assertEqual(len(comparisons), 8)
+            self.assertTrue(all(x["same_as_serial"] for x in comparisons.values()))
+            self.assertTrue(Path(str(root) + ".zip").is_file())
+
+    def test_pv_diagnostic_native_failure_keeps_specific_failure_status(self):
+        with tempfile.TemporaryDirectory(prefix="v130-mpi-pv-fail-") as d:
+            root = Path(d) / "run"
+            root.mkdir()
+            prepare_fake_evidence(root)
+            prepare_fake_pv_evidence(root)
+            (root / "heat2_mpi2.exitcode").write_text("1\\n")
+            outcome = compare(root, pv_diagnostic=True)
+            self.assertNotEqual(outcome.returncode, 0)
+            report = json.loads((root / "comparison.json").read_text())
+            self.assertEqual(
+                report["status"],
+                "FAIL_OR_UNQUALIFIED_AUTO_INTERFACE_MPI2_DAE_CN_OR_PV_DIAGNOSTIC",
+            )
+            self.assertTrue(Path(str(root) + ".zip").is_file())
 
     def test_nonzero_native_rank_exit_fails_with_archive(self):
         with tempfile.TemporaryDirectory(prefix="v130-mpi-cn-native-fail-") as d:
