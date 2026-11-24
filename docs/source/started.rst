@@ -744,7 +744,7 @@ installation smoke**, not a long-time wave propagation benchmark.
       :align: center
 
       **Native-data animation (11 accepted CN frames)**. The upper
-      curve is the genuine finite-element strain :math:`q\).
+      curve is the genuine finite-element strain :math:`q`.
       The lower curve is the **incremental displacement**
       :math:`w(x,t)-w(x,0)`, reconstructed from the original
       quadratic strain and left boundary velocity (with initial
