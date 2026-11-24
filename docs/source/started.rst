@@ -39,6 +39,17 @@ inside that function, while here they are shown one block at
 a time for teaching. The optional CLI and evidence export
 are implemented by ``main()`` in the same file.
 
+:download:`Download the complete, qualified Python program
+<../../examples/wave_1d.py>` to see every step in context.
+The source-only regression
+``tests/test_v130_wave_1d_doc_parity.py`` compares the
+**actual Python AST** of all the snippets below with
+the code executed by ``wave_1d()``. It checks the
+same finite elements, GetFEM GWFL bricks, boundary
+controls, DAE initialization, PETSc solver/time options
+and Hamiltonian; the test runs in CI to prevent a
+silent divergence when either file changes.
+
 To understand the coding philosophy of **SCRIMP**, let us consider the 1D wave equation with Neumann boundary control as a first example
 
 .. math::
