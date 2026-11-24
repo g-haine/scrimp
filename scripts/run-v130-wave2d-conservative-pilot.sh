@@ -31,8 +31,10 @@ expected="1d6d0c90115213298047b28237a7f38087563a35"
 
 python3 -m py_compile \
     sandbox/probe_v130_wave2d_conservative.py \
-    tests/test_v130_wave2d_conservative_pilot.py
+    tests/test_v130_wave2d_conservative_pilot.py \
+    tests/test_v130_interface_pv_production_policy.py
 python3 tests/test_v130_wave2d_conservative_pilot.py
+python3 tests/test_v130_interface_pv_production_policy.py
 python3 scripts/check-v130-published-immutable.py
 bash -n "$0"
 
@@ -44,7 +46,7 @@ printf '{"schema":"scrimp-v130-wave2d-mixed-energy-pilot-v1","source":"%s","imag
 echo "CONSERVATIVE 2D anisotropic pH wave, original q.T.q = q dot T dot q"
 echo "MUMPS native MPI1/2; 10 fixed CN steps; strict zero initial DAE"
 echo "Four measured boundary powers and physical H-H0-signed-work"
-echo "q,p,e_q,e_p ParaView; source-only 7 tests; published examples immutable"
+echo "q,p,e_q,e_p ParaView; wave2d and real MPI VTK validator regressions; published examples immutable"
 echo "EVIDENCE: $output"
 
 for ranks in 1 2; do
