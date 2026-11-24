@@ -740,6 +740,80 @@ This evidence does NOT qualify MPI2 DAE initialization, numerical
 CN trajectories, physical port energy or parallel plotting/exports.
 Automatic orientation remains disabled by default.
 
+## True automatic-interface MPI2 assembled K — native PASS (2026-11-24)
+
+The user reran the corrected pinned-Docker script at commit `d00052f`
+and supplied `v130-auto-interface-MPI-K-d00052f5-AyVWkC3j.zip`,
+containing all four genuine GetFEM/PETSc runs, per-rank CSR snapshots,
+full logs and the passing comparison. Independently inspected archive
+`comparison.json`:
+
+- **`PASS_BOTH_AUTO_INTERFACE_ORIENTATIONS_MPI2_K_PARITY`**.
+- Heat=1, Wave=2: full **7689×7689**, 41445 canonical numerical
+  nonzeros in both MPI1 and MPI2; max absolute difference **0**;
+  CSR arrays bitwise identical after eliminating explicit zeros.
+  Owned MPI2 rows [0:3845] and [3845:7689]; port regions 21/22.
+- Heat=2, Wave=1: full **8056×8056**, 43189 canonical numerical
+  nonzeros in both MPI1 and MPI2; max absolute difference **0**;
+  CSR arrays bitwise identical after eliminating explicit zeros.
+  Owned MPI2 rows [0:4028] and [4028:8056]; port regions 22/21.
+- Raw MPI2 matrices held 18 and 24 additional *explicit zero*
+  storage entries; these are not numerical differences.
+- 45 tests passed (10 topology, 6 ownership, 7 brick placement,
+  5 deferred, 6 CN physical region, 4 outward normal laws,
+  7 CSR canonicalization). The eight archived scientific files
+  were unchanged.
+
+This **qualifies automatic oriented interface GetFEM/PETSc stiffness
+assembly for both original Heat-Wave configurations in MPI2**, but
+cannot be extrapolated to full time integration or energy yet.
+
+## MPI2 strict DAE, physical CN and sided port-power gate (native pending)
+
+The new `sandbox/probe_v130_auto_interface_mpi_cn.py` executes the
+**current** `examples/heat_wave.py` under the experimental automatic
+interface compiler, for Heat=1/Wave=2 and Heat=2/Wave=1, at both
+MPI1 and real MPI2. The physical weak forms and FEM definitions are
+unchanged. To isolate GetFEM/PETSc time integration and physics from
+unqualified parallel file I/O, only the calls to plot the Hamiltonian
+and write ParaView files are suppressed in this **sandbox probe**.
+All ranks then enter the same original collective
+`compute_Hamiltonian()`, `compute_powers()`, and GetFEM
+`get_quantity()` physically sided quadratures.
+
+For Heat=1/Wave=2, the separately qualified `clamp` initial-data
+candidate enforces zero exterior wave CG1 boundary coefficients
+before invoking the *real* strict algebraic DAE initializer.
+For Heat=2/Wave=1, the unmodified original Gaussian is already
+compatible and no correction is applied. There are **no**
+interface-region overrides or physical sign corrections.
+
+The native driver `scripts/run-v130-auto-interface-mpi-cn.sh`
+runs 4 cases (two region assignments × MPI1/MPI2) and saves,
+**on every MPI rank**, full 5×N accepted FE histories, GetFEM
+Hamiltonians, all numerical physical traces, original strict DAE
+reports, compiler manifest, and SHA256 fingerprints of rank-global
+outputs. It checks exact agreement between the two MPI2 ranks and
+compares all MPI1/MPI2 traces with stated numerical tolerances
+(`rtol=2e-8`, `atol=5e-10`). Independent energy-identity,
+power-exchange, dissipation, homogeneous-exterior and strict DAE
+gates are required. Even if native execution or host comparison
+fails, raw logs and any available per-rank evidence are retained in
+a shareable zip archive.
+
+```bash
+SCRIMP_DOCKER_NO_SUDO=1 \\
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \\
+bash scripts/run-v130-auto-interface-mpi-cn.sh
+```
+
+Expected status:
+`PASS_BOTH_AUTO_INTERFACE_ORIENTATIONS_MPI2_DAE_CN_ENERGY_PARITY`.
+
+**Not yet executed in the native image.** MPI2 ParaView/plot output,
+arbitrary conforming or nonconforming FE spaces, and enabling the
+compiler by default remain independent gates.
+
 ## Next steps (not implemented here)
 
 1. Native test on real 1D/2D/3D imported meshes and curved/high-order
