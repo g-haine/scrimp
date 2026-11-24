@@ -82,7 +82,69 @@ Les campagnes corrigées figurent dans le tableau précédent.**
 | Sous-processus de test du comparateur terminé par `SIGKILL (-9)` | Échec **avant Docker** ; cause native du signal non établie. | Exécution du véritable comparateur dans le processus de test ; 7 puis 9 tests réussis. **Contournement confirmé, cause externe inconnue.** |
 | Modification du libellé d'échec avec l'option ParaView | Ancien test attendait `FAIL_..._PHYSICS` au lieu de `FAIL_..._OR_PV_DIAGNOSTIC`. | Conserver l'ancien libellé hors mode PV ; nouveaux tests de la branche PV. **Corrigé, confirmé.** |
 | Écriture partagée ancienne par tous les rangs | **Risque de concurrence** : mêmes noms de PVD/VTU ouverts par tous les processus ; pas un échec systématique prouvé dans les logs. | Un seul écrivain natif MPI2 testé, avec synchronisation et propagation d'erreur ; maintenant comportement par défaut **sur la branche de release**, sous condition de répliques complètes. |
-| Régressions de compatibilité lors de l'activation par défaut | Les 54 tests source précédents validaient le **mode pilote**, pas les nouveaux chemins sans drapeaux. | Nouvelles régressions de politique + validateur réel via AST ; **validation native supplémentaire des vrais chemins par défaut à exécuter**. |
+| Régressions de compatibilité lors de l'activation par défaut | Les 54 tests source précédents validaient le **mode pilote**, pas les nouveaux chemins sans drapeaux. | Nouvelles régressions de politique + validateur réel via AST ; **71 tests et validation native sans drapeaux PASS** à `241f58fb`. |
+
+## Validation finale — vrais chemins par défaut : PASS
+
+**Exécution native du 24 novembre 2026, code source exactement
+`241f58fb2097a16721ca1592211bd3248c88c88e`.**
+Commande utilisée :
+`bash scripts/run-v130-production-defaults.sh` avec image
+`scrimp-mpi:v1.3.0-rc3` de révision verrouillée
+`1d6d0c90115213298047b28237a7f38087563a35`.
+Le lanceur a explicitement désactivé la transmission des anciens et
+nouveaux drapeaux de fonctionnalités vers Docker : les comportements
+ont donc été empruntés **par défaut** dans le code de la branche
+`release/1.3.0-preparation`.
+
+**Archive native vérifiée :**
+`v130-auto-interface-MPI-CN-241f58fb-YEJXJhSK.zip`
+(74 entrées, rapport `comparison.json`, 6 rapports de rang,
+6 trajectoires `npz`, 4 journaux natifs et fichiers VTK/PVD).
+Statut final **`PASS_MPI2_ROOT_ONLY_SHARED_VTU_PVD_COMPLETE_CN_ENERGY`** ;
+`host_comparison_failure=null`.
+**71/71 tests source PASS** (les 54 précédents + les 17 nouveaux
+tests des politiques de production et du validateur de réplication).
+Les **huit exemples publiés sont immuables**.
+
+| Mesure | Heat=1 / Wave=2, MPI2 | Heat=2 / Wave=1, MPI2 |
+|---|---:|---:|
+| Dimension du modèle | 7689 | 8056 |
+| Résidu algébrique DAE | 9.782179042671012e-14 | 9.853778732954403e-14 |
+| Pas CN acceptés | 4/4 | 4/4 |
+| Rejets / échecs SNES | 0 / 0 | 0 / 0 |
+| Défaut du bilan énergétique total | 9.610368056911511e-16 | 2.6853519408120974e-15 |
+| Défaut de fermeture de puissance à l'interface | 8.881784197001252e-16 | 4.440892098500626e-16 |
+| Écart maximal des états MPI1/MPI2 | 2.2297719226571644e-12 | 1.4509282664221246e-11 |
+| Traces MPI2 rang 0 / rang 1 | identiques bit à bit | identiques bit à bit |
+| Export partagé `p` et `T`, cinq instants | PASS | PASS |
+
+Les audits des VTU/PVD natifs confirment cinq instantanés par
+champ et configuration, `p` avec **1641 points / 3154 cellules**
+et `T` avec **9462 points / 3154 cellules**. La géométrie
+et la connectivité binaires MPI1/MPI2 sont identiques.
+L'écart absolu maximal des valeurs des champs exportés,
+sur **tous les instants et les deux orientations**, est
+`2.441726822362823e-17` pour `p` et
+`6.462348535570529e-27` pour `T`.
+Aucune sortie parasite de rang 1.
+
+**Petite anomalie de compte rendu, sans impact sur la preuve native :**
+le `comparison.json` de cette campagne contient encore
+`"production_auto_compiler_enabled_by_default": false`,
+valeur **codée en dur** et héritée de la période pilote.
+Cela contredit le chemin réellement exécuté (aucun drapeau
+transmis, compilateur actif et CN/VTK PASS) mais **ne signifie pas
+qu'une compilation manuelle ou pilote a été utilisée**.
+Le générateur de rapport a été corrigé au commit `942e23e`
+pour les campagnes futures. Ce correctif modifie **uniquement
+les métadonnées**, non la simulation native ; la présente preuve
+reste attachée à son commit source d'origine `241f58fb`.
+
+**Décision :** les deux développements restent **activés par défaut
+dans le code de la branche de préparation de la v1.3.0**.
+Les risques non qualifiés demeurent explicitement documentés.
+**Aucune fusion vers `master`, aucun tag, aucune publication**.
 
 ## Limites connues et décisions de livraison
 
@@ -101,9 +163,10 @@ Les campagnes corrigées figurent dans le tableau précédent.**
   connectivité avant le premier fichier. Les cas réellement partitionnés
   sont rejetés au lieu d'écrire des résultats partiels.
 - Le validateur collectif de répliques et l'activation **sans aucun
-  drapeau expérimental** sont des changements ultérieurs aux derniers
-  PASS natifs mentionnés. Ils disposent de tests source, mais leur
-  **PASS Docker de bout en bout reste à recevoir**.
+  drapeau expérimental** sont à présent qualifiés sur les deux
+  orientations Heat-Wave en MPI 1/2 : archive native finale
+  `v130-auto-interface-MPI-CN-241f58fb-YEJXJhSK.zip`, ci-dessous.
+  Cette preuve ne généralise pas le comportement aux maillages non répliqués.
 - Cette décision de livraison ne crée **ni tag v1.3.0, ni image Docker
   définitive, ni publication**, et ne fusionne PAS les nombreux
   autres développements de la branche avec `master`.
@@ -123,8 +186,8 @@ SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
 bash scripts/run-v130-production-defaults.sh
 ```
 
-Ce test réutilise les mêmes équations, les mêmes critères DAE/CN/
-Hamiltonien/VTK et l'archive native. Il **n'effectue pas** de
-publication ni de fusion de branches. Une réussite y sera consignée
-comme qualification des **nouveaux chemins par défaut**, et non comme
-preuve d'une généralité encore non testée.
+**Cette commande a été exécutée et a réussi au commit
+`241f58fb` ; la présente section en conserve la procédure pour
+reproductibilité.** Elle n'effectue ni publication ni fusion de
+branches. Ce PASS valide les chemins par défaut **dans le périmètre
+Heat-Wave décrit**, pas une généralité encore non testée.
