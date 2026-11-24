@@ -715,22 +715,55 @@ hence the **negative** flow-side boundary mass rows.
 The first short tutorial is not a substitute for a time/mesh
 refinement study or the original published wave analysis.
 
-.. image:: Hamiltonian-wave-1D-started.png
-    :width: 600px
-    :alt: Hamiltonian evolution
-    :align: center
+For a structure-preserving discretization, the corresponding
+energy balance should remain constant. The old pre-v1.3.0 plot is
+intentionally **not reproduced here**, because it was produced
+with a different boundary-sign and time-integration convention.
+The new visualization is generated directly from the maintained
+model with:
 
+.. code-block:: bash
 
-For an energy-preserving discretization the
-dashed balance should remain constant; the legacy illustration
-shown here predates the reworked v1.3.0 example and will be replaced
-after the new native installation gate has passed. It shows the evolution of
+    python -m examples.wave_1d --solver mumps --check --plot
+
+Once the new native validation is complete, this plot can be
+included with its exact model parameters and provenance.
+For a valid run, the corrected numerical balance corresponds to
 
 .. math::
 
 
        \mathcal{H}^d(t) - \int_0^t u_R(s) y_R(s) {\rm d}s - \int_0^t u_L(s) y_L(s) {\rm d}s.
 
+
+This example illustrates the same port-Hamiltonian/PFEM framework
+analyzed for heterogeneous boundary-controlled wave equations in
+Haine, Matignon and Serhani,
+`Numerical Analysis of a Structure-Preserving Space-Discretization
+for an Anisotropic and Heterogeneous Boundary Controlled N-Dimensional
+Wave Equation As a Port-Hamiltonian System
+<https://doi.org/10.4208/ijnam2023-1005>`_ (2023), and the SCRIMP
+software framework of
+`Ferraro, Fournié and Haine
+<https://doi.org/10.1016/j.ifacol.2024.08.267>`_ (2024).
+The numerical choices used here are deliberately shorter and
+simpler for teaching; **do not interpret this tutorial as a
+reproduction of the paper's figures or convergence results**.
+
+To retain numerical evidence and ParaView files without writing to
+the checkout, provide an output directory:
+
+.. code-block:: bash
+
+    python -m examples.wave_1d --solver mumps --check \\
+        --export --output outputs/my_first_wave
+
+This directory contains accepted full FE trajectories, per-rank
+machine-readable reports and ``q``/``p`` VTK time series.
+In parallel the ranks may compute concurrently, but SCRIMP
+writes a single shared ParaView series only if the complete
+FE states and meshes are confirmed identical on every rank.
+See :doc:`install` for the actual available PETSc backends.
 
 And now? It is time to see `more examples <examples.html>`_.
 
