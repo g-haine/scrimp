@@ -247,7 +247,11 @@ summary = {
             "PASS_BOTH_AUTO_INTERFACE_ORIENTATIONS_MPI2_DAE_CN_ENERGY_PARITY"
         )
         if not any_failure else
-        "FAIL_OR_UNQUALIFIED_AUTO_INTERFACE_MPI2_DAE_CN_OR_PV_DIAGNOSTIC"
+        (
+            "FAIL_OR_UNQUALIFIED_AUTO_INTERFACE_MPI2_DAE_CN_OR_PV_DIAGNOSTIC"
+            if pv_diagnostic else
+            "FAIL_OR_UNQUALIFIED_AUTO_INTERFACE_MPI2_DAE_CN_PHYSICS"
+        )
     ),
     "cases": results,
     "host_comparison_failure": host_error,
