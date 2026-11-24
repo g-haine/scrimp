@@ -114,7 +114,6 @@ User's guide
     started
     getfem_gwfl
     initialization
-    solver_saddle_points
     explicit_bricks
     performance
     examples
