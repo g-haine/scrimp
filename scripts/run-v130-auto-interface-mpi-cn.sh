@@ -46,7 +46,18 @@ printf '{"schema":"scrimp-v130-MPI1-MPI2-auto-interface-DAE-CN-v1","source":"%s"
   "$(git rev-parse HEAD)" "$revision" > "$out/manifest.json"
 echo "REAL GetFEM/PETSc strict DAE / CN / sided pH energy: MPI1 vs MPI2"
 echo "Both 2D Heat-Wave orientations; original model and physical weak forms"
-echo "Plot/ParaView disabled only in sandbox; native physical assembly on ALL ranks"
+pv_diagnostic="${SCRIMP_V130_MPI_PV_DIAGNOSTIC:-0}"
+[[ "$pv_diagnostic" == 0 || "$pv_diagnostic" == 1 ]] || {
+  echo "SCRIMP_V130_MPI_PV_DIAGNOSTIC must be 0 or 1" >&2; exit 2
+}
+pv_args=()
+if [[ "$pv_diagnostic" == 1 ]]; then
+  pv_args=(--pv-diagnostic)
+  echo "ParaView DIAGNOSTIC: real VTU/PVD with isolated files on each MPI rank"
+  echo "Shared production MPI exports are NOT qualified by this test"
+else
+  echo "Plot/ParaView disabled only in sandbox; native physics on ALL ranks"
+fi
 echo "EVIDENCE: $out"
 
 for heat in 1 2; do
@@ -76,7 +87,7 @@ for heat in 1 2; do
     "$image" timeout -k 5s "${SCRIMP_V130_MPI_CN_TIMEOUT:-360s}" \
     mpiexec --oversubscribe --bind-to none -n "$ranks" \
     python -u /workspace/scrimp/sandbox/probe_v130_auto_interface_mpi_cn.py \
-      --heat "$heat" --out /artifacts \
+      --heat "$heat" --out /artifacts "${pv_args[@]}" \
     > "$out/$label.host.log" 2>&1 || rc=$?
   printf '%s\n' "$rc" > "$out/$label.exitcode"
   if [[ "$rc" -ne 0 ]]; then
@@ -87,14 +98,17 @@ for heat in 1 2; do
 done
 
 python3 - "$out" <<'PY'
-import json, sys, zipfile
+import hashlib, json, os, sys, zipfile
 from pathlib import Path
+from xml.etree import ElementTree as ET
 import numpy as np
 
 root = Path(sys.argv[1])
 results = {}
 any_failure = False
 host_error = None  # success path must also serialize a complete report
+pv_diagnostic = os.environ.get("SCRIMP_V130_MPI_PV_DIAGNOSTIC", "0") == "1"
+pv_evidence = {}
 try:
     for heat in (1, 2):
         run = {}
@@ -116,7 +130,10 @@ try:
                         or not raw["rank_consensus"]
                         or raw["real_PETSc_CN_steps"] != 4
                         or not all(raw["physical_gates"].values())
-                        or not raw["plot_and_ParaView_export_skipped_on_all_ranks"]
+                        or raw["plot_and_ParaView_export_skipped_on_all_ranks"]
+                           == pv_diagnostic
+                        or raw.get("MPI_rank_isolated_real_ParaView_export_diagnostic")
+                           != pv_diagnostic
                         or not raw["physical_GetFEM_assembly_executed_on_all_ranks"]):
                     raise RuntimeError(f"Native rank report gate failed: {label}/{rank}")
                 record["rank_reports"].append(raw)
@@ -174,7 +191,49 @@ try:
             "MPI2_rank0_rank1_full_trace_bitwise_identical": rank_equal,
         }
         any_failure = any_failure or not passed
-    
+
+    # Optional REAL VTK file diagnostic. Rank-isolated file integrity
+    # does NOT qualify concurrent shared-file production exports.
+    if pv_diagnostic:
+        for heat in (1, 2):
+            for size in (1, 2):
+                label = f"heat{heat}_mpi{size}"
+                for rank in range(size):
+                    entry = {}
+                    for name in ("p", "T"):
+                        folder = root / label / f"rank{rank}" / "pv" / name
+                        pvd = folder / f"{name}.pvd"
+                        collection = ET.parse(pvd)
+                        datasets = collection.findall(".//DataSet")
+                        if len(datasets) != 5:
+                            raise RuntimeError(
+                                f"Expected 5 GetFEM PVD timesteps at {pvd}"
+                            )
+                        meta = []
+                        for step, item in enumerate(datasets):
+                            t = float(item.attrib["timestep"])
+                            if not np.isclose(t, step*.001, rtol=0, atol=1e-12):
+                                raise RuntimeError(f"Wrong PVD time {t} in {pvd}")
+                            filename = item.attrib["file"]
+                            if "/" in filename or ".." in filename:
+                                raise RuntimeError("Unsafe PVD filename")
+                            vtu = folder / filename
+                            raw = vtu.read_bytes()
+                            if not raw:
+                                raise RuntimeError(f"Empty GetFEM VTK: {vtu}")
+                            piece = ET.fromstring(raw).find(".//Piece")
+                            if piece is None:
+                                raise RuntimeError(f"Missing VTK piece: {vtu}")
+                            meta.append({
+                                "timestep": t,
+                                "bytes": len(raw),
+                                "sha256": hashlib.sha256(raw).hexdigest(),
+                                "points": int(piece.attrib["NumberOfPoints"]),
+                                "cells": int(piece.attrib["NumberOfCells"]),
+                            })
+                        entry[name] = meta
+                    pv_evidence[f"{label}_rank{rank}"] = entry
+
 except Exception as exc:
     any_failure = True
     host_error = f"{type(exc).__name__}: {exc}"
@@ -188,6 +247,8 @@ summary = {
     ),
     "cases": results,
     "host_comparison_failure": host_error,
+    "isolated_MPI_ParaView_diagnostic_executed": pv_diagnostic,
+    "isolated_MPI_ParaView_evidence": pv_evidence,
     "current_original_example_source_unchanged": True,
     "all_GetFEM_physical_integrals_on_all_ranks": True,
     "parallel_PNG_and_ParaView_qualified": False,
