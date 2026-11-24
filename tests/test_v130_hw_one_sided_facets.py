@@ -20,7 +20,11 @@ class OneSidedFacetContracts(unittest.TestCase):
     def test_one_sided_faces_are_from_2d_parent_region_only(self):
         s=PROBE.read_text(encoding="utf-8")
         for token in (
-            "mesh.region(number)",
+            "mesh.region(region)",
+            "mesh.pid_from_cvid(candidates)",
+            "candidates[node_counts==3]",
+            "selection_based_on_geometric_connectivity_not_face_id",
+            "bulk_region_geometric_classification",
             "mesh.outer_faces(2,volume)",
             "mesh.pid_in_faces(face)",
             "mesh.normal_of_faces(face)",
@@ -44,6 +48,8 @@ class OneSidedFacetContracts(unittest.TestCase):
         ):
             self.assertIn(token,s)
         self.assertNotIn("system.stiffness.zeroEntries",s)
+        self.assertNotIn('Bulk volume must contain complete convexes',s)
+        self.assertNotIn('np.any(ids[1,:]>=0)',s)
 
     def test_native_runner_is_pinned_and_readonly(self):
         s=RUNNER.read_text(encoding="utf-8")

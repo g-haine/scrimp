@@ -68,20 +68,68 @@ def region_description(mesh, region):
     }
 
 
+def bulk_2d_convexes(mesh, region):
+    """Select actual 2-D parents, not GetFEM region entries' face flags.
+
+    Imported Gmsh region entries can be (convex_id, local_face_id)
+    or (convex_id,-1). The second row is NOT a geometric-dimension
+    indicator and must not be required to equal -1. The original
+    Concentric Gmsh mesh is P1: disk/annulus are triangles (3 nodes)
+    whereas independently imported boundary arcs are 2-node lines.
+    This is a diagnostic for that 2-D mesh, not a general mixed-
+    dimensional GetFEM mesh selector for arbitrary high-order cells.
+    """
+    entries=np.asarray(mesh.region(region),dtype=np.int64)
+    if entries.ndim!=2 or entries.shape[0]!=2 or not entries.shape[1]:
+        raise RuntimeError(f"Invalid or empty GetFEM region {region}")
+    candidates=np.unique(entries[0,:])
+    pids, offsets=mesh.pid_from_cvid(candidates)
+    pids=np.asarray(pids,dtype=np.int64).reshape(-1)
+    offsets=np.asarray(offsets,dtype=np.int64).reshape(-1)
+    if (len(offsets)!=len(candidates)+1 or offsets[0]!=0
+            or offsets[-1]!=len(pids)
+            or np.any(np.diff(offsets)<2)):
+        raise RuntimeError(
+            f"Invalid GetFEM convex point connectivity for region {region}"
+        )
+    node_counts=np.diff(offsets)
+    # This original P1 Concentric geometry has triangles and lines.
+    if np.any(~np.isin(node_counts,(2,3))):
+        raise RuntimeError(
+            f"Unexpected non-P1 Concentric convex connectivity {region}: "
+            +str(np.unique(node_counts).tolist())
+        )
+    volume=np.ascontiguousarray(candidates[node_counts==3],dtype=np.int64)
+    if not len(volume):
+        raise RuntimeError(
+            f"No geometric triangles in native imported region {region}"
+        )
+    details={
+        "region":int(region),
+        "raw_getfem_region_entry_count":int(entries.shape[1]),
+        "raw_whole_convex_entries":int(np.count_nonzero(entries[1,:]<0)),
+        "raw_face_entries":int(np.count_nonzero(entries[1,:]>=0)),
+        "unique_region_convex_ids":int(len(candidates)),
+        "geometric_2D_triangle_parents":int(len(volume)),
+        "excluded_1D_segment_convexes":int(np.count_nonzero(node_counts==2)),
+        "selection_based_on_geometric_connectivity_not_face_id":True,
+    }
+    return volume,details
+
+
 def new_one_sided_regions(mesh):
     bulk={}
     boundaries={}
+    region_classification={}
     for number in (1,2):
-        ids=np.asarray(mesh.region(number),dtype=np.int64)
-        if ids.ndim!=2 or ids.shape[0]!=2:
-            raise RuntimeError("GetFEM volume region does not use (cv,face) IDs")
-        volume=np.asarray(ids[0,:],dtype=np.int64)
-        if not len(volume) or np.any(ids[1,:]>=0):
-            raise RuntimeError("Bulk volume must contain complete convexes")
+        volume,details=bulk_2d_convexes(mesh,number)
         bulk[number]=volume
+        region_classification[str(number)]=details
         faces=np.asarray(mesh.outer_faces(2,volume),dtype=np.int64)
-        if faces.ndim!=2 or faces.shape[0]!=2:
-            raise RuntimeError("Invalid GetFEM outer-face array")
+        if faces.ndim!=2 or faces.shape[0]!=2 or not faces.shape[1]:
+            raise RuntimeError(
+                f"No one-sided 2-D outer faces for Concentric region {number}"
+            )
         boundaries[number]=faces
 
     # Disk has only one boundary at the physical heat-wave interface.
@@ -144,6 +192,7 @@ def new_one_sided_regions(mesh):
         "disk_interface_2d_face_region":region_description(mesh,FACE_HEAT),
         "annulus_interface_2d_face_region":region_description(mesh,FACE_WAVE),
         "outer_annulus_face_count":len(annulus_outer),
+        "bulk_region_geometric_classification":region_classification,
         "parent_face_normals":normals,
         "no_volume_region_modified":True,
     }

@@ -5422,3 +5422,30 @@ Only if parent-face fields reveal the missing normal
 integration do we have enough evidence to prototype a
 different interface discretization (and then retest
 true transmission plus nonvacuous CN energy transfer).
+
+## 24 November 2026 — first one-sided facet audit failed on a diagnostic-only GetFEM region assumption
+
+User original native log for commit `9ef68b09`: unchanged Heat-Wave
+MUMPS/clamp/strict-DAE main CN completed all 4 accepted steps,
+Hamiltonians, port powers and export. The *post-solve diagnostic*
+aborted in `new_one_sided_regions`, BEFORE any proposed region-30/31
+physical measurements, with `RuntimeError: Bulk volume must contain
+complete convexes`. The old helper incorrectly assumed all
+`Mesh.region(1/2)` entries have face ID `-1`.
+GetFEM's documented region API permits both full convexes and
+convex-face entries in the same two-row region table. This is
+**not a failure of the physical TS or a confirmation of the
+suspected mesh-normal coupling problem**.
+
+The revised native probe records raw (convex ID, face ID) counts
+and selects genuine full-dimensional parent triangles from
+`mesh.pid_from_cvid(unique_convex_ids)` connectivity: on this
+original P1 Gmsh Concentric mesh triangles have three geometric
+vertices, whereas independent imported 1D segments have two.
+Only geometric 2D parents are passed to
+`mesh.outer_faces(2,CVIDs)`; no pre-existing domain region is
+modified. This diagnostic is intentionally restricted to this
+original P1 triangle/segment geometry and refuses unexpected
+higher-order element connectivities instead of claiming a
+generic region classifier. Correct regions and actual normal
+fluxes 10/30/31 still require the next native run.
