@@ -3,7 +3,32 @@ Getting started
 
 .. _started:
 
-In order to start using **SCRIMP**, you have to work in the conda environment *scrimp* from the installation by running :code:`conda activate scrimp`.
+Before beginning, activate the environment in which **SCRIMP** is
+installed (for example, run ``conda activate scrimp`` for a native
+Conda installation). The exact same model can also run in the
+precompiled GetFEM/PETSc Docker environment.
+
+**This chapter is both a first lesson and a small installation
+test.** We start from the physical energy and boundary power law,
+then construct its PFEM discretization and compare numerical solutions
+using PETSc's MUMPS, sequential SuperLU and parallel SuperLU_DIST.
+For a first verification from the source checkout, you can execute:
+
+.. code-block:: bash
+
+    python -m examples.wave_1d --solver mumps --check
+
+The complete, maintained code is ``examples/wave_1d.py``.
+It accepts ``--mesh-size``, ``--time-step``, ``--final-time``,
+``--plot`` and ``--solver``; running the tutorial with
+``--check`` verifies an **actual** PETSc time integration and its
+discrete mechanical power balance. A successful Python import or
+LU factorization alone is not a physical acceptance test.
+
+**Native status:** the updated 1D sign convention, strict initial
+projection and multi-backend tests are being qualified for v1.3.0.
+Until the complete native campaign passes, do not treat this new
+tutorial as a reproduced publication benchmark.
 
 To understand the coding philosophy of **SCRIMP**, let us consider the 1D wave equation with Neumann boundary control as a first example
 
@@ -21,8 +46,8 @@ To understand the coding philosophy of **SCRIMP**, let us consider the 1D wave e
        \right.
 
 where :math:`w` denotes the deflection from the equilibrium position of
-a string, :math:`\rho` is its mass density and :math:`T` the Young’s
-modulus. **Note** the minus sign on the control at the left end side,
+a string, :math:`\rho` is its linear mass density and :math:`T`
+the (possibly heterogeneous) string tension coefficient. **Note** the minus sign on the control at the left end side,
 standing for the *outward normal* to the domain :math:`(0,1)`.
 
 The physics giving this equation has to be restated in the
@@ -394,8 +419,11 @@ variables and mixed PDE--ODE problems; see also
 Coding within SCRIMP
 --------------------
 
-The following code is available in the file ``wave_1D.py`` of the
-*sandbox* folder of scrimp.
+The maintained tutorial lives in ``examples/wave_1d.py``.
+The older ``sandbox/wave_1D.py`` is retained as an historical
+example, not used as the v1.3.0 installation gate. The snippets below
+follow the maintained version; its function ``wave_1d()`` exposes
+mesh/time resolution, LU backend and optional plotting.
 
 To start, import **SCRIMP** and create a *distributed port-Hamiltonian
 system* (DPHS) called, *e.g.*, ``wave``
@@ -546,17 +574,17 @@ loop using a python *list*
         # M matrix, on the flow side
         S.Brick("M_q", "q * Test_q", [1], dt=True, position="flow"),
         S.Brick("M_p", "p * Test_p", [1], dt=True, position="flow"),
-        S.Brick("M_Y_L", "Y_L * Test_Y_L", [10], position="flow"),
-        S.Brick("M_Y_R", "Y_R * Test_Y_R", [11], position="flow"),
+        S.Brick("-M_Y_L", "-Y_L * Test_Y_L", [10], position="flow"),
+        S.Brick("-M_Y_R", "-Y_R * Test_Y_R", [11], position="flow"),
         
         # J matrix, on the effort side
         S.Brick("D", "Grad(e_p) * Test_q", [1], position="effort"),
     
         S.Brick("-D^T", "-e_q * Grad(Test_p)", [1], position="effort"),
-        S.Brick("B_L", "-U_L * Test_p", [10], position="effort"),
+        S.Brick("B_L", "U_L * Test_p", [10], position="effort"),
         S.Brick("B_R", "U_R * Test_p", [11], position="effort"),
     
-        S.Brick("-B_L^T", "e_p * Test_Y_L", [10], position="effort"),
+        S.Brick("-B_L^T", "-e_p * Test_Y_L", [10], position="effort"),
         S.Brick("-B_R^T", "-e_p * Test_Y_R", [11], position="effort"),
         
         # Constitutive relations
@@ -591,22 +619,52 @@ controls and the initial values of the states before solving
 
 .. code:: python
 
-    expression_left = "-sin(2*pi*t)"
+    expression_left = "sin(2*pi*t)"
     expression_right = "0."
     wave.set_control("Boundary control (left)", expression_left)
     wave.set_control("Boundary control (right)", expression_right)
     
-    q_init = "2.*np.exp(-50.*(x-0.5)*(x-0.5))"
+    q_init = "2*x*(1-x)*np.exp(-50*(x-0.5)*(x-0.5))"
     p_init = "0."
     wave.set_initial_value("q", q_init)
     wave.set_initial_value("p", p_init)
 
 
-We can now solve the system (with default experiment parameters)
+At ``t=0``, both boundary tractions are zero. The initial
+strain is multiplied by ``x*(1-x)`` so that its boundary values
+are zero too. This makes the prescribed differential initial
+data compatible with the boundary constraints, while still
+exciting an interior wave.
+
+For the reproducible tutorial we use fixed Crank--Nicolson steps
+and the **strict algebraic** DAE initializer. A brief, non-graphical
+installation test needs only a short physical time interval:
 
 .. code:: python
 
+    wave.set_time_scheme(
+        init_step_ts_type="algebraic",
+        ts_type="cn", ts_adapt_type="none",
+        ts_exact_final_time="matchstep",
+        t_0=0.0, t_f=0.04, dt=0.004, dt_save=0.004,
+    )
     wave.solve()
+
+PETSc's default direct factorization backend is MUMPS; select
+SuperLU for serial operation only, or SuperLU_DIST in MPI:
+
+.. code-block:: bash
+
+    python -m examples.wave_1d --solver mumps --check
+    python -m examples.wave_1d --solver superlu --check
+    python -m examples.wave_1d --solver superlu_dist --check
+    mpiexec -n 2 python -m examples.wave_1d --solver mumps --check
+    mpiexec -n 2 python -m examples.wave_1d --solver superlu_dist --check
+
+**Never use ``superlu`` with more than one MPI rank.**
+These commands validate different numerical backends on the
+**same physical model**; they are not benchmarks of their speed
+or evidence of universal backend support on an arbitrary machine.
 
 
 To end, one can also add the Hamiltonian terms and plot the contribution
@@ -623,9 +681,39 @@ of each port to the balance equation
     for term in terms:
         wave.hamiltonian.add_term(term)
     
-    wave.plot_Hamiltonian()
+    wave.plot_Hamiltonian(with_powers=True)
 
 
+The script performs the check explicitly from the accepted FE
+trajectory and the two signed boundary port powers. For the
+Crank--Nicolson implementation, power sample ``P[k]`` with
+``k>=1`` is associated with the **step ending at ``t[k]``**
+and is evaluated on the mean FE state. Thus the correct discrete
+boundary work is
+
+.. math::
+
+    W_n^{\mathrm{CN}} =
+    \sum_{k=1}^{n}(t_k-t_{k-1})
+    \left(P_{L,k}^{\mathrm{CN}}+P_{R,k}^{\mathrm{CN}}\right).
+
+The initial sample ``P[0]`` is instantaneous; it must not
+be included in an endpoint trapezoidal quadrature over CN step
+powers. The physical check examines **every accepted step**:
+
+.. math::
+
+    \mathcal{H}^d(t_k)-\mathcal{H}^d(t_{k-1})
+    -(t_k-t_{k-1})\left(P_{L,k}^{\mathrm{CN}}+
+    P_{R,k}^{\mathrm{CN}}\right)\simeq 0.
+
+This sign convention corresponds to the outward Neumann controls
+``U_L=-e_q(0)``, ``U_R=e_q(1)`` and the actual port
+observations ``Y_L=e_p(0)``, ``Y_R=e_p(1)``.
+In the SCRIMP flow equations the observation appears as ``-Y``,
+hence the **negative** flow-side boundary mass rows.
+The first short tutorial is not a substitute for a time/mesh
+refinement study or the original published wave analysis.
 
 .. image:: Hamiltonian-wave-1D-started.png
     :width: 600px
@@ -633,8 +721,10 @@ of each port to the balance equation
     :align: center
 
 
-One can appreciate the *structure-preserving* property by looking at the
-dashed line, showing the evolution of
+For an energy-preserving discretization the
+dashed balance should remain constant; the legacy illustration
+shown here predates the reworked v1.3.0 example and will be replaced
+after the new native installation gate has passed. It shows the evolution of
 
 .. math::
 
