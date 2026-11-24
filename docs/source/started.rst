@@ -755,7 +755,7 @@ the checkout, provide an output directory:
 
 .. code-block:: bash
 
-    python -m examples.wave_1d --solver mumps --check \\
+    python -m examples.wave_1d --solver mumps --check \
         --export --output outputs/my_first_wave
 
 This directory contains accepted full FE trajectories, per-rank
