@@ -606,6 +606,49 @@ A genuine native **PASS** would qualify MPI1 swapped Heat-Wave
 dynamics and physical balance for the revised outward-normal laws,
 not yet MPI2 or generic higher-order/multiphysics interfaces.
 
+## Swapped Heat-Wave strict DAE / CN / physical balance — PASS (2026-11-24)
+
+The user executed `scripts/run-v130-swapped-interface-cn.sh` at
+commit `3cbc738` and supplied the full 20-file archive
+`v130-swapped-interface-CN-3cbc738a-djMlJFrk.zip`.
+The live, outward-normal `examples/heat_wave.py` was run with
+**heat=annulus 2, wave=disk 1** and automatic one-sided interface
+compilation, without ANY initial-data adjustment or geometric/sign
+runtime patches.
+
+- **`PASS_SWAPPED_AUTO_INTERFACE_DAE_CN_ENERGY_MPI1`**.
+- All source-only tests (10+6+7+5+6+4 = 38) PASS; 8 protected
+  `examples/published/` files remain immutable.
+- Strict algebraic DAE initial projection: **PASS**, final true residual
+  **9.758748179398196e-14**, tolerance 8.218631422610572e-9;
+  exact differential initial values preserved; no pseudo-TS.
+- True fixed PETSc CN: **4 of 4 accepted steps**, no rejected steps or
+  nonlinear failures; full accepted trajectories shape **5 × 8056**.
+- Automatic effective heat side region **22** and wave side **21**
+  (78 interface facets per side), public logical region **10** unchanged.
+- Max total per-step discrete Hamiltonian/heat dissipation/port balance
+  defect **1.6792123247455493e-15**;
+  heat/wave separate defects **2.3141211169530607e-15** and
+  **6.904199434387692e-16**.
+- Max interface power continuity defect **8.881784197001252e-16**,
+  nontrivial individual CN interface power **4.390457971145539**,
+  heat dissipation max **39.50200106717261**, and no positive
+  Hamiltonian step increments.
+- Homogeneous thermal exterior boundary power max
+  **4.663842928891199e-14**.
+- The public `Port.compute(cn_step)` heat/wave port powers agree
+  exactly with independently integrated GetFEM one-sided CN traces
+  (zero maximum discrepancy).
+- The native report explicitly records all ten physical gate booleans
+  true, the unchanged live physical source and no fake boundary
+  compatibility clamp.
+
+**Conclusion:** both assignments of the 2-D Concentric coupled
+Heat-Wave system are now scientifically qualified through strict DAE,
+physical CN balance and nontrivial power exchange in **MPI1**.
+Automatic compilation remains test-only/off by default; **MPI2 and
+other geometric/FE configurations are NOT qualified by this result**.
+
 ## Next steps (not implemented here)
 
 1. Native test on real 1D/2D/3D imported meshes and curved/high-order
