@@ -16,7 +16,9 @@ The fake time series is ONLY for host logic and negative controls.
 import ast
 import base64
 import importlib.util
+import json
 from pathlib import Path
+import tempfile
 import struct
 import types
 import unittest
@@ -44,6 +46,19 @@ def original_observer():
     namespace = {"np": np}
     exec(compile(extract, str(EXAMPLE), "exec"), namespace)
     return namespace["observe_wave_1d"]
+
+
+def actual_rejected_evidence_writer():
+    source = ast.parse(EXAMPLE_SOURCE, filename=str(EXAMPLE))
+    function = next(node for node in source.body
+                    if isinstance(node, ast.FunctionDef)
+                    and node.name == "save_rejected_wave_diagnostic")
+    extract = ast.fix_missing_locations(
+        ast.Module(body=[function], type_ignores=[])
+    )
+    namespace = {"np": np, "Path": Path, "json": json}
+    exec(compile(extract, str(EXAMPLE), "exec"), namespace)
+    return namespace["save_rejected_wave_diagnostic"]
 
 
 class Port:
@@ -212,6 +227,27 @@ class FirstTutorialTests(unittest.TestCase):
     def test_historical_duplicate_removed_after_native_success(self):
         self.assertFalse((ROOT/"sandbox"/"wave_1D.py").exists())
         self.assertTrue((ROOT/"examples"/"wave_1d.py").is_file())
+
+    def test_failed_long_run_saves_raw_fe_evidence_without_fake_pass(self):
+        save = actual_rejected_evidence_writer()
+        system = System()
+        system.last_ts_steps = 3  # Actual accepted steps not all archived.
+        with tempfile.TemporaryDirectory(prefix="wave1d-bad-cn-") as d:
+            save(system, Path(d), 0, RuntimeError("missing accepted state"))
+            metadata = json.loads((Path(d)/"rank0.failed.json").read_text())
+            self.assertEqual(
+                metadata["status"],
+                "UNQUALIFIED_NATIVE_TRAJECTORY_DIAGNOSTIC_ONLY"
+            )
+            self.assertIn("missing accepted state", metadata["observer_error"])
+            self.assertEqual(metadata["ts_steps"], 3)
+            self.assertEqual(metadata["raw_state_count"], 3)
+            with np.load(Path(d)/"rank0.failed.npz", allow_pickle=False) as raw:
+                self.assertEqual(raw["times"].shape, (3,))
+                self.assertEqual(raw["states"].shape, (3, 4))
+                self.assertEqual(raw["H"].shape, (3,))
+                self.assertEqual(raw["power_left"].shape, (3,))
+                self.assertEqual(raw["power_right"].shape, (3,))
 
     def test_public_solvers_honest_about_parallel_limitations(self):
         self.assertIn('choices=("mumps", "superlu", "superlu_dist")',
