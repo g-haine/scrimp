@@ -2796,6 +2796,49 @@ class DPHS:
             with self.profiler.measure("main.petsc.ts_solve"):
                 TS.solve(InitVec)
         except PETSc.Error:
+            # Serial-only, opt-in first-step TS/SNES/KSP/PC diagnostics:
+            # inspect existing solver state; never reassemble or retry.
+            if (
+                os.environ.get("SCRIMP_TS_FAILURE_DIAGNOSTICS") == "1"
+                and max_rank == 1
+            ):
+                try:
+                    snes = TS.getSNES()
+                    ksp = snes.getKSP()
+                    pc = ksp.getPC()
+
+                    def read_state(getter):
+                        try:
+                            return str(getter())
+                        except Exception as exc:
+                            return f"unavailable:{type(exc).__name__}"
+
+                    logging.error(
+                        "MAIN TS FAILURE DIAGNOSTIC: "
+                        "TS_reason=%s, TS_step=%s, TS_time=%s, "
+                        "TS_dt=%s, SNES_reason=%s, SNES_iter=%s, "
+                        "SNES_norm=%s, KSP_reason=%s, KSP_iter=%s, "
+                        "KSP_norm=%s, PC_type=%s, PC_failed=%s, "
+                        "factor_solver=%s",
+                        read_state(TS.getConvergedReason),
+                        read_state(TS.getStepNumber),
+                        read_state(TS.getTime),
+                        read_state(TS.getTimeStep),
+                        read_state(snes.getConvergedReason),
+                        read_state(snes.getIterationNumber),
+                        read_state(snes.getFunctionNorm),
+                        read_state(ksp.getConvergedReason),
+                        read_state(ksp.getIterationNumber),
+                        read_state(ksp.getResidualNorm),
+                        read_state(pc.getType),
+                        read_state(pc.getFailedReason),
+                        read_state(pc.getFactorSolverType),
+                    )
+                except Exception as diagnostic_error:
+                    logging.error(
+                        "MAIN TS FAILURE diagnostic unavailable: %r",
+                        diagnostic_error,
+                    )
             # Requested only for a SERIAL native MUMPS failure. Read
             # KSP/PC and the actual LU factor's MUMPS status *before*
             # PETSc may destroy them. No extra assembly, no change to

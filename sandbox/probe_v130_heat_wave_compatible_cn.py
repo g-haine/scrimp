@@ -23,6 +23,7 @@ Scientific power/energy qualifications remain separate from LU parity.
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -85,6 +86,12 @@ def add_boundary_compatible_state(system, candidate, report):
             raise RuntimeError(
                 f"Strict DAE initializer modified differential state {name}"
             )
+    if os.environ.get("SCRIMP_HW_TS_DIAGNOSTIC_MONITORS") == "1":
+        # PETSc monitor options AFTER strict DAE, BEFORE main TS setup.
+        # Observability only: CN method, dt and tolerances are unchanged.
+        for name in ("snes_monitor", "snes_converged_reason",
+                     "ksp_converged_reason", "ts_adapt_monitor"):
+            system.time_scheme[name] = ""
     report.update({
         "candidate":candidate,
         "boundary_filtered_DOF_count":int(len(b)),
@@ -109,6 +116,7 @@ def main():
     parser.add_argument("--backend",
                         choices=("mumps","superlu_dist"),required=True)
     parser.add_argument("--out",type=Path,required=True)
+    parser.add_argument("--capture-ts-failure",action="store_true")
     args=parser.parse_args()
     if MPI.COMM_WORLD.size != 1 or PETSc.COMM_WORLD.getSize() != 1:
         raise RuntimeError("Original public Heat-Wave export is MPI1 only")
@@ -134,7 +142,37 @@ def main():
             "--backend",args.backend,
             "--out",str(args.out),
         ]
-        original_main.main()
+        try:
+            original_main.main()
+        except PETSc.Error as exc:
+            if not args.capture_ts_failure:
+                raise
+            native = captured.get("DAE_initializer")
+            if (native is None or native["status"]!="PASS"
+                    or "DIVERGED_STEP_REJECTED" not in str(exc)):
+                raise
+            failed={
+                "schema":"scrimp-v130-heat-wave-superlu-ts-failure-v1",
+                "status":"DIAGNOSTIC_TS_REJECTED_NOT_PHYSICAL_PASS",
+                "candidate":args.candidate,"backend":args.backend,
+                "PETSc_error":str(exc),
+                "strict_DAE_pass":True,
+                "initial_algebraic_residual":
+                    native["native_final_residual_l2"],
+                "initial_algebraic_tolerance":
+                    native["feasibility_tolerance"],
+                "full_CN_completed":False,
+                "physics_qualified":False,
+                "original_example_modified":False,
+            }
+            output=args.out/"compatible_cn_failure.json"
+            if output.exists():
+                raise RuntimeError("Refuse to overwrite TS failure evidence")
+            output.write_text(json.dumps(failed,indent=2)+"\n",
+                              encoding="utf-8")
+            print("DIAGNOSTIC CN TS REJECTED "+args.candidate+" "+
+                  args.backend+" (strict DAE PASS, PHYSICS OPEN)",flush=True)
+            return
     finally:
         DPHS.init_step=original_init
         sys.argv=saved_argv

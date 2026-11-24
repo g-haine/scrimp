@@ -5020,3 +5020,24 @@ thresholds remains visible as `PHYSICAL_SCIENCE_OPEN`.
 ParaView remains serial/MPI1 because concurrent public
 file writing is not yet qualified. This native campaign is
 pending the requested original-image run.
+
+## 24 November 2026 — SuperLU_DIST first CN step failure
+
+Native source `17cf29e8`: `clamp + MUMPS` finished its
+four-step original Heat-Wave CN run, but `clamp + SuperLU_DIST`
+failed at the first main TS step with
+`DIVERGED_STEP_REJECTED` (PETSc error 91), AFTER the strict
+DAE initialized successfully (`||F_a||=8.95442337e-14`).
+This generic TS code does not identify SNES/KSP/PC cause.
+Do not alter solver tolerances or the physical initial state.
+
+The new serial-only opt-in flag
+`SCRIMP_TS_FAILURE_DIAGNOSTICS=1` logs the actual PETSc
+TS/SNES/KSP/PC convergence reasons, iteration counts and
+norms before rethrowing. A separate sandbox diagnostic
+reruns only `superlu_dist` with the two independently
+DAE-qualified initial candidates, enables PETSc convergence
+monitors only AFTER DAE initialization, and archives the
+original rejection as a **diagnostic failure** (never an
+energy/power PASS). Its purpose is to identify the actual
+linear/nonlinear failure before changing production code.
