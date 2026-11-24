@@ -5041,3 +5041,44 @@ monitors only AFTER DAE initialization, and archives the
 original rejection as a **diagnostic failure** (never an
 energy/power PASS). Its purpose is to identify the actual
 linear/nonlinear failure before changing production code.
+
+## 24 November 2026 — captured SuperLU_DIST factor pivot failure
+
+Original user-provided archive
+`v130-hw-superlu-diagnostic-52022d60-lq5T1DGb.zip`
+was directly inspected, including complete host logs, both
+original rejection reports and manifest. Both DAE-corrected
+Gaussian initial candidates pass the strict algebraic projection
+with ||F_a|| approximately 8.9e-14. The **first actual CN
+LU factorization with SuperLU_DIST** fails on every retry:
+`PC_FACTOR_NUMERIC_ZEROPIVOT` (PETSc PC failure reason 2),
+`KSP_DIVERGED_PC_FAILED=-11`, `SNES_DIVERGED_LINEAR_SOLVE=-3`,
+and `TS_DIVERGED_STEP_REJECTED=-2`. The SNES initial
+function norm remains around 130.615716 in both cases.
+Reducing dt from 1e-3 down to 2.384e-10 does NOT fix
+the factorization. No first CN step was accepted.
+
+This diagnosis does **not** determine whether the actual
+CN Jacobian is structurally singular, numerically rank
+deficient, or has an unfavorable SuperLU_DIST pivot/order.
+MUMPS finishing the original first four-step clamp run
+does not prove its operator was identical at the factorization
+site. Do not insert an artificial diagonal, replace tiny
+pivots silently, or change DAE/TS tolerances.
+
+The new independent native runner
+`scripts/run-v130-hw-cn-identical-lu.sh` enables the existing,
+already implemented `SCRIMP_JACOBIAN_SNAPSHOT_PREFIX`
+to archive the **first actual PETSc CN IJacobian preconditioner P**
+on the original Heat-Wave with SuperLU_DIST. A standalone
+PETSc-only replay loads the one same immutable binary Mat
+and performs fresh `preonly/lu` solves with BOTH MUMPS
+and SuperLU_DIST on a manufactured *consistent* right-hand
+side. It reports stored CSR checksum, numerical/structural
+zero rows, structural bipartite-matching rank, numeric zeros,
+both solver PC/KSP reasons, linear residual, and state error.
+Thus any observed difference is a difference in handling
+**the identical assembled sparse matrix**, not initial
+conditions, GetFEM assembly or a changing time step.
+A snapshot or replay success is diagnostic only; the
+full physical CN energy/power gate remains unqualified.
