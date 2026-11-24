@@ -5161,3 +5161,48 @@ solution with relative residual <1e-9 and relative state error
 <1e-6, exact binary matrix hash before and after, and actual
 PETSc row/column options verified. A successful replay does NOT
 qualify the full Heat-Wave CN trajectory or its energy/power balances.
+
+## 24 November 2026 — permutation sweep blocked by missing build features; exact row matching candidate
+
+The attached original `v130-hw-superlu-perm-5d2a2d8c-1P7js2IL.zip`
+proves six actual SuperLU_DIST factorization attempts on the
+same CN snapshot failed with numeric zero pivot (PC=2, KSP=-11):
+`baseline`, `default_mmd`, `default_ata`, `norow_mmd`,
+`norow_ata`, `norow_metis`. The seventh `norow_natural`
+was NOT executed because the Python argparser omitted `NATURAL`,
+even though PETSc 3.26 explicitly supports it. The two AWPM cases
+triggered an MPI abort/segfault preceded by `CombBLAS is not available`;
+MC64 was already proven absent (HSL licence). This is a
+**build/campaign infrastructure issue**, not an additional
+numeric factorization failure.
+
+Commit `1d6e07e1` amended the old sweep to accept `NATURAL`
+and stopped requesting the already proven unavailable MC64/AWPM.
+No successful native SuperLU_DIST ordering has yet been demonstrated.
+
+The actual original first CN Jacobian's strictly NONZERO COO/CSR
+graph has a perfect bipartite matching. An independent offline
+SciPy graph matching (`maximum_bipartite_matching`,
+`perm_type='row'`) yielded a full **left row permutation** moving
+only 252 of 7,689 rows; after the permutation, no numerical diagonal
+zeros remain and the smallest absolute diagonal coefficient is
+`0.00040663737964978427`. This graph computation does NOT prove
+the permuted matrix can be numerically factored by SuperLU_DIST,
+but it offers an equation-only transformation:
+
+`B = P A`, `c = P b`, solve `B x = c`. There is no
+unknown-variable permutation, physical initial-state change,
+diagonal shift, regularization, or tiny-pivot replacement.
+The new independent runner
+`scripts/run-v130-hw-cn-exact-row-matching.sh` reuses the same
+immutable original CN PETSc binary and compares standalone
+real PETSc MUMPS and SuperLU_DIST on the original and matched
+matrices. The row-permuted PETSc matrix is constructed with the
+same native COO insertion API as SCRIMP (diagnostic only);
+its action is independently checked against `P(A x)`.
+All accepted factorization claims require a correct residual
+in the **ORIGINAL** linear equations and a correct known-state
+solution. All original and matched matrix checksums, unmatched
+and unmatched row counts, and all native diagnostics are archived.
+This remains a single-linear-solve experiment; no main TS/CN
+trajectory or physical pH energy/power balance is qualified by it.
