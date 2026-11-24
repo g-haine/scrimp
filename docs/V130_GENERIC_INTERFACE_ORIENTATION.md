@@ -1029,6 +1029,95 @@ diagnostic remain **not yet executed in the user's environment**.
 No physical or parallel I/O conclusion is inferred from the
 failed preflight.
 
+## Actual native rank-isolated MPI2 ParaView: PASS (2026-11-24)
+
+The user ran
+`scripts/run-v130-auto-interface-mpi-pv-diagnostic.sh`
+at commit `4bb09ed` and supplied
+`v130-auto-interface-MPI-CN-4bb09edc-yY0sPh1V.zip`
+(98 archived files). The **7** host-comparator regression tests,
+**52** total source-only tests and the eight historically published
+file invariants passed. The four actual DAE/CN/energy runs passed,
+and the final diagnostic status was
+`DIAGNOSTIC_MPI_RANK_ISOLATED_PV_FILES_COMPLETE_CN_ENERGY_PASSED`.
+
+An independent audit of the actual native VTU/PVD bytes using
+the Python VTK reader confirms, in *both* heat/wave region
+assignments:
+
+- Every serial/MPI2 output has five correctly indexed timesteps.
+- Every `p` snapshot contains **1641 points / 3154 cells**;
+  every `T` snapshot has **9462 points / 3154 cells**
+  (the GetFEM export duplicates visualization vertices for T).
+- On both MPI2 ranks the **entire mesh** is exported, **not**
+  an incomplete per-rank partition.
+- Rank0 and rank1 output bytes are **exactly identical** for all
+  2 × 2 physical fields × 5 saved instants; this includes VTK
+  geometry and field values, not merely counts.
+- MPI1 and MPI2 mesh points/connectivity are bitwise identical.
+  At t=0.004, decoded VTK Float32 scalar fields agree with
+  maximum numerical differences **2.442e-17** (p, heat=1)
+  and **1.616e-27** (T, heat=2); the other final fields
+  match exactly. VTK reads these files successfully.
+
+**Critical production issue:** The original
+`DPHS.export_to_pv()` makes/removes its output directory on
+rank0, then executes `open(...pvd)` and `export_to_vtu`
+on **all MPI ranks with the same filenames**. Since every rank
+has a full and identical output, concurrent writes are
+unnecessary and create a race. The rank-isolated audit
+demonstrated complete rank0 data, but deliberately never
+exercised this shared-file race.
+
+## Opt-in rank-0 shared ParaView export: new native gate (pending)
+
+An explicitly gated, backwards-compatible candidate now exists
+in `DPHS.export_to_pv()`:
+`SCRIMP_V130_PV_ROOT_ONLY_PILOT=1`. The default path is
+unchanged. In pilot mode, all ranks enter the method and its
+MPI collectives, but only **rank0 writes** the complete
+`.vtu` and `.pvd` files at the shared requested path;
+root-only export errors are communicated to all ranks via
+`MPI allgather`. This avoids concurrent writes, assuming
+the native GetFEM VTK writer itself does not require
+all MPI ranks to call it (the new pinned-image test will
+verify that directly).
+
+`scripts/run-v130-auto-interface-mpi-pv-root-only.sh`
+reuses four native strict DAE/CN/energy runs, actually calls
+the pilot production exporter for both p and T on every
+MPI rank, and then checks:
+
+- Exactly one complete shared output per field and timestep,
+  and no shadow rank1 export directory;
+- Full VTK mesh, coordinates and cell connectivity, not just
+  PVD presence or mesh sizes;
+- Decoded full Float32 scalar field data agree with MPI1
+  field arrays within a stated precision-aware tolerance;
+- All original MPI1/MPI2 accepted-state, DAE and energy/power
+  gates still pass.
+
+The helper `sandbox/v130_pv_root_only_audit.py` parses
+the actual GetFEM binary VTK scalar arrays and checks
+mesh hashes and scalar data. Two additional synthetic
+host-comparator tests distinguish a valid root-only export
+from a deliberately corrupted field, including failure
+archiving. These tests **cannot substitute for the native run**.
+
+```bash
+SCRIMP_DOCKER_NO_SUDO=1 \\
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \\
+bash scripts/run-v130-auto-interface-mpi-pv-root-only.sh
+```
+
+Expected status:
+`PASS_MPI2_ROOT_ONLY_SHARED_VTU_PVD_COMPLETE_CN_ENERGY`.
+**Not yet run natively.** A successful opt-in pilot would
+qualify the proposed root-only VTK writer for this Heat-Wave
+model. Enabling that policy by default for all supported
+MPI cases requires an additional release decision and
+regression checks.
+
 ## Remaining generality and production gates
 
 1. Establish a race-free, geometrically complete MPI2 ParaView
