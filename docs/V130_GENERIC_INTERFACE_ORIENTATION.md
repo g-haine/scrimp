@@ -1141,6 +1141,70 @@ additional protections:
   rank-partitioned field histories still require other export
   strategies; no global default policy is being silently changed.
 
+## Native shared root-only MPI2 ParaView: PASS (2026-11-24)
+
+The user ran the actual `scripts/run-v130-auto-interface-mpi-pv-root-only.sh`
+at commit `0385237` and uploaded the **74-entry evidence archive**
+`v130-auto-interface-MPI-CN-03852372-55Ii0zEg.zip`.
+The opt-in rank0 writer in production `DPHS.export_to_pv()` was
+exercised on real pinned GetFEM/PETSc MPI1 and MPI2 for both
+Heat-Wave permutations, with **four** complete DAE/CN simulations,
+physical energy gates and the genuine original VTK writer.
+
+- Final status: **`PASS_MPI2_ROOT_ONLY_SHARED_VTU_PVD_COMPLETE_CN_ENERGY`**.
+- All **54** source-only checks (10 topology, 6 ownership,
+  7 assembly plan, 5 deferred, 6 CN physical collector, 4 outward
+  signs, 7 MPI CSR, 9 host comparator) PASS; eight protected
+  historical publications unchanged.
+- **Both MPI2 ranks** completed strict DAE initialization,
+  four accepted fixed CN steps and real GetFEM energy/power
+  measurements. There were no rejects, SNES failures, or
+  MPI2 rank discrepancies. The accepted trajectories still
+  agree closely with serial.
+- Heat=1/wave=2 MPI2: DAE residual
+  `9.782179042671012e-14`, total energy-step defect
+  `9.610368056911511e-16`, nontrivial interface power
+  `3.5690759218838686`.
+- Heat=2/wave=1 MPI2: DAE residual
+  `9.853778732954403e-14`, total energy-step defect
+  `2.6853519408120974e-15`, nontrivial interface power
+  `4.3904579711455245`.
+- For each heat permutation, the shared output includes exactly
+  **5 time-indexed VTUs for p and 5 for T**, plus two PVD collections.
+  The `p` visualization has **1641 vertices / 3154 cells**;
+  `T` has **9462 vertices / 3154 cells**. All four PVD
+  time series are correctly indexed from 0 to 0.004.
+- The independently decoded VTK binary **geometry/coordinates
+  and cell connectivity agree exactly** between serial and MPI2;
+  full scalar values agree within Float32 precision. Over
+  all saved times and both physical orientations, the largest
+  absolute p-field difference is `2.441726822362823e-17`
+  and the largest T-field difference is
+  `6.462348535570529e-27`. No shadow rank1 output directory
+  was produced.
+- Port powers from public `Port.compute()` still agree exactly
+  with the independent oriented GetFEM CN traces on each MPI rank.
+- The archive's comparison reports `host_comparison_failure=null`
+  and `shared_production_MPI_ParaView_qualified=true`.
+
+**Scientific qualification boundary:** the opt-in
+`SCRIMP_V130_PV_ROOT_ONLY_PILOT=1` validates a
+**race-free, shared directory, full-mesh ParaView export
+from rank0** for *these two original Heat-Wave configurations*.
+The writer is still disabled by default in SCRIMP production;
+the `shared_production_MPI_ParaView_qualified` report field
+must be interpreted only in this tested context, **not**
+as a universal claim for truly partitioned meshes, non-replicated
+distributed trajectories, vector/Tensor VTK output or a
+native `.pvtu` decomposition.
+
+Before making this route a production default for a larger class,
+qualify `Init` and `Final` export paths, collective failure
+propagation, behavior in external models and whether the root
+actually owns complete visualization data; otherwise use a
+partition-aware export strategy. The automatic two-sided
+interface compiler remains opt-in and off by default.
+
 ## Remaining generality and production gates
 
 1. Establish a race-free, geometrically complete MPI2 ParaView
