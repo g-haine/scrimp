@@ -30,7 +30,7 @@ EXPECTED_CSR_SHA = (
     "c94c69c4e4307d7a5aa61d9eba186782c0495b49431cadcb7281d7a7b5bffaff"
 )
 ROWS = ("default", "NOROWPERM", "LargeDiag_MC64", "LargeDiag_AWPM")
-COLS = ("default", "MMD_AT_PLUS_A", "MMD_ATA", "METIS_AT_PLUS_A")
+COLS = ("default", "NATURAL", "MMD_AT_PLUS_A", "MMD_ATA", "METIS_AT_PLUS_A")
 
 
 def main():

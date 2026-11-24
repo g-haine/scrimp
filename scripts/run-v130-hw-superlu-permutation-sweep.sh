@@ -7,8 +7,8 @@
 #
 # Run native PETSc SuperLU_DIST permutations on ONE original CN Mat.
 # MC64 is unavailable in the pinned redistribution-safe build (HSL).
-# AWPM also requires CombBLAS; skip build-disabled variants with evidence
-# rather than aborting before testing usable row/column permutations.
+# AWPM is also unavailable in this pinned build (CombBLAS absent).
+# Never request either unavailable row permutation in a native run.
 set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
@@ -42,9 +42,9 @@ echo "No tiny-pivot replacement, no regularization, no physical TS inference"
 echo "EVIDENCE: $out"
 # The pinned image provably lacks MC64/HSL. DO NOT invoke
 # LargeDiag_MC64: it calls abort(6) in libsuperlu_dist.so.
-# LargeDiag_AWPM is optional and needs the CombBLAS build feature.
-# All cases run in separate processes so one unsupported backend
-# cannot silently invalidate other factorization evidence.
+# LargeDiag_AWPM likewise caused a CombBLAS-unavailable SEGV in
+# the user's previous native campaign; never invoke it here.
+# All runnable cases use a separately pinned native process.
 cases=(
  "default:default:baseline"
  "default:MMD_AT_PLUS_A:default_mmd"
@@ -53,10 +53,9 @@ cases=(
  "NOROWPERM:MMD_ATA:norow_ata"
  "NOROWPERM:METIS_AT_PLUS_A:norow_metis"
  "NOROWPERM:NATURAL:norow_natural"
- "LargeDiag_AWPM:MMD_AT_PLUS_A:awpm_mmd"
- "LargeDiag_AWPM:METIS_AT_PLUS_A:awpm_metis"
-)
-echo "SKIP rowperm=LargeDiag_MC64: HSL MC64 was not compiled into pinned SuperLU_DIST"
+ )
+echo "SKIP rowperm=LargeDiag_MC64: HSL MC64 missing"
+echo "SKIP rowperm=LargeDiag_AWPM: CombBLAS missing"
 for item in "${cases[@]}"; do
  IFS=: read -r rowperm colperm label <<<"$item"
  echo "RUN $label row=$rowperm col=$colperm"
@@ -75,13 +74,8 @@ for item in "${cases[@]}"; do
  > "$out/$label.host.log" 2>&1 || rc=$?
  printf '%s\n' "$rc" > "$out/$label.exitcode"
  if [[ "$rc" -ne 0 ]]; then
-  if [[ "$rowperm" == "LargeDiag_AWPM" ]] && \
-    grep -Eiq 'CombBLAS.*(not available|not enabled|disabled)|AWPM.*(unavailable|not available)' "$out/$label.host.log"; then
-   echo "SKIP $label: this SuperLU_DIST build lacks CombBLAS/AWPM; original log retained"
-  else
-   echo "FAIL subprocess $label exit=$rc; preserving log and continuing other cases" >&2
-   tail -n 35 "$out/$label.host.log" >&2
-  fi
+  echo "FAIL subprocess $label exit=$rc; preserving log and continuing cases" >&2
+  tail -n 35 "$out/$label.host.log" >&2
  fi
 done
 python3 - "$out" <<'PY'
@@ -101,9 +95,7 @@ cases = (
     ("NOROWPERM", "MMD_ATA", "norow_ata"),
     ("NOROWPERM", "METIS_AT_PLUS_A", "norow_metis"),
     ("NOROWPERM", "NATURAL", "norow_natural"),
-    ("LargeDiag_AWPM", "MMD_AT_PLUS_A", "awpm_mmd"),
-    ("LargeDiag_AWPM", "METIS_AT_PLUS_A", "awpm_metis"),
-)
+  )
 items = {}
 unavailable = {}
 unexpected = {}
@@ -114,19 +106,7 @@ for row, col, label in cases:
         raise RuntimeError(f"Missing native process provenance for {label}")
     log = logfile.read_text(encoding="utf-8", errors="replace")
     code = int(exitfile.read_text().strip())
-    missing_combblas = bool(re.search(
-        r"CombBLAS.*(?:not available|not enabled|disabled)"
-        r"|AWPM.*(?:unavailable|not available)", log, re.I
-    ))
-    if missing_combblas and row == "LargeDiag_AWPM":
-        items[label] = {
-            "rowperm": row, "colperm": col, "exit_code": code,
-            "status": "NOT_RUN_TO_COMPLETION_AWPM_NEEDS_COMBBLAS",
-            "factorization_validated": False,
-        }
-        unavailable[label] = items[label]["status"]
-        continue
-    if code != 0:
+      if code != 0:
         items[label] = {
             "rowperm": row, "colperm": col, "exit_code": code,
             "status": "UNEXPECTED_NATIVE_PROCESS_FAILURE_NOT_A_NUMERICAL_RESULT",
@@ -180,7 +160,10 @@ summary = {
         "mc64_mmd": "NOT_ATTEMPTED_HSL_NONREDISTRIBUTABLE",
         "mc64_mmd_ata": "NOT_ATTEMPTED_HSL_NONREDISTRIBUTABLE",
     },
-    "optional_AWPM_unavailable": unavailable,
+    "AWPM_cases": {
+        "awpm_mmd": "NOT_ATTEMPTED_COMBBLAS_UNAVAILABLE",
+        "awpm_metis": "NOT_ATTEMPTED_COMBBLAS_UNAVAILABLE",
+    },
     "unexpected_native_failures": unexpected,
     "identical_original_CSR_SHA256": identity,
     "successful_LU_orderings": passing,
