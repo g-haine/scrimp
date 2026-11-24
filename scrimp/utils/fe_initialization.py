@@ -37,8 +37,9 @@ _SCALAR_FUNCTIONS = frozenset((
 def python_expression_to_gwfl(expression, qdim):
     """Translate a restricted subset of existing SCRIMP Python expressions.
 
-    Supported: real scalars, x/y/z, arithmetic, power, NumPy/math
-    scalar functions and a Python list/tuple/np.array of components.
+    Supported: real scalars, x/y/z, arithmetic, power, common
+    NumPy/math scalar functions including np.sign, and literal
+    Python list/tuple/np.array vectors.
     This is a strict AST translator, NOT Python eval and NOT a general
     NumPy interpreter. Unsupported constructs fail before model mutation.
     """
@@ -104,6 +105,16 @@ def python_expression_to_gwfl(expression, qdim):
                 )):
                     raise ValueError("np.array requires a literal vector")
                 return value(n.args[0])
+            if name == "sign" and len(n.args) == 1:
+                # GetFEM's native sign(0) is +1, whereas np.sign(0)
+                # is 0. Preserve the published shallow-water initial
+                # condition *exactly*, including at the jump x=0.5.
+                # GWFL Heaviside(0)=1, so H(t)-H(-t) is -1/0/+1.
+                argument = value(n.args[0])
+                return (
+                    f"(Heaviside({argument})"
+                    f"-Heaviside(-({argument})))"
+                )
             if name == "power":
                 name = "pow"
             if name == "pow" and len(n.args) == 2:

@@ -389,3 +389,34 @@ for serial scripts; the FE initial projector refuses it in MPI>1.
 reproduction of previous benchmarks, not a production default.
 This default change must be covered by the next original-image
 nonlinear/native physical gate before general release qualification.
+
+## 24 November 2026 — original nonlinear COO run: initial Python sign gap
+
+User original native log `v130-nonlinear-coo-84365587-Lq5WZ2LM`
+passed the synthetic MPI1 **dynamic COO graph** and stopped in the
+next stage while constructing the original
+`examples/shallow_water.py` physical model. The unmodified model
+initial condition is
+`3. - (np.sign(x-0.5)+1)/3.`. Universal default L2 initial
+projection refused `np.sign` in its restricted Python -> GWFL
+translator **before** assembling the original nonlinear Jacobian.
+The failed stage is therefore neither a COO accuracy test nor
+a nonlinear Jacobian numerical failure. MPI2 was not reached.
+
+GetFEM GWFL has `sign(t)`, but GetFEM's native `sign(0)`
+is **+1**, unlike NumPy's `np.sign(0)=0`. Its
+`Heaviside(t)` returns 1 at zero, so an exact translation of
+NumPy's scalar sign is `Heaviside(t)-Heaviside(-t)`.
+This retains the original height's defined value exactly at
+the discontinuity `x=0.5`. It does not pretend that a smooth
+polynomial quadrature integrates a discontinuity without error;
+the field is still L2 projected with the chosen GetFEM integration
+rule. The same untouched original source expression is now
+extracted by AST in a source-only regression test and its
+sign-zero semantics checked explicitly.
+
+**Required next gate:** rerun
+`scripts/run-v130-nonlinear-coo-mpi.sh` on the native pinned
+GetFEM/PETSc image to reach both physical shallow-water Jacobians
+and complete MPI1/2 graph comparison. No published example, solver
+MUMPS policy or legacy interpolation has been modified.

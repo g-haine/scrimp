@@ -178,6 +178,50 @@ class UniversalFEInitialExpressionTests(unittest.TestCase):
         self.assertNotIn("np.", u)
         self.assertNotIn("**", u)
 
+    def test_original_shallow_water_step_sign_preserves_numpy_zero(self):
+        # Parse the unchanged published example, not a retyped expression:
+        # this caught a real failure in the original nonlinear COO gate.
+        source = (ROOT / "examples/shallow_water.py").read_text(
+            encoding="utf-8"
+        )
+        tree = ast.parse(source)
+        original = [
+            n.args[1].value
+            for n in ast.walk(tree)
+            if isinstance(n, ast.Call)
+            and isinstance(n.func, ast.Attribute)
+            and n.func.attr == "set_initial_value"
+            and len(n.args) >= 2
+            and isinstance(n.args[0], ast.Constant)
+            and n.args[0].value == "h"
+            and isinstance(n.args[1], ast.Constant)
+        ]
+        self.assertEqual(
+            original, ["3. - (np.sign(x-0.5)+1)/3."]
+        )
+        translated = self.translate(original[0], 1)
+        # GWFL native sign(0)=+1; NumPy sign(0)=0.
+        # Use the exact weak-form sign H(t)-H(-t) instead.
+        self.assertEqual(translated.count("Heaviside("), 2)
+        self.assertIn("X(1)", translated)
+        self.assertNotIn("np.", translated)
+        self.assertNotIn("sign(", translated)
+
+    def test_sign_expression_is_not_approximated_by_native_gwfl_sign(self):
+        translated = self.translate("np.sign(x)", 1)
+        self.assertEqual(
+            translated,
+            "(Heaviside(X(1))-Heaviside(-(X(1))))",
+        )
+        for value in (-2., -1., 0., 1., 3.):
+            def H(t):
+                return 1.0 if t >= 0. else 0.0
+            self.assertEqual(H(value)-H(-value), float(np.sign(value)))
+        for invalid in ("np.sign()", "np.sign(x,y)"):
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(ValueError):
+                    self.translate(invalid, 1)
+
     def test_vector_xy_and_numpy_array(self):
         for s in ("[x+y,2.*y-x]", "np.array([x+y,2.*y-x])"):
             u = self.translate(s, 2)
