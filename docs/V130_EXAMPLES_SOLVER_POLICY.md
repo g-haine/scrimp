@@ -55,6 +55,48 @@ figure or convergence-study reproduction.
 Details: `docs/V130_EXAMPLE_01_WAVE_1D.md`.
 Eight immutable `examples/published/` sources untouched.
 
+## 24 November — Example 2A: canonical anisotropic 2D wave
+
+The second scientific tutorial follows the qualified
+1D string and precedes the **dissipative** 2D wave
+and the separate **co-energy** variant.
+The single maintained implementation is
+`examples/wave.py:wave_eq()` (the original public
+function name is preserved). The temporary sandbox
+candidate has been retired after successful promotion.
+
+**NATIVE MUMPS MPI 1/2 PASS — not yet all LU backends.**
+Source `cf42089d`, evidence:
+`v130-wave2d-mixed-conservative-cf42089d-pI8VXuBa.zip`.
+Both runs accept ten genuine CN steps, 2230 DOFs,
+strict zero compatible DAE initial data, nonzero
+left-boundary signed mechanical work, and
+stepwise anisotropic Hamiltonian balance below
+`3e-18`. Both ranks hold the same complete
+FE trajectory (MPI1 vs MPI2 max `4.163e-14`).
+The MPI costate export regression was also closed:
+four original GetFEM fields `q,p,e_q,e_p`, 11
+VTU per field, per configuration, all confirmed.
+
+The first part of `docs/source/examples/wave.rst`
+was rewritten to show correct outward-normal
+tractions, velocity control and energy
+`q.T.q` in GWFL; its code blocks are now
+**literal includes** from the original Python,
+not manual copies susceptible to drift. The
+dissipative section remains a distinct, unqualified
+next step; the co-energy example follows it.
+
+The **five-LU installation gate remains PENDING**:
+`scripts/run-v130-wave2d-conservative-acceptance.sh`
+checks MUMPS MPI1/2, serial SuperLU MPI1,
+SuperLU_DIST MPI1/2, original full FE trajectories,
+true CN port powers and all four ParaView series.
+Do not claim five-backend PASS before the
+user's native results have been inspected.
+Full scope/limitations and next pedagogical steps:
+`docs/V130_WAVE_2D_THREE_EXAMPLES.md`.
+
 ## Pedagogical evidence contract for EACH subsequent example
 
 The first vibrating-string example now establishes the standard
