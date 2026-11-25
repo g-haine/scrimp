@@ -321,16 +321,78 @@ open ``outputs/my_wave_2d/pv/q/q.pvd``,
 ``e_q`` may be displayed with arrows; the
 velocity is ``e_p`` (not momentum ``p``).
 
-**A future longer simulation** will supply richer
-2D propagation maps, boundary work figures,
-PNG/SVG plots and online animation. Keep the
-short five-backend installation test separate
-from expensive documentation rendering.
+Longer native showcase: 100-step energy and wave propagation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**PASS, 25 November 2026**, on the complete original
+GetFEM/PETSc MUMPS MPI1 archive
+``v130-wave2d-2a-showcase-bd6f5468-teEK1Ejz.zip``
+(source ``bd6f5468e3a167f2b2a3b9e1b72bcc54e1948d45``,
+native Docker image ``scrimp-mpi:v1.3.0-rc3``).
+This longer visual run used ``h=0.1``, ``dt=0.01``
+and ``tf=1``, with **8,138 DOFs**, **100/100
+accepted fixed Crank–Nicolson steps**, zero
+rejections, exact DAE initialization, and
+**7/7 original physical acceptance gates passed**.
+
+.. math::
+
+   \mathcal H(0)=0,\qquad
+   \mathcal H(1)=0.03707053141235693,\qquad
+   W_{\partial}(1)=0.03707053141235698.
+
+The **open conservative** boundary-work balance
+``H(t)-H(0)=W_boundary(t)`` holds at each
+accepted CN step (maximum absolute defect
+``2.07e-16``) and cumulatively (maximum
+``1.25e-16``). The *left imposed-velocity
+port* supplies the energy; all three other
+Neumann boundaries carry exactly zero power.
+
+The original ``rank0.npz`` is accompanied by
+**four PVD series and 404 authentic GetFEM VTU
+files**, for ``q``, ``p``, ``e_q`` and ``e_p``,
+each at **101 times** from 0 to 1.
+The renderer generated from the actual FE data:
+``visuals/field_snapshots.{png,svg}``,
+``visuals/energy_balance.{png,svg}``,
+``visuals/p_evolution.gif`` (101 frames),
+``visuals/energy_and_ports.csv``, plus a
+machine-readable provenance JSON. The animation
+shows a boundary-generated disturbance
+propagating through the anisotropic rectangle.
+
+**Interpretation of fields matters:**
+``q=Grad(w)`` is the *displacement gradient*
+(not stress), while ``p=rho*dt(w)`` is *momentum*
+(not velocity). The velocity is ``e_p=p/rho``,
+and the stress-like energy co-variable is
+``e_q=T*q``. The generic maps and GIF currently
+display ``p`` and ``|q|``; they must not be
+labeled velocity or stress. The original
+``e_p`` and ``e_q`` VTK series permit these
+physical quantities to be visualized separately.
+
+To reproduce the independently qualified
+long MUMPS MPI1 visual run:
+
+.. code-block:: bash
+
+   cd ~/Simulations/scrimp
+   git pull --ff-only
+   conda activate scrimp
+   SCRIMP_DOCKER_NO_SUDO=1 \
+   SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+   bash scripts/run-v130-wave2d-showcase.sh 2a
+
+This long-run result is **not an MPI1/MPI2 parity
+test or a mesh/time convergence study**. The short
+MUMPS MPI1/2 and other solver installation
+acceptance remains a separate experiment.
 The displacement ``w`` is not an independent
-variable of this energy-based DAE; do not label
-the strain ``q`` as membrane deflection.
-Any animation of ``w`` must identify its
-reconstruction method and gauge.
+state of this energy-based DAE; any animation
+of it must identify its reconstruction
+method and gauge.
 
 Scientific references
 ---------------------
