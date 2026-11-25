@@ -125,6 +125,49 @@ type="Float32" format="binary">{a(scalar,"<f4")}</DataArray></PointData>
         ):
             self.assertIn(needle,self.example)
 
+    def test_xml_pvd_filename_uses_attrib_not_element_subscript(self):
+        """Regression: Element["file"] fails only AFTER a full long CN run."""
+        marker="python3 - \"$out\" <<'PY'\n"
+        verifier=self.runner.split(marker,1)[1].split("\nPY\n",1)[0]
+        parsed=ast.parse(verifier)
+        accesses=[
+            n for n in ast.walk(parsed)
+            if isinstance(n,ast.Assign)
+            and any(isinstance(t,ast.Name) and t.id=="rel" for t in n.targets)
+        ]
+        self.assertEqual(len(accesses),1)
+        value=accesses[0].value
+        self.assertIsInstance(value,ast.Call)
+        self.assertEqual(value.func.id,"Path")
+        self.assertIsInstance(value.args[0],ast.Subscript)
+        sub=value.args[0]
+        self.assertIsInstance(sub.value,ast.Attribute)
+        self.assertEqual(sub.value.attr,"attrib")
+        self.assertIsInstance(sub.value.value,ast.Name)
+        self.assertEqual(sub.value.value.id,"frame")
+        self.assertEqual(sub.slice.value,"file")
+        self.assertNotIn('frame["file"]',verifier)
+
+    def test_original_long_archives_can_be_reaudited_without_CN_rerun(self):
+        audit=ROOT/"scripts/verify-v130-heat-wave-long-archive.py"
+        source=audit.read_text(encoding="utf-8")
+        ast.parse(source,filename=str(audit))
+        for needle in (
+            "PASS_ARCHIVED_LONG_NATIVE_VISUALS_NOT_WG_MODE_PROOF",
+            'frame.attrib["file"]',
+            "original_archive_status_preserved",
+            "whispering_gallery_eigenmode_qualified",
+            "full_horizon_energy_power_identity_qualified",
+            "native.exitcode",
+            "zip.getinfo(name).file_size",
+            "with ZipFile(archive,",
+            'sidecar=Path(str(archive)+".reaudit.json")',
+            'if __name__=="__main__":',
+        ):
+            self.assertIn(needle,source)
+        self.assertNotIn('ZipFile(archive,"w")',source)
+        self.assertNotIn('frame["file"]',source.split("def check(",1)[1])
+
     def test_long_native_verifier_python_syntax_and_fail_closed_scope(self):
         marker="python3 - \"$out\" <<'PY'\n"
         self.assertEqual(self.runner.count(marker),1)
