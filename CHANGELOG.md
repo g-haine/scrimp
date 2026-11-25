@@ -119,7 +119,7 @@ Changes to SCRIMP are recorded here. See also the
   attend son propre pilote natif.
 
 
-### Maxwell 3D Nédélec/RT0 — première qualification native MUMPS MPI1/MPI2 PASS (25 novembre 2026)
+### Maxwell 3D Nédélec0/RT0 natifs — qualification historique de référence MUMPS MPI1/MPI2 PASS (25 novembre 2026)
 
 - **PASS natif** sur `examples/maxwell_3d.py`,
   source `daac18cb36fbc404fcf5c4fe4f2f69121b2ee530`,
@@ -173,7 +173,11 @@ Changes to SCRIMP are recorded here. See also the
   port-Hamiltonienne 3D, conservatrice
   avec fermeture naturelle à puissance
   nulle, sans DAE artificielle, et
-  éléments intrinsèques corrigés GetFEM.
+  éléments intrinsèques natifs GetFEM
+  (Nédélec première espèce k=0 et RT0).
+  **Ce PASS ne valide aucun élément ajouté
+  par les patches SCRIMP** ; voir la nouvelle
+  paire NED2/BDM1 en tête du changelog.
   Ni convergence h/dt, ni Gauss électrique,
   ni condition PEC imposée, ni modes de
   cavité, ni SuperLU_DIST qualifiés.
