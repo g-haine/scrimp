@@ -136,6 +136,53 @@ ni qualification SuperLU_DIST. Le modèle 2A et
 notamment la compliance `T^{-1}`, la localisation des
 ports dissipatifs et le bilan `H-H0=W-D_interne-D_feedback`.
 
+## Deuxième pilote 2C : feedback linéaire à gain constant (25 novembre 2026)
+
+Archive native `v130-wave2d-coenergy-0c44a1ae-rwh9fi2L.zip`
+(source `0c44a1a`). Les **7 tests source** et les **7 tests
+d'interfaces différées** ont passé, les huit exemples publiés
+sont intacts. La nouvelle exécution MUMPS MPI1/MPI2 arrive
+jusqu'à l'initalisation algébrique DAE, mais **aucun pas CN
+n'est encore accepté** :
+
+```text
+Non-linear form '(-0.5*Y)*Test_U' has been added ...
+ValueError: Algebraic initializer supports only linear mass and stiffness
+```
+
+Diagnostic établi directement par les traces de briques GetFEM :
+la loi physique `U=-0.5*Y` est exactement linéaire,
+mais `DPHS.set_control` ne reconnaissait que les
+feedbacks à variable nue (`Y`, `-Y`) comme
+`linear=True`. La constante numérique provoquait
+une fausse classification `linear_stiffness=False` ;
+l'initialiseur DAE algébrique a correctement refusé
+cette classification, sans basculer sur une pseudo-TS.
+
+**Correctif générique** dans `scrimp/dphs.py` :
+les expressions constituées d'une unique variable
+GetFEM déclarée, éventuellement précédée d'un
+coefficient **littéral numérique fini** (`-0.5*Y`,
+`2.5e-3*Y`, `-Y`) sont désormais certifiées comme
+feedbacks linéaires, assemblées par la véritable
+raideur GetFEM. Les autres expressions (fonction,
+produit d'états, coefficient symbolique, macro ou
+ambiguïté) conservent la branche non linéaire.
+L'algèbre des opérateurs et le feedback physique
+`-0.5` restent inchangés ; les critères CN,
+passivité, DAE et MPI ne sont pas assouplis.
+
+`tests/test_v130_linear_scalar_feedback.py` vérifie
+cette frontière de classification sur la fonction
+Python réelle sans dépendance GetFEM/PETSc ; les
+nouveaux tests sont appelés dans la CI et le
+préflight du pilote 2C.
+
+**Statut : nouveau candidat commité, exécution native
+MPI1/2 et sorties graphiques encore en attente**.
+Le premier passage algébrique ne constitue pas encore
+une validation du Hamiltonien ou du feedback.
+
 ## Premier pilote 2C : interface matérielle transparente (25 novembre 2026)
 
 Première archive native :
