@@ -18,12 +18,37 @@ import scrimp as S
 
 def shallow_water_eq(
     *, factor_solver=None, final_time=0.5, time_step=0.0001,
-    save_step=0.01,
+    save_step=0.01, showcase=False, showcase_output=None,
 ):
     """A structure-preserving discretization of the inviscid shallow-water equation
 
-    Formulation Grad-Grad, homogeneous boundary condition, on a tank
+    Formulation Grad-Grad, homogeneous boundary condition, on a tank.
+
+    Default behavior retains the original pseudo-time initialization,
+    BDF2 scheme, pictures and CG2 h PVD export. showcase=True is an
+    EXPLICIT output/scientific option: use the separately native-qualified
+    nonlinear_affine DAE initializer with exactly the same original
+    PDE, initial h/p, four zero controls, mesh, FEM and lagged gyro.
+    Export BOTH original h CG2 and p DG1 VTK fields and render the
+    genuine 3D water surface, velocity v=p/rho, and energy/mass plots.
+    The optional longer visual horizon has not yet been qualified
+    physically; it never demonstrates exact BDF2 H conservation.
     """
+
+    if showcase:
+        import math
+        from petsc4py import PETSc
+        if PETSc.COMM_WORLD.getSize()!=1:
+            raise ValueError(
+                "Native shallow-water showcase uses MPI1 only; "
+                "MPI2 physical parity is qualified separately"
+            )
+        if not all(math.isfinite(float(x)) and float(x)>0.
+                   for x in (final_time,time_step,save_step)):
+            raise ValueError("Nonpositive or nonfinite showcase time settings")
+        steps=final_time/time_step
+        if not math.isclose(steps,round(steps),abs_tol=1e-8):
+            raise ValueError("Showcase requires integer physical BDF2 steps")
 
     # Init the distributed port-Hamiltonian system
     swe = S.DPHS("real")
@@ -204,6 +229,23 @@ def shallow_water_eq(
         pc_type="lu",
         **scheme,
     )
+    if showcase:
+        # Research-free tutorial visuals: the original nonlinear
+        # inviscid equations but the separately qualified production
+        # DAE initialization, never the historical pseudo spinup.
+        swe.set_time_scheme(
+            init_step=True, init_step_ts_type="nonlinear_affine",
+            init_algebraic_accuracy=1e-11,
+            ts_type="bdf", ts_bdf_order=2,
+            ts_adapt_type="none", ts_adapt_dt_min=1e-12,
+            ts_adapt_dt_max=float(time_step),
+            t_0=0., t_f=float(final_time),
+            dt=float(time_step), dt_save=float(save_step),
+            ksp_type="preonly", pc_type="lu",
+            pc_factor_mat_solver_type=(
+                "mumps" if factor_solver is None else factor_solver
+            ),
+        )
 
     # Solve the system in time
     swe.solve()
@@ -219,14 +261,58 @@ def shallow_water_eq(
     # Add them to the Hamiltonian
     for term in terms:
         swe.hamiltonian.add_term(term)
-    # Plot the Hamiltonian
-    swe.plot_Hamiltonian(save_figure=True, filename="Hamiltonian_Inviscid_Shallow_Water_2D.png")
-    
-    # Export for ParaView
-    swe.export_to_pv("h")
+    if showcase:
+        from pathlib import Path
+        from examples.shallow_water_visualization import (
+            render_native_shallow_water
+        )
 
+        # True GetFEM field exports, not FEM coefficients guessed to
+        # live at mesh nodes. In particular p uses a different DG1
+        # sampling mesh from the continuous CG2 scalar height h.
+        output = (Path(showcase_output) if showcase_output is not None
+                  else Path.cwd()/"outputs"/"showcase"/"shallow_water")
+        output=output.resolve()
+        output.mkdir(parents=True,exist_ok=True)
+        swe.export_to_pv("h",path=str(output))
+        swe.export_to_pv("p",path=str(output))
+        swe.shallow_water_visuals=render_native_shallow_water(
+            swe,output,rho=rho,
+        )
+    else:
+        # Preserve the original tutorial's default outputs exactly.
+        swe.plot_Hamiltonian(
+            save_figure=True,
+            filename="Hamiltonian_Inviscid_Shallow_Water_2D.png",
+        )
+        swe.export_to_pv("h")
     return swe
 
+
 if __name__ == "__main__":
-    swe = shallow_water_eq()
-    
+    import argparse
+
+    parser=argparse.ArgumentParser(
+        description="Original non-viscous 2D Saint-Venant BDF2 example "
+                    "with optional true GetFEM surface/velocity showcase"
+    )
+    parser.add_argument("--showcase",action="store_true",
+                        help="Native CG2 height/DG1 velocity PNG/GIF + VTK")
+    parser.add_argument("--showcase-output",default=None)
+    parser.add_argument("--final-time",type=float,default=None)
+    parser.add_argument("--time-step",type=float,default=0.0001)
+    parser.add_argument("--save-step",type=float,default=None)
+    parser.add_argument("--factor-solver",default=None,
+                        choices=("mumps","superlu_dist","superlu"))
+    args=parser.parse_args()
+    swe=shallow_water_eq(
+        factor_solver=args.factor_solver,
+        final_time=(args.final_time if args.final_time is not None
+                    else (0.12 if args.showcase else 0.5)),
+        time_step=args.time_step,
+        save_step=(args.save_step if args.save_step is not None
+                   else (0.002 if args.showcase else 0.01)),
+        showcase=args.showcase,
+        showcase_output=args.showcase_output,
+    )
+
