@@ -5,6 +5,49 @@ Changes to SCRIMP are recorded here. See also the
 
 ## 1.3.0 — in development (not released)
 
+### Exemple 2C — démonstration longue native MUMPS validée sur 100 pas CN (25 novembre 2026)
+
+- Archive complète `v130-wave2d-2c-showcase-bc880100-9P5gcxWf.zip`,
+  source `bc880100f69f6f0dbbb5d31ee8fc229d0b32647d`,
+  image `scrimp-mpi:v1.3.0-rc3`, MUMPS MPI1 :
+  **7905 DOFs**, `h=0.1`, `dt=0.01`,
+  `tf=1.0`, **100/100 pas CN** sans rejet
+  ni échec non linéaire. Projection DAE algébrique
+  PASS (résidu final `9.86e-14`).
+- **10/10 critères physiques PASS** :
+  `H(0)=0.2556143692106721`,
+  `H(1)=0.10272364224930962`, baisse de
+  `59.813 %` ; `Li=0.0882892889133343`,
+  `Lb=0.06460143804802765` (respectivement
+  `57.75 %` et `42.25 %` des pertes).
+  Défauts absolus maximaux par pas et cumulés
+  `1.32e-15` et `1.62e-15`; contrôle
+  indépendant des 101 vrais états FE, énergie
+  monotone, pertes positives, SHA256 identique
+  à `rank0.json`.
+- **303 VTU GetFEM** et 3 PVD originaux
+  (`q,p,e_r` × 101 instants), confirmés en
+  correspondance exacte avec les 101 temps
+  sauvegardés ; les images PNG/SVG, le GIF
+  `p_evolution.gif` de 101 frames et les
+  101 lignes CSV ont été produits et examinés.
+  Les visualisations démontrent la propagation
+  et la montée progressive du feedback au bord.
+- **Amélioration graphique à prévoir** :
+  marquer ou masquer l'extérieur du disque
+  `region=1` dans la carte `e_r`, qui
+  apparaît aujourd'hui comme un zéro hors
+  de son domaine de définition. Aucune erreur
+  FE ou énergétique détectée.
+- **Portée : MUMPS MPI1 uniquement pour cette
+  démonstration longue** ; le court pilote 2C
+  MUMPS MPI1/2 reste distinct et qualifié.
+  Pas de convergence h/dt, de parité MPI longue,
+  ni de qualification SuperLU_DIST déduite
+  de cette archive. Les sources publiées
+  et `master` restent inchangés.
+
+
 ### Exemple 2C : qualification physique complète MUMPS MPI1/MPI2 PASS (25 novembre 2026)
 
 - Archive GetFEM/PETSc native `v130-wave2d-coenergy-eeae81f7-siWdW8ft.zip`,
