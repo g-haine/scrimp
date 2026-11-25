@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SCRIMP v1.3.0: minimal REAL 3D Maxwell with patched Nedelec and RT0.
+# SCRIMP v1.3.0: minimal REAL 3D Maxwell with PATCHED Nedelec-II/BDM1.
 # Native MUMPS MPI1/2, 10 CN steps, FE energy and original tetra VTK.
 # A failed run is always archived and NEVER reported as PASS.
 set -euo pipefail
@@ -15,16 +15,17 @@ revision="$("${docker_cmd[@]}" image inspect \
 [[ "$revision" == "1d6d0c90115213298047b28237a7f38087563a35" ]] || {
   echo "Incorrect pinned GetFEM/PETSc native image: $revision" >&2; exit 2;
 }
-python3 -m py_compile examples/maxwell_3d.py tests/test_v130_maxwell3d_source.py
+python3 -m py_compile examples/maxwell_3d.py scrimp/fem.py tests/test_v130_maxwell3d_source.py tests/test_v130_fem_nedelec_aliases.py
 bash -n "$0"
+python3 tests/test_v130_fem_nedelec_aliases.py
 python3 tests/test_v130_maxwell3d_source.py
 python3 scripts/check-v130-published-immutable.py
 
 mkdir -p sandbox/outputs
 out="$(mktemp -d "$root/sandbox/outputs/v130-maxwell3d-$(git rev-parse --short=8 HEAD)-XXXXXXXX")"
-printf '{"schema":"v130-maxwell3d-MUMPS-MPI-pilot-v1","source":"%s","image":"%s","image_revision":"%s","canonical":"examples/maxwell_3d.py","domain":"3D tetrahedral Ball, unit radius","fields":"E: Hcurl Nedelec lowest; B: Hdiv RT0","boundary":"natural zero magnetic tangential work (not imposed PEC)","dimensionless_eps_mu":1,"mesh_size":0.7,"final_time":0.2,"time_step":0.02,"steps":10,"not_a_convergence_study":true}\n' \
+printf '{"schema":"v130-maxwell3d-MUMPS-MPI-pilot-v1","source":"%s","image":"%s","image_revision":"%s","canonical":"examples/maxwell_3d.py","domain":"3D tetrahedral Ball, unit radius","fields":"E: Hcurl patched Nedelec-II k1; B: Hdiv patched BDM1","boundary":"natural zero magnetic tangential work (not imposed PEC)","dimensionless_eps_mu":1,"mesh_size":0.7,"final_time":0.2,"time_step":0.02,"steps":10,"not_a_convergence_study":true}\n' \
   "$(git rev-parse HEAD)" "$image" "$revision" > "$out/manifest.json"
-echo "MAXWELL 3D: genuine patched FEM_NEDELEC(3) + FEM_RTK(3,0)"
+echo "MAXWELL 3D: genuine PATCHED FEM_NEDELEC2(3,1) + FEM_BDMK(3,1)"
 echo "10 authentic CN steps, MUMPS MPI1/2, H(t)=H(0), tetra VTK E and B"
 echo "EVIDENCE: $out"
 
@@ -103,6 +104,22 @@ try:
             with np.load(case_dir/f"rank{rank}.npz",allow_pickle=False) as data:
                 sample={k:data[k].copy() for k in data.files}
             gates=meta.get("physical_gates",{})
+            # Ensure this is the PATCHED 3D FEM pair, not the previously
+            # accepted baseline GetFEM Nedelec0/RT0 result.
+            families=meta.get("FE",{})
+            expected_fe={
+                "E": ("NED2", 1, "FEM_NEDELEC2(3,1)"),
+                "B": ("BDM", 1, "FEM_BDMK(3,1)"),
+            }
+            if set(families) != set(expected_fe):
+                raise RuntimeError(f"{name}/rank{rank}: missing patched FEM metadata")
+            for label, expected in expected_fe.items():
+                item=families[label]
+                if ((item.get("family"), item.get("k"),item.get("getfem"))
+                    != expected or int(item.get("DOFs",0)) <= 0):
+                    raise RuntimeError(f"{name}/rank{rank}: wrong patched {label} FE")
+            if sum(families[f]["DOFs"] for f in expected_fe) != meta.get("DOFs"):
+                raise RuntimeError(f"{name}/rank{rank}: FE DOFs do not add up")
             if (meta.get("status") != "PASS_NATIVE_MAXWELL3D"
                 or meta.get("MPI") != ranks or meta.get("rank") != rank
                 or meta.get("solver") != "mumps"
