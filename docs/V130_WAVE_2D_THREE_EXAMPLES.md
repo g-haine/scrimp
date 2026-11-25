@@ -136,6 +136,48 @@ ni qualification SuperLU_DIST. Le modèle 2A et
 notamment la compliance `T^{-1}`, la localisation des
 ports dissipatifs et le bilan `H-H0=W-D_interne-D_feedback`.
 
+## Premier pilote 2C : interface matérielle transparente (25 novembre 2026)
+
+Première archive native :
+`v130-wave2d-coenergy-f110a3e3-2V4VQbbG.zip`
+(source `f110a3e3c6c661d865eb1eea3cfbbc5eba2afdac`,
+image `scrimp-mpi:v1.3.0-rc3`). Les 7 tests source ont passé,
+les 8 `examples/published/` sont intacts, mais les deux
+simulations **MPI1 et MPI2 ont échoué avant tout pas CN** :
+
+```text
+InterfaceOwnershipError: No declared interface ports on region 10
+```
+
+Cause : le compilateur automatique détectait correctement
+l'interface géométrique 10 entre les volumes 1 et 2, mais
+confondait **frontière matérielle de champs globaux continus**
+et **interconnexion explicite par des ports**. En 2C, les
+variables `q`, `p` sont définies sur `[1,2]` et aucun
+port ni aucune brique n'est déclaré sur 10 : inventer des
+ports y modifierait le problème physique.
+
+Correction générique localisée dans
+`scrimp/interface_deferred.py` : lorsqu'une interface
+conforme ne comporte **ni port ni brique sur son label**,
+on rejoue les FEM, paramètres et briques originales
+sans création de faces orientées ni de nouveaux ports.
+La découverte géométrique reste effective et le rapport
+marque `SKIPPED_TRANSPARENT_MATERIAL_INTERFACE`.
+Si une interface contient **au moins un port ou une brique
+explicite**, le contrôle original fail-closed de
+propriété, d'orientation et de placement reste strict,
+sans relaxation. Deux tests de régression couvrent ces
+scénarios.
+
+**État de 2C** : correctif source commité, **nouvelle
+qualification GetFEM/PETSc MPI1/2 à exécuter**, sans
+revendiquer de PASS prématuré. Le pilote inclut désormais
+les tests d'interfaces en préflight, puis les sorties
+numériques et graphiques obligatoires si la simulation
+réussit. Aucune modification de la physique 2C, de
+`examples/published/`, du choix MUMPS ou des bilans.
+
 ## 2C coénergie : candidat natif et visualisations réelles (25 novembre 2026)
 
 **Statut : candidat 2C prêt à tester, PAS encore qualifié**. Aucune
