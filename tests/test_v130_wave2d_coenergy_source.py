@@ -69,8 +69,8 @@ class WaveCoenergySourceTests(unittest.TestCase):
         self.assertNotIn('init_step_ts_type="pseudo"',self.source)
 
     def test_closed_loop_feedback_is_negative_and_both_losses_are_measured(self):
-        self.assertIn('expressions = ["-0.5*Y"]',self.source)
-        self.assertIn('"0.5*Y*Y"',self.source)
+        self.assertIn('expressions = [f"-{FEEDBACK_GAIN}*Y"]',self.source)
+        self.assertIn('f"{FEEDBACK_GAIN}*Y*Y"',self.source)
         self.assertIn('"e_r*e_r/nu"',self.source)
         self.assertIn('"-p*e_r"',self.source)
         self.assertIn('"nu*p*p"',self.source)
