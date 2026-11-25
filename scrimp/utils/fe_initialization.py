@@ -341,3 +341,210 @@ def project_fe_initial_value(
         for object_ in (gathered, scatter, residual, Ax, ksp, x, b, A):
             if object_ is not None:
                 object_.destroy()
+
+
+def filtered_dirichlet_dofs(mesh_fem, volume_region, boundary_region,
+                            *, coefficient_count):
+    """Map a conforming scalar FE boundary to its filtered model indices.
+
+    A filtered GetFEM variable has a different coefficient ordering from
+    the global MeshFem. Use the actual GetFEM basic_dof_on_region order,
+    not mesh points, component interleaving or a guessed CG node index.
+    The calling model must guarantee the boundary FEM trace is essential
+    (e.g. a scalar CG1). Do not use this for H(div)/H(curl) normal data.
+    """
+    domain = np.asarray(
+        mesh_fem.basic_dof_on_region(volume_region), dtype=np.int64
+    ).reshape(-1)
+    boundary = np.asarray(
+        mesh_fem.basic_dof_on_region(boundary_region), dtype=np.int64
+    ).reshape(-1)
+    if (domain.size != coefficient_count or not boundary.size
+            or np.unique(domain).size != domain.size
+            or np.unique(boundary).size != boundary.size
+            or np.setdiff1d(boundary, domain).size):
+        raise ValueError("Filtered GetFEM domain/boundary DOF partition invalid")
+    fixed = np.flatnonzero(np.isin(domain, boundary))
+    free = np.flatnonzero(~np.isin(domain, boundary))
+    if not fixed.size or not free.size:
+        raise ValueError("Essential Dirichlet boundary must have fixed/free DOFs")
+    return fixed, free
+
+
+def constrained_l2_zero_boundary_correction(
+    system, name, initial, fixed, free, *, volume_region,
+    factor_solver="mumps",
+):
+    """Mass-orthogonal correction of an already L2-projected CG field.
+
+    For original coefficients c0 and exact physical FE mass M, solve
+    M_FF (c-c0)_F = M_FB (c0)_B, subject to c_B=0.
+    This minimizes ||c-c0||_M with an exact essential zero boundary.
+    GetFEM's mass, sparse COO PETSc bridge and MUMPS are used, with a
+    native stationarity check. This is the independently qualified
+    Heat-Wave constrained-L2 initial-data correction, not pseudo-DAE.
+    """
+    if PETSc.COMM_WORLD.getSize() != 1:
+        raise NotImplementedError(
+            "Constrained-L2 boundary correction requires MPI1; "
+            "use the already MPI1/2-qualified clamp for MPI>1"
+        )
+    fem = system.ports[name].get_fem()
+    mim = system.domain._int_method[system.ports[name].get_mesh_id()]
+    model = gf.Model("real")
+    model.add_filtered_fem_variable("boundary_corrected", fem, volume_region)
+    model.add_linear_term(
+        mim, "boundary_corrected*Test_boundary_corrected", volume_region
+    )
+    model.assembly()
+    n = int(initial.size)
+    if int(model.nbdof()) != n:
+        raise ValueError("Wrong physical filtered GetFEM mass dimension")
+
+    mat = PETSc.Mat().createAIJ(size=(n, n), comm=PETSc.COMM_WORLD)
+    x_boundary = m_boundary = subset = m_free = rhs = delta = ksp = None
+    correction_vec = mass_correction = None
+    try:
+        convert_gmm_to_petsc(
+            model.tangent_matrix(), mat, comm=PETSc.COMM_WORLD,
+            distributed_coo_eligible=True,
+        )
+        x_boundary = mat.createVecRight()
+        x_boundary.set(0.)
+        x_boundary.setValues(
+            fixed.astype(PETSc.IntType), initial[fixed],
+            addv=PETSc.InsertMode.INSERT_VALUES,
+        )
+        x_boundary.assemble()
+        m_boundary = mat.createVecLeft()
+        mat.mult(x_boundary, m_boundary)
+        subset = PETSc.IS().createGeneral(
+            free.astype(PETSc.IntType), comm=PETSc.COMM_WORLD
+        )
+        m_free = mat.createSubMatrix(subset, subset)
+        rhs = m_free.createVecLeft()
+        rhs.setValues(
+            np.arange(len(free), dtype=PETSc.IntType),
+            m_boundary.getValues(free.astype(PETSc.IntType)),
+            addv=PETSc.InsertMode.INSERT_VALUES,
+        )
+        rhs.assemble()
+        delta = m_free.createVecRight()
+        ksp = PETSc.KSP().create(comm=PETSc.COMM_WORLD)
+        ksp.setOptionsPrefix("scrimp_initial_dirichlet_l2_")
+        ksp.setOperators(m_free)
+        ksp.setType(PETSc.KSP.Type.PREONLY)
+        ksp.getPC().setType(PETSc.PC.Type.LU)
+        ksp.getPC().setFactorSolverType(factor_solver)
+        ksp.setFromOptions()
+        ksp.solve(rhs, delta)
+        if int(ksp.getConvergedReason()) <= 0:
+            raise RuntimeError("Constrained-L2 boundary mass KSP did not converge")
+        delta_free = real_getfem_projection_coefficients(
+            np.asarray(delta.getArray(readonly=True))
+        )
+        corrected = initial.copy()
+        corrected[fixed] = 0.
+        corrected[free] += delta_free
+        if not np.all(np.isfinite(corrected)) or np.any(corrected[fixed]):
+            raise RuntimeError("Boundary-corrected FE field violates zero trace")
+        correction_vec = mat.createVecRight()
+        correction_vec.setValues(
+            np.arange(n, dtype=PETSc.IntType), corrected-initial,
+            addv=PETSc.InsertMode.INSERT_VALUES,
+        )
+        correction_vec.assemble()
+        mass_correction = mat.createVecLeft()
+        mat.mult(correction_vec, mass_correction)
+        derivative = real_getfem_projection_coefficients(
+            np.asarray(mass_correction.getArray(readonly=True))
+        )
+        stationarity = float(np.linalg.norm(derivative[free]) /
+                             max(float(np.linalg.norm(derivative)), 1e-30))
+        mass_squared = float(np.vdot(
+            correction_vec.getArray(readonly=True),
+            mass_correction.getArray(readonly=True),
+        ).real)
+        if (stationarity > 1e-8 or not np.isfinite(mass_squared)
+                or mass_squared < -1e-12):
+            raise RuntimeError(
+                "Constrained-L2 correction fails physical mass stationarity"
+            )
+        return corrected, {
+            "mass_norm_correction": float(np.sqrt(max(mass_squared, 0.))),
+            "relative_stationarity_on_free_dofs": stationarity,
+            "interior_mass_solve_KSP_reason": int(ksp.getConvergedReason()),
+        }
+    finally:
+        for item in (
+            mass_correction, correction_vec, ksp, delta, rhs,
+            m_free, subset, m_boundary, x_boundary, mat,
+        ):
+            if item is not None:
+                item.destroy()
+
+
+def enforce_zero_dirichlet_initial_values(
+    system, name, *, volume_region, boundary_region,
+    method="clamp", factor_solver="mumps",
+):
+    """Correct only the already-projected CG wave initial coefficients.
+
+    First project the prescribed analytic field via the usual
+    DPHS.set_initial_value(..., method="l2"). Then ensure its *exact
+    discrete* trace vanishes. 'clamp' preserves interior coefficients;
+    'constrained_l2' changes interior coefficients minimally in the
+    physical GetFEM mass norm. Neither invokes the DAE initializer or
+    alters the heat/stress state. This belongs to the *model's*
+    physical initial data, NOT an automatic relaxation of the DAE.
+    """
+    if method not in ("clamp", "constrained_l2"):
+        raise ValueError("Dirichlet initial data: use clamp or constrained_l2")
+    if name not in system.ports:
+        raise ValueError("Missing finite-element port for initial boundary data")
+    fem = system.ports[name].get_fem()
+    if int(fem.qdim()) != 1:
+        raise ValueError("Only scalar essential Dirichlet traces supported")
+    initial = real_getfem_projection_coefficients(
+        np.asarray(system.gf_model.variable(name)).reshape(-1)
+    )
+    fixed, free = filtered_dirichlet_dofs(
+        fem, volume_region, boundary_region, coefficient_count=len(initial),
+    )
+    details = {}
+    if method == "clamp":
+        corrected = initial.copy()
+        corrected[fixed] = 0.
+        if not np.array_equal(corrected[free], initial[free]):
+            raise RuntimeError("Clamping changed an interior FE coefficient")
+    else:
+        corrected, details = constrained_l2_zero_boundary_correction(
+            system, name, initial, fixed, free,
+            volume_region=volume_region, factor_solver=factor_solver,
+        )
+    if (not np.all(np.isfinite(corrected))
+            or np.any(corrected[fixed])):
+        raise RuntimeError("Dirichlet initial field has nonzero boundary DOFs")
+    system.set_from_vector(name, corrected)
+    if not np.array_equal(
+        np.asarray(system.gf_model.variable(name)).reshape(-1), corrected
+    ):
+        raise RuntimeError("GetFEM rejected physical compatible initial state")
+    return {
+        "method": method,
+        "field": name,
+        "volume_region": int(volume_region),
+        "boundary_region": int(boundary_region),
+        "filtered_DOFS": int(len(initial)),
+        "boundary_DOFS": int(len(fixed)),
+        "free_DOFS": int(len(free)),
+        "before_boundary_l2_coefficients": float(np.linalg.norm(initial[fixed])),
+        "after_boundary_l2_coefficients": float(np.linalg.norm(corrected[fixed])),
+        "relative_change": float(
+            np.linalg.norm(corrected-initial) /
+            max(float(np.linalg.norm(initial)), 1e-30)
+        ),
+        "T_and_q_unmodified_by_correction": True,
+        "dae_tolerances_modified": False,
+        "correction": details,
+    }
