@@ -1,5 +1,5 @@
-Another wave equation
-=====================
+The wave equation — 2C: co-energy and localized damping
+=========================================================
 
 .. _Wave_2D_coenergy:
 
@@ -8,248 +8,238 @@ Another wave equation
    :undoc-members:
    :show-inheritance:
 
-Setting
--------
+Why this third tutorial?
+------------------------
 
-The objective of this example is to show how sub-domains may be used,
-and how substitutions reduce the computational burden: it assumes that
-`this 2D wave example <https://g-haine.github.io/scrimp/examples/wave.html>`_ has
-already been studied.
+Tutorial :doc:`wave` introduces the **anisotropic 2D membrane and
+mixed boundary ports** (2A), then a **separate resistive flow/effort
+pair** (2B). This tutorial introduces a genuinely different
+construction: the **co-energy states** themselves, a **concentric
+two-region domain**, inner damping and an outer boundary feedback.
+It does not replace 2A or 2B or imply identical meshes.
 
-Substitutions
--------------
+The actual, executable code is
+``examples/wave_coenergy.py``. Fragments below are included from
+that file, rather than copied into the documentation. The short
+default example (`h=0.2, dt=0.008, tf=0.08`) is a **native
+acceptance pilot**, not a resolved wave-propagation demonstration
+or a convergence study.
 
-The damped wave equation as a port-Hamiltonian system writes
+The true material inverse
+-------------------------
 
-.. math::
-
-
-       \begin{pmatrix} \partial_t \alpha_q \\ \partial_t \alpha_p \\ f_r \end{pmatrix}
-       =
-       \begin{bmatrix} 0 & {\rm grad} & 0 \\ {\rm div} & 0 & -I \\ 0 & I^\top & 0 \end{bmatrix}
-       \begin{pmatrix} e_q \\ e_p \\ e_r \end{pmatrix},
-
-where :math:`\alpha_q` denotes the strain, :math:`\alpha_p` is the
-linear momentum, :math:`e_q` is the stress, :math:`e_p` is the velocity
-and :math:`(f_r,e_r)` is the dissipative port.
-
-This system must be close with **constitutive relations**, which are
+The physical tension and density retain the definitions of 2A/2B:
 
 .. math::
 
+   T(x,y)=\begin{bmatrix}5+x&xy\\xy&2+y\end{bmatrix},
+   \qquad \rho(x)=3-x.
 
-       e_q = T \cdot \alpha_q, \qquad e_p = \frac{\alpha_p}{\rho}, \qquad e_r = \nu f_r,
-
-where :math:`T` is the Young’s modulus, :math:`\rho` the mass density
-and :math:`\nu` the viscosity. Inverting these relations and
-substituting the results in the port-Hamiltonian system leads to the
-**co-energy formulation** (or more generally **co-state formulation**)
+However, the co-energy formulation needs the actual compliance,
+**not** the same numeric tensor renamed ``Tinv``:
 
 .. math::
 
+   T^{-1}(x,y)=\frac{1}{(5+x)(2+y)-(xy)^2}
+   \begin{bmatrix}2+y&-xy\\-xy&5+x\end{bmatrix}.
 
-       \begin{pmatrix} T^{-1} \cdot \partial_t e_q \\ \rho \partial_t e_p \\ \nu^{-1} e_r \end{pmatrix}
-       =
-       \begin{bmatrix} 0 & {\rm grad} & 0 \\ {\rm div} & 0 & -I \\ 0 & I^\top & 0 \end{bmatrix}
-       \begin{pmatrix} e_q \\ e_p \\ e_r \end{pmatrix}.
+On the unit disk the determinant is strictly positive. The
+GetFEM GWFL parameter ``Tinv`` below encodes this inverse;
+``q.Tinv.q`` is a tensor contraction, not a Python transpose.
 
-At the discrete level, this allows to reduce the number of degrees of
-freedom by two.
+The co-energy unknowns are now **stress** `q=T grad(w)`
+and **velocity** `p=dw/dt`. The conjugate co-states have
+been substituted, so they do not introduce extra FE unknowns.
+The mechanical energy is
 
-**Remark:** In the example, :math:`\nu` only acts on a sub-domain,
-*i.e.* it is theoretically null on the complementary, and thus is not invertible! To be able to invert it, it is then mandatory to restrict the
-dissipative port to the sub-domain where :math:`\nu>0`.
+.. math::
 
-Simulation
-----------
+   \mathcal H(q,p)=\frac12\int_\Omega
+   \left(q\cdot T^{-1}q+\rho p^2\right)\,\mathrm dx.
 
-Let us start quickly until the definition of the dissipative port.
+Two regions and substituted ports
+---------------------------------
 
-.. code:: python
+The geometry is a unit disk split into the inner disk
+`\Omega_1` (radius 0.6, region 1) and an annulus
+`\Omega_2` (region 2). Region 10 is their interface;
+region 20 is the external boundary. The damping port
+is present **only** on region 1 and the boundary port
+**only** on region 20.
 
-    # Import scrimp
-    import scrimp as S
-    
-    # Init the distributed port-Hamiltonian system
-    wave = S.DPHS("real")
-    
-    # Set the domain (using the built-in geometry `Concentric`)
-    # Labels: Disk = 1, Annulus = 2, Interface = 10, Boundary = 20
-    omega = S.Domain("Concentric", {"R": 1.0, "r": 0.6, "h": 0.1})
-    
-    # And add it to the dphs
-    wave.set_domain(omega)
-    
-    ## Define the variables
-    states = [
-        S.State("q", "Stress", "vector-field"),
-        S.State("p", "Velocity", "scalar-field"),
-    ]
-    # Use of the `substituted=True` keyword to get the co-energy formulation
-    costates = [
-        S.CoState("e_q", "Stress", states[0], substituted=True),
-        S.CoState("e_p", "Velocity", states[1], substituted=True),
-    ]
-    
-    # Add them to the dphs
-    for state in states:
-        wave.add_state(state)
-    for costate in costates:
-        wave.add_costate(costate)
+.. literalinclude:: ../../../examples/wave_coenergy.py
+   :language: python
+   :start-after: # TUTORIAL 2C-01:
+   :end-before: # TUTORIAL 2C-02:
 
-In order to restrict the dissipative port to the internal disk, we use
-the ``region`` keyword.
+.. literalinclude:: ../../../examples/wave_coenergy.py
+   :language: python
+   :start-after: # TUTORIAL 2C-02:
+   :end-before: # TUTORIAL 2C-03:
 
-.. code:: python
+.. literalinclude:: ../../../examples/wave_coenergy.py
+   :language: python
+   :start-after: # TUTORIAL 2C-03:
+   :end-before: # TUTORIAL 2C-04:
 
-    # Define the dissipative port, only on the subdomain labelled 1 = the internal disk
-    ports = [
-        S.Port("Damping", "e_r", "e_r", "scalar-field", substituted=True, region=1),
-    ]
-    
-    # Add it to the dphs
-    for port in ports:
-        wave.add_port(port)
+In the internal disk, the resistive port is substituted:
+`nu^{-1} e_r = -p` in its finite-element weak form.
+Unlike a non-substituted port, it has no independent
+GetFEM flow variable. Consequently its power **cannot**
+be obtained through `Port.get_power()`. The native audit
+instead evaluates the original FE functions by independent
+GetFEM quadrature.
 
-The control port is only at the external boundary, labelled by 20 in
-**SCRIMP**.
+The legacy coefficient `nu=10(0.36-r^2)` vanished at
+the interface even though a brick integrates `1/nu`.
+Here we deliberately use
+`nu=0.2+10(0.36-r^2)` **on region 1 only**.
+This is a strictly positive, bounded invertible
+coefficient on the disk and still has exactly zero
+damping on the outer annulus by region restriction.
+It is a documented change to the legacy scenario,
+not a numerical regularization hidden in SCRIMP.
 
-.. code:: python
+.. literalinclude:: ../../../examples/wave_coenergy.py
+   :language: python
+   :start-after: # TUTORIAL 2C-04:
+   :end-before: # TUTORIAL 2C-05:
 
-    # Define the control port
-    control_ports = [
-        S.Control_Port(
-            "Boundary control",
-            "U",
-            "Normal force",
-            "Y",
-            "Velocity trace",
-            "scalar-field",
-            region=20,
-        ),
-    ]
-    
-    # Add it to the dphs
-    for ctrl_port in control_ports:
-        wave.add_control_port(ctrl_port)
+The co-energy balance and feedback sign
+--------------------------------------
 
-The sequel is as for the already seen examples.
+The semidiscrete system is
 
-.. code:: python
+.. math::
 
-    # Define the Finite Elements Method of each port
-    FEMs = [
-        S.FEM(states[0].get_name(), 1, "DG"),
-        S.FEM(states[1].get_name(), 2, "CG"),
-        S.FEM(ports[0].get_name(), 1, "DG"),
-        S.FEM(control_ports[0].get_name(), 1, "DG"),
-    ]
-    
-    # Add them to the dphs
-    for FEM in FEMs:
-        wave.add_FEM(FEM)
-    
-    # Define physical parameters: care must be taken, 
-    # in the co-energy formulation, some parameters are
-    # inverted in comparison to the classical formulation
-    parameters = [
-        S.Parameter(
-            "Tinv",
-            "Young's modulus inverse",
-            "tensor-field",
-            "[[5+x,x*y],[x*y,2+y]]",
-            "q",
-        ),
-        S.Parameter("rho", "Mass density", "scalar-field", "3-x", "p"),
-        S.Parameter(
-            "nu",
-            "Viscosity",
-            "scalar-field",
-            "10*(0.36-(x*x+y*y))",
-            ports[0].get_name(),
-        ),
-    ]
-    
-    # Add them to the dphs
-    for parameter in parameters:
-        wave.add_parameter(parameter)
+   T^{-1}\dot q=\nabla p,\qquad
+   \rho\dot p=\operatorname{div}q+e_r
+   \quad (e_r\text{ acts only on }\Omega_1),
 
-Regarding the ``Brick`` objects, there is a major difference with the
-previous examples: here, we need to list **all** the sub-domain labels
-for the wave equation, hence the ``[1,2]``. On the other hand, the
-dissipation only occurs on the internal disk, labelled 1, and thus the
-block matrices corresponding to the identity operators which implement
-the dissipation **must be restrict to** ``[1]``.
+with boundary observation `Y=p` and externally applied
+traction `U`. The negative output feedback `U=-0.5Y`
+is physically dissipative: its actual signed boundary
+power is `P_b=integral UY <= 0`.
+The original `U=+0.5Y` has the *opposite* sign and
+must not be labeled feedback dissipation.
 
-.. code:: python
+For the two dissipative mechanisms, define
 
-    # Define the pHs via `Brick` == non-zero block matrices == variational terms
-    # Since we use co-energy formulation, constitutive relations are already taken into
-    # account in the mass matrices M_q and M_p
-    bricks = [
-        ## Define the Dirac structure
-        # Define the mass matrices from the left-hand side: the `flow` part of the Dirac structure
-        S.Brick("M_q", "q.Tinv.Test_q", [1, 2], dt=True, position="flow"),
-        S.Brick("M_p", "p*rho*Test_p", [1, 2], dt=True, position="flow"),
-        S.Brick("M_r", "e_r/nu*Test_e_r", [1], position="flow"),
-        S.Brick("M_Y", "Y*Test_Y", [20], position="flow"),
-        # Define the matrices from the right-hand side: the `effort` part of the Dirac structure
-        S.Brick("D", "Grad(p).Test_q", [1, 2], position="effort"),
-        S.Brick("-D^T", "-q.Grad(Test_p)", [1, 2], position="effort"),
-        S.Brick("I_r", "e_r*Test_p", [1], position="effort"),
-        S.Brick("B", "U*Test_p", [20], position="effort"),
-        S.Brick("-I_r^T", "-p*Test_e_r", [1], position="effort"),
-        S.Brick("-B^T", "-p*Test_Y", [20], position="effort"),
-        ## Define the constitutive relations
-        # Already taken into account in the Dirac Structure!
-    ]
-    
-    # Add all these `Bricks` to the dphs
-    for brick in bricks:
-        wave.add_brick(brick)
+.. math::
 
-The remaining part of the code have already been explain in previous
-examples.
+   D_i=\int_{\Omega_1}\frac{e_r^2}{\nu}\,\mathrm dx
+      =-\int_{\Omega_1}p e_r\,\mathrm dx\ge0,
+   \qquad
+   D_b=-\int_{\partial\Omega} UY\,\mathrm ds\ge0.
 
-.. code:: python
+The equality for `D_i` holds **in the FE weak
+projection**. The pointwise integral `integral nu*p^2`
+need not agree exactly, because `e_r` is DG1, and
+`nu*p` generally is not. We record it as a diagnostic,
+not a false exactness gate.
 
-    ## Initialize the problem
-    # The controls expression
-    expressions = ["0.5*Y"]
-    
-    # Add each expression to its control_port
-    for control_port, expression in zip(control_ports, expressions):
-        # Set the control functions (automatic construction of bricks such that -M_u u + f(t) = 0)
-        wave.set_control(control_port.get_name(), expression)
-    
-    # Set the initial data
-    wave.set_initial_value("q", "[0., 0.]")
-    wave.set_initial_value("p", "2.72**(-20*((x-0.5)*(x-0.5)+(y-0.5)*(y-0.5)))")
-    
-    ## Solve in time
-    # Define the time scheme ("cn" is Crank-Nicolson)
-    wave.set_time_scheme(ts_type="cn",
-                         t_f=2.0, 
-                         dt_save=0.01,
-                         )
-    
-    # Solve
-    wave.solve()
-    
-    ## Post-processing
-    ## Set Hamiltonian's name
-    wave.hamiltonian.set_name("Mechanical energy")
-    # Define each Hamiltonian Term
-    terms = [
-        S.Term("Potential energy", "0.5*q.Tinv.q", [1, 2]),
-        S.Term("Kinetic energy", "0.5*p*p*rho", [1, 2]),
-    ]
-    # Add them to the Hamiltonian
-    for term in terms:
-        wave.hamiltonian.add_term(term)
-    
-    # Plot the Hamiltonian and save the output
-    wave.plot_Hamiltonian(save_figure=True)
+There is no independent boundary drive in this scenario;
+therefore the physical balance to validate is
 
-.. image:: Wave_CoEnergy_Hamiltonian.png
+.. math::
 
+   \boxed{\mathcal H(t)-\mathcal H(0)+
+   \int_0^t (D_i(s)+D_b(s))\,\mathrm ds=0.}
+
+.. literalinclude:: ../../../examples/wave_coenergy.py
+   :language: python
+   :start-after: # TUTORIAL 2C-05:
+   :end-before: # TUTORIAL 2C-06:
+
+A physically visible initial pulse
+----------------------------------
+
+Two smooth initial velocity bumps excite the inner
+damping and outer feedback. The initial stress is zero.
+The time integrator is **fixed Crank–Nicolson**, ten
+accepted steps, with algebraic DAE initialization
+and default MUMPS LU. The short time interval proves
+the simulation and output pipeline works, but does
+not by itself establish long-time spatial quality.
+
+.. literalinclude:: ../../../examples/wave_coenergy.py
+   :language: python
+   :start-after: # TUTORIAL 2C-06:
+   :end-before: # TUTORIAL 2C-07:
+
+.. literalinclude:: ../../../examples/wave_coenergy.py
+   :language: python
+   :start-after: # TUTORIAL 2C-07:
+   :end-before: # TUTORIAL 2C-08:
+
+.. literalinclude:: ../../../examples/wave_coenergy.py
+   :language: python
+   :start-after: # TUTORIAL 2C-08:
+   :end-before: # TUTORIAL 2C-09:
+
+Native outputs and visualizations
+---------------------------------
+
+The pilot below records the original **full FE state
+history** in NPZ, true GetFEM Hamiltonian and power
+histories, detailed JSON physical gates, two independent
+quadratures of inner resistance, and GetFEM/ParaView
+time series `q`, `p`, `e_r` (one PVD and eleven VTU
+per field and MPI case). It checks strict DAE, CN
+work/loss balance at every step, nontrivial passive
+feedback and damping, MPI replica/parity, and genuine
+nonempty VTK fields.
+
+Once a native case passes, the same script renders
+**from the original FE NPZ/VTK**, not an invented
+analytic image:
+
+- ``visuals/energy_balance.png`` and ``.svg``:
+  mechanical energy vs work/losses, powers, balance defect;
+- ``visuals/field_snapshots.png`` and ``.svg``:
+  spatial snapshots of `p`, `|q|`, `e_r`;
+- ``visuals/p_evolution.gif``: animated accepted `p`
+  snapshots (pilot: 11 frames);
+- ``visuals/energy_and_ports.csv``: actual energetic
+  histories with explicit columns;
+- ``visuals/provenance.json``: commit, image revision,
+  number of frames and Float32 VTK warning.
+
+Open ``mumps_mpi1/pv/p/p.pvd`` (or q/e_r) in
+ParaView to examine the whole native sequence. VTK
+Float32 is for visualisation; the acceptance audit
+uses full-precision original GetFEM FE values.
+
+.. code-block:: bash
+
+   cd ~/Simulations/scrimp
+   git pull --ff-only
+   conda activate scrimp
+
+   SCRIMP_DOCKER_NO_SUDO=1 \
+   SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+   bash scripts/run-v130-wave2d-coenergy-pilot.sh
+
+The same native visualization tool can be run on
+the already-qualified **2B** archive, without any
+rerun of the solver:
+
+.. code-block:: bash
+
+   python scripts/render-v130-wave2d-native.py \
+     --input sandbox/outputs/v130-wave2d-dissipative-e582874f-9ni2cPYZ.zip \
+     --case mumps_mpi1 \
+     --output sandbox/outputs/wave2d-2b-visuals
+
+The renderer also supports compatible archived 2A
+NPZ/PVD layouts. Use the case names in each archive.
+A later long-time demonstration should be assessed
+separately from this short physical acceptance,
+and its validated images may subsequently be integrated
+into the public Sphinx website.
+
+**Qualification status:** 2C is a prepared native
+candidate, **NOT PASS until real MUMPS MPI1/MPI2
+logs, binary evidence and physical gates succeed**.
+No generic solver regularization or hidden
+SuperLU_DIST qualification is claimed.
