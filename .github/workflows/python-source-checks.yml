@@ -70,6 +70,18 @@ jobs:
           python tests/test_v130_coenergy_boundary_power_orientation.py
           python scripts/check-v130-published-immutable.py
 
+      - name: Guard genuine Heat-Wave MPI1/MPI2 FE parity and all-steps long CN physics (source only)
+        run: |
+          python -m py_compile \
+            examples/heat_wave.py \
+            sandbox/measure_v130_hw_dual_facet_physics.py \
+            sandbox/probe_v130_heat_wave_mpi_extended.py \
+            scripts/verify-v130-heat-wave-mpi-long-physics.py \
+            tests/test_v130_heat_wave_mpi_long_source.py
+          bash -n scripts/run-v130-heat-wave-mpi-long-physics.sh
+          python tests/test_v130_heat_wave_mpi_long_source.py
+          python scripts/check-v130-published-immutable.py
+
       - name: Guard native Heat-Wave long-time log-log and annular VTK gallery showcase
         run: |
           python -m py_compile \
