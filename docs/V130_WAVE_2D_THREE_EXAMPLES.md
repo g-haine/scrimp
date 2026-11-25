@@ -1,11 +1,12 @@
 # SCRIMP v1.3.0 — Parcours progressif des trois ondes 2D
 
 **Branche de travail :** `release/1.3.0-preparation`.  
-**État du 24 novembre 2026 :** étape **2A native PASS** en
+**État au 25 novembre 2026 :** étape **2A native PASS** en
 MUMPS MPI1/2, SuperLU MPI1 et SuperLU_DIST explicitement raffiné
 MPI1/2 ; l'option standard SuperLU_DIST reste FAIL (gate 3/5).
-Étape **2B : code, documentation et contrôle source prêts ; qualification
-physique GetFEM/PETSc MUMPS MPI1/2 EN ATTENTE**.  
+Étape **2B native PASS en MUMPS MPI1/2** sur le véritable modèle
+dissipatif : 10 pas CN, bilan H-H0=W-D, quadrature indépendante,
+trajectoires MPI et exports VTK validés. SuperLU_DIST non testé pour 2B.  
 **Ordre dans Sphinx :** `examples/wave.rst` comporte la conservative
 puis sa section « Adding Damping to the dphs » ; la page
 `examples/wave_coenergy.rst` suit séparément. Cet ordre est conservé.
@@ -73,10 +74,67 @@ SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
 bash scripts/run-v130-wave2d-dissipative-pilot.sh
 ```
 
-**Statut scientifique 2B : aucune exécution native validée
-à cette étape ; PASS/FAIL à établir sur le ZIP.**
-L'exemple 2C coénergie reste volontairement indépendant
-et suivra après cette qualification.
+**Statut scientifique 2B (25 novembre 2026) : PASS natif
+MUMPS MPI1/2**, après examen des journaux et tableaux natifs du ZIP
+cité ci-dessous. L'exemple 2C coénergie reste indépendant
+et constitue la prochaine étape pédagogique.
+
+## Qualification native 2B — PASS MUMPS MPI1/2 (25 novembre 2026)
+
+**Preuve authentique examinée :**
+`sandbox/outputs/v130-wave2d-dissipative-e582874f-9ni2cPYZ.zip`
+(archive utilisateur, **non** ajoutée au dépôt).
+Source des simulations :
+`e582874fe9d2fa296ab20a5963e4e4ce6437f092` ;
+image `scrimp-mpi:v1.3.0-rc3`, révision interne figée
+`1d6d0c90115213298047b28237a7f38087563a35`.
+Les neuf tests statiques PASS, les huit exemples
+`examples/published/` sont restés inchangés.
+
+| Mesure native | MUMPS MPI1 | MUMPS MPI2 |
+|---|---:|---:|
+| DOFs, états sauvegardés | 2804, 11 | 2804, 11 |
+| Pas CN acceptés, rejetés | 10, 0 | 10, 0 |
+| DAE algébrique exacte, résidu initial | PASS, 0 | PASS, 0 |
+| Défaut maximal énergétique par pas | 2.700341e-18 | 1.771569e-18 |
+| Défaut énergétique cumulé maximal | 4.458781e-18 | 2.063372e-18 |
+| Écart maximal `D_port-D_volume` | 1.355253e-18 | 6.505213e-19 |
+| Énergie dissipée finale `L_viscous` | 1.1909667465223212e-5 | 1.1909667465223223e-5 |
+| Exports GetFEM VTK | 6 champs × 11 instants | 6 champs × 11 instants |
+| Statut | **PASS** | **PASS** |
+
+À `t_f=0.08`, sur la trajectoire MPI1, l'énergie
+tensorielle originale GetFEM vaut
+`H=0.0015744391155611648`, le travail signé des quatre
+bords `W=0.0015863487830263924` et la perte visqueuse
+`L=0.000011909667465223212`.
+La relation `H-H0=W-L` est vérifiée à chaque pas CN et
+en cumulé, sans modifier les signes, le tenseur,
+les vingt briques conservatrices ou les tolérances.
+
+Parité des trajectoires FE originales :
+`max|z_MPI1-z_MPI2|=1.7141843500212417e-13` ;
+`max|H_MPI1-H_MPI2|=4.119968255444917e-18`.
+Les rangs 0 et 1 de MPI2 ont des SHA256 identiques
+sur les trajectoires complètes ; les 10 portes physiques
+sont `true` sur tous les rangs. Le résidu quadratique
+de flux `f_r+e_p` est voisin de `2.3e-35` ou moins.
+Le résidu quadratique ponctuel `e_r-nu*f_r` n'est
+pas strictement nul (maximum environ `1.33e-8`) :
+c'est attendu pour une **loi projetée faiblement**
+dans CG2, pas un défaut de passivité. On ne doit pas
+le requalifier artificiellement en contrainte ponctuelle.
+
+**Portée :** qualification de l'exemple 2B pour
+`h=0.2`, `dt=0.008`, `t_f=0.08`,
+`nu(x)=0.5*(2-x)`, et MUMPS sur 1 et 2 rangs.
+Ce pilote ne démontre pas convergence en maillage
+ou en temps, dissipation sur temps longs, performance,
+ni qualification SuperLU_DIST. Le modèle 2A et
+`examples/published/` restent intacts.
+**Suite :** qualification indépendante de 2C coénergie,
+notamment la compliance `T^{-1}`, la localisation des
+ports dissipatifs et le bilan `H-H0=W-D_interne-D_feedback`.
 
 ## Le fil conducteur scientifique
 
