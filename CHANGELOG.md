@@ -5,6 +5,38 @@ Changes to SCRIMP are recorded here. See also the
 
 ## 1.3.0 — in development (not released)
 
+### Exemple 2B : qualification physique MUMPS MPI1/2 PASS (25 novembre 2026)
+
+- Preuve native examinée :
+  `v130-wave2d-dissipative-e582874f-9ni2cPYZ.zip`,
+  source `e582874fe9d2fa296ab20a5963e4e4ce6437f092`,
+  image `scrimp-mpi:v1.3.0-rc3` figée.
+  Neuf tests source PASS, huit `examples/published/`
+  inchangés. Les deux simulations MUMPS MPI1 et MPI2
+  passent **10/10 pas CN**, 2804 DOFs, initialisation
+  DAE algébrique exacte, sans rejet ni échec SNES.
+- Bilan physique réel `H-H0=W_boundary-L_viscous` PASS :
+  défaut par pas `2.70e-18 / 1.77e-18`,
+  défaut cumulé `4.46e-18 / 2.06e-18`
+  (MPI1/MPI2). Perte visqueuse finale
+  `1.19096674652232e-5`, positive et non nulle ;
+  puissance du port dissipatif et quadrature volumique
+  GetFEM indépendante concordent à `1.36e-18 / 6.51e-19`.
+- Parité sur les **vraies trajectoires FE complètes** :
+  `max|z_MPI1-z_MPI2|=1.7142e-13`,
+  rangs MPI2 identiques par SHA256, six séries
+  `q,p,e_q,e_p,f_r,e_r` de onze VTK chacune
+  vérifiées pour chaque cas. La loi `e_r=nu*f_r`
+  reste une projection faible FEM, non une identité
+  ponctuelle exigible.
+- **Portée limitée : MUMPS MPI1/2, h=0.2, dt=0.008,
+  tf=0.08.** Aucun résultat SuperLU_DIST 2B,
+  étude de convergence ou temps long n'est revendiqué.
+  Les équations, critères énergétiques, `master`
+  et les exemples publiés restent inchangés.
+  Prochaine étape : exemple 2C coénergie.
+
+
 ### Exemple 2B : onde 2D dissipative, extension stricte de 2A (24 novembre 2026)
 
 - `examples/wave_dissipative.py` harmonisé avec le code canonique
@@ -32,8 +64,9 @@ Changes to SCRIMP are recorded here. See also the
   **sans les requalifier**.
   Tests source `tests/test_v130_wave2d_dissipative_source.py`
   et Sphinx 2B reliés par **8 literalinclude** natifs.
-- **Qualification 2B native EN ATTENTE** : ne pas annoncer
-  PASS avant les véritables logs et preuves physiques.
+- **Statut au 24 novembre** : qualification 2B native encore
+  en attente à cette date ; **désormais PASS MUMPS MPI1/2 le
+  25 novembre**, sur l'archive indiquée dans l'entrée ci-dessus.
   SCRIMP, `master` et les 8 exemples publiés restent inchangés.
   L'autodiagnostic des points-selles n'est pas ajouté en v1.3.0 ;
   la question historique Heat--Wave est différée.
