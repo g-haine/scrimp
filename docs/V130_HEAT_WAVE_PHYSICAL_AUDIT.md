@@ -1,9 +1,128 @@
 # SCRIMP v1.3.0 — Heat–Wave 2D: physically meaningful example
 
-**25 November 2026 — native Heat–Wave 2D physical CN pilot
-MUMPS MPI1 PASS (10/10), and both authentic 15-second visual
-simulations independently re-audited on their archived evidence.
-No long-horizon subsystem-power PASS or gallery eigenmode is implied.**
+**25 November 2026 — native Heat–Wave 2D MUMPS MPI1/MPI2
+full FE and oriented physical CN PARITY PASS (4 steps), native
+15-second TS converged (3000 steps), but full-horizon CN power
+acceptance still PENDING following a one-sample monitor defect.
+The two separately completed 15-second visual runs remain valid
+within their documented scope; no gallery eigenmode is certified.**
+
+## Native MPI1/MPI2 parity PASSED; 15-second accepted-CN state 2999 was not archived (25 November 2026)
+
+**Original immutable proof:**
+`v130-heat-wave-MPI2-longCN-42116b58-FCxHdEia.zip`,
+source exact `42116b5803e5295225394582e6ddf930a4269afa`,
+image `scrimp-mpi:v1.3.0-rc3` (pinned revision).
+The source tests and the check of all eight
+immutable published examples were PASS.
+
+**Short stage — genuinely accepted:**
+`short-verification.json` has
+`PASS_HEAT_WAVE_MPI1_MPI2_SHORT_PHYSICAL`
+for MUMPS MPI1 and MPI2, 7,689 FE unknowns,
+four fixed CN steps at `dt=0.001`, with
+strict compatible projected/clamped initial
+wave data and production automatic
+conforming-interface orientation.
+
+All independent heat/wave/total balance,
+true positive dissipation, interface
+power cancellation, exterior zero power,
+Hamiltonian monotonicity and cumulative
+identity gates pass **on both ranks**.
+The MPI2 ranks recorded **bitwise identical**
+complete FE trajectories and physical
+quadratures. Original MPI1/MPI2 maximum
+absolute differences include:
+
+| Independent native MPI1/MPI2 comparison | Absolute maximum |
+|---|---:|
+| Complete FE coefficients (`z`) | `2.2297719226571644e-12` |
+| Hamiltonian `H` | `5.662137425588298e-15` |
+| Interface signed power | `1.3322676295501878e-15` |
+| Total CN step balance | `5.0584536559483695e-15` |
+| MPI2 max **independent** total CN defect | `9.610368056911511e-16` |
+
+Thus **canonical Heat–Wave physical MPI1/MPI2
+parity is now qualified** for the actual
+four-step model, not inferred from earlier
+research probes or the PETSc success code.
+Parallel VTK output remains separate.
+
+**Long stage — scientifically NOT accepted yet:**
+PETSc/MUMPS completed **3,000 actual CN
+steps** at `dt=0.005` up to `t=15`,
+in about 19.4 seconds of TS execution,
+**zero rejected steps, zero nonlinear
+solver failures**. The true FE
+Hamiltonian integration completed in
+another approximately 22.4 seconds.
+However, the strict original-FE
+time-grid gate rejected the run
+**before** evaluating separate powers.
+
+An independent audit of all **3,001
+PETSc monitor records** in
+`mpi1_long.host.log` identifies
+**exactly one accepted state missing
+from the saved FE trajectory**:
+
+```text
+step=2998 time=14.990 saved=YES
+step=2999 time=14.995 saved=NO
+step=3000 time=15.000 saved=YES
+```
+
+The monitor used the historical due-time
+rule `accepted_t >= last_saved_t + dt_save`
+(with a small 16-ULP guard). Rounding
+accumulation made the genuine accepted
+state 2999 fail that comparison.
+The 3,000 saved FE states instead
+of the required **3,001** cannot be
+reinterpreted as 3,000 consecutive
+CN intervals. No value has been
+interpolated or manufactured, and the
+original long ZIP retains its
+historical `FAIL_OR_UNQUALIFIED_HEAT_WAVE_MPI2_LONG`.
+
+**Generic output-only correction in SCRIMP:**
+`scrimp/utils/trajectory_sampling.py` now
+exposes `fixed_cn_accepted_step_is_due`.
+For `ts_type="cn"`, `ts_adapt_type="none"`
+and exactly `dt_save=dt`,
+`DPHS.monitor` stores every real
+**PETSc-accepted step** without relying
+on a floating-time threshold. It
+continues to use the original
+`saved_time_is_due` schedule for
+adaptive solvers, any other
+time integrator or subsampled output.
+Time integration, solution state,
+interface equations, FE types,
+DAE consistency and numerical power
+acceptance **are unchanged**.
+
+Regression tests reproduce the missing
+accepted sample at step 2999 and
+require retention of all 3,001 states,
+while safeguarding adaptive,
+non-CN and subsampled behavior.
+The native probe now writes a
+`preflight-rankN.json` before gate
+evaluation recording accepted
+PETSc steps, saved-state count,
+missing grid indices, timestamps,
+H and FE dimensions. An incomplete
+trace **still fails closed**, with
+its original evidence archived.
+
+**The 3,000-step per-step physical
+power identity remains PENDING** until
+the corrected native run has archived
+all 3,001 genuine adjacent FE states
+and passed independent GetFEM
+heat/wave/interface cumulative balances.
 
 ## Next native qualification: MPI2 FE parity and 15-second full power accounting — PENDING
 
@@ -104,10 +223,12 @@ than full-time qualification, set
 the report records the actual horizon
 and makes no 15-second claim.
 
-**The full 15-second power proof and the
-current canonical MPI2 run remain
-PENDING until the real Docker image
-produces the new evidence.** Successful
+**The full 15-second power proof is
+PENDING pending the corrected monitor's
+native re-run. The canonical four-step
+MPI1/MPI2 physical parity is already
+PASS, independently archived at source
+`42116b58`.** Successful
 previous parallel-interface research
 pilots and completed 15-second visual
 runs are separate, still-valid
