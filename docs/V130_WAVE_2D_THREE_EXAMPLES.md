@@ -141,6 +141,83 @@ ni qualification SuperLU_DIST. Le modèle 2A et
 notamment la compliance `T^{-1}`, la localisation des
 ports dissipatifs et le bilan `H-H0=W-D_interne-D_feedback`.
 
+## Démonstration longue 2C — PASS physique natif et sorties visuelles (25 novembre 2026)
+
+**Archive originale examinée :** `v130-wave2d-2c-showcase-bc880100-9P5gcxWf.zip`,
+commit source `bc880100f69f6f0dbbb5d31ee8fc229d0b32647d`,
+image Docker épinglée `scrimp-mpi:v1.3.0-rc3` (révision
+`1d6d0c90115213298047b28237a7f38087563a35`).
+La commande `scripts/run-v130-wave2d-showcase.sh 2c`
+a exécuté le véritable `examples/wave_coenergy.py`
+avec `h=0.1`, `dt=0.01`, `tf=1`, **MPI 1 MUMPS**.
+Le verdict indépendant des données FE est **PASS_NATIVE_LONG_VISUAL_SHOWCASE**,
+sans prétention de convergence ni parité MPI sur ce maillage.
+
+| Observation sur l'archive longue | Valeur |
+|---|---:|
+| Degrés de liberté (FE globaux) | `7905` |
+| Crank–Nicolson (pas acceptés, rejets/échecs SNES) | `100/100`, `0/0` |
+| Initialisation DAE algébrique | `PASS`, résidu `9.8598773556e-14` |
+| Gates de passivité/énergie/contrainte | `10/10 PASS` |
+| Hamiltonien initial `H(0)` | `0.2556143692106721` |
+| Hamiltonien final `H(1)` | `0.10272364224930962` |
+| Perte interne cumulée `Li(1)` | `0.0882892889133343` |
+| Perte par feedback de bord `Lb(1)` | `0.06460143804802765` |
+| Baisse de l'énergie sur `[0,1]` | `59.8130 %` |
+| Défaut absolu maximal par pas | `1.3185931297e-15` |
+| Défaut absolu cumulé maximal | `1.6183343728e-15` |
+| Exports ParaView `q,p,e_r` | `3 × 101 = 303 VTU`, 3 PVD |
+| Animation `p_evolution.gif` | `101 images` tirées des VTK natifs |
+| Données `energy_and_ports.csv` | `101 lignes` |
+
+L'inspection de `mumps_mpi1/rank0.npz` reproduit le bilan
+`H-H0+Li+Lb` au pire `1.62e-15` ; les 100 défauts
+`dH+dt*(Di+Pb)` sont `<=1.32e-15`.
+Les deux pertes cumulées augmentent sans retour et
+`H` décroît à **tous les instants sauvegardés**.
+La baisse `0.15289072696136247` provient à
+**57.7467 %** de la dissipation interne et
+**42.2533 %** du retour de bord : les ondes
+atteignent le bord et alimentent effectivement le
+second mécanisme dissipatif. Les puissances
+`Di` et `Pb` restent positives à chaque pas.
+Le SHA256 de `z` recalculé sur le NPZ est
+`d60cb6095e50f875af241ce6438ef03673a1e30d08394fdcbdb83aeb05d5745c`,
+identique à `rank0.json`.
+
+Les trois PVD contiennent exactement **101 instants
+0.00, 0.01, ..., 1.00**, les 303 VTU sont présents
+et leurs horodatages correspondent au vecteur `t`.
+Le renderer a effectivement produit :
+`visuals/field_snapshots.{png,svg}`,
+`visuals/energy_balance.{png,svg}`,
+`visuals/p_evolution.gif`,
+`visuals/energy_and_ports.csv`,
+`visuals/provenance.json` et `README.txt`.
+L'inspection des cartes et de six images représentatives
+du GIF montre la propagation des deux perturbations
+initiales, la formation de contraintes et leur
+décroissance sur la durée. Le graphique énergétique
+superpose `H-H0` et `-Li-Lb` tandis que
+l'erreur reste d'ordre `1e-15`.
+
+**Limite éditoriale des visuels :** le renderer affiche
+`e_r=0` dans la couronne, y compris là où le port
+résistif n'est pas défini : la restriction
+`region=1` est correcte dans le modèle et les bilans,
+mais devrait être **explicitement délimitée ou masquée**
+sur les illustrations pédagogiques finales. Les
+triangles visibles sont des échantillons VTK Float32,
+pas une quadrature énergétique.
+
+**Portée scientifique :** cette exécution établit une
+simulation 2C longue à pas fixe **physiquement PASS
+en MPI1/MUMPS** et des sorties visuelles réelles.
+Elle **ne constitue ni une comparaison MPI1/MPI2
+à h=0.1, ni une convergence h/dt, ni une preuve
+d'efficacité multi-solveurs**. Ces exigences restent
+séparées du pilote court MPI1/2 qualifié plus haut.
+
 ## Qualification native 2C — PASS MUMPS MPI1/2, énergétique et visuelle (25 novembre 2026)
 
 **Verdict final sur le pilote de référence : PASS**, après examen
@@ -236,11 +313,10 @@ SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
 bash scripts/run-v130-wave2d-coenergy-pilot.sh
 ```
 
-**Étape suivante distincte** : démonstration longue et
-résolue en MUMPS MPI1, `h=0.1`, `t_f=1`, `dt=0.01`
-(par défaut), avec figures/animation depuis les
-véritables états GetFEM, puis inspection visuelle
-des effets de propagation et d'amortissement :
+**Reproduction de la démonstration longue désormais
+réussie** en MUMPS MPI1, `h=0.1`, `t_f=1`,
+`dt=0.01` (par défaut). Elle n'exécute pas la
+comparaison MPI1/MPI2 réservée au pilote court :
 
 ```bash
 SCRIMP_DOCKER_NO_SUDO=1 \
