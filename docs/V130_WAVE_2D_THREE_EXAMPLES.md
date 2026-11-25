@@ -136,6 +136,106 @@ ni qualification SuperLU_DIST. Le modèle 2A et
 notamment la compliance `T^{-1}`, la localisation des
 ports dissipatifs et le bilan `H-H0=W-D_interne-D_feedback`.
 
+## 2C coénergie : candidat natif et visualisations réelles (25 novembre 2026)
+
+**Statut : candidat 2C prêt à tester, PAS encore qualifié**. Aucune
+simulation native MPI1/MPI2 2C n'a été constatée à ce stade. Cette
+étape ne modifie ni la physique déjà qualifiée de 2A/2B, ni
+`scrimp/dphs.py`, ni `examples/published/`.
+
+Le code canonique `examples/wave_coenergy.py` conserve les
+**états coénergétiques substitués** `q` (contrainte) et `p`
+(vitesse), le disque intérieur `region=1`, la couronne
+`region=2`, le bord `region=20` et les dix briques
+coénergie. Les corrections scientifiques explicites sont :
+
+- **Compliance authentique** : `Tinv=T^{-1}` pour
+  `T=[[5+x,x*y],[x*y,2+y]]`, `rho=3-x`.
+  Le code historique utilisait en réalité `T` sous le nom
+  `Tinv` : les deux matériaux ne pouvaient pas être considérés
+  équivalents.
+- **Feedback physiquement dissipatif** :
+  `U=-0.5*Y` au bord extérieur. L'ancien signe positif
+  `U=+0.5*Y` injectait de la puissance `U*Y`.
+- **Viscosité inversible dans le disque** :
+  `nu=0.2+10*(0.36-(x*x+y*y))` sur `region=1`
+  uniquement. Cela évite le `1/nu` potentiellement singulier
+  de l'ancienne loi à l'interface. La modification est
+  **physique et documentée**, non une régularisation cachée
+  dans le solveur. Pas de port dissipatif dans la couronne.
+- **Données initiales représentatives** : vitesse en deux
+  bosses lisses, non nulles près du disque intérieur et du
+  bord externe ; contrainte initiale nulle ; DAE algébrique
+  et CN à pas fixe.
+
+Le bilan exact visé est `H(t)-H(0)+Li(t)+Lb(t)=0`
+(sans travail de forçage externe), avec
+`Di=integral_region1(e_r²/nu)=-integral_region1(p*e_r)`
+et `Db=-integral_boundary20(U*Y)=integral_boundary20(0.5*Y²)`.
+Le modèle **substitué** ne possède pas de variable indépendante
+`f_r` : appeler `Damping.get_power()` serait incorrect.
+Le calcul `integral nu*p²` est consigné comme diagnostic
+ponctuel, sans imposer abusivement l'égalité exacte à la
+projection faible DG1. Ces mesures, les champs complets,
+les dix pas et la parité MPI sont vérifiés sur les vraies
+sorties GetFEM/PETSc.
+
+Pilote scientifique natif (MUMPS 1 et 2 rangs, 10 pas,
+preuve `NPZ/JSON/VTK/PVD`, CSV et figures après PASS) :
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+conda activate scrimp
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-wave2d-coenergy-pilot.sh
+```
+
+**Livrables visuels réels pour les trois modèles 2A/2B/2C** :
+`scripts/render-v130-wave2d-native.py` lit les `rank0.npz`
+GetFEM et les véritables `pv/<champ>/<champ>.pvd` /
+`*.vtu` GetFEM (y compris les données binaires).
+Il écrit :
+
+- `energy_balance.png`, `energy_balance.svg` :
+  énergie, travail des ports, pertes et défaut énergétique ;
+- `field_snapshots.png`, `field_snapshots.svg` :
+  champs spatiaux `p`, `|q|`, éventuellement `e_r` ;
+- `p_evolution.gif` : animation des états réellement sauvegardés ;
+- `energy_and_ports.csv`, `provenance.json`, `README.txt`.
+  Les VTU/PVD originaux restent présents et sont ouvrables
+  sous ParaView, avec leurs valeurs Float32 explicitées.
+
+La visualisation est intégrée dans les ZIP des campagnes
+2A/2B lors des prochaines exécutions valides et du pilote
+2C après PASS. Pour créer immédiatement les figures de
+la preuve 2B déjà validée, **sans relancer la simulation** :
+
+```bash
+python scripts/render-v130-wave2d-native.py \
+  --input sandbox/outputs/v130-wave2d-dissipative-e582874f-9ni2cPYZ.zip \
+  --case mumps_mpi1 \
+  --output sandbox/outputs/wave2d-2b-visuals
+```
+
+La qualification scientifique en **dix pas** est volontairement
+distincte de la démonstration visuelle en temps plus long
+(`h=0.1`, `t_f=1`, `dt=0.01`, par défaut), lancée à
+la demande sur un vrai GetFEM/MUMPS MPI1 :
+
+```bash
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-wave2d-showcase.sh 2c
+```
+
+L'argument accepte aussi `2a` et `2b`.
+**La démonstration longue ne qualifie ni parité MPI, ni
+convergence spatiale/temporelle** ; ses figures ne seront
+intégrées dans Sphinx qu'après examen de leurs vraies
+données et vérification de leur lisibilité physique.
+
 ## Le fil conducteur scientifique
 
 Les trois fichiers Python restent **exécutables et indépendants**,
