@@ -297,6 +297,7 @@ def main():
                 heat_region=1,wave_region=2,
                 final_time=.004,time_step=.001,save_step=.001,
                 factor_solver="mumps",
+                initial_wave_boundary="unconstrained",
             )
         except DAEOnlyComplete:
             pass
