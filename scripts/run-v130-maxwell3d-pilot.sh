@@ -68,7 +68,7 @@ import json
 import struct
 import sys
 import zipfile
-from pathlib
+from pathlib import Path
 from xml.etree import ElementTree as ET
 import numpy as np
 
