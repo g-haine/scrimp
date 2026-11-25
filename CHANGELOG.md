@@ -5,6 +5,69 @@ Changes to SCRIMP are recorded here. See also the
 
 ## 1.3.0 — in development (not released)
 
+### Maxwell 3D : vraie paire GetFEM patchée et nouveaux raccourcis FEM SCRIMP — qualification à reprendre (25 novembre 2026)
+
+- **Correction scientifique importante :**
+  le précédent `FEM_NEDELEC(3)` est
+  le **Nédélec première espèce k=0 natif GetFEM**,
+  et `RT0` est aussi natif. L'archive
+  `v130-maxwell3d-daac18cb-FCPngFrH.zip`
+  démontre authentiquement Maxwell 3D,
+  la conservation du Hamiltonien,
+  Gauss(B), la parité MPI1/2 et les
+  VTK tétraédriques ; **elle ne teste pas
+  les familles créées par nos patchs**.
+  La qualification historique reste valide
+  mais n'est plus attribuée à la paire courante.
+- `scrimp/fem.py` accepte désormais
+  **`S.FEM("E", k, "NED1")`** et
+  **`S.FEM("E", k, "NED2")`**
+  (synonymes `NEDELEC1` / `NEDELEC2`)
+  qui construisent directement
+  `FEM_NEDELEC1(N,k)` et
+  `FEM_NEDELEC2(N,k)`.
+  Numéro 1/2 = **espèce**, entier k =
+  **indice polynomial**. NED1 k0 est
+  le Nédélec natif, NED1 k>=1
+  utilise le patch `0003` ;
+  NED2 k=1,2 utilise le patch `0004`.
+  Les ordres non implémentés pour
+  NED2 sont rejetés explicitement.
+  Les deux nouvelles familles
+  **n'autorisent aucun repli silencieux CG1**
+  en cas de patch GetFEM manquant.
+  `RT` et `BDM` conservent leur API.
+- Le code canonique `examples/maxwell_3d.py`
+  utilise maintenant
+  **`NED2`, k=1** (`FEM_NEDELEC2(3,1)`)
+  pour `E`, et
+  **`BDM`, k=1** (`FEM_BDMK(3,1)`,
+  patch tétraédrique `0001`)
+  pour `B`. La propriété locale
+  `curl([P1]^3) ⊂ BDM1` maintient
+  la compatibilité magnétique à tester.
+  **Aucun changement des quatre briques pH,
+  de la commande de bord nulle, du CN ou
+  des neuf critères énergétiques/Gauss**.
+- Ajout de
+  `tests/test_v130_fem_nedelec_aliases.py`
+  (descripteurs, synonymes, plages d'ordre,
+  défaut de patch sans CG1, familles RT/BDM
+  préexistantes), adaptation des
+  tests source Maxwell et du pilote pour
+  **exiger explicitement la paire patchée**,
+  mise à jour de la CI et des docs Sphinx.
+  Le pilote conserve l'archive d'échec
+  et produit les PNG/SVG/GIF par
+  `examples/maxwell_3d.py --export`.
+- **Statut : source en cours de qualification.**
+  Le calcul et les figures de cette nouvelle
+  paire NED2/BDM1 **n'ont pas encore un PASS
+  natif**. Aucun résultat de la référence
+  Nédélec0/RT0 (notamment ses 497 DOFs et
+  ses énergies) n'est extrapolé.
+
+
 ### Maxwell 3D — visuels automatiques produits par l'exemple lui-même (25 novembre 2026)
 
 - Le modèle qualifié `examples/maxwell_3d.py`
