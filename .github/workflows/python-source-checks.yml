@@ -70,6 +70,17 @@ jobs:
           python tests/test_v130_coenergy_boundary_power_orientation.py
           python scripts/check-v130-published-immutable.py
 
+      - name: Guard strict Heat-Wave native physical balance pilot (source only)
+        run: |
+          python -m py_compile \
+            examples/heat_wave.py \
+            sandbox/probe_v130_main_2d_examples.py \
+            sandbox/measure_v130_heat_wave_physics.py \
+            tests/test_v130_heat_wave_physical_pilot.py
+          bash -n scripts/run-v130-heat-wave-physical-pilot.sh
+          python tests/test_v130_heat_wave_physical_pilot.py
+          python scripts/check-v130-published-immutable.py
+
       - name: Guard patched 3D Maxwell Nedelec-II BDM1 and SCRIMP NED1 NED2 FEM aliases
         run: |
           python -m py_compile scrimp/fem.py examples/maxwell_3d.py tests/test_v130_maxwell3d_source.py tests/test_v130_fem_nedelec_aliases.py
