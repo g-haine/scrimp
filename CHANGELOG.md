@@ -5,6 +5,60 @@ Changes to SCRIMP are recorded here. See also the
 
 ## 1.3.0 — in development (not released)
 
+### Maxwell 3D minimal avec éléments de Nédélec et RT0 — pilote préparé, non qualifié (25 novembre 2026)
+
+- Nouvel exemple indépendant `examples/maxwell_3d.py` :
+  **vraie géométrie tétraédrique 3D** de la boule,
+  (E\in H(\mathrm{curl})) Nédélec 0,
+  (B\in H(\mathrm{div})) Raviart–Thomas RT0.
+  L'exemple exercera les éléments d'arête
+  GetFEM corrigés pour SCRIMP v1.3.0,
+  sans modifier `examples/published/`.
+  L'adaptateur SCRIMP vérifie activement les
+  familles FE effectivement assignées afin
+  d'interdire un retour silencieux à CG1.
+- Premier Maxwell pH **fermé** : matière
+  homogène `eps=mu=1`, sans source ni
+  contrôle, deux masses et deux briques
+  de rotationnel transposées opposées,
+  soit `M_E E_dot=C^T B`,
+  `M_B B_dot=-C E`.
+  Hamiltonien physique
+  `H=1/2 integral(|E|²+|B|²)` :
+  conservation visée `H(t)=H(0)`.
+  Fermeture naturelle sans puissance de
+  bord ; pas de fausse condition PEC ni
+  de port fictif. Pas d'initialisation
+  DAE : les deux états sont différentiels.
+- Initialisation non triviale
+  `E0=(-y,x,0)`, `B0=0`,
+  rotationnel `curl(E0)=(0,0,2)`,
+  projection L2 dans les vrais FE.
+  Critères : conservation H par pas et
+  en cumulé, deux quadratures GetFEM
+  indépendantes, apparition du champ B,
+  et Gauss magnétique `div(B)=0`.
+  La loi Gauss électrique et la
+  convergence ne sont pas qualifiées.
+- Pilote natif
+  `scripts/run-v130-maxwell3d-pilot.sh`,
+  MUMPS MPI1/2, 10 pas CN fixes,
+  `h=0.7`, `dt=0.02`, `tf=0.2`,
+  9 portes scientifiques, parité complète
+  FE entre rangs et MPI1/MPI2,
+  vrais exports tétraédriques E/B
+  (VTK types 10/24) et archive d'échec
+  préservée. Contrat source/CI
+  `tests/test_v130_maxwell3d_source.py`,
+  documentation Sphinx
+  `docs/source/examples/maxwell_3d.rst`
+  et note `docs/V130_MAXWELL_3D.md`.
+- **Statut : source prête, exécution native
+  sur image `scrimp-mpi:v1.3.0-rc3`
+  attendue. Aucun PASS de Maxwell 3D
+  n'est encore revendiqué.**
+
+
 ### Exemple 2B — démonstration longue MUMPS sur 100 pas, dissipativité et comparaison native 2A/2B PASS (25 novembre 2026)
 
 - Archive complète `v130-wave2d-2b-showcase-dbdc49cf-G1CKQAVG.zip`,
