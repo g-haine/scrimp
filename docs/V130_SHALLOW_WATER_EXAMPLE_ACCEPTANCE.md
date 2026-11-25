@@ -205,6 +205,92 @@ Des tests négatifs hôtes valident la résistance
 du comparateur à des coefficients FE incohérents ;
 **ces seuls tests ne constituent pas un PASS natif**. Le PASS physique est désormais établi par l'archive native vérifiée ci-dessus.
 
+## Visualisations natives de l'exemple non visqueux — pilote opt-in préparé
+
+Les expériences **Saint-Venant visqueux tournant, contrôlé ou non**
+sont des **travaux de recherche distincts**, liés aux communications
+scientifiques MCSS et LHMNC 2027. Elles **ne font pas partie des
+exemples livrables** de SCRIMP v1.3.0. Cette section ne concerne que
+`examples/shallow_water.py`, sur le rectangle original, sans
+viscosité ni rotation du domaine.
+
+Un mode **`--showcase` opt-in** a été intégré au fichier canonique
+pour produire des figures à partir des vrais champs GetFEM, plutôt
+que de se limiter au tracé de H. Il sélectionne explicitement
+l'initialiseur de production `nonlinear_affine` (qualifié séparément),
+conserve **les briques pH, le maillage et les données initiales
+d'origine**, puis exécute le BDF2 originel avec G explicitement retardé.
+La commande classique `python -m examples.shallow_water`
+conserve son ancienne initialisation `pseudo`, son horizon de
+0.5, son image H et son export h : aucun choix par défaut ne change.
+
+**Pilote reproductible à exécuter :**
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+conda activate scrimp
+
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-shallow-water-showcase.sh
+```
+
+Le pilote prévoit `t_f=0.12`, `dt=0.0001`,
+`dt_save=0.002` (**1 200 pas BDF2, environ 61 états graphiques**),
+MUMPS MPI1 et les vrais champs de la surface libre.
+L'horizon et la résolution de sauvegarde sont configurables
+par `SCRIMP_V130_SW_SHOWCASE_FINAL_TIME`,
+`SCRIMP_V130_SW_SHOWCASE_DT` et
+`SCRIMP_V130_SW_SHOWCASE_SAVE_STEP`, sans prétendre
+qualifier d'emblée la totalité de l'horizon historique.
+Le scénario de visualisation est scientifiquement **distinct**
+du PASS court MPI1/2 à `T=0.002` consigné plus haut.
+
+**Fichiers créés directement par l'exemple :**
+`native/pv/h/h.pvd` (hauteur en CG2),
+`native/pv/p/p.pvd` (quantité de mouvement en DG1),
+chacun accompagné de ses véritables VTU GetFEM.
+Les champs n'ont **pas la même grille VTK** : le moteur
+lit chaque grille séparément, ne transpose jamais arbitrairement
+les DOFs CG2 sur DG1 et ne construit aucune onde synthétique.
+Dans `native/figures/` :
+
+- `saint_venant_surface_vitesse.gif` :
+  animation synchronisée à trois vues, avec la **surface libre
+  élevée graphiquement en 3D** (la simulation physique est bien
+  **2D**), une carte du champ `h` et les flèches de
+  **vitesse `v=p/rho`**, avec échelles fixes et sans
+  interpolation temporelle entre les états GetFEM sauvés ;
+- quatre `saint_venant_champs_t*.png` :
+  instantanés du début, de deux temps intermédiaires et
+  de la fin, directement tirés des mêmes VTU ;
+- `saint_venant_H_masse_bilan.png` et `.svg` :
+  **intégrales GetFEM véritables** du Hamiltonien,
+  des contributions cinétique/potentielle, de la masse
+  et du défaut BDF2 `H(t)-H(0)-W_bord(t)`.
+  Ces intégrales ne sont **pas** calculées à partir
+  de la moyenne des triangles graphiques.
+
+La restitution en 3D et la coloration utilisent uniquement
+les valeurs réellement exportées dans les VTU ;
+la moyenne sur un triangle n'est qu'une règle de rendu,
+pas une nouvelle méthode d'assemblage FE. Le GIF
+sélectionne au plus 36 **instants enregistrés**, sans
+interpolation en temps. Le `physical_FE_traces.npz`
+et le `provenance.json` accompagnent toutes les images.
+Un vérificateur hôte indépendant recoupe les images,
+les vrais catalogues h/p, le calendrier GetFEM, les
+intégrales FE et les limites de qualification ; le script
+conserve une archive ZIP même en cas d'échec.
+
+**Statut : pilote graphique source préparé, calcul natif encore
+EN ATTENTE.** Tant que ses sorties ne sont pas effectivement
+contrôlées, ni GIF ni nouveau résultat physique à 0.12
+ne sont revendiqués comme validés. Les graphiques H/masse
+de la campagne `T=0.002` sont, eux, déjà produits depuis
+l'archive MPI qualifiée.
+
 ## Qualifications encore ouvertes
 
 Le vrai horizon historique par défaut de
@@ -220,8 +306,12 @@ sans analyse et données supplémentaires.
 Le **Saint-Venant visqueux tournant**
 (`sandbox/viscous_swe_2d_mpi.py`, géométrie P2,
 reprise de checkpoint, commande tangentielle et
-retour normal) est un **autre exemple** :
-son problème initial de contrainte d'indice
+retour normal) est un **modèle de recherche,
+non un exemple du logiciel**. Son étude,
+liée aux publications/communications MCSS et
+LHMNC 2027, ne rentre pas dans le périmètre
+de qualification des exemples de la v1.3.0.
+Son problème initial de contrainte d'indice
 supérieur ne se déduit pas du cas rectangulaire.
 Voir `docs/V130_ROTATING_CONTROLLED_INITIAL_STATE.md`
 pour les validations et limites propres à ce modèle.
