@@ -25,7 +25,7 @@ import numpy as np
 
 ROOT=Path(__file__).resolve().parents[1]
 CANONICAL=ROOT/"examples/shallow_water.py"
-HELPER=ROOT/"examples/shallow_water_visualization.py"
+HELPER=CANONICAL
 RUNNER=ROOT/"scripts/run-v130-shallow-water-showcase.sh"
 
 
@@ -353,7 +353,7 @@ class ShallowWaterNativeVisualizationSource(unittest.TestCase):
             'python -u -m examples.shallow_water',
             '--showcase',
             '--showcase-output /artifacts',
-            'examples/shallow_water_visualization.py',
+            'examples/shallow_water.py',
             'scripts/verify-v130-shallow-water-showcase.py',
             'with zipfile.ZipFile(archive,"x"',
         ):
