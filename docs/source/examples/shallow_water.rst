@@ -730,6 +730,6 @@ The published numerical MPI1/2 physical
 qualification above remains valid for
 ``T=0.002`` and does not silently extend
 to ``T=0.12``. See
-``the dedicated inviscid SWE visual and physical protocol
-<https://github.com/g-haine/scrimp/blob/release/1.3.0-preparation/docs/V130_SHALLOW_WATER_EXAMPLE_ACCEPTANCE.md>``_
+`the dedicated inviscid SWE visual and physical protocol
+<https://github.com/g-haine/scrimp/blob/release/1.3.0-preparation/docs/V130_SHALLOW_WATER_EXAMPLE_ACCEPTANCE.md>`_
 for acceptance scope and the original archives.
