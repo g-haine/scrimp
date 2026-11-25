@@ -237,8 +237,11 @@ def render_maps(out,evidence,case,fields,trace,no_gif=False):
             mesh.set_array(faces[k])
             title.set_text(f"{trace['kind']}  |  t={frames[k][0]:.3f}")
             return mesh,title
-        movie=FuncAnimation(fig,draw,frames=len(frames),interval=350,blit=False)
-        movie.save(out/"p_evolution.gif",writer=PillowWriter(fps=1000/350),
+        frame_ms=110 if len(frames)>30 else 350
+        movie=FuncAnimation(fig,draw,frames=len(frames),interval=frame_ms,
+                            blit=False)
+        movie.save(out/"p_evolution.gif",
+                   writer=PillowWriter(fps=1000/frame_ms),
                    dpi=110)
         plt.close(fig)
     return {k:len(v) for k,v in histories.items()}
@@ -272,12 +275,18 @@ def main():
     if not data.exists("manifest.json"):
         raise ValueError("Missing authentic native experiment provenance")
     manifest=data.json("manifest.json")
+    overall_status="UNKNOWN"
     if data.exists("summary.json"):
         summary=data.json("summary.json")
-        if not str(summary.get("status","")).startswith("PASS_"):
-            raise ValueError("Refusing to render unqualified native physics")
-        if (summary.get("cases",{}).get(args.case,{}).get("exit_code")!=0):
-            raise ValueError("Selected native case failed")
+        overall_status=str(summary.get("status","UNKNOWN"))
+        selected=summary.get("cases",{}).get(args.case,{})
+        if selected.get("exit_code")!=0:
+            raise ValueError("Selected native case did not complete")
+        if (not overall_status.startswith("PASS_")
+            and not str(selected.get("status","")).startswith("PASS_")):
+            raise ValueError("Refusing unqualified selected native physics case")
+        # A 3/5 conservative pilot may globally FAIL while its selected
+        # MUMPS case is genuinely PASS; never label the whole run PASS.
     if data.exists(f"{args.case}/rank0.json"):
         meta=data.json(f"{args.case}/rank0.json")
         if not str(meta.get("status","")).startswith("PASS_"):
@@ -300,6 +309,7 @@ def main():
         "source":manifest.get("source"),
         "image_revision":manifest.get("image_revision"),
         "case":args.case,"model":trace["kind"],
+        "overall_pilot_status":overall_status,
         "VTK_fields":vtk,"frames":len(trace["t"]),
         "input_SHA256":(hashlib.sha256(args.input.read_bytes()).hexdigest()
                         if args.input.is_file() else None),
