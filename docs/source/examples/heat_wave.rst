@@ -594,10 +594,100 @@ study. See
 for the distinct native qualification
 and evidence.
 
-**Status:** the short native physical
-gate and these new long-run visual outputs
-must be rerun after the initial
-boundary correction was integrated
-into the canonical example; prior
-MPI interface proofs are preserved.
+Native qualification and long-time observations (25 November 2026)
+-------------------------------------------------------------------
+
+The actual ``examples/heat_wave.py``
+with Gaussian initial data and
+``initial_wave_boundary="clamp"``
+has **passed all ten true physical
+Crank--Nicolson gates** using MUMPS
+MPI1. The short reference run,
+``dt=0.001`` and ``t_f=0.004``,
+contains 7,689 FE unknowns. The
+maximum internal-interface signed
+power defect is ``8.88e-16``;
+the maximum independent heat,
+wave and total step energy-power
+balance defects are respectively
+``4.92e-15``, ``1.39e-15``
+and ``5.46e-15``.
+The original native archive is
+``v130-heat-wave-physical-b9d56fcc-3FQ8lFlC.zip``,
+source ``b9d56fccc18c1f9facacdd9b6c2645c4de25fc47``.
+
+**The two full 15-second calculations also completed
+natively**, with 301 real GetFEM Hamiltonian
+states, 301 VTU snapshots for each
+of the ``p,q,T`` fields, 4 real
+annular-wave PNGs and a 48-frame GIF:
+
+.. list-table:: Native long-run energy changes
+   :header-rows: 1
+   :widths: 30 25 25 20
+
+   * - Original excitation
+     - ``H(0)``
+     - ``H(15)``
+     - Relative decrease
+   * - Historical Gaussian
+     - ``0.7836421212``
+     - ``0.0082683891``
+     - **98.9449%**
+   * - Annular gallery packet
+     - ``0.4626440660``
+     - ``0.3779415176``
+     - **18.3084%**
+
+The original long-showcase acceptance driver
+erroneously attempted ``frame["file"]``
+instead of ``frame.attrib["file"]``
+when inspecting the complete
+ParaView XML catalogs. Consequently
+the original ZIP summaries truthfully
+retain the historical
+``FAIL_OR_UNQUALIFIED_LONG_HEAT_WAVE_SHOWCASE``
+status **although both native
+simulations exited successfully**.
+The exact original archives have
+been independently reviewed and all
+their actual files and frame clocks
+verified. The current code corrects
+that XML access and provides
+``scripts/verify-v130-heat-wave-long-archive.py``
+to re-audit the original ZIPs
+without recomputing the complete
+time histories. The review records
+the distinct status
+``PASS_ARCHIVED_LONG_NATIVE_VISUALS_NOT_WG_MODE_PROOF``,
+without modifying the original
+archives or the earlier pilot report.
+
+The optional angular packet shows
+a larger **approximate concentration
+of the kinetic-velocity proxy**
+within the outer shell ``r>=0.82``:
+about ``0.587`` on average over
+48 snapshots, versus ``0.380``
+for the original Gaussian. This is
+interesting evidence for visually
+exploring gallery-like localization,
+but **does not establish** a
+whispering-gallery eigenmode,
+tangential traveling-wave direction,
+a theoretical decay exponent, or
+the full 15-second heat/wave
+energy-power identity.
+
+**Scope:** MUMPS MPI1 physical
+Heat--Wave 2D reference **PASS**;
+both long-time native **visual
+datasets complete and independently
+audited**. MPI2, SuperLU_DIST,
+full-horizon subsystem power
+balance and spectral mode
+identification remain separately
+unqualified. The previous native
+interface compiler MPI tests
+are unaffected.
 
