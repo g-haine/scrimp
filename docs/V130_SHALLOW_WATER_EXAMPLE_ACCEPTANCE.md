@@ -205,7 +205,7 @@ Des tests négatifs hôtes valident la résistance
 du comparateur à des coefficients FE incohérents ;
 **ces seuls tests ne constituent pas un PASS natif**. Le PASS physique est désormais établi par l'archive native vérifiée ci-dessus.
 
-## Visualisations natives de l'exemple non visqueux — pilote opt-in préparé
+## Visualisations natives de l'exemple non visqueux — modèle et rendus dans un seul fichier
 
 Les expériences **Saint-Venant visqueux tournant, contrôlé ou non**
 sont des **travaux de recherche distincts**, liés aux communications
@@ -213,6 +213,20 @@ scientifiques MCSS et LHMNC 2027. Elles **ne font pas partie des
 exemples livrables** de SCRIMP v1.3.0. Cette section ne concerne que
 `examples/shallow_water.py`, sur le rectangle original, sans
 viscosité ni rotation du domaine.
+
+**Convention d'architecture des exemples — un fichier, un exemple :**
+toute la logique de visualisation (lecture binaire VTK des
+éléments CG2 et DG1, surface 3D de `h`, vitesse
+`p/rho`, animations et graphiques H/masse)
+est **directement définie dans
+`examples/shallow_water.py`**, aux côtés du
+modèle physique et de son appel CLI.
+Il n'existe plus de
+`examples/shallow_water_visualization.py`.
+Les scripts dans `scripts/` restent exclusivement
+des outils de validation ou de récupération
+de sorties natives déjà calculées, **pas des
+modules nécessaires à l'exécution de l'exemple**.
 
 Un mode **`--showcase` opt-in** a été intégré au fichier canonique
 pour produire des figures à partir des vrais champs GetFEM, plutôt
@@ -284,12 +298,28 @@ les vrais catalogues h/p, le calendrier GetFEM, les
 intégrales FE et les limites de qualification ; le script
 conserve une archive ZIP même en cas d'échec.
 
-**Statut : pilote graphique source préparé, calcul natif encore
-EN ATTENTE.** Tant que ses sorties ne sont pas effectivement
-contrôlées, ni GIF ni nouveau résultat physique à 0.12
-ne sont revendiqués comme validés. Les graphiques H/masse
-de la campagne `T=0.002` sont, eux, déjà produits depuis
-l'archive MPI qualifiée.
+**État natif (25 novembre 2026) : calcul BDF2 terminé,
+rendus spatiaux rétablis hors ligne.** L'archive
+`v130-SWE-native-visuals-14181a94-k4V3Wo0f.zip`
+contient les 1 200 pas BDF2 acceptés
+(0 rejet, 0 échec non linéaire) à `t_f=0.12`,
+et **61 champs VTU originaux pour chacun de
+`h` et `p`**. Le pilote historique a échoué
+après le solveur : le premier lecteur graphique
+n'acceptait que le triangle linéaire VTK type 5,
+alors que la vraie hauteur CG2 utilise le triangle
+quadratique VTK type 22 à six nœuds.
+Ce lecteur, maintenant intégré directement dans
+`examples/shallow_water.py`, reconnaît les
+deux topologies. Les fichiers déjà exportés ont
+permis de récupérer **36 images FE originales
+dans le GIF et quatre PNG**, sans relancer
+l'intégration BDF2. La récupération graphique
+n'invente pas les quadratures exactes H/masse
+absentes du ZIP d'origine et ne constitue
+donc pas un PASS de bilan énergétique complet
+à `t_f=0.12`. Le premier statut de pilote
+`FAIL` est préservé comme preuve historique.
 
 ## Qualifications encore ouvertes
 
