@@ -37,12 +37,16 @@ if not (4<=steps<=10000 and math.isfinite(dt) and 0.<dt<=.01):
     raise SystemExit("Long Heat-Wave steps/dt out of safety range")
 PY
 python3 -m py_compile \
+  scrimp/dphs.py \
+  scrimp/utils/trajectory_sampling.py \
   examples/heat_wave.py \
   sandbox/measure_v130_hw_dual_facet_physics.py \
   sandbox/probe_v130_heat_wave_mpi_extended.py \
   scripts/verify-v130-heat-wave-mpi-long-physics.py \
+  tests/test_v130_trajectory_sampling.py \
   tests/test_v130_heat_wave_mpi_long_source.py
 bash -n "$0"
+python3 tests/test_v130_trajectory_sampling.py
 python3 tests/test_v130_heat_wave_mpi_long_source.py
 python3 tests/test_v130_heat_wave_boundary_initial_data.py
 python3 scripts/check-v130-published-immutable.py
