@@ -1,6 +1,6 @@
 # SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
 # Copyright (C) 2015-2026 ISAE-SUPAERO -- GNU GPLv3
-"""Source-only contract for new 3D Nedelec/RT Maxwell tutorial.
+"""Source-only contract for patched 3D Nedelec-II/BDM1 Maxwell tutorial.
 
 Does not imply native GetFEM/PETSc acceptance: only the pinned
 MUMPS 1/2 runner can establish the physical energy and VTK gates.
