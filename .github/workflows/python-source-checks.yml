@@ -60,10 +60,12 @@ jobs:
             examples/wave_coenergy.py \
             scripts/render-v130-wave2d-native.py \
             tests/test_v130_wave2d_coenergy_source.py \
-            tests/test_v130_wave2d_native_renderer.py
+            tests/test_v130_wave2d_native_renderer.py \
+            tests/test_v130_linear_scalar_feedback.py
           bash -n scripts/run-v130-wave2d-coenergy-pilot.sh scripts/run-v130-wave2d-showcase.sh
           python tests/test_v130_wave2d_native_renderer.py
           python tests/test_v130_wave2d_coenergy_source.py
+          python tests/test_v130_linear_scalar_feedback.py
           python scripts/check-v130-published-immutable.py
 
       - name: Guard full anisotropic 2D wave with opt-in refined SuperLU_DIST
