@@ -3,8 +3,10 @@
 """Small genuine 3D Maxwell cavity using patched intrinsic GetFEM elements.
 
 Normalized lossless Maxwell: eps=mu=1, no currents or port drive.
-E (electric field) in Nedelec H(curl), B (magnetic induction) in RT0
-H(div), on a genuine tetrahedral 3D ball.
+E (electric field) in patched Nedelec-II k=1 H(curl), B (magnetic
+induction) in patched tetrahedral BDM1 H(div), in a real 3D ball.
+The original native Nedelec0/RT0 baseline at commit daac18cb
+is preserved as its separately qualified archived simulation.
 
 The weak equations are
     (dE/dt, v) = (B, curl v),
@@ -99,17 +101,19 @@ def maxwell_3d(*, mesh_size=0.7, final_time=0.2, time_step=0.02,
     model.add_costate(S.CoState("e_E", "Electric field", E, substituted=True))
     model.add_costate(S.CoState("e_B", "Magnetic induction", B, substituted=True))
 
-    # TUTORIAL M3D-04: true 3D intrinsic vector elements, NOT CG vectors
-    # S.FEM uses a raw GetFEM descriptor when order<0.
-    # Both these GetFEM families use the SCRIMP-v1.3.0 patched image.
-    fem_E = S.FEM("E", -1, "FEM_NEDELEC(3)")
-    fem_B = S.FEM("B", 0, "RT")  # GetFEM FEM_RTK(3,0)
+    # TUTORIAL M3D-04: exercise BOTH GetFEM source patches, not built-in
+    # Nedelec0/RT0. NED2 k=1 -> FEM_NEDELEC2(3,1) (patch 0004),
+    # BDM k=1 -> FEM_BDMK(3,1) (tetrahedral DoF patch 0001).
+    # curl([P1]^3) is constant and is contained in BDM1;
+    # exact div(curl(E)) = 0 is preserved by the mass equation.
+    fem_E = S.FEM("E", 1, "NED2")
+    fem_B = S.FEM("B", 1, "BDM")
 
     # S.FEM has a legacy silent CG fallback on native AssertionError.
     # Retain these exact objects to detect it after registration.
     for fem, expected_type, expected_order in (
-        (fem_E, "FEM_NEDELEC(3)", -1),
-        (fem_B, "RT", 0),
+        (fem_E, "NED2", 1),
+        (fem_B, "BDM", 1),
     ):
         model.add_FEM(fem)
         assert_patched_intrinsic_fem(fem, expected_type, expected_order)
@@ -123,7 +127,7 @@ def maxwell_3d(*, mesh_size=0.7, final_time=0.2, time_step=0.02,
     ):
         model.add_brick(brick)
 
-    # TUTORIAL M3D-06: smooth solenoidal rotation (exact Nedelec mode),
+    # TUTORIAL M3D-06: smooth solenoidal rotation (exact Nedelec-II P1 mode),
     # zero magnetic field; curl E=[0,0,2] triggers nontrivial dynamics.
     model.set_initial_value("E", "[-y, x, 0.]")
     model.set_initial_value("B", "[0., 0., 0.]")
@@ -351,7 +355,7 @@ def render_maxwell_visuals(output, observed, state_sha256):
     ax.plot(time, observed["H"], marker=".", label="Hamiltonian")
     ax.set(xlabel="Time (dimensionless)", ylabel="Energy (dimensionless)",
            title="Maxwell 3D: electric–magnetic energy exchange\n"
-                 "Nédélec / RT0 · native GetFEM quadratures")
+                 "Nédélec II (k=1) / BDM1 · native GetFEM quadratures")
     ax.grid(alpha=0.25)
     ax.legend()
     fig.tight_layout()
@@ -478,6 +482,14 @@ def main():
                    else "FAIL_NATIVE_MAXWELL3D"),
         "rank": comm.rank, "MPI": comm.size,
         "solver": args.solver,
+        "FE": {
+            "E": {"family": "NED2", "k": 1,
+                  "getfem": "FEM_NEDELEC2(3,1)",
+                  "DOFs": int(system.ports["E"].get_fem().nbdof())},
+            "B": {"family": "BDM", "k": 1,
+                  "getfem": "FEM_BDMK(3,1)",
+                  "DOFs": int(system.ports["B"].get_fem().nbdof())},
+        },
         "DOFs": int(obs["z"].shape[1]),
         "steps": int(system.last_ts_steps),
         "TS_reason": int(system.last_ts_converged_reason),
