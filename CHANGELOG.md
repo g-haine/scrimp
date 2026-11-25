@@ -5,6 +5,34 @@ Changes to SCRIMP are recorded here. See also the
 
 ## 1.3.0 — in development (not released)
 
+### Maxwell 3D : correctif de préqualification de l'audit FE/archives (25 novembre 2026)
+
+- Première exécution native `acdb3c75` :
+  **6 tests source PASS**, 8 exemples publiés intacts,
+  58 sommets et 110 tétraèdres, **Nédélec 3D 222 DOFs**
+  et **RT0 3D 275 DOFs** créés avec GetFEM 5.5
+  sur MPI 1/2. **Aucun pas Maxwell CN exécuté**.
+- Blocage dans le garde-fou Python :
+  `MeshFem.fem()` rend un tableau NumPy de
+  `Fem`; la boucle traitait une ligne comme
+  un `Fem`, puis appelait `.char()` sur
+  `numpy.ndarray`. Correctif : aplatissement
+  du tableau, vérification de toutes les
+  descriptions `Fem.char()` et rejet de
+  toute substitution CG. Aucune modification
+  du noyau, de la formulation ou des patchs.
+- Correction distincte du script d'archives :
+  `from pathlib import Path` au lieu du
+  mauvais `from pathlib`. Nouveau test
+  source : **AST du programme Python embarqué
+  dans le heredoc Bash**, plus tests unitaires
+  de la véritable fonction de contrôle FE
+  sur des retours NumPy simulés.
+- **Statut Maxwell 3D : toujours NON QUALIFIÉ**
+  tant que le pilote MUMPS MPI1/2 n'a pas
+  traversé les pas CN, les bilans de puissance,
+  Gauss(B) et les vrais exports VTK.
+
 ### Maxwell 3D minimal avec éléments de Nédélec et RT0 — pilote préparé, non qualifié (25 novembre 2026)
 
 - Nouvel exemple indépendant `examples/maxwell_3d.py` :
