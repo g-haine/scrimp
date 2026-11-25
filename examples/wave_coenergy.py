@@ -183,7 +183,7 @@ def wave_coenergy_eq(
     ## Initialize the problem
     # The controls expression
     # U=-kY, Y=p: negative feedback power U*Y=-k*Y**2 <= 0.
-    expressions = ["-0.5*Y"]
+    expressions = [f"-{FEEDBACK_GAIN}*Y"]
     
     # Add each expression to its control_port
     for control_port, expression in zip(control_ports, expressions):
@@ -283,10 +283,11 @@ def measure_coenergy(system):
         dr_cross[k] = assemble("-p*e_r", 1, resistive.get_mesh_id())
         dr_pointwise[k] = assemble("nu*p*p", 1, resistive.get_mesh_id())
         feedback[k] = assemble(
-            "0.5*Y*Y", 20, boundary.get_mesh_id(),
+            f"{FEEDBACK_GAIN}*Y*Y", 20, boundary.get_mesh_id(),
         )
         feedback_constraint[k] = assemble(
-            "(U+0.5*Y)*(U+0.5*Y)", 20, boundary.get_mesh_id(),
+            f"(U+{FEEDBACK_GAIN}*Y)*(U+{FEEDBACK_GAIN}*Y)",
+            20, boundary.get_mesh_id(),
         )
         resistive_weak_residual_L2[k] = assemble(
             "(e_r/nu+p)*(e_r/nu+p)", 1, resistive.get_mesh_id(),
