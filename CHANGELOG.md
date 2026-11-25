@@ -5,6 +5,50 @@ Changes to SCRIMP are recorded here. See also the
 
 ## 1.3.0 — in development (not released)
 
+### Heat–Wave 2D — reprise de la qualification physique native, MUMPS MPI1 strict (25 novembre 2026)
+
+- **Prochain modèle du parcours Sphinx après Maxwell 3D.**
+  Nouveau pilote
+  `scripts/run-v130-heat-wave-physical-pilot.sh`,
+  exécutant uniquement le véritable
+  `examples/heat_wave.py` en **MUMPS MPI1**,
+  Concentric heat=1/wave=2, **4 pas
+  CN fixes** à `dt=0.001`,
+  `t_f=0.004`. Il réutilise
+  `sandbox/probe_v130_main_2d_examples.py`
+  et `sandbox/measure_v130_heat_wave_physics.py`
+  sans aucun changement physique.
+- **10 portes de qualification, non une simple
+  parité de solveurs** : intégration CN native,
+  positivité des Hamiltoniens thermique
+  et mécanique, parité de leur somme
+  avec `H`, dissipation thermique
+  positive et non triviale, annulation
+  de la puissance signée d'interface
+  et du travail extérieur, bilan CN
+  pour chacun des deux sous-systèmes,
+  bilan CN total et cumulatif,
+  énergie globale non croissante.
+  Vérification de véritables exports
+  GetFEM `T`/`p` et de la figure `H`.
+- **Fail closed et traçabilité** : le pilote
+  enregistre `summary.json` et un ZIP
+  même en cas de rejet PETSc/DAE,
+  de problème de trace FE ou de bilan
+  physique. Les tests
+  `tests/test_v130_heat_wave_physical_pilot.py`
+  analysent le programme Python embarqué
+  et vérifient la présence des critères
+  (source-only, intégrés à la CI).
+  Les huit `examples/published/`
+  restent strictement immuables.
+- **Statut : exécution native encore à faire.**
+  Aucun PASS Heat–Wave n'est revendiqué ;
+  MPI2, SuperLU_DIST et le temps long
+  seront traités séparément après
+  acceptation du modèle physique.
+
+
 ### Maxwell 3D — deux patchs GetFEM Nédélec-II k1 / BDM1 et visuels intégrés : MUMPS MPI1/2 PASS (25 novembre 2026)
 
 - **Première qualification native de la paire véritablement patchée**
