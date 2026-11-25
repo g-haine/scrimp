@@ -211,6 +211,26 @@ for ranks,name in cases:
         message=f"Native {name} exit={record['exit_code']}"
         if message not in report["errors"]:report["errors"].append(message)
 (folder/"summary.json").write_text(json.dumps(report,indent=2)+"\n")
+# Generate user-facing PNG/SVG, CSV and GIF from the original FE + VTK.
+# A globally failed five-LU study can still render its independently
+# qualified MUMPS case, without changing the global scientific status.
+selected=report.get("cases",{}).get("mumps_mpi1",{})
+if selected.get("exit_code")==0 and str(selected.get("status","")).startswith("PASS_"):
+    import subprocess
+    try:
+        subprocess.run(
+            [sys.executable,"scripts/render-v130-wave2d-native.py",
+             "--input",str(folder),"--case","mumps_mpi1",
+             "--output",str(folder/"visuals")],
+            check=True,
+        )
+        report["visual_outputs"]="PASS_REAL_GETFEM_VTK_CSV_PNG_SVG_GIF"
+    except Exception as exc:
+        report["visual_outputs"]=f"FAIL: {type(exc).__name__}: {exc}"
+        report["errors"].append("User-facing visual output failed: "+str(exc))
+        if report["status"].startswith("PASS_"):
+            report["status"]="FAIL_REQUIRED_2D_VISUAL_OUTPUT"
+    (folder/"summary.json").write_text(json.dumps(report,indent=2)+"\\n")
 archive=Path(str(folder)+".zip")
 with zipfile.ZipFile(archive,"x",compression=zipfile.ZIP_DEFLATED,
                      compresslevel=4,allowZip64=True) as z:
