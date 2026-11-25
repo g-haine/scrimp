@@ -45,16 +45,22 @@ Changes to SCRIMP are recorded here. See also the
   un solveur factice afin de garantir les
   valeurs par défaut et la sélection
   `--no-showcase`, tandis que les tests
-  graphiques utilisent des VTU de
-  contrôle. Cela ne constitue **pas**
-  une nouvelle validation native de
-  la chaîne complète sur le commit
-  de migration du point d'entrée.
-  L'ancien calcul natif de 1 200
-  pas BDF2 et la récupération spatiale
-  depuis les vrais VTU restent des
-  preuves distinctes ; la conservation
-  exacte d'énergie n'est pas affirmée.
+  graphiques utilisent des VTU de contrôle.
+  **La chaîne complète a ensuite été qualifiée nativement**
+  sur l'image Docker épinglée avec le commit
+  `ddd349febb7cd4751d8de2d051d87f49220ac5f7` :
+  archive `v130-SWE-native-visuals-ddd349fe-wOs9K1Bm.zip`,
+  statut `PASS_NATIVE_INVISCID_SWE_VISUALS`, 1 200 pas BDF2
+  (aucun rejet/échec non linéaire), 61 états `h` et 61 `p`
+  GetFEM originaux, 36 images GIF FE, quatre PNG et bilan
+  Hamiltonien/masse natif. Inspection indépendante de l'archive :
+  dérive relative maximale de masse `5.898e-14` et défaut
+  énergétique signé final `-1.13266749` (relatif `-3.578e-5`),
+  sans revendication de conservation exacte BDF2.
+  Voir `docs/V130_SHALLOW_WATER_EXAMPLE_ACCEPTANCE.md`.
+  **L'ancienne installation Conda hôte est hors référence** :
+  l'image Docker qualifiée est recommandée pour reproduire
+  le calcul et les visualisations.
 
 
 ### Saint-Venant 2D — architecture « un exemple = un fichier », CG2 VTK natifs et récupération des images (25 novembre 2026) — implémentation préalable
