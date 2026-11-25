@@ -61,7 +61,26 @@ class Maxwell3DSourceTests(unittest.TestCase):
             'init_step=False',
         ):
             self.assertIn(needle, self.source)
-        self.assertNotIn("pseudo", self.source.split('model.set_time_scheme(', 1)[1].split('model.solve()',1)[0])
+        # Inspect the actual call AST, not comments such as "no pseudo-TS".
+        scheme_calls = [
+            node for node in ast.walk(self.tree)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "model"
+            and node.func.attr == "set_time_scheme"
+        ]
+        self.assertEqual(len(scheme_calls), 1)
+        keywords = {key.arg: key.value for key in scheme_calls[0].keywords}
+        self.assertIn("init_step", keywords)
+        self.assertIsInstance(keywords["init_step"], ast.Constant)
+        self.assertIs(keywords["init_step"].value, False)
+        self.assertNotIn("init_step_ts_type", keywords)
+        for name, expected in (("ts_type", "cn"),
+                               ("ts_adapt_type", "none")):
+            self.assertIn(name, keywords)
+            self.assertIsInstance(keywords[name], ast.Constant)
+            self.assertEqual(keywords[name].value, expected)
         self.assertNotIn("set_control(", self.source)
         self.assertNotIn("add_control_port(", self.source)
 
