@@ -265,12 +265,108 @@ Open ``mumps_mpi1/pv/E/E.pvd`` and
 view the 3D vectors with a cut plane,
 glyphs, or streamlines.
 
-**Qualification status on preparation:
-native pilot not yet executed.**
-Passing static Python tests does not
-establish correctness of patched GetFEM
-3D assembly, physical energy balance,
-MPI compatibility, VTK export,
-mesh/time convergence or boundary
-eigenmodes. Those claims require the
-real archived native evidence.
+Native Maxwell 3D qualification — PASS, 25 November 2026
+----------------------------------------------------------
+
+The real GetFEM/PETSc/MUMPS MPI1 and MPI2 pilot
+**passed nine out of nine physical gates**,
+using the original two-field Nédélec/RT0
+model at ``h=0.7``, ``dt=0.02``, ``tf=0.2``.
+The full evidence is the archive
+``v130-maxwell3d-daac18cb-FCPngFrH.zip``,
+source commit
+``daac18cb36fbc404fcf5c4fe4f2f69121b2ee530``,
+Docker image ``scrimp-mpi:v1.3.0-rc3``
+(revision
+``1d6d0c90115213298047b28237a7f38087563a35``).
+
+.. list-table:: Original Maxwell 3D native evidence
+   :header-rows: 1
+   :widths: 52 24 24
+
+   * - Check
+     - MUMPS MPI1
+     - MUMPS MPI2
+   * - Real tetrahedra
+     - **110**
+     - **110**
+   * - Intrinsic DOFs, Nédélec E / RT0 B
+     - **222 / 275**
+     - **222 / 275**
+   * - CN steps accepted
+     - **10/10**
+     - **10/10**
+   * - Scientific gates
+     - **9/9 PASS**
+     - **9/9 PASS**
+   * - Hamiltonian initial
+     - ``0.6942520909491595``
+     - ``0.6942520909491599``
+   * - Hamiltonian final
+     - ``0.6942520909491590``
+     - ``0.6942520909491603``
+   * - Final magnetic energy
+     - ``0.2582694531373567``
+     - ``0.2582694531373592``
+   * - Maximum cumulative energy defect
+     - ``2.33e-15``
+     - ``2.00e-15``
+   * - Maximum L2 norm of magnetic divergence
+     - ``4.63e-15``
+     - ``4.44e-15``
+
+The two **full FE state histories** have
+11 time samples × 497 coefficients.
+The maximum absolute coefficient
+difference MPI1/MPI2 is
+``4.440892098500626e-16``. The MPI2 rank0
+and rank1 binary histories are identical.
+The saved state SHA256 values agree with
+the original metadata.
+
+**Electromagnetic energy transfer:** from
+``H_E(0)=0.6942520909491595``, ``H_B(0)=0``,
+we obtain ``H_E(0.2)=0.4359826378118022``
+and ``H_B(0.2)=0.2582694531373567``,
+so **37.20% of the original energy moves
+from electric to magnetic storage**, with
+no dissipative loss. The independent GetFEM
+volume quadratures of electric and magnetic
+energy add to ``H`` to within
+``5.55e-17`` on MPI1; the full-step and
+cumulative total Hamiltonian remains
+constant at machine precision.
+
+The magnetic Gauss law is checked by an
+independent real GetFEM volume integral
+of ``(div B)^2``, with
+``||div B||_L2 ≤ 4.7e-15`` over all saved
+times. This is a tested constraint for
+the *discrete* field, not a claim that
+the electric Gauss law was tested.
+
+**VTK verification beyond XML:** all
+**44 VTU files** (2 fields × 11 times ×
+2 MPI configurations) were opened with
+a genuine VTK unstructured-grid reader.
+Every file contains 58 3D points,
+110 native tetrahedral cells (VTK type 10)
+and a finite vector field with three
+components. Mesh geometry matches
+across the eleven times and the two
+MPI configurations. The 4 PVD catalogs
+contain the corresponding 11 timestamps.
+At final time the nodal magnetic-vector
+norm ranges from about 0.367 to 0.375.
+
+**Limitations:** this is the *first
+qualified small native 3D Maxwell
+port-Hamiltonian demonstration* at one
+mesh size and one time step.
+It establishes neither mesh/time convergence,
+electric Gauss-law accuracy, explicit PEC
+boundary traces, cavity-mode correctness
+nor a SuperLU_DIST qualification. The
+boundary remains the documented natural
+zero-work closure, not an imposed PEC wall.
+
