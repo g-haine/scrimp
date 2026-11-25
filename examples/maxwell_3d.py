@@ -99,7 +99,10 @@ def maxwell_3d(*, mesh_size=0.7, final_time=0.2, time_step=0.02,
     model.set_initial_value("B", "[0., 0., 0.]")
 
     model.set_time_scheme(
-        init_step_ts_type="algebraic", init_step=True,
+        # Both states carry a positive mass: this is an ODE, NOT a DAE.
+        # The algebraic initializer requires algebraic unknowns;
+        # a pseudo-TS or artificial DAE spin-up would be wrong here.
+        init_step=False,
         ts_type="cn", ts_adapt_type="none",
         ts_exact_final_time="matchstep",
         t_0=0., t_f=float(final_time),
@@ -146,7 +149,6 @@ def measure_maxwell(system):
     div_B_squared = np.asarray(gauss_B)
     steps = np.diff(H)
     defect = H-H[0]
-    init = system.initialization_report
     scale = max(1.0, float(H[0]))
     gates = {
         "real_3d_mesh": system.domain.get_dim()[0] == 3,
@@ -155,9 +157,9 @@ def measure_maxwell(system):
             and system.last_ts_steps == len(t)-1
             and system.last_ts_rejections == 0
             and system.last_ts_snes_failures == 0),
-        "algebraic_initialization": bool(
-            isinstance(init, dict) and init.get("status") == "PASS"
-            and init.get("differential_initial_exact")),
+        "pure_differential_Maxwell_no_artificial_DAE": bool(
+            len(system.states) == 2 and
+            all(not p.get_algebraic() for p in system.ports.values())),
         "positive_initial_em_energy": bool(
             H[0] > 1e-7 and min(np.min(He), np.min(Hb)) >= -1e-10),
         "electric_and_magnetic_exchange": bool(
