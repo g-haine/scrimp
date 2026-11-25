@@ -661,7 +661,7 @@ for the exact gates, earlier proofs and limits.
 
 
 Original inviscid free-surface visualizations (v1.3.0, direct example run)
--------------------------------------------------------------
+--------------------------------------------------------------------------
 
 The shallow-water **example** also has a genuine, opt-in visual
 mode. **All source code for this example, including the native VTK
