@@ -475,7 +475,6 @@ class ShallowWaterNativeVisualizationSource(unittest.TestCase):
             '1d6d0c90115213298047b28237a7f38087563a35',
             'scripts/check-v130-published-immutable.py',
             'python -u -m examples.shallow_water',
-            '--showcase',
             '--showcase-output /artifacts',
             'examples/shallow_water.py',
             'scripts/verify-v130-shallow-water-showcase.py',
@@ -486,6 +485,12 @@ class ShallowWaterNativeVisualizationSource(unittest.TestCase):
         self.assertIn('"FAIL_OR_UNQUALIFIED_NATIVE_SWE_VISUALS"',checker)
         self.assertIn('"PASS_NATIVE_INVISCID_SWE_VISUALS"',checker)
         ast.parse(checker)
+        # CI / native driver must exercise the default direct example:
+        # --showcase is not a prerequisite for figures or GIF.
+        self.assertNotIn(
+            '--showcase --showcase-output /artifacts',self.runner
+        )
+        self.assertIn('parser.set_defaults(showcase=True)',self.model)
         self.assertNotIn("viscous_swe_2d_mpi.py",self.runner)
 
 
