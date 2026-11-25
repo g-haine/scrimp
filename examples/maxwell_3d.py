@@ -442,7 +442,7 @@ def render_maxwell_visuals(output, observed, state_sha256):
         "Energy: original GetFEM FE quadratures; arrows: original VTK nodal "
         "3D vector samples on the real tetrahedral mesh.\n"
         "The GIF uses fixed camera, vector scale and coordinates.\n"
-        "Arrows are nodal visualizations, not Nedelec edge or RT face DOFs.\n",
+        "Arrows are nodal visualizations, not Nedelec edge or BDM face DOFs.\n",
         encoding="utf-8",
     )
     return provenance
