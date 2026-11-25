@@ -586,8 +586,73 @@ historical pseudo-time initialization and final time
 qualify that full default trajectory or the separate
 high-index rotating viscous Saint-Venant model.
 
-**Status (25 November 2026): new extended pilot prepared;
-native evidence still pending.** See
+**Native qualification PASS (25 November 2026):**
+``PASS_SWE_BOUNDED_NATIVE_BDF2_MPI1_MPI2``.
+All four original GetFEM/PETSc simulations finished:
+20 and 40 BDF2 steps, both MPI 1 and MPI 2, no rejected
+step or nonlinear solver failure, with **4,270 original
+finite element unknowns** and the full FE solution saved
+at all 21 or 41 accepted instants.
+
+.. list-table:: Independently audited real Saint--Venant energy evidence
+   :header-rows: 1
+   :widths: 39 30 31
+
+   * - At fixed ``T=0.002``
+     - 20 steps, ``dt=1e-4``
+     - 40 steps, ``dt=5e-5``
+   * - Original initial Hamiltonian (MPI1)
+     - ``31659.721892373385``
+     - ``31659.721892373385``
+   * - Final Hamiltonian (MPI1)
+     - ``31659.714296554033``
+     - ``31659.718048003433``
+   * - Signed ``H(T)-H(0)-W_boundary`` (MPI1)
+     - ``-0.007595819352``
+     - ``-0.003844369952``
+   * - Relative mass conservation defect (MPI1)
+     - ``3.02e-15``
+     - ``4.26e-15``
+   * - Maximum boundary port power
+     - **0**
+     - **0**
+   * - Max MPI1 vs MPI2 *full FE coefficient* difference
+     - ``9.09e-11``
+     - ``1.27e-10``
+   * - Physical and MPI qualification
+     - **PASS**
+     - **PASS**
+
+The complete **two MPI2 rank trajectories were
+bitwise identical**, including each 4,270-component
+FE state, the Hamiltonian, mass and outer port power.
+The signed numerical energy loss nearly halves when
+the time step is halved, with observed ratio
+``1.9758294457`` and two-point log2 exponent
+``0.9824584184``. This is **an observed energy-defect
+trend only**. The original explicit previous-state
+gyroscopic splitting is not exactly energy-preserving,
+and two resolutions with discontinuous initial water
+height cannot establish an asymptotic convergence order
+or exact long-time conservation.
+
+The exact original user-supplied evidence is
+``v130-shallow-original-extended-9d7a4df7-c8ZnnOFN.zip``,
+from Git source ``9d7a4df78f4fe48e9186e5d255cc9f95e5873291``
+with image ``scrimp-mpi:v1.3.0-rc3``. Original
+FE arrays and the energy identity were rechecked
+independently of the runner's status.
+
+**Qualified scope:** 20 and 40 steps at
+``T=0.002`` with opt-in
+``nonlinear_affine`` initialization, MUMPS
+MPI 1 and 2, original inviscid weak forms,
+homogeneous boundary controls and lagged G.
+The **default** ``T=0.5`` with ``pseudo``
+initialization, mesh convergence,
+higher-index rotating viscous Saint--Venant
+and exact BDF2 power conservation remain
+separate, unqualified objectives. See
 `the v1.3.0 inviscid Saint--Venant acceptance protocol
 <https://github.com/g-haine/scrimp/blob/release/1.3.0-preparation/docs/V130_SHALLOW_WATER_EXAMPLE_ACCEPTANCE.md>`_
 for the exact gates, earlier proofs and limits.
