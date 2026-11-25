@@ -136,6 +136,62 @@ ni qualification SuperLU_DIST. Le modèle 2A et
 notamment la compliance `T^{-1}`, la localisation des
 ports dissipatifs et le bilan `H-H0=W-D_interne-D_feedback`.
 
+## Troisième pilote 2C : bilan de puissance et orientation de bord (25 novembre 2026)
+
+Archive GetFEM originale `v130-wave2d-coenergy-e1c5bc50-bRo68Qaf.zip`,
+source `e1c5bc50`. Les tests source (7), feedbacks
+linéaires (4), interfaces (7) et l'immuabilité publiée
+passent. Les deux configurations MUMPS MPI1/MPI2
+**terminent désormais 10/10 pas CN**, avec 2459 DOFs,
+aucun rejet, initialisation algébrique exacte
+(résidu initial `0.04809` ramené à `9.8e-14`).
+Les pertes internes non nulles sont identiques à
+l'intégrale `e_r²/nu=-p*e_r`, les contrôles de
+feedback et leurs quadratures concordent,
+les trajectoires sont numériquement cohérentes.
+
+Cependant les deux portes énergétiques **échouent** :
+`max|défaut par pas|=4.967881079e-4`,
+`max|défaut cumulé|=3.661327822e-3`.
+L'analyse des vrais tableaux FE `H(t)`, `P=U*Y`
+et `Di` révèle la loi exacte **sur les 10 pas** :
+
+```text
+max |delta H + dt*(Di + P_boundary)| < 7.2e-16,
+max |H-H0 + Li - Lb_old| < 5.1e-16,
+défaut faux de l'ancien bilan = 2*Lb_old exactement,
+Lb_old(final)=0.001830663910981279.
+```
+
+Le diagnostic est sans ambiguïté : les briques d'origine
+`M_Y` et `-B^T` de la formulation Grad–Grad imposent
+`Y=-p` (faiblement sur le bord), et la puissance
+`U*Y` entre dans `dH/dt` avec un **signe négatif**.
+Le feedback imposé `U=-0.5Y` produisait alors
+`P_boundary<0` et **injectait** de l'énergie au lieu
+de dissiper. Les bilans ont donc justement refusé
+de qualifier l'ancienne exécution.
+
+**Correction physique** : rétablir `U=+0.5Y`.
+Le nouveau pilote exige simultanément `P_boundary>=0`,
+`Li>0`, `Lb=integral P_boundary>0`,
+`D_feedback=integral 0.5Y²=P_boundary`, le résidu
+de la loi `U-0.5Y=0`, et les bilans
+`delta H+dt*(Di+P_boundary)=0` puis
+`H-H0+Li+Lb=0`. Aucune tolérance n'a été relâchée.
+L'échantillon **authentique** du pilote refusé est
+figé dans `tests/test_v130_coenergy_boundary_power_orientation.py`,
+pour interdire un nouveau renversement de signe sans
+le signaler ; le test ne remplace pas une exécution
+native du modèle corrigé.
+
+**Statut** : l'ancien scénario est NON QUALIFIÉ ;
+la nouvelle loi passive exige une **nouvelle exécution
+GetFEM/PETSc MUMPS MPI1/2**, les contrôles du fichier
+NPZ et l'export VTK ainsi que les images réelles. Ne
+pas confondre le succès du TS de l'essai précédent
+avec une qualification physique.
+
 ## Deuxième pilote 2C : feedback linéaire à gain constant (25 novembre 2026)
 
 Archive native `v130-wave2d-coenergy-0c44a1ae-rwh9fi2L.zip`
@@ -243,9 +299,13 @@ coénergie. Les corrections scientifiques explicites sont :
   Le code historique utilisait en réalité `T` sous le nom
   `Tinv` : les deux matériaux ne pouvaient pas être considérés
   équivalents.
-- **Feedback physiquement dissipatif** :
-  `U=-0.5*Y` au bord extérieur. L'ancien signe positif
-  `U=+0.5*Y` injectait de la puissance `U*Y`.
+- **Feedback physiquement dissipatif, signe confirmé par FE natif** :
+  `U=+0.5*Y` au bord extérieur. La convention Grad–Grad
+  de l'exemple impose `Y=-p` (au sens faible au bord),
+  `dH/dt=-integral(U*Y)-Di`. Le signe négatif testé
+  initialement `U=-0.5*Y` **injectait** de l'énergie,
+  comme l'a prouvé l'essai natif MPI1/2 `e1c5bc50`.
+  Il a été corrigé sans modifier la structure de Dirac.
 - **Viscosité inversible dans le disque** :
   `nu=0.2+10*(0.36-(x*x+y*y))` sur `region=1`
   uniquement. Cela évite le `1/nu` potentiellement singulier
@@ -260,7 +320,10 @@ coénergie. Les corrections scientifiques explicites sont :
 Le bilan exact visé est `H(t)-H(0)+Li(t)+Lb(t)=0`
 (sans travail de forçage externe), avec
 `Di=integral_region1(e_r²/nu)=-integral_region1(p*e_r)`
-et `Db=-integral_boundary20(U*Y)=integral_boundary20(0.5*Y²)`.
+et `Db=+integral_boundary20(U*Y)=integral_boundary20(0.5*Y²)`.
+La puissance algébrique signée `P=integral UY` est une
+**perte** dans cette convention, à la différence du
+bilan mixte des exemples 2A/2B.
 Le modèle **substitué** ne possède pas de variable indépendante
 `f_r` : appeler `Damping.get_power()` serait incorrect.
 Le calcul `integral nu*p²` est consigné comme diagnostic
