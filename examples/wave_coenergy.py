@@ -182,8 +182,12 @@ def wave_coenergy_eq(
     # TUTORIAL 2C-06: passive outer feedback and two true initial pulses
     ## Initialize the problem
     # The controls expression
-    # U=-kY, Y=p: negative feedback power U*Y=-k*Y**2 <= 0.
-    expressions = [f"-{FEEDBACK_GAIN}*Y"]
+    # The Grad-Grad boundary output has Y=-p (weak trace):
+    # its signed port power is U*Y and dH/dt=-U*Y-D_internal.
+    # Thus U=+kY is passive: U*Y=+k*Y**2 and dH/dt<=0.
+    # The previous U=-kY *injected* energy, as proved by native CN
+    # H+L_internal-L_boundary=0 (e1c5bc50, MPI1/MPI2).
+    expressions = [f"{FEEDBACK_GAIN}*Y"]
     
     # Add each expression to its control_port
     for control_port, expression in zip(control_ports, expressions):
@@ -238,6 +242,11 @@ def wave_coenergy_eq(
 def measure_coenergy(system):
     """Audit actual CN midpoint FE work, damping and boundary feedback.
 
+    Here the signed algebraic boundary power U*Y is a LOSS: because
+    the coenergy Grad-Grad coupling imposes Y=-p (weakly), the original
+    FE balance is dH/dt=-integral(U*Y)-D_r. The passive law is U=+kY.
+    This is not the mixed-boundary 2A/2B sign convention.
+
     The substituted resistive port has *no* independent flow unknown and
     Port.get_power() correctly cannot report its dissipative power.
     We assemble its true mixed FE dissipation in two mathematically
@@ -286,7 +295,7 @@ def measure_coenergy(system):
             f"{FEEDBACK_GAIN}*Y*Y", 20, boundary.get_mesh_id(),
         )
         feedback_constraint[k] = assemble(
-            f"(U+{FEEDBACK_GAIN}*Y)*(U+{FEEDBACK_GAIN}*Y)",
+            f"(U-{FEEDBACK_GAIN}*Y)*(U-{FEEDBACK_GAIN}*Y)",
             20, boundary.get_mesh_id(),
         )
         resistive_weak_residual_L2[k] = assemble(
@@ -299,7 +308,10 @@ def measure_coenergy(system):
 
     dt = np.diff(t)
     step_internal = dt*dr[1:]
-    step_boundary = -dt*P[1:]
+    # Boundary power P=integral(U*Y) is a POSITIVE DISSIPATIVE
+    # LOSS with the original Grad-Grad port orientation; its
+    # contribution to dH/dt is -P, not +P.
+    step_boundary = dt*P[1:]
     Li = np.r_[0., np.cumsum(step_internal)]
     Lb = np.r_[0., np.cumsum(step_boundary)]
     balance = H-H[0]+Li+Lb
@@ -319,12 +331,12 @@ def measure_coenergy(system):
             np.min(H)>-1e-9 and H[0]>1e-6),
         "strictly_positive_internal_dissipation": bool(
             np.min(dr[1:])>=-1e-10 and Li[-1]>1e-8),
-        "negative_nontrivial_feedback_power": bool(
-            np.max(P[1:])<=1e-9 and Lb[-1]>1e-8),
+        "positive_nontrivial_feedback_loss": bool(
+            np.min(P[1:])>=-1e-10 and Lb[-1]>1e-8),
         "independent_weak_internal_loss_matches": bool(
             np.max(np.abs(dr-dr_cross))<=1e-8*magnitude),
         "independent_feedback_quadrature_matches": bool(
-            np.max(np.abs(feedback+P))<=1e-8*magnitude),
+            np.max(np.abs(feedback-P))<=1e-8*magnitude),
         "feedback_algebraic_constraint": bool(
             np.max(np.abs(feedback_constraint))<=1e-8),
         "each_CN_step_dissipative_energy_balance": bool(
