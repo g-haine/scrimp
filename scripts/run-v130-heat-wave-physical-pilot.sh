@@ -18,6 +18,8 @@ python3 -m py_compile \
   examples/heat_wave.py \
   sandbox/probe_v130_main_2d_examples.py \
   sandbox/measure_v130_heat_wave_physics.py \
+  sandbox/measure_v130_hw_dual_facet_physics.py \
+  scrimp/utils/fe_initialization.py \
   tests/test_v130_main_example_solver_policy.py \
   tests/test_v130_heat_wave_physical_pilot.py
 python3 tests/test_v130_main_example_solver_policy.py
@@ -47,6 +49,7 @@ rc=0
   --volume "$root/examples/heat_wave.py:/workspace/scrimp/examples/heat_wave.py:ro" \
   --volume "$root/sandbox/probe_v130_main_2d_examples.py:/probe-2d.py:ro" \
   --volume "$root/sandbox/measure_v130_heat_wave_physics.py:/workspace/scrimp/sandbox/measure_v130_heat_wave_physics.py:ro" \
+  --volume "$root/sandbox/measure_v130_hw_dual_facet_physics.py:/workspace/scrimp/sandbox/measure_v130_hw_dual_facet_physics.py:ro" \
   --volume "$out/native:/artifacts:rw" \
   --volume "$out/work:/scrimp-work:rw" \
   --workdir /scrimp-work \
@@ -87,7 +90,11 @@ try:
             and meta["MPI"]==1 and meta["PETSc_reason"]>0
             and meta["steps"]==4 and meta["rejected_steps"]==0
             and meta["SNES_failures"]==0 and meta["heat_wave_fixed_CN"]
-            and not meta["heat_wave_physics_certified"]):
+            and not meta["heat_wave_physics_certified"]
+            and meta.get("heat_wave_physical_collector") == "native_oriented_two_sided_getfem"
+            and meta.get("heat_wave_initial_wave_boundary",{}).get("method") == "clamp"
+            and meta["heat_wave_initial_wave_boundary"].get("boundary_compatibility_enforced") is True
+            and meta["heat_wave_initial_wave_boundary"].get("after_boundary_l2_coefficients") == 0.0):
         raise RuntimeError("Wrong native fixed-CN diagnostic metadata")
     if not (t.shape==(5,) and H.shape==(5,) and z.ndim==2 and z.shape[0]==5
             and np.all(np.isfinite(H)) and np.all(np.isfinite(z))
