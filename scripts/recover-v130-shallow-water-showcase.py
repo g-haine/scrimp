@@ -33,7 +33,7 @@ import numpy as np
 
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT))
-from examples.shallow_water_visualization import (  # noqa: E402
+from examples.shallow_water import (  # noqa: E402
     render_original_shallow_water_spatial_VTU,
 )
 
