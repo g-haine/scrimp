@@ -5,7 +5,107 @@ Changes to SCRIMP are recorded here. See also the
 
 ## 1.3.0 — in development (not released)
 
-### Heat–Wave 2D — vrai PASS physique MPI1/2 et correctif générique de l’échantillonnage CN sur temps long (25 novembre 2026)
+### Heat–Wave 2D — qualification native physique MPI1/2 et bilan énergétique CN complet sur 15 s : PASS (25 novembre 2026)
+
+- **Qualification native finale obtenue** :
+  archive réelle
+  `v130-heat-wave-MPI2-longCN-97c7606b-7NBvjofW.zip`,
+  source
+  `97c7606bac14f7420140dd1fc2a1d88847301538`,
+  image épinglée
+  `scrimp-mpi:v1.3.0-rc3`, MUMPS.
+  Statut de la preuve
+  `PASS_HEAT_WAVE_MPI2_SHORT_AND_MPI1_LONG_CN_PHYSICAL`,
+  `errors=[]`, contrôle des
+  huit `examples/published/`
+  inchangés PASS. SHA256 de
+  l'archive :
+  `9aff9f1f6cf3708f8736f48a77731ad4d814c08fd0d54c915a32f8aa1ac516fe`.
+- **MPI1 et MPI2 (4 pas CN à
+  `dt=.001`, 7 689 DOFs) : PASS.**
+  Vecteurs FE complets identiques
+  à `2.2297719226571644e-12`
+  au plus entre MPI1 et MPI2,
+  Hamiltoniens à
+  `5.662137425588298e-15`
+  au plus ; **égalité bit-à-bit
+  des deux rangs MPI2** pour les
+  états et toutes les observables.
+  Les quadratures GetFEM des
+  puissances d'interface orientées,
+  dissipation et bilans chaleur/onde
+  respectent les critères physiques
+  sur chaque rang.
+- **MPI1 temps long (3 000 pas CN,
+  `dt=.005`, `t_f=15`) : PASS.**
+  `preflight-rank0.json` vérifie
+  **3 000 pas acceptés, 0 rejet,
+  0 échec SNES et exactement
+  3 001 états FE réellement
+  enregistrés**, sans indice
+  manquant. Le Hamiltonien
+  gaussien diminue de
+  `0.7836421211876778`
+  à `0.008268389052222169`,
+  sans augmentation sur aucun
+  pas accepté. Défauts maximaux
+  des bilans CN pas à pas :
+  chaleur `1.3808398868775384e-15`,
+  ondes `3.978506976989871e-15`,
+  total indépendant
+  `4.017619570362285e-15`.
+  **Bilan énergétique cumulatif
+  sur les 3 000 pas** :
+  `5.697699100711716e-15` ;
+  puissance nette d'interface
+  orientée `3.1086244689504383e-15`.
+  Les tableaux NPZ ont fait l'objet
+  d'un contrôle indépendant
+  des identités et de tous les
+  instants CN réellement adjacents.
+- **Régression générique de sortie
+  corrigée et qualifiée :**
+  le pas PETSc accepté `n=2999`
+  avait été omis des sorties de
+  l'archive précédente `42116b58`
+  par un seuil de temps flottant.
+  Le nouveau `DPHS.monitor`
+  enregistre directement chaque
+  pas réellement accepté pour
+  un CN fixe lorsque
+  `dt_save=dt`.
+  Il ne modifie ni le calcul,
+  ni l'initialisation DAE, ni
+  les équations ou les bilans.
+  Les autres politiques
+  d'échantillonnage sont
+  conservées. L'ancienne archive
+  FAIL est conservée en tant que
+  preuve historique ; la nouvelle
+  archive `97c7606b` contient
+  tous les 3 001 états et
+  satisfait les portes physiques
+  originales, sans relâchement.
+- **Limites strictes :**
+  qualification MPI1/MPI2 sur
+  **4 pas**, temps long physique
+  sur **MPI1 avec condition
+  initiale gaussienne uniquement**.
+  Les deux longues animations
+  (`gaussian` et `gallery_packet`)
+  sont des preuves distinctes
+  de visualisation. MPI2 temps
+  long, VTK parallèle,
+  SuperLU_DIST, convergence
+  h/dt et identification spectrale
+  d'un mode *whispering gallery*
+  ne sont pas revendiqués.
+  Détails dans
+  `docs/V130_HEAT_WAVE_PHYSICAL_AUDIT.md`
+  et `docs/source/examples/heat_wave.rst`.
+
+
+### Heat–Wave 2D — vrai PASS physique MPI1/2 et correctif générique de l’échantillonnage CN sur temps long (25 novembre 2026) — incident antérieur désormais résolu
 
 - **Qualification native MPI1/MPI2 acquise :**
   archive originale
@@ -80,7 +180,7 @@ Changes to SCRIMP are recorded here. See also the
   hors du périmètre.
 
 
-### Heat–Wave 2D — qualification native MPI1/2 et bilan complet à 15 s : campagne préparée (25 novembre 2026)
+### Heat–Wave 2D — qualification native MPI1/2 et bilan complet à 15 s : campagne préparée (25 novembre 2026) — protocole exécuté et qualifié depuis
 
 - Nouveau test **en deux phases**
   `scripts/run-v130-heat-wave-mpi-long-physics.sh`
