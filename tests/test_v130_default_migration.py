@@ -63,10 +63,18 @@ class TestDefaultMigration(unittest.TestCase):
                         else:
                             found.append("<dynamic>")
                 self.assertTrue(found,"No set_time_scheme call")
-                self.assertTrue(
-                    all(x=="pseudo" for x in found),
-                    f"Historical example changed initializer: {found}",
-                )
+                if name=="shallow_water.py":
+                    # Ordinary tutorial invocation keeps historical
+                    # pseudo. ONLY the explicitly requested native
+                    # image showcase chooses qualified nonlinear_affine.
+                    self.assertEqual(found,["pseudo","nonlinear_affine"])
+                    self.assertIn("if showcase:",src)
+                    self.assertIn('showcase=False, showcase_output=None',src)
+                else:
+                    self.assertTrue(
+                        all(x=="pseudo" for x in found),
+                        f"Historical example changed initializer: {found}",
+                    )
 
     def test_separately_qualified_wave_tutorials_use_algebraic(self):
         for name in MODERN_ALGEBRAIC_EXAMPLES:
