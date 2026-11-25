@@ -80,6 +80,58 @@ nouvel exemple **vérifie explicitement la famille
 réellement installée pour chaque état** et
 refuse l'exécution si un élément est remplacé.
 
+## Premier essai natif et correctifs préalables (25 novembre 2026)
+
+L'exécution réelle sur l'image `scrimp-mpi:v1.3.0-rc3`
+au commit `acdb3c75` a **échoué avant l'assemblage
+Maxwell** en MPI 1 et MPI 2. Les 6 tests de source
+ont passé et les 8 exemples publiés sont restés
+immutables. GetFEM a effectivement construit une
+boule 3D de **58 points et 110 éléments**, puis
+assigné les éléments intrinsèques attendus :
+
+- `FEM_NEDELEC(3)` à `E` : **222 DOFs** ;
+- `FEM_RTK(3,0)` à `B` : **275 DOFs**.
+
+Le blocage à ce stade était **une erreur Python
+dans l'audit ajouté par le nouvel exemple**,
+pas une erreur démontrée de l'implémentation
+Nédélec/RT0 ou des équations :
+
+```text
+AttributeError: 'numpy.ndarray' object has no attribute 'char'
+```
+
+En effet, `MeshFem.fem()` renvoie un
+**tableau NumPy de `Fem`** : l'itération
+directe donnait des sous-tableaux, et
+non les `Fem` individuels. Correction
+dans `examples/maxwell_3d.py` :
+`np.asarray(mesh_fem.fem(), dtype=object).ravel()`,
+comparaison de l'ensemble des `Fem.char()`
+avec le descripteur demandé, contrôles
+`qdim=3` et DOFs non nuls. **Aucune
+conversion vers CG n'est autorisée**.
+
+Un second défaut concernait le **vérificateur
+d'archive**, qui ne pouvait pas démarrer
+à cause de `from pathlib` au lieu de
+`from pathlib import Path`. Corrigé ;
+les tests de source compilent maintenant
+le programme Python *à l'intérieur du
+heredoc Bash*, et exercent le garde-fou FE
+sur des tableaux NumPy imbriqués, des cas
+CG substitué et des cas mal formés.
+Les erreurs initiales ont empêché la
+publication d'une archive complète :
+elles n'ont fourni **aucune preuve**
+de conservation énergétique ou de
+correction de la loi de Gauss.
+
+**Statut : correctifs sources poussés,
+nouvelle exécution native nécessaire.
+Le pilote Maxwell 3D n'est PAS qualifié.**
+
 ## Qualification attendue (fail closed)
 
 L'exécution native proposée dure **10 pas CN
