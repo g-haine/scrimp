@@ -19,6 +19,292 @@ import numpy as np
 
 from scrimp.utils.fe_initialization import enforce_zero_dirichlet_initial_values
 
+
+def _read_native_vtk_data_array(element):
+    """Read a real GetFEM ASCII or inline-binary VTU numeric DataArray.
+
+    This viewer deliberately uses the *exported GetFEM field* and native
+    triangles, never a synthetic wave or a guessed triangulation.
+    """
+    import base64
+    import struct
+
+    if element is None:
+        raise ValueError("Missing native GetFEM VTK DataArray")
+    name = element.get("type", "")
+    types = {
+        "Float32": "<f4", "Float64": "<f8",
+        "Int32": "<i4", "Int64": "<i8",
+        "UInt8": "u1", "UInt32": "<u4", "UInt64": "<u8",
+    }
+    if name not in types:
+        raise ValueError("Unsupported native VTK array type: " + name)
+    dtype = np.dtype(types[name])
+    form = element.get("format", "ascii")
+    if form == "ascii":
+        data = np.fromstring(element.text or "", sep=" ", dtype=dtype)
+    elif form == "binary":
+        raw = base64.b64decode((element.text or "").strip(), validate=True)
+        if len(raw) < 4:
+            raise ValueError("Truncated native binary VTU")
+        length = struct.unpack("<I", raw[:4])[0]
+        # GetFEM's PointData is sometimes prefixed with a component
+        # counter rather than a byte count. Validate dimensions at
+        # the VTK Piece layer independently.
+        if length != len(raw)-4 and (len(raw)-4) % dtype.itemsize:
+            raise ValueError("Malformed binary VTU payload")
+        data = np.frombuffer(raw[4:], dtype=dtype).copy()
+    else:
+        raise ValueError("Unsupported GetFEM VTU data format: " + form)
+    if not np.all(np.isfinite(data)):
+        raise ValueError("Nonfinite native GetFEM visualization data")
+    return data
+
+
+def _native_wave_vtk_frame(pvd_dir, frame_file):
+    """Read the actual scalar p field on genuine 2-D VTK triangles."""
+    from xml.etree import ElementTree as ET
+
+    filename = Path(frame_file)
+    if (filename.name != str(filename) or filename.suffix != ".vtu"):
+        raise ValueError("Invalid native VTK snapshot path")
+    root = ET.parse(pvd_dir / filename).getroot()
+    piece = root.find(".//Piece")
+    if piece is None:
+        raise ValueError("Missing GetFEM 2-D VTK Piece")
+    npts = int(piece.get("NumberOfPoints", "0"))
+    ncells = int(piece.get("NumberOfCells", "0"))
+    if npts <= 0 or ncells <= 0:
+        raise ValueError("Empty 2-D GetFEM VTK mesh")
+    points = _read_native_vtk_data_array(
+        piece.find("./Points/DataArray")
+    )
+    if points.size != 3*npts:
+        raise ValueError("Wrong GetFEM VTU coordinate dimensions")
+    points = points.reshape(npts, 3)
+    conn = _read_native_vtk_data_array(
+        piece.find("./Cells/DataArray[@Name='connectivity']")
+    )
+    offsets = _read_native_vtk_data_array(
+        piece.find("./Cells/DataArray[@Name='offsets']")
+    )
+    types = _read_native_vtk_data_array(
+        piece.find("./Cells/DataArray[@Name='types']")
+    )
+    if not (conn.size==3*ncells and offsets.size==ncells
+            and np.array_equal(offsets,3*np.arange(1,ncells+1))
+            and types.size==ncells and np.all(types==5)):
+        raise ValueError("Expected authentic triangular 2-D GetFEM mesh")
+    triangle = np.asarray(conn.reshape(ncells,3),dtype=int)
+    if np.any(triangle<0) or np.any(triangle>=npts):
+        raise ValueError("Invalid GetFEM triangle connectivity")
+    field = piece.find("./PointData/DataArray[@Name='p']")
+    if field is None or int(field.get("NumberOfComponents","1"))!=1:
+        raise ValueError("Missing native scalar velocity p")
+    values = _read_native_vtk_data_array(field)
+    if values.shape!=(npts,):
+        raise ValueError("Wrong native scalar wave field length")
+    if np.max(np.abs(points[:,2])) > 1e-10:
+        raise ValueError("Expected planar GetFEM 2-D geometry")
+    return points[:,:2],triangle,values
+
+
+def render_heat_wave_long_showcase(times, H, *, profile, wave_region):
+    """Create genuine log-log and annular-wave visuals from THIS run.
+
+    Only wave_region=2 can provide the annular gallery. VTK nodal
+    velocity plots are qualitative: they are not a proof of a
+    whispering-gallery eigenmode nor a numerical energy conservation
+    gate. No time interpolation, manufactured data or new physics.
+    """
+    from pathlib import Path
+    from xml.etree import ElementTree as ET
+    from matplotlib import pyplot as plt
+    from matplotlib import tri as mtri
+    from PIL import Image
+    import io
+    import json
+
+    if wave_region != 2:
+        raise ValueError("Gallery visualization requires an exterior wave annulus")
+    times = np.asarray(times,dtype=float).reshape(-1)
+    H = np.asarray(H,dtype=float).reshape(-1)
+    if (len(times)<5 or H.shape!=times.shape
+            or not np.all(np.isfinite(times))
+            or not np.all(np.isfinite(H))
+            or not np.all(np.diff(times)>0)
+            or H[0]<=0):
+        raise ValueError("Incorrect true long-time physical Hamiltonian")
+    base = Path.cwd()/"outputs"
+    gallery = base/"showcase"/"heat_wave_annulus"
+    gallery.mkdir(parents=True,exist_ok=True)
+
+    catalog = base/"pv"/"p"/"p.pvd"
+    pvd = ET.parse(catalog).getroot().findall(".//DataSet")
+    if len(pvd)!=len(times):
+        raise ValueError("GetFEM p VTU frames do not match saved FE times")
+    all_times = np.asarray(
+        [float(frame.attrib["timestep"]) for frame in pvd],
+        dtype=float,
+    )
+    if not np.allclose(all_times,times,atol=1e-9,rtol=1e-9):
+        raise ValueError("GetFEM VTK clock differs from physical FE trajectory")
+
+    # Select actual saved CN instants without interpolating. A long
+    # history may have hundreds of snapshots, but a readable GIF needs
+    # only 48 representative GetFEM frames; ParaView retains ALL frames.
+    selected = np.unique(np.linspace(
+        0,len(times)-1,min(len(times),48),dtype=int,
+    ))
+    positions = None
+    triangles = None
+    velocities = []
+    for i in selected:
+        xy,cells,p = _native_wave_vtk_frame(
+            catalog.parent,pvd[int(i)].attrib["file"],
+        )
+        if positions is None:
+            positions,triangles = xy,cells
+        elif (not np.array_equal(xy,positions)
+                or not np.array_equal(cells,triangles)):
+            raise ValueError("Wave VTK geometry changed within same trajectory")
+        velocities.append(p)
+    velocities = np.asarray(velocities)
+    if np.max(np.abs(velocities))<=0:
+        raise RuntimeError("No nontrivial native annular wave velocity")
+    centroid = positions[triangles].mean(axis=1)
+    r = np.linalg.norm(centroid,axis=1)
+    # Exact Concentric annulus represented by original 2-D GetFEM cells;
+    # the centroid cut is only a visualization filter.
+    mask = (r>=0.6-1e-5) & (r<=1.+1e-5)
+    if np.count_nonzero(mask)<10:
+        raise ValueError("No annular GetFEM triangles in native VTK mesh")
+    plot_triangles=triangles[mask]
+    tri=mtri.Triangulation(
+        positions[:,0],positions[:,1],plot_triangles,
+    )
+    vmax=float(np.max(np.abs(velocities)))
+    scale=max(vmax,1e-14)
+    theta=np.linspace(0.,2.*np.pi,300)
+    def plot_wave(index):
+        fig,ax=plt.subplots(figsize=(6.8,6.4))
+        painting=ax.tripcolor(
+            tri,velocities[index],shading="gouraud",
+            cmap="RdBu_r",vmin=-scale,vmax=scale,
+        )
+        for radius in (0.6,1.):
+            ax.plot(radius*np.cos(theta),radius*np.sin(theta),
+                    color="black",linewidth=0.65,alpha=0.7)
+        fig.colorbar(painting,ax=ax,shrink=0.8,label="p (native GetFEM)")
+        ax.set(aspect="equal",xlabel="x",ylabel="y",xlim=(-1.05,1.05),
+               ylim=(-1.05,1.05))
+        ax.set_title(
+            f"Heat–Wave: velocity in outer annulus · t={times[selected[index]]:.3f}\n"
+            f"{profile} · native FE/VTK (not an eigenmode proof)",
+        )
+        fig.tight_layout()
+        return fig
+
+    # Log-log uses ONLY actual FE Hamiltonian values and t>0.
+    positive=(times>0.) & (H>0.)
+    if not np.count_nonzero(positive)>=3:
+        raise ValueError("Not enough positive real FE Hamiltonian samples")
+    fig,ax=plt.subplots(figsize=(8.6,5.2))
+    ax.loglog(times[positive],H[positive],linewidth=1.8,
+              label="H(t), native GetFEM quadratures")
+    ax.set(xlabel="Time",ylabel="Total Hamiltonian H(t)",
+           title=f"Long-time Heat–Wave Hamiltonian · {profile}")
+    ax.grid(True,which="both",alpha=.25)
+    ax.legend()
+    fig.tight_layout()
+    fig.savefig(gallery/"heat_wave_H_long_loglog.png",dpi=170)
+    fig.savefig(gallery/"heat_wave_H_long_loglog.svg")
+    plt.close(fig)
+
+    snapshots = sorted(set((0,len(selected)//3,
+                            2*len(selected)//3,len(selected)-1)))
+    for index in snapshots:
+        fig=plot_wave(index)
+        fig.savefig(
+            gallery/f"wave_annulus_t{times[selected[index]]:.3f}.png",
+            dpi=150,
+        )
+        plt.close(fig)
+
+    frames=[]
+    for i in range(len(selected)):
+        fig=plot_wave(i)
+        buffer=io.BytesIO()
+        fig.savefig(buffer,format="png",dpi=96)
+        plt.close(fig)
+        buffer.seek(0)
+        with Image.open(buffer) as im:
+            frames.append(im.convert("RGB").copy())
+    frames[0].save(
+        gallery/"wave_annulus_long.gif",
+        save_all=True,append_images=frames[1:],
+        duration=180,loop=0,optimize=False,
+    )
+    # Kinetic concentration diagnostic only: CG1 p^2 exactly integrated
+    # per triangle, but the shell r>=0.82 is approximated by cell
+    # centroid inclusion. It is NOT a full (p^2+|q|^2) FE energy test.
+    area = 0.5*np.abs(
+        (positions[triangles[:,1],0]-positions[triangles[:,0],0])*
+        (positions[triangles[:,2],1]-positions[triangles[:,0],1])-
+        (positions[triangles[:,1],1]-positions[triangles[:,0],1])*
+        (positions[triangles[:,2],0]-positions[triangles[:,0],0])
+    )
+    shell = mask & (r>=0.82)
+    fractions=[]
+    for field in velocities:
+        x=field[triangles]
+        kinetic=area/6.*(
+            (x*x).sum(axis=1)+x[:,0]*x[:,1]+
+            x[:,0]*x[:,2]+x[:,1]*x[:,2]
+        )
+        denom=float(np.sum(kinetic[mask]))
+        fractions.append(
+            None if denom<=1e-22
+            else float(np.sum(kinetic[shell])/denom)
+        )
+    valid=np.array([v is not None for v in fractions],dtype=bool)
+    if np.any(valid):
+        fig,ax=plt.subplots(figsize=(8.5,4.6))
+        ax.plot(times[selected][valid],
+                np.asarray(fractions,dtype=object)[valid].astype(float),
+                marker=".",linewidth=1.1)
+        ax.set(xlabel="Time",ylabel="Fraction of CG1 kinetic proxy in r>=0.82",
+               title="Outer-shell wave localization (diagnostic only)",
+               ylim=(0,1.05))
+        ax.grid(alpha=.25)
+        fig.tight_layout()
+        fig.savefig(gallery/"wave_outer_shell_kinetic_proxy.png",dpi=155)
+        plt.close(fig)
+    result={
+        "schema":"scrimp-heat-wave-long-native-showcase-v1",
+        "status":"VISUALS_GENERATED_FROM_NATIVE_GETFEM_NOT_WG_MODE_CERTIFIED",
+        "initial_profile":profile,
+        "source":"examples/heat_wave.py same-run GetFEM p.pvd/VTU + FE Hamiltonian",
+        "timesteps_saved":int(len(times)),
+        "gif_frames_real":int(len(selected)),
+        "points":int(len(positions)),
+        "annulus_triangles":int(np.count_nonzero(mask)),
+        "outer_shell_threshold_radius":0.82,
+        "kinetic_proxy_shell_fraction":fractions,
+        "selected_true_FE_times":times[selected].tolist(),
+        "initial_H":float(H[0]),"final_H":float(H[-1]),
+        "no_time_interpolation":True,
+        "full_field_energy_localization_certified":False,
+        "whispering_gallery_eigenmode_certified":False,
+        "note":"p nodal CG1 triangle values only; shell uses centroid rule. "
+               "The animation is a visualization, not a modal/eigenvalue proof.",
+    }
+    (gallery/"provenance.json").write_text(
+        json.dumps(result,indent=2)+"\n",encoding="utf-8",
+    )
+    return result
+
+
 def heat_wave_eq(
     heat_region=1, wave_region=2, *, factor_solver=None,
     final_time=2.0, time_step=0.001, save_step=0.05,
@@ -378,12 +664,32 @@ def heat_wave_eq(
     ax.set_xlabel("time t")
     ax.set_ylabel("Hamiltonian")
     ax.set_title("Evolution of the Hamiltonian (log-log)")
+    # The example itself saves this long-time diagnostic, with t=0
+    # excluded because log(0) is undefined. Never fit an exponent
+    # unless a separate physical convergence/decay study validates it.
+    from pathlib import Path
+    png = Path.cwd()/"outputs"/"png"
+    png.mkdir(parents=True,exist_ok=True)
+    fig.tight_layout()
+    fig.savefig(png/("Hamiltonian_Heat"+str(heat_region)+
+                     "_Wave"+str(wave_region)+"_2D_loglog.png"),dpi=170)
+    fig.savefig(png/("Hamiltonian_Heat"+str(heat_region)+
+                     "_Wave"+str(wave_region)+"_2D_loglog.svg"))
     plt.show()
     plt.close(fig)
     
     hw.export_to_pv("p")
     hw.export_to_pv("T")
-    
+    if long_showcase:
+        if wave_region != 2:
+            raise ValueError("Long annular showcase requires wave_region=2")
+        # Original genuine RT stress field, also browseable in ParaView.
+        hw.export_to_pv("q")
+        hw.heat_wave_showcase_report = render_heat_wave_long_showcase(
+            t, Hamiltonian,
+            profile=initial_wave_profile, wave_region=wave_region,
+        )
+
     return hw
 
 if __name__ == "__main__":
