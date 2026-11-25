@@ -81,6 +81,31 @@ class HeatWaveNativeMPIAndLongSourceTests(unittest.TestCase):
         self.assertIn("raise RuntimeError(",self.probe)
         self.assertIn("all_MPI_ranks_agree_exactly",self.probe)
 
+    def test_strict_preflight_diagnoses_dropped_CN_state_before_rejecting(self):
+        # The actual native 42116b58 archive has 3,001 monitor calls,
+        # but only 3,000 saved FE endpoints because n=2999 was
+        # dropped by a long-time floating-clock threshold.
+        # The strict verifier must NEVER infer the missing CN midpoint.
+        for token in (
+            'accepted_PETSc_TS_steps',
+            'expected_saved_FE_states',
+            'actual_saved_FE_states',
+            'missing_accepted_grid_indices',
+            'preflight-rank{rank}.json',
+            'np.rint(times/args.dt)',
+            'times.shape!=(args.steps+1,)',
+            'Original GetFEM/PETSc fixed-CN full FE trace invalid:',
+            'see preflight-rankN.json',
+        ):
+            self.assertIn(token,self.probe)
+        monitor=(ROOT/"scrimp/dphs.py").read_text()
+        self.assertIn('fixed_cn_accept = fixed_cn_accepted_step_is_due(',monitor)
+        self.assertIn('(i == 0) or fixed_cn_accept',monitor)
+        self.assertIn('saved_time_is_due(t, next_saved_at_t, dt_save)',monitor)
+        self.assertNotIn('interpolate',self.probe.split(
+            '    times=real(system.solution["t"]',1
+        )[1].split('    traces,diagnostic=',1)[0].lower())
+
     def test_native_runner_phases_image_and_archive(self):
         for needle in (
             'run_case mpi1_short 1 .001 4 gaussian',
