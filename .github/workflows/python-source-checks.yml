@@ -72,6 +72,7 @@ jobs:
 
       - name: Guard original inviscid Saint-Venant native height and velocity GIF showcase
         run: |
+          python -m pip install 'matplotlib>=3.7,<4' 'pillow>=10,<13'
           python -m py_compile \
             examples/shallow_water.py \
             examples/shallow_water_visualization.py \
