@@ -32,10 +32,10 @@ class Maxwell3DSourceTests(unittest.TestCase):
     def test_actual_3d_geometry_and_both_patched_intrinsic_families(self):
         for needle in (
             'S.Domain("Ball", {"R": 1., "h": float(mesh_size)})',
-            'fem_E = S.FEM("E", -1, "FEM_NEDELEC(3)")',
-            'fem_B = S.FEM("B", 0, "RT")',
-            'GetFEM FEM_RTK(3,0)',
-            '"FEM_NEDELEC(3)"',
+            'fem_E = S.FEM("E", 1, "NED2")',
+            'fem_B = S.FEM("B", 1, "BDM")',
+            'GetFEM FEM_BDMK(3,1)',
+            '"NED2"',
             'actual_type = fem.get_type()',
             'actual_order = fem.get_order()',
             'mesh_fem = fem.get_fem()',
@@ -44,6 +44,9 @@ class Maxwell3DSourceTests(unittest.TestCase):
             self.assertIn(needle, self.source)
         self.assertNotIn('S.FEM("E", 1, "CG")', self.source)
         self.assertNotIn('S.FEM("B", 1, "CG")', self.source)
+        self.assertIn('"getfem": "FEM_NEDELEC2(3,1)"', self.source)
+        self.assertIn('"getfem": "FEM_BDMK(3,1)"', self.source)
+        self.assertIn('("NED2", 1)', self.source)
 
     def test_intrinsic_fem_guard_checks_registered_scrimp_type_and_order(self):
         """Test the exact FEM.set_fem() CG fallback policy, not wrapper arrays."""
@@ -70,7 +73,7 @@ class Maxwell3DSourceTests(unittest.TestCase):
                 return self.ndof
 
         class FakeScrimpFEM:
-            def __init__(self, family="FEM_NEDELEC(3)", order=-1,
+            def __init__(self, family="NED2", order=1,
                          native=None):
                 self.family = family
                 self.order = order
@@ -85,25 +88,25 @@ class Maxwell3DSourceTests(unittest.TestCase):
             def get_fem(self):
                 return self.native
 
-        self.assertEqual(guard(FakeScrimpFEM(), "FEM_NEDELEC(3)", -1), 222)
+        self.assertEqual(guard(FakeScrimpFEM(), "NED2", 1), 222)
         self.assertEqual(
-            guard(FakeScrimpFEM("RT", 0, FakeMeshFem(ndof=275)), "RT", 0),
+            guard(FakeScrimpFEM("BDM", 1, FakeMeshFem(ndof=275)), "BDM", 1),
             275,
         )
         for family, order in (
             ("CG", 1),  # SCRIMP FEM.set_fem's exact fallback mutation
-            ("FEM_NEDELEC(3)", 1),
+            ("NED2", 2),
             ("RT", 0),
-            ("FEM_BDMK(3,1)", -1),
+            ("BDM", 0),
         ):
             with self.subTest(family=family, order=order):
                 with self.assertRaises(RuntimeError):
-                    guard(FakeScrimpFEM(family, order), "FEM_NEDELEC(3)", -1)
+                    guard(FakeScrimpFEM(family, order), "NED2", 1)
         for qdim, ndof in ((1,222), (3,0), (0,0)):
             with self.subTest(qdim=qdim, ndof=ndof):
                 with self.assertRaises(RuntimeError):
                     guard(FakeScrimpFEM(native=FakeMeshFem(qdim, ndof)),
-                          "FEM_NEDELEC(3)", -1)
+                          "NED2", 1)
 
     def test_native_guard_uses_wrapper_metadata_not_getfem_array_layout(self):
         guard = next(
