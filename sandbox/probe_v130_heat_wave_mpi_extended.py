@@ -139,7 +139,16 @@ def main():
             or abs(system.last_ts_time-tf)>1e-9
             or H[0]<=0.
             or np.max(abs(states[-1]-states[0]))<1e-12):
-        raise RuntimeError("Original GetFEM/PETSc fixed-CN full FE trace invalid")
+        raise RuntimeError(
+            "Original GetFEM/PETSc fixed-CN full FE trace invalid: "
+            f"TS_accepted={preflight['accepted_PETSc_TS_steps']} "
+            f"saved={preflight['actual_saved_FE_states']}/"
+            f"{preflight['expected_saved_FE_states']} "
+            f"missing_grid_indices={preflight['missing_accepted_grid_indices'][:20]} "
+            f"last_t={preflight['last_saved_time']} "
+            f"final_TS={preflight['TS_final_time']}; "
+            "see preflight-rankN.json (no synthetic FE states)"
+        )
 
     traces,diagnostic=collect_heat_wave_dual_facet_physics(
         system,times,H,heat_faces=heat_faces,wave_faces=wave_faces,
