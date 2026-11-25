@@ -6,7 +6,7 @@ Maxwell equations in 3D — minimal Nédélec / Raviart–Thomas example
 Why a new Maxwell example?
 --------------------------
 
-The wave tutorials :doc:``wave`` and :doc:``wave_coenergy`` work
+The wave tutorials :doc:`wave` and :doc:`wave_coenergy` work
 in two spatial dimensions. This is an intentionally **tiny
 genuine 3D test**: a homogeneous sphere, just two vector
 unknowns, no sources, no feedback controllers, and four
@@ -22,10 +22,10 @@ wave benchmark.
 A normalized Maxwell system
 ---------------------------
 
-Let :math:``\Omega`` be the unit ball in
-:math:``\mathbb R^3``, filled with a homogeneous,
+Let :math:`\Omega` be the unit ball in
+:math:`\mathbb R^3`, filled with a homogeneous,
 isotropic, lossless material with **dimensionless**
-:math:``\varepsilon=\mu=1``. The electric field
+:math:`\varepsilon=\mu=1`. The electric field
 :math:``E`` and the magnetic induction :math:``B`` satisfy
 
 .. math::
