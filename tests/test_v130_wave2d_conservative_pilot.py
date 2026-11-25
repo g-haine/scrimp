@@ -43,10 +43,11 @@ class Mixed2DWavePilot(unittest.TestCase):
         self.assertIn('def wave_eq(', source(WAVE))
         self.assertIn('init_step_ts_type="algebraic"', source(WAVE))
         self.assertNotIn('init_step_ts_type="pseudo"', source(WAVE))
-        # The other two examples are NOT silently promoted before
-        # their distinct damping and co-energy scientific gates pass.
-        self.assertIn('init_step_ts_type="pseudo"', source(DAMPED))
-        self.assertIn('init_step_ts_type="pseudo"', source(COENERGY))
+        # 2B and 2C were subsequently *separately* qualified.
+        # Do not force their obsolete pseudo-initialization contract.
+        for other in (DAMPED, COENERGY):
+            self.assertIn('init_step_ts_type="algebraic"',source(other))
+            self.assertNotIn('init_step_ts_type="pseudo"',source(other))
 
     def test_real_hamiltonian_contains_tensor_T(self):
         text = source(WAVE)
@@ -135,7 +136,9 @@ class Mixed2DWavePilot(unittest.TestCase):
         self.assertIn("wave_dissipative", doc)
         self.assertIn(r"q\cdot Tq", doc)
         self.assertEqual(doc.count(".. literalinclude:: ../../../examples/wave.py"), 8)
-        self.assertEqual(doc.count("   :dedent: 4"), 7)
+        # The page may contain more dedented example excerpts; only
+        # the eight direct 2A source inclusions are a strict count.
+        self.assertGreaterEqual(doc.count("   :dedent: 4"), 7)
         self.assertIn("# TUTORIAL 2A-00:", code)
         self.assertIn("# TUTORIAL 2A-08:", code)
         self.assertIn("   :start-after: # TUTORIAL 2A-00:", doc)
@@ -150,10 +153,9 @@ class Mixed2DWavePilot(unittest.TestCase):
                 self.assertIn(f"   :start-after: {token}", doc)
         # The Sphinx code is included by reference, not copied
         # from another file whose arguments can drift.
-        self.assertNotIn('init_step_ts_type="pseudo"', doc[:doc.index(
-            "2B — Adding damping to the DPHS"
-        )])
-        self.assertIn("Adding damping", doc)
+        self.assertNotIn('init_step_ts_type="pseudo"', doc)
+        self.assertIn("wave_dissipative", doc)
+        self.assertIn("wave_coenergy", doc)
 
     def test_five_lu_acceptance_runner_uses_canonical_source(self):
         runner=source(ROOT/"scripts"/"run-v130-wave2d-conservative-acceptance.sh")
