@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 # SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
+#
 # Copyright (C) 2015-2026 ISAE-SUPAERO -- GNU GPLv3
+# 
+# See the LICENSE file for license information.
+#
+# github: https://github.com/g-haine/scrimp
 """Re-audit ORIGINAL long Heat-Wave native ZIP evidence, without rerunning CN.
 
 The 2026-11-25 b9d56fcc pilot finished both genuine 15-second simulations
