@@ -75,7 +75,8 @@ jobs:
           python -m py_compile \
             examples/heat_wave.py \
             scrimp/utils/fe_initialization.py \
-            tests/test_v130_heat_wave_showcase_source.py
+            tests/test_v130_heat_wave_showcase_source.py \
+            scripts/verify-v130-heat-wave-long-archive.py
           bash -n scripts/run-v130-heat-wave-long-showcase.sh
           python tests/test_v130_heat_wave_showcase_source.py
           python scripts/check-v130-published-immutable.py
