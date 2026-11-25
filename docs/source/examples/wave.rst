@@ -653,6 +653,137 @@ declaring this example qualified:
    SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
    bash scripts/run-v130-wave2d-dissipative-pilot.sh
 
+Long native dissipative showcase — 100 CN steps
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**PASS, 25 November 2026**, on the authentic
+GetFEM/PETSc archive
+``v130-wave2d-2b-showcase-dbdc49cf-G1CKQAVG.zip``
+(source ``dbdc49cfcac47d4daa1706b3fc2fa4b53646b0a2``,
+pinned Docker ``scrimp-mpi:v1.3.0-rc3``).
+The actual executable ``examples/wave_dissipative.py``
+ran with ``h=0.1``, ``dt=0.01``, ``tf=1`` and
+``damping_strength=1.0``, on **MUMPS MPI1**:
+**10,204 DOFs**, **100/100 fixed CN steps**,
+zero rejected steps or nonlinear failures,
+and PASS on exact-algebraic DAE initialisation
+(the algebraic residual is zero). All
+**10 native physical gates passed**.
+
+.. list-table:: Original long 2B power/energy audit
+   :header-rows: 1
+   :widths: 60 40
+
+   * - Quantity
+     - Measured value
+   * - Hamiltonian at ``t=0``
+     - ``0``
+   * - Hamiltonian at ``t=1``
+     - ``0.03205555671004583``
+   * - Injected signed boundary work ``W(1)``
+     - ``0.03710798721523879``
+   * - Cumulative viscous loss ``L(1)``
+     - ``0.005052430505192933``
+   * - Maximum absolute defect per CN step
+     - ``9.39e-17``
+   * - Maximum absolute cumulative defect
+     - ``9.28e-17``
+   * - Native time series ``q,p,e_q,e_p,f_r,e_r``
+     - 6 × 101 = **606 VTU**, six PVD
+
+The original FE arrays satisfy the **open
+dissipative balance** ``H-H0=W_boundary-L``,
+not unconditional monotonicity of ``H``.
+The three non-driven Neumann boundaries
+carry exactly zero power. The integral
+``D=integral f_r*e_r`` is positive and agrees
+with an independently assembled GetFEM
+volume integral ``integral nu*f_r*f_r``.
+The flow equation ``f_r=-e_p`` is satisfied
+to machine precision in its FE test.
+
+The archive includes true 101-frame VTK/PVD
+series for all six fields, plus energy CSV,
+PNG/SVG figures and a 101-frame animation
+``p_evolution.gif``. All 101 VTK timestamps
+were verified against the original CN states.
+
+2A versus 2B — same physical inputs, different dissipation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The independently inspected 2A and 2B long
+archives have the **same rectangle, anisotropic
+tensor, density, velocity boundary drive,
+mesh size and CN time grid**. The VTK mesh
+coordinates and cell connectivity for the
+field ``p`` coincide exactly at ``t=0``,
+``t=0.5``, ``t=1``. Adding two algebraic
+resistive fields increases the model DOFs
+from 8,138 (2A) to 10,204 (2B).
+
+.. list-table:: Original FE energy comparison at ``tf=1``
+   :header-rows: 1
+   :widths: 40 30 30
+
+   * - Quantity
+     - Conservative 2A
+     - Dissipative 2B
+   * - Injected work ``W(1)``
+     - ``0.03707053141235698``
+     - ``0.03710798721523879``
+   * - Dissipated energy ``L(1)``
+     - ``0``
+     - ``0.005052430505192933``
+   * - Remaining mechanical energy ``H(1)``
+     - ``0.03707053141235693``
+     - ``0.03205555671004583``
+
+**2B has 13.528% less mechanical energy**
+than 2A at ``t=1``. The *applied control is
+identical*, but the *work delivered* need not
+be: it depends on the dynamical response.
+Consequently the difference in stored energy
+is not exactly the dissipated energy.
+The exact comparison identity is
+
+.. math::
+
+   \mathcal H_{2A}-\mathcal H_{2B}
+   = L_{2B} - (W_{2B}-W_{2A}),
+
+which matches the real GetFEM values to
+``2.08e-17``. This distinction matters when
+illustrating dissipation in an **open**
+port-Hamiltonian system.
+
+A separate comparison figure of the native
+fields ``p`` at ``t=0.5`` and ``t=1`` uses the
+**same color scale** for both simulations.
+It depicts *momentum* ``p``, not velocity
+``e_p``; the original ``e_p`` VTK series
+is available for a velocity-specific figure.
+The resulting pointwise visual differences
+are moderate on this time interval; the
+energy deficit is the clearer diagnostic.
+
+To reproduce the long 2B showcase:
+
+.. code-block:: bash
+
+   cd ~/Simulations/scrimp
+   git pull --ff-only
+   conda activate scrimp
+   SCRIMP_DOCKER_NO_SUDO=1 \
+   SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+   bash scripts/run-v130-wave2d-showcase.sh 2b
+
+**Scope:** MUMPS MPI1 only at the long showcase
+resolution. The short native MUMPS MPI1/MPI2
+2B pilot passed separately; this archive
+does **not** establish mesh/time convergence,
+long-run MPI1/2 parity or SuperLU_DIST
+qualification for 2B.
+
 The progressive example **2C**, :doc:`wave_coenergy`,
 will then introduce an explicitly different co-energy
 formulation, instead of merely renaming these variables.
