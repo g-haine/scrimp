@@ -170,6 +170,13 @@ def measure_maxwell(system):
             np.max(np.abs(steps)) < 1e-9*scale),
         "cumulative_em_energy_conserved": bool(
             np.max(np.abs(defect)) < 1e-9*scale),
+        # Gauss(B): curl E belongs to RT0 on the same tetrahedral mesh;
+        # B(0)=0, hence the compatible discrete div B must stay zero.
+        # This guards the *second* Maxwell constraint independently
+        # of the skew/energy check, not only as a plotted diagnostic.
+        "magnetic_gauss_law": bool(
+            np.min(div_B_squared) >= -1e-12*scale and
+            np.max(div_B_squared) <= 1e-8*scale),
     }
     return dict(t=t, z=z, H=H, electric_energy=He, magnetic_energy=Hb,
                 div_B_squared=div_B_squared, step_energy_defect=steps,
