@@ -147,7 +147,7 @@ The weak formulation is deliberately minimal:
 The GetFEM generic weak-form language does
 not supply a portable built-in 3D ``Curl`` in
 this image. The canonical example defines
-the operator explicitly from the 3×3 gradient
+the operator explicitly from the 3x3 gradient
 tensor, **without** imposing an ad hoc
 stencil or swapping the curl orientation:
 
@@ -512,7 +512,7 @@ Docker image ``scrimp-mpi:v1.3.0-rc3``
      - ``4.44e-15``
 
 The two **full FE state histories** have
-11 time samples × 497 coefficients.
+11 time samples x 497 coefficients.
 The maximum absolute coefficient
 difference MPI1/MPI2 is
 ``4.440892098500626e-16``. The MPI2 rank0
@@ -536,13 +536,13 @@ constant at machine precision.
 The magnetic Gauss law is checked by an
 independent real GetFEM volume integral
 of ``(div B)^2``, with
-``||div B||_L2 ≤ 4.7e-15`` over all saved
+``||div B||_L2 <= 4.7e-15`` over all saved
 times. This is a tested constraint for
 the *discrete* field, not a claim that
 the electric Gauss law was tested.
 
 **VTK verification beyond XML:** all
-**44 VTU files** (2 fields × 11 times ×
+**44 VTU files** (2 fields x 11 times x
 2 MPI configurations) were opened with
 a genuine VTK unstructured-grid reader.
 Every file contains 58 3D points,
