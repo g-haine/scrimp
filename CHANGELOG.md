@@ -5,6 +5,118 @@ Changes to SCRIMP are recorded here. See also the
 
 ## 1.3.0 — in development (not released)
 
+### Heat–Wave 2D — bilan CN physique MUMPS MPI1 PASS et jeux de données 15 s complets, ré-audités sur archives (25 novembre 2026)
+
+- **Premier PASS natif complet** du vrai
+  `examples/heat_wave.py`, source
+  `b9d56fccc18c1f9facacdd9b6c2645c4de25fc47`,
+  Docker `scrimp-mpi:v1.3.0-rc3` :
+  `v130-heat-wave-physical-b9d56fcc-3FQ8lFlC.zip`,
+  `PASS_HEAT_WAVE_PHYSICAL_MUMPS_MPI1`,
+  **10/10 contrôles physiques**,
+  **7 689 DOFs**, quatre pas CN fixes
+  `dt=0.001` à `t_f=0.004`, MUMPS MPI1,
+  `errors=[]`. L'initialisation
+  gaussienne `p` est strictement
+  compatible après clamp des DOFs
+  CG1 extérieurs, sans relâcher
+  les contraintes DAE. Les deux
+  normales physiques de l'interface
+  conforme sont correctement utilisées.
+- `H(0)=0.7836421211876778` ;
+  `H(0.004)=0.6808984803105300`.
+  Dissipation thermique positive et
+  non triviale ; défaut maximal de
+  puissance totale orientée à
+  l'interface `8.881784197e-16`,
+  travail au bord extérieur
+  `7.733659e-24` ; résidus CN
+  chaleur `4.91620633e-15`,
+  onde `1.38517670e-15`,
+  total `5.45744006e-15`,
+  cumul `3.84370313e-15`.
+  Conservation/dissipation de la
+  puissance **vérifiée par des
+  quadratures GetFEM indépendantes**,
+  pas déduite du statut PETSc.
+- **Deux simulations longues réelles**
+  de `3 000 pas CN` chacune
+  (`t_f=15`, `dt=0.005`,
+  sauvegardes toutes `0.05`),
+  MUMPS MPI1 et code d'exemple
+  identique : gaussienne
+  `H: 0.783642 → 0.00826839`
+  (**−98.9449 %**), paquet
+  angulaire annulaire
+  `H: 0.462644 → 0.377942`
+  (**−18.3084 %**).
+  `H(t)` reste strictement
+  décroissant aux **301 dates**
+  réellement sauvegardées pour
+  chaque excitation. Les archives
+  ont chacune 301 VTU GetFEM pour
+  chacun des champs `p,q,T`
+  (**903 VTU par simulation**),
+  quatre instantanés de l'onde,
+  un GIF original de **48 images**,
+  les courbes log-log PNG/SVG
+  générées par
+  `examples/heat_wave.py` et les
+  tableaux FE énergétiques originaux.
+- La commande native de ces
+  simulations s'est bien terminée
+  (`native_exit_code=0`), mais
+  l'**ancien auditeur post-run**
+  a marqué les deux archives
+  `FAIL_OR_UNQUALIFIED_LONG_HEAT_WAVE_SHOWCASE`
+  par erreur Python XML :
+  `frame["file"]` au lieu de
+  `frame.attrib["file"]`.
+  Corrigé dans
+  `scripts/run-v130-heat-wave-long-showcase.sh`
+  avec test AST de non-régression.
+  Nouveau
+  `scripts/verify-v130-heat-wave-long-archive.py` :
+  vérifie les **deux ZIP originaux
+  sans recalcul ni modification**,
+  écrit un sidecar `.reaudit.json`
+  indépendant, limite le PASS à
+  `PASS_ARCHIVED_LONG_NATIVE_VISUALS_NOT_WG_MODE_PROOF`.
+  L'examen indépendant des ZIP
+  fournis confirme la complétude
+  des données, les temps VTK
+  et les animations.
+- La fraction cinétique nodale
+  approximative dans la couronne
+  `r>=0.82` est en moyenne
+  `0.587` pour le paquet
+  angulaire, contre `0.380`
+  pour la gaussienne. Les images
+  suggèrent une localisation
+  préférentielle, **pas** un
+  mode propre de
+  *whispering gallery* qualifié :
+  pas de mesure de propagation
+  tangentielle, ni étude modale
+  spectrale, ni preuve d'un
+  exposant de décroissance.
+- **Limites du PASS** :
+  MPI1/MUMPS sur le cas
+  CN court ; simulations longues
+  et visuels requalifiés **à partir
+  d'archives natives complètes**,
+  sans nouveau test de bilan
+  puissance/sous-systèmes sur
+  tout l'horizon `t_f=15`.
+  MPI2, SuperLU_DIST, ordre h/dt
+  et modes propres restent
+  des qualifications distinctes.
+  Détails :
+  `docs/V130_HEAT_WAVE_PHYSICAL_AUDIT.md`
+  et
+  `docs/source/examples/heat_wave.rst`.
+
+
 ### Heat–Wave 2D — initialisation au bord corrigée ; visuels log-log temps long et propagation annulaire (25 novembre 2026)
 
 - Le premier pilote physique natif (`937718d2`) construit
