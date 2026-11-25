@@ -183,11 +183,14 @@ class ShallowWaterNativeVisualizationSource(unittest.TestCase):
             '--showcase',
             '--showcase-output /artifacts',
             'examples/shallow_water_visualization.py',
-            '"FAIL_OR_UNQUALIFIED_NATIVE_SWE_VISUALS"',
-            '"PASS_NATIVE_INVISCID_SWE_VISUALS"',
+            'scripts/verify-v130-shallow-water-showcase.py',
             'with zipfile.ZipFile(archive,"x"',
         ):
             self.assertIn(token,self.runner,msg=token)
+        checker=(ROOT/"scripts/verify-v130-shallow-water-showcase.py").read_text()
+        self.assertIn('"FAIL_OR_UNQUALIFIED_NATIVE_SWE_VISUALS"',checker)
+        self.assertIn('"PASS_NATIVE_INVISCID_SWE_VISUALS"',checker)
+        ast.parse(checker)
         self.assertNotIn("viscous_swe_2d_mpi.py",self.runner)
 
 
