@@ -116,12 +116,30 @@ The semidiscrete system is
    \rho\dot p=\operatorname{div}q+e_r
    \quad (e_r\text{ acts only on }\Omega_1),
 
-with boundary observation `Y=p` and externally applied
-traction `U`. The negative output feedback `U=-0.5Y`
-is physically dissipative: its actual signed boundary
-power is `P_b=integral UY <= 0`.
-The original `U=+0.5Y` has the *opposite* sign and
-must not be labeled feedback dissipation.
+with the **signed Grad–Grad boundary observation**
+`Y=-p` (in the boundary FE weak sense). The trace is
+not the `Y=p` used in an alternative boundary-port
+orientation. The algebraic signed port power reported
+by SCRIMP is `P_b=integral UY`, and the original
+co-energy Dirac bricks give
+
+.. math::
+
+   \frac{\mathrm d\mathcal H}{\mathrm dt}
+   =-\int_{\partial\Omega} UY\,\mathrm ds
+    -\int_{\Omega_1}\frac{e_r^2}{\nu}\,\mathrm dx.
+
+**Consequently the passive control is `U=+0.5Y`**:
+`P_b=+0.5*integral Y^2 >= 0`, and this port power
+is **subtracted** from the Hamiltonian. A previous
+trial mistakenly used `U=-0.5Y`: the unqualified
+real MUMPS MPI1/2 archive
+`v130-wave2d-coenergy-e1c5bc50-bRo68Qaf.zip`
+proved that law injected energy. Its measured identity
+was `H-H0+Li-Lb=0` to 1e-15, with the entire rejected
+energy defect equal to twice the signed boundary work.
+This is a physical sign correction, **not** an adjustment
+to energy tolerances or an arbitrary renaming of power.
 
 For the two dissipative mechanisms, define
 
@@ -130,7 +148,8 @@ For the two dissipative mechanisms, define
    D_i=\int_{\Omega_1}\frac{e_r^2}{\nu}\,\mathrm dx
       =-\int_{\Omega_1}p e_r\,\mathrm dx\ge0,
    \qquad
-   D_b=-\int_{\partial\Omega} UY\,\mathrm ds\ge0.
+   D_b=\int_{\partial\Omega} UY\,\mathrm ds
+      =0.5\int_{\partial\Omega}Y^2\,\mathrm ds\ge0.
 
 The equality for `D_i` holds **in the FE weak
 projection**. The pointwise integral `integral nu*p^2`
