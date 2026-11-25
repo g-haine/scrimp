@@ -83,6 +83,23 @@ class WaveCoenergySourceTests(unittest.TestCase):
         self.assertIn("resistive_weak_residual_L2",self.source)
         self.assertNotIn("resistive.get_power()",self.source)
 
+    def test_port_orientation_is_original_grad_grad_not_mixed_2a(self):
+        # In the Grad-Grad coenergy assembly, the flow brick is negated
+        # by DPHS.add_brick; together with -B^T this implies Y=-p.
+        # Therefore H'=-integral(U*Y)-D_r. U=+kY is passive.
+        self.assertIn(
+            'S.Brick("M_Y", "Y*Test_Y", [20], position="flow")',
+            self.source,
+        )
+        self.assertIn(
+            'S.Brick("-B^T", "-p*Test_Y", [20], position="effort")',
+            self.source,
+        )
+        self.assertIn('expressions = [f"{FEEDBACK_GAIN}*Y"]',self.source)
+        self.assertIn('step_boundary = dt*P[1:]',self.source)
+        self.assertIn('"independent_feedback_quadrature_matches"',self.source)
+        self.assertNotIn('step_boundary = -dt*P[1:]',self.source)
+
     def test_exact_dae_and_ten_fixed_cn_steps(self):
         for s in (
             'init_step_ts_type="algebraic", init_step=True',
