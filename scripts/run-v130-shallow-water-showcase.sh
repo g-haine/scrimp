@@ -78,7 +78,7 @@ rc=0
   timeout -k 10s "${SCRIMP_V130_SW_SHOWCASE_TIMEOUT:-3600s}" \
   mpiexec --oversubscribe --bind-to none -n 1 \
   python -u -m examples.shallow_water \
-    --showcase --showcase-output /artifacts \
+    --showcase-output /artifacts \
     --final-time "$tf" --time-step "$dt" --save-step "$save" \
     --factor-solver mumps \
   >"$out/native.host.log" 2>&1 || rc=$?
