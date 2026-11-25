@@ -1,7 +1,175 @@
 # SCRIMP v1.3.0 — Heat–Wave 2D: physically meaningful example
 
-**23 November 2026 — physical MODEL REVISION COMMITTED IN SOURCE;
-native GetFEM/PETSc and CN power-balance qualification PENDING.**
+**25 November 2026 — native Heat–Wave 2D physical CN pilot
+MUMPS MPI1 PASS (10/10), and both authentic 15-second visual
+simulations independently re-audited on their archived evidence.
+No long-horizon subsystem-power PASS or gallery eigenmode is implied.**
+
+## Qualification after DAE initial correction — PASS (25 November 2026)
+
+**Source/archived evidence:** canonical
+`examples/heat_wave.py`,
+commit `b9d56fccc18c1f9facacdd9b6c2645c4de25fc47`,
+Docker `scrimp-mpi:v1.3.0-rc3`,
+archive `v130-heat-wave-physical-b9d56fcc-3FQ8lFlC.zip`.
+Its native `summary.json` reports
+`PASS_HEAT_WAVE_PHYSICAL_MUMPS_MPI1`,
+**ten strict independent gates PASS,
+errors=[]**, and unchanged eight
+`examples/published/` files.
+
+The real `Concentric` mesh with physical
+outward normals, `initial_wave_boundary="clamp"`
+and strict algebraic initializer successfully
+completed **four fixed Crank–Nicolson steps**
+at `dt=0.001`, `t_f=0.004` using **MUMPS MPI1**.
+The complete pH finite element system contains
+**7 689 DOFs**. All positive heat/wave energies,
+the independent `H_heat + H_wave = H` equality,
+strictly positive thermal dissipation,
+homogeneous outer work, signed interface cancellation,
+two subsystem CN balances, total CN balance and
+nonincreasing total Hamiltonian were verified
+on actual GetFEM quadratures. Specifically:
+
+| Observed real-GetFEM numerical quantity | MUMPS MPI1 |
+|---|---:|
+| `H(0)` | `0.7836421211876778` |
+| `H(0.004)` | `0.6808984803105300` |
+| Maximum CN midpoint heat dissipation rate | `32.04166757122644` |
+| Maximum signed internal interface power | `8.881784197001252e-16` |
+| Maximum outer-boundary power | `7.73365898273765e-24` |
+| Maximum subsystem heat CN balance defect | `4.916206330918271e-15` |
+| Maximum subsystem wave CN balance defect | `1.3851766955674805e-15` |
+| Maximum independent total CN balance defect | `5.457440055423035e-15` |
+| Maximum cumulative total energy-power defect | `3.8437031335739146e-15` |
+| Separate physical acceptance gates | **10/10 PASS** |
+
+**Interpretation:** the correction of the
+Gaussian initial wave velocity is not
+a tolerated inconsistency. It yields
+an exactly compatible essential
+boundary trace in the *dynamic FE data*
+before the strict algebraic initializer.
+The production conforming-interface
+compiler correctly gives each side
+its own outward normal. This native
+result validates the combined correction
+and true heat/wave interface energy
+accounting in the specific short
+four-step reference. It does **not**
+establish independent MPI2 or
+SuperLU_DIST acceptance, and does not
+prove global long-time CN subsystem
+power balances.
+
+## 15-second true-GetFEM visual results — independently archived PASS
+
+**Two authentic completed native runs,
+same source `b9d56fcc` and pinned
+Docker image.** The native process exit
+code is 0 for each profile, and all
+301 original `t=0,0.05,...,15`
+Hamiltonian samples, 903 field VTU
+(`p,q,T`, 301 each), four annular
+PNG snapshots and an original
+48-frame magnetic-free wave velocity
+GIF are retained in each archive.
+
+| Native long-run profile | Original ZIP | `H(0)` | `H(15)` | Relative decrease |
+|---|---|---:|---:|---:|
+| Historical `gaussian` | `v130-heat-wave-long-gaussian-b9d56fcc-ySKGPg7G.zip` | `0.7836421211876778` | `0.008268389052222169` | **98.9449%** |
+| Exploratory `gallery_packet` | `v130-heat-wave-long-gallery_packet-b9d56fcc-jC3P6XEI.zip` | `0.46264406597912466` | `0.3779415175911232` | **18.3084%** |
+
+**No FE Hamiltonian growth** was measured
+between any successive saved times
+for either initial profile. The *CG1
+kinetic proxy* for localization within
+the outer shell `r>=0.82` averages
+approximately `0.3803` for the
+gaussian versus `0.5871` for the
+gallery packet on the 48 displayed
+snapshots, with final proxy fractions
+`0.3685` versus `0.6687`.
+These are clear differences in
+**transient kinetic localization**,
+not a proof of persistent eigenmode
+confinement, spectral modal purity or
+theoretical decay rates. A
+`cos(14 theta)` standing excitation
+alone does not establish azimuthal
+*direction of propagation*.
+Neither long run has separately
+passed all ten full-horizon
+subsystem-power gates.
+
+**Cause of original visual-driver FAIL:**
+a Python/XML API mistake in the
+post-simulation verifier:
+`frame["file"]` was applied to
+an `ElementTree.Element`, instead
+of `frame.attrib["file"]`.
+The `native_exit_code=0`, actual
+`heat_wave_FE_H_long.npz`,
+`provenance.json`, all original
+VTK `p,q,T` frames, PNG/SVG and GIF
+were **already written successfully**
+for both profiles.
+The final `summary.json` in each
+original archive remains historically
+marked `FAIL_OR_UNQUALIFIED_LONG_HEAT_WAVE_SHOWCASE`
+because it documents that verifier bug,
+**not a physical solver failure**.
+
+**Corrections without resimulation:**
+the current
+`scripts/run-v130-heat-wave-long-showcase.sh`
+uses `frame.attrib["file"]` and
+its source AST tests reject the old error.
+A new immutable-archive verifier
+`scripts/verify-v130-heat-wave-long-archive.py`
+checks the exact source and Docker
+revision, original exit code,
+complete 301-step saved FE clock,
+nonincreasing positive true Hamiltonian,
+PNG/SVG/GIF signatures and **48 frames**,
+the original `p,q,T` PVD times
+and **all 903 native VTU files**
+(including sampled XML fields).
+It emits a **separate `.reaudit.json`
+sidecar**, preserving the source ZIPs
+and their historical `summary.json`
+unchanged. Independent examination of
+the uploaded ZIPs confirms that all
+these criteria are fulfilled. The
+resulting classification is
+`PASS_ARCHIVED_LONG_NATIVE_VISUALS_NOT_WG_MODE_PROOF`,
+not a retrospective rewriting of the
+original pilot's status.
+
+Re-audit the existing ZIPs on the
+original host, without recomputing
+3 000 CN steps per case:
+
+```bash
+python scripts/verify-v130-heat-wave-long-archive.py \
+  sandbox/outputs/v130-heat-wave-long-gallery_packet-b9d56fcc-jC3P6XEI.zip \
+  sandbox/outputs/v130-heat-wave-long-gaussian-b9d56fcc-ySKGPg7G.zip
+```
+
+**Scope**: Heat–Wave MUMPS MPI1 physical
+reference **PASS**, two completed
+15-second native long simulations
+with complete genuine visual
+archives **PASS after independent
+archive re-audit**. The
+*whispering-gallery* modal
+classification, decay-rate exponent,
+full 15-second energy-power
+identities, MPI2 and SuperLU_DIST
+remain explicitly **unqualified**.
+
+
 
 ## 25 November 2026 — DAE initial data incompatibility and correction
 
@@ -42,7 +210,7 @@ probe's monkey-patch of `DPHS.init_step`:
   (**default**): first project
   the analytic Gaussian into the real
   scalar CG1 wave space by GetFEM/PETSc
-  `L²), then exactly set the **126**
+  L², then exactly set the **126**
   exterior Dirichlet DOFs to zero,
   without changing any free interior
   coefficient (known Concentric
