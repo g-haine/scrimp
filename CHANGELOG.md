@@ -5,6 +5,79 @@ Changes to SCRIMP are recorded here. See also the
 
 ## 1.3.0 — in development (not released)
 
+### Heat–Wave 2D — qualification native MPI1/2 et bilan complet à 15 s : campagne préparée (25 novembre 2026)
+
+- Nouveau test **en deux phases**
+  `scripts/run-v130-heat-wave-mpi-long-physics.sh`
+  avec image GetFEM/PETSc/MUMPS
+  `scrimp-mpi:v1.3.0-rc3`
+  épinglée, échecs conservés et
+  ZIP de preuves systématique :
+  **4 pas CN dt=.001 en MPI1 et MPI2**,
+  puis **3 000 pas CN dt=.005
+  jusqu'à t=15 en MPI1** après
+  vérification préalable de la parité.
+  Aucun solveur alternatif ou
+  changement de modèle n'est introduit.
+- Option **`physics_only=True`**
+  dans le vrai `examples/heat_wave.py` :
+  seul le post-traitement graphique et
+  VTK est évité pour ne pas lancer
+  d'écrivains concurrents en MPI ;
+  la PDE, les termes FE, la correction
+  `clamp`, le solveur PETSc, les
+  contraintes DAE, les deux côtés
+  de l'interface et leurs intégrales
+  GetFEM sont inchangés. Le comportement
+  public normal (figures + ParaView)
+  conserve sa valeur par défaut.
+- Le collecteur physique orienté
+  accepte maintenant **des nombres
+  et pas de CN explicitement prescrits**,
+  en conservant ses valeurs historiques
+  de 4 pas à .001. L'audit long exige
+  **dt_save=dt**, soit 3 001 états FE
+  pour 3 000 pas effectivement acceptés,
+  contrairement aux précédents
+  visuels (301 états sous-échantillonnés).
+  Les bilans CN chaleur/onde/total,
+  la dissipation, les puissances
+  d'interface et du bord extérieur,
+  le cumul et la monotonie de H
+  sont réévalués sur **chaque**
+  vrai milieu de pas GetFEM.
+- `sandbox/probe_v130_heat_wave_mpi_extended.py`
+  mesure la physique sur **tous
+  les rangs**, sauve les traces
+  FE complètes pour la comparaison
+  MPI et les séries énergétiques
+  et de puissance à tous les pas
+  pour l'horizon long. Vérificateur
+  **indépendant** :
+  `scripts/verify-v130-heat-wave-mpi-long-physics.py`,
+  avec contrôle de parité des
+  vecteurs FE, concordance exacte
+  des rangs MPI2, et des bilans
+  recalculés depuis les fichiers
+  natifs. Des tests négatifs de
+  falsification (rangs différents,
+  bilans modifiés, horloge incomplète)
+  protègent les conditions de PASS.
+  Aucun calcul simulé n'est
+  accepté comme preuve native.
+- **État : campagne prête, PASS natif
+  MPI2 et bilan complet t=15 ENCORE
+  EN ATTENTE.** Le PASS MUMPS MPI1
+  initial `b9d56fcc` et les deux
+  simulations de visualisation
+  longues demeurent acquis dans
+  leur périmètre distinct.
+  Les exports VTK parallèles,
+  SuperLU_DIST et l'identification
+  spectrale de modes de whispering
+  gallery ne sont pas couverts.
+
+
 ### Heat–Wave 2D — bilan CN physique MUMPS MPI1 PASS et jeux de données 15 s complets, ré-audités sur archives (25 novembre 2026)
 
 - **Premier PASS natif complet** du vrai
