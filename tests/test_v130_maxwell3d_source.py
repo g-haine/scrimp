@@ -73,6 +73,7 @@ class Maxwell3DSourceTests(unittest.TestCase):
             '"every_CN_step_conserves_energy"',
             '"cumulative_em_energy_conserved"',
             '"pure_differential_Maxwell_no_artificial_DAE"',
+            '"magnetic_gauss_law"',
         ):
             self.assertIn(gate, self.source)
         self.assertIn('Trace(Grad(B))*Trace(Grad(B))', self.source)
