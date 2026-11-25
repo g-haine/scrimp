@@ -15,6 +15,7 @@
 
 import sys
 import os
+import warnings
 from contextlib import nullcontext
 import getfem as gf
 import numpy as np
@@ -53,8 +54,10 @@ def convert_gmm_to_petsc(
     The owned structural diagonal is always retained.
 
     SCRIMP_GETFEM_BRIDGE_DISTRIBUTED=csr or ijv remains an EXPLICIT
-    historical diagnostic override for source-era benchmark parity;
-    it is no longer a production default or the nonlinear assembly path.
+    historical diagnostic override for source-era benchmark parity.
+    The sole automatic compatibility exception is an installed petsc4py
+    missing COO methods: warn, then use the proven legacy IJV transfer.
+    Fully COO-capable PETSc always retains COO as the default.
     Replicated GetFEM extraction is retained for serial compatibility.
     PETSc stores the assembled sparse matrix as AIJ (CSR-like):
     COO is the assembly API, not the storage format.
@@ -104,6 +107,33 @@ def convert_gmm_to_petsc(
         mode == "distributed" and distributed_method == "coo"
         and distributed_coo_eligible
     )
+    if use_coo and not (
+        callable(getattr(B, "setPreallocationCOO", None))
+        and callable(getattr(B, "setValuesCOO", None))
+    ):
+        # Older petsc4py/PETSc bindings have no native COO API. The
+        # legacy IJV path below preserves the original distributed
+        # ADD_VALUES semantics and dynamic GetFEM matrix patterns.
+        # Never change the default on COO-capable PETSc (our v1.3.0
+        # Docker baseline), and never hide this performance downgrade.
+        if not callable(getattr(B, "setValuesIJV", None)):
+            raise RuntimeError(
+                "The installed petsc4py Mat lacks both the COO "
+                "(setPreallocationCOO/setValuesCOO) and legacy IJV "
+                "(setValuesIJV) matrix transfer APIs; use the supported "
+                "SCRIMP v1.3.0 PETSc environment."
+            )
+        if comm.getRank() == 0:
+            warnings.warn(
+                "petsc4py Mat lacks the PETSc COO API; SCRIMP is "
+                "using the slower legacy IJV matrix transfer. "
+                "For the qualified v1.3.0 COO path, use the "
+                "scrimp-mpi:v1.3.0-rc3 Docker image or update "
+                "PETSc/petsc4py together.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+        use_coo = False
 
     nrows, ncols = B.getSize()
     lo, hi = B.getOwnershipRange()
