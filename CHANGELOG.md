@@ -5,6 +5,46 @@ Changes to SCRIMP are recorded here. See also the
 
 ## 1.3.0 — in development (not released)
 
+### Maxwell 3D — second pilote : introspection GetFEM retirée sans assouplissement du garde-fou (25 novembre 2026)
+
+- Archive `v130-maxwell3d-ed9b9fd8-gnJLLDYD.zip`
+  (source `ed9b9fd80f8ceb670085d7a58dc07f625dedbe99`) :
+  **8/8 tests statiques PASS**, 8 exemples
+  publiés intacts, boule de 58 points et
+  110 tétraèdres construite ; Nédélec 3D
+  **222 DOFs** et RT0 3D **275 DOFs**
+  créés sur 1 et 2 rangs. Les exécutions
+  n'ont **pas atteint la discrétisation
+  temporelle**. Le vérificateur d'archive
+  a correctement enregistré FAIL.
+- Nouvelle erreur de l'**audit de l'exemple**
+  et non preuve d'une faute du patch GetFEM :
+  `MeshFem.fem()` n'exposait pas les objets
+  `Fem` selon le format supposé après
+  `np.asarray(...,dtype=object).ravel()`.
+  Le modèle échouait avant assemblage avec
+  `Invalid GetFEM MeshFem.fem() entries`.
+- **Correctif robuste** : plus aucune
+  dépendance à `MeshFem.fem()`.
+  Conserver les objets originaux `S.FEM`
+  passés à `DPHS.add_FEM()` ; leur
+  **type et ordre** sont mutés en `CG/1`
+  par l'ancienne politique de fallback
+  de `scrimp/fem.py`. Rejeter tout
+  écart à `FEM_NEDELEC(3)/-1` et
+  `RT/0` ; contrôler les vraies
+  dimensions de `MeshFem`.
+  Tests de régression sur la mutation
+  CG, la mauvaise famille, mauvais ordre
+  et dimensions erronées. Aucune
+  modification du noyau ni relaxation
+  d'un critère physique.
+- **Statut : Maxwell 3D MUMPS MPI1/2
+  toujours NON QUALIFIÉ** ; une nouvelle
+  exécution de `scripts/run-v130-maxwell3d-pilot.sh`
+  est requise.
+
+
 ### Maxwell 3D : correctif de préqualification de l'audit FE/archives (25 novembre 2026)
 
 - Première exécution native `acdb3c75` :
