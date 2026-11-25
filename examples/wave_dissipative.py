@@ -300,12 +300,6 @@ def measure_wave_2d(system):
         and system.last_ts_rejections == 0
         and system.last_ts_snes_failures == 0
     )
-    cv = (
-        system.last_ts_converged_reason > 0
-        and system.last_ts_steps == len(t)-1
-        and system.last_ts_rejections == 0
-        and system.last_ts_snes_failures == 0
-    )
     magnitude = max(1., float(np.max(np.abs(H))))
     gates = {
         "native_TS_fixed_CN_complete_accepted_samples": bool(cv),
@@ -435,7 +429,6 @@ def main():
             "total_dissipated_energy":
                 observations["total_dissipated_energy"],
             "max_abs_left_power": observations["max_abs_left_power"],
-            "total_dissipated_energy": observations["total_dissipated_energy"],
             "max_dissipation_rate": observations["max_dissipation_rate"],
             "physical_gates": observations["gates"],
             "state_SHA256": hashlib.sha256(
