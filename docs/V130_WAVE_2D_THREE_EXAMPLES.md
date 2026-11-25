@@ -10,11 +10,96 @@ trajectoires MPI et exports VTK validés. SuperLU_DIST non testé pour 2B.
 Étape **2C native PASS en MUMPS MPI1/2** sur le modèle coénergétique
 réparé : 2459 DOFs, 10 pas CN, DAE algébrique exacte, deux dissipations
 physiques, bilan énergétique à ~1e-15 et exports GetFEM/VTK/CSV/PNG/SVG/GIF
-contrôlés. SuperLU_DIST, convergence et démonstration temps long
-non qualifiés pour 2C.  
+contrôlés. Sa démonstration longue MUMPS MPI1, à
+`h=0.1` et `t_f=1`, est également PASS ;
+SuperLU_DIST et convergence restent non qualifiés pour 2C.  
 **Ordre dans Sphinx :** `examples/wave.rst` comporte la conservative
 puis sa section « Adding Damping to the dphs » ; la page
 `examples/wave_coenergy.rst` suit séparément. Cet ordre est conservé.
+
+## Démonstration longue 2A — PASS natif MUMPS sur 100 pas CN (25 novembre 2026)
+
+**Archive authentique** :
+`v130-wave2d-2a-showcase-bd6f5468-teEK1Ejz.zip`,
+source `bd6f5468e3a167f2b2a3b9e1b72bcc54e1948d45`,
+image `scrimp-mpi:v1.3.0-rc3` figée
+(`1d6d0c90115213298047b28237a7f38087563a35`).
+La commande `scripts/run-v130-wave2d-showcase.sh 2a`
+a exécuté le code canonique `examples/wave.py`,
+MUMPS **MPI 1**, `h=0.1`, `dt=0.01`, `t_f=1`.
+
+| Contrôle original GetFEM/PETSc | Résultat |
+|---|---:|
+| Degrés de liberté | **8138** |
+| Pas CN acceptés, rejets/échecs SNES | **100/100**, 0/0 |
+| Projection DAE algébrique | **PASS**, résidu initial/final **0** |
+| Portes physiques indépendantes | **7/7 PASS** |
+| Hamiltonien initial `H(0)` | `0` |
+| Hamiltonien final `H(1)` | `0.03707053141235693` |
+| Travail signé total de bord `W(1)` | `0.03707053141235698` |
+| Défaut maximal par pas `ΔH-ΔW` | `2.0654051386e-16` |
+| Défaut cumulé `H-H(0)-W` | `1.2490009027e-16` |
+| Puissances bord bas/droite/haut | exactement `0` |
+| Série VTK native `q,p,e_q,e_p` | **4 × 101 = 404 VTU**, quatre PVD |
+| Animation `p_evolution.gif` | **101 images** de données FE natives |
+
+L'identité **conservative avec travail extérieur**
+`H(t)-H(0)=W_\partial(t)` est respectée à
+chaque pas CN. Le système n'est pas fermé :
+la commande imposée au bord gauche injecte une
+énergie nette `0.0370705314`. L'augmentation de
+`H` ne contredit donc pas la conservation de la
+puissance port-Hamiltonienne. Les trois autres
+bords, non forcés, ont une puissance exactement
+nulle. Le SHA256 recalculé de la trajectoire
+`z` complète correspond au `rank0.json`
+(`c3fd8f5bdfd9ab11dd36f419aee6080849462556cd96bcf6e7810cbe03e7ad8a`).
+
+La relecture des **404 VTU authentiques** a confirmé
+les 101 horodatages `0,0.01,...,1`, des géométries
+de maillage stables par champ et la présence des
+données `PointData`. Les sorties `PNG/SVG`, le
+GIF de 101 images, le CSV énergétique de 101 lignes
+et la provenance ont été générés puis examinés.
+Les cartes montrent l'apparition d'une onde au
+bord gauche et sa propagation spatiale dans le
+rectangle anisotrope.
+
+**Précision des champs physiques :** dans 2A/2B,
+`q=∇w` est le **gradient du déplacement**,
+`p=ρ∂_tw` la **quantité de mouvement** ;
+`e_q=Tq` est la contrainte/traction interne
+et `e_p=p/ρ` la **vitesse**. Le renderer
+actuel illustre `p` et `|q|` : il ne doit
+pas les présenter comme la vitesse et la
+contrainte. Les quatre séries PVD permettent
+de visualiser séparément les véritables
+`e_p` et `e_q`.
+
+**Portée :** cette démonstration longue est
+**physiquement PASS en MUMPS MPI1 à h=0.1** ;
+elle ne reproduit pas le pilote court MPI1/2,
+n'établit pas de convergence maillage/temps
+et ne qualifie pas d'autre solveur.
+Aucune modification des 8 `examples/published/`,
+de `master`, ou des critères de physique.
+
+Reproduction :
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+conda activate scrimp
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-wave2d-showcase.sh 2a
+```
+
+**Suite :** exécuter `scripts/run-v130-wave2d-showcase.sh 2b`
+avec les mêmes `h`, `dt` et `t_f` pour
+documenter la dissipation interne de la
+même membrane anisotrope, à données initiales,
+matériau et contrôle de bord identiques.
 
 ## Passage opérationnel de 2A à 2B
 
