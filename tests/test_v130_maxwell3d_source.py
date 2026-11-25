@@ -101,9 +101,14 @@ class Maxwell3DSourceTests(unittest.TestCase):
         self.assertIn("H(div)", self.doc)
         self.assertIn("Maxwell", self.doc)
         self.assertIn("H(t)", self.doc)
+        self.assertEqual(
+            self.doc.count(".. literalinclude:: ../../../examples/maxwell_3d.py"),
+            7,
+        )
         for part in ("M3D-01", "M3D-02", "M3D-03",
                      "M3D-04", "M3D-05", "M3D-06", "M3D-07"):
             self.assertIn(part, self.source)
+            self.assertIn(f":start-after: # TUTORIAL {part}:", self.doc)
 
 
 if __name__ == "__main__":
