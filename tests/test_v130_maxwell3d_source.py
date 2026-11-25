@@ -98,9 +98,9 @@ class Maxwell3DSourceTests(unittest.TestCase):
 
     def test_embedded_native_verifier_is_valid_python(self):
         """Shell syntax checks miss invalid Python embedded in a heredoc."""
-        sentinel = 'python3 - "$out" <<\'PY\'\\n'
+        sentinel = 'python3 - "$out" <<\'PY\'\n'
         self.assertEqual(self.runner.count(sentinel), 1)
-        verifier = self.runner.split(sentinel, 1)[1].split("\\nPY\\n", 1)[0]
+        verifier = self.runner.split(sentinel, 1)[1].split("\nPY\n", 1)[0]
         ast.parse(verifier, filename=str(RUNNER))
         self.assertIn("from pathlib import Path", verifier)
         self.assertIn("with zipfile.ZipFile", verifier)
