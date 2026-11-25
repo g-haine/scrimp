@@ -5,7 +5,59 @@ Changes to SCRIMP are recorded here. See also the
 
 ## 1.3.0 — in development (not released)
 
-### Saint-Venant 2D — architecture « un exemple = un fichier », CG2 VTK natifs et récupération des images (25 novembre 2026)
+### Saint-Venant 2D — lancer l'exemple génère directement tous ses visuels (25 novembre 2026)
+
+- **Convention d'utilisation respectée :** la commande ordinaire
+  `python examples/shallow_water.py` (ou
+  `python -m examples.shallow_water`) calcule et exporte
+  désormais **sans argument supplémentaire** les champs
+  natifs GetFEM `h` CG2 et `p` DG1, la surface 3D,
+  les cartes de hauteur et vitesse `v=p/rho`, quatre
+  instantanés PNG, un GIF sur les vrais temps sauvegardés,
+  ainsi que les figures et intégrales physiques
+  Hamiltonien/masse. **Tout le code, calcul et rendu,
+  est dans le seul `examples/shallow_water.py`.**
+- Le lancement direct choisit `t_f=.12`,
+  `dt=.0001`, `dt_save=.002`, MUMPS et
+  l'initialisation DAE `nonlinear_affine`
+  (sans changement des équations, du maillage,
+  des données initiales ni du terme G explicitement
+  retardé). Les sorties sont écrites dans
+  `outputs/showcase/shallow_water/figures/` :
+  `saint_venant_surface_vitesse.gif`,
+  `saint_venant_champs_t*.png` et
+  `saint_venant_H_masse_bilan.png/.svg`,
+  ainsi que les vrais champs h/p en
+  `outputs/showcase/shallow_water/pv/` ;
+  les chemins sont affichés par le programme.
+- `--no-showcase` garde explicitement
+  l'ancien lancement `pseudo`, `t_f=.5`,
+  h PVD et figure H seulement. L'API
+  `shallow_water_eq(showcase=False)` reste
+  compatible avec les anciens appelants.
+  `--showcase-output` permet de choisir
+  le répertoire d'images. Le pilote Docker
+  de qualification utilise désormais le
+  lancement **sans** `--showcase` afin de
+  tester ce comportement utilisateur.
+- Les tests unitaires exécutent le
+  **véritable bloc CLI via son AST** avec
+  un solveur factice afin de garantir les
+  valeurs par défaut et la sélection
+  `--no-showcase`, tandis que les tests
+  graphiques utilisent des VTU de
+  contrôle. Cela ne constitue **pas**
+  une nouvelle validation native de
+  la chaîne complète sur le commit
+  de migration du point d'entrée.
+  L'ancien calcul natif de 1 200
+  pas BDF2 et la récupération spatiale
+  depuis les vrais VTU restent des
+  preuves distinctes ; la conservation
+  exacte d'énergie n'est pas affirmée.
+
+
+### Saint-Venant 2D — architecture « un exemple = un fichier », CG2 VTK natifs et récupération des images (25 novembre 2026) — implémentation préalable
 
 - **Respect de la convention du projet :**
   l'intégralité du modèle non visqueux, du solveur,
