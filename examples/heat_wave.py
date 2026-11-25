@@ -319,6 +319,7 @@ def heat_wave_eq(
     final_time=2.0, time_step=0.001, save_step=0.05,
     initial_wave_boundary="clamp",
     initial_wave_profile="gaussian", long_showcase=False,
+    physics_only=False,
 ):
     """A physically oriented, energy-dissipative coupled heat-wave example.
 
@@ -354,6 +355,11 @@ def heat_wave_eq(
             eigenmode and is available only for a wave annulus.
         long_showcase: produce an opt-in real-GetFEM annular-wave PNG/GIF
             showcase after successful physical integration and VTK export.
+        physics_only: run the same full native PDE and initialize the
+            original Hamiltonian terms but skip plots and ParaView files.
+            This allows genuine parallel physics audits on all MPI ranks
+            without concurrent writers; defaults to False and changes
+            no equations, FEM or physical initialization.
         initial_wave_boundary: compatible wave velocity initialization
             when the exterior boundary belongs to the wave region.
             "clamp" (default) sets exactly the exterior CG1 degrees
@@ -656,6 +662,14 @@ def heat_wave_eq(
     # Add them to the Hamiltonian
     for term in terms:
         hw.hamiltonian.add_term(term)
+
+    # MPI scientific checks must execute the identical GetFEM/PETSc
+    # equations, but the historical VTK and figures are not shared
+    # MPI-writer safe. This explicit choice affects OUTPUT ONLY.
+    if physics_only:
+        if long_showcase:
+            raise ValueError("Long showcase requires ParaView field exports")
+        return hw
 
     # Plot the Hamiltonian and save the output
     hw.plot_Hamiltonian(save_figure=True, filename="Hamiltonian_Heat"+str(heat_region)+"_Wave"+str(wave_region)+"_2D.png")
