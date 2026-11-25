@@ -6,7 +6,10 @@ MUMPS MPI1/2, SuperLU MPI1 et SuperLU_DIST explicitement raffiné
 MPI1/2 ; l'option standard SuperLU_DIST reste FAIL (gate 3/5).
 Étape **2B native PASS en MUMPS MPI1/2** sur le véritable modèle
 dissipatif : 10 pas CN, bilan H-H0=W-D, quadrature indépendante,
-trajectoires MPI et exports VTK validés. SuperLU_DIST non testé pour 2B.
+trajectoires MPI et exports VTK validés. **Démonstration longue 2B
+MUMPS MPI1 : 100/100 pas CN et bilan à ~1e-16, PASS** ; les cartes
+comparatives à la même échelle avec 2A sont produites. SuperLU_DIST
+non testé pour 2B.
 Étape **2C native PASS en MUMPS MPI1/2** sur le modèle coénergétique
 réparé : 2459 DOFs, 10 pas CN, DAE algébrique exacte, deux dissipations
 physiques, bilan énergétique à ~1e-15 et exports GetFEM/VTK/CSV/PNG/SVG/GIF
@@ -16,6 +19,126 @@ SuperLU_DIST et convergence restent non qualifiés pour 2C.
 **Ordre dans Sphinx :** `examples/wave.rst` comporte la conservative
 puis sa section « Adding Damping to the dphs » ; la page
 `examples/wave_coenergy.rst` suit séparément. Cet ordre est conservé.
+
+## Démonstration longue 2B — PASS natif et comparaison 2A/2B (25 novembre 2026)
+
+**Archive authentique examinée** :
+`v130-wave2d-2b-showcase-dbdc49cf-G1CKQAVG.zip`,
+source `dbdc49cfcac47d4daa1706b3fc2fa4b53646b0a2`,
+image `scrimp-mpi:v1.3.0-rc3`, révision
+`1d6d0c90115213298047b28237a7f38087563a35`.
+Le script `scripts/run-v130-wave2d-showcase.sh 2b`
+a exécuté le modèle canonique
+`examples/wave_dissipative.py`, MUMPS **MPI1**,
+`h=0.1`, `dt=0.01`, `t_f=1.0`
+et le coefficient résistif `nu(x)=0.5*(2-x)`
+(`damping_strength=1`).
+
+| Résultat sur les données originales | 2B, MPI1 |
+|---|---:|
+| DOFs | **10204** |
+| CN acceptés / rejets / échecs SNES | **100 / 0 / 0** |
+| Initialisation algébrique | **PASS**, résidu `0`, états initiaux préservés |
+| Portes scientifiques | **10/10 PASS** |
+| `H(0)` | `0` |
+| Travail signé des ports `W(1)` | `0.03710798721523879` |
+| Perte résistive cumulée `L(1)` | `0.005052430505192933` |
+| Hamiltonien final `H(1)` | `0.03205555671004583` |
+| Défaut physique maximal par pas | `9.391901319155682e-17` |
+| Défaut physique cumulé maximal | `9.280770596475918e-17` |
+| Exports natifs | **606 VTU** (`q,p,e_q,e_p,f_r,e_r` × 101 instants), **6 PVD** |
+| Sorties éditoriales | PNG/SVG (champs et énergie), GIF **101 frames**, CSV **101 lignes** |
+
+Le recalcul indépendant de `H-H0-W+L` sur le
+`rank0.npz` original reproduit un écart absolu
+maximal de `9.28e-17`, et chaque
+`ΔH-ΔW+ΔL` reste inférieur à `9.55e-17`.
+Les pertes sont positives et non triviales.
+La dissipation volumique obtenue par intégrale
+GetFEM indépendante est numériquement
+identique à la puissance du port résistif.
+Le résidu de flux `f_r+e_p` vaut au plus
+`1.04e-33` (quantité quadratique).
+Le résidu de la relation constitutive projetée
+faiblement `e_r=nu*f_r` n'est pas attendu
+nul point par point.
+Les trois bords non forcés ont une puissance
+exactement nulle. SHA256 `z` recalculé et
+conforme à `rank0.json` :
+`0fe53e884f3cbcbfd8d235e6ad4b68e22eb501cfefa9643324e4b2a3f094ee34`.
+
+**Comparaison réellement homogène 2A/2B :**
+les archives longues
+`v130-wave2d-2a-showcase-bd6f5468-teEK1Ejz.zip`
+et `v130-wave2d-2b-showcase-dbdc49cf-G1CKQAVG.zip`
+ont les **mêmes temps, géométrie, maillage VTK,
+matériaux, excitation et états initiaux** ;
+la vérification directe des coordonnées et de la
+connectivité des VTK de `p` à `t=0,0.5,1`
+donne une égalité exacte. Les deux systèmes
+ont des dimensions algébriques différentes
+(8138 contre 10204 DOFs) du fait du port résistif.
+À `t=1` :
+
+| Comparaison | 2A conservatif | 2B amorti |
+|---|---:|---:|
+| Travail extérieur `W` | `0.03707053141235698` | `0.03710798721523879` |
+| Perte cumulée `L` | `0` | `0.005052430505192933` |
+| Énergie finale `H` | `0.03707053141235693` | `0.03205555671004583` |
+
+L'énergie finale de 2B est **13.528 % plus faible**
+que celle de 2A. Attention : les travaux
+extérieurs ne sont **pas exactement égaux**
+à cause de la réponse modifiée ; la différence
+n'est donc pas exactement égale à `L`.
+L'égalité **numériquement vérifiée** est
+`H2A-H2B=L2B-(W2B-W2A)` :
+`0.00501497470231110=
+0.00505243050519293-0.00003745580288181`,
+au défaut `2.08e-17` près.
+
+Deux figures comparatives issues des vraies
+données FE ont été produites hors du renderer
+générique : `comparaison_energetique_2a_2b.png`
+et `comparaison_champs_p_2a_2b.png`.
+La seconde impose **la même échelle
+de couleurs** aux deux simulations à
+`t=0.5` et `t=1` ; elle représente bien
+la **quantité de mouvement `p`** et
+non la vitesse `e_p`. L'écart visuel
+instantané est relativement modéré ;
+l'énergie cumulée met plus clairement
+en évidence la dissipation.
+
+Les 606 VTU originaux ont été identifiés
+dans l'archive et les 6 PVD ont 101 entrées
+de temps exactes `0,0.01,...,1.0`,
+avec fichiers VTU correspondants.
+L'archive contient aussi un GIF `p`
+de 101 images et les figures/CSV issus
+du renderer GetFEM ; aucune image ne
+reconstruit un déplacement `w` inexistant
+dans les inconnues de ce modèle.
+
+**Portée de la qualification :** modèle 2B
+en MUMPS MPI1 sur 100 pas, sans conclusion
+de convergence h/dt, de parité MPI1/2 à
+`h=0.1` ou de SuperLU_DIST pour 2B.
+Le pilote court 2B MPI1/MPI2
+(`h=0.2, t_f=0.08`) est qualifié
+indépendamment. `examples/published/`
+et `master` restent inchangés.
+
+**Reproduction de la simulation longue 2B :**
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+conda activate scrimp
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-wave2d-showcase.sh 2b
+```
 
 ## Démonstration longue 2A — PASS natif MUMPS sur 100 pas CN (25 novembre 2026)
 
