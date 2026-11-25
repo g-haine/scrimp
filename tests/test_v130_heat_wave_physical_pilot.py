@@ -77,6 +77,17 @@ class HeatWavePilotSourceTest(unittest.TestCase):
                     ast.dump(expected, include_attributes=False),
                 )
 
+    def test_tutorial_links_qualified_interface_assembly_policy(self):
+        tutorial = ROOT/"docs/source/examples/heat_wave.rst"
+        decision = ROOT/"docs/V130_INTERFACE_PV_PRODUCTION_DECISION_20261124.md"
+        self.assertTrue(decision.is_file())
+        text = tutorial.read_text(encoding="utf-8")
+        self.assertIn("Automatic assembly of conforming interfaces", text)
+        self.assertIn("V130_INTERFACE_PV_PRODUCTION_DECISION_20261124.md", text)
+        self.assertIn("correct subdomain side", text)
+        self.assertIn("U_T = Y_w", text)
+        self.assertIn("U_w = Y_T", text)
+
     def test_real_shipped_model_and_readonly_native_mount(self):
         for token in (
             'S.FEM("Heat flux", k, "RT")',
