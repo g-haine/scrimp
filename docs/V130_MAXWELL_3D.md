@@ -1,9 +1,93 @@
 # SCRIMP v1.3.0 — Premier exemple Maxwell 3D Nédélec/RT0
 
 **Branche :** `release/1.3.0-preparation`.  
-**Statut initial (25 novembre 2026) :** implémentation et contrat statique
-préparés ; **simulation GetFEM/PETSc MPI1/MPI2 non encore exécutée**.
-Aucun résultat scientifique PASS n'est revendiqué avant les archives natives.
+**Statut scientifique actuel (25 novembre 2026) :**
+**PASS NATIF Maxwell 3D en MUMPS MPI 1 et MPI 2**,
+sur dix pas CN, neuf contrôles physiques, parité
+des trajectoires et véritables données VTK tétraédriques.
+Cette qualification est distincte d'une étude
+de convergence spatiotemporelle ou d'un cas PEC.
+
+## Qualification native Maxwell 3D — PASS (25 novembre 2026)
+
+**Preuve complète :** archive
+`v130-maxwell3d-daac18cb-FCPngFrH.zip`,
+source `daac18cb36fbc404fcf5c4fe4f2f69121b2ee530`,
+image figée `scrimp-mpi:v1.3.0-rc3`
+(révision `1d6d0c90115213298047b28237a7f38087563a35`).
+`summary.json` porte
+`PASS_MAXWELL3D_MUMPS_MPI1_MPI2`, sans erreur.
+Les 9 tests source ont passé, les 8 exemples
+publiés sont restés immuables.
+
+| Mesure native | MUMPS MPI 1 | MUMPS MPI 2 |
+|---|---:|---:|
+| Domaine | Boule 3D, 58 points, **110 tétraèdres** | idem |
+| DOFs `E` Nédélec 0 + `B` RT0 | **222 + 275 = 497** | **497** |
+| Pas CN fixes acceptés | **10/10** | **10/10** |
+| Critères physiques | **9/9 PASS** | **9/9 PASS** |
+| Énergie initiale `H(0)` | `0.6942520909491595` | `0.6942520909491599` |
+| Énergie finale `H(0.2)` | `0.6942520909491590` | `0.6942520909491603` |
+| Énergie magnétique finale `H_B(0.2)` | `0.2582694531373567` | `0.2582694531373592` |
+| Défaut énergétique cumulé maximal | `2.3314683517128287e-15` | `1.9984014443252818e-15` |
+| Maximum `||div B||_L2` | `4.630808670018643e-15` | `4.4379315325408354e-15` |
+| Export VTK | `E` + `B`, 11 instants chacun | idem |
+
+**Contrôles indépendants sur `rank*.npz` :**
+pour MPI1, l'énergie électrique finale est
+`H_E(0.2)=0.4359826378118022` et l'énergie
+magnétique finale est `H_B(0.2)=0.2582694531373567`,
+soit **37.20110555 % de l'énergie initiale**
+transférée vers le champ magnétique.
+`max|H-H_E-H_B|=5.55e-17`, et
+`max|H-H(0)|=2.33146835e-15`.
+La loi de Gauss magnétique a été mesurée
+par la quadrature volumique GetFEM de
+`(div B)^2` ; sa racine est
+inférieure à `4.7e-15` aux onze temps.
+Aucun port de puissance, dissipation ou
+initialisation DAE n'a été introduit.
+
+Les trois archives `rank0.npz` MPI1,
+`rank0.npz` MPI2 et `rank1.npz` MPI2
+contiennent chacune **11 × 497 coefficients
+FE réels** ; leurs SHA256 recalculés
+correspondent aux empreintes JSON.
+Les deux rangs MPI2 sauvegardent exactement
+les mêmes coefficients. La différence
+maximale MPI1/MPI2 sur les 11 états complets
+est **`4.440892098500626e-16`** ;
+les énergies varient au plus de
+`2.7755575615628914e-15` entre ces deux exécutions.
+
+**Validation supplémentaire avec un véritable
+lecteur VTK :** les **44 fichiers VTU** du
+pilote (2 champs × 11 temps × 2 configurations)
+ont été ouverts, et non simplement analysés
+en tant que XML. Chacun contient
+**110 cellules VTK type 10 (tétraèdres)**,
+**58 points en 3D** et les 3 composantes
+numériques finies du champ attendu.
+Leur géométrie est identique à tous
+les instants et entre les configurations
+MPI. À `t=0.2`, les normes nodales du
+champ magnétique `B` vont de
+`0.3673212` à `0.3750458`,
+ce qui confirme un champ 3D non trivial.
+Quatre fichiers `PVD` décrivent exactement
+les onze dates `0,0.02,...,0.2`.
+
+**Portée exacte du PASS :** la
+conservation du Hamiltonien et la
+contrainte `div B = 0` sont vérifiées
+dans **cette** résolution 3D,
+`h=0.7`, `dt=0.02`, `t_f=0.2`,
+avec MUMPS MPI1/MPI2. Ce résultat ne
+constitue ni une convergence h/dt,
+ni une validation de la loi de Gauss
+électrique, ni une résolution de modes
+électromagnétiques sous condition PEC,
+ni un test SuperLU_DIST.
 
 ## Objectif et justification
 
@@ -128,9 +212,10 @@ elles n'ont fourni **aucune preuve**
 de conservation énergétique ou de
 correction de la loi de Gauss.
 
-**Statut : correctifs sources poussés,
-nouvelle exécution native nécessaire.
-Le pilote Maxwell 3D n'est PAS qualifié.**
+**Statut à la date de ce premier essai :
+non qualifié.** Cette étape est historique ;
+voir le PASS natif `daac18cb` en tête
+du présent document.
 
 ## Second essai natif et audit simplifié (25 novembre 2026)
 
@@ -180,11 +265,11 @@ exemple, au contrat source et à la
 documentation. La formulation faible,
 les patchs GetFEM, les paramètres du pilote
 et ses seuils physiques sont inchangés.
-**Statut natif Maxwell 3D : toujours NON
-QUALIFIÉ tant que MPI1 et MPI2 n'ont
-pas traversé les tests physiques.**
+**Statut à la date de ce second essai :
+non qualifié.** Les erreurs ont depuis
+été levées ; voir le PASS natif ci-dessus.
 
-## Qualification attendue (fail closed)
+## Protocole de qualification exécuté (fail closed)
 
 L'exécution native proposée dure **10 pas CN
 fixes**, `h=0.7`, `dt=0.02`, `t_f=0.2`.
@@ -229,10 +314,12 @@ Aucun test de convergence, SuperLU_DIST,
 performance ou visuel pédagogique final
 n'est revendiqué avant les qualifications.
 
-**Prochaine étape :** exécuter sur l'hôte et
-examiner la première archive. Si GetFEM
-refuse le macro `Curl3`, l'initialisation
-Nédélec/RT0 ou l'export 3D, diagnostiquer
-le point précis dans les journaux de la
-simulation, sans remplacer silencieusement
-les FE ni détendre les critères.
+**Résultat du protocole :** les deux exécutions
+MUMPS MPI1/2 ont passé tous les critères
+détaillés ci-dessus sur les résultats natifs.
+Les prochaines tâches sont la réalisation
+d'une visualisation pédagogique des
+véritables vecteurs 3D `E` et `B`, puis,
+séparément, une éventuelle étude de
+convergence et des conditions électromagnétiques
+de bord plus explicites.
