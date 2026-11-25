@@ -5,6 +5,74 @@ Changes to SCRIMP are recorded here. See also the
 
 ## 1.3.0 — in development (not released)
 
+### Saint-Venant 2D non visqueux — qualification physique BDF2 MPI1/2 prolongée : pilote préparé (25 novembre 2026)
+
+- **Poursuite des exemples après la qualification complète Heat–Wave.**
+  Le vrai `examples/shallow_water.py` utilise une
+  masse d'évolution `M_p(h)` non linéaire,
+  une surface initiale discontinue,
+  quatre ports de bord fermés, un
+  terme gyroscopique explicitement
+  retardé et l'intégrateur BDF2.
+  Des campagnes **natives antérieures**
+  ont déjà qualifié le jacobien de masse,
+  l'initialisation algébrique
+  `nonlinear_affine` et de très courtes
+  simulations physiques avec raffinements
+  en temps, en MPI1/2. Ces preuves
+  sont conservées et ne sont pas
+  confondues avec la qualification
+  de l'horizon par défaut.
+- Nouveau pilote de validation
+  `scripts/run-v130-shallow-water-extended-physical.sh` :
+  **quatre véritables exécutions MUMPS**
+  sur le rectangle original,
+  à temps final commun `T=0.002`
+  et pas BDF2 `dt=0.0001`
+  (**20 pas**) ou `0.00005`
+  (**40 pas**), chacune en MPI1
+  puis MPI2. Le probe d'origine
+  `sandbox/probe_v130_issue28_shallow_short_physical.py`
+  gagne un simple drapeau de sortie
+  `--capture-full-fe` qui écrit les
+  **vecteurs FE véritables par rang**,
+  sans changement des équations, FEM,
+  contrôles, données différentielles
+  ni tolérances DAE.
+- Vérificateur indépendant
+  `scripts/verify-v130-shallow-water-extended.py` :
+  parité des coefficients FE et des
+  intégrales masse/H/puissance des
+  deux rangs MPI2 et entre MPI1/MPI2 ;
+  conservation de masse, travail aux
+  frontières, défaut observé
+  `H(t)-H(0)-int P_bord dt`,
+  comparaison à temps final fixé
+  pour les deux raffinements.
+  **Aucun bilan Hamiltonien exact
+  n'est revendiqué** pour BDF2 avec
+  gyroscope explicitement retardé,
+  ni aucun ordre de convergence
+  présupposé pour la surface initiale
+  discontinue. Toutes les sorties
+  sont archivées, y compris les FAIL.
+  Tests de source et contrôles négatifs
+  intégrés à la CI ; les huit sources
+  `examples/published/` restent immuables.
+- **Statut : pilote préparé,
+  exécution native encore en attente.**
+  Le scénario \`t_f=0.5\` avec
+  initialisation historique \`pseudo\`
+  demeure distinct et non qualifié
+  par ce nouveau pilote. Le Saint-Venant
+  **visqueux tournant** avec contrainte
+  algébrique d'indice supérieur
+  est également un autre problème
+  et fera l'objet de sa propre
+  qualification. Référence :
+  `docs/V130_SHALLOW_WATER_EXAMPLE_ACCEPTANCE.md`.
+
+
 ### Heat–Wave 2D — qualification native physique MPI1/2 et bilan énergétique CN complet sur 15 s : PASS (25 novembre 2026)
 
 - **Qualification native finale obtenue** :
