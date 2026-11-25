@@ -6,7 +6,11 @@ Does not imply native GetFEM/PETSc acceptance: only the pinned
 MUMPS 1/2 runner can establish the physical energy and VTK gates.
 """
 import ast
+import base64
+import struct
+import tempfile
 from pathlib import Path
+from xml.etree import ElementTree as ET
 import unittest
 
 import numpy as np
@@ -128,6 +132,113 @@ class Maxwell3DSourceTests(unittest.TestCase):
         self.assertIn("with zipfile.ZipFile", verifier)
         self.assertIn("np.isin(cell_types, (10,24))", verifier)
 
+
+
+    def test_native_vtk_parser_and_3d_time_series_without_vtk_dependency(self):
+        """Reader in the executable accepts real GetFEM-style inline arrays.
+
+        This is a *protocol fixture*, not fake Maxwell physical evidence.
+        """
+        names = {"_vtk_native_array", "_native_vector_history"}
+        nodes = [
+            n for n in self.tree.body
+            if isinstance(n, ast.FunctionDef) and n.name in names
+        ]
+        self.assertEqual({n.name for n in nodes}, names)
+        module = ast.Module(body=nodes, type_ignores=[])
+        ast.fix_missing_locations(module)
+        env = {"np": np, "Path": Path}
+        exec(compile(module, str(EXAMPLE), "exec"), env)
+        read_series = env["_native_vector_history"]
+
+        points = np.array(((0,0,0),(1,0,0),(0,1,0),(0,0,1)),
+                          dtype="<f4")
+        values = np.zeros((4,3), dtype="<f4")
+        fields = []
+        def packed(data, *, field_header=False):
+            data = np.asarray(data)
+            binary = data.tobytes()
+            header = 4 if field_header else len(binary)
+            return base64.b64encode(
+                struct.pack("<I", header) + binary
+            ).decode("ascii")
+
+        def vtu(vectors, cell_type=10):
+            return f"""<VTKFile type="UnstructuredGrid">
+<UnstructuredGrid><Piece NumberOfPoints="4" NumberOfCells="1">
+<Points><DataArray type="Float32" format="binary"
+NumberOfComponents="3">{packed(points)}</DataArray></Points>
+<Cells>
+<DataArray Name="connectivity" type="Int32" format="binary">{packed(np.array([0,1,2,3],dtype="<i4"))}</DataArray>
+<DataArray Name="offsets" type="Int32" format="binary">{packed(np.array([4],dtype="<i4"))}</DataArray>
+<DataArray Name="types" type="Int32" format="binary">{packed(np.array([cell_type],dtype="<i4"))}</DataArray>
+</Cells>
+<PointData><DataArray Name="E" NumberOfComponents="3" type="Float32"
+format="binary">{packed(vectors,field_header=True)}</DataArray></PointData>
+</Piece></UnstructuredGrid></VTKFile>"""
+
+        with tempfile.TemporaryDirectory() as tmp:
+            subdir = Path(tmp)/"pv"/"E"
+            subdir.mkdir(parents=True)
+            for index in (0,1):
+                vectors = values + index * np.array((1,2,3),dtype="<f4")
+                (subdir/f"E_{index:05d}.vtu").write_text(
+                    vtu(vectors), encoding="utf-8"
+                )
+            (subdir/"E.pvd").write_text(
+                """<VTKFile type="Collection"><Collection>
+<DataSet timestep="0.0" file="E_00000.vtu"/>
+<DataSet timestep="0.02" file="E_00001.vtu"/>
+</Collection></VTKFile>""", encoding="utf-8"
+            )
+            coords, tetra, E = read_series(
+                Path(tmp), "E", np.array([0., 0.02])
+            )
+            np.testing.assert_array_equal(coords, points)
+            np.testing.assert_array_equal(tetra, [[0,1,2,3]])
+            np.testing.assert_array_equal(E[0], values)
+            np.testing.assert_array_equal(
+                E[1], values+np.array((1,2,3),dtype="<f4")
+            )
+            with self.assertRaisesRegex(ValueError,"time mismatch"):
+                read_series(Path(tmp), "E", np.array([0.,0.04]))
+            (subdir/"E_00001.vtu").write_text(
+                vtu(values,cell_type=5),encoding="utf-8"
+            )
+            with self.assertRaisesRegex(ValueError,"non-tetrahedral"):
+                read_series(Path(tmp), "E", np.array([0.,0.02]))
+
+    def test_export_automatically_generates_pictures_and_animation_in_rank0(self):
+        for marker in (
+            "def render_maxwell_visuals(output, observed, state_sha256):",
+            'folder = output / "visuals"',
+            'maxwell3d_echange_energie.png',
+            'maxwell3d_echange_energie.svg',
+            'maxwell3d_vecteurs_E_tfinal.png',
+            'maxwell3d_vecteurs_B_tfinal.png',
+            'maxwell3d_B_3D_animation.gif',
+            'original_FE_state_SHA256',
+            '"no_synthetic_field_or_time_interpolation": True',
+            'if comm.rank == 0:',
+            'metadata["visuals"] = render_maxwell_visuals(',
+            'system.export_to_pv(name, path=str(args.output), t="All")',
+        ):
+            self.assertIn(marker, self.source)
+        # Rendering must be opt-in on --export, AFTER the GetFEM
+        # collective VTU writer. Do not create a second MPI exporter.
+        main_src = self.source.split('def main():',1)[1]
+        self.assertLess(
+            main_src.index('system.export_to_pv(name,'),
+            main_src.index('metadata["visuals"] = render_maxwell_visuals('),
+        )
+        for needle in (
+            'maxwell3d_B_3D_animation.gif',
+            'original_FE_state_SHA256',
+            'gif.n_frames!=11',
+            'prov.get("MPI_writer_rank")!=0',
+            'rank0_meta.get("visuals")!=prov',
+        ):
+            self.assertIn(needle, self.runner)
 
     def test_true_3d_curl_orientation(self):
         for part in (
