@@ -660,7 +660,7 @@ the example qualification. See
 for the exact gates, earlier proofs and limits.
 
 
-Original inviscid free-surface visualizations (v1.3.0, opt-in)
+Original inviscid free-surface visualizations (v1.3.0, direct example run)
 -------------------------------------------------------------
 
 The shallow-water **example** also has a genuine, opt-in visual
@@ -676,30 +676,58 @@ It is **not** the separately studied, viscous rotating
 Saint--Venant research model (with or without feedback),
 associated with MCSS and LHMNC 2027.
 
-The usual ``python -m examples.shallow_water`` remains unchanged:
-historical ``pseudo`` initialization, 0.5 time horizon,
-standard Hamiltonian figure and native h ParaView export.
-To illustrate the **original inviscid example** using
-the separately qualified ``nonlinear_affine`` initializer,
-run the real BDF2 simulation and render its GetFEM fields:
+**Running the example itself now generates its visualizations by
+default.** No separate rendering script, postprocessing command or
+``--showcase`` argument is necessary. On a working SCRIMP/GetFEM
+installation, launch the canonical single file:
 
 .. code-block:: bash
 
    cd ~/Simulations/scrimp
-   git pull --ff-only
    conda activate scrimp
+   python examples/shallow_water.py
 
-   SCRIMP_DOCKER_NO_SUDO=1 \
-   SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
-   bash scripts/run-v130-shallow-water-showcase.sh
+The equivalent command is
+``python -m examples.shallow_water``. The direct entry point
+runs the true inviscid BDF2 model with MUMPS MPI1,
+``t_f=0.12``, ``dt=0.0001``, ``dt_save=0.002``,
+and production ``nonlinear_affine`` initialization, then
+exports the native ``h`` (CG2) and ``p`` (DG1) VTUs and creates
+**all figures automatically, in the same example file**.
 
-The visual pilot uses MUMPS MPI1, ``t_f=0.12``,
-``dt=0.0001``, and ``dt_save=0.002``
-by default (1,200 intended accepted BDF2 steps,
-approximately 61 true saved states). It creates
-**original GetFEM ParaView h and p time series**
-and renders all of the following **inside the
-canonical example's visualization module**:
+The default output location is determined by the current directory:
+
+.. code-block:: text
+
+   outputs/showcase/shallow_water/
+   ├── figures/
+   │   ├── saint_venant_surface_vitesse.gif
+   │   ├── saint_venant_champs_t*.png
+   │   ├── saint_venant_H_masse_bilan.png
+   │   └── saint_venant_H_masse_bilan.svg
+   ├── physical_FE_traces.npz
+   ├── provenance.json
+   └── pv/
+       ├── h/h.pvd
+       └── p/p.pvd
+
+The program prints the resulting paths. Use ``--showcase-output PATH``
+if another output directory is wanted, and ``--final-time``,
+``--time-step`` or ``--save-step`` to change the simulation
+horizon/resolution. The historical original ``pseudo`` initializer,
+``t_f=0.5``, single Hamiltonian figure and ``h`` PVD
+remain accessible with
+``python examples/shallow_water.py --no-showcase``. Calling
+``shallow_water_eq(showcase=False)`` retains the same legacy
+programmatic behavior. The default **executable** behavior is
+the complete visual example.
+
+For additional pinned-Docker scientific acceptance,
+``scripts/run-v130-shallow-water-showcase.sh`` calls this
+**same example** with explicit arguments and archives its
+original outputs. It is *not* necessary to generate the figures.
+
+The native example produces:
 
 - Three synchronized views in
   ``figures/saint_venant_surface_vitesse.gif``:
@@ -746,10 +774,13 @@ triangles. The revised VTK reader, now
 each quadratic cell using its original
 six vertices/mid-edge nodes (four display
 subtriangles), leaving the FE fields
-and equations unchanged. The saved original
-VTUs enabled **offline recovery of all four
-PNG views and a 36-frame native-state GIF**
+and equations unchanged. The saved original VTUs enabled **offline recovery
+of all four PNG views and a 36-frame native-state GIF**
 without recomputing the nonlinear simulation.
+**Now the corrected renderer is called automatically by an
+ordinary direct execution of ``examples/shallow_water.py``.**
+The old recovery command is only for existing historical ZIPs,
+not part of the user's normal example workflow.
 The former renderer's FAIL record is
 preserved, and the original archive lacks
 the true GetFEM energy/mass quadratures:
