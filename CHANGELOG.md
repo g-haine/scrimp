@@ -5,6 +5,46 @@ Changes to SCRIMP are recorded here. See also the
 
 ## 1.3.0 — in development (not released)
 
+### Exemple 2C coénergie et visuels natifs 2D — préparés, non qualifiés (25 novembre 2026)
+
+- `examples/wave_coenergy.py` utilise le **vrai**
+  `T^{-1}` anisotrope et la densité `3-x` :
+  coétats substitués, deux régions concentriques,
+  damping sur le disque intérieur et feedback de signe
+  passif `U=-0.5Y` au bord extérieur.
+  `nu=0.2+10(0.36-r²)` reste strictement positive
+  sur le seul disque intérieur pour `e_r/nu` ;
+  c'est un changement **explicite** du scénario historique.
+- Pilotage MUMPS MPI 1/2, DAE algébrique et dix pas
+  CN avec bilan `H-H0+Li+Lb=0` :
+  dissipation calculée indépendamment par
+  `integral e_r²/nu` et `-integral p*e_r` ;
+  retour de puissance au bord comparé à
+  `-integral UY` ; défaut ponctuel de projection
+  faible enregistré sans devenir un critère erroné.
+  Traces originales `rank*.npz/json`, VTK/PVD
+  `q,p,e_r`, parité MPI, archive d'échec
+  et de succès : `run-v130-wave2d-coenergy-pilot.sh`.
+- La visualisation commune
+  `render-v130-wave2d-native.py` exploite
+  les **vrais** VTU binaires et séries PVD : cartes
+  `PNG/SVG` des champs, animation `GIF`
+  de `p`, courbes énergétiques, CSV et provenance.
+  Les pilotes 2A/2B produisent aussi ces sorties
+  pour les cas qualifiés ; option de rendu après coup
+  depuis leurs archives existantes.
+- `run-v130-wave2d-showcase.sh {2a|2b|2c}`
+  prépare une démonstration physique plus longue,
+  toujours sur **MUMPS/FE natifs**, distincte
+  de la qualification scientifique. Sphinx 2C
+  intègre directement les blocs du code canonique.
+- **Statut 2C : candidat uniquement, exécution native
+  MPI1/2 et évaluation des visuels encore attendues.**
+  Aucune assertion de convergence, aucune nouvelle
+  qualification SuperLU_DIST et aucune modification
+  de `examples/published` ou de `master`.
+
+
 ### Exemple 2B : qualification physique MUMPS MPI1/2 PASS (25 novembre 2026)
 
 - Preuve native examinée :
