@@ -86,7 +86,7 @@ class Maxwell3DSourceTests(unittest.TestCase):
             'python3 scripts/check-v130-published-immutable.py',
             'SCRIMP_GETFEM_MATRIX_MODE=distributed',
             'zipfile.ZipFile',
-            'rank0.npz',
+            'f\"rank{rank}.npz\"',
             'summary.json',
             'pvd=folder/name/"pv"/field/f"{field}.pvd"',
             'PASS_MAXWELL3D_MUMPS_MPI1_MPI2',
