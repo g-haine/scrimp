@@ -93,13 +93,20 @@ GetFEM, not three unrelated scalar fields.
    :end-before: # TUTORIAL M3D-05:
    :dedent: 4
 
-An explicit runtime guard checks that the
-assigned GetFEM FEM descriptor is **exactly**
-``FEM_NEDELEC(3)`` / ``FEM_RTK(3,0)``.
-This is important: the SCRIMP FEM adapter has a
-historical CG fallback on some errors. A silent
-fallback would be **unacceptable** for a demonstration
-of patched H(curl)/H(div) elements.
+A strict post-registration guard retains both
+original ``S.FEM`` objects and verifies that
+their **type and order are unchanged** after
+``DPHS.add_FEM()``, and that the actual GetFEM
+``MeshFem`` has vector dimension 3 and
+nonzero degrees of freedom. This is important:
+SCRIMP's existing FEM adapter *mutates the
+original type/order to CG/1* on GetFEM's
+``AssertionError`` fallback. A silent
+replacement is thus explicitly detected,
+without relying on the Python binding's
+version-dependent ``MeshFem.fem()`` layout.
+This runtime guard is **not yet a complete
+proof of Maxwell numerical correctness**.
 
 A skew-adjoint discrete Maxwell interconnection
 ------------------------------------------------
