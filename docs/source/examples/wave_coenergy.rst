@@ -21,9 +21,9 @@ It does not replace 2A or 2B or imply identical meshes.
 The actual, executable code is
 ``examples/wave_coenergy.py``. Fragments below are included from
 that file, rather than copied into the documentation. The short
-default example (`h=0.2, dt=0.008, tf=0.08`) is a **native
-acceptance pilot**, not a resolved wave-propagation demonstration
-or a convergence study.
+default example (`h=0.2, dt=0.008, tf=0.08`) is a **qualified native
+MUMPS MPI1/2 acceptance pilot**, not a resolved wave-propagation
+demonstration or a convergence study.
 
 The true material inverse
 -------------------------
@@ -257,8 +257,91 @@ separately from this short physical acceptance,
 and its validated images may subsequently be integrated
 into the public Sphinx website.
 
-**Qualification status:** 2C is a prepared native
-candidate, **NOT PASS until real MUMPS MPI1/MPI2
-logs, binary evidence and physical gates succeed**.
-No generic solver regularization or hidden
-SuperLU_DIST qualification is claimed.
+Qualification evidence — original GetFEM CN, MPI 1 and 2
+-------------------------------------------------------
+
+**PASS, 25 November 2026** on the original full-precision FE
+archive ``v130-wave2d-coenergy-eeae81f7-siWdW8ft.zip``
+(commit ``eeae81f7099e61ed6edf62941c782e9d2ea56f2d``,
+pinned native Docker image ``scrimp-mpi:v1.3.0-rc3``).
+The short co-energy benchmark was run independently
+on **MUMPS MPI1 and MPI2** with **2459 FE degrees
+of freedom**, **10/10 accepted Crank–Nicolson
+steps**, zero nonlinear failures, and exact-algebraic
+DAE initial projection. All ten physical acceptance
+gates passed in each case.
+
+.. list-table:: Original native physical evidence
+   :header-rows: 1
+   :widths: 46 27 27
+
+   * - Quantity
+     - MPI 1
+     - MPI 2
+   * - Maximum absolute energy defect per CN step
+     - ``9.81e-16``
+     - ``4.39e-16``
+   * - Maximum absolute cumulative energy defect
+     - ``7.17e-16``
+     - ``2.60e-16``
+   * - Cumulative internal dissipation ``Li(tf)``
+     - ``0.035508373984``
+     - ``0.035508373984``
+   * - Cumulative boundary feedback dissipation ``Lb(tf)``
+     - ``0.001039372338``
+     - ``0.001039372338``
+   * - VTK fields / saved frames
+     - ``q,p,e_r`` / 11 each
+     - ``q,p,e_r`` / 11 each
+
+The first and last energies (MPI1) are
+``H(0)=0.25557110317334153`` and
+``H(tf)=0.21902335685158436``.
+The decline is **14.3%**, about **97.2%** from
+internal damping and **2.8%** from boundary feedback.
+The maximum absolute difference in the **full FE
+trajectory** between MPI1 and MPI2 is
+``2.686556533e-11``. The MPI2 ranks have identical
+full arrays and independently matching SHA256 digests.
+
+The visual-output files were also generated and
+examined from the **real native PVD/VTU**, rather than
+synthetic or interpolated physics. The gallery
+``field_snapshots.png`` shows the spatial stress
+magnitude, velocity and resistive effort at
+``t=0,0.04,0.08``; the animation
+``p_evolution.gif`` uses all 11 accepted physical
+states. ``energy_balance.png`` superimposes measured
+``H-H(0)`` and ``-Li-Lb`` and shows residuals
+at machine precision. The accompanying CSV makes the
+energy/power balance inspectable without ParaView.
+All files are included in the original pilot ZIP,
+under ``visuals/`` and ``mumps_mpi*/pv/``.
+
+**Next: a separate, visually resolved, longer run.**
+The *short* acceptance run does not yet establish
+wave quality on a fine mesh, long-time passivity
+or space/time convergence. A genuine user-facing
+showcase can be produced using:
+
+.. code-block:: bash
+
+   cd ~/Simulations/scrimp
+   git pull --ff-only
+   SCRIMP_DOCKER_NO_SUDO=1 \
+   SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+   bash scripts/run-v130-wave2d-showcase.sh 2c
+
+Its defaults are ``h=0.1``, ``dt=0.01``,
+``tf=1.0``; it renders longer true FE/VTK
+figures and animation as a **distinct visual
+demonstration**. It does not independently
+qualify mesh convergence, parallel parity, or
+SuperLU_DIST. Those require separate tests.
+
+**Qualification scope:** MUMPS MPI1/2 only,
+``h=0.2``, ``dt=0.008``, ``tf=0.08``,
+10 CN steps; physical energy, original VTU outputs
+and render pipeline validated. No automatic solver
+regularization, convergence or long-time
+qualification is claimed.
