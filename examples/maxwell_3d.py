@@ -213,6 +213,237 @@ def measure_maxwell(system):
                 cumulative_energy_defect=defect, gates=gates)
 
 
+
+# Visualization is deliberately kept IN the canonical executable.
+# Only rank 0 calls these routines, AFTER collective GetFEM VTK export.
+# The electric/magnetic energy curves use original GetFEM FE integrals;
+# all 3-D arrows and the wireframe use native GetFEM VTK snapshots.
+def _vtk_native_array(element, expected_count=None):
+    """Read GetFEM's inline-base64 VTK, without requiring the vtk package."""
+    import base64
+    import struct
+
+    if element is None or element.attrib.get("format") != "binary":
+        raise ValueError("Missing binary GetFEM VTK DataArray")
+    dtype = {"Float32": "<f4", "Float64": "<f8",
+             "Int32": "<i4", "Int64": "<i8"}.get(element.get("type"))
+    if dtype is None:
+        raise ValueError("Unsupported GetFEM VTK DataArray type")
+    raw = base64.b64decode((element.text or "").strip(), validate=True)
+    if len(raw) < 4:
+        raise ValueError("Truncated GetFEM VTK binary array")
+    if expected_count is None:
+        if struct.unpack("<I", raw[:4])[0] != len(raw) - 4:
+            raise ValueError("Invalid GetFEM VTK binary byte-size header")
+    elif len(raw) != 4 + expected_count * np.dtype(dtype).itemsize:
+        # PointData's 4-byte header can encode a component count rather
+        # than a byte length. Trust the Piece's explicit field dimensions.
+        raise ValueError("GetFEM VTK field length disagrees with mesh")
+    a = np.frombuffer(raw[4:], dtype=np.dtype(dtype)).copy()
+    if expected_count is not None and len(a) != expected_count:
+        raise ValueError("VTK numerical field has incorrect size")
+    return a
+
+
+def _native_vector_history(out, field, times):
+    """Read ONLY the real exported tetrahedral vector snapshots."""
+    from xml.etree import ElementTree as ET
+
+    folder = Path(out) / "pv" / field
+    catalog = ET.parse(folder / f"{field}.pvd").getroot()
+    frames = catalog.findall(".//DataSet")
+    if len(frames) != len(times):
+        raise ValueError(f"{field}: VTK frame count differs from FE trajectory")
+    points0, tetra0, snapshots = None, None, []
+    for i, frame in enumerate(frames):
+        if abs(float(frame.attrib["timestep"]) - float(times[i])) > 1e-10:
+            raise ValueError(f"{field}: VTK/FE time mismatch at frame {i}")
+        filename = Path(frame.attrib["file"])
+        if filename.name != str(filename) or filename.suffix != ".vtu":
+            raise ValueError(f"{field}: unsafe or invalid VTK frame filename")
+        tree = ET.parse(folder / filename).getroot()
+        piece = tree.find(".//Piece")
+        if piece is None:
+            raise ValueError(f"{field}: missing VTK unstructured grid")
+        npnt = int(piece.attrib["NumberOfPoints"])
+        nc = int(piece.attrib["NumberOfCells"])
+        if npnt <= 0 or nc <= 0:
+            raise ValueError(f"{field}: empty native 3D VTK mesh")
+        points = _vtk_native_array(
+            piece.find("./Points/DataArray"), expected_count=npnt*3
+        ).reshape(npnt, 3)
+        conn = _vtk_native_array(
+            piece.find("./Cells/DataArray[@Name='connectivity']")
+        )
+        offsets = _vtk_native_array(
+            piece.find("./Cells/DataArray[@Name='offsets']")
+        )
+        types = _vtk_native_array(
+            piece.find("./Cells/DataArray[@Name='types']")
+        )
+        if (len(conn) != 4*nc or not np.array_equal(
+            offsets, 4*np.arange(1, nc+1)
+        ) or len(types) != nc or not np.all(types == 10)):
+            raise ValueError(f"{field}: non-tetrahedral or corrupt VTK cells")
+        tetra = conn.reshape(nc, 4).astype(int)
+        if np.any((tetra < 0) | (tetra >= npnt)):
+            raise ValueError(f"{field}: invalid tetrahedron vertex index")
+        node = piece.find(f"./PointData/DataArray[@Name='{field}']")
+        if node is None or int(node.get("NumberOfComponents", "0")) != 3:
+            raise ValueError(f"{field}: expected native 3-vector field")
+        values = _vtk_native_array(node, expected_count=npnt*3).reshape(
+            npnt, 3
+        )
+        if not np.all(np.isfinite(points)) or not np.all(np.isfinite(values)):
+            raise ValueError(f"{field}: nonfinite GetFEM VTK data")
+        if points0 is None:
+            points0, tetra0 = points, tetra
+        elif not (np.array_equal(points, points0)
+                  and np.array_equal(tetra, tetra0)):
+            raise ValueError(f"{field}: VTK mesh geometry changed with time")
+        snapshots.append(values)
+    return points0, tetra0, np.asarray(snapshots)
+
+
+def render_maxwell_visuals(output, observed, state_sha256):
+    """Create PNG/SVG/GIF INSIDE this runnable example, from real FE/VTK.
+
+    Called only by MPI rank 0 after both native fields are exported.
+    It does not change GetFEM state, timestepping or the physical gates.
+    """
+    import collections
+    import io
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from PIL import Image
+
+    output = Path(output)
+    folder = output / "visuals"
+    folder.mkdir(parents=True, exist_ok=True)
+    time = np.asarray(observed["t"], dtype=float)
+    E_pts, E_cells, E_vals = _native_vector_history(output, "E", time)
+    B_pts, B_cells, B_vals = _native_vector_history(output, "B", time)
+    if not (np.array_equal(E_pts, B_pts)
+            and np.array_equal(E_cells, B_cells)):
+        raise ValueError("Electric/magnetic VTK exports do not share a mesh")
+
+    # Only edges from the *outer* tetrahedral surface are drawn.
+    faces = collections.Counter(
+        tuple(sorted(face)) for a, b, c, d in E_cells
+        for face in ((a,b,c), (a,b,d), (a,c,d), (b,c,d))
+    )
+    edges = sorted({
+        tuple(sorted((u, v)))
+        for face, count in faces.items() if count == 1
+        for u, v in ((face[0],face[1]), (face[0],face[2]),
+                     (face[1],face[2]))
+    })
+    if not edges:
+        raise ValueError("Cannot identify exterior tetrahedral surface")
+    radius = max(1., float(np.max(np.abs(E_pts))) * 1.1)
+
+    fig, ax = plt.subplots(figsize=(8.8, 5.0))
+    ax.plot(time, observed["electric_energy"], marker="o",
+            label="Electric energy")
+    ax.plot(time, observed["magnetic_energy"], marker="s",
+            label="Magnetic energy")
+    ax.plot(time, observed["H"], marker=".", label="Hamiltonian")
+    ax.set(xlabel="Time (dimensionless)", ylabel="Energy (dimensionless)",
+           title="Maxwell 3D: electric–magnetic energy exchange\n"
+                 "Nédélec / RT0 · native GetFEM quadratures")
+    ax.grid(alpha=0.25)
+    ax.legend()
+    fig.tight_layout()
+    fig.savefig(folder / "maxwell3d_echange_energie.png", dpi=170)
+    fig.savefig(folder / "maxwell3d_echange_energie.svg")
+    plt.close(fig)
+
+    def vector_figure(field, vectors, frame):
+        fig = plt.figure(figsize=(7.0, 6.6))
+        ax = fig.add_subplot(111, projection="3d", proj_type="ortho")
+        for i, j in edges:
+            ax.plot(E_pts[[i,j],0], E_pts[[i,j],1], E_pts[[i,j],2],
+                    linewidth=0.5, alpha=0.12)
+        # At most 160 true VTK nodes for legibility; no resampling.
+        selected = np.linspace(
+            0, len(E_pts)-1, min(len(E_pts), 160), dtype=int
+        )
+        v = vectors[frame, selected]
+        p = E_pts[selected]
+        ax.quiver(p[:,0], p[:,1], p[:,2],
+                  v[:,0], v[:,1], v[:,2],
+                  length=0.45, normalize=False, arrow_length_ratio=0.22)
+        ax.set(xlim=(-radius,radius), ylim=(-radius,radius),
+               zlim=(-radius,radius), xlabel="x", ylabel="y", zlabel="z")
+        ax.set_box_aspect((1, 1, 1))
+        ax.view_init(elev=22, azim=-58)
+        kind = "electric field E" if field == "E" else "magnetic induction B"
+        ax.set_title(f"Maxwell 3D: {kind}\n"
+                     f"t = {time[frame]:.2f} · native GetFEM 3D vectors",
+                     pad=12)
+        fig.subplots_adjust(left=0.03, right=0.97,
+                            bottom=0.02, top=0.88)
+        return fig
+
+    for field, values in (("E",E_vals), ("B",B_vals)):
+        fig = vector_figure(field, values, -1)
+        fig.savefig(folder / f"maxwell3d_vecteurs_{field}_tfinal.png",
+                    dpi=155)
+        plt.close(fig)
+
+    # Keep the same camera, domain bounds and vector scale in *all*
+    # frames: an initially zero B field must really appear from zero.
+    gif_frames = []
+    for i in range(len(time)):
+        fig = vector_figure("B", B_vals, i)
+        buffer = io.BytesIO()
+        fig.savefig(buffer, format="png", dpi=105)
+        plt.close(fig)
+        buffer.seek(0)
+        with Image.open(buffer) as im:
+            gif_frames.append(im.convert("RGB").copy())
+    gif_frames[0].save(
+        folder / "maxwell3d_B_3D_animation.gif",
+        save_all=True, append_images=gif_frames[1:],
+        duration=300, loop=0, optimize=False,
+    )
+    assets = (
+        "maxwell3d_echange_energie.png",
+        "maxwell3d_echange_energie.svg",
+        "maxwell3d_vecteurs_E_tfinal.png",
+        "maxwell3d_vecteurs_B_tfinal.png",
+        "maxwell3d_B_3D_animation.gif",
+    )
+    provenance = {
+        "schema": "scrimp-maxwell3d-native-visuals-v1",
+        "origin": "examples/maxwell_3d.py (same run as FE solution)",
+        "source": "native GetFEM 3D VTU/PVD and FE Hamiltonian arrays",
+        "MPI_writer_rank": 0,
+        "original_FE_state_SHA256": state_sha256,
+        "frames": int(len(time)),
+        "points": int(len(E_pts)),
+        "tetrahedra": int(len(E_cells)),
+        "fields": ["E", "B"],
+        "no_synthetic_field_or_time_interpolation": True,
+        "visual_note": "VTK nodal samples represent underlying intrinsic FE; "
+                       "arrows are not edge/face DOFs.",
+        "assets": list(assets),
+    }
+    (folder / "provenance.json").write_text(
+        json.dumps(provenance, indent=2) + "\n", encoding="utf-8"
+    )
+    (folder / "README.txt").write_text(
+        "Generated by examples/maxwell_3d.py from this very run.\n"
+        "Energy: original GetFEM FE quadratures; arrows: original VTK nodal "
+        "3D vector samples on the real tetrahedral mesh.\n"
+        "The GIF uses fixed camera, vector scale and coordinates.\n"
+        "Arrows are nodal visualizations, not Nedelec edge or RT face DOFs.\n",
+        encoding="utf-8",
+    )
+    return provenance
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mesh-size", type=float, default=0.7)
@@ -270,8 +501,18 @@ def main():
         raise RuntimeError("Native Maxwell 3D physical acceptance FAILED: "
                            + json.dumps(metadata))
     if args.export:
+        # Native VTK writer is collective; it serializes only on rank 0.
         for name in ("E", "B"):
             system.export_to_pv(name, path=str(args.output), t="All")
+        # Figures/animation are local file operations, rank 0 ONLY.
+        # --export therefore produces the visual package automatically.
+        if comm.rank == 0:
+            metadata["visuals"] = render_maxwell_visuals(
+                args.output, obs, metadata["state_SHA256"]
+            )
+            (args.output/"rank0.json").write_text(
+                json.dumps(metadata, indent=2)+"\n", encoding="utf-8"
+            )
     if comm.rank == 0:
         print(json.dumps(metadata, indent=2), flush=True)
     return system
