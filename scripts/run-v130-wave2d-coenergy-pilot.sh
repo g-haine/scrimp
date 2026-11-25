@@ -24,9 +24,9 @@ python3 tests/test_v130_interface_deferred.py
 python3 scripts/check-v130-published-immutable.py
 mkdir -p sandbox/outputs
 out="$(mktemp -d "$root/sandbox/outputs/v130-wave2d-coenergy-$(git rev-parse --short=8 HEAD)-XXXXXXXX")"
-printf '{"schema":"scrimp-v130-coenergy-wave2d-MUMPS-MPI-pilot-v1","source":"%s","image":"%s","image_revision":"%s","canonical":"examples/wave_coenergy.py","physical_scenario":"true compliance T inverse, two-region disk, positive inner damping and negative outer boundary feedback","steps":10,"not_superlu_dist_qualification":true}\n' \
+printf '{"schema":"scrimp-v130-coenergy-wave2d-MUMPS-MPI-pilot-v1","source":"%s","image":"%s","image_revision":"%s","canonical":"examples/wave_coenergy.py","physical_scenario":"true compliance T inverse, two-region disk, positive inner damping and passive U=+kY outer feedback (dH=-P_boundary-D_inner)","steps":10,"not_superlu_dist_qualification":true}\n' \
   "$(git rev-parse HEAD)" "$image" "$revision" > "$out/manifest.json"
-echo "COENERGY 2C: true T^-1, internal disk resistance and outer passive feedback"
+echo "COENERGY 2C: true T^-1, internal disk resistance and outer passive U=+kY feedback"
 echo "10 authentic CN steps, MUMPS MPI1/2, FE q/p/e_r, physical H+Li+Lb"
 echo "EVIDENCE: $out"
 for ranks in 1 2; do
@@ -128,15 +128,19 @@ try:
             Di=data["dissipation_internal"]
             Li=data["cumulative_internal_loss"]
             Lb=data["cumulative_feedback_loss"]
-            defect=np.diff(H)-dt*P[1:]+dt*Di[1:]
+            # Original Grad-Grad coenergy port has Y=-p; its
+            # signed U*Y enters the PHYSICAL energy balance as -P.
+            defect=np.diff(H)+dt*P[1:]+dt*Di[1:]
             if (np.min(Di[1:])<-1e-10 or Li[-1]<=1e-8
-                or np.max(P[1:])>1e-9 or Lb[-1]<=1e-8
+                or np.min(P[1:])<-1e-10 or Lb[-1]<=1e-8
                 or np.max(np.abs(defect))>1e-8
                 or np.max(np.abs(H-H[0]+Li+Lb))>1e-8
+                or not np.allclose(np.diff(Lb),dt*P[1:],
+                                   rtol=1e-8,atol=1e-11)
                 or not np.allclose(defect,data["energy_step_defects"],
                                    rtol=0,atol=1e-10)
                 or np.max(np.abs(Di-data["dissipation_internal_weak_check"]))>1e-8
-                or np.max(np.abs(data["dissipation_feedback"]+P))>1e-8):
+                or np.max(np.abs(data["dissipation_feedback"]-P))>1e-8):
                 raise RuntimeError(f"{name}/rank{rank} independent energy FAIL")
             traces.append(data)
         first=traces[0]
