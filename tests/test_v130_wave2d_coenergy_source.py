@@ -68,8 +68,11 @@ class WaveCoenergySourceTests(unittest.TestCase):
             self.assertGreater(0.2+10*(.36-x*x-y*y),0)
         self.assertNotIn('init_step_ts_type="pseudo"',self.source)
 
-    def test_closed_loop_feedback_is_negative_and_both_losses_are_measured(self):
-        self.assertIn('expressions = [f"-{FEEDBACK_GAIN}*Y"]',self.source)
+    def test_closed_loop_feedback_is_passive_and_both_losses_are_measured(self):
+        self.assertIn('expressions = [f"{FEEDBACK_GAIN}*Y"]',self.source)
+        self.assertIn('step_boundary = dt*P[1:]',self.source)
+        self.assertIn('np.max(np.abs(feedback-P))',self.source)
+        self.assertIn('"positive_nontrivial_feedback_loss"',self.source)
         self.assertIn('f"{FEEDBACK_GAIN}*Y*Y"',self.source)
         self.assertIn('"e_r*e_r/nu"',self.source)
         self.assertIn('"-p*e_r"',self.source)
