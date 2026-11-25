@@ -19,6 +19,7 @@ python3 -m py_compile examples/wave_coenergy.py \
   scripts/render-v130-wave2d-native.py
 bash -n "$0"
 python3 tests/test_v130_wave2d_coenergy_source.py
+python3 tests/test_v130_interface_deferred.py
 python3 scripts/check-v130-published-immutable.py
 mkdir -p sandbox/outputs
 out="$(mktemp -d "$root/sandbox/outputs/v130-wave2d-coenergy-$(git rev-parse --short=8 HEAD)-XXXXXXXX")"
