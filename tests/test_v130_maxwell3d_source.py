@@ -46,7 +46,7 @@ class Maxwell3DSourceTests(unittest.TestCase):
         self.assertNotIn('S.FEM("B", 1, "CG")', self.source)
         self.assertIn('"getfem": "FEM_NEDELEC2(3,1)"', self.source)
         self.assertIn('"getfem": "FEM_BDMK(3,1)"', self.source)
-        self.assertIn('("NED2", 1)', self.source)
+        self.assertIn('(fem_E, "NED2", 1)', self.source)
 
     def test_intrinsic_fem_guard_checks_registered_scrimp_type_and_order(self):
         """Test the exact FEM.set_fem() CG fallback policy, not wrapper arrays."""
