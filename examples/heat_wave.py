@@ -16,6 +16,7 @@
 # Import scrimp
 import scrimp as S
 import numpy as np
+from pathlib import Path
 
 from scrimp.utils.fe_initialization import enforce_zero_dirichlet_initial_values
 
