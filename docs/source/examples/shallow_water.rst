@@ -664,7 +664,15 @@ Original inviscid free-surface visualizations (v1.3.0, opt-in)
 -------------------------------------------------------------
 
 The shallow-water **example** also has a genuine, opt-in visual
-mode. It is **not** the separately studied, viscous rotating
+mode. **All source code for this example, including the native VTK
+reader and image/GIF generation, is inside the single
+``examples/shallow_water.py`` file.** There is no separate
+example visualization module to import or maintain. A helper in
+``scripts/`` can optionally recover images from existing VTK
+archives without running the nonlinear solve, but it is not needed
+for the public example.
+
+It is **not** the separately studied, viscous rotating
 Saint--Venant research model (with or without feedback),
 associated with MCSS and LHMNC 2027.
 
@@ -724,12 +732,35 @@ Neither this visualization nor the existing
 two-time-step experiment proves exact
 BDF2 Hamiltonian conservation.
 
-**Status:** this longer visual scenario is
-**prepared but awaits its native run**.
+**Native outcome (25 November 2026):** the 1,200
+physical BDF2 steps reached ``T=0.12``
+with **zero rejected steps or nonlinear failures**.
+The original run exported 61 genuine VTK
+states per field (``h`` and ``p``)
+before its *visualizer* rejected the true
+six-node CG2 height triangles
+(``VTK_QUADRATIC_TRIANGLE``, type 22),
+having only anticipated linear VTK type 5
+triangles. The revised VTK reader, now
+**inside this same example file**, displays
+each quadratic cell using its original
+six vertices/mid-edge nodes (four display
+subtriangles), leaving the FE fields
+and equations unchanged. The saved original
+VTUs enabled **offline recovery of all four
+PNG views and a 36-frame native-state GIF**
+without recomputing the nonlinear simulation.
+The former renderer's FAIL record is
+preserved, and the original archive lacks
+the true GetFEM energy/mass quadratures:
+the recovered spatial images are **not**
+a full-time physical-energy PASS.
+
 The published numerical MPI1/2 physical
 qualification above remains valid for
 ``T=0.002`` and does not silently extend
-to ``T=0.12``. See
+to a full power-balance proof at ``T=0.12``.
+See
 `the dedicated inviscid SWE visual and physical protocol
 <https://github.com/g-haine/scrimp/blob/release/1.3.0-preparation/docs/V130_SHALLOW_WATER_EXAMPLE_ACCEPTANCE.md>`_
 for acceptance scope and the original archives.
