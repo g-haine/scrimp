@@ -24,8 +24,8 @@ import numpy as np
 from PIL import Image
 
 ROOT=Path(__file__).resolve().parents[1]
-sys.path.insert(0,str(ROOT/"examples"))
-from shallow_water_visualization import (  # noqa: E402
+sys.path.insert(0,str(ROOT))
+from examples.shallow_water import (  # noqa: E402
     true_pvd_files,native_triangular_field
 )
 
