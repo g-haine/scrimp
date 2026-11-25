@@ -23,7 +23,7 @@ python3 scripts/check-v130-published-immutable.py
 
 mkdir -p sandbox/outputs
 out="$(mktemp -d "$root/sandbox/outputs/v130-maxwell3d-$(git rev-parse --short=8 HEAD)-XXXXXXXX")"
-printf '{"schema":"v130-maxwell3d-MUMPS-MPI-pilot-v1","source":"%s","image":"%s","image_revision":"%s","canonical":"examples/maxwell_3d.py","domain":"3D tetrahedral Ball, unit radius","fields":"E: Hcurl patched Nedelec-II k1; B: Hdiv patched BDM1","boundary":"natural zero magnetic tangential work (not imposed PEC)","dimensionless_eps_mu":1,"mesh_size":0.7,"final_time":0.2,"time_step":0.02,"steps":10,"not_a_convergence_study":true}\n' \
+printf '{"schema":"v130-maxwell3d-MUMPS-MPI-pilot-v2","source":"%s","image":"%s","image_revision":"%s","canonical":"examples/maxwell_3d.py","domain":"3D tetrahedral Ball, unit radius","fields":"E: Hcurl patched Nedelec-II k1; B: Hdiv patched BDM1","boundary":"natural zero magnetic tangential work (not imposed PEC)","dimensionless_eps_mu":1,"mesh_size":0.7,"final_time":0.2,"time_step":0.02,"steps":10,"not_a_convergence_study":true}\n' \
   "$(git rev-parse HEAD)" "$image" "$revision" > "$out/manifest.json"
 echo "MAXWELL 3D: genuine PATCHED FEM_NEDELEC2(3,1) + FEM_BDMK(3,1)"
 echo "10 authentic CN steps, MUMPS MPI1/2, H(t)=H(0), tetra VTK E and B"
@@ -79,7 +79,7 @@ keys = ("t", "z", "H", "electric_energy", "magnetic_energy",
         "div_B_squared", "step_energy_defect",
         "cumulative_energy_defect")
 summary = {
-    "schema": "v130-maxwell3d-Nedelec-RT0-native-v1",
+    "schema": "v130-maxwell3d-NedelecII-BDM1-native-v2",
     "status": "FAIL_OR_UNQUALIFIED_MAXWELL3D_NATIVE",
     "cases": {}, "MPI1_vs_MPI2": {}, "errors": [],
     "superlu_dist_qualified": False,
