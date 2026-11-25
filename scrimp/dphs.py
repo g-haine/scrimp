@@ -37,7 +37,9 @@ from scrimp.utils.async_binary_trajectory import (
 from scrimp.utils.production_policy import (
     auto_interface_enabled, pv_export_mode,
 )
-from scrimp.utils.trajectory_sampling import saved_time_is_due
+from scrimp.utils.trajectory_sampling import (
+    saved_time_is_due, fixed_cn_accepted_step_is_due,
+)
 from scrimp.hamiltonian import Hamiltonian
 from scrimp.brick import Brick
 from scrimp.control import Control_Port
@@ -3647,8 +3649,24 @@ class DPHS:
                     1.0, abs(float(self.time_scheme["t_f"]))
                 )
             )
+            # Fixed-step Crank--Nicolson with dt_save == dt MUST store
+            # each actual accepted PETSc TS step, even when the
+            # accumulated floating clock is a few ULPs below
+            # (previous saved t + dt_save). The original 3000-step
+            # Heat--Wave pilot dropped accepted step 2999 at t≈14.995,
+            # invalidating a mathematically necessary adjacent-step
+            # CN power integration despite successful TS convergence.
+            # For all other (including adaptive/subsampled) schedules
+            # retain the strict bounded saved_time_is_due() policy.
+            fixed_cn_accept = fixed_cn_accepted_step_is_due(
+                i,
+                dt=float(self.time_scheme["dt"]),
+                dt_save=dt_save,
+                ts_type=self.time_scheme.getString("ts_type", ""),
+                ts_adapt_type=self.time_scheme.getString("ts_adapt_type", ""),
+            )
             if (
-                (i == 0)
+                (i == 0) or fixed_cn_accept
                 or saved_time_is_due(t, next_saved_at_t, dt_save)
                 or (i == -1) or self.stop_TS or final_lumped_step
             ):
