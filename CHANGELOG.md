@@ -5,7 +5,58 @@ Changes to SCRIMP are recorded here. See also the
 
 ## 1.3.0 — in development (not released)
 
-### Saint-Venant 2D non visqueux — visualisations natives hauteur, vitesse et bilans (25 novembre 2026, exécution en attente)
+### Saint-Venant 2D — architecture « un exemple = un fichier », CG2 VTK natifs et récupération des images (25 novembre 2026)
+
+- **Respect de la convention du projet :**
+  l'intégralité du modèle non visqueux, du solveur,
+  de la lecture des deux topologies VTU GetFEM
+  et de la production des figures PNG/GIF est
+  désormais définie dans le seul fichier
+  `examples/shallow_water.py`. Le module séparé
+  `examples/shallow_water_visualization.py`
+  a été **supprimé** ; aucune dépendance de
+  l'exemple à un fichier voisin. L'option
+  `--showcase` et les sorties par défaut
+  restent inchangées. Les utilitaires distincts
+  de `scripts/` servent seulement à contrôler
+  les preuves et à récupérer des images à
+  partir des archives d'origine.
+- Le solveur natif original
+  (`14181a9431ef621e3df55b7374f61a3746b05e46`)
+  a bien exécuté **1 200 pas BDF2**, à `T=.12`,
+  sans rejet ni échec SNES, puis a exporté
+  **61 véritables VTU de `h` et 61 de `p`**.
+  L'ancien rendu a échoué **après** ces étapes
+  en confondant deux éléments VTK distincts :
+  `h` en CG2, **type 22 quadratique six nœuds**,
+  contre `p` en DG1, **type 5 linéaire**.
+  Correctif strict dans le seul fichier
+  canonique : subdivision graphique de chaque
+  triangle quadratique à ses six vrais nœuds,
+  et lecture des compteurs binaires natifs.
+- **Récupération autonome des images sans
+  répétition des 1 200 pas BDF2 :**
+  `scripts/recover-v130-shallow-water-showcase.py`
+  importe les fonctions du fichier
+  `examples/shallow_water.py`, sans charger
+  GetFEM ni intégrer l'équation, et relit
+  uniquement les anciens PVD/VTU.
+  Quatre PNG spatiaux et un GIF composé de
+  36 états FE enregistrés ont été récupérés.
+  Le ZIP d'origine conserve son `FAIL`
+  graphique historique ; les intégrales
+  exactes H/masse absentes de l'archive
+  **ne sont pas reconstruites**.
+  Les preuves natives courtes MPI1/2
+  demeurent inchangées.
+- Les tests de source et les contrôles
+  d'éléments VTK quadratiques/linéaires
+  ciblent dorénavant le module canonique
+  unique. Aucun des huit fichiers
+  `examples/published/` n'a été modifié.
+
+
+### Saint-Venant 2D non visqueux — préparation historique du pilote graphique (résultats et regroupement ci-dessus)
 
 - **Distinction de périmètre fixée :** le Saint-Venant
   **visqueux tournant**, contrôlé ou non, est un
@@ -28,8 +79,8 @@ Changes to SCRIMP are recorded here. See also the
   hauteur CG2 `h` et de la quantité de mouvement
   DG1 `p` sont produites directement par
   l'exemple dans des catalogues VTK séparés.
-  `examples/shallow_water_visualization.py`
-  lit les triangles natifs des **deux maillages VTK
+  `examples/shallow_water.py`
+  lit désormais lui-même les triangles natifs des **deux maillages VTK
   différents**, puis l'exemple produit :
   **quatre PNG de la surface libre élevée
   graphiquement en 3D, carte de hauteur
