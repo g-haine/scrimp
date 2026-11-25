@@ -241,13 +241,11 @@ def render_native_shallow_water(system, folder, *, rho=1000.,
         ax_surface=fig.add_subplot(grid[0,0],projection="3d")
         ax_height=fig.add_subplot(grid[0,1])
         ax_velocity=fig.add_subplot(grid[0,2])
-        xyz=np.concatenate(
-            (h_cells, np.empty((len(h_cells),0))),axis=1
-        ) if False else np.dstack((
-            h_cells, height[htri]
-        )) if False else np.stack((
-            h_cells[:,:,0], h_cells[:,:,1],
-            height[htri]
+        # Original VTK triangle vertices at their actual nodal h.
+        # 3D geometry is a *visual elevation* of the 2-D FE surface,
+        # NOT a separate 3-D shallow-water simulation.
+        xyz=np.stack((
+            h_cells[:,:,0],h_cells[:,:,1],height[htri]
         ),axis=2)
         surface=Poly3DCollection(
             xyz,linewidth=0.,edgecolor="none"
