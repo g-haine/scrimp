@@ -29,15 +29,6 @@ from pathlib import Path
 import numpy as np
 import scrimp as S
 
-# TUTORIAL M3D-01: explicit three-dimensional curl (GWFL has no native Curl)
-CURL3 = (
-    "[Grad(v)(3,2)-Grad(v)(2,3);"
-    "Grad(v)(1,3)-Grad(v)(3,1);"
-    "Grad(v)(2,1)-Grad(v)(1,2)]"
-)
-
-
-
 def assert_patched_intrinsic_fem(mesh_fem, requested, getfem_module):
     """Fail closed against SCRIMP's legacy FEM-to-CG fallback.
 
@@ -59,6 +50,15 @@ def assert_patched_intrinsic_fem(mesh_fem, requested, getfem_module):
     if int(mesh_fem.qdim()) != 3 or int(mesh_fem.nbdof()) <= 0:
         raise RuntimeError(f"Invalid intrinsic 3D field for {requested}")
     return actual
+
+# TUTORIAL M3D-01: explicit three-dimensional curl (GWFL has no native Curl)
+CURL3 = (
+    "[Grad(v)(3,2)-Grad(v)(2,3);"
+    "Grad(v)(1,3)-Grad(v)(3,1);"
+    "Grad(v)(2,1)-Grad(v)(1,2)]"
+)
+
+
 
 
 def maxwell_3d(*, mesh_size=0.7, final_time=0.2, time_step=0.02,
