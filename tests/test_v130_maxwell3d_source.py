@@ -320,7 +320,10 @@ format="binary">{packed(vectors,field_header=True)}</DataArray></PointData>
 
     def test_tutorial_reuses_same_canonical_source(self):
         self.assertIn("Nédélec", self.doc)
-        self.assertIn("Raviart", self.doc)
+        self.assertIn("BDM", self.doc)
+        self.assertIn('S.FEM("E", 1, "NED2")', self.doc)
+        self.assertIn('S.FEM("B", 1, "BDM")', self.doc)
+        self.assertIn("historical", self.doc.lower())
         # The tutorial uses Sphinx/LaTeX H(\mathrm{curl};\Omega) notation,
         # not the informal plaintext shorthands H(curl) and H(div).
         self.assertIn(r"H(\mathrm{curl};\Omega)", self.doc)
