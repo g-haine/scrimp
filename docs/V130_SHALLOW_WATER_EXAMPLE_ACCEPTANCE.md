@@ -228,27 +228,64 @@ des outils de validation ou de récupération
 de sorties natives déjà calculées, **pas des
 modules nécessaires à l'exécution de l'exemple**.
 
-Un mode **`--showcase` opt-in** a été intégré au fichier canonique
-pour produire des figures à partir des vrais champs GetFEM, plutôt
-que de se limiter au tracé de H. Il sélectionne explicitement
-l'initialiseur de production `nonlinear_affine` (qualifié séparément),
-conserve **les briques pH, le maillage et les données initiales
-d'origine**, puis exécute le BDF2 originel avec G explicitement retardé.
-La commande classique `python -m examples.shallow_water`
-conserve son ancienne initialisation `pseudo`, son horizon de
-0.5, son image H et son export h : aucun choix par défaut ne change.
-
-**Pilote reproductible à exécuter :**
+**Convention complémentaire indispensable — lancer l'exemple
+doit produire ses figures :** la simple commande
 
 ```bash
 cd ~/Simulations/scrimp
-git pull --ff-only
 conda activate scrimp
+python examples/shallow_water.py
+```
 
+(ou `python -m examples.shallow_water`) exécute maintenant
+le **vrai** modèle Saint-Venant 2D non visqueux puis écrit
+automatiquement tous ses visuels natifs, **sans option
+`--showcase` ni script extérieur**.
+
+Cette exécution directe utilise `t_f=0.12`,
+`dt=0.0001`, `dt_save=0.002` et l'initialiseur
+de production `nonlinear_affine`, indépendamment
+qualifié, sans modifier les briques pH, le maillage,
+les états initiaux h/p, les quatre commandes nulles,
+BDF2 ou le terme G explicitement retardé.
+
+**Chemins de sortie reproductibles par défaut** (depuis
+la racine du dépôt) :
+
+```text
+outputs/showcase/shallow_water/
+├── figures/
+│   ├── saint_venant_surface_vitesse.gif
+│   ├── saint_venant_champs_t*.png
+│   ├── saint_venant_H_masse_bilan.png
+│   └── saint_venant_H_masse_bilan.svg
+├── physical_FE_traces.npz
+├── provenance.json
+└── pv/
+    ├── h/h.pvd
+    └── p/p.pvd
+```
+
+Le programme affiche ces chemins à la fin. Un utilisateur
+peut passer `--showcase-output CHEMIN` et régler le temps
+final ou les pas avec les options de l'exemple. Le mode
+historique `pseudo`, `t_f=0.5` et sortie limitée à H
+et à `h.pvd` reste accessible explicitement avec
+`python examples/shallow_water.py --no-showcase`,
+ou par `shallow_water_eq(showcase=False)` pour les
+anciens appelants Python.
+
+**Pilote scientifique Docker optionnel :**
+
+```bash
 SCRIMP_DOCKER_NO_SUDO=1 \
 SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
 bash scripts/run-v130-shallow-water-showcase.sh
 ```
+
+Il appelle le même fichier d'exemple et archive les
+preuves. **Il n'est pas nécessaire pour produire les images**
+sur une installation SCRIMP/GetFEM fonctionnelle.
 
 Le pilote prévoit `t_f=0.12`, `dt=0.0001`,
 `dt_save=0.002` (**1 200 pas BDF2, environ 61 états graphiques**),
@@ -298,8 +335,8 @@ les vrais catalogues h/p, le calendrier GetFEM, les
 intégrales FE et les limites de qualification ; le script
 conserve une archive ZIP même en cas d'échec.
 
-**État natif (25 novembre 2026) : calcul BDF2 terminé,
-rendus spatiaux rétablis hors ligne.** L'archive
+**État natif (25 novembre 2026) : ancien calcul BDF2 terminé,
+rendus spatiaux récupérés, reproduction directement par l'exemple activée.** L'archive
 `v130-SWE-native-visuals-14181a94-k4V3Wo0f.zip`
 contient les 1 200 pas BDF2 acceptés
 (0 rejet, 0 échec non linéaire) à `t_f=0.12`,
