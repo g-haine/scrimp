@@ -1,13 +1,135 @@
 # SCRIMP v1.3.0 — Heat–Wave 2D: physically meaningful example
 
-**25 November 2026 — native Heat–Wave 2D MUMPS MPI1/MPI2
-full FE and oriented physical CN PARITY PASS (4 steps), native
-15-second TS converged (3000 steps), but full-horizon CN power
-acceptance still PENDING following a one-sample monitor defect.
-The two separately completed 15-second visual runs remain valid
-within their documented scope; no gallery eigenmode is certified.**
+**25 November 2026 — native Heat–Wave 2D qualification PASS:
+MUMPS MPI1/MPI2 physical FE and CN power parity on four steps,
+AND MUMPS MPI1 full 15-second energy-power identity on all
+3,000 consecutive CN steps. All 3,001 original accepted FE states
+were archived after the generic output-monitor correction.
+Visual annular-gallery evidence is distinct: eigenmodes,
+MPI2 long time, MPI-parallel VTK and SuperLU_DIST remain
+unqualified.**
 
-## Native MPI1/MPI2 parity PASSED; 15-second accepted-CN state 2999 was not archived (25 November 2026)
+## Native qualification COMPLETE — MPI1/MPI2 parity and full 15-second CN power balance (25 November 2026)
+
+**Canonical actual GetFEM/PETSc evidence:**
+`v130-heat-wave-MPI2-longCN-97c7606b-7NBvjofW.zip`,
+source commit
+`97c7606bac14f7420140dd1fc2a1d88847301538`,
+pinned image `scrimp-mpi:v1.3.0-rc3`.
+Original ZIP SHA256:
+`9aff9f1f6cf3708f8736f48a77731ad4d814c08fd0d54c915a32f8aa1ac516fe`.
+The original `summary.json` contains
+`PASS_HEAT_WAVE_MPI2_SHORT_AND_MPI1_LONG_CN_PHYSICAL`,
+`full_long_time_power_balance_qualified=true`,
+and `errors=[]`. All source tests passed, and
+the eight tracked published examples remained immutable.
+
+**Stage A: independently accepted MPI1/MPI2**
+on the true 7,689-DOF canonical Heat–Wave
+problem: four fixed CN steps at `dt=0.001`,
+compatible initial Gaussian `p` after
+physical projected-CG1 boundary clamp,
+true default conforming interface compiler,
+and GetFEM quadratures evaluated **on every rank**.
+All original full state vectors and separate
+heat/wave/interface power histories agree
+between MPI1 and MPI2 within the prescribed
+numerical tolerance.
+The two MPI2 ranks saved **bitwise identical**
+FE and power histories.
+
+| MPI1/MPI2 check | Observed maximum |
+|---|---:|
+| Full FE coefficient difference | `2.2297719226571644e-12` |
+| Total Hamiltonian difference | `5.662137425588298e-15` |
+| Signed interface-power difference | `1.3322676295501878e-15` |
+| Independent MPI2 CN total-balance defect | `9.610368056911511e-16` |
+
+**Stage B: independently accepted full time-domain
+energy-power identity** on the same canonical Gaussian
+formulation, using MUMPS MPI1 and
+`dt=0.005` to `t_f=15`:
+**3,000 accepted CN steps**, with no rejected
+steps or SNES failures, and **3,001 genuinely
+saved consecutive states**. The `mpi1_long/preflight-rank0.json`
+shows `accepted_PETSc_TS_steps=3000`,
+`actual_saved_FE_states=3001`,
+`missing_accepted_grid_indices=[]`
+and `FE_state_shape=[3001,7689]`.
+All data were obtained from real GetFEM/PETSc
+assembly and quadratures, not interpolation
+or a synthetic FE trajectory.
+
+| Quantity, complete 15-second run | Measured native value |
+|---|---:|
+| `H(0)` | `0.7836421211876778` |
+| `H(15)` | `0.008268389052222169` |
+| Maximum independent total CN step energy-power residual | `4.017619570362285e-15` |
+| Maximum heat-subsystem CN step residual | `1.3808398868775384e-15` |
+| Maximum wave-subsystem CN step residual | `3.978506976989871e-15` |
+| **Maximum cumulative energy-power residual** | **`5.697699100711716e-15`** |
+| Maximum signed interface-power residual | `3.1086244689504383e-15` |
+| Positive energy increases among accepted consecutive steps | **0** |
+| Accepted original states absent from saved FE trajectory | **0** |
+
+Independent offline inspection of the user-supplied
+ZIP checked the native `rank0.npz` arrays:
+the 3,001 monotone accepted timestamps,
+all 7,689 unknowns in the first/final states,
+finite and nonnegative heat/wave energies,
+nontrivial positive thermal dissipation,
+the signed interface sum,
+and independently recomputed
+`ΔH + Δt (D-P_interface-P_outer)`
+**at every adjacent CN pair**.
+The cumulative source `CN_cumulative_total_balance_error`
+agrees with the independent acceptance.
+The maximum discrepancy between adjacent
+saved clock differences and prescribed `dt`
+is `4.717294263545391e-13`,
+consistent with accumulated floating-point
+representation; **no accepted step is missing**.
+
+The final Hamiltonian agrees **bitwise in printed
+double precision** with the earlier separately
+completed 15-second Gaussian visualization run:
+`H(15)=0.008268389052222169`;
+the independent source verifier reports
+zero absolute difference at both endpoints.
+The result establishes the discrete CN
+**dissipation and power-preserving interconnection**
+on the complete tested horizon; it does not
+establish analytical polynomial decay exponents,
+mesh/time convergence, general solver robustness,
+or an annular whispering-gallery eigenmode.
+
+**Fixed-CN sampling regression resolved:** the previous
+source-`42116b58` native long calculation converged
+3,000 TS steps but failed *scientific acceptance*
+because accepted state `n=2999` was not written.
+The source-`97c7606b` run, with the *output-only*
+`fixed_cn_accepted_step_is_due` logic, archives
+**all 3,001 real accepted FE states** and passes
+the original uncompromised physical gates.
+The old failed ZIP and diagnostic are preserved as
+historical evidence; their status is not rewritten.
+
+**Qualification scope:** reference MUMPS MPI1/2
+physical parity is PASS on `t_f=0.004`;
+MUMPS MPI1 full `t_f=15` true CN dissipation
+and all subsystems power balances are PASS.
+The `gallery_packet` 15-second run is a
+**separate complete visualization dataset**, not a
+full-horizon power-balance PASS or an eigenmode
+certification. MPI2 15-second power,
+parallel VTK export, SuperLU_DIST and
+h/dt convergence remain explicitly unqualified.
+
+## Historical: native MPI parity PASS but 15-second FE state 2999 missing (source 42116b58, superseded)
+
+**Historical incident, resolved by source `97c7606b`:** the following section describes the earlier archive and its correct original FAIL status. It does not describe the latest qualified run.
+
+
 
 **Original immutable proof:**
 `v130-heat-wave-MPI2-longCN-42116b58-FCxHdEia.zip`,
@@ -124,7 +246,7 @@ all 3,001 genuine adjacent FE states
 and passed independent GetFEM
 heat/wave/interface cumulative balances.
 
-## Next native qualification: MPI2 FE parity and 15-second full power accounting — PENDING
+## Historical qualification plan (now completed for MPI2 short and MPI1 time long)
 
 The original canonical Heat–Wave PDE has now been
 extended with an **output-only** switch
@@ -223,12 +345,7 @@ than full-time qualification, set
 the report records the actual horizon
 and makes no 15-second claim.
 
-**The full 15-second power proof is
-PENDING pending the corrected monitor's
-native re-run. The canonical four-step
-MPI1/MPI2 physical parity is already
-PASS, independently archived at source
-`42116b58`.** Successful
+**Historical status at source `42116b58`:** the 15-second power proof was PENDING at that time because accepted state 2999 was absent. **This is resolved in source `97c7606b`**, whose 3,001 real original states pass the complete CN power audit. The four-step MPI1/MPI2 parity remains PASS. Successful
 previous parallel-interface research
 pilots and completed 15-second visual
 runs are separate, still-valid
