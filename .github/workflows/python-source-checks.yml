@@ -54,6 +54,16 @@ jobs:
           python tests/test_v130_wave2d_dissipative_source.py
           python scripts/check-v130-published-immutable.py
 
+      - name: Guard true 2C coenergy physics and original GetFEM visual outputs
+        run: |
+          python -m py_compile \
+            examples/wave_coenergy.py \
+            scripts/render-v130-wave2d-native.py \
+            tests/test_v130_wave2d_coenergy_source.py
+          bash -n scripts/run-v130-wave2d-coenergy-pilot.sh
+          python tests/test_v130_wave2d_coenergy_source.py
+          python scripts/check-v130-published-immutable.py
+
       - name: Guard full anisotropic 2D wave with opt-in refined SuperLU_DIST
         run: |
           python -m py_compile \
