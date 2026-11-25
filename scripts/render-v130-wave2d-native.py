@@ -56,11 +56,15 @@ def vtk_binary(node):
         raise ValueError("Unsupported VTK numeric dtype")
     raw = base64.b64decode((node.text or "").strip())
     if len(raw) < 4:
-        raise ValueError("Truncated binary VTK header")
+        raise ValueError("Truncated binary GetFEM VTK payload")
+    # GetFEM's native writer emits a 4-byte length prefix for geometry
+    # and cell arrays, but raw binary PointData without a length prefix.
+    # Accept exactly these native encodings, never invent field values.
     nbytes = struct.unpack("<I", raw[:4])[0]
-    if len(raw) != nbytes + 4:
-        raise ValueError("GetFEM VTK byte-count mismatch")
-    out = np.frombuffer(raw, dtype=np.dtype(dtype), offset=4)
+    payload = raw[4:] if nbytes == len(raw)-4 else raw
+    if len(payload) % np.dtype(dtype).itemsize:
+        raise ValueError("GetFEM VTK payload length incompatible with dtype")
+    out = np.frombuffer(payload, dtype=np.dtype(dtype))
     components = int(node.get("NumberOfComponents", "1"))
     if components > 1:
         if len(out) % components:
