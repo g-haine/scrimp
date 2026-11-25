@@ -70,6 +70,13 @@ jobs:
           python tests/test_v130_coenergy_boundary_power_orientation.py
           python scripts/check-v130-published-immutable.py
 
+      - name: Guard new 3D Maxwell intrinsic Nedelec/RT0 energy and Sphinx source
+        run: |
+          python -m py_compile examples/maxwell_3d.py tests/test_v130_maxwell3d_source.py
+          bash -n scripts/run-v130-maxwell3d-pilot.sh
+          python tests/test_v130_maxwell3d_source.py
+          python scripts/check-v130-published-immutable.py
+
       - name: Guard full anisotropic 2D wave with opt-in refined SuperLU_DIST
         run: |
           python -m py_compile \
