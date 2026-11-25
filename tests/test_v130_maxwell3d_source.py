@@ -88,7 +88,7 @@ class Maxwell3DSourceTests(unittest.TestCase):
             'zipfile.ZipFile',
             'rank0.npz',
             'summary.json',
-            'pv/{field}/{field}.pvd',
+            'pvd=folder/name/"pv"/field/f"{field}.pvd"',
             'PASS_MAXWELL3D_MUMPS_MPI1_MPI2',
         ):
             self.assertIn(needle, self.source+self.runner)
