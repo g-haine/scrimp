@@ -182,14 +182,15 @@ def true_pvd_files(root, name, true_times):
     return result
 
 
-def render_native_shallow_water(system, folder, *, rho=1000.,
-                               max_gif_frames=36):
-    """Render true 2-D h and p/rho from exported VTK, plus physical budgets.
+def render_original_shallow_water_spatial_VTU(
+    folder, true_times, *, rho=1000., max_gif_frames=36,
+    figures_directory=None,
+):
+    """Render ONLY real GetFEM h/p FE fields from complete original VTU.
 
-    Call on the actual canonical DPHS instance AFTER successful
-    nonlinear_affine/BDF2 simulation, H registration, and native
-    export_to_pv('h')/export_to_pv('p'). Only MPI1 is supported for
-    this visual protocol; MPI2 physical parity is a separate audit.
+    Used both by the normal canonical example and the standalone
+    recovery of real original VTK files after a successful simulation.
+    The recovery does not invent unavailable FE Hamiltonian quadratures.
     """
     from matplotlib import pyplot as plt
     from matplotlib import cm, colors, colormaps
@@ -198,39 +199,13 @@ def render_native_shallow_water(system, folder, *, rho=1000.,
     from PIL import Image
 
     folder=Path(folder).resolve()
-    folder.mkdir(parents=True,exist_ok=True)
-    figures=folder/"figures"
-    figures.mkdir(exist_ok=True)
-    t=np.asarray(system.solution["t"],dtype=float).reshape(-1)
-    H=np.asarray(system.get_Hamiltonian(),dtype=float).reshape(-1)
-    mass=np.asarray(system.get_quantity("h",region=1),dtype=float).reshape(-1)
-    kinetic=np.asarray(
-        system.get_quantity("0.5*h*p.p/rho",region=1),dtype=float
-    ).reshape(-1)
-    potential=np.asarray(
-        system.get_quantity("0.5*rho*g*h*h",region=1),dtype=float
-    ).reshape(-1)
-    contributions=[]
-    for i in range(4):
-        contributions.append(
-            np.asarray(system.get_quantity(
-                f"U_{i}*Y_{i}",region=10+i
-            ),dtype=float).reshape(-1)
-        )
-    P=np.sum(contributions,axis=0)
-    if (len(t)<5 or H.shape!=t.shape or
-            any(arr.shape!=t.shape for arr in (mass,kinetic,potential,P))
-            or not np.all(np.isfinite(t)) or not np.all(np.diff(t)>0)
-            or not all(np.all(np.isfinite(a)) for a in
-                       (H,mass,kinetic,potential,P))
-            or np.any(H<=0) or np.any(mass<=0)
-            or np.max(abs(H-kinetic-potential))>1e-6):
-        raise ValueError("Invalid authentic GetFEM BDF2 physical time traces")
-    boundary_work=np.zeros_like(t)
-    boundary_work[1:]=np.cumsum(
-        0.5*(P[1:]+P[:-1])*np.diff(t)
-    )
-    energy_defect=H-H[0]-boundary_work
+    t=np.asarray(true_times,dtype=float).reshape(-1)
+    if (len(t)<5 or not np.all(np.isfinite(t))
+            or np.any(np.diff(t)<=0) or not np.isfinite(rho) or rho<=0):
+        raise ValueError("Invalid original PVD clock or water density")
+    figures=(Path(figures_directory).resolve()
+             if figures_directory is not None else folder/"figures")
+    figures.mkdir(parents=True,exist_ok=True)
     h_files=true_pvd_files(folder,"h",t)
     p_files=true_pvd_files(folder,"p",t)
 
@@ -345,25 +320,6 @@ def render_native_shallow_water(system, folder, *, rho=1000.,
         )
         return fig
 
-    # Scientific plots from the exact FE integral histories, NOT from
-    # the plotting-only cell averages or original VTK Float32 values.
-    fig,axes=plt.subplots(2,1,figsize=(9,7),sharex=True)
-    axes[0].plot(t,H,label="H mécanique GetFEM")
-    axes[0].plot(t,kinetic,label="Énergie cinétique")
-    axes[0].plot(t,potential,label="Énergie potentielle")
-    axes[0].set_ylabel("Énergies");axes[0].legend()
-    axes[0].grid(alpha=.3)
-    axes[1].plot(t,energy_defect,label="H(t)−H(0)−W_bord(t)")
-    axes[1].plot(t,(mass-mass[0])/mass[0],
-                 label="Dérive relative de masse")
-    axes[1].set(xlabel="Temps",ylabel="Défauts",title=
-                "BDF2 : bilan mesuré, sans conservation exacte postulée")
-    axes[1].legend();axes[1].grid(alpha=.3)
-    fig.tight_layout()
-    fig.savefig(figures/"saint_venant_H_masse_bilan.png",dpi=170)
-    fig.savefig(figures/"saint_venant_H_masse_bilan.svg")
-    plt.close(fig)
-
     snapshots=sorted(set((0,len(selected)//3,
                           2*len(selected)//3,len(selected)-1)))
     for k in snapshots:
@@ -388,6 +344,100 @@ def render_native_shallow_water(system, folder, *, rho=1000.,
         duration=160,loop=0,optimize=False,
     )
 
+    return {
+        "true_FE_states":int(len(t)),
+        "gif_original_FE_frames":int(len(selected)),
+        "original_selected_times":t[selected].tolist(),
+        "fixed_height_color_range":[float(hmin),float(hmax)],
+        "fixed_velocity_color_range":[0.,float(speedmax)],
+        "mesh_h_display_linear_subtriangles":int(len(htri)),
+        "mesh_h_original_quadratic_cells":int(len(htri)//4),
+        "mesh_p_original_linear_triangles":int(len(ptri)),
+        "visual_triangulation":"VTK type 22 quadratic h split into four straight subtriangles using all original six FE nodes; p VTK type 5 unchanged",
+        "source_of_spatial_values":"original GetFEM h/p native PVD and VTU",
+        "no_time_interpolation":True,
+        "spatial_only_mode":True,
+    }
+
+
+def render_native_shallow_water(system, folder, *, rho=1000.,
+                               max_gif_frames=36):
+    """Render true 2-D h and p/rho from exported VTK, plus physical budgets.
+
+    Call on the actual canonical DPHS instance AFTER successful
+    nonlinear_affine/BDF2 simulation, H registration, and native
+    export_to_pv('h')/export_to_pv('p'). Only MPI1 is supported for
+    this visual protocol; MPI2 physical parity is a separate audit.
+    """
+    from matplotlib import pyplot as plt
+    from matplotlib import cm, colors, colormaps
+    from matplotlib.collections import PolyCollection
+    from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+    from PIL import Image
+
+    folder=Path(folder).resolve()
+    folder.mkdir(parents=True,exist_ok=True)
+    figures=folder/"figures"
+    figures.mkdir(exist_ok=True)
+    t=np.asarray(system.solution["t"],dtype=float).reshape(-1)
+    H=np.asarray(system.get_Hamiltonian(),dtype=float).reshape(-1)
+    mass=np.asarray(system.get_quantity("h",region=1),dtype=float).reshape(-1)
+    kinetic=np.asarray(
+        system.get_quantity("0.5*h*p.p/rho",region=1),dtype=float
+    ).reshape(-1)
+    potential=np.asarray(
+        system.get_quantity("0.5*rho*g*h*h",region=1),dtype=float
+    ).reshape(-1)
+    contributions=[]
+    for i in range(4):
+        contributions.append(
+            np.asarray(system.get_quantity(
+                f"U_{i}*Y_{i}",region=10+i
+            ),dtype=float).reshape(-1)
+        )
+    P=np.sum(contributions,axis=0)
+    if (len(t)<5 or H.shape!=t.shape or
+            any(arr.shape!=t.shape for arr in (mass,kinetic,potential,P))
+            or not np.all(np.isfinite(t)) or not np.all(np.diff(t)>0)
+            or not all(np.all(np.isfinite(a)) for a in
+                       (H,mass,kinetic,potential,P))
+            or np.any(H<=0) or np.any(mass<=0)
+            or np.max(abs(H-kinetic-potential))>1e-6):
+        raise ValueError("Invalid authentic GetFEM BDF2 physical time traces")
+    boundary_work=np.zeros_like(t)
+    boundary_work[1:]=np.cumsum(
+        0.5*(P[1:]+P[:-1])*np.diff(t)
+    )
+    energy_defect=H-H[0]-boundary_work
+    h_files=true_pvd_files(folder,"h",t)
+    p_files=true_pvd_files(folder,"p",t)
+
+    # Reuse the exact original VTK renderer from offline recovery,
+    # without any synthetic FE values or separate nonlinear solve.
+    spatial=render_original_shallow_water_spatial_VTU(
+        folder,t,rho=rho,max_gif_frames=max_gif_frames,
+        figures_directory=figures,
+    )
+
+    # Scientific plots from the exact FE integral histories, NOT from
+    # the plotting-only cell averages or original VTK Float32 values.
+    fig,axes=plt.subplots(2,1,figsize=(9,7),sharex=True)
+    axes[0].plot(t,H,label="H mécanique GetFEM")
+    axes[0].plot(t,kinetic,label="Énergie cinétique")
+    axes[0].plot(t,potential,label="Énergie potentielle")
+    axes[0].set_ylabel("Énergies");axes[0].legend()
+    axes[0].grid(alpha=.3)
+    axes[1].plot(t,energy_defect,label="H(t)−H(0)−W_bord(t)")
+    axes[1].plot(t,(mass-mass[0])/mass[0],
+                 label="Dérive relative de masse")
+    axes[1].set(xlabel="Temps",ylabel="Défauts",title=
+                "BDF2 : bilan mesuré, sans conservation exacte postulée")
+    axes[1].legend();axes[1].grid(alpha=.3)
+    fig.tight_layout()
+    fig.savefig(figures/"saint_venant_H_masse_bilan.png",dpi=170)
+    fig.savefig(figures/"saint_venant_H_masse_bilan.svg")
+    plt.close(fig)
+
     np.savez_compressed(
         folder/"physical_FE_traces.npz",
         t=t,H=H,mass=mass,kinetic=kinetic,potential=potential,
@@ -409,13 +459,15 @@ def render_native_shallow_water(system, folder, *, rho=1000.,
         "viscous_rotating_research_included":False,
         "source_of_spatial_values":"original GetFEM h/p native PVD and VTU",
         "plotting_rule":"mean of each actual VTK triangle's three native values",
+        "original_quadratic_h_cells":spatial["mesh_h_original_quadratic_cells"],
+        "visual_triangulation":spatial["visual_triangulation"],
         "no_time_interpolation":True,
-        "fixed_height_color_range":[float(hmin),float(hmax)],
-        "fixed_velocity_color_range":[0.,float(speedmax)],
-        "true_FE_states":int(len(t)),"gif_original_FE_frames":int(len(selected)),
-        "original_selected_times":t[selected].tolist(),
-        "mesh_h_native_triangles":int(len(htri)),
-        "mesh_p_native_triangles":int(len(ptri)),
+        "fixed_height_color_range":spatial["fixed_height_color_range"],
+        "fixed_velocity_color_range":spatial["fixed_velocity_color_range"],
+        "true_FE_states":int(len(t)),"gif_original_FE_frames":spatial["gif_original_FE_frames"],
+        "original_selected_times":spatial["original_selected_times"],
+        "mesh_h_native_triangles":spatial["mesh_h_display_linear_subtriangles"],
+        "mesh_p_native_triangles":spatial["mesh_p_original_linear_triangles"],
         "Hamiltonian_initial":float(H[0]),
         "Hamiltonian_final":float(H[-1]),
         "max_relative_mass_drift":float(
