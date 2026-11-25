@@ -16,10 +16,12 @@ revision="$("${docker_cmd[@]}" image inspect \
 }
 python3 -m py_compile examples/wave_coenergy.py \
   tests/test_v130_wave2d_coenergy_source.py \
+  tests/test_v130_coenergy_boundary_power_orientation.py \
   scripts/render-v130-wave2d-native.py
 bash -n "$0"
 python3 tests/test_v130_wave2d_coenergy_source.py
 python3 tests/test_v130_linear_scalar_feedback.py
+python3 tests/test_v130_coenergy_boundary_power_orientation.py
 python3 tests/test_v130_interface_deferred.py
 python3 scripts/check-v130-published-immutable.py
 mkdir -p sandbox/outputs
