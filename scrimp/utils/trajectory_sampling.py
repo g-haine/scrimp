@@ -14,9 +14,13 @@ comparison then silently drops a genuine accepted state. If the
 postprocessor subsequently interprets each pair of SAVED states
 as a consecutive CN step, a physically false power balance follows.
 
-Only forgive a small ULP-scale ROUNDING error, additionally capped
-to one-millionth of dt_save, so the policy cannot fill a genuinely
-missing sampling time or interpolate an uncomputed state.
+For adaptive or subsampled trajectories, forgive only a small
+ULP-scale rounding error, capped to one-millionth of dt_save; never
+interpolate an uncomputed state. When an explicitly fixed CN time
+scheme requests EVERY accepted step (dt_save == dt), bypass the
+floating due-time threshold altogether: the PETSc monitor is already
+invoked after each genuinely accepted step. A long Heat--Wave run
+otherwise skipped real accepted step 2999 despite converged TS.
 """
 
 import math
