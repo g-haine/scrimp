@@ -1,0 +1,195 @@
+# SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
+#
+# Copyright (C) 2015-2026 ISAE-SUPAERO -- GNU GPLv3
+#
+# See the LICENSE file for license information.
+#
+# github: https://github.com/g-haine/scrimp
+
+"""Source and GetFEM-like VTU parser fixtures for native SWE visuals.
+
+Artificial XML arrays in isolated parser unit tests are NOT physical
+proof. Only the real Docker visual driver can qualify GetFEM h/p
+archives, and the separate native original BDF2 physics proof stands.
+"""
+import ast
+import base64
+import importlib.util
+from pathlib import Path
+import struct
+import tempfile
+import unittest
+from xml.etree import ElementTree as ET
+
+import numpy as np
+
+ROOT=Path(__file__).resolve().parents[1]
+CANONICAL=ROOT/"examples/shallow_water.py"
+HELPER=ROOT/"examples/shallow_water_visualization.py"
+RUNNER=ROOT/"scripts/run-v130-shallow-water-showcase.sh"
+
+
+def array_bytes(a):
+    arr=np.asarray(a)
+    payload=arr.tobytes()
+    return base64.b64encode(
+        struct.pack("<I",len(payload))+payload
+    ).decode("ascii")
+
+
+def fixture_vtu(field,vector=False,badtype=False):
+    xyz=np.array([[0,0,0],[1,0,0],[0,.5,0]],dtype="<f4")
+    cell=np.array([0,1,2],dtype="<i4")
+    off=np.array([3],dtype="<i4")
+    typ=np.array([10 if badtype else 5],dtype="<i4")
+    if vector:
+        values=np.array([[0,0,0],[10,20,0],[-4,6,0]],dtype="<f4")
+        components=' NumberOfComponents="3"'
+    else:
+        values=np.array([3,2.8,2.6],dtype="<f4")
+        components=""
+    return (
+        '<VTKFile type="UnstructuredGrid"><UnstructuredGrid>'
+        '<Piece NumberOfPoints="3" NumberOfCells="1">'
+        '<Points><DataArray type="Float32" format="binary">'
+        +array_bytes(xyz)+
+        '</DataArray></Points><Cells>'
+        '<DataArray Name="connectivity" type="Int32" format="binary">'
+        +array_bytes(cell)+
+        '</DataArray>'
+        '<DataArray Name="offsets" type="Int32" format="binary">'
+        +array_bytes(off)+
+        '</DataArray>'
+        '<DataArray Name="types" type="Int32" format="binary">'
+        +array_bytes(typ)+
+        '</DataArray></Cells>'
+        '<PointData><DataArray Name="'+field+'" type="Float32" '
+        'format="binary"'+components+'>'
+        +array_bytes(values)+
+        '</DataArray></PointData></Piece></UnstructuredGrid></VTKFile>'
+    )
+
+
+class ShallowWaterNativeVisualizationSource(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.model=CANONICAL.read_text(encoding="utf-8")
+        cls.helper=HELPER.read_text(encoding="utf-8")
+        cls.runner=RUNNER.read_text(encoding="utf-8")
+        for path in (CANONICAL,HELPER):
+            ast.parse(path.read_text(),filename=str(path))
+        spec=importlib.util.spec_from_file_location("original_swe_vtk",HELPER)
+        cls.module=importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(cls.module)
+
+    def test_original_pseudo_default_and_optional_visualization(self):
+        for needle in (
+            'showcase=False, showcase_output=None',
+            'init_step_ts_type="pseudo"',
+            'if showcase:',
+            'init_step_ts_type="nonlinear_affine"',
+            '"nonlinear_affine"',
+            'swe.export_to_pv("h",path=str(output))',
+            'swe.export_to_pv("p",path=str(output))',
+            'swe.shallow_water_visuals=render_native_shallow_water(',
+            'swe.export_to_pv("h")',
+            'ts_bdf_order=2',
+            'S.Brick("M_p", "h * p . Test_p"',
+            'explicit=True, position="effort"',
+            'parser.add_argument("--showcase",action="store_true"',
+        ):
+            self.assertIn(needle,self.model,msg=needle)
+        self.assertNotIn('viscous_swe_2d_mpi.py',self.model)
+
+    def test_native_GetFEM_binary_fields_and_distinct_h_p_spaces(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp)
+            for field,vector in (("h",False),("p",True)):
+                path=root/(field+".vtu")
+                path.write_text(fixture_vtu(field,vector=vector))
+                xy,tri,data=self.module.native_triangular_field(path,field)
+                self.assertEqual(xy.shape,(3,2))
+                np.testing.assert_array_equal(tri,[[0,1,2]])
+                if vector:
+                    self.assertEqual(data.shape,(3,2))
+                    np.testing.assert_allclose(data[1],[10,20])
+                else:
+                    self.assertEqual(data.shape,(3,))
+                    np.testing.assert_allclose(data,[3,2.8,2.6])
+            path=root/"h.vtu"
+            path.write_text(fixture_vtu("h",badtype=True))
+            with self.assertRaisesRegex(ValueError,"triangles"):
+                self.module.native_triangular_field(path,"h")
+            path.write_text(fixture_vtu("p",vector=True))
+            with self.assertRaisesRegex(ValueError,"scalar"):
+                self.module.native_triangular_field(path,"h")
+
+    def test_pvd_strict_FE_clock_xml_attributes(self):
+        with tempfile.TemporaryDirectory() as td:
+            base=Path(td)
+            pvd=base/"pv"/"h"
+            pvd.mkdir(parents=True)
+            (pvd/"h_00000.vtu").write_text(fixture_vtu("h"))
+            (pvd/"h_00001.vtu").write_text(fixture_vtu("h"))
+            (pvd/"h.pvd").write_text(
+                '<VTKFile><Collection>'
+                '<DataSet timestep="0.0" file="h_00000.vtu"/>'
+                '<DataSet timestep="0.001" file="h_00001.vtu"/>'
+                '</Collection></VTKFile>'
+            )
+            true=[0.,.001]
+            files=self.module.true_pvd_files(base,"h",true)
+            self.assertEqual(len(files),2)
+            with self.assertRaisesRegex(ValueError,"time differs"):
+                self.module.true_pvd_files(base,"h",[0.,.005])
+            with self.assertRaisesRegex(ValueError,"lengths disagree"):
+                self.module.true_pvd_files(base,"h",[0.])
+            (pvd/"h.pvd").write_text(
+                '<VTKFile><Collection>'
+                '<DataSet timestep="0" file="../escape.vtu"/>'
+                '<DataSet timestep=".001" file="h_00001.vtu"/>'
+                '</Collection></VTKFile>'
+            )
+            with self.assertRaisesRegex(ValueError,"Unsafe"):
+                self.module.true_pvd_files(base,"h",true)
+
+    def test_renders_only_genuine_VTU_v_with_correct_units_and_fixed_scales(self):
+        for token in (
+            'get_quantity("h",region=1)',
+            'get_quantity("0.5*h*p.p/rho",region=1)',
+            'get_quantity("0.5*rho*g*h*h",region=1)',
+            'true_pvd_files(folder,"h",t)',
+            'true_pvd_files(folder,"p",t)',
+            'native_triangular_field(h_files[int(idx)],"h")',
+            'native_triangular_field(p_files[int(idx)],"p")',
+            'vel=momentum[ptri].mean(axis=1)/rho',
+            'fixed_height_color_range',
+            'fixed_velocity_color_range',
+            '"no_time_interpolation":True',
+            '"viscous_rotating_research_included":False',
+            '"H_exact_conservation_claimed":False',
+            'saint_venant_surface_vitesse.gif',
+            'saint_venant_H_masse_bilan.png',
+            'physical_FE_traces.npz',
+        ):
+            self.assertIn(token,self.helper,msg=token)
+
+    def test_launcher_is_native_original_and_fail_closed(self):
+        for token in (
+            'scrimp-mpi:v1.3.0-rc3',
+            '1d6d0c90115213298047b28237a7f38087563a35',
+            'scripts/check-v130-published-immutable.py',
+            'python -u -m examples.shallow_water',
+            '--showcase',
+            '--showcase-output /artifacts',
+            'examples/shallow_water_visualization.py',
+            '"FAIL_OR_UNQUALIFIED_NATIVE_SWE_VISUALS"',
+            '"PASS_NATIVE_INVISCID_SWE_VISUALS"',
+            'with zipfile.ZipFile(archive,"x"',
+        ):
+            self.assertIn(token,self.runner,msg=token)
+        self.assertNotIn("viscous_swe_2d_mpi.py",self.runner)
+
+
+if __name__=="__main__":
+    unittest.main()
