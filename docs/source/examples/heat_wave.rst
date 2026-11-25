@@ -654,10 +654,27 @@ plots and ParaView output by default.
 Every native run and failure gets a
 complete evidence ZIP.
 
-**Status:** the extended MPI and
-full-horizon power-balance pilot is
-prepared but **not yet natively
-qualified**. Shared parallel
+**Status (25 November 2026):** the native
+MPI1/MPI2 **full FE and physical
+four-step parity is PASS**, including
+independent oriented interface and
+heat/wave energy balances at machine
+precision. The source-``42116b58``
+archived long case also converged
+for 3,000 actual Crank--Nicolson
+steps at ``dt=0.005`` to ``t=15``,
+but one genuine accepted state
+(step 2999, around ``t=14.995``)
+was not stored by the floating-time
+output monitor. The strict full-time
+energy-power gate correctly rejected
+that incomplete history. SCRIMP now
+saves **every accepted step** for
+fixed CN with ``dt_save=dt``; the
+corrected long-time native
+qualification remains **PENDING**.
+The source and physical weak forms
+are unchanged. Shared parallel
 VTK writing, SuperLU_DIST and a
 spectrally identified whispering-gallery
 mode are separate objectives.
