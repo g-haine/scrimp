@@ -86,8 +86,12 @@ jobs:
             examples/heat_wave.py \
             sandbox/probe_v130_main_2d_examples.py \
             sandbox/measure_v130_heat_wave_physics.py \
+            sandbox/measure_v130_hw_dual_facet_physics.py \
+            scrimp/utils/fe_initialization.py \
+            tests/test_v130_heat_wave_boundary_initial_data.py \
             tests/test_v130_heat_wave_physical_pilot.py
           bash -n scripts/run-v130-heat-wave-physical-pilot.sh
+          python tests/test_v130_heat_wave_boundary_initial_data.py
           python tests/test_v130_heat_wave_physical_pilot.py
           python scripts/check-v130-published-immutable.py
 
