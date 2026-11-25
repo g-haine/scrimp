@@ -41,7 +41,6 @@ if not (all(math.isfinite(x) and x>0 for x in (tf,dt,ds))
 PY
 python3 -m py_compile \
   examples/shallow_water.py \
-  examples/shallow_water_visualization.py \
   scripts/verify-v130-shallow-water-showcase.py \
   tests/test_v130_shallow_water_visualization_source.py
 bash -n "$0"
@@ -73,7 +72,6 @@ rc=0
   --env SCRIMP_NONLINEAR_RESIDUAL_FORM=direct_getfem \
   --volume "$root/scrimp:/workspace/scrimp/scrimp:ro" \
   --volume "$root/examples/shallow_water.py:/workspace/scrimp/examples/shallow_water.py:ro" \
-  --volume "$root/examples/shallow_water_visualization.py:/workspace/scrimp/examples/shallow_water_visualization.py:ro" \
   --volume "$out/native:/artifacts:rw" \
   --volume "$out/work:/scrimp-work:rw" \
   --workdir /scrimp-work "$image" \
