@@ -125,7 +125,7 @@ try:
         if len(frames)!=len(t):
             raise RuntimeError("Missing long native VTK frames for "+name)
         for frame in frames:
-            rel=Path(frame["file"])
+            rel=Path(frame.attrib["file"])
             if rel.name!=str(rel) or not (pvd.parent/rel).is_file():
                 raise RuntimeError("Missing native GetFEM VTU for "+name)
     status["status"]="PASS_LONG_NATIVE_VISUALS_NOT_WG_MODE_PROOF"
