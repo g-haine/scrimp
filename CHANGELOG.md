@@ -5,6 +5,70 @@ Changes to SCRIMP are recorded here. See also the
 
 ## 1.3.0 — in development (not released)
 
+### Maxwell 3D Nédélec/RT0 — première qualification native MUMPS MPI1/MPI2 PASS (25 novembre 2026)
+
+- **PASS natif** sur `examples/maxwell_3d.py`,
+  source `daac18cb36fbc404fcf5c4fe4f2f69121b2ee530`,
+  image `scrimp-mpi:v1.3.0-rc3` figée,
+  archive originale
+  `v130-maxwell3d-daac18cb-FCPngFrH.zip`.
+  La boule tridimensionnelle est réellement
+  maillée en **110 tétraèdres**, 58 points.
+  **222 DOFs Nédélec H(curl)** pour `E`,
+  **275 DOFs RT0 H(div)** pour `B`,
+  soit **497 DOFs**, et non des CG vectoriels.
+- **MUMPS MPI1 et MPI2 : 10/10 pas CN**
+  à `h=0.7, dt=0.02, tf=0.2`,
+  aucun échec ni rejet, **9/9 critères
+  physiques PASS** sur chaque configuration.
+  Hamiltonien initial MPI1
+  `H0=0.6942520909491595`, final
+  `Hf=0.6942520909491590`.
+  Défaut cumulé maximal : `2.33146835e-15`
+  en MPI1, `1.99840144e-15` en MPI2.
+- **Échange électromagnétique réel** :
+  initialement `H_E=0.6942520909491595`,
+  `H_B=0`; à `tf=0.2`,
+  `H_E=0.4359826378118022` et
+  `H_B=0.2582694531373567`
+  (magnétique : **37.2011 %** de l'énergie
+  initiale). Les deux intégrales énergétiques
+  GetFEM indépendantes correspondent au
+  Hamiltonien à `5.55e-17` près.
+  `max ||div B||_L2=4.63e-15` en MPI1
+  (Gauss magnétique discrète vérifiée).
+- **Parité MPI** : les deux rangs MPI2
+  donnent exactement la même trajectoire
+  binaire sauvegardée ; écart maximal
+  sur les trajectoires complètes MPI1/2
+  `4.440892098500626e-16`,
+  écart Hamiltonien `2.7755575616e-15`.
+  Empreintes SHA256 des 3 trajectoires
+  vérifiées sur les `rank*.npz` originaux.
+- **VTK 3D authentiques** : **44 VTU**
+  (deux vecteurs `E,B`, onze temps,
+  MPI1 et MPI2) et quatre PVD,
+  indépendamment ouverts par un vrai
+  lecteur VTK. Chacun contient
+  58 points, **110 tétraèdres VTK type 10**
+  et trois composantes finies du
+  champ correspondant. Le maillage
+  des deux rangs est géométriquement
+  identique et `B` final non nul.
+- **Portée mesurée** : première démonstration
+  port-Hamiltonienne 3D, conservatrice
+  avec fermeture naturelle à puissance
+  nulle, sans DAE artificielle, et
+  éléments intrinsèques corrigés GetFEM.
+  Ni convergence h/dt, ni Gauss électrique,
+  ni condition PEC imposée, ni modes de
+  cavité, ni SuperLU_DIST qualifiés.
+  Le pilote et les 8 exemples publiés
+  restent inchangés. Détails :
+  `docs/V130_MAXWELL_3D.md` et
+  `docs/source/examples/maxwell_3d.rst`.
+
+
 ### Maxwell 3D — second pilote : introspection GetFEM retirée sans assouplissement du garde-fou (25 novembre 2026)
 
 - Archive `v130-maxwell3d-ed9b9fd8-gnJLLDYD.zip`
