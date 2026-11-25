@@ -2,21 +2,122 @@
 
 **Branche :** `release/1.3.0-preparation`.  
 **Statut scientifique actuel (25 novembre 2026) :**
-- **PASS historique** sur la paire *native GetFEM*
-  Nédélec0 / RT0, source `daac18cb`, MUMPS
-  MPI1/2, dix pas CN, Hamiltonien et Gauss(B)
-  à la précision machine.
-- **NON ENCORE QUALIFIÉ** sur la nouvelle
-  paire *patchée* Nédélec-II k=1 / BDM1
-  (`NED2` et `BDM`), devenue la valeur
-  par défaut de `examples/maxwell_3d.py`.
-  Les visuels automatiques ajoutés après la
-  qualification de référence attendent
-  également leur contrôle natif.
-- Les résultats de la référence native ne
-  sont **pas** réattribués au code patché.
-  Aucune conclusion de convergence h/dt,
-  de PEC explicite ou de Gauss(E).
+- **PASS NATIF** sur la nouvelle paire *patchée*
+  **Nédélec-II k=1 / BDM1**, source
+  `3687b11e473813c103cd4e9c02f82812677853d7` :
+  MUMPS MPI1/MPI2, dix pas CN, neuf critères
+  physiques, parité FE et visuels générés
+  automatiquement par `examples/maxwell_3d.py`.
+- **PASS historique distinct** sur la paire
+  native GetFEM Nédélec0/RT0, source
+  `daac18cb`, 497 DOFs : cette preuve
+  antérieure n'est pas confondue avec les
+  nouveaux **1 269 DOFs** de la paire patchée.
+- Ces qualifications ne constituent pas une
+  preuve de convergence h/dt, de loi de Gauss
+  électrique, de PEC explicite, de modes
+  de cavité ou de SuperLU_DIST.
+
+## Qualification native Nédélec-II k=1 / BDM1 — PASS (25 novembre 2026)
+
+**Preuve archivistique :**
+`v130-maxwell3d-3687b11e-gSQ8jeC3.zip`,
+source exacte
+`3687b11e473813c103cd4e9c02f82812677853d7`,
+image épinglée `scrimp-mpi:v1.3.0-rc3`
+(révision
+`1d6d0c90115213298047b28237a7f38087563a35`).
+Statut du `summary.json` :
+`PASS_MAXWELL3D_MUMPS_MPI1_MPI2`,
+`errors=[]`.
+**6 tests des alias FEM**, **11 tests
+Maxwell** et contrôle des **8 sources publiées
+immutables** : PASS avant les exécutions natives.
+
+La même boule 3D comporte **58 points et
+110 tétraèdres**. Les éléments finis
+réellement installés, vérifiés dans
+les `rank*.json`, sont
+`FEM_NEDELEC2(3,1)` (patch `0004`)
+pour le champ électrique et
+`FEM_BDMK(3,1)` (patch tétraédrique
+`0001`) pour le champ magnétique.
+Cette paire diffère **réellement**
+du pilote GetFEM Nédélec0/RT0 historique.
+
+| Contrôle natif | MUMPS MPI1 | MUMPS MPI2 |
+|---|---:|---:|
+| DOFs électriques Nédélec-II k1 | **444** | **444** |
+| DOFs magnétiques BDM1 | **825** | **825** |
+| Total `z` | **1 269** | **1 269** |
+| Pas CN acceptés | **10/10** | **10/10** |
+| Critères physiques | **9/9 PASS** | **9/9 PASS** |
+| `H(0)` | `0.6942520909491591` | `0.6942520909491603` |
+| `H(0.2)` | `0.6942520909491621` | `0.6942520909491612` |
+| `H_B(0.2)` | `0.25824828616211315` | `0.2582482861621126` |
+| Défaut maximal `|H(t)-H(0)|` | `4.107825191113079e-15` | `8.881784197001252e-16` |
+| Maximum `||div(B)||_{L2}` | `2.05312e-14` | `2.03871e-14` |
+| Exports natifs | 11 VTU `E` + 11 VTU `B` | idem |
+| Figures et GIF auto-générés | **PASS** | **PASS** |
+
+**Calculs indépendants sur les traces originales :**
+`H_E(0.2)=0.436003804787049`
+et `H_B(0.2)=0.25824828616211315`
+en MPI1, soit **37.19805666 %** de
+l'énergie initiale transférée vers le champ
+magnétique sans perte totale mesurable.
+`max|H-H_E-H_B|=5.551115123125783e-17`.
+Le maximum de l'intégrale native GetFEM
+`∫(div B)²` vaut `4.215296043082926e-28`
+en MPI1, d'où le maximum de la norme
+`L²` `2.0531186139828662e-14`.
+Cet audit qualifie **Gauss magnétique**,
+pas Gauss électrique.
+
+**Parité distribuée :** les deux rangs
+MPI2 possèdent les mêmes trajectoires
+sauvegardées (11 instants × 1 269 DOFs),
+et les empreintes SHA256 des `rank*.npz`
+concordent avec leurs métadonnées.
+L'écart maximal MPI1/MPI2 sur les
+coefficients complets est
+`2.1094237467877974e-15` ;
+sur les valeurs du Hamiltonien
+`2.9976021664879227e-15`.
+Aucune initialisation DAE artificielle.
+
+**Sorties graphiques qualifiées :**
+le code canonique `examples/maxwell_3d.py
+--check --export` a automatiquement
+produit, **dans chacune des deux exécutions**,
+les cinq fichiers graphiques attendus
+(énergies PNG/SVG, vecteurs finaux `E` et
+`B` PNG, animation `B(t)` GIF de
+**11 images**) avec `provenance.json`
+et empreinte de la trajectoire FE du run.
+Les **44 véritables VTU** et **4 PVD**
+existent ; une lecture indépendante de leurs
+valeurs nodales confirme les 58 points,
+les 110 tétraèdres, les 3 composantes finies
+de `E`/`B` et les 11 dates cohérentes.
+À `t=0.2`, `||B||` aux nœuds VTK
+varie de `0.3658609` à `0.3757277`.
+Les PNG et GIF de MPI1/MPI2 sont
+octet par octet identiques ; les SVG peuvent
+varier dans les dates et identifiants
+internes automatiques de Matplotlib sans
+différence de résultat numérique.
+
+**Portée exacte :** nous avons qualifié
+la formulation pH Maxwell **sur cette
+résolution** (`h=0.7`, `dt=0.02`,
+`t_f=0.2`, MUMPS, MPI1/2), ainsi
+que l'emploi effectif des deux patchs
+GetFEM et le rendu intégré.
+Cela ne démontre pas convergence
+h/dt, précision des traces PEC,
+loi de Gauss électrique, modes propres
+ou autres solveurs.
 
 ## Qualification de référence native Nédélec0 / RT0 — PASS (25 novembre 2026)
 
@@ -160,14 +261,13 @@ configuration. Un échec graphique
 interrompt le PASS intégré et reste
 enregistré dans l'archive d'échec.
 
-**État au moment du changement :**
-le modèle Maxwell 3D physique a déjà été
-qualifié au commit `daac18cb`, mais la
-nouvelle génération automatique des visuels
-doit faire l'objet d'une **nouvelle
-exécution native**. Ne pas annoncer le
-rendu intégré comme validé avant le
-PASS correspondant.
+**État historique au moment de l'ajout :**
+le rendu intégré n'était pas encore qualifié.
+**La nouvelle exécution `3687b11e`
+l'a depuis validé en MPI1/2**, avec
+les deux familles patchées ; voir la
+section de qualification native en tête
+de document.
 
 ## Éléments réellement ajoutés par les patchs GetFEM et alias SCRIMP
 
