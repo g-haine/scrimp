@@ -23,6 +23,7 @@ def heat_wave_eq(
     heat_region=1, wave_region=2, *, factor_solver=None,
     final_time=2.0, time_step=0.001, save_step=0.05,
     initial_wave_boundary="clamp",
+    initial_wave_profile="gaussian", long_showcase=False,
 ):
     """A physically oriented, energy-dissipative coupled heat-wave example.
 
@@ -51,6 +52,13 @@ def heat_wave_eq(
         final_time: physical end time.
         time_step: fixed Crank–Nicolson timestep.
         save_step: accepted trajectory sampling interval.
+        initial_wave_profile: "gaussian" retains the historical heat/wave
+            condition. "gallery_packet" is a smooth high-angular-wavenumber
+            wave excitation concentrated near the outer radius, with
+            zero initial heat and stress. It is NOT a certified cavity
+            eigenmode and is available only for a wave annulus.
+        long_showcase: produce an opt-in real-GetFEM annular-wave PNG/GIF
+            showcase after successful physical integration and VTK export.
         initial_wave_boundary: compatible wave velocity initialization
             when the exterior boundary belongs to the wave region.
             "clamp" (default) sets exactly the exterior CG1 degrees
@@ -250,10 +258,32 @@ def heat_wave_eq(
     # === Dirichlet boundary condition
     hw.set_control("Boundary", "0.")
 
-    # Set the original physical fields with the default true FE L2
-    # projection (not a nodal interpolation).
-    hw.set_initial_value("T", "5.*np.exp(-25*((x-0.6)*(x-0.6)+y*y))")
-    hw.set_initial_value("p", "5.*np.exp(-25*((x-0.6)*(x-0.6)+y*y))")
+    # All initial fields use the actual FE L2 projection. The original
+    # Gaussian is the physical-reference case. The optional gallery
+    # excitation is a boundary-localized angular wave packet, NOT a
+    # claimed whispering-gallery eigenfunction. Both preserve the same
+    # coupled PDE and the exactly homogeneous boundary condition.
+    if initial_wave_profile not in ("gaussian", "gallery_packet"):
+        raise ValueError("initial_wave_profile must be gaussian or gallery_packet")
+    if initial_wave_profile == "gallery_packet":
+        if wave_region != 2:
+            raise ValueError("gallery_packet requires wave_region=2 (annulus)")
+        # r in (0.6, 1.0), theta around the annulus. The continuous
+        # packet vanishes at r=0.6 and r=1, but unconstrained L2
+        # projection may reintroduce nonzero essential boundary DOFs.
+        # The same qualified discrete clamp below still applies.
+        radius = "np.sqrt(x*x+y*y)"
+        p_initial = (
+            f"50.*({radius}-0.6)*(1.-{radius})*"
+            f"np.exp(-120.*({radius}-0.86)**2)*"
+            "np.cos(14.*np.arctan2(y,x))"
+        )
+        T_initial = "0."
+    else:
+        T_initial = "5.*np.exp(-25*((x-0.6)*(x-0.6)+y*y))"
+        p_initial = T_initial
+    hw.set_initial_value("T", T_initial)
+    hw.set_initial_value("p", p_initial)
     hw.set_initial_value("q", "[0.,0.]")
 
     # For a wave annulus, the Gaussian projected in CG1 has nonzero
@@ -274,6 +304,7 @@ def heat_wave_eq(
                   else "unconstrained_historical_diagnostic",
         "boundary_compatibility_enforced": False,
     }
+    hw.heat_wave_initialization_profile = initial_wave_profile
     if outer_is_wave and initial_wave_boundary != "unconstrained":
         original_T = np.asarray(hw.gf_model.variable("T")).reshape(-1).copy()
         original_q = np.asarray(hw.gf_model.variable("q")).reshape(-1).copy()
