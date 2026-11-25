@@ -63,10 +63,12 @@ for ranks in 1 2; do
 done
 
 python3 - "$out" <<'PY'
+import base64
 import json
+import struct
 import sys
 import zipfile
-from pathlib import Path
+from pathlib
 from xml.etree import ElementTree as ET
 import numpy as np
 
@@ -147,6 +149,21 @@ try:
                     or piece.find(f"./PointData/DataArray[@Name='{field}']")
                        is None):
                     raise RuntimeError(f"{name}: invalid 3D {field} VTU/{i}")
+                # REAL VTK tetrahedra, not just a file whose mesh.dim()=3:
+                # GetFEM binary cell types use an int32 byte-size prefix.
+                cell_node=piece.find("./Cells/DataArray[@Name='types']")
+                if (cell_node is None or cell_node.get("type") != "Int32"
+                    or cell_node.get("format") != "binary"):
+                    raise RuntimeError(f"{name}: missing binary 3D cell types")
+                payload=base64.b64decode((cell_node.text or "").strip())
+                if len(payload)<4 or struct.unpack("<I",payload[:4])[0]!=len(payload)-4:
+                    raise RuntimeError(f"{name}: corrupt native 3D VTK cells")
+                cell_types=np.frombuffer(payload[4:],dtype="<i4")
+                if (len(cell_types)!=int(piece.attrib["NumberOfCells"])
+                    or not np.all(np.isin(cell_types, (10,24)))):
+                    raise RuntimeError(
+                        f"{name}: {field} exported non-tetrahedral GetFEM cells"
+                    )
         rec.update({"status":"PASS_NATIVE_MAXWELL3D_MUMPS_CN_VTK",
                     "DOFs":int(rank_traces[0]["z"].shape[1]),
                     "steps":10,"VTK_fields":{"E":11,"B":11},
