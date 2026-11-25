@@ -37,6 +37,30 @@ CURL3 = (
 )
 
 
+
+def assert_patched_intrinsic_fem(mesh_fem, requested, getfem_module):
+    """Fail closed against SCRIMP's legacy FEM-to-CG fallback.
+
+    GetFEM MeshFem.fem() returns a NumPy *array* of Fem objects.
+    Iterate over all entries, not just the first array axis.
+    Compare canonical Fem.char() descriptors, not fragile repr strings.
+    """
+    assigned = np.asarray(mesh_fem.fem(), dtype=object).ravel()
+    if assigned.size == 0:
+        raise RuntimeError(f"No native GetFEM elements assigned for {requested}")
+    if any(not callable(getattr(fem, "char", None)) for fem in assigned):
+        raise RuntimeError(f"Invalid GetFEM MeshFem.fem() entries for {requested}")
+    actual = {str(fem.char()) for fem in assigned}
+    reference = str(getfem_module.Fem(requested).char())
+    if actual != {reference}:
+        raise RuntimeError(
+            f"Required patched {requested} not active, actual FEM: {sorted(actual)}"
+        )
+    if int(mesh_fem.qdim()) != 3 or int(mesh_fem.nbdof()) <= 0:
+        raise RuntimeError(f"Invalid intrinsic 3D field for {requested}")
+    return actual
+
+
 def maxwell_3d(*, mesh_size=0.7, final_time=0.2, time_step=0.02,
                factor_solver="mumps"):
     """Build and solve the two-field Maxwell system on a tetrahedral ball."""
@@ -71,18 +95,12 @@ def maxwell_3d(*, mesh_size=0.7, final_time=0.2, time_step=0.02,
     model.add_FEM(S.FEM("B", 0, "RT"))  # FEM_RTK(3,0)
 
     # S.FEM has a legacy silent CG fallback. Fail CLOSED if that happens.
+    import getfem as gf
     for name, requested in (("E", "FEM_NEDELEC(3)"),
                             ("B", "FEM_RTK(3,0)")):
-        import getfem as gf
-        actual = {f.char() for f in model.ports[name].get_fem().fem()}
-        reference = gf.Fem(requested).char()
-        if actual != {reference}:
-            raise RuntimeError(
-                f"Required patched {requested} not active for {name}: {actual}"
-            )
-        fem = model.ports[name].get_fem()
-        if fem.qdim() != 3 or fem.nbdof() == 0:
-            raise RuntimeError(f"Invalid intrinsic 3D field for {name}")
+        assert_patched_intrinsic_fem(
+            model.ports[name].get_fem(), requested, gf
+        )
 
     # TUTORIAL M3D-05: two positive mass blocks, two skew curl blocks
     for brick in (
