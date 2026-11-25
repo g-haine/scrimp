@@ -252,10 +252,11 @@ rerun of the solver:
 
 The renderer also supports compatible archived 2A
 NPZ/PVD layouts. Use the case names in each archive.
-A later long-time demonstration should be assessed
-separately from this short physical acceptance,
-and its validated images may subsequently be integrated
-into the public Sphinx website.
+A separate long-time demonstration has now also
+passed its 100-step physical acceptance on MUMPS
+MPI1 (see below); those longer fields and animations
+should be considered for the public Sphinx gallery
+after labeling the inner damping region explicitly.
 
 Qualification evidence — original GetFEM CN, MPI 1 and 2
 -------------------------------------------------------
@@ -318,11 +319,67 @@ energy/power balance inspectable without ParaView.
 All files are included in the original pilot ZIP,
 under ``visuals/`` and ``mumps_mpi*/pv/``.
 
-**Next: a separate, visually resolved, longer run.**
-The *short* acceptance run does not yet establish
-wave quality on a fine mesh, long-time passivity
-or space/time convergence. A genuine user-facing
-showcase can be produced using:
+
+Long-time visualization — 100 accepted physical CN steps
+-------------------------------------------------------
+
+**PASS, 25 November 2026** on the authentic GetFEM
+archive ``v130-wave2d-2c-showcase-bc880100-9P5gcxWf.zip``,
+commit ``bc880100f69f6f0dbbb5d31ee8fc229d0b32647d``.
+The canonical example was executed at ``h=0.1``,
+``dt=0.01``, ``tf=1.0``, with **7905 DOFs**,
+**100/100 accepted CN steps**, **zero nonlinear
+failures/rejections**, and DAE initialization
+residual ``9.86e-14``. All **10 physics gates
+passed**; the energy remained monotonically
+decreasing at every saved time.
+
+.. list-table:: Native long-run energy evidence (MUMPS MPI1)
+   :header-rows: 1
+   :widths: 60 40
+
+   * - Quantity
+     - Measured value
+   * - Initial Hamiltonian ``H(0)``
+     - ``0.2556143692106721``
+   * - Final Hamiltonian ``H(1)``
+     - ``0.10272364224930962``
+   * - Total internal energy loss ``Li(1)``
+     - ``0.0882892889133343``
+   * - Total boundary feedback energy loss ``Lb(1)``
+     - ``0.06460143804802765``
+   * - Maximum CN per-step energy defect
+     - ``1.32e-15``
+   * - Maximum cumulative energy defect
+     - ``1.62e-15``
+   * - VTU data / animated frames
+     - ``3 × 101 = 303 VTU`` / 101 GIF frames
+
+The mechanical energy decreases by **59.81%**:
+**57.75%** of that loss is due to inner resistance
+and **42.25%** to outer feedback. The original
+FE arrays were independently checked:
+``H(t)-H(0)+Li(t)+Lb(t)`` is below
+``1.62e-15`` and both dissipations increase
+monotonically. The export contains three authentic
+PVD time series (``q``, ``p``, ``e_r``), each with
+101 GetFEM VTU files at precisely the saved CN
+times from 0 to 1. The renderer produced and
+archived all 101 GIF frames and the PNG/SVG
+field and energy figures from these real VTUs,
+plus the 101-row CSV.
+
+**Visualization note:** the ``e_r`` port is
+restricted to the **inner disk only**. In the
+current generic visualizer, the annulus is shown
+with a zero-colored background; this is merely
+a plotting convenience, *not* a claim that
+``e_r`` is physically defined there. The final
+pedagogical image should mark or mask the
+inner disk boundary to avoid confusion.
+
+To reproduce this separate and now verified
+long-duration run:
 
 .. code-block:: bash
 
@@ -332,16 +389,12 @@ showcase can be produced using:
    SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
    bash scripts/run-v130-wave2d-showcase.sh 2c
 
-Its defaults are ``h=0.1``, ``dt=0.01``,
-``tf=1.0``; it renders longer true FE/VTK
-figures and animation as a **distinct visual
-demonstration**. It does not independently
-qualify mesh convergence, parallel parity, or
-SuperLU_DIST. Those require separate tests.
-
-**Qualification scope:** MUMPS MPI1/2 only,
-``h=0.2``, ``dt=0.008``, ``tf=0.08``,
-10 CN steps; physical energy, original VTU outputs
-and render pipeline validated. No automatic solver
-regularization, convergence or long-time
-qualification is claimed.
+The **short pilot** qualifies the model in
+MUMPS MPI1/MPI2 at ``h=0.2`` over 10 steps;
+the **long showcase** independently qualifies the
+100-step physical balance and native visual outputs
+at ``h=0.1`` **in MUMPS MPI1 only**.
+Neither campaign establishes mesh/time convergence
+or long-run MPI1/MPI2 equivalence. SuperLU_DIST
+and other solvers are not qualified for 2C.
+No automatic solver regularization was used.
