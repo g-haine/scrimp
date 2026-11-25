@@ -278,20 +278,31 @@ def _control_expression_is_prescribed(expression, model_variables):
 
 
 def _control_expression_is_direct_linear_feedback(expression, model_variables):
-    """Certify only signed *bare unknowns* as constant linear feedback.
+    """Certify signed model variables with optional finite SCALAR literals.
 
-    For example `Y_w`, `+Y_T`, and `-Y_T` yield a GetFEM
-    bilinear weak term `Y_w*Test_U_T` with a fixed Jacobian.
-    Products, arbitrary coefficients, macros, and functions must
-    stay on the nonlinear GetFEM route. This fail-closed test
-    deliberately does not claim to recognize every affine law.
+    Recognized: `Y`, `-Y`, `+Y`, `-0.5*Y`, `2.5e-3*Y`.
+    These are exactly bilinear GWFL forms with a constant Jacobian.
+    The coefficient must be a finite *numeric literal*, and the field
+    must be one registered model variable. No state products, sums,
+    parameters, macros, parentheses or function calls are inferred
+    linear: they continue through GetFEM's full nonlinear tangent.
+
+    This intentionally conservative whitelist is not a generic
+    symbolic-affinity detector. Never silently treat a physical
+    feedback as prescribed open-loop forcing.
     """
     if not isinstance(expression, str):
         return False
+    number = r"(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?"
     matched = re.fullmatch(
-        r"\s*[+-]?\s*([A-Za-z_][A-Za-z0-9_]*)\s*", expression
+        rf"\s*[+-]?\s*(?:(?P<factor>{number})\s*\*\s*)?"
+        r"(?P<field>[A-Za-z_][A-Za-z0-9_]*)\s*",
+        expression,
     )
-    return bool(matched and matched.group(1) in model_variables)
+    if not matched or matched.group("field") not in model_variables:
+        return False
+    factor = matched.group("factor")
+    return factor is None or np.isfinite(float(factor))
 
 
 def _all_bricks_are_linear(bricks):
@@ -1392,7 +1403,9 @@ class DPHS:
         A bare signed model variable (e.g. Y_w or -Y_T) is
         a provably linear feedback: GetFEM assembles its constant
         bilinear coupling directly into the stiffness matrix.
-        Other state-dependent expressions, or unknown macros,
+        A finite numeric scalar times a single model variable
+        (e.g. -0.5*Y) is likewise certified linear. Other
+        state-dependent expressions, or unknown macros,
         use a nonlinear variational brick so Newton computes
         their full derivative, not merely the residual.
 
@@ -1434,9 +1447,10 @@ class DPHS:
         # Feedback may depend on another port variable, e.g.
         # set_control("Interface Heat", "Y_w"). A source brick
         # ignores its derivative and would be mathematically WRONG.
-        # The exact bare-variable expressions (Y_w, +/-Y_T) are
-        # *constant linear* feedback: add_linear_term includes their
-        # correct coupling in K and retains the physical Jacobian.
+        # Exact bare-variable expressions (Y_w, +/-Y_T), and finite
+        # scalar-literal multiples (-0.5*Y), are *constant linear*
+        # feedback: add_linear_term includes their correct coupling
+        # in K and retains the physical Jacobian.
         # All other state-dependent laws stay on add_nonlinear_term
         # with the exact full Newton derivative. Unknown macros are
         # never guessed linear.
