@@ -27,9 +27,15 @@ import logging
 
 
 class FEM:
-    """This class defines what is a FEM object in SCRIMP.
-    
-       An negative order allows to access to GetFEM syntax for the FEM, e.g., by setting FEM="FEM_HERMITE(2)" for Hermite FE in dimension 2.
+    """Define a finite element for a SCRIMP state or port.
+
+    Families: CG, DG, RT, BDM, NED1 (Nedelec first kind),
+    NED2 (Nedelec second kind). The longer names NEDELEC1 and
+    NEDELEC2 are accepted aliases. Here 'order' is the polynomial
+    index k, **not** the Nedelec family number. NED2 supports only
+    k=1,2 in the pinned SCRIMP GetFEM 5.5 patch.
+    Passing a negative order with an explicit GetFEM descriptor
+    remains supported for expert/custom elements.
     """
 
     def __init__(self, name, order, FEM="CG") -> None:
@@ -179,6 +185,25 @@ class FEM:
                 + str(self.get_order())
                 + ")"
             )
+        elif self.get_type() in ("NED1", "NEDELEC1"):
+            # SCRIMP GetFEM 5.5 patch 0003. k=0 delegates to GetFEM's
+            # native FEM_NEDELEC(N), while k>=1 uses the patched family.
+            dim, k = self.get_mesh().dim(), self.get_order()
+            if dim not in (2, 3) or not isinstance(k, int) or k < 0:
+                raise ValueError(
+                    "NED1/NEDELEC1 expects a triangle/tetrahedron mesh "
+                    "in dimension 2/3 and an integer order k>=0"
+                )
+            fem_str = f"FEM_NEDELEC1({dim},{k})"
+        elif self.get_type() in ("NED2", "NEDELEC2"):
+            # SCRIMP GetFEM 5.5 patch 0004 is *only* implemented for k=1,2.
+            dim, k = self.get_mesh().dim(), self.get_order()
+            if dim not in (2, 3) or not isinstance(k, int) or k not in (1, 2):
+                raise ValueError(
+                    "NED2/NEDELEC2 expects a triangle/tetrahedron mesh "
+                    "in dimension 2/3 and an integer order k=1 or k=2"
+                )
+            fem_str = f"FEM_NEDELEC2({dim},{k})"
         elif self.get_order() < 0: # Hack to access directly to every FEM in GetFEM
             fem_str = self.get_type()
         else:
@@ -192,6 +217,13 @@ class FEM:
                 self.__fem = gf.MeshFem(self.get_mesh(), self.get_dim())
                 self.__fem.set_fem(gf.Fem(fem_str))
             except AssertionError as err:
+                if self.get_type() in ("NED1", "NEDELEC1", "NED2", "NEDELEC2"):
+                    # These explicit H(curl) requests MUST NOT silently
+                    # become componentwise CG1 when a GetFEM patch is absent.
+                    raise RuntimeError(
+                        f"Required intrinsic {self.get_type()} order "
+                        f"{self.get_order()} unavailable in GetFEM: {fem_str}"
+                    ) from err
                 if rank == 0:
                     logging.error(f"Unable to set {self.get_type()}, use classical Lagrange of order 1 as default instead.")
                 self.__order = 1
