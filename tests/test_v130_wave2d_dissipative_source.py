@@ -141,17 +141,38 @@ class Wave2BDissipativeSourceTests(unittest.TestCase):
         )
 
     def test_raw_native_quantities_never_invented(self):
-        for term in (
-            '"t"', '"z"', '"H"', '"signed_work"',
-            '"cumulative_loss"', '"dissipated_power"',
-            '"independently_assembled_volume_loss"',
-            '"resistive_flow_constraint"',
-            '"resistive_effort_constraint"',
-            '"energy_step_defects"',
-            'state_SHA256',
+        # Match the actual returned observations schema, not the
+        # incidental source spelling (dict(H=H) vs {"H": H}).
+        tree = ast.parse(self.source2b)
+        functions = [
+            node for node in tree.body
+            if isinstance(node, ast.FunctionDef)
+            and node.name == "measure_wave_2d"
+        ]
+        self.assertEqual(len(functions), 1)
+        returns = [
+            node.value for node in ast.walk(functions[0])
+            if isinstance(node, ast.Return)
+            and isinstance(node.value, ast.Call)
+            and isinstance(node.value.func, ast.Name)
+            and node.value.func.id == "dict"
+        ]
+        self.assertEqual(len(returns), 1)
+        self.assertEqual(returns[0].args, [])
+        self.assertTrue(all(k.arg is not None for k in returns[0].keywords))
+        returned_keys = [k.arg for k in returns[0].keywords]
+        self.assertEqual(len(returned_keys), len(set(returned_keys)))
+        for key in (
+            "t", "z", "H", "signed_work",
+            "cumulative_loss", "dissipated_power",
+            "independently_assembled_volume_loss",
+            "resistive_flow_constraint",
+            "resistive_effort_constraint",
+            "energy_step_defects",
         ):
-            with self.subTest(quantity=term):
-                self.assertIn(term, self.source2b)
+            with self.subTest(quantity=key):
+                self.assertIn(key, returned_keys)
+        self.assertIn("state_SHA256", self.source2b)
         self.assertIn('for name in ("q", "p", "e_q", "e_p", "f_r", "e_r")',
                       self.source2b)
 
