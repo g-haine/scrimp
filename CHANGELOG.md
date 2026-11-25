@@ -5,6 +5,63 @@ Changes to SCRIMP are recorded here. See also the
 
 ## 1.3.0 — in development (not released)
 
+### Exemple 2B — démonstration longue MUMPS sur 100 pas, dissipativité et comparaison native 2A/2B PASS (25 novembre 2026)
+
+- Archive complète `v130-wave2d-2b-showcase-dbdc49cf-G1CKQAVG.zip`,
+  source `dbdc49cfcac47d4daa1706b3fc2fa4b53646b0a2`,
+  image `scrimp-mpi:v1.3.0-rc3` figée,
+  MUMPS MPI1, `h=0.1`, `dt=0.01`,
+  `tf=1`, `damping_strength=1` :
+  **10204 DOFs**, **100/100 pas CN** sans rejet
+  ni échec SNES, DAE algébrique PASS à résidu
+  exactement nul, **10/10 portes physiques PASS**.
+- **Bilan FE natif** `H-H0=W-L` sur 101 instants :
+  `H(0)=0`, `H(1)=0.03205555671004583`,
+  `W(1)=0.03710798721523879`,
+  `L(1)=0.005052430505192933`.
+  Défaut absolu maximal par pas
+  `9.391901319e-17`, cumulé
+  `9.280770596e-17`. Positivité et
+  non-trivialité de `L`, puissance du port
+  résistif identique à une intégrale GetFEM
+  volumique indépendante, flux constitutif
+  contraint faiblement. Trois ports de bord
+  non forcés de puissance exactement nulle.
+- **606 VTU** (6 champs `q,p,e_q,e_p,f_r,e_r`
+  × 101 instants) et 6 PVD originaux,
+  temps de 0 à 1 conformes aux tableaux FE ;
+  SHA256 de trajectoire identique à
+  `rank0.json`. Visuels GetFEM PNG/SVG,
+  GIF `p_evolution.gif` (101 images),
+  énergie CSV (101 lignes), provenance.
+- **Comparaison indépendante 2A/2B** sur les
+  deux archives longues (mêmes matériaux,
+  maillage, excitation et pas de temps).
+  Identité des VTK `p` en géométrie et
+  connectivité vérifiée à `t=0,0.5,1`.
+  À `tf=1`, `H_2A=0.03707053141235693`,
+  `H_2B=0.03205555671004583` : **13.528 %**
+  d'énergie en moins pour 2B.
+  Les travaux injectés sont légèrement
+  différents ; l'identité
+  `H_2A-H_2B=L_2B-(W_2B-W_2A)` tient au
+  défaut `2.08e-17` près. Deux figures de
+  comparaison ont été produites depuis
+  les VTK/NPZ natifs, dont une carte `p`
+  **à échelle de couleurs identique**.
+  `p` est la quantité de mouvement, non
+  la vitesse `e_p`.
+- **Portée distincte** : long showcase 2B
+  validé en MUMPS MPI1 ; court pilote
+  MUMPS MPI1/2 reste une autre preuve.
+  Aucune convergence spatiale/temporelle,
+  ni parité MPI longue, ni qualification
+  SuperLU_DIST n'est déduite ici.
+  Le modèle canonique `examples/wave_dissipative.py`,
+  `examples/published/` et `master`
+  n'ont pas été modifiés.
+
+
 ### Exemple 2A — démonstration longue native de l'onde conservative 2D : PASS (25 novembre 2026)
 
 - Archive GetFEM authentique
