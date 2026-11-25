@@ -5,6 +5,45 @@ Changes to SCRIMP are recorded here. See also the
 
 ## 1.3.0 — in development (not released)
 
+### Exemple 2C : identification de l'orientation énergétique réelle du port Grad–Grad (25 novembre 2026)
+
+- Archive originale `v130-wave2d-coenergy-e1c5bc50-bRo68Qaf.zip` :
+  MUMPS MPI1 et MPI2 terminent **10/10 pas CN**
+  avec DAE algébrique exacte (2459 DOFs, zéro
+  rejet), mais le **bilan énergétique FAIL** ;
+  défaut maximal par pas `4.967881e-4`,
+  cumulé `3.661328e-3`. Aucun résultat VTK
+  validé ne doit être revendiqué pour cette exécution.
+- Diagnostic sur la vraie trajectoire GetFEM :
+  `dH + dt*(D_inner+P_boundary)=0` à
+  `7.18e-16` près sur les dix pas.
+  La convention originale `M_Y`, `-B^T` impose
+  `Y=-p` au bord au sens faible ;
+  la puissance `P_boundary=U*Y` est une **perte**
+  (et non une entrée) dans cette formulation
+  Grad–Grad. La commande testée `U=-0.5Y`
+  était physiquement **active** ; l'écart précédent
+  égalait exactement `2*|W_boundary|` cumulé.
+- `examples/wave_coenergy.py` revient à
+  **`U=+0.5Y`** avec dissipation
+  `D_b=+integral UY=0.5*integral Y²`.
+  Contrôles indépendants : `U-0.5Y=0`,
+  `D_b=P_boundary>=0`,
+  `H-H0+L_internal+L_boundary=0` ;
+  les bilans par pas, la DAE, les tolérances
+  et les vérifications MPI restent stricts.
+- Le test de régression
+  `tests/test_v130_coenergy_boundary_power_orientation.py`
+  reprend **les vrais échantillons FE du pilote
+  échoué** et valide le signe sans transformer
+  cet échantillon en qualification du modèle
+  réparé. CI et préflight 2C incluent ce test.
+- **Statut : nouvelle simulation MUMPS MPI1/2 avec
+  feedback corrigé attendue ; 2C reste NON QUALIFIÉ.**
+  Pas de modification de `examples/published/`
+  ni de libéralisation des critères énergétiques.
+
+
 ### Feedback à gain littéral : GetFEM linéaire et initialisation DAE 2C (25 novembre 2026)
 
 - Deuxième tentative réelle du pilote 2C,
@@ -66,7 +105,9 @@ Changes to SCRIMP are recorded here. See also the
   `T^{-1}` anisotrope et la densité `3-x` :
   coétats substitués, deux régions concentriques,
   damping sur le disque intérieur et feedback de signe
-  passif `U=-0.5Y` au bord extérieur.
+  **passif `U=+0.5Y`** au bord extérieur. Le signe
+  avait été inversé à la préparation et a été corrigé
+  après le diagnostic natif MPI1/2 du 25 novembre.
   `nu=0.2+10(0.36-r²)` reste strictement positive
   sur le seul disque intérieur pour `e_r/nu` ;
   c'est un changement **explicite** du scénario historique.
@@ -74,8 +115,9 @@ Changes to SCRIMP are recorded here. See also the
   CN avec bilan `H-H0+Li+Lb=0` :
   dissipation calculée indépendamment par
   `integral e_r²/nu` et `-integral p*e_r` ;
-  retour de puissance au bord comparé à
-  `-integral UY` ; défaut ponctuel de projection
+  perte de puissance au bord comparée à
+  `+integral UY` (signe Grad–Grad `Y=-p`) ;
+  défaut ponctuel de projection
   faible enregistré sans devenir un critère erroné.
   Traces originales `rank*.npz/json`, VTK/PVD
   `q,p,e_r`, parité MPI, archive d'échec
