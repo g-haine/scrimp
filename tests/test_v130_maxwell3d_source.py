@@ -207,8 +207,10 @@ class Maxwell3DSourceTests(unittest.TestCase):
     def test_tutorial_reuses_same_canonical_source(self):
         self.assertIn("Nédélec", self.doc)
         self.assertIn("Raviart", self.doc)
-        self.assertIn("H(curl)", self.doc)
-        self.assertIn("H(div)", self.doc)
+        # The tutorial uses Sphinx/LaTeX H(\mathrm{curl};\Omega) notation,
+        # not the informal plaintext shorthands H(curl) and H(div).
+        self.assertIn(r"H(\mathrm{curl};\Omega)", self.doc)
+        self.assertIn(r"H(\mathrm{div};\Omega)", self.doc)
         self.assertIn("Maxwell", self.doc)
         self.assertIn("H(t)", self.doc)
         self.assertEqual(
