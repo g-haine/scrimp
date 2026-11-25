@@ -193,6 +193,7 @@ def main():
         system = heat_wave_eq(
             heat_region=args.heat, wave_region=wave, factor_solver="mumps",
             final_time=0.004, time_step=0.001, save_step=0.001,
+            initial_wave_boundary="unconstrained",
         )
     finally:
         DPHS.init_step = old_init
