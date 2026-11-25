@@ -107,7 +107,7 @@ type="Float32" format="binary">{a(scalar,"<f4")}</DataArray></PointData>
             'initial_wave_profile="gaussian"',
             'initial_wave_boundary="clamp"',
             'if initial_wave_profile == "gallery_packet":',
-            '"np.cos(14.*np.arctan2(y,x))"',
+            '"np.cos(14.*np.atan2(y,x))"',
             '"0."',
             'long_showcase=False',
             'render_heat_wave_long_showcase(',
