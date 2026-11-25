@@ -468,19 +468,23 @@ the initial height :math:`h_0`.
     
     ## Solve in time
     # Define the time scheme
+    # The canonical example retains its historical pseudo
+    # initializer and BDF2; MUMPS is the current SCRIMP default.
+    # For an optional explicit PETSc factor backend, use the
+    # factor_solver keyword argument to shallow_water_eq().
+    scheme = {}
+    if factor_solver is not None:
+        scheme["pc_factor_mat_solver_type"] = factor_solver
     swe.set_time_scheme(
-        # Preserve the example's historical pseudo-time consistency
-        # relaxation, rather than using the new linear-only algebraic
-        # initializer (unsupported for this nonlinear DAE).
         init_step_ts_type="pseudo",
         ts_type="bdf",
         ts_bdf_order=2,
-        t_f=0.5,
-        dt=0.0001,
-        dt_save=0.01,
+        t_f=float(final_time),
+        dt=float(time_step),
+        dt_save=float(save_step),
         ksp_type="gmres",
         pc_type="lu",
-        pc_factor_mat_solver_type="superlu",
+        **scheme,
     )
     
     # Solve the system in time
@@ -509,9 +513,12 @@ the initial height :math:`h_0`.
    ``3.84378444e-6`` (unchanged ``1e-5``
    acceptance threshold). The test freezes a nonzero
    explicit ``G``, but does **not** integrate a
-   physical time step. A separate bounded actual-TS
-   acceptance test is required before claiming
-   temporal stability or a balance for the explicit split.
+   physical time step. Separate short native BDF2 physical
+   simulations and a fixed-final-time refinement campaign have
+   since been performed with strict nonlinear-affine algebraic
+   initialization. They measured the energy defect without
+   claiming exact conservation; the extended native pilot
+   below adds full FE rank parity and a longer physical horizon.
 
 The Hamiltonian are then defined, computed, and shown.
 
@@ -533,3 +540,54 @@ The Hamiltonian are then defined, computed, and shown.
 
 .. image:: Shallow_water_Hamiltonian.png
 
+
+Extended native physical validation (SCRIMP v1.3.0)
+---------------------------------------------------
+
+The canonical 2-D **inviscid** shallow-water example is distinct
+from the viscous, rotating disk experiment. Its nonlinear
+state-dependent momentum mass has already passed a true
+GetFEM/PETSc directional finite-difference Jacobian test
+in MPI 1/2. The model's ``nonlinear_affine`` initializer has
+also passed separate native compatibility tests, along with
+short original BDF2 physical-time trajectories.
+
+An additional **bounded native acceptance pilot** now runs the
+unchanged rectangular model, original initial data and
+``explicit=True`` gyroscopic term to
+``t_f=0.002``, at ``dt=0.0001`` (20 steps) and
+``dt=0.00005`` (40 steps), both in MPI 1 and MPI 2:
+
+.. code-block:: bash
+
+   cd ~/Simulations/scrimp
+   git pull --ff-only
+   conda activate scrimp
+
+   SCRIMP_DOCKER_NO_SUDO=1 \
+   SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+   bash scripts/run-v130-shallow-water-extended-physical.sh
+
+The diagnostic, not the default public entry point, explicitly
+selects ``init_step_ts_type="nonlinear_affine"``
+to preserve the **original prescribed** differential initial
+data exactly. It records the true FE coefficients on every
+MPI rank and independently checks mass, Hamiltonian, all
+four boundary-port powers and the measured BDF2 defect
+``H(T)-H(0)-integrated_boundary_work``.
+It **does not** impose machine-precision conservation on
+an integrator with a lagged explicit term, nor claim
+a temporal convergence order from two refinements
+of a discontinuous initial free surface.
+
+The standard ``shallow_water_eq()`` still uses the
+historical pseudo-time initialization and final time
+``0.5`` by default. The bounded pilot does **not**
+qualify that full default trajectory or the separate
+high-index rotating viscous Saint-Venant model.
+
+**Status (25 November 2026): new extended pilot prepared;
+native evidence still pending.** See
+`the v1.3.0 inviscid Saint--Venant acceptance protocol
+<https://github.com/g-haine/scrimp/blob/release/1.3.0-preparation/docs/V130_SHALLOW_WATER_EXAMPLE_ACCEPTANCE.md>`_
+for the exact gates, earlier proofs and limits.
