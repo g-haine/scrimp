@@ -22,11 +22,14 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 LEGACY_EXAMPLES = (
     "heat.py",
-    # Heat–Wave is deliberately modernized to RT/CN/algebraic (2026);
-    # unlike the original unchanged legacy examples below.
     "mass_spring_damper.py",
     "nonlinear_pendulum.py",
     "shallow_water.py",
+)
+# All four 2D wave/tutorial variants have since migrated to
+# independently qualified strict algebraic initializations.
+MODERN_ALGEBRAIC_EXAMPLES = (
+    "heat_wave.py",
     "wave.py",
     "wave_coenergy.py",
     "wave_dissipative.py",
@@ -65,6 +68,13 @@ class TestDefaultMigration(unittest.TestCase):
                     f"Historical example changed initializer: {found}",
                 )
 
+    def test_separately_qualified_wave_tutorials_use_algebraic(self):
+        for name in MODERN_ALGEBRAIC_EXAMPLES:
+            with self.subTest(name=name):
+                source=(ROOT/"examples"/name).read_text(encoding="utf-8")
+                self.assertIn('init_step_ts_type="algebraic"',source)
+                self.assertNotIn('init_step_ts_type="pseudo"',source)
+
     def test_heat_wave_deliberate_CN_algebraic_physics_migration(self):
         source=(ROOT/"examples"/"heat_wave.py").read_text(
             encoding="utf-8"
@@ -75,15 +85,11 @@ class TestDefaultMigration(unittest.TestCase):
         self.assertIn('S.FEM("Heat flux", k, "RT")',source)
         self.assertIn('S.FEM("q", k, "RT")',source)
 
-    def test_original_wave_gaussian_kept_unchanged(self):
-        src=(ROOT / "examples/wave.py").read_text(
-            encoding="utf-8"
-        )
-        self.assertIn(
-            '3**(-20*((x-0.5)*(x-0.5)+(y-0.5)*(y-0.5)))',
-            src,
-        )
-        self.assertIn('wave.set_initial_value("p", p_0)', src)
+    def test_modern_anisotropic_wave_initial_data_match_homogeneous_boundary(self):
+        src=(ROOT/"examples/wave.py").read_text(encoding="utf-8")
+        self.assertIn('system.set_initial_value("p", "0.")',src)
+        self.assertIn('system.set_initial_value("q", "[0., 0.]")',src)
+        self.assertIn('init_step_ts_type="algebraic"',src)
 
     def test_candidate_default_is_algebraic_and_legacy_is_explicit(self):
         src=(ROOT / "scrimp/dphs.py").read_text(
