@@ -5,6 +5,89 @@ Changes to SCRIMP are recorded here. See also the
 
 ## 1.3.0 — in development (not released)
 
+### Heat–Wave 2D — initialisation au bord corrigée ; visuels log-log temps long et propagation annulaire (25 novembre 2026)
+
+- Le premier pilote physique natif (`937718d2`) construit
+  l'interface conforme automatique et assemble les **7 689 DOFs**
+  mais **échoue dans la vraie initialisation DAE stricte** avant CN :
+  `||F_a||=0.00762918411` pour tolérance
+  `8.18210288e-09`, résidus dominants
+  `Y_bnd=U_bnd≈0.005395`. Cause physique :
+  projection `L²` de la gaussienne
+  `p_0` incompatible avec `p|_{r=1}=0`.
+  Archive exacte :
+  `v130-heat-wave-physical-937718d2-9O1SrxEY.zip`.
+  Aucun PASS CN n'en est déduit.
+- Correction de l'**exemple canonique**
+  `examples/heat_wave.py` : `initial_wave_boundary="clamp"`
+  **par défaut** (DOFs CG1 extérieurs exactement nuls,
+  DOFs intérieurs, `T_0` et `q_0` inchangés après
+  projection FE `L²`), ou
+  `"constrained_l2"` (minimisation
+  dans la masse GetFEM, PETSc sparse/MUMPS,
+  disponible en MPI1). Les deux méthodes
+  avaient été validées séparément dans
+  les audits natifs de compatibilité
+  et DAE/CN/puissance. Les données
+  `"unconstrained"` demeurent
+  opt-in pour les audits historiques.
+  **Aucune relaxation DAE, modification des
+  équations, ni repli vers pseudo-TS.**
+  Les diagnostics de l'ancien pilote
+  ont été raccordés aux vraies deux
+  faces physiques orientées plutôt
+  qu'à la région logique 10 doublée.
+- Le même exemple offre maintenant
+  `--long-showcase` avec
+  `--final-time 15 --time-step .005 --save-step .05`
+  pour représenter **le Hamiltonien GetFEM
+  réel en log-log** (PNG/SVG et NPZ de
+  la trajectoire énergétique originale)
+  et **les champs `p,q,T` originaux
+  exportés en VTU/PVD**.
+  Les images `p` sur l'anneau
+  extérieur et un GIF d'au plus
+  48 **vrais instants sauvegardés**,
+  avec colorimétrie fixe, sont
+  générés directement dans
+  `examples/heat_wave.py`, sans
+  script graphique externe.
+  Un indicateur de concentration
+  près de `r>=0.82` est explicitement
+  limité à la **fraction approchée
+  du terme cinétique scalaire `p²`**
+  (pas à l'énergie d'onde complète).
+- Nouvelle excitation **optionnelle**
+  `initial_wave_profile="gallery_packet"`
+  (enveloppe annulaire et `cos(14θ)`,
+  chaleur initiale nulle) pour
+  explorer les structures de type
+  *whispering gallery* en temps long ;
+  le cas gaussien historique reste
+  **le défaut du modèle**. Il s'agit
+  d'une excitation directionnelle
+  **non qualifiée comme mode propre**.
+  Nouveau pilote
+  `scripts/run-v130-heat-wave-long-showcase.sh`
+  (MUMPS MPI1, traces et ZIP,
+  reprise sur erreur), source
+  testée par
+  `tests/test_v130_heat_wave_showcase_source.py`
+  et `tests/test_v130_heat_wave_boundary_initial_data.py`.
+- **Statut scientifique actuel** :
+  les anciens PASS d'orientation,
+  DAE/CN et parité MPI1/2 dans les
+  recherches restent valables ;
+  le pilote strict de l'exemple
+  corrigé, et les nouveaux
+  visuels de temps long, **attendent
+  chacun une vraie exécution native**.
+  Aucune affirmation de décroissance
+  algébrique précise, de convergence
+  h/dt ou de mode whispering gallery
+  n'est présentée sans preuve.
+
+
 ### Heat–Wave 2D — reprise de la qualification physique native, MUMPS MPI1 strict (25 novembre 2026)
 
 - **Prochain modèle du parcours Sphinx après Maxwell 3D.**
