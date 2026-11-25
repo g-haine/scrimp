@@ -85,6 +85,10 @@ def main():
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--dt", type=float, default=DT)
     parser.add_argument("--final-time", type=float, default=TF)
+    parser.add_argument(
+        "--capture-full-fe", action="store_true",
+        help="Opt-in: save genuine full FE trajectory separately on each MPI rank",
+    )
     args = parser.parse_args()
     dt = float(args.dt)
     tf = float(args.final_time)
@@ -272,6 +276,33 @@ def main():
         "physical_spatial_convergence_qualified": False,
         "original_rotating_viscous_Y0_qualified": False,
     }
+    # Opt-in only: archive the complete original FE vectors on EACH
+    # MPI rank, not manufactured reference fields. This leaves all
+    # physical equations, algebraic initialization and BDF2 unchanged.
+    # The ordinary historical diagnostic output stays byte-compatible.
+    if args.capture_full_fe:
+        z_history = np.asarray(model.solution["z"], dtype=np.float64)
+        if (z_history.ndim != 2
+                or z_history.shape[0] != len(times)
+                or z_history.shape[1] != len(original)
+                or not np.all(np.isfinite(z_history))):
+            raise RuntimeError(
+                "Original native SWE FE trajectory invalid or incomplete"
+            )
+        args.out.mkdir(parents=True, exist_ok=True)
+        snapshot = args.out / f"shallow_fe_rank{mpi.rank}.npz"
+        if snapshot.exists():
+            raise FileExistsError("Refusing overwrite of original SWE FE evidence")
+        np.savez_compressed(
+            snapshot,
+            t=np.ascontiguousarray(times),
+            z=np.ascontiguousarray(z_history),
+            H=np.ascontiguousarray(H),
+            mass=np.ascontiguousarray(mass),
+            boundary_power=np.ascontiguousarray(power_sum),
+        )
+        mpi.Barrier()
+
     if mpi.rank == 0:
         args.out.mkdir(parents=True, exist_ok=True)
         (args.out/"shallow_short_physical.json").write_text(
