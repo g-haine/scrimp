@@ -185,6 +185,94 @@ class ShallowWaterNativeVisualizationSource(unittest.TestCase):
                          self.model.split("def shallow_water_eq(",1)[0])
         self.assertIn("    import scrimp as S",self.model)
 
+    def test_running_example_without_options_produces_all_visuals(self):
+        """Execute the REAL CLI AST with a stub solver, not a string test.
+
+        Never run GetFEM in a lightweight CI unit test. The actual
+        rendering pipeline is exercised separately with VTK fixtures,
+        and the native driver validates the real PDE and GetFEM fields.
+        """
+        import sys
+        from unittest.mock import patch
+        parsed=ast.parse(self.model,filename=str(CANONICAL))
+        main=next(
+            node for node in parsed.body
+            if isinstance(node,ast.If)
+            and isinstance(node.test,ast.Compare)
+            and isinstance(node.test.left,ast.Name)
+            and node.test.left.id=="__name__"
+        )
+        body=ast.Module(body=[main],type_ignores=[])
+        ast.fix_missing_locations(body)
+        actual=[]
+        with patch.object(sys,"argv",["shallow_water.py"]):
+            exec(compile(body,str(CANONICAL),"exec"),{
+                "__name__":"__main__",
+                "shallow_water_eq":lambda **kwargs:actual.append(kwargs),
+            })
+        self.assertEqual(len(actual),1)
+        self.assertEqual(actual[0],{
+            "factor_solver":None,
+            "final_time":0.12,
+            "time_step":0.0001,
+            "save_step":0.002,
+            "showcase":True,
+            "showcase_output":None,
+        })
+        # The switch is explicit, but never required for normal users.
+        self.assertIn("parser.set_defaults(showcase=True)",self.model)
+        self.assertIn('swe.shallow_water_visuals=render_native_shallow_water(',self.model)
+        self.assertIn("saint_venant_surface_vitesse.gif",self.model)
+        self.assertIn("saint_venant_H_masse_bilan.png",self.model)
+        self.assertIn('Path.cwd()/"outputs"/"showcase"/"shallow_water"',self.model)
+        self.assertNotIn("shallow_water_visualization",self.model)
+
+    def test_opt_in_legacy_and_custom_visual_cli_are_reproducible(self):
+        import contextlib
+        import io
+        import sys
+        from unittest.mock import patch
+        parsed=ast.parse(self.model,filename=str(CANONICAL))
+        main=next(
+            n for n in parsed.body
+            if isinstance(n,ast.If)
+            and isinstance(n.test,ast.Compare)
+            and isinstance(n.test.left,ast.Name)
+            and n.test.left.id=="__name__"
+        )
+        body=ast.Module(body=[main],type_ignores=[])
+        ast.fix_missing_locations(body)
+        def dispatch(args):
+            calls=[]
+            with patch.object(sys,"argv",["shallow_water.py",*args]):
+                exec(compile(body,str(CANONICAL),"exec"),{
+                    "__name__":"__main__",
+                    "shallow_water_eq":lambda **kwargs:calls.append(kwargs),
+                })
+            self.assertEqual(len(calls),1)
+            return calls[0]
+        legacy=dispatch(["--no-showcase"])
+        self.assertFalse(legacy["showcase"])
+        self.assertEqual(legacy["final_time"],.5)
+        self.assertEqual(legacy["save_step"],.01)
+        custom=dispatch(["--showcase","--final-time","0.2",
+                         "--save-step","0.004",
+                         "--showcase-output","/tmp/swe-vis"])
+        self.assertTrue(custom["showcase"])
+        self.assertEqual(custom["final_time"],.2)
+        self.assertEqual(custom["save_step"],.004)
+        self.assertEqual(custom["showcase_output"],"/tmp/swe-vis")
+        with patch.object(sys,"argv",[
+            "shallow_water.py","--no-showcase",
+            "--showcase-output","/tmp/unused",
+        ]):
+            with contextlib.redirect_stderr(io.StringIO()):
+                with self.assertRaises(SystemExit) as err:
+                    exec(compile(body,str(CANONICAL),"exec"),{
+                        "__name__":"__main__","shallow_water_eq":lambda **kw:None,
+                    })
+            self.assertEqual(err.exception.code,2)
+
     def test_original_pseudo_default_and_optional_visualization(self):
         for needle in (
             'showcase=False, showcase_output=None',
@@ -199,7 +287,7 @@ class ShallowWaterNativeVisualizationSource(unittest.TestCase):
             'ts_bdf_order=2',
             'S.Brick("M_p", "h * p . Test_p"',
             'explicit=True, position="effort"',
-            'parser.add_argument("--showcase",action="store_true"',
+            'modes.add_argument(\n        "--showcase", dest="showcase", action="store_true"',
         ):
             self.assertIn(needle,self.model,msg=needle)
         self.assertNotIn('viscous_swe_2d_mpi.py',self.model)
