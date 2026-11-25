@@ -35,8 +35,17 @@ _TYPE = {
 }
 
 
-def vtk_array(node):
-    """Parse genuine GetFEM ASCII / inline-binary VTK numeric DataArray."""
+def vtk_array(node, *, native_field_size=None):
+    """Read native GetFEM ASCII/inline-binary VTK, validating true byte counts.
+
+    The original GetFEM 5.5 field exporter writes an *IEEE Float32*
+    count header for PointData (e.g. h: 547 points -> float32(547),
+    p: 744 3-component VTK points from 1488 native 2D scalars ->
+    float32(1488)). The same exporter uses a conventional UInt32
+    BYTE-count header for Points and Cells. Both encodings are
+    independently verified on the native source-14181a94 archive.
+    Do not silently parse all field headers as UInt32 byte counts.
+    """
     if node is None:
         raise ValueError("Missing original GetFEM VTU DataArray")
     dtype_name = node.get("type", "")
@@ -53,8 +62,18 @@ def vtk_array(node):
         if len(payload) < 4:
             raise ValueError("Truncated native GetFEM VTU data")
         nbytes = struct.unpack("<I", payload[:4])[0]
-        if nbytes != len(payload)-4 or nbytes % dtype.itemsize:
-            raise ValueError("Invalid binary VTK byte count")
+        actual = len(payload)-4
+        if actual % dtype.itemsize:
+            raise ValueError("Invalid native VTK typed array byte count")
+        if nbytes != actual:
+            # Only point FIELD data may have the historical floating
+            # scalar-count header. Geometry/cell arrays MUST have an
+            # ordinary VTK byte-count header. No other ambiguity.
+            if (native_field_size is None
+                    or dtype_name != "Float32"
+                    or struct.unpack("<f",payload[:4])[0]
+                       != float(native_field_size)):
+                raise ValueError("Invalid binary VTK byte count or GetFEM field header")
         data = np.frombuffer(payload, dtype=dtype, offset=4).copy()
     else:
         raise ValueError("Unsupported GetFEM VTK encoding: "+fmt)
@@ -64,7 +83,7 @@ def vtk_array(node):
 
 
 def native_triangular_field(filename, field_name):
-    """Return original GetFEM triangle points, cells, h/p field values."""
+    """Return original GetFEM nodes and plotting triangles, native h/p values."""
     filename = Path(filename)
     piece = ET.parse(filename).getroot().find(".//Piece")
     if piece is None:
@@ -83,12 +102,38 @@ def native_triangular_field(filename, field_name):
     con=vtk_array(piece.find("./Cells/DataArray[@Name='connectivity']"))
     off=vtk_array(piece.find("./Cells/DataArray[@Name='offsets']"))
     typ=vtk_array(piece.find("./Cells/DataArray[@Name='types']"))
-    if (con.shape!=(3*ncells,) or off.shape!=(ncells,)
-            or typ.shape!=(ncells,)
-            or not np.array_equal(off,3*np.arange(1,ncells+1))
-            or not np.all(typ==5)):
-        raise ValueError("Expected actual linear VTK triangles from GetFEM")
-    triangles=np.asarray(con.reshape(ncells,3),dtype=np.int64)
+    if off.shape!=(ncells,) or typ.shape!=(ncells,):
+        raise ValueError("Invalid original GetFEM VTK cell arrays")
+    # GetFEM exports the original height CG2 as VTK_QUADRATIC_TRIANGLE
+    # (type 22, SIX nodes), but p DG1 as VTK_TRIANGLE (type 5).
+    # For the *display only*, split each real six-node quadratic
+    # triangle into four linear subtriangles using its REAL mid-edge
+    # nodes: [v0,v1,v2,m01,m12,m20]. This does NOT resample
+    # or fabricate FE values. The original quadratic VTUs are kept.
+    if np.all(typ==5) and np.array_equal(
+        off,3*np.arange(1,ncells+1)
+    ) and con.shape==(3*ncells,):
+        triangles=np.asarray(con.reshape(ncells,3),dtype=np.int64)
+    elif np.all(typ==22) and np.array_equal(
+        off,6*np.arange(1,ncells+1)
+    ) and con.shape==(6*ncells,):
+        quadratic=np.asarray(con.reshape(ncells,6),dtype=np.int64)
+        if np.min(quadratic)<0 or np.max(quadratic)>=npoints:
+            raise ValueError("Invalid original quadratic GetFEM connectivity")
+        vertices=points[quadratic[:,:3],:2]
+        mids=points[quadratic[:,3:6],:2]
+        target=.5*(vertices+np.roll(vertices,-1,axis=1))
+        if np.max(np.abs(target-mids))>1e-4:
+            raise ValueError("GetFEM CG2 midside nodes do not match planar triangle")
+        v0,v1,v2,m01,m12,m20=quadratic.T
+        triangles=np.stack((
+            np.stack((v0,m01,m20),axis=1),
+            np.stack((m01,v1,m12),axis=1),
+            np.stack((m20,m12,v2),axis=1),
+            np.stack((m01,m12,m20),axis=1),
+        ),axis=1).reshape(-1,3)
+    else:
+        raise ValueError("Expected actual linear/quadratic VTK triangles from GetFEM")
     if np.min(triangles)<0 or np.max(triangles)>=npoints:
         raise ValueError("Invalid original GetFEM VTK connectivity")
 
@@ -98,7 +143,11 @@ def native_triangular_field(filename, field_name):
         raise ValueError("Missing scalar free surface h in GetFEM VTU")
     if field_name=="p" and components not in (2,3):
         raise ValueError("Missing vector original momentum p in GetFEM VTU")
-    data=vtk_array(node)
+    # h: source native scalar count npoints; p: source native
+    # 2-vector count 2*npoints, despite 3-component padded VTK output.
+    data=vtk_array(
+        node,native_field_size=npoints*(1 if field_name=="h" else 2)
+    )
     if field_name=="h":
         if data.shape!=(npoints,):
             raise ValueError("Invalid native h CG2 field size")
