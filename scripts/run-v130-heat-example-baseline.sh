@@ -47,7 +47,7 @@ rc=0
 printf '%s\n' "$rc" > "$out/native.exitcode"
 
 final_rc=0
-python3 - "$out" "$rc" "$revision" <<'PY'
+python3 - "$out" "$rc" "$revision" <<'PY' || final_rc=$?
 import json
 import re
 import sys
