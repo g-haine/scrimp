@@ -283,14 +283,19 @@ formulation faible ; ce n'est **pas** l'imposition
 explicite de `n×E=0` (PEC). Une extension
 multibords à puissance de Poynting est différée.
 
-**Compatibilité FE :** `E_h` appartient aux Nédélec
-d'ordre le plus bas, `B_h` à RT0. La donnée initiale
-`E0=(-y,x,0)`, `B0=0` est solénoïdale en
-continu et `curl(E0)=(0,0,2)`, donc excite
-réellement le champ magnétique. Le curl discret
-de Nédélec0 vit dans le sous-espace sans divergence
-de RT0 ; le pilote vérifiera numériquement
-`||div(B_h)||^2_L2` (loi de Gauss magnétique).
+**Compatibilité FE de la version courante :**
+`E_h` appartient à **Nédélec deuxième
+espèce k=1**, `B_h` à **BDM1**.
+La donnée initiale `E0=(-y,x,0)`,
+`B0=0` est solénoïdale en continu,
+avec `curl(E0)=(0,0,2)`.
+Le rotationnel de Nédélec-II k=1
+est une constante par tétraèdre,
+comprise dans l'espace BDM1 de
+divergence nulle ; le pilote vérifie
+numériquement `||div(B_h)||²_L2`.
+La référence historique utilisait
+Nédélec0/RT0 natifs.
 
 **Prudence scientifique :** l'énergie pH ne prouve
 pas `div(E)=0` ni la compatibilité de toutes les
@@ -317,12 +322,16 @@ périmètre de ce premier exemple.
   mémoire compact / transfert COO / solveur MUMPS,
   1 et 2 rangs MPI.
 
-Le modèle SCRIMP emploie l'ancien adaptateur
-`S.FEM(...)` qui peut revenir silencieusement
-à CG1 après `AssertionError` GetFEM. Le
-nouvel exemple **vérifie explicitement la famille
-réellement installée pour chaque état** et
-refuse l'exécution si un élément est remplacé.
+L'adaptateur SCRIMP `S.FEM(...)` possède
+un ancien repli CG1 sur certains types.
+Les nouvelles familles `NED1/NED2`
+**refusent maintenant explicitement ce
+repli** ; l'exemple conserve en plus
+les objets `FEM` originaux et vérifie
+leurs types, ordres et dimensions
+après l'enregistrement. Cette protection
+couvre aussi `BDM1` demandé dans
+ce modèle Maxwell.
 
 ## Premier essai natif et correctifs préalables (25 novembre 2026)
 
@@ -429,7 +438,7 @@ et ses seuils physiques sont inchangés.
 non qualifié.** Les erreurs ont depuis
 été levées ; voir le PASS natif ci-dessus.
 
-## Protocole de qualification exécuté (fail closed)
+## Protocole de qualification — référence passée et nouveau calcul à refaire (fail closed)
 
 L'exécution native proposée dure **10 pas CN
 fixes**, `h=0.7`, `dt=0.02`, `t_f=0.2`.
@@ -474,12 +483,15 @@ Aucun test de convergence, SuperLU_DIST,
 performance ou visuel pédagogique final
 n'est revendiqué avant les qualifications.
 
-**Résultat du protocole :** les deux exécutions
+**Résultat historique :** les deux exécutions
 MUMPS MPI1/2 ont passé tous les critères
-détaillés ci-dessus sur les résultats natifs.
-Les prochaines tâches sont la réalisation
-d'une visualisation pédagogique des
-véritables vecteurs 3D `E` et `B`, puis,
-séparément, une éventuelle étude de
-convergence et des conditions électromagnétiques
-de bord plus explicites.
+avec les éléments **GetFEM natifs Nédélec0/RT0**.
+**Résultat attendu :** relancer sans modifier
+les portes physiques pour la nouvelle paire
+**NED2 k=1 / BDM1 patchée**.
+Le pilote exige aussi les graphiques
+et le GIF désormais générés par
+`examples/maxwell_3d.py --export`.
+Aucun PASS de cette nouvelle paire
+n'est revendiqué avant le résultat
+natif et son archive complète.
