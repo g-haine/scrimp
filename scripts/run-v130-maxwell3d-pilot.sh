@@ -105,7 +105,7 @@ try:
                 or meta.get("MPI") != ranks or meta.get("rank") != rank
                 or meta.get("solver") != "mumps"
                 or meta.get("steps") != 10 or meta.get("TS_reason",0) <= 0
-                or len(gates) != 8 or not all(gates.values())
+                or len(gates) != 9 or not all(gates.values())
                 or any(k not in sample for k in keys)):
                 raise RuntimeError(f"{name}/rank{rank}: native physics gate FAIL")
             t=sample["t"];H=sample["H"];z=sample["z"]
@@ -118,6 +118,7 @@ try:
                 or np.max(np.abs(H-sample["electric_energy"]-
                                  sample["magnetic_energy"])) > 1e-9
                 or sample["magnetic_energy"][-1] <= 1e-6*H[0]
+                or np.max(sample["div_B_squared"]) > 1e-8*max(1.,float(H[0]))
                 or not np.allclose(sample["step_energy_defect"],
                                    np.diff(H),atol=1e-10,rtol=0)):
                 raise RuntimeError(f"{name}/rank{rank}: independent energy FAIL")
