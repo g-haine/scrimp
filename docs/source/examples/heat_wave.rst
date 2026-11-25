@@ -594,7 +594,7 @@ study. See
 for the distinct native qualification
 and evidence.
 
-Next scientific gate: parallel physics and full-length CN power
+Native qualification: MPI1/2 FE parity and full-length CN power
 --------------------------------------------------------------
 
 The short native Heat--Wave case has a
@@ -654,30 +654,83 @@ plots and ParaView output by default.
 Every native run and failure gets a
 complete evidence ZIP.
 
-**Status (25 November 2026):** the native
-MPI1/MPI2 **full FE and physical
-four-step parity is PASS**, including
-independent oriented interface and
-heat/wave energy balances at machine
-precision. The source-``42116b58``
-archived long case also converged
-for 3,000 actual Crank--Nicolson
-steps at ``dt=0.005`` to ``t=15``,
-but one genuine accepted state
-(step 2999, around ``t=14.995``)
-was not stored by the floating-time
-output monitor. The strict full-time
-energy-power gate correctly rejected
-that incomplete history. SCRIMP now
-saves **every accepted step** for
-fixed CN with ``dt_save=dt``; the
-corrected long-time native
-qualification remains **PENDING**.
-The source and physical weak forms
-are unchanged. Shared parallel
-VTK writing, SuperLU_DIST and a
-spectrally identified whispering-gallery
-mode are separate objectives.
+**Qualification completed 25 November 2026.**
+The actual native source ``97c7606b``
+(``scrimp-mpi:v1.3.0-rc3``,
+MUMPS) has passed both phases:
+
+.. list-table:: Strict native Heat--Wave acceptance
+   :header-rows: 1
+   :widths: 34 33 33
+
+   * - Measurement
+     - MPI1/MPI2, four CN steps
+     - MPI1, 3,000 CN steps
+   * - Original FE unknowns
+     - 7,689
+     - 7,689
+   * - Accepted / saved states
+     - 4 / 5 per rank
+     - 3,000 / 3,001
+   * - Maximum independent total CN step defect
+     - ``9.61e-16`` (MPI2)
+     - ``4.02e-15``
+   * - Maximum separate heat CN defect
+     - ``1.28e-15`` (MPI2)
+     - ``1.38e-15``
+   * - Maximum separate wave CN defect
+     - ``8.40e-16`` (MPI2)
+     - ``3.98e-15``
+   * - Maximum cumulative energy-power defect
+     - ``8.46e-16`` (MPI2)
+     - ``5.70e-15``
+   * - Maximum signed interface power
+     - ``8.88e-16`` (MPI2)
+     - ``3.11e-15``
+   * - Qualification
+     - **PASS**
+     - **PASS**
+
+All the actual FE coefficients,
+heat/wave energies, correctly oriented
+interface powers, genuine thermal
+dissipation and cumulative Hamiltonian
+balance pass. The two ranks of MPI2
+have **exactly identical** stored
+trajectories; the maximum MPI1/MPI2
+full coefficient difference is
+``2.23e-12``.
+
+The earlier native run at source
+``42116b58`` had converged all
+3,000 PETSc steps but **omitted the
+accepted state 2999** from the saved
+trajectory due to a floating-time
+comparison. That historical archive
+correctly retains its FAIL status.
+The generic output-only fixed-CN
+monitor fix now stores **all 3,001
+real accepted FE states**, with no
+time interpolation or physical changes.
+The corrected run at source
+``97c7606b`` passes the strict
+complete ``t_f=15`` heat,
+wave and total CN power identities.
+The exact native archive is
+``v130-heat-wave-MPI2-longCN-97c7606b-7NBvjofW.zip``.
+
+**Scope:** short MPI1/MPI2 FE and
+physical CN parity, plus the Gaussian
+**15-second full energy-power
+identity in MPI1**, are qualified.
+The long annular ``gallery_packet``
+remains a separately verified native
+visualization, not a modal eigenproof
+or a full-horizon power acceptance.
+MPI2 long time, parallel ParaView
+writers, SuperLU_DIST, h/dt convergence
+and spectral whispering-gallery
+identification are separate objectives.
 See the
 `full Heat--Wave qualification report
 <https://github.com/g-haine/scrimp/blob/release/1.3.0-preparation/docs/V130_HEAT_WAVE_PHYSICAL_AUDIT.md>`_
@@ -769,15 +822,20 @@ a theoretical decay exponent, or
 the full 15-second heat/wave
 energy-power identity.
 
-**Scope:** MUMPS MPI1 physical
-Heat--Wave 2D reference **PASS**;
-both long-time native **visual
-datasets complete and independently
-audited**. MPI2, SuperLU_DIST,
-full-horizon subsystem power
-balance and spectral mode
-identification remain separately
-unqualified. The previous native
-interface compiler MPI tests
-are unaffected.
+**Overall scope (updated 25 November 2026):**
+the physical reference and strict
+**MPI1/MPI2 four-step FE parity**
+are **PASS**. The **full Gaussian
+15-second heat/wave/total CN
+power identity in MPI1** is also
+**PASS**, measured on each of the
+3,000 genuine CN intervals.
+The two long native visualization
+datasets remain complete and
+independently audited.
+MPI2 full-horizon energy-power
+and parallel VTK output,
+SuperLU_DIST, h/dt convergence
+and spectral gallery-mode
+identification remain unqualified.
 
