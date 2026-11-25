@@ -71,7 +71,8 @@ class OriginalShallowExtendedProtocol(unittest.TestCase):
         ):
             self.assertIn(marker,self.probe)
         self.assertNotIn("patch.object(S.DPHS, \"init_step\"",self.probe)
-        self.assertNotIn("legacy",self.probe.split("def main():",1)[-1])
+        self.assertNotIn("SCRIMP_NONLINEAR_MASS_JACOBIAN=legacy",self.probe)
+        self.assertNotIn('init_step_ts_type="pseudo",\n        ts_type="bdf"',self.probe)
 
     def test_bounded_native_four_runs_and_immutable_published_guard(self):
         for marker in (
