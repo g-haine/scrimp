@@ -9,7 +9,10 @@
 """Production, conservative GetFEM compilation of conforming interfaces.
 
 Enabled automatically when a two-sided conforming internal interface
-has an unambiguous geometric label and weak-form owner. The original
+has an unambiguous geometric label AND explicit interface ports or bricks.
+A label separating two regions of one continuous global field is recorded
+as a transparent material interface; its original weak forms are replayed
+unchanged. Explicitly coupled interfaces remain strictly fail-closed. The original
 public regions are immutable; register all FEs/bricks in their
 declared order after resolving each parent-convex outward normal.
 
@@ -63,7 +66,37 @@ class DeferredInterfaceCompiler:
             )
 
         planned = {}
+        transparent = []
         for (mesh_id, logical), sides in sorted(self.interfaces.items()):
+            # A *geometric* conforming interface does not automatically
+            # imply a port interconnection. Global FEM fields assembled
+            # over both adjacent bulk regions (e.g. the 2C coenergy wave)
+            # already enforce their ordinary conforming continuity.
+            # In that case, do not manufacture interface ports or alter
+            # the user's original GetFEM weak forms.
+            interface_ports = [
+                port for port in system.ports.values()
+                if port.get_mesh_id() == mesh_id
+                and port.get_region() == logical
+            ]
+            interface_bricks = [
+                brick for brick in system.bricks.values()
+                if brick.get_mesh_id() == mesh_id
+                and logical in tuple(brick.get_regions())
+            ]
+            if not interface_ports and not interface_bricks:
+                transparent.append({
+                    "mesh_id": mesh_id,
+                    "logical_region": logical,
+                    "subdomains": list(sides.subdomains),
+                    "facet_count": len(sides.facet_keys),
+                    "reason": "no explicit interface ports or weak forms",
+                })
+                continue
+
+            # An explicitly declared interface stays fail-closed.
+            # Missing ports, missing forms, ambiguous owners and
+            # unsupported topologies must still raise as before.
             audit = system.audit_interface_brick_plan(
                 logical, sides.subdomains, mesh_id=mesh_id,
             )
@@ -152,8 +185,12 @@ class DeferredInterfaceCompiler:
         self.completed = True
         self.report = {
             "schema": "scrimp-v130-deferred-auto-internal-interface-v1",
-            "status": "COMPILED_CONFORMING_INTERFACE",
+            "status": (
+                "COMPILED_CONFORMING_INTERFACE" if manifests
+                else "SKIPPED_TRANSPARENT_MATERIAL_INTERFACE"
+            ),
             "interfaces": manifests,
+            "transparent_interfaces": transparent,
             "fem_count": len(self.fems),
             "brick_count": len(self.bricks),
             "declaration_order_preserved": True,
