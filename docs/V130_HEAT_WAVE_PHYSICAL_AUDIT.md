@@ -3,6 +3,84 @@
 **23 November 2026 — physical MODEL REVISION COMMITTED IN SOURCE;
 native GetFEM/PETSc and CN power-balance qualification PENDING.**
 
+## 25 November 2026 — next qualification stage prepared (native PENDING)
+
+After the separate **Maxwell 3D Nédélec-II/BDM1 MPI1/2 PASS**,
+Heat–Wave 2D is the next unqualified example in the current
+Sphinx progression. A new dedicated, fail-closed driver is now
+available:
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+conda activate scrimp
+
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-heat-wave-physical-pilot.sh
+```
+
+**Stage 1 only:** MUMPS MPI1, actual
+`examples/heat_wave.py` with heat on the inner disk,
+wave on the outer annulus, `dt=0.001`,
+`t_f=0.004`, four genuine *fixed* Crank–Nicolson
+steps. There are no modifications of the
+physical equations, source FEM assignments,
+algebraic initializer, solver stack,
+or `examples/published/`.
+
+Unlike the earlier diagnostic run,
+**PETSc converged is not the acceptance condition**.
+The new driver reads the original full FE trajectories
+and independently sampled `get_quantity(...,CN=True)`
+heat/wave observables, and requires simultaneously:
+
+1. positive separate heat/wave Hamiltonians,
+   independent equality to the original total `H`;
+2. nonnegative **and nontrivial** thermal flux dissipation;
+3. zero *signed* internal interface power
+   `-U_T Y_T + U_w Y_w` and zero exterior power;
+4. the **heat**, **wave** and **total** individual
+   CN midpoint energy-power balances, both by accepted
+   steps and cumulative total; and
+5. nonincrease of the total energy and
+   original `T`/`p` GetFEM VTK plus
+   the public Hamiltonian figure.
+
+The ten named gates use a bounded absolute
+`1e-8 * max(1,max|H|)` threshold
+(except positivity and a nontriviality
+check). The original native
+`sandbox/measure_v130_heat_wave_physics.py`
+remains the source of physical observables;
+no favorable values are manufactured.
+Tests compile **the actual Python inside
+the Bash heredoc before Docker**, check that
+the run uses the true shipped physical model,
+and enforce unchanged publication snapshots.
+CI runs only these source tests, never claims
+native integration success.
+
+**On an unsuccessful native run** the driver still
+generates `summary.json`, source/image manifest,
+`native.host.log`, any GetFEM/PETSc files already
+created, and
+`sandbox/outputs/v130-heat-wave-physical-*.zip`.
+The native summary is explicitly
+`FAIL_OR_UNQUALIFIED_HEAT_WAVE_PHYSICAL`.
+Only all ten physical gates on real GetFEM
+data can produce
+`PASS_HEAT_WAVE_PHYSICAL_MUMPS_MPI1`.
+
+**Not yet qualified:** MPI2 ParaView output,
+SuperLU_DIST, the full default 2 s horizon,
+mesh/time convergence, and exact reproduction of
+the cited paper's div-div wave formulation.
+Further backend or MPI stages follow only
+after the physical MUMPS MPI1 gate. The existing
+published source snapshots remain byte-for-byte
+untouched.
+
 The author confirmed the correct scientific reference:
 
 G. Haine, D. Matignon and F. Monteghetti,
