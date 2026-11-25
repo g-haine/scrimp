@@ -1,5 +1,5 @@
-Maxwell equations in 3D — minimal Nédélec / Raviart–Thomas example
-==================================================================
+Maxwell equations in 3D — patched Nédélec-II / BDM1 example
+============================================================
 
 .. _Maxwell_3D:
 
@@ -72,20 +72,44 @@ accuracy.
 Compatible 3D spaces and their GetFEM patches
 ---------------------------------------------
 
-We use the finite element de Rham sequence
-on actual tetrahedra:
+We use the **SCRIMP-patched** pair on genuine tetrahedra:
 
 .. math::
 
-   E_h \in \mathrm{N\acute ed\acute elec}_0
+   E_h \in \mathrm{N\acute ed\acute elec}_{\mathrm{II},1}
         \subset H(\mathrm{curl};\Omega),\qquad
-   B_h \in \mathrm{RT}_0
+   B_h \in \mathrm{BDM}_1
         \subset H(\mathrm{div};\Omega).
 
-**Nédélec** edge DOFs encode tangential continuity.
-**Raviart–Thomas** face DOFs encode normal continuity.
-Both are intrinsic vector shape functions in
-GetFEM, not three unrelated scalar fields.
+On each tetrahedron, both fields have local polynomial
+shape functions in :math:`[P_1]^3`; the Nédélec-II
+edge DOFs impose tangential continuity, while BDM1
+face DOFs impose normal continuity. In particular
+:math:`\operatorname{curl} E_h` is piecewise
+constant and belongs to the divergence-free
+subspace of BDM1, compatible with Maxwell's
+magnetic Gauss law.
+
+**Important distinction:** the original accepted
+baseline at source commit `daac18cb` used
+GetFEM's *built-in* lowest Nédélec
+`FEM_NEDELEC(3)` with built-in RT0. It
+did **not** exercise SCRIMP's new element patches.
+The current tutorial now explicitly uses
+`FEM_NEDELEC2(3,1)` (patch `0004`) and
+tetrahedral `FEM_BDMK(3,1)` (patch `0001`).
+
+These FE names use the new SCRIMP shortcuts
+`S.FEM("E", 1, "NED2")` and
+`S.FEM("B", 1, "BDM")`. Additional
+shortcuts `NED1` / `NEDELEC1` and
+`NED2` / `NEDELEC2` are mapped by
+`scrimp/fem.py` to the corresponding
+GetFEM constructors. The number in
+`NED1` or `NED2` is the **family
+(1st/2nd kind)**, while the numeric argument
+is the **polynomial order k**. Patch 0004
+supports only k=1 or 2.
 
 .. literalinclude:: ../../../examples/maxwell_3d.py
    :language: python
@@ -231,7 +255,7 @@ failed traces to
 
 The **physical gates** include the
 presence of a genuine 3D mesh,
-real Nédélec/RT0 spaces, exact ten-step
+real patched Nédélec-II/BDM1 spaces, exact ten-step
 fixed CN integration, positive initial
 electromagnetic energy, nontrivial magnetic
 excitation, and agreement between GetFEM
@@ -245,9 +269,9 @@ The divergence of ``B`` is independently
 measured by GetFEM's squared L2 norm
 and **checked** against the compatible
 discrete Gauss law. Its initial value is
-zero and, for matching Nédélec/RT0 spaces,
-the discrete curl maps into the
-divergence-free RT subspace. This is an
+zero and, for the compatible Nédélec-II k1
+and BDM1 spaces, the discrete curl maps into
+the divergence-free BDM subspace. This is an
 actual additional acceptance gate,
 **not** a claim of convergence of all
 Maxwell constraints. The electric Gauss
@@ -337,10 +361,17 @@ checked output feature and must pass
 its own rerun before being called
 production-validated.
 
-Native Maxwell 3D qualification — PASS, 25 November 2026
-----------------------------------------------------------
+Historical *baseline* Maxwell 3D qualification — PASS, 25 November 2026
+------------------------------------------------------------------------
 
-The real GetFEM/PETSc/MUMPS MPI1 and MPI2 pilot
+**This PASS belongs exclusively to the earlier
+built-in Nédélec0 + RT0 pair.** The current
+patched Nédélec-II k1 + BDM1 variant, together
+with its in-example visuals, must be
+**requalified on the pinned Docker image**;
+do not reuse the baseline results as proof.
+
+The earlier GetFEM/PETSc/MUMPS MPI1 and MPI2 pilot
 **passed nine out of nine physical gates**,
 using the original two-field Nédélec/RT0
 model at ``h=0.7``, ``dt=0.02``, ``tf=0.2``.
@@ -362,7 +393,7 @@ Docker image ``scrimp-mpi:v1.3.0-rc3``
    * - Real tetrahedra
      - **110**
      - **110**
-   * - Intrinsic DOFs, Nédélec E / RT0 B
+   * - Baseline DOFs, native Nédélec0 E / RT0 B
      - **222 / 275**
      - **222 / 275**
    * - CN steps accepted
@@ -431,9 +462,9 @@ contain the corresponding 11 timestamps.
 At final time the nodal magnetic-vector
 norm ranges from about 0.367 to 0.375.
 
-**Limitations:** this is the *first
-qualified small native 3D Maxwell
-port-Hamiltonian demonstration* at one
+**Limitations:** these results qualify
+only the *original native Nédélec0/RT0
+3D Maxwell port-Hamiltonian baseline* at one
 mesh size and one time step.
 It establishes neither mesh/time convergence,
 electric Gauss-law accuracy, explicit PEC
