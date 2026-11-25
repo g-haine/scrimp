@@ -275,7 +275,7 @@ et à `h.pvd` reste accessible explicitement avec
 ou par `shallow_water_eq(showcase=False)` pour les
 anciens appelants Python.
 
-**Pilote scientifique Docker optionnel :**
+**Exécution de référence v1.3.0 avec l'image Docker qualifiée :**
 
 ```bash
 SCRIMP_DOCKER_NO_SUDO=1 \
@@ -284,8 +284,14 @@ bash scripts/run-v130-shallow-water-showcase.sh
 ```
 
 Il appelle le même fichier d'exemple et archive les
-preuves. **Il n'est pas nécessaire pour produire les images**
-sur une installation SCRIMP/GetFEM fonctionnelle.
+preuves. Pour la qualification v1.3.0, **c'est le chemin
+recommandé**, car l'ancienne installation Conda de l'hôte
+peut ne pas disposer des API PETSc/petsc4py COO utilisées
+par défaut. La commande Python sans argument produit les
+mêmes figures dans un environnement PETSc/GetFEM compatible,
+notamment à l'intérieur de cette image Docker.
+Aucun fallback silencieux vers l'ancien transfert IJV
+n'est ajouté au cœur SCRIMP pour cet environnement historique.
 
 Le pilote prévoit `t_f=0.12`, `dt=0.0001`,
 `dt_save=0.002` (**1 200 pas BDF2, environ 61 états graphiques**),
@@ -357,6 +363,65 @@ absentes du ZIP d'origine et ne constitue
 donc pas un PASS de bilan énergétique complet
 à `t_f=0.12`. Le premier statut de pilote
 `FAIL` est préservé comme preuve historique.
+
+## Reproduction intégrée et visualisation native PASS — 25 novembre 2026
+
+**Nouvelle preuve distincte du FAIL graphique historique ci-dessus.**
+Le lancement Docker qualifié depuis
+`release/1.3.0-preparation` (source
+`ddd349febb7cd4751d8de2d051d87f49220ac5f7`,
+image `scrimp-mpi:v1.3.0-rc3`, révision OCI
+`1d6d0c90115213298047b28237a7f38087563a35`)
+a produit l'archive utilisateur native
+`v130-SWE-native-visuals-ddd349fe-wOs9K1Bm.zip` ;
+le `summary.json` original indique
+`PASS_NATIVE_INVISCID_SWE_VISUALS`, `errors=[]` et
+`native.exitcode=0`.
+
+**Inspection indépendante du ZIP fourni :** les journaux
+confirment 1 200 pas acceptés, aucun rejet ni échec du solveur
+non linéaire (120,7 s de simulation). Les 61 VTU `h` CG2
+et les 61 VTU `p` DG1 existent tous, possèdent des champs
+binaires distincts à chacun des 61 instants, et les deux
+catalogues PVD décrivent exactement `t=0:0.002:0.12`.
+Les vitesses initiales sont nulles ; la hauteur projetée
+reste positive à tous les instantanés inspectés.
+Le moteur de rendu intégré à `examples/shallow_water.py`
+a produit quatre images instantanées PNG,
+un GIF de **36 vrais instants FE**, les tracés
+Hamiltonien/masse en PNG/SVG et leurs traces quadraturées
+`physical_FE_traces.npz`, sans onde synthétique.
+Les images ont également été ouvertes et inspectées visuellement.
+
+**Bilan physique calculé directement depuis le NPZ joint :**
+
+| Grandeur | Valeur |
+|---|---:|
+| `H(0)` | 31659.721892373385 |
+| `H(0.12)` | 31658.589224883664 |
+| `H(0.12)-H(0)-W_bord(0.12)` | −1.132667489720916 |
+| Défaut final relatif à `H(0)` | −3.577629309478451e−5 |
+| Défaut relatif maximal en valeur absolue | 4.165320427465009e−5 (`t=0.094`) |
+| Dérive relative maximale de masse | 5.897723220683411e−14 |
+| `max |P_bord|` | 0 |
+| `max |H−E_c−E_p|` sur les 61 états | 0 |
+
+La masse et la décomposition de l'énergie sont cohérentes
+avec les quadratures de GetFEM. Le défaut BDF2 n'est **pas nul
+ni monotone** : la valeur la plus négative est atteinte
+avant la fin du calcul ; aucune conservation d'énergie exacte
+ni dissipativité globale ne doit être inférée.
+Les images sont utilisables, mais la mise en page de la vue
+3D laisse beaucoup d'espace blanc : amélioration cosmétique
+possible, sans conséquence sur le PASS scientifique.
+
+**Statut acquis :** `PASS_NATIVE_INVISCID_SWE_VISUALS`
+pour l'exemple 2D non visqueux en **MPI1**, à `T=0.12`,
+`dt=0.0001`, avec initialisation `nonlinear_affine`,
+rendu directement dans le fichier canonique et conservation
+des originaux VTK/FE. Ce PASS ne remplace **ni** l'étude
+MPI1/MPI2 courte déjà qualifiée **ni** une analyse
+de convergence spatiale ou d'ordre temporel.
 
 ## Qualifications encore ouvertes
 
