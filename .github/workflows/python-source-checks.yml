@@ -70,6 +70,16 @@ jobs:
           python tests/test_v130_coenergy_boundary_power_orientation.py
           python scripts/check-v130-published-immutable.py
 
+      - name: Guard native Heat-Wave long-time log-log and annular VTK gallery showcase
+        run: |
+          python -m py_compile \
+            examples/heat_wave.py \
+            scrimp/utils/fe_initialization.py \
+            tests/test_v130_heat_wave_showcase_source.py
+          bash -n scripts/run-v130-heat-wave-long-showcase.sh
+          python tests/test_v130_heat_wave_showcase_source.py
+          python scripts/check-v130-published-immutable.py
+
       - name: Guard strict Heat-Wave native physical balance pilot (source only)
         run: |
           python -m py_compile \
