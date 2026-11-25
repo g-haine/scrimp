@@ -174,6 +174,60 @@ class ShallowWaterNativeVisualizationSource(unittest.TestCase):
         ):
             self.assertIn(token,self.helper,msg=token)
 
+    def test_isolated_renderer_smoke_uses_only_fixture_VTU(self):
+        # This is a graphical API smoke test with explicitly synthetic
+        # 5-frame XML fixtures. It is NOT native GetFEM scientific proof.
+        # Catch backend/3D surface/quiver errors before the expensive
+        # native BDF2 example is executed on the pinned Docker image.
+        import matplotlib
+        matplotlib.use("Agg")
+        from PIL import Image
+        with tempfile.TemporaryDirectory() as temp:
+            base=Path(temp)
+            times=np.arange(5,dtype=float)*.001
+            for name,vector in (("h",False),("p",True)):
+                directory=base/"pv"/name
+                directory.mkdir(parents=True)
+                records=[]
+                for i,t in enumerate(times):
+                    filename=f"{name}_{i:05d}.vtu"
+                    (directory/filename).write_text(
+                        fixture_vtu(name,vector=vector)
+                    )
+                    records.append(
+                        f'<DataSet timestep="{t}" file="{filename}"/>'
+                    )
+                (directory/(name+".pvd")).write_text(
+                    "<VTKFile><Collection>"+ "".join(records)
+                    +"</Collection></VTKFile>"
+                )
+            class FakePurePlottingData:
+                solution={"t":list(times)}
+                def get_Hamiltonian(self):
+                    return 5.-.01*times
+                def get_quantity(self,expression,region):
+                    if expression=="h":
+                        return 2.+np.zeros_like(times)
+                    if expression=="0.5*h*p.p/rho":
+                        return .2+.01*times
+                    if expression=="0.5*rho*g*h*h":
+                        return self.get_Hamiltonian()-(.2+.01*times)
+                    if expression.startswith("U_") and "*Y_" in expression:
+                        return np.zeros_like(times)
+                    raise ValueError("Unexpected physical quantity fixture")
+            output=self.module.render_native_shallow_water(
+                FakePurePlottingData(),base,rho=1000.,max_gif_frames=5
+            )
+            self.assertEqual(output["gif_original_FE_frames"],5)
+            self.assertEqual(output["true_FE_states"],5)
+            self.assertFalse(output["H_exact_conservation_claimed"])
+            images=sorted((base/"figures").glob("saint_venant_champs_t*.png"))
+            self.assertEqual(len(images),4)
+            self.assertTrue((base/"figures"/"saint_venant_H_masse_bilan.png").is_file())
+            self.assertTrue((base/"physical_FE_traces.npz").is_file())
+            with Image.open(base/"figures"/"saint_venant_surface_vitesse.gif") as gif:
+                self.assertEqual(gif.n_frames,5)
+
     def test_launcher_is_native_original_and_fail_closed(self):
         for token in (
             'scrimp-mpi:v1.3.0-rc3',
