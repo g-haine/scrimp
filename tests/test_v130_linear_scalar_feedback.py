@@ -59,9 +59,9 @@ class ConstantFeedbackClassificationTests(unittest.TestCase):
     def test_coenergy_feedback_is_exactly_classified_linear(self):
         example = (ROOT/"examples"/"wave_coenergy.py").read_text(encoding="utf-8")
         self.assertIn('FEEDBACK_GAIN = 0.5', example)
-        self.assertIn('expressions = [f"-{FEEDBACK_GAIN}*Y"]', example)
+        self.assertIn('expressions = [f"{FEEDBACK_GAIN}*Y"]', example)
         coefficient = .5
-        expression = f"-{coefficient}*Y"
+        expression = f"{coefficient}*Y"
         self.assertTrue(is_linear(expression, self.variables))
         self.assertIn('direct_linear_feedback = (', TEXT)
         self.assertIn('linear=direct_linear_feedback,', TEXT)
@@ -72,6 +72,7 @@ class ConstantFeedbackClassificationTests(unittest.TestCase):
         self.assertNotIn('init_step_ts_type="pseudo"', example)
         self.assertNotIn('init_step_ts_type="nonlinear_affine"', example)
         self.assertIn('f"{FEEDBACK_GAIN}*Y*Y"', example)
+        self.assertIn('step_boundary = dt*P[1:]', example)
         self.assertIn('"cumulative_CN_dissipative_energy_balance"', example)
 
 
