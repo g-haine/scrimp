@@ -5,6 +5,81 @@ Changes to SCRIMP are recorded here. See also the
 
 ## 1.3.0 — in development (not released)
 
+### Heat–Wave 2D — vrai PASS physique MPI1/2 et correctif générique de l’échantillonnage CN sur temps long (25 novembre 2026)
+
+- **Qualification native MPI1/MPI2 acquise :**
+  archive originale
+  `v130-heat-wave-MPI2-longCN-42116b58-FCxHdEia.zip`,
+  source `42116b5803e5295225394582e6ddf930a4269afa`,
+  MUMPS, GetFEM/PETSc, **7 689 DOFs**,
+  quatre pas CN fixes `dt=.001`,
+  `short-verification.json` :
+  `PASS_HEAT_WAVE_MPI1_MPI2_SHORT_PHYSICAL`.
+  Toutes les quadratures physiques
+  chaleur/onde, puissance d'interface
+  orientée, dissipation et identité
+  énergétique CN ont passé sur
+  **chacun des deux rangs MPI2** ;
+  leurs trajectoires FE sont
+  **strictement identiques**.
+  Écart maximal MPI1/MPI2 sur
+  tous les coefficients FE :
+  `2.2297719226571644e-12` ;
+  sur H : `5.662137425588298e-15`.
+  Le plus grand défaut CN indépendant
+  en MPI2 est `9.610368056911511e-16`.
+- **Calcul CN long convergé, mais
+  pas encore de PASS de bilan complet :**
+  MUMPS a bien exécuté **3 000 pas CN**
+  à `dt=.005` jusqu'à `t=15`
+  (0 rejet, 0 échec non linéaire).
+  Le calcul original GetFEM de H a
+  lui aussi abouti, puis l'audit
+  strict a rejeté une trajectoire
+  **incomplète** : le moniteur avait
+  conservé seulement 3 000 des
+  **3 001 états acceptés**.
+  Audit de tous les événements
+  PETSc : **seul le pas n=2999,
+  t≈14.995**, a été omis
+  en raison d'un test flottant
+  `t>=t_last_saved+dt_save`.
+  Aucune valeur ne doit être
+  interpolée ni inventée.
+- **Correctif générique
+  `scrimp/utils/trajectory_sampling.py`
+  + `DPHS.monitor` :** lorsque
+  `ts_type=cn`,
+  `ts_adapt_type=none` et
+  `dt_save=dt`, archiver directement
+  **chaque pas TS accepté**, sans
+  dépendance au seuil d'horloge
+  arrondi ; conserver l'ancien
+  échantillonnage contrôlé
+  pour les méthodes adaptatives,
+  les autres intégrateurs et
+  les sorties sous-échantillonnées.
+  La résolution PETSc, les
+  équations, les données initiales
+  et les tolérances physiques/DAE
+  ne sont pas modifiées.
+  Tests de non-régression contre
+  le cas exact du pas 2999,
+  avec vérification que les autres
+  modes d'enregistrement restent
+  inchangés. Diagnostics
+  `preflight-rankN.json` conservés
+  avant les assertions strictes.
+- **Portée : MPI2 physique déjà PASS ;
+  bilan complet t=15 encore PENDING**
+  jusqu'à la nouvelle exécution
+  native sur le même Docker épinglé.
+  Sorties VTK concurrentes,
+  SuperLU_DIST et modes spectraux
+  « whispering gallery » restent
+  hors du périmètre.
+
+
 ### Heat–Wave 2D — qualification native MPI1/2 et bilan complet à 15 s : campagne préparée (25 novembre 2026)
 
 - Nouveau test **en deux phases**
