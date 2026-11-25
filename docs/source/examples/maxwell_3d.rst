@@ -91,22 +91,22 @@ subspace of BDM1, compatible with Maxwell's
 magnetic Gauss law.
 
 **Important distinction:** the original accepted
-baseline at source commit `daac18cb` used
+baseline at source commit ``daac18cb`` used
 GetFEM's *built-in* lowest Nédélec
-`FEM_NEDELEC(3)` with built-in RT0. It
+``FEM_NEDELEC(3)`` with built-in RT0. It
 did **not** exercise SCRIMP's new element patches.
 The current tutorial now explicitly uses
-`FEM_NEDELEC2(3,1)` (patch `0004`) and
-tetrahedral `FEM_BDMK(3,1)` (patch `0001`).
+``FEM_NEDELEC2(3,1)`` (patch ``0004``) and
+tetrahedral ``FEM_BDMK(3,1)`` (patch ``0001``).
 
 These FE names use the new SCRIMP shortcuts
-`S.FEM("E", 1, "NED2")` and
-`S.FEM("B", 1, "BDM")`. Additional
-shortcuts `NED1` / `NEDELEC1` and
-`NED2` / `NEDELEC2` are mapped by
-`scrimp/fem.py` to the corresponding
+``S.FEM("E", 1, "NED2")`` and
+``S.FEM("B", 1, "BDM")``. Additional
+shortcuts ``NED1`` / ``NEDELEC1`` and
+``NED2`` / ``NEDELEC2`` are mapped by
+``scrimp/fem.py`` to the corresponding
 GetFEM constructors. The number in
-`NED1` or `NED2` is the **family
+``NED1`` or ``NED2`` is the **family
 (1st/2nd kind)**, while the numeric argument
 is the **polynomial order k**. Patch 0004
 supports only k=1 or 2.
