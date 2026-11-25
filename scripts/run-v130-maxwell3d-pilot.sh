@@ -164,9 +164,51 @@ try:
                     raise RuntimeError(
                         f"{name}: {field} exported non-tetrahedral GetFEM cells"
                     )
-        rec.update({"status":"PASS_NATIVE_MAXWELL3D_MUMPS_CN_VTK",
+        # --export now calls the renderer INSIDE examples/maxwell_3d.py.
+        # Strictly accept only real files and the provenance of this very
+        # physical FE trajectory; no post-hoc external renderer is used.
+        visuals=folder/name/"visuals"
+        prov=json.loads((visuals/"provenance.json").read_text())
+        expected_assets=(
+            "maxwell3d_echange_energie.png",
+            "maxwell3d_echange_energie.svg",
+            "maxwell3d_vecteurs_E_tfinal.png",
+            "maxwell3d_vecteurs_B_tfinal.png",
+            "maxwell3d_B_3D_animation.gif",
+        )
+        rank0_meta=json.loads((folder/name/"rank0.json").read_text())
+        if (prov.get("schema")!="scrimp-maxwell3d-native-visuals-v1"
+            or prov.get("MPI_writer_rank")!=0
+            or prov.get("frames")!=11 or prov.get("tetrahedra")!=110
+            or prov.get("points")!=58
+            or prov.get("original_FE_state_SHA256")!=rank0_meta.get("state_SHA256")
+            or tuple(prov.get("assets",()))!=expected_assets
+            or rank0_meta.get("visuals")!=prov):
+            raise RuntimeError(f"{name}: visual provenance does not match real FE")
+        for asset in expected_assets:
+            path=visuals/asset
+            if not path.is_file() or path.stat().st_size<128:
+                raise RuntimeError(f"{name}: missing/empty native visual {asset}")
+            signature=path.read_bytes()[:12]
+            if asset.endswith(".png") and not signature.startswith(b"\\x89PNG\\r\\n\\x1a\\n"):
+                raise RuntimeError(f"{name}: invalid PNG file {asset}")
+            if asset.endswith(".gif") and signature[:6] not in (b"GIF87a",b"GIF89a"):
+                raise RuntimeError(f"{name}: invalid GIF file {asset}")
+            if asset.endswith(".svg"):
+                ET.parse(path)
+        # Pillow is present with Matplotlib in the pinned Docker image;
+        # use it to verify the GIF includes *all* 11 native field states.
+        from PIL import Image
+        with Image.open(visuals/expected_assets[-1]) as gif:
+            if gif.n_frames!=11:
+                raise RuntimeError(f"{name}: animated GIF lost native CN frames")
+        if not (visuals/"README.txt").is_file():
+            raise RuntimeError(f"{name}: missing in-example figure provenance notes")
+        rec.update({"status":"PASS_NATIVE_MAXWELL3D_MUMPS_CN_VTK_VISUALS",
                     "DOFs":int(rank_traces[0]["z"].shape[1]),
                     "steps":10,"VTK_fields":{"E":11,"B":11},
+                    "visuals":list(expected_assets),
+                    "visuals_generated_by":"examples/maxwell_3d.py",
                     "max_energy_defect":float(np.max(np.abs(
                         rank_traces[0]["cumulative_energy_defect"]))),
                     "rank_traces_agree":True})
