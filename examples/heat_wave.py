@@ -280,6 +280,14 @@ def render_heat_wave_long_showcase(times, H, *, profile, wave_region):
         fig.tight_layout()
         fig.savefig(gallery/"wave_outer_shell_kinetic_proxy.png",dpi=155)
         plt.close(fig)
+    # Reproducible native energy series, not coordinates digitized from
+    # a graphic. These are the actual Hamiltonian quadratures at accepted
+    # saved FE states.
+    np.savez_compressed(
+        gallery/"heat_wave_FE_H_long.npz",
+        t=np.ascontiguousarray(times,dtype=np.float64),
+        H=np.ascontiguousarray(H,dtype=np.float64),
+    )
     result={
         "schema":"scrimp-heat-wave-long-native-showcase-v1",
         "status":"VISUALS_GENERATED_FROM_NATIVE_GETFEM_NOT_WG_MODE_CERTIFIED",
@@ -693,13 +701,46 @@ def heat_wave_eq(
     return hw
 
 if __name__ == "__main__":
-    
-    import sys
-    if len(sys.argv)==3:
-        heat_region=int(sys.argv[1])
-        wave_region=int(sys.argv[2])
-    else:
-        heat_region=1
-        wave_region=2
-    hw = heat_wave_eq(heat_region=heat_region, wave_region=wave_region)
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Canonical native Heat–Wave 2D pH simulation, "
+                    "with optional long-time annular wave visualizations"
+    )
+    # Historical two-integer invocation stays supported.
+    parser.add_argument("heat_positional",nargs="?",type=int)
+    parser.add_argument("wave_positional",nargs="?",type=int)
+    parser.add_argument("--heat-region",type=int,default=1)
+    parser.add_argument("--wave-region",type=int,default=2)
+    parser.add_argument("--final-time",type=float,default=2.0)
+    parser.add_argument("--time-step",type=float,default=0.001)
+    parser.add_argument("--save-step",type=float,default=0.05)
+    parser.add_argument("--factor-solver",choices=("mumps","superlu_dist"),
+                        default=None)
+    parser.add_argument("--initial-wave-boundary",
+                        choices=("clamp","constrained_l2","unconstrained"),
+                        default="clamp")
+    parser.add_argument("--initial-wave-profile",
+                        choices=("gaussian","gallery_packet"),
+                        default="gaussian")
+    parser.add_argument("--long-showcase",action="store_true")
+    args=parser.parse_args()
+    if (args.heat_positional is None)!=(args.wave_positional is None):
+        parser.error("Both historical heat/wave positional regions are required")
+    heat_region = (args.heat_positional if args.heat_positional is not None
+                   else args.heat_region)
+    wave_region = (args.wave_positional if args.wave_positional is not None
+                   else args.wave_region)
+    if (not np.isfinite(args.final_time) or args.final_time<=0
+            or not np.isfinite(args.time_step) or args.time_step<=0
+            or not np.isfinite(args.save_step) or args.save_step<=0):
+        parser.error("Times and steps must be positive finite numbers")
+    hw = heat_wave_eq(
+        heat_region=heat_region, wave_region=wave_region,
+        final_time=args.final_time, time_step=args.time_step,
+        save_step=args.save_step, factor_solver=args.factor_solver,
+        initial_wave_boundary=args.initial_wave_boundary,
+        initial_wave_profile=args.initial_wave_profile,
+        long_showcase=args.long_showcase,
+    )
     
