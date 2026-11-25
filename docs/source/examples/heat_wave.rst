@@ -594,6 +594,79 @@ study. See
 for the distinct native qualification
 and evidence.
 
+Next scientific gate: parallel physics and full-length CN power
+--------------------------------------------------------------
+
+The short native Heat--Wave case has a
+true physical **MUMPS MPI1 PASS**.
+The existing 15-second Gaussian and
+annular visualizations are also complete,
+but their saved **0.05** time spacing
+does not represent consecutive **0.005**
+Crank--Nicolson steps. Therefore the
+figures alone cannot certify the
+**heat, wave and coupled energy-power
+identities at every time step**.
+
+An additional *independent* native pilot
+tests this distinction, without changing
+the governing model:
+
+.. code-block:: bash
+
+   cd ~/Simulations/scrimp
+   git pull --ff-only
+   SCRIMP_DOCKER_NO_SUDO=1 \
+   SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+   bash scripts/run-v130-heat-wave-mpi-long-physics.sh
+
+Stage A compares **all 7,689 original FE
+coefficients** and independently assembled
+heat/wave/interface physical quadratures
+between MUMPS MPI1 and MPI2 at each of
+five original CN times. It requires
+the two MPI2 ranks to agree exactly.
+Only after stage A passes does stage B
+run **3,000** genuine MUMPS MPI1 CN
+steps through `t_f=15`,
+**saving all 3,001 states** so that
+each midpoint power is evaluated on the
+*actual adjacent FE states*, not on
+widely separated visualization snapshots.
+The native code also tests the cumulative
+energy-power balance. The default
+Gaussian profile can be compared to
+the separate 15-second visual archive;
+the optional environment variable
+`SCRIMP_V130_HW_LONG_PROFILE=gallery_packet`
+tests the angular-packet physics
+independently.
+
+Only the new `physics_only=True`
+output option suppresses PNG/PVD
+writers during the MPI calculation:
+the canonical PDE, FEM, boundary
+clamp, strict DAE initializer, native
+PETSc solve and GetFEM quadratures
+remain unchanged. The ordinary
+tutorial still creates all its
+plots and ParaView output by default.
+Every native run and failure gets a
+complete evidence ZIP.
+
+**Status:** the extended MPI and
+full-horizon power-balance pilot is
+prepared but **not yet natively
+qualified**. Shared parallel
+VTK writing, SuperLU_DIST and a
+spectrally identified whispering-gallery
+mode are separate objectives.
+See the
+`full Heat--Wave qualification report
+<https://github.com/g-haine/scrimp/blob/release/1.3.0-preparation/docs/V130_HEAT_WAVE_PHYSICAL_AUDIT.md>`_
+for exact acceptance criteria and
+the archived evidence.
+
 Native qualification and long-time observations (25 November 2026)
 -------------------------------------------------------------------
 
