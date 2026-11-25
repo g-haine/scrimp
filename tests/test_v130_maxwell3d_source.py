@@ -9,6 +9,8 @@ import ast
 from pathlib import Path
 import unittest
 
+import numpy as np
+
 ROOT = Path(__file__).resolve().parents[1]
 EXAMPLE = ROOT / "examples" / "maxwell_3d.py"
 RUNNER = ROOT / "scripts" / "run-v130-maxwell3d-pilot.sh"
@@ -30,13 +32,80 @@ class Maxwell3DSourceTests(unittest.TestCase):
             'S.FEM("B", 0, "RT")',
             '"FEM_RTK(3,0)"',
             '"FEM_NEDELEC(3)"',
-            'f.char() for f in model.ports[name].get_fem().fem()',
-            'gf.Fem(requested).char()',
-            'if fem.qdim() != 3 or fem.nbdof() == 0:',
+            'assigned = np.asarray(mesh_fem.fem(), dtype=object).ravel()',
+            'getfem_module.Fem(requested).char()',
+            'if int(mesh_fem.qdim()) != 3 or int(mesh_fem.nbdof()) <= 0:',
         ):
             self.assertIn(needle, self.source)
         self.assertNotIn('S.FEM("E", 1, "CG")', self.source)
         self.assertNotIn('S.FEM("B", 1, "CG")', self.source)
+
+    def test_intrinsic_fem_guard_flattens_real_getfem_layout_and_rejects_CG(self):
+        """Test the isolated production guard with the array returned by MeshFem.fem."""
+        node = next(
+            n for n in self.tree.body
+            if isinstance(n, ast.FunctionDef)
+            and n.name == "assert_patched_intrinsic_fem"
+        )
+        module = ast.Module(body=[node], type_ignores=[])
+        ast.fix_missing_locations(module)
+        env = {"np": np}
+        exec(compile(module, str(EXAMPLE), "exec"), env)
+        guard = env["assert_patched_intrinsic_fem"]
+
+        class FakeFem:
+            def __init__(self, description):
+                self.description = description
+
+            def char(self):
+                return self.description
+
+        class FakeGetFEM:
+            Fem = FakeFem
+
+        class FakeMeshFem:
+            def __init__(self, values, *, qdim=3, ndof=222):
+                self.values = values
+                self.dimension = qdim
+                self.ndof = ndof
+
+            def fem(self):
+                return self.values
+
+            def qdim(self):
+                return self.dimension
+
+            def nbdof(self):
+                return self.ndof
+
+        expected = "FEM_NEDELEC(3)"
+        nested = np.array([[FakeFem(expected), FakeFem(expected)]],
+                          dtype=object)
+        self.assertEqual(guard(FakeMeshFem(nested), expected, FakeGetFEM),
+                         {expected})
+        for values in (
+            np.array([[FakeFem("FEM_PK(3,1)")]], dtype=object),
+            np.array([[FakeFem(expected), FakeFem("FEM_PK(3,1)")]],
+                     dtype=object),
+            np.array([], dtype=object),
+            np.array([[object()]], dtype=object),
+        ):
+            with self.subTest(values=values.shape), self.assertRaises(RuntimeError):
+                guard(FakeMeshFem(values), expected, FakeGetFEM)
+        for kwargs in ({"qdim": 1}, {"ndof": 0}):
+            with self.subTest(kwargs=kwargs), self.assertRaises(RuntimeError):
+                guard(FakeMeshFem(nested, **kwargs), expected, FakeGetFEM)
+
+    def test_embedded_native_verifier_is_valid_python(self):
+        """Shell syntax checks miss invalid Python embedded in a heredoc."""
+        sentinel = 'python3 - "$out" <<\'PY\'\\n'
+        self.assertEqual(self.runner.count(sentinel), 1)
+        verifier = self.runner.split(sentinel, 1)[1].split("\\nPY\\n", 1)[0]
+        ast.parse(verifier, filename=str(RUNNER))
+        self.assertIn("from pathlib import Path", verifier)
+        self.assertIn("with zipfile.ZipFile", verifier)
+        self.assertIn("np.isin(cell_types, (10,24))", verifier)
+
 
     def test_true_3d_curl_orientation(self):
         for part in (
@@ -102,7 +171,7 @@ class Maxwell3DSourceTests(unittest.TestCase):
             'for ranks in 1 2;',
             'mumps_mpi1',
             'mumps_mpi2',
-            'gf.Fem(requested)',
+            'getfem_module.Fem(requested)',
             'python3 scripts/check-v130-published-immutable.py',
             'SCRIMP_GETFEM_MATRIX_MODE=distributed',
             'zipfile.ZipFile',
