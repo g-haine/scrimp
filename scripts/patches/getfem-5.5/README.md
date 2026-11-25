@@ -25,6 +25,42 @@ patch supports only k=1,2**; this release does not claim arbitrary
 order polynomial families. For k>=3, the Nédélec-II DoFs need a
 separate higher-order construction and validation.
 
+## SCRIMP `S.FEM` shortcuts for corrected element families
+
+SCRIMP v1.3.0 now exposes the first- and second-kind Nédélec
+constructors directly, consistently with the existing `RT`
+and `BDM` shortcuts:
+
+| SCRIMP call on a tetrahedral 3D mesh | GetFEM descriptor | Native or patch |
+| --- | --- | --- |
+| `S.FEM("E", 0, "NED1")` | `FEM_NEDELEC1(3,0)` → `FEM_NEDELEC(3)` | built-in lowest-order Nédélec |
+| `S.FEM("E", 1, "NED1")` | `FEM_NEDELEC1(3,1)` | patch `0003` |
+| `S.FEM("E", 1, "NED2")` | `FEM_NEDELEC2(3,1)` | patch `0004` |
+| `S.FEM("E", 2, "NED2")` | `FEM_NEDELEC2(3,2)` | patch `0004` |
+| `S.FEM("B", 1, "BDM")` | `FEM_BDMK(3,1)` | native descriptor with tetrahedral fix `0001` |
+| `S.FEM("B", 0, "RT")` | `FEM_RTK(3,0)` | built-in RT0 |
+
+`NEDELEC1` and `NEDELEC2` are accepted spelled-out
+synonyms of `NED1` and `NED2`. The family
+number 1/2 denotes **kind**, while `order` is the
+polynomial index k. `NED2` explicitly rejects
+k outside 1–2 and both new Nédélec shortcuts
+**fail closed**, never falling back to CG1 if
+the GetFEM patch is missing.
+The existing direct GetFEM escape hatch
+`S.FEM("E", -1, "FEM_NEDELEC2(3,1)")`
+remains available, but examples should
+normally use the SCRIMP shortcut.
+
+**Scientific distinction:** the original Maxwell 3D
+pilot at `daac18cb` passed with built-in
+Nédélec0+RT0, not with the new patches.
+The canonical Maxwell example now uses patched
+`NED2(1)` plus `BDM(1)`; that
+replacement pair requires a separate native
+MUMPS MPI1/2 physics and VTK acceptance.
+See `docs/V130_MAXWELL_3D.md`.
+
 ## Lean native evidence
 
 The BDM Docker smoke passed k=1/2 in 2D/3D, with 21 and 54 global DoFs
