@@ -21,8 +21,10 @@ python3 -m py_compile \
   sandbox/measure_v130_hw_dual_facet_physics.py \
   scrimp/utils/fe_initialization.py \
   tests/test_v130_main_example_solver_policy.py \
+  tests/test_v130_heat_wave_boundary_initial_data.py \
   tests/test_v130_heat_wave_physical_pilot.py
 python3 tests/test_v130_main_example_solver_policy.py
+python3 tests/test_v130_heat_wave_boundary_initial_data.py
 python3 tests/test_v130_heat_wave_physical_pilot.py
 python3 scripts/check-v130-published-immutable.py
 bash -n "$0"
