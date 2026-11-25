@@ -27,6 +27,9 @@ from petsc4py import PETSc
 from examples.heat_wave import heat_wave_eq
 from examples.shallow_water import shallow_water_eq
 from measure_v130_heat_wave_physics import collect_heat_wave_physics
+from measure_v130_hw_dual_facet_physics import (
+    collect_heat_wave_dual_facet_physics,
+)
 
 
 T_FINAL = 0.004
@@ -174,9 +177,28 @@ def main():
             raise RuntimeError(
                 "Fixed-step CN heat-wave accepted-time contract failed"
             )
-        physics_data,physics_report=collect_heat_wave_physics(
-            system,times,H
-        )
+        # The default v1.3.0 compiler gives each interface port
+        # an actual single-sided GetFEM facet region. Integration on
+        # the old logical doubled region 10 is NOT a physical flux.
+        compiler=getattr(system,"_internal_interface_compiler",None)
+        if compiler is not None and compiler.completed:
+            heat_faces=int(system.ports["Interface Heat"].get_assembly_region())
+            wave_faces=int(system.ports["Interface Wave"].get_assembly_region())
+            physics_data,physics_report=collect_heat_wave_dual_facet_physics(
+                system,times,H,heat_faces=heat_faces,wave_faces=wave_faces,
+                heat_bulk=1,wave_bulk=2,
+            )
+            if (heat_faces==wave_faces or heat_faces==10
+                    or wave_faces==10):
+                raise RuntimeError("Logical interface 10 cannot certify one-sided power")
+            physics_collector="native_oriented_two_sided_getfem"
+        else:
+            # Historical reference only, NEVER physical certification
+            # of the new conforming interface compiler.
+            physics_data,physics_report=collect_heat_wave_physics(
+                system,times,H
+            )
+            physics_collector="legacy_logical_interface_diagnostic_only"
     args.out.mkdir(parents=True,exist_ok=True)
     trace=args.out/"original_2d_example_trace.npz"
     report=args.out/"original_2d_example_report.json"
@@ -240,6 +262,13 @@ def main():
         "parallel_export_safety_not_qualified":True,
         "heat_wave_physical_audit":physics_report,
         "heat_wave_physics_certified":False,
+        "heat_wave_physical_collector":(
+            physics_collector if args.example=="heat_wave" else None
+        ),
+        "heat_wave_initial_wave_boundary":(
+            getattr(system,"heat_wave_initialization_report",None)
+            if args.example=="heat_wave" else None
+        ),
     }
     report.write_text(json.dumps(result,indent=2)+"\n",encoding="utf-8")
     print(
