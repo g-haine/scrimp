@@ -65,7 +65,7 @@ def check(root):
             and provenance.get("viscous_rotating_research_included") is False
             and provenance.get("H_exact_conservation_claimed") is False
             and provenance.get("initialization")==
-                "nonlinear_affine (explicit showcase opt-in)"
+                "nonlinear_affine (default direct example execution)"
             and provenance.get("velocity_definition")=="v=p/rho"
         ):
             raise RuntimeError("Not true canonical original GetFEM nonviscous fields")
