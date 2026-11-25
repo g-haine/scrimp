@@ -5,6 +5,34 @@ Changes to SCRIMP are recorded here. See also the
 
 ## 1.3.0 — in development (not released)
 
+### Feedback à gain littéral : GetFEM linéaire et initialisation DAE 2C (25 novembre 2026)
+
+- Deuxième tentative réelle du pilote 2C,
+  archive `v130-wave2d-coenergy-0c44a1ae-rwh9fi2L.zip`,
+  MUMPS MPI1 et MPI2 **FAIL avant le premier pas** :
+  interfaces transparentes correctes, initialisation des champs
+  et assemblage `M,K` effectués, mais
+  `(-0.5*Y)*Test_U` classé à tort **non linéaire**
+  par `DPHS.set_control`. L'initialiseur DAE
+  linéaire refuse à juste titre cette classification.
+- `scrimp/dphs.py` reconnaît désormais les
+  feedbacks `-0.5*Y` et autres **gains littéraux
+  numériques finis fois une seule inconnue déclarée**
+  comme termes de raideur bilinéaires GetFEM, en
+  conservant le Jacobien physique exact.
+  Inconnues multipliées, paramètres symboliques,
+  macros, fonctions et expressions ambiguës gardent
+  leur traitement non linéaire fail-closed.
+- Régressions positives/négatives
+  `tests/test_v130_linear_scalar_feedback.py`,
+  intégrées à la CI et au préflight 2C.
+  Aucun changement de la physique, du gain
+  `-0.5`, de l'initialiseur `algebraic`
+  ou des seuils de passivité.
+- **Statut : fix intégré, nouvelle exécution native
+  et contrôle des sorties FE/VTK/visuels attendus**.
+
+
 ### Interfaces conformes : distinguer séparation matérielle et couplage par ports (25 novembre 2026)
 
 - Première exécution native de `examples/wave_coenergy.py`,
