@@ -412,6 +412,17 @@ def render_native_shallow_water(system, folder, *, rho=1000.,
     h_files=true_pvd_files(folder,"h",t)
     p_files=true_pvd_files(folder,"p",t)
 
+    # Preserve original full-precision GetFEM energy, mass and powers
+    # BEFORE any optional rendering/VTK parser call. A successful
+    # PETSc solve must not lose its independent physical quadratures
+    # because of an unrelated plotting error (original 14181a94 case).
+    np.savez_compressed(
+        folder/"physical_FE_traces.npz",
+        t=t,H=H,mass=mass,kinetic=kinetic,potential=potential,
+        boundary_power=P, boundary_work=boundary_work,
+        numerical_BDF2_energy_defect=energy_defect,
+    )
+
     # Reuse the exact original VTK renderer from offline recovery,
     # without any synthetic FE values or separate nonlinear solve.
     spatial=render_original_shallow_water_spatial_VTU(
@@ -438,12 +449,6 @@ def render_native_shallow_water(system, folder, *, rho=1000.,
     fig.savefig(figures/"saint_venant_H_masse_bilan.svg")
     plt.close(fig)
 
-    np.savez_compressed(
-        folder/"physical_FE_traces.npz",
-        t=t,H=H,mass=mass,kinetic=kinetic,potential=potential,
-        boundary_power=P, boundary_work=boundary_work,
-        numerical_BDF2_energy_defect=energy_defect,
-    )
     provenance={
         "schema":"v130-original-inviscid-shallow-water-native-visuals-v1",
         "status":"NATIVE_GETFEM_PVD_VISUALS_NOT_SPATIAL_CONVERGENCE",
