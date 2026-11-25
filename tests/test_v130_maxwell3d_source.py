@@ -28,20 +28,21 @@ class Maxwell3DSourceTests(unittest.TestCase):
     def test_actual_3d_geometry_and_both_patched_intrinsic_families(self):
         for needle in (
             'S.Domain("Ball", {"R": 1., "h": float(mesh_size)})',
-            'S.FEM("E", -1, "FEM_NEDELEC(3)")',
-            'S.FEM("B", 0, "RT")',
-            '"FEM_RTK(3,0)"',
+            'fem_E = S.FEM("E", -1, "FEM_NEDELEC(3)")',
+            'fem_B = S.FEM("B", 0, "RT")',
+            'GetFEM FEM_RTK(3,0)',
             '"FEM_NEDELEC(3)"',
-            'assigned = np.asarray(mesh_fem.fem(), dtype=object).ravel()',
-            'getfem_module.Fem(requested).char()',
-            'if int(mesh_fem.qdim()) != 3 or int(mesh_fem.nbdof()) <= 0:',
+            'actual_type = fem.get_type()',
+            'actual_order = fem.get_order()',
+            'mesh_fem = fem.get_fem()',
+            'if qdim != 3 or ndof <= 0:',
         ):
             self.assertIn(needle, self.source)
         self.assertNotIn('S.FEM("E", 1, "CG")', self.source)
         self.assertNotIn('S.FEM("B", 1, "CG")', self.source)
 
-    def test_intrinsic_fem_guard_flattens_real_getfem_layout_and_rejects_CG(self):
-        """Test the isolated production guard with the array returned by MeshFem.fem."""
+    def test_intrinsic_fem_guard_checks_registered_scrimp_type_and_order(self):
+        """Test the exact FEM.set_fem() CG fallback policy, not wrapper arrays."""
         node = next(
             n for n in self.tree.body
             if isinstance(n, ast.FunctionDef)
@@ -49,28 +50,14 @@ class Maxwell3DSourceTests(unittest.TestCase):
         )
         module = ast.Module(body=[node], type_ignores=[])
         ast.fix_missing_locations(module)
-        env = {"np": np}
+        env = {}
         exec(compile(module, str(EXAMPLE), "exec"), env)
         guard = env["assert_patched_intrinsic_fem"]
 
-        class FakeFem:
-            def __init__(self, description):
-                self.description = description
-
-            def char(self):
-                return self.description
-
-        class FakeGetFEM:
-            Fem = FakeFem
-
         class FakeMeshFem:
-            def __init__(self, values, *, qdim=3, ndof=222):
-                self.values = values
+            def __init__(self, qdim=3, ndof=222):
                 self.dimension = qdim
                 self.ndof = ndof
-
-            def fem(self):
-                return self.values
 
             def qdim(self):
                 return self.dimension
@@ -78,23 +65,50 @@ class Maxwell3DSourceTests(unittest.TestCase):
             def nbdof(self):
                 return self.ndof
 
-        expected = "FEM_NEDELEC(3)"
-        nested = np.array([[FakeFem(expected), FakeFem(expected)]],
-                          dtype=object)
-        self.assertEqual(guard(FakeMeshFem(nested), expected, FakeGetFEM),
-                         {expected})
-        for values in (
-            np.array([[FakeFem("FEM_PK(3,1)")]], dtype=object),
-            np.array([[FakeFem(expected), FakeFem("FEM_PK(3,1)")]],
-                     dtype=object),
-            np.array([], dtype=object),
-            np.array([[object()]], dtype=object),
+        class FakeScrimpFEM:
+            def __init__(self, family="FEM_NEDELEC(3)", order=-1,
+                         native=None):
+                self.family = family
+                self.order = order
+                self.native = FakeMeshFem() if native is None else native
+
+            def get_type(self):
+                return self.family
+
+            def get_order(self):
+                return self.order
+
+            def get_fem(self):
+                return self.native
+
+        self.assertEqual(guard(FakeScrimpFEM(), "FEM_NEDELEC(3)", -1), 222)
+        self.assertEqual(
+            guard(FakeScrimpFEM("RT", 0, FakeMeshFem(ndof=275)), "RT", 0),
+            275,
+        )
+        for family, order in (
+            ("CG", 1),  # SCRIMP FEM.set_fem's exact fallback mutation
+            ("FEM_NEDELEC(3)", 1),
+            ("RT", 0),
+            ("FEM_BDMK(3,1)", -1),
         ):
-            with self.subTest(values=values.shape), self.assertRaises(RuntimeError):
-                guard(FakeMeshFem(values), expected, FakeGetFEM)
-        for kwargs in ({"qdim": 1}, {"ndof": 0}):
-            with self.subTest(kwargs=kwargs), self.assertRaises(RuntimeError):
-                guard(FakeMeshFem(nested, **kwargs), expected, FakeGetFEM)
+            with self.subTest(family=family, order=order):
+                with self.assertRaises(RuntimeError):
+                    guard(FakeScrimpFEM(family, order), "FEM_NEDELEC(3)", -1)
+        for qdim, ndof in ((1,222), (3,0), (0,0)):
+            with self.subTest(qdim=qdim, ndof=ndof):
+                with self.assertRaises(RuntimeError):
+                    guard(FakeScrimpFEM(native=FakeMeshFem(qdim, ndof)),
+                          "FEM_NEDELEC(3)", -1)
+
+    def test_native_guard_never_reintroduces_meshfem_fem_introspection(self):
+        self.assertNotIn("mesh_fem.fem()", self.source.split(
+            "def assert_patched_intrinsic_fem", 1)[1].split(
+            "# TUTORIAL M3D-01:",1)[0].split('"""')[-1]
+        )
+        self.assertIn('model.add_FEM(fem)', self.source)
+        self.assertIn('assert_patched_intrinsic_fem(fem, expected_type, expected_order)',
+                      self.source)
 
     def test_embedded_native_verifier_is_valid_python(self):
         """Shell syntax checks miss invalid Python embedded in a heredoc."""
@@ -171,7 +185,7 @@ class Maxwell3DSourceTests(unittest.TestCase):
             'for ranks in 1 2;',
             'mumps_mpi1',
             'mumps_mpi2',
-            'getfem_module.Fem(requested)',
+            'actual_type = fem.get_type()',
             'python3 scripts/check-v130-published-immutable.py',
             'SCRIMP_GETFEM_MATRIX_MODE=distributed',
             'zipfile.ZipFile',
