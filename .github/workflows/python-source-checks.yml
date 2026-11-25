@@ -70,10 +70,11 @@ jobs:
           python tests/test_v130_coenergy_boundary_power_orientation.py
           python scripts/check-v130-published-immutable.py
 
-      - name: Guard new 3D Maxwell intrinsic Nedelec/RT0 energy and Sphinx source
+      - name: Guard patched 3D Maxwell Nedelec-II BDM1 and SCRIMP NED1 NED2 FEM aliases
         run: |
-          python -m py_compile examples/maxwell_3d.py tests/test_v130_maxwell3d_source.py
+          python -m py_compile scrimp/fem.py examples/maxwell_3d.py tests/test_v130_maxwell3d_source.py tests/test_v130_fem_nedelec_aliases.py
           bash -n scripts/run-v130-maxwell3d-pilot.sh
+          python tests/test_v130_fem_nedelec_aliases.py
           python tests/test_v130_maxwell3d_source.py
           python scripts/check-v130-published-immutable.py
 
