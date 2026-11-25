@@ -24,6 +24,7 @@ mesh, accepted time steps and energy/port-power evidence.
    examples/wave
    examples/heat
    examples/wave_coenergy
+   examples/maxwell_3d
    examples/heat_wave
    examples/shallow_water
    examples/mass_spring_damper
