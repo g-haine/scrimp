@@ -132,6 +132,58 @@ correction de la loi de Gauss.
 nouvelle exécution native nécessaire.
 Le pilote Maxwell 3D n'est PAS qualifié.**
 
+## Second essai natif et audit simplifié (25 novembre 2026)
+
+Archive GetFEM du deuxième essai :
+`v130-maxwell3d-ed9b9fd8-gnJLLDYD.zip`,
+source exacte `ed9b9fd80f8ceb670085d7a58dc07f625dedbe99`.
+**8/8 tests de source PASS**, huit exemples
+publiés intacts, création confirmée des mêmes
+**110 éléments, 222 DOFs Nédélec et 275 DOFs RT0**
+en MPI1 et MPI2. Le pilote produit désormais son
+`summary.json` et l'archive même quand les
+exécutions natives échouent.
+
+**Échec avant tout pas CN :**
+`RuntimeError: Invalid GetFEM MeshFem.fem() entries
+for FEM_NEDELEC(3)`. Le retour effectif de l'API
+GetFEM ne satisfait pas l'hypothèse du code
+sur des objets `Fem` pour chaque entrée, même
+après `np.asarray(..., dtype=object).ravel()`.
+Aucune donnée de matrice, énergie ou dynamique
+Maxwell n'a été produite. **Il serait incorrect
+de conclure à une défaillance du patch Nédélec.**
+
+Le contrôle a été simplifié après inspection
+de **`scrimp/fem.py`** : lors de l'unique
+bascule CG1 de `FEM.set_fem()`, le même objet
+SCRIMP `FEM` reçoit explicitement
+`self.__type="CG"` et `self.__order=1`.
+Le nouvel exemple conserve donc les deux
+objets originaux `S.FEM("E",-1,"FEM_NEDELEC(3)")`
+et `S.FEM("B",0,"RT")` après
+`model.add_FEM()` : il compare **type et ordre**
+avec la demande originale, puis vérifie
+**`MeshFem.qdim()==3` et `nbdof()>0`**.
+Le refus de l'ancien repli CG est conservé
+sans introspection ambiguë du tableau
+`MeshFem.fem()`. Des tests unitaires
+simulent exactement cette mutation CG1,
+les erreurs de famille et de dimensions.
+Cette vérification porte sur **le comportement
+de l'adaptateur de SCRIMP**, et non sur
+l'identité spectrale ou la conformité complète
+des matrices GetFEM (encore à qualifier).
+
+La mise à jour est limitée au nouvel
+exemple, au contrat source et à la
+documentation. La formulation faible,
+les patchs GetFEM, les paramètres du pilote
+et ses seuils physiques sont inchangés.
+**Statut natif Maxwell 3D : toujours NON
+QUALIFIÉ tant que MPI1 et MPI2 n'ont
+pas traversé les tests physiques.**
+
 ## Qualification attendue (fail closed)
 
 L'exécution native proposée dure **10 pas CN
