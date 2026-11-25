@@ -101,11 +101,19 @@ class Maxwell3DSourceTests(unittest.TestCase):
                     guard(FakeScrimpFEM(native=FakeMeshFem(qdim, ndof)),
                           "FEM_NEDELEC(3)", -1)
 
-    def test_native_guard_never_reintroduces_meshfem_fem_introspection(self):
-        self.assertNotIn("mesh_fem.fem()", self.source.split(
-            "def assert_patched_intrinsic_fem", 1)[1].split(
-            "# TUTORIAL M3D-01:",1)[0].split('"""')[-1]
+    def test_native_guard_uses_wrapper_metadata_not_getfem_array_layout(self):
+        guard = next(
+            n for n in self.tree.body
+            if isinstance(n, ast.FunctionDef)
+            and n.name == "assert_patched_intrinsic_fem"
         )
+        # AST: do not mistake documentation/comments for executable code.
+        self.assertFalse(any(
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "fem"
+            for node in ast.walk(guard)
+        ))
         self.assertIn('model.add_FEM(fem)', self.source)
         self.assertIn('assert_patched_intrinsic_fem(fem, expected_type, expected_order)',
                       self.source)
