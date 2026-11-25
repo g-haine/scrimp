@@ -190,7 +190,7 @@ try:
             if not path.is_file() or path.stat().st_size<128:
                 raise RuntimeError(f"{name}: missing/empty native visual {asset}")
             signature=path.read_bytes()[:12]
-            if asset.endswith(".png") and not signature.startswith(b"\\x89PNG\\r\\n\\x1a\\n"):
+            if asset.endswith(".png") and not signature.startswith(b"\x89PNG\r\n\x1a\n"):
                 raise RuntimeError(f"{name}: invalid PNG file {asset}")
             if asset.endswith(".gif") and signature[:6] not in (b"GIF87a",b"GIF89a"):
                 raise RuntimeError(f"{name}: invalid GIF file {asset}")
