@@ -60,6 +60,7 @@ def wave_coenergy_eq(
     # Init the distributed port-Hamiltonian system
     wave = S.DPHS("real")
 
+    # TUTORIAL 2C-01: concentric disk/annulus and physical labels
     # Set the domain (using the built-in geometry `Concentric`)
     # Labels: Disk = 1, Annulus = 2, Interface = 10, Boundary = 20
     omega = S.Domain("Concentric", {"R": 1.0, "r": 0.6, "h": mesh_size})
@@ -67,6 +68,7 @@ def wave_coenergy_eq(
     # And add it to the dphs
     wave.set_domain(omega)
 
+    # TUTORIAL 2C-02: substituted coenergy states
     ## Define the variables
     states = [
         S.State("q", "Stress", "vector-field"),
@@ -84,6 +86,7 @@ def wave_coenergy_eq(
     for costate in costates:
         wave.add_costate(costate)
     
+    # TUTORIAL 2C-03: inner resistive port and outer boundary port
     # Define the dissipative port, only on the subdomain labelled 1 = the internal disk
     ports = [
         S.Port("Damping", "e_r", "e_r", "scalar-field", substituted=True, region=1),
@@ -122,6 +125,7 @@ def wave_coenergy_eq(
     for FEM in FEMs:
         wave.add_FEM(FEM)
     
+    # TUTORIAL 2C-04: actual T inverse, density and bounded 1/nu
     # Define physical parameters: care must be taken, 
     # in the co-energy formulation, some parameters are
     # inverted in comparison to the classical formulation
@@ -149,6 +153,7 @@ def wave_coenergy_eq(
     for parameter in parameters:
         wave.add_parameter(parameter)
 
+    # TUTORIAL 2C-05: mass tensors, Dirac interconnection, resistive port
     # Define the pHs via `Brick` == non-zero block matrices == variational terms
     # Since we use co-energy formulation, constitutive relations are already taken into
     # account in the mass matrices M_q and M_p
@@ -174,6 +179,7 @@ def wave_coenergy_eq(
     for brick in bricks:
         wave.add_brick(brick)
 
+    # TUTORIAL 2C-06: passive outer feedback and two true initial pulses
     ## Initialize the problem
     # The controls expression
     # U=-kY, Y=p: negative feedback power U*Y=-k*Y**2 <= 0.
@@ -193,6 +199,7 @@ def wave_coenergy_eq(
         "exp(-10*(x*x+y*y))+0.4*exp(-15*((x-0.8)*(x-0.8)+y*y))",
     )
 
+    # TUTORIAL 2C-07: strict DAE initialization, fixed CN
     ## Solve in time
     # Define the time scheme ("cn" is Crank-Nicolson)
     options = {}
@@ -211,6 +218,7 @@ def wave_coenergy_eq(
     # Solve
     wave.solve()
 
+    # TUTORIAL 2C-08: genuine GetFEM coenergy Hamiltonian
     ## Post-processing
     ## Set Hamiltonian's name
     wave.hamiltonian.set_name("Mechanical energy")
@@ -226,6 +234,7 @@ def wave_coenergy_eq(
     return wave
 
 
+# TUTORIAL 2C-09: actual CN-midpoint FE work and dissipation audit
 def measure_coenergy(system):
     """Audit actual CN midpoint FE work, damping and boundary feedback.
 
@@ -336,6 +345,7 @@ def measure_coenergy(system):
     )
 
 
+# TUTORIAL 2C-10: original FE trajectories, VTK and metadata
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--solver",default="mumps",
