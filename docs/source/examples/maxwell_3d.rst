@@ -197,10 +197,18 @@ Every-step and cumulative energy defects
 must be below ``1e-9`` times the
 physical energy scale. All MPI rank traces
 and MPI1/MPI2 results are compared.
-The divergence of ``B`` is measured as a
-diagnostic (squared L2 norm), but not
-silently promoted to a full compatible
-de Rham convergence proof.
+The divergence of ``B`` is independently
+measured by GetFEM's squared L2 norm
+and **checked** against the compatible
+discrete Gauss law. Its initial value is
+zero and, for matching Nédélec/RT0 spaces,
+the discrete curl maps into the
+divergence-free RT subspace. This is an
+actual additional acceptance gate,
+**not** a claim of convergence of all
+Maxwell constraints. The electric Gauss
+law and electromagnetic boundary-mode
+accuracy are outside this minimal pilot.
 
 After a native PASS, the archive contains
 true complete FE histories (``rank*.npz``),
