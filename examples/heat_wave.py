@@ -570,7 +570,7 @@ def heat_wave_eq(
         p_initial = (
             f"50.*({radius}-0.6)*(1.-{radius})*"
             f"np.exp(-120.*({radius}-0.86)**2)*"
-            "np.cos(14.*np.arctan2(y,x))"
+            "np.cos(14.*np.atan2(y,x))"
         )
         T_initial = "0."
     else:
