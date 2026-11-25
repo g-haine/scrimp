@@ -44,6 +44,21 @@ zero divergence initially. It is an exact
 low-order edge-element-type polynomial and
 excites a nontrivial magnetic field.
 
+The true 3D domain and both co-energy/state
+declarations come directly from the executable:
+
+.. literalinclude:: ../../../examples/maxwell_3d.py
+   :language: python
+   :start-after: # TUTORIAL M3D-02:
+   :end-before: # TUTORIAL M3D-03:
+   :dedent: 4
+
+.. literalinclude:: ../../../examples/maxwell_3d.py
+   :language: python
+   :start-after: # TUTORIAL M3D-03:
+   :end-before: # TUTORIAL M3D-04:
+   :dedent: 4
+
 The coupling uses the **homogeneous natural
 boundary closure** of the weak form, namely
 zero magnetic tangential boundary work, not an
@@ -138,6 +153,28 @@ and the second with ``B_h``:
    \frac{\mathrm d\mathcal H}{\mathrm dt}
    =(B_h,\operatorname{curl}E_h)
     -(\operatorname{curl}E_h,B_h)=0.
+
+The initial data and CN integration
+are explicitly defined in the runnable
+source, including the absence of any
+unnecessary algebraic DAE projection:
+
+.. literalinclude:: ../../../examples/maxwell_3d.py
+   :language: python
+   :start-after: # TUTORIAL M3D-06:
+   :end-before: # TUTORIAL M3D-07:
+   :dedent: 4
+
+The original two positive electromagnetic
+energy terms are likewise the canonical
+GetFEM Hamiltonian, not recomputed from
+an invented displacement field:
+
+.. literalinclude:: ../../../examples/maxwell_3d.py
+   :language: python
+   :start-after: # TUTORIAL M3D-07:
+   :end-before: def measure_maxwell
+   :dedent: 4
 
 The **fixed Crank–Nicolson** scheme has
 the corresponding *exact quadratic*
