@@ -5,6 +5,33 @@ Changes to SCRIMP are recorded here. See also the
 
 ## 1.3.0 — in development (not released)
 
+### Interfaces conformes : distinguer séparation matérielle et couplage par ports (25 novembre 2026)
+
+- Première exécution native de `examples/wave_coenergy.py`,
+  archive `v130-wave2d-coenergy-f110a3e3-2V4VQbbG.zip` :
+  tests statiques PASS mais MUMPS MPI1/MPI2 **FAIL avant
+  l'intégration**, car l'interface géométrique 10 du
+  domaine concentrique ne comporte pas de ports déclarés.
+  Aucun résultat physique 2C n'est donc revendiqué.
+- Correction générique de `interface_deferred.py` :
+  **interface matérielle transparente** si aucun port
+  ni aucune brique n'utilise explicitement le label
+  partagé ; FEM, paramètres et briques sont rejoués
+  à l'identique, sans invention de ports, sans création
+  de régions de faces orientées, avec statut traçable
+  `SKIPPED_TRANSPARENT_MATERIAL_INTERFACE`.
+- Les interfaces explicitement couplées gardent le
+  **fail-closed** original ; déclarer seulement un port
+  ou seulement une brique ne désactive aucun contrôle.
+  Régressions ajoutées dans
+  `tests/test_v130_interface_deferred.py` et exécutées
+  avant le pilote 2C.
+- **Qualification MUMPS MPI1/2 toujours en attente de
+  nouvelle exécution réelle**, puis vérification des
+  images GetFEM/ParaView. Pas de modification des
+  équations, de `examples/published/` ou de `master`.
+
+
 ### Exemple 2C coénergie et visuels natifs 2D — préparés, non qualifiés (25 novembre 2026)
 
 - `examples/wave_coenergy.py` utilise le **vrai**
