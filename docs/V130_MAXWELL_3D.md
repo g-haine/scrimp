@@ -1,14 +1,24 @@
-# SCRIMP v1.3.0 — Premier exemple Maxwell 3D Nédélec/RT0
+# SCRIMP v1.3.0 — Maxwell 3D avec Nédélec-II / BDM1 patchés
 
 **Branche :** `release/1.3.0-preparation`.  
 **Statut scientifique actuel (25 novembre 2026) :**
-**PASS NATIF Maxwell 3D en MUMPS MPI 1 et MPI 2**,
-sur dix pas CN, neuf contrôles physiques, parité
-des trajectoires et véritables données VTK tétraédriques.
-Cette qualification est distincte d'une étude
-de convergence spatiotemporelle ou d'un cas PEC.
+- **PASS historique** sur la paire *native GetFEM*
+  Nédélec0 / RT0, source `daac18cb`, MUMPS
+  MPI1/2, dix pas CN, Hamiltonien et Gauss(B)
+  à la précision machine.
+- **NON ENCORE QUALIFIÉ** sur la nouvelle
+  paire *patchée* Nédélec-II k=1 / BDM1
+  (`NED2` et `BDM`), devenue la valeur
+  par défaut de `examples/maxwell_3d.py`.
+  Les visuels automatiques ajoutés après la
+  qualification de référence attendent
+  également leur contrôle natif.
+- Les résultats de la référence native ne
+  sont **pas** réattribués au code patché.
+  Aucune conclusion de convergence h/dt,
+  de PEC explicite ou de Gauss(E).
 
-## Qualification native Maxwell 3D — PASS (25 novembre 2026)
+## Qualification de référence native Nédélec0 / RT0 — PASS (25 novembre 2026)
 
 **Preuve complète :** archive
 `v130-maxwell3d-daac18cb-FCPngFrH.zip`,
@@ -158,6 +168,86 @@ doit faire l'objet d'une **nouvelle
 exécution native**. Ne pas annoncer le
 rendu intégré comme validé avant le
 PASS correspondant.
+
+## Éléments réellement ajoutés par les patchs GetFEM et alias SCRIMP
+
+**Correction de portée scientifique :** le précédent
+`S.FEM("E", -1, "FEM_NEDELEC(3)")` correspond
+à l'élément **Nédélec première espèce k=0 natif**
+de GetFEM ; et `S.FEM("B", 0, "RT")` à
+RT0 natif. Leur PASS est réel, mais il ne
+démontrait pas les nouvelles familles ajoutées
+dans les patchs SCRIMP. Les deux patchs
+pertinents sont :
+
+- `0003-nedelec-first-kind-simplices.patch` :
+  `FEM_NEDELEC1(N,k)` ; k=0 délègue
+  explicitement à `FEM_NEDELEC(N)`
+  natif ; k=1,2 sont qualifiés dans les
+  tests élémentaires. Des ordres plus
+  élevés ne sont pas qualifiés.
+- `0004-nedelec-second-kind-simplices.patch` :
+  `FEM_NEDELEC2(N,k)`, **k=1,2
+  exclusivement**, sur triangles et
+  tétraèdres.
+- `0001-bdm-tetrahedron-unisolvent-dofs.patch` :
+  correction de la famille native
+  `FEM_BDMK(N,k)` en tétraèdres,
+  vérifiée pour k=1 et k=2.
+
+**Nouveaux raccourcis de `scrimp/fem.py` :**
+
+| Construction SCRIMP | Descripteur GetFEM | Périmètre |
+|---|---|---|
+| `S.FEM("E", 0, "NED1")` | `FEM_NEDELEC1(3,0)` → natif `FEM_NEDELEC(3)` | Première espèce k=0 ; ancien élément natif |
+| `S.FEM("E", 1, "NED1")` | `FEM_NEDELEC1(3,1)` | Première espèce **patchée** |
+| `S.FEM("E", 1, "NED2")` | `FEM_NEDELEC2(3,1)` | Deuxième espèce **patchée** |
+| `S.FEM("E", 2, "NED2")` | `FEM_NEDELEC2(3,2)` | Deuxième espèce **patchée** |
+| `S.FEM("B", 1, "BDM")` | `FEM_BDMK(3,1)` | Famille BDM existante, patch tétraédrique |
+| `S.FEM("B", 0, "RT")` | `FEM_RTK(3,0)` | Famille RT existante |
+
+Les synonymes plus explicites
+`NEDELEC1` et `NEDELEC2` sont
+aussi reconnus. Le **1 ou 2 dans
+le nom de famille** indique l'espèce
+de Nédélec ; l'**entier séparé**
+indique le degré polynomial k.
+`NED2` refuse explicitement
+k=0 et k>=3 **sans** retomber
+sur CG1. Les demandes `NED1`
+ou `NED2` indisponibles dans GetFEM
+échouent également explicitement.
+Tests source indépendants :
+`tests/test_v130_fem_nedelec_aliases.py`.
+
+La version courante de l'exemple Maxwell
+exerce maintenant **deux patchs à la
+fois**, avec les deux lignes :
+
+```python
+fem_E = S.FEM("E", 1, "NED2")  # patch 0004, deuxième espèce [P1]^3
+fem_B = S.FEM("B", 1, "BDM")   # patch 0001, BDM1 tétraédrique
+```
+
+Sur chaque tétraèdre :
+`E_h|_K ∈ [P_1(K)]³`, de type H(curl),
+et `B_h|_K ∈ [P_1(K)]³`, de type
+H(div). Le rotationnel de `E_h`
+est constant par tétraèdre ; il
+appartient au sous-espace sans
+divergence de BDM1, ce qui permet
+de conserver la vérification indépendante
+de `div B = 0`. La structure
+port-hamiltonienne et les quatre
+briques Maxwell ne sont pas changées.
+
+**Statut de la nouvelle paire patchée :
+pilote MUMPS MPI1/2 à exécuter.**
+Les DOFs, énergies et visuels de
+la simulation native historique
+(497 DOFs) ne doivent **pas**
+être utilisés comme valeurs attendues
+pour la nouvelle paire.
 
 ## Objectif et justification
 
