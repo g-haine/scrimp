@@ -96,6 +96,38 @@ def main():
     times=real(system.solution["t"],"accepted CN times").reshape(-1)
     states=real(system.solution["z"],"original full FE history")
     H=real(system.get_Hamiltonian(),"original integrated Hamiltonian").reshape(-1)
+    # Preserve exact native TS/monitor diagnostics BEFORE any strict
+    # rejection. On source 42116b58, PETSc completed all 3000 steps,
+    # but its time-threshold monitor dropped only accepted step 2999;
+    # 3000 saved FE states cannot support 3000 separate CN identities.
+    # Do not manufacture the missing state or relax the physical audit.
+    measured_indices=np.rint(times/args.dt).astype(np.int64)
+    present={int(i) for i in measured_indices
+             if 0<=i<=args.steps}
+    missing=sorted(set(range(args.steps+1))-present)
+    preflight={
+        "schema":"v130-heat-wave-original-CN-monitor-preflight-v1",
+        "rank":rank,"MPI":size,
+        "accepted_PETSc_TS_steps":int(system.last_ts_steps),
+        "TS_converged_reason":int(system.last_ts_converged_reason),
+        "TS_SNES_failures":int(system.last_ts_snes_failures),
+        "TS_step_rejections":int(system.last_ts_rejections),
+        "TS_final_time":float(system.last_ts_time),
+        "expected_saved_FE_states":args.steps+1,
+        "actual_saved_FE_states":int(len(times)),
+        "H_values":int(len(H)),
+        "FE_state_shape":list(states.shape),
+        "missing_accepted_grid_indices":missing,
+        "maximum_saved_clock_deviation":float(
+            np.max(abs(times/args.dt-measured_indices))
+        ) if len(times) else None,
+        "first_saved_time":float(times[0]) if len(times) else None,
+        "last_saved_time":float(times[-1]) if len(times) else None,
+        "full_physics_gate_claimed":False,
+    }
+    (args.out/f"preflight-rank{rank}.json").write_text(
+        json.dumps(preflight,indent=2)+"\\n",encoding="utf-8"
+    )
     if (times.shape!=(args.steps+1,)
             or H.shape!=times.shape or states.shape!=(len(times),7689)
             or not np.allclose(times,np.arange(args.steps+1)*args.dt,
