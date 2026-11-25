@@ -186,6 +186,71 @@ class CompilerTests(unittest.TestCase):
         self.assertEqual(len(domain.mesh.regions()), 6)
         self.assertIs(compiler.compile(system), report)
 
+    def test_transparent_material_interface_replays_global_forms_unchanged(self):
+        # 2C coenergy: q and p use the same global FEM on regions 1+2.
+        # The concentric geometry has a conforming physical interface
+        # (label 10), but NO interface-coupling ports or forms.
+        domain = Domain()
+        before = np.asarray(domain.mesh.region(10)).copy()
+        system = System(domain)
+        system.ports = {
+            "bulk": Port("bulk", 1),
+            "exterior": Port("exterior", 20),
+        }
+        system.bricks = {
+            "bulk-1": Brick("bulk-1", 1),
+            "bulk-2": Brick("bulk-2", 2),
+        }
+        def must_not_audit(*args, **kwargs):
+            raise AssertionError(
+                "No orientation audit allowed for transparent material interface"
+            )
+        system.audit_interface_brick_plan = must_not_audit
+        compiler = DeferredInterfaceCompiler(domain)
+        compiler.record_fem("bulk")
+        compiler.record_fem("exterior")
+        compiler.record_brick(system.bricks["bulk-1"])
+        compiler.record_brick(system.bricks["bulk-2"])
+        result = compiler.compile(system)
+        self.assertEqual(
+            result["status"], "SKIPPED_TRANSPARENT_MATERIAL_INTERFACE"
+        )
+        self.assertEqual(result["interfaces"], [])
+        self.assertEqual(len(result["transparent_interfaces"]), 1)
+        self.assertEqual(result["transparent_interfaces"][0]["logical_region"], 10)
+        self.assertEqual(system.events, [
+            ("FEM", "bulk"), ("FEM", "exterior"),
+            ("Brick", "bulk-1"), ("Brick", "bulk-2"),
+        ])
+        self.assertEqual(domain.mesh.regions().tolist(), [1, 2, 10, 20])
+        np.testing.assert_array_equal(domain.mesh.region(10), before)
+        self.assertTrue(compiler.completed)
+        self.assertIs(compiler.compile(system), result)
+
+    def test_interface_declarations_never_silently_skipped(self):
+        # Presence of EITHER an interface port OR an interface brick
+        # must still go through fail-closed ownership and assembly checks.
+        for declared in ("port", "brick"):
+            with self.subTest(declared=declared):
+                domain = Domain()
+                system = System(domain)
+                if declared == "port":
+                    system.bricks = {"bulk": Brick("bulk", 1)}
+                else:
+                    system.ports = {"bulk": Port("bulk", 1)}
+                def invalid(*args, **kwargs):
+                    raise ValueError("unresolved declared interface ownership")
+                system.audit_interface_brick_plan = invalid
+                compiler = DeferredInterfaceCompiler(domain)
+                compiler.record_fem("some-fem")
+                with self.assertRaisesRegex(
+                    ValueError, "unresolved declared interface ownership"
+                ):
+                    compiler.compile(system)
+                self.assertFalse(compiler.completed)
+                self.assertEqual(domain.mesh.regions().tolist(), [1, 2, 10, 20])
+                self.assertEqual(system.events, [])
+
     def test_no_internal_label_does_not_enable_automatic_mode(self):
         domain = Domain()
         domain.get_boundaries = lambda: [{"External": 20}]
