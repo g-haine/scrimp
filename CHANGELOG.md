@@ -5,7 +5,83 @@ Changes to SCRIMP are recorded here. See also the
 
 ## 1.3.0 — in development (not released)
 
-### Maxwell 3D : vraie paire GetFEM patchée et nouveaux raccourcis FEM SCRIMP — qualification à reprendre (25 novembre 2026)
+### Maxwell 3D — deux patchs GetFEM Nédélec-II k1 / BDM1 et visuels intégrés : MUMPS MPI1/2 PASS (25 novembre 2026)
+
+- **Première qualification native de la paire véritablement patchée**
+  `S.FEM("E",1,"NED2")` → `FEM_NEDELEC2(3,1)`
+  (patch `0004`) et `S.FEM("B",1,"BDM")`
+  → `FEM_BDMK(3,1)` (patch tétraédrique
+  `0001`) dans `examples/maxwell_3d.py`.
+  Preuve immuable :
+  `v130-maxwell3d-3687b11e-gSQ8jeC3.zip`,
+  source `3687b11e473813c103cd4e9c02f82812677853d7`,
+  image `scrimp-mpi:v1.3.0-rc3` figée.
+  **6 tests aliases FEM PASS**, **11 tests
+  source Maxwell PASS**, 8 fichiers
+  `examples/published/` toujours immuables.
+- Boule 3D tétraédrique : **58 points,
+  110 tétraèdres**. **444 DOFs**
+  Nédélec-II pour `E`, **825 DOFs**
+  BDM1 pour `B` : **1 269 DOFs**,
+  et non 497 (référence historique
+  Nédélec0/RT0 natifs). **MUMPS MPI1
+  et MPI2 : 10/10 pas Crank–Nicolson
+  et 9/9 contrôles physiques PASS**,
+  initialisation DAE absente.
+- **Énergie électromagnétique FE conservée** :
+  `H0=0.6942520909491591`,
+  `Hf=0.6942520909491621` (MPI1).
+  `H_E(tf)=0.436003804787049`,
+  `H_B(tf)=0.25824828616211315`,
+  soit **37.1981 %** de l'énergie
+  initiale transférée vers l'induction
+  magnétique ; défaut maximal
+  `max|H-H0|=4.107825191113079e-15`
+  en MPI1, `8.881784197001252e-16`
+  en MPI2. Deux intégrales GetFEM
+  indépendantes vérifient
+  `max|H-H_E-H_B|=5.55e-17`.
+- **Gauss magnétique (indépendante) PASS** :
+  `max integral(div B)^2=4.2153e-28`
+  en MPI1, soit
+  `max||div B||_L2=2.0531e-14`.
+  **Parité MPI1/2 complète** :
+  `max|z_MPI1-z_MPI2|=2.1094237467877974e-15`
+  sur les **11 × 1269** coefficients FE ;
+  chaque rang MPI2 sauvegarde le même
+  tableau et les empreintes SHA256
+  concordent avec les métadonnées.
+- **Génération de visuels directement
+  dans `examples/maxwell_3d.py --export`
+  maintenant qualifiée** : chacun
+  des deux cas MPI produit les
+  courbes `H_E/H_B/H` (PNG+SVG),
+  les vecteurs `E` et `B` finaux
+  en PNG et le GIF `B(t)` de **11 images**,
+  avec `provenance.json` lié au SHA256
+  FE original. Les 44 fichiers VTU
+  et quatre PVD correspondent aux
+  champs et temps originaux 3D ;
+  les éléments exportés sont
+  **110 véritables tétraèdres**.
+- **Portée scientifique** : deux patchs
+  GetFEM réellement employés par une
+  simulation pH 3D, préservation de
+  `H` et de la loi Gauss magnétique,
+  reproductibilité MPI et sorties
+  graphiques intégrées. Ne démontre
+  **ni convergence h/dt, ni Gauss(E),
+  ni condition PEC explicitement imposée,
+  ni modes de cavité, ni SuperLU_DIST**.
+  L'ancien PASS `daac18cb` pour
+  Nédélec0/RT0 natifs reste
+  une **référence historique distincte**.
+  Détails :
+  `docs/V130_MAXWELL_3D.md` et
+  `docs/source/examples/maxwell_3d.rst`.
+
+
+### Maxwell 3D : introduction de la paire patchée et des raccourcis FEM (historique avant qualification, 25 novembre 2026)
 
 - **Correction scientifique importante :**
   le précédent `FEM_NEDELEC(3)` est
@@ -60,12 +136,13 @@ Changes to SCRIMP are recorded here. See also the
   Le pilote conserve l'archive d'échec
   et produit les PNG/SVG/GIF par
   `examples/maxwell_3d.py --export`.
-- **Statut : source en cours de qualification.**
-  Le calcul et les figures de cette nouvelle
-  paire NED2/BDM1 **n'ont pas encore un PASS
-  natif**. Aucun résultat de la référence
-  Nédélec0/RT0 (notamment ses 497 DOFs et
-  ses énergies) n'est extrapolé.
+- **Statut au moment de cette modification :
+  qualification encore en attente.**
+  Ce stade historique est désormais
+  **dépassé par le PASS natif `3687b11e`**
+  consigné ci-dessus ; les résultats
+  de la référence Nédélec0/RT0
+  (497 DOFs) ne sont jamais extrapolés.
 
 
 ### Maxwell 3D — visuels automatiques produits par l'exemple lui-même (25 novembre 2026)
