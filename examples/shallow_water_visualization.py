@@ -143,7 +143,7 @@ def render_native_shallow_water(system, folder, *, rho=1000.,
     this visual protocol; MPI2 physical parity is a separate audit.
     """
     from matplotlib import pyplot as plt
-    from matplotlib import cm, colors
+    from matplotlib import cm, colors, colormaps
     from matplotlib.collections import PolyCollection
     from mpl_toolkits.mplot3d.art3d import Poly3DCollection
     from PIL import Image
@@ -227,8 +227,8 @@ def render_native_shallow_water(system, folder, *, rho=1000.,
     p_step=max(1,len(ptri)//160)
     hnorm=colors.Normalize(vmin=hmin,vmax=hmax)
     vnorm=colors.Normalize(vmin=0.,vmax=speedmax)
-    h_cmap=cm.get_cmap("viridis")
-    v_cmap=cm.get_cmap("plasma")
+    h_cmap=colormaps.get_cmap("viridis")
+    v_cmap=colormaps.get_cmap("plasma")
 
     def draw_frame(k):
         height=h_frames[k]
