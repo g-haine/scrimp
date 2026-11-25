@@ -25,15 +25,17 @@ def shallow_water_eq(
 
     Formulation Grad-Grad, homogeneous boundary condition, on a tank.
 
-    Default behavior retains the original pseudo-time initialization,
-    BDF2 scheme, pictures and CG2 h PVD export. showcase=True is an
-    EXPLICIT output/scientific option: use the separately native-qualified
-    nonlinear_affine DAE initializer with exactly the same original
-    PDE, initial h/p, four zero controls, mesh, FEM and lagged gyro.
-    Export BOTH original h CG2 and p DG1 VTK fields and render the
-    genuine 3D water surface, velocity v=p/rho, and energy/mass plots.
-    The optional longer visual horizon has not yet been qualified
-    physically; it never demonstrates exact BDF2 H conservation.
+    The executable entry point (python examples/shallow_water.py or
+    python -m examples.shallow_water) enables showcase=True by DEFAULT:
+    it solves the genuine inviscid equations and saves original CG2 h,
+    DG1 p, 3-D height and velocity PNG/GIF, Hamiltonian and mass plots.
+    It uses the separately qualified nonlinear_affine DAE initializer,
+    leaving the PDE, h/p initial data, four zero controls, mesh, FEM,
+    BDF2 and lagged gyro unchanged. Default CLI horizon: t_f=0.12.
+    For historical compatibility, calling shallow_water_eq(showcase=False)
+    or passing --no-showcase on the CLI retains the old pseudo-time
+    initialization and single Hamiltonian / h PVD outputs (t_f=0.5).
+    Visual images do not certify exact BDF2 energy conservation.
     """
 
     if showcase:
@@ -279,6 +281,26 @@ def shallow_water_eq(
         swe.export_to_pv("p",path=str(output))
         swe.shallow_water_visuals=render_native_shallow_water(
             swe,output,rho=rho,
+        )
+        print(
+            "SCRIMP Saint-Venant 2D native visuals saved to: "
+            f"{output/'figures'}",
+            flush=True,
+        )
+        print(
+            "  surface + velocity animation: "
+            f"{output/'figures'/'saint_venant_surface_vitesse.gif'}",
+            flush=True,
+        )
+        print(
+            "  Hamiltonian and mass: "
+            f"{output/'figures'/'saint_venant_H_masse_bilan.png'}",
+            flush=True,
+        )
+        print(
+            "  original GetFEM fields: "
+            f"{output/'pv'/'h'/'h.pvd'} ; {output/'pv'/'p'/'p.pvd'}",
+            flush=True,
         )
     else:
         # Preserve the original tutorial's default outputs exactly.
@@ -778,18 +800,38 @@ if __name__ == "__main__":
     import argparse
 
     parser=argparse.ArgumentParser(
-        description="Original non-viscous 2D Saint-Venant BDF2 example "
-                    "with optional true GetFEM surface/velocity showcase"
+        description="Canonical inviscid Saint-Venant 2D BDF2 example. "
+                    "Running this file directly produces genuine GetFEM "
+                    "height/velocity PNG/GIF and physical H/mass graphics."
     )
-    parser.add_argument("--showcase",action="store_true",
-                        help="Native CG2 height/DG1 velocity PNG/GIF + VTK")
-    parser.add_argument("--showcase-output",default=None)
+    # Running any example must reproduce its figures, without an
+    # additional pipeline or explicit --showcase switch. The legacy
+    # pseudo-initialized example is still available when requested.
+    modes=parser.add_mutually_exclusive_group()
+    modes.add_argument(
+        "--showcase", dest="showcase", action="store_true",
+        help="Render native h CG2, p DG1, surface/velocity GIF and "
+             "H/mass plots (default)",
+    )
+    modes.add_argument(
+        "--no-showcase", dest="showcase", action="store_false",
+        help="Historical pseudo-initialized run: H plot and h PVD only",
+    )
+    parser.set_defaults(showcase=True)
+    parser.add_argument(
+        "--showcase-output", default=None,
+        help="Directory for figures and original h/p VTK "
+             "(default: ./outputs/showcase/shallow_water)",
+    )
     parser.add_argument("--final-time",type=float,default=None)
     parser.add_argument("--time-step",type=float,default=0.0001)
     parser.add_argument("--save-step",type=float,default=None)
     parser.add_argument("--factor-solver",default=None,
                         choices=("mumps","superlu_dist","superlu"))
     args=parser.parse_args()
+    if not args.showcase and args.showcase_output is not None:
+        parser.error("--showcase-output requires visual output; "
+                     "omit --no-showcase")
     swe=shallow_water_eq(
         factor_solver=args.factor_solver,
         final_time=(args.final_time if args.final_time is not None
