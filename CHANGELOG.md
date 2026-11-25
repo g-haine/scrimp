@@ -5,6 +5,72 @@ Changes to SCRIMP are recorded here. See also the
 
 ## 1.3.0 — in development (not released)
 
+### Saint-Venant 2D non visqueux — visualisations natives hauteur, vitesse et bilans (25 novembre 2026, exécution en attente)
+
+- **Distinction de périmètre fixée :** le Saint-Venant
+  **visqueux tournant**, contrôlé ou non, est un
+  **travail de recherche MCSS / LHMNC 2027** et
+  **ne fait pas partie des exemples du logiciel**.
+  La visualisation ici concerne exclusivement
+  le vrai `examples/shallow_water.py`, son modèle
+  inviscide rectangulaire et ses briques
+  d'origine.
+- Le fichier canonique conserve **sans changement**
+  son comportement par défaut (`pseudo`, BDF2,
+  `T=0.5`, image H et ParaView h).
+  Le nouveau `--showcase` est une option
+  **explicite** qui utilise `nonlinear_affine`
+  (initialiseur de production indépendamment qualifié),
+  sans toucher aux équations, au maillage,
+  aux données initiales, aux quatre commandes
+  nulles ni au gyroscope `G` explicitement retardé.
+- Les exportations **GetFEM authentiques** de la
+  hauteur CG2 `h` et de la quantité de mouvement
+  DG1 `p` sont produites directement par
+  l'exemple dans des catalogues VTK séparés.
+  `examples/shallow_water_visualization.py`
+  lit les triangles natifs des **deux maillages VTK
+  différents**, puis l'exemple produit :
+  **quatre PNG de la surface libre élevée
+  graphiquement en 3D, carte de hauteur
+  dans le plan, vecteurs physiques `v=p/rho`** ;
+  un GIF d'au plus **36 vrais instants FE**
+  avec échelles colorimétriques constantes ;
+  des graphiques PNG/SVG de H total,
+  contributions cinétique/potentielle,
+  masse et défaut énergétique BDF2 ;
+  les tableaux `physical_FE_traces.npz`,
+  les métadonnées `provenance.json`,
+  ainsi que tous les VTU/PVD originaux.
+  **Aucune interpolation temporelle ni
+  onde synthétique.** La représentation
+  surfacique en 3D d'une fonction `h(x,y)`
+  ne prétend pas résoudre une PDE en 3D.
+- Pilote autonome `scripts/run-v130-shallow-water-showcase.sh`
+  avec MUMPS MPI1 et image Docker épinglée,
+  `T=0.12, dt=0.0001, dt_save=0.002`
+  (**1 200 pas prévus**), archive ZIP conservée
+  même en échec et vérification indépendante
+  `scripts/verify-v130-shallow-water-showcase.py`.
+  Contrôles de source, lecteurs VTU binaires
+  avec fixtures négatives et invariance des
+  `examples/published` dans
+  `tests/test_v130_shallow_water_visualization_source.py`
+  et la CI GitHub.
+  La physique BDF2 n'étant pas exactement
+  conservative, l'énergie est **mesurée**,
+  sans imposer de conservation à la
+  précision machine ni inférer un ordre
+  de convergence à partir des images.
+- **Statut : composants visuels préparés,
+  campagne native encore en attente.**
+  Le PASS MPI1/MPI2 à `T=0.002` précédemment
+  enregistré reste valable dans son
+  périmètre ; il **ne vaut pas** PASS
+  automatique de la nouvelle animation
+  ou d'un calcul à `T=0.12`.
+
+
 ### Saint-Venant 2D non visqueux — PASS natif MPI1/2 sur deux raffinements BDF2 à temps final fixé (25 novembre 2026)
 
 - **Nouvelle qualification physique obtenue :** archive native
