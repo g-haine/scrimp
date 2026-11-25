@@ -9,8 +9,8 @@ Changes to SCRIMP are recorded here. See also the
 
 - Nouvel exemple indépendant `examples/maxwell_3d.py` :
   **vraie géométrie tétraédrique 3D** de la boule,
-  (E\in H(\mathrm{curl})) Nédélec 0,
-  (B\in H(\mathrm{div})) Raviart–Thomas RT0.
+  `E in H(curl)` (Nédélec 0),
+  `B in H(div)` (Raviart–Thomas RT0).
   L'exemple exercera les éléments d'arête
   GetFEM corrigés pour SCRIMP v1.3.0,
   sans modifier `examples/published/`.
