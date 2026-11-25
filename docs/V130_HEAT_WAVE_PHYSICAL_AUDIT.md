@@ -3,6 +3,198 @@
 **23 November 2026 — physical MODEL REVISION COMMITTED IN SOURCE;
 native GetFEM/PETSc and CN power-balance qualification PENDING.**
 
+## 25 November 2026 — DAE initial data incompatibility and correction
+
+**First real four-step MUMPS MPI1 pilot at source
+`937718d2`: FAIL before CN.** The actual
+Concentric geometry, automatic oriented interface
+compiler, 7 689-DOF GetFEM mass and stiffness
+matrices were constructed. The *strict* algebraic
+initializer rejected the original L2 projection
+of the Gaussian wave velocity because it does
+not satisfy homogeneous Dirichlet data on
+the outer annulus:
+
+```text
+InconsistentDAEInitialData:
+||F_a|| = 0.00762918411 > 8.18210288e-09
+Y_bnd = 0.005395, U_bnd = 0.005395
+```
+
+The native evidence is
+`v130-heat-wave-physical-937718d2-9O1SrxEY.zip`.
+This is **not** an error in the automatic
+interface compiler, and no CN physics was
+executed in that first run.
+
+This exact difficulty was already resolved
+and native-qualified in the prior strict
+DAE compatibility studies:
+`sandbox/probe_v130_heat_wave_boundary_compatibility.py`
+and
+`sandbox/probe_v130_auto_interface_mpi_cn.py`.
+The model now integrates those two
+*explicit physical initial-data* choices
+instead of depending on a research
+probe's monkey-patch of `DPHS.init_step`:
+
+- `initial_wave_boundary="clamp"`
+  (**default**): first project
+  the analytic Gaussian into the real
+  scalar CG1 wave space by GetFEM/PETSc
+  `L²), then exactly set the **126**
+  exterior Dirichlet DOFs to zero,
+  without changing any free interior
+  coefficient (known Concentric
+  1/2 mesh); and
+- `initial_wave_boundary="constrained_l2"`:
+  keep the exact zero exterior trace
+  but minimize the correction
+  `||p_h-p_h^{L²}||_{M_p}` using the
+  true sparse GetFEM mass `M_p`,
+  the PETSc COO bridge and MUMPS;
+  only **MPI1** is supported for this
+  optional correction until separately
+  validated in parallel.
+
+The helper
+`scrimp.utils.fe_initialization.enforce_zero_dirichlet_initial_values`
+uses the **actual filtered GetFEM DOF
+map** from `basic_dof_on_region`,
+not assumed nodal ordering, and fails
+on malformed scalar traces.
+It records the number of fixed and
+free DOFs, before/after trace norm,
+correction amplitude and method.
+Neither method changes the prescribed
+heat `T` or stress `q` fields,
+the weak forms, DAE tolerances or
+the strict algebraic initializer.
+`"unconstrained"` reproduces the
+historical incompatibility **only when
+explicitly requested** for diagnostics.
+When the heat occupies the outer
+annulus there is no exterior wave
+Dirichlet condition to correct.
+
+**Also corrected in the native pilot:**
+the first original-example inspector
+was evaluating interface power on
+the old *doubled logical region* 10.
+The updated inspector instead
+collects independently on the two
+**outward-oriented physical facet
+regions** allocated by the production
+compiler, using the already audited
+`measure_v130_hw_dual_facet_physics.py`.
+The physical gate now checks that
+this collector and the actual
+boundary-correction provenance were
+used. The previous MPI interface
+proofs remain valid; these edits
+only repair the standalone main
+example and its qualification.
+
+**Status:** source corrected and
+source tests prepared, but this
+specific native physical pilot
+must be **rerun**. No new PASS
+Heat–Wave physics is claimed
+from these changes alone.
+
+## Long-time scientific visualizations (optional; native pending)
+
+To show both physical time decay and the
+**outer-annulus wave dynamics**, the *canonical*
+`examples/heat_wave.py` now supports the
+optional `--long-showcase` mode. A separate
+driver executes it with `heat_region=1`,
+`wave_region=2`, `t_f=15`,
+`dt=0.005`, `dt_save=0.05` and
+MUMPS MPI1:
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+conda activate scrimp
+
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-heat-wave-long-showcase.sh
+```
+
+The default `SCRIMP_V130_HW_SHOWCASE_PROFILE=gallery_packet`
+is a high-azimuthal-wavenumber
+`cos(14*theta)` wave-velocity packet,
+radially concentrated around
+`r≈0.86` and vanishing analytically
+at both boundaries. It is *an excitation
+designed to reveal a possible
+whispering-gallery-like pattern*,
+**NOT a certified eigenmode**.
+The previous `gaussian` physical
+initial condition remains the default
+for ordinary `heat_wave_eq` and
+the four-step acceptance pilot.
+To render the latter over the
+full 15-second horizon instead:
+
+```bash
+SCRIMP_V130_HW_SHOWCASE_PROFILE=gaussian \
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-heat-wave-long-showcase.sh
+```
+
+All figures are **generated in the
+original Python example**, without
+external rendering scripts:
+
+- log-log of the total **original FE
+  Hamiltonian**, excluding `t=0`,
+  saved as PNG and SVG along with
+  `heat_wave_FE_H_long.npz`;
+- authentic original GetFEM
+  `p`, `q` and `T` PVD/VTU
+  sequences, one file per saved
+  physical instant;
+- four annular-wave PNGs and
+  a GIF of at most 48 **actual
+  saved FE states**, with fixed
+  color range, no interpolation
+  in time;
+- an explicitly approximate
+  concentration diagnostic: the
+  fraction of **CG1 kinetic
+  velocity proxy** `p²/2`
+  represented by triangles with
+  centroid at `r>=0.82`.
+  It is *not* the full wave
+  energy `(p²+|q|²)/2`
+  nor a spectral localization test;
+- `provenance.json` binding
+  the figures to the source,
+  original saved times, radial
+  fraction sequence and native FE
+  Hamiltonian values.
+
+The native driver archives logs,
+VTU/PVD, PNG/SVG/GIF, the real
+FE trajectory and `summary.json`;
+on failure it does not mislabel
+the rendering as a PASS.
+Only the *short pilot* verifies
+the full signed CN physical
+power-balance gates; neither
+a long-time plot nor a
+near-outer-boundary pattern
+alone validates a whispering
+gallery eigenmode or a
+theoretical decay exponent.
+
+**Status of new long showcase:
+native execution still pending.**
+
 ## 25 November 2026 — next qualification stage prepared (native PENDING)
 
 After the separate **Maxwell 3D Nédélec-II/BDM1 MPI1/2 PASS**,
