@@ -45,7 +45,7 @@ class Evidence:
         return json.loads(self.read(relative).decode("utf-8"))
 
 
-def vtk_binary(node):
+def vtk_binary(node, expected_count=None):
     if node is None or node.get("format") != "binary":
         raise ValueError("Expected original GetFEM inline-binary VTK DataArray")
     dtype = {
@@ -57,13 +57,22 @@ def vtk_binary(node):
     raw = base64.b64decode((node.text or "").strip())
     if len(raw) < 4:
         raise ValueError("Truncated binary GetFEM VTK payload")
-    # GetFEM's native writer emits a 4-byte length prefix for geometry
-    # and cell arrays, but raw binary PointData without a length prefix.
-    # Accept exactly these native encodings, never invent field values.
-    nbytes = struct.unpack("<I", raw[:4])[0]
-    payload = raw[4:] if nbytes == len(raw)-4 else raw
-    if len(payload) % np.dtype(dtype).itemsize:
-        raise ValueError("GetFEM VTK payload length incompatible with dtype")
+    # Geometry/cell arrays have an Int32 payload-size header.
+    # GetFEM PointData instead has a Float32 count header (the count
+    # may describe the original 2D vector before VTK 3D padding).
+    # Always use the Piece's true NumberOfPoints × component count
+    # to validate and strip exactly one field header, never treating
+    # the count header as a simulated field value.
+    if expected_count is not None:
+        expected_bytes = expected_count * np.dtype(dtype).itemsize
+        if len(raw) != expected_bytes + 4:
+            raise ValueError("Original GetFEM PointData byte count mismatch")
+        payload = raw[4:]
+    else:
+        nbytes = struct.unpack("<I", raw[:4])[0]
+        if nbytes != len(raw)-4:
+            raise ValueError("GetFEM VTK mesh byte count mismatch")
+        payload = raw[4:]
     out = np.frombuffer(payload, dtype=np.dtype(dtype))
     components = int(node.get("NumberOfComponents", "1"))
     if components > 1:
@@ -80,7 +89,12 @@ def vtk_snapshot(evidence, case, field, filename):
     connectivity = vtk_binary(node.find(".//Cells/DataArray[@Name='connectivity']"))
     offsets = vtk_binary(node.find(".//Cells/DataArray[@Name='offsets']"))
     types = vtk_binary(node.find(".//Cells/DataArray[@Name='types']"))
-    values = vtk_binary(node.find(f".//PointData/DataArray[@Name='{field}']"))
+    field_node = node.find(f".//PointData/DataArray[@Name='{field}']")
+    if field_node is None:
+        raise ValueError(f"Missing original VTK PointData {field}")
+    npoints = int(node.find(".//Piece").attrib["NumberOfPoints"])
+    components = int(field_node.get("NumberOfComponents", "1"))
+    values = vtk_binary(field_node, expected_count=npoints*components)
     if points.ndim != 2 or points.shape[1] < 2:
         raise ValueError("Unexpected GetFEM VTK coordinates")
     if len(types) != len(offsets):
