@@ -64,12 +64,15 @@ class TestDefaultMigration(unittest.TestCase):
                             found.append("<dynamic>")
                 self.assertTrue(found,"No set_time_scheme call")
                 if name=="shallow_water.py":
-                    # Ordinary tutorial invocation keeps historical
-                    # pseudo. ONLY the explicitly requested native
-                    # image showcase chooses qualified nonlinear_affine.
+                    # Historical Python API without showcase keeps
+                    # pseudo, and --no-showcase retains that CLI path.
+                    # The *direct executable* defaults to the fully
+                    # visual nonlinear_affine mode for reproducibility.
                     self.assertEqual(found,["pseudo","nonlinear_affine"])
                     self.assertIn("if showcase:",src)
                     self.assertIn('showcase=False, showcase_output=None',src)
+                    self.assertIn('parser.set_defaults(showcase=True)',src)
+                    self.assertIn('"--no-showcase", dest="showcase", action="store_false"',src)
                 else:
                     self.assertTrue(
                         all(x=="pseudo" for x in found),
