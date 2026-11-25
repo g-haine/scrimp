@@ -29,27 +29,38 @@ from pathlib import Path
 import numpy as np
 import scrimp as S
 
-def assert_patched_intrinsic_fem(mesh_fem, requested, getfem_module):
-    """Fail closed against SCRIMP's legacy FEM-to-CG fallback.
+def assert_patched_intrinsic_fem(fem, expected_type, expected_order):
+    """Reject the exact legacy S.FEM fallback without MeshFem.fem() introspection.
 
-    GetFEM MeshFem.fem() returns a NumPy *array* of Fem objects.
-    Iterate over all entries, not just the first array axis.
-    Compare canonical Fem.char() descriptors, not fragile repr strings.
+    SCRIMP's FEM.set_fem() explicitly changes its *own* type and order
+    to CG/1 if native GetFEM rejects the requested family. We retain
+    the same FEM object that was passed to DPHS.add_FEM(), so its
+    post-installation metadata is authoritative for that fallback.
+    Its real GetFEM MeshFem must also have qdim=3 and nonzero DOFs.
     """
-    assigned = np.asarray(mesh_fem.fem(), dtype=object).ravel()
-    if assigned.size == 0:
-        raise RuntimeError(f"No native GetFEM elements assigned for {requested}")
-    if any(not callable(getattr(fem, "char", None)) for fem in assigned):
-        raise RuntimeError(f"Invalid GetFEM MeshFem.fem() entries for {requested}")
-    actual = {str(fem.char()) for fem in assigned}
-    reference = str(getfem_module.Fem(requested).char())
-    if actual != {reference}:
+    actual_type = fem.get_type()
+    actual_order = fem.get_order()
+    if actual_type != expected_type or actual_order != expected_order:
         raise RuntimeError(
-            f"Required patched {requested} not active, actual FEM: {sorted(actual)}"
+            f"GetFEM intrinsic {expected_type}/{expected_order} not active: "
+            f"SCRIMP changed to {actual_type}/{actual_order}"
         )
-    if int(mesh_fem.qdim()) != 3 or int(mesh_fem.nbdof()) <= 0:
-        raise RuntimeError(f"Invalid intrinsic 3D field for {requested}")
-    return actual
+    mesh_fem = fem.get_fem()
+    if mesh_fem is None:
+        raise RuntimeError(f"Missing GetFEM MeshFem for {expected_type}")
+    try:
+        qdim = int(mesh_fem.qdim())
+        ndof = int(mesh_fem.nbdof())
+    except (TypeError, AttributeError, ValueError) as exc:
+        raise RuntimeError(
+            f"Cannot verify GetFEM MeshFem dimension for {expected_type}"
+        ) from exc
+    if qdim != 3 or ndof <= 0:
+        raise RuntimeError(
+            f"Invalid intrinsic {expected_type} 3D field: qdim={qdim}, DOFs={ndof}"
+        )
+    return ndof
+
 
 # TUTORIAL M3D-01: explicit three-dimensional curl (GWFL has no native Curl)
 CURL3 = (
@@ -91,16 +102,17 @@ def maxwell_3d(*, mesh_size=0.7, final_time=0.2, time_step=0.02,
     # TUTORIAL M3D-04: true 3D intrinsic vector elements, NOT CG vectors
     # S.FEM uses a raw GetFEM descriptor when order<0.
     # Both these GetFEM families use the SCRIMP-v1.3.0 patched image.
-    model.add_FEM(S.FEM("E", -1, "FEM_NEDELEC(3)"))
-    model.add_FEM(S.FEM("B", 0, "RT"))  # FEM_RTK(3,0)
+    fem_E = S.FEM("E", -1, "FEM_NEDELEC(3)")
+    fem_B = S.FEM("B", 0, "RT")  # GetFEM FEM_RTK(3,0)
 
-    # S.FEM has a legacy silent CG fallback. Fail CLOSED if that happens.
-    import getfem as gf
-    for name, requested in (("E", "FEM_NEDELEC(3)"),
-                            ("B", "FEM_RTK(3,0)")):
-        assert_patched_intrinsic_fem(
-            model.ports[name].get_fem(), requested, gf
-        )
+    # S.FEM has a legacy silent CG fallback on native AssertionError.
+    # Retain these exact objects to detect it after registration.
+    for fem, expected_type, expected_order in (
+        (fem_E, "FEM_NEDELEC(3)", -1),
+        (fem_B, "RT", 0),
+    ):
+        model.add_FEM(fem)
+        assert_patched_intrinsic_fem(fem, expected_type, expected_order)
 
     # TUTORIAL M3D-05: two positive mass blocks, two skew curl blocks
     for brick in (
