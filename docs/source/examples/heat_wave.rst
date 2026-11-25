@@ -38,7 +38,7 @@ equations reads
        \left\lbrace
        \begin{array}{rcl}
        \partial_t T(t,x) &=& {\rm div}\left( {\rm grad}\left( T(t,x) \right)\right), \quad \forall t\ge0, x \in \Omega_H, \\
-       \partial_{tt}^2 w(t,x) &=& {\rm div}\left( {\rm grad}\left( T(t,x) \right)\right), \quad \forall t\ge0, x \in \Omega_H, \\
+       \partial_{tt}^2 w(t,x) &=& {\rm div}\left( {\rm grad}\left( w(t,x) \right)\right), \quad \forall t\ge0, x \in \Omega_W, \\
        T(t,s) &=& 0, \quad \forall t\ge0, s \in \Gamma_H, \\
        w(t,s) &=& 0, \quad \forall t\ge0, s \in \Gamma_W, \\
        \end{array}
@@ -236,7 +236,7 @@ example, *i.e.* we obtain the following system
        -\underline{y_W}(t)
        \end{pmatrix},
 
--  The transformer interconnection
+-  The gyrator interconnection
 
 This condition is easy to implement, and leads to
 
@@ -413,18 +413,21 @@ argument.
     for brick in bricks:
         hw.add_brick(brick)
 
-Finally, the **gyrator** interconnection for a system is just an output
-feedback from the other. The subtility is that, while the normal along
-:math:`\Gamma_I` depends from which side it is computed *on paper*, this
-is not the case *numerically*: a minus sign is necessary.
+Finally, the **gyrator** interconnection is implemented as reciprocal
+output feedback. In SCRIMP v1.3.0, the automatic conforming-interface
+compiler uses the actual **outward normal of each owning subdomain**.
+The two interface powers therefore cancel with the physical signs
+:math:`-U_T Y_T + U_w Y_w=0`; no artificial common-normal sign flip
+must be introduced. See the interface note above for the validated
+scope and implementation reference.
 
 .. code:: python
 
     # Set the controls
     # === Gyrator interconnection
     hw.set_control("Interface Heat", "Y_w") 
-    # CAREFUL: the numerical normal is the same for both sub-domains! Hence the minus sign. 
-    hw.set_control("Interface Wave", "-Y_T") 
+    # Each outward physical normal is handled automatically by SCRIMP.
+    hw.set_control("Interface Wave", "Y_T")
     # === Dirichlet boundary condition
     hw.set_control("Boundary", "0.")
     
@@ -432,12 +435,26 @@ is not the case *numerically*: a minus sign is necessary.
     hw.set_initial_value("T", "5.*np.exp(-25*((x-0.6)*(x-0.6)+y*y))")
     hw.set_initial_value("p", "5.*np.exp(-25*((x-0.6)*(x-0.6)+y*y))")
     hw.set_initial_value("q", "[0.,0.]")
-    
-    ## Solve in time
-    # Define the time scheme ("bdf" is backward differentiation formula)
-    hw.set_time_scheme(ts_type="bdf",
+
+    # The projected Gaussian p is incompatible with the homogeneous
+    # outer Dirichlet condition. Correct only its *initial FE data*
+    # before the STRICT algebraic DAE initializer: the normal
+    # heat_wave_eq() function does this automatically ("clamp").
+    from scrimp.utils.fe_initialization import (
+        enforce_zero_dirichlet_initial_values
+    )
+    if wave_region == 2:
+        enforce_zero_dirichlet_initial_values(
+            hw, "p", volume_region=wave_region, boundary_region=20,
+            method="clamp"
+        )
+
+    # Physical Crank--Nicolson with strict DAE compatibility.
+    hw.set_time_scheme(init_step_ts_type="algebraic",
+                       ts_type="cn",
+                       ts_adapt_type="none",
                        t_f=15.,
-                       dt=0.001,
+                       dt=0.005,
                        dt_save=0.05,
                        ksp_type="preonly",
                        pc_type="lu",
@@ -447,10 +464,12 @@ is not the case *numerically*: a minus sign is necessary.
     # Solve
     hw.solve()
 
-We end as usual with the Hamiltonian plot. Since our study case is known
-to be strongly stable, but never exponential nor uniformly in the
-initial state, we may also invocate the ``get_Hamiltonian`` method to
-make a log-log view of its evolution.
+We end with the Hamiltonian plot. The source model uses the true
+GetFEM/PETSc energy, and the optional long-time run saves a
+log-log view of positive-time, positive-energy samples, **without
+assuming or fitting a decay exponent**. The earlier illustrations
+below are historical; the figures emitted by the current
+``examples/heat_wave.py`` are the reproducible v1.3.0 outputs.
 
 .. code:: python
 
@@ -476,7 +495,11 @@ make a log-log view of its evolution.
     import matplotlib.pyplot as plt
     fig = plt.figure(figsize=[8, 5])
     ax = fig.add_subplot(111)
-    ax.loglog(t, Hamiltonian)
+    import numpy as np
+    t = np.asarray(t)
+    Hamiltonian = np.asarray(Hamiltonian)
+    valid = (t > 0.) & (Hamiltonian > 0.)
+    ax.loglog(t[valid], Hamiltonian[valid])
     ax.grid(axis="both")
     ax.set_xlabel("time t")
     ax.set_ylabel("Hamiltonian")
@@ -486,4 +509,95 @@ make a log-log view of its evolution.
 .. image:: Heat_Wave_Hamiltonian.png
 
 .. image:: Heat_Wave_Hamiltonian_log.png
+
+
+Long-time wave gallery exploration (v1.3.0)
+-------------------------------------------
+
+The canonical source now generates **its own**
+long-time energy and wave-visualization files,
+using real GetFEM/PETSc fields. For an annulus
+containing the wave equation
+(``heat_region=1``, ``wave_region=2``),
+run the reproducible Docker showcase
+**after** separately passing the strict
+short-horizon physical CN gate:
+
+.. code-block:: bash
+
+   cd ~/Simulations/scrimp
+   SCRIMP_DOCKER_NO_SUDO=1 \
+   SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+   bash scripts/run-v130-heat-wave-long-showcase.sh
+
+The profile selected by default in this
+*showcase* is an angular wave packet
+``gallery_packet`` concentrated near the
+outer annulus, with initial oscillation
+``cos(14*theta)``. It is **not** a computed
+waveguide/cavity eigenmode. To generate
+the **original Gaussian** heat–wave case
+over the same long horizon, use
+``SCRIMP_V130_HW_SHOWCASE_PROFILE=gaussian``
+with the command above.
+In both cases, ``initial_wave_boundary="clamp"``
+enforces the homogeneous Dirichlet
+condition exactly on the filtered
+exterior CG1 degrees of freedom, after
+the real default L² projection.
+``constrained_l2`` is the alternative
+true GetFEM-mass minimizing correction
+(MPI1 only). The strict algebraic
+initializer is never relaxed.
+
+The physical example automatically
+writes in ``outputs/showcase/heat_wave_annulus``:
+
+- ``heat_wave_H_long_loglog.png`` and
+  ``.svg``, together with the native
+  ``heat_wave_FE_H_long.npz`` numerical
+  trajectory (zero time is excluded
+  **only** from the log-log plot);
+- four original FE ``p`` snapshots
+  of the outer annulus and
+  ``wave_annulus_long.gif`` using
+  at most 48 genuine saved VTK frames,
+  with a fixed scalar color scale;
+- ``wave_outer_shell_kinetic_proxy.png``
+  showing an approximate CG1
+  kinetic-velocity fraction in
+  the outer ring ``r>=0.82``;
+- ``provenance.json`` with the
+  exact selected GetFEM times,
+  the initial profile, and explicit
+  qualification limitations.
+
+All original ``T``, ``p`` and
+``q`` VTK/PVD time series are
+retained for detailed ParaView
+inspection. The **H(t)** curve is an
+actual FE Hamiltonian quadrature;
+the images show actual native
+GetFEM fields at nodes.
+The radial diagnostic samples **only
+CG1 kinetic energy**, with a
+centroid-based shell approximation.
+It is **not** the full wave energy,
+a modal eigenanalysis, or a
+whispering-gallery proof. Such a
+claim would additionally require
+persistent near-boundary localization
+and a mode/directional propagation
+study. See
+`the v1.3.0 Heat–Wave physical report
+<https://github.com/g-haine/scrimp/blob/release/1.3.0-preparation/docs/V130_HEAT_WAVE_PHYSICAL_AUDIT.md>`_
+for the distinct native qualification
+and evidence.
+
+**Status:** the short native physical
+gate and these new long-run visual outputs
+must be rerun after the initial
+boundary correction was integrated
+into the canonical example; prior
+MPI interface proofs are preserved.
 
