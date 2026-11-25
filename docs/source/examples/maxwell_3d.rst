@@ -26,7 +26,7 @@ Let :math:`\Omega` be the unit ball in
 :math:`\mathbb R^3`, filled with a homogeneous,
 isotropic, lossless material with **dimensionless**
 :math:`\varepsilon=\mu=1`. The electric field
-:math:``E`` and the magnetic induction :math:``B`` satisfy
+:math:`E` and the magnetic induction :math:`B` satisfy
 
 .. math::
 
