@@ -352,7 +352,7 @@ defect ``4.11e-15``, while about
 **37.20%** of the initial electric energy
 is stored magnetically at ``t=0.2``.
 The independent GetFEM magnetic-divergence
-integral ``∫(div B)²`` remains
+integral :math:`\int_{\Omega}(\operatorname{div} B)^2\,\mathrm dx` remains
 at most ``4.2153e-28`` on MPI1.
 
 The maximum coefficient difference between
