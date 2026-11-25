@@ -6,7 +6,12 @@ MUMPS MPI1/2, SuperLU MPI1 et SuperLU_DIST explicitement raffiné
 MPI1/2 ; l'option standard SuperLU_DIST reste FAIL (gate 3/5).
 Étape **2B native PASS en MUMPS MPI1/2** sur le véritable modèle
 dissipatif : 10 pas CN, bilan H-H0=W-D, quadrature indépendante,
-trajectoires MPI et exports VTK validés. SuperLU_DIST non testé pour 2B.  
+trajectoires MPI et exports VTK validés. SuperLU_DIST non testé pour 2B.
+Étape **2C native PASS en MUMPS MPI1/2** sur le modèle coénergétique
+réparé : 2459 DOFs, 10 pas CN, DAE algébrique exacte, deux dissipations
+physiques, bilan énergétique à ~1e-15 et exports GetFEM/VTK/CSV/PNG/SVG/GIF
+contrôlés. SuperLU_DIST, convergence et démonstration temps long
+non qualifiés pour 2C.  
 **Ordre dans Sphinx :** `examples/wave.rst` comporte la conservative
 puis sa section « Adding Damping to the dphs » ; la page
 `examples/wave_coenergy.rst` suit séparément. Cet ordre est conservé.
@@ -136,6 +141,120 @@ ni qualification SuperLU_DIST. Le modèle 2A et
 notamment la compliance `T^{-1}`, la localisation des
 ports dissipatifs et le bilan `H-H0=W-D_interne-D_feedback`.
 
+## Qualification native 2C — PASS MUMPS MPI1/2, énergétique et visuelle (25 novembre 2026)
+
+**Verdict final sur le pilote de référence : PASS**, après examen
+de l'archive originale
+`v130-wave2d-coenergy-eeae81f7-siWdW8ft.zip`
+(source exacte `eeae81f7099e61ed6edf62941c782e9d2ea56f2d`,
+image `scrimp-mpi:v1.3.0-rc3`, révision Docker
+`1d6d0c90115213298047b28237a7f38087563a35`).
+
+La physique est celle de `examples/wave_coenergy.py` : vrai
+tenseur de compliance anisotrope `T^{-1}`, masse `rho=3-x`,
+états coénergétiques substitués, disque interne amorti,
+couronne non amortie, et feedback **passif**
+`U=+0.5Y` sur le bord externe. La convention
+Grad–Grad conservée est `Y=-p` en trace faible.
+Le bilan imposé et vérifié par quadrature originale est :
+
+```text
+H(t) - H(0) + Li(t) + Lb(t) = 0
+Di = integral_region1(e_r**2/nu)
+   = -integral_region1(p*e_r) >= 0
+Db = integral_region20(U*Y)
+   = integral_region20(0.5*Y**2) >= 0
+Li = sum_k dt[k]*Di[k] ; Lb = sum_k dt[k]*Db[k]
+```
+
+| Observation native | MUMPS MPI1 | MUMPS MPI2 |
+|---|---:|---:|
+| Maillage `h=0.2`, `dt=0.008`, `t_f=0.08` | identique | identique |
+| Nombre de DOFs | 2459 | 2459 |
+| Pas CN / rejets / échecs non linéaires | 10 / 0 / 0 | 10 / 0 / 0 |
+| Initialisation DAE algébrique / préservation exacte états | PASS | PASS |
+| Défaut énergétique maximal par pas | `9.810538883e-16` | `4.391831950e-16` |
+| Défaut énergétique cumulé maximal | `7.171997371e-16` | `2.602085214e-16` |
+| Dissipation interne cumulée `Li(tf)` | `0.035508373983860454` | `0.035508373983860454` |
+| Dissipation de feedback `Lb(tf)` | `0.0010393723378964645` | `0.001039372337896465` |
+| 10/10 gates physiques | PASS | PASS |
+| Série VTK native `q,p,e_r` | 3 × 11 images | 3 × 11 images |
+
+Mesures finales originales (MPI1) :
+`H(0)=0.25557110317334153`,
+`H(tf)=0.21902335685158436`,
+diminution `0.03654774632175717` (environ 14.3 %),
+dont ~97.2 % par dissipation interne et ~2.8 %
+par feedback de bord.
+Le contrôle algébrique, les deux quadratures indépendantes
+de dissipation interne, la quadrature du feedback et
+la positivité de ses pertes ont tous passé leurs seuils.
+
+Parité native MPI1/MPI2 sur toutes les **trajectoires FE** :
+`max|z1-z2|=2.6865565328e-11`,
+`max|H1-H2|=8.0491169285e-16`,
+`max|Di1-Di2|=4.4408920985e-14`.
+Les trajectoires `rank0`/`rank1` du cas MPI2
+sont identiques élément par élément et leurs SHA256
+correspondent aux métadonnées. L'archive conserve les
+mesures originales, les journaux, les paramètres, la
+provenance, les XML `PVD` et les 66 fichiers `VTU`
+GetFEM (33 par cas : 3 champs × 11 instants).
+
+**Sorties pédagogiques également produites et examinées** :
+
+- `visuals/field_snapshots.png` / `.svg` : vitesse
+  `p`, norme de la contrainte `|q|`, port résistif `e_r`
+  aux temps `0, 0.04, 0.08` avec échelles de couleur
+  fixes d'une image à l'autre pour chaque champ ;
+- `visuals/energy_balance.png` / `.svg` : superposition
+  `H-H0` et `-(Li+Lb)`, puissances et défaut
+  d'équilibre à la précision machine ;
+- `visuals/p_evolution.gif` : animation du **champ FE réel**
+  `p` sur les 11 états sauvegardés ;
+- `visuals/energy_and_ports.csv` : 11 lignes de
+  valeurs d'énergie/puissance cohérentes avec le NPZ,
+  plus `visuals/provenance.json` et `README.txt`.
+
+La précision des images `VTU Float32` est réservée à
+l'affichage : les critères scientifiques sont évalués
+sur les intégrales éléments finis originales.
+Le rendu du disque confirme la localisation de
+la dissipation au centre, tandis que les changements
+de contrainte apparaissent au fil des premiers pas.
+Il reste **qualitativement limité par le temps
+court (0.08) et le maillage pilote (0.2)**.
+
+Le pilote complet, désormais qualifié, se reproduit par :
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+conda activate scrimp
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-wave2d-coenergy-pilot.sh
+```
+
+**Étape suivante distincte** : démonstration longue et
+résolue en MUMPS MPI1, `h=0.1`, `t_f=1`, `dt=0.01`
+(par défaut), avec figures/animation depuis les
+véritables états GetFEM, puis inspection visuelle
+des effets de propagation et d'amortissement :
+
+```bash
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-wave2d-showcase.sh 2c
+```
+
+**Portée de la qualification 2C :** MUMPS MPI1/2,
+10 pas CN sur le maillage pilote et bilan d'énergie
+mesuré, pas encore une étude de convergence,
+de longues simulations ou une qualification
+SuperLU_DIST. Aucune modification de
+`examples/published/` ni de `master`.
+
 ## Troisième pilote 2C : bilan de puissance et orientation de bord (25 novembre 2026)
 
 Archive GetFEM originale `v130-wave2d-coenergy-e1c5bc50-bRo68Qaf.zip`,
@@ -185,12 +304,13 @@ pour interdire un nouveau renversement de signe sans
 le signaler ; le test ne remplace pas une exécution
 native du modèle corrigé.
 
-**Statut** : l'ancien scénario est NON QUALIFIÉ ;
-la nouvelle loi passive exige une **nouvelle exécution
-GetFEM/PETSc MUMPS MPI1/2**, les contrôles du fichier
-NPZ et l'export VTK ainsi que les images réelles. Ne
-pas confondre le succès du TS de l'essai précédent
-avec une qualification physique.
+**Statut de cette tentative historique** :
+le scénario de signe erroné est NON QUALIFIÉ,
+mais **la nouvelle loi passive a depuis réussi**
+la qualification MUMPS MPI1/2, avec archive et
+visualisations natives (section PASS ci-dessus).
+Le succès du TS de l'essai ancien ne constituait
+pas en soi une qualification physique.
 
 ## Deuxième pilote 2C : feedback linéaire à gain constant (25 novembre 2026)
 
@@ -283,10 +403,13 @@ réussit. Aucune modification de la physique 2C, de
 
 ## 2C coénergie : candidat natif et visualisations réelles (25 novembre 2026)
 
-**Statut : candidat 2C prêt à tester, PAS encore qualifié**. Aucune
-simulation native MPI1/MPI2 2C n'a été constatée à ce stade. Cette
-étape ne modifie ni la physique déjà qualifiée de 2A/2B, ni
-`scrimp/dphs.py`, ni `examples/published/`.
+**Statut historique de cette étape de préparation :
+candidat 2C pas encore qualifié à cette date de travail**.
+La qualification native MUMPS MPI1/2 est désormais PASS,
+cf. la section dédiée ci-dessus. Les huit
+`examples/published/` sont restés intacts ;
+des correctifs génériques dans SCRIMP ont été
+nécessaires, puis validés sur le pilote.
 
 Le code canonique `examples/wave_coenergy.py` conserve les
 **états coénergétiques substitués** `q` (contrainte) et `p`
