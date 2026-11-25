@@ -650,9 +650,86 @@ MPI 1 and 2, original inviscid weak forms,
 homogeneous boundary controls and lagged G.
 The **default** ``T=0.5`` with ``pseudo``
 initialization, mesh convergence,
-higher-index rotating viscous Saint--Venant
-and exact BDF2 power conservation remain
-separate, unqualified objectives. See
+exact BDF2 power conservation and
+the research-only rotating viscous
+Saint--Venant (which is **not** an SCRIMP
+release example) remain outside
+the example qualification. See
 `the v1.3.0 inviscid Saint--Venant acceptance protocol
 <https://github.com/g-haine/scrimp/blob/release/1.3.0-preparation/docs/V130_SHALLOW_WATER_EXAMPLE_ACCEPTANCE.md>`_
 for the exact gates, earlier proofs and limits.
+
+
+Original inviscid free-surface visualizations (v1.3.0, opt-in)
+-------------------------------------------------------------
+
+The shallow-water **example** also has a genuine, opt-in visual
+mode. It is **not** the separately studied, viscous rotating
+Saint--Venant research model (with or without feedback),
+associated with MCSS and LHMNC 2027.
+
+The usual ``python -m examples.shallow_water`` remains unchanged:
+historical ``pseudo`` initialization, 0.5 time horizon,
+standard Hamiltonian figure and native h ParaView export.
+To illustrate the **original inviscid example** using
+the separately qualified ``nonlinear_affine`` initializer,
+run the real BDF2 simulation and render its GetFEM fields:
+
+.. code-block:: bash
+
+   cd ~/Simulations/scrimp
+   git pull --ff-only
+   conda activate scrimp
+
+   SCRIMP_DOCKER_NO_SUDO=1 \
+   SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+   bash scripts/run-v130-shallow-water-showcase.sh
+
+The visual pilot uses MUMPS MPI1, ``t_f=0.12``,
+``dt=0.0001``, and ``dt_save=0.002``
+by default (1,200 intended accepted BDF2 steps,
+approximately 61 true saved states). It creates
+**original GetFEM ParaView h and p time series**
+and renders all of the following **inside the
+canonical example's visualization module**:
+
+- Three synchronized views in
+  ``figures/saint_venant_surface_vitesse.gif``:
+  the 2-D free surface represented as a **3-D
+  height graph** (not a simulated 3-D fluid),
+  a top-down map of actual water height
+  ``h``, and arrows of actual velocity
+  ``v=p/rho``.
+- Four native GetFEM h/p PNG snapshots
+  spanning the simulation, with fixed
+  height/velocity color ranges and no
+  invented intermediate time states.
+- ``figures/saint_venant_H_masse_bilan.png``
+  and the equivalent SVG with actual
+  GetFEM kinetic and potential Hamiltonian,
+  conserved mass, and *measured* BDF2
+  defect after external boundary work.
+- The distinct original CG2 ``h`` and DG1
+  ``p`` VTU meshes for inspection in ParaView,
+  original numeric energy/mass traces and
+  explicit provenance.
+
+All spatial views use the actual
+GetFEM-exported FE values. The per-triangle
+average is a **graphical coloring rule only**;
+physical integrals are independently assembled
+by GetFEM. The GIF uses at most 36 true
+saved snapshots with no time interpolation.
+Neither this visualization nor the existing
+two-time-step experiment proves exact
+BDF2 Hamiltonian conservation.
+
+**Status:** this longer visual scenario is
+**prepared but awaits its native run**.
+The published numerical MPI1/2 physical
+qualification above remains valid for
+``T=0.002`` and does not silently extend
+to ``T=0.12``. See
+``the dedicated inviscid SWE visual and physical protocol
+<https://github.com/g-haine/scrimp/blob/release/1.3.0-preparation/docs/V130_SHALLOW_WATER_EXAMPLE_ACCEPTANCE.md>``_
+for acceptance scope and the original archives.
