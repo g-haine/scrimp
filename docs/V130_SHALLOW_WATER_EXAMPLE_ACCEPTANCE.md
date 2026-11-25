@@ -1,9 +1,102 @@
 # SCRIMP v1.3.0 — Qualification de l'exemple Saint-Venant 2D non visqueux
 
-**Statut au 25 novembre 2026 : nouveau pilote natif borné préparé ;
-exécution et qualification encore EN ATTENTE.** Ce document concerne
+**Statut au 25 novembre 2026 : PASS natif du pilote BDF2 borné,
+MPI 1/2 et deux raffinements temporels au même temps final.**
+Archive GetFEM/PETSc originale vérifiée indépendamment :
+`v130-shallow-original-extended-9d7a4df7-c8ZnnOFN.zip`.
+La qualification concerne la trajectoire `T=0.002` avec
+initialisation `nonlinear_affine` choisie explicitement,
+**pas** l'exécution publique historique `T=0.5` / `pseudo`. Ce document concerne
 le vrai `examples/shallow_water.py` du tutoriel Sphinx, **pas** le
 modèle tournant visqueux du répertoire `sandbox/`.
+
+## Qualification native acquise — campagne MPI1/MPI2 à temps final fixe
+
+**Provenance exacte :** source Git
+`9d7a4df78f4fe48e9186e5d255cc9f95e5873291`,
+image `scrimp-mpi:v1.3.0-rc3`, révision OCI
+`1d6d0c90115213298047b28237a7f38087563a35`.
+Archive utilisateur originale
+`v130-shallow-original-extended-9d7a4df7-c8ZnnOFN.zip`,
+**SHA256**
+`47a2dd674d45372314b281e1624fd60e28d77f46b9db37b4b0f881ab4fc92d70`.
+Le `summary.json` original indique
+`PASS_SWE_BOUNDED_NATIVE_BDF2_MPI1_MPI2`,
+`errors=[]` et
+`published_examples_modified=false`.
+Les quatre processus Docker se sont terminés avec
+`exit_code=0`, sans aucun pas rejeté ni échec SNES.
+
+**Relecture indépendante du ZIP :** les six fichiers
+`shallow_fe_rank*.npz` contiennent les **vrais coefficients FE
+complets de 4 270 DOFs**, les dates, le Hamiltonien, la
+masse et les puissances des frontières, un fichier par rang.
+La relecture vérifie le maillage temporel de 21 ou 41
+états, la fin exacte à `t=0.002`,
+la cohérence NPZ/rapports JSON,
+`H(t)-H(0)-\int P_{bord}dt`,
+la reproductibilité coefficient par coefficient
+sur MPI1/MPI2, et l'identité
+**bit-à-bit des deux rangs MPI2**.
+Le schéma BDF2, les données prescrites et le
+terme `G` explicitement retardé restent originaux ;
+la sélection `nonlinear_affine` ne modifie
+que l'initialisation DAE du test.
+
+| Grandeur native (à `T=0.002`) | 20 pas / MPI1 | 20 pas / MPI2 | 40 pas / MPI1 | 40 pas / MPI2 |
+|---|---:|---:|---:|---:|
+| `dt` | `1e-4` | `1e-4` | `5e-5` | `5e-5` |
+| Degrés de liberté | 4270 | 4270 | 4270 | 4270 |
+| États FE réels enregistrés | 21 | 21 | 41 | 41 |
+| Nombre de rejets / échecs SNES | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| Dérive relative de masse | `3.0199e-15` | `1.7764e-15` | `4.2634e-15` | `2.1317e-15` |
+| `max abs(P_bord)` | 0 | 0 | 0 | 0 |
+| `H(0)` | `31659.721892373385` | `31659.721892373353` | `31659.721892373385` | `31659.721892373353` |
+| `H(T)` | `31659.714296554033` | `31659.714296554073` | `31659.718048003433` | `31659.718048003422` |
+| `H(T)-H(0)-W_{bord}` | `-0.00759581935199094` | `-0.007595819279231364` | `-0.0038443699522758834` | `-0.0038443699304480106` |
+| Dérive relative du Hamiltonien | `2.39921e-7` | `2.39921e-7` | `1.21428e-7` | `1.21428e-7` |
+
+**Parité numérique (maximum absolu sur TOUS les états temporels) :**
+pour 20 pas, `max |z_MPI1-z_MPI2|=9.094947017729282e-11`,
+`max |H_MPI1-H_MPI2|=1.4551915228366852e-10` ;
+pour 40 pas, respectivement
+`1.2732925824820995e-10` et
+`1.4915713109076023e-10`.
+Les deux tableaux originaux des rangs MPI2
+sont **strictement égaux** pour
+`t,z,H,mass,boundary_power`.
+
+**Tendance de la perte énergétique BDF2 :**
+à temps final et maillage spatial identiques,
+`|ε_H(1e-4)|/|ε_H(5e-5)|=1.9758294457312005`,
+soit un exposant **observé** sur seulement deux points
+`log2(ratio)=0.9824584183712797`.
+Le défaut mesuré est **négatif** dans les quatre cas
+(perte numérique d'énergie, sans travail au bord).
+Avec le splitting gyroscopique retardé, ce
+comportement est **compatible avec une erreur de bilan
+au premier ordre**, sans établir l'ordre de convergence
+de la solution, un exposant asymptotique, ni une propriété
+exactement dissipative de tout le modèle.
+Le champ initial `h_0` étant discontinu, une étude
+d'erreur spatiale et plusieurs `dt`
+sont nécessaires pour conclure davantage.
+La sortie antérieure `relative_energy_defect_exchanged=1`
+est **tautologique** dans ce problème fermé
+(`W_{bord}=0`) et ne constitue pas un critère physique
+de succès ; l'audit retient le **défaut signé**
+et sa normalisation par `H(0)`.
+
+**Classification finale :**
+`PASS_SWE_BOUNDED_NATIVE_BDF2_MPI1_MPI2`.
+Le PASS couvre exactement 4 calculs physiques
+(MUMPS, 20/40 pas, MPI1/2, `T=0.002`),
+le jacobien de masse et l'initialiseur ayant déjà
+leurs preuves natives séparées.
+Il **ne** qualifie **pas** `T=0.5` avec
+initialisation `pseudo`, la convergence en
+maillage, la conservation exacte BDF2, le Saint-Venant
+visqueux tournant ni le solveur DAE d'indice supérieur.
 
 ## Périmètre scientifique exact
 
@@ -44,7 +137,7 @@ formulation linéaire CN conservative.
   la campagne `scripts/run-v130-issue28-shallow-energy-refinement.sh`
   et son comparateur.
 
-## Nouvelle étape — simulation non visqueuse plus longue, MPI 1/2
+## Procédure native de reproduction — campagne acquise
 
 ```bash
 cd ~/Simulations/scrimp
@@ -65,7 +158,7 @@ avec préservation bit-à-bit des données différentielles
 originales, et les mêmes BDF2, FEM, `G` retardé et
 contrôles nuls.
 
-**Quatre simulations indépendantes** sont proposées :
+**Quatre simulations indépendantes, toutes exécutées et qualifiées :**
 
 | Temps final fixé | Pas de temps BDF2 | Pas acceptés visés | Nombre de rangs |
 |---|---:|---:|---|
@@ -110,7 +203,7 @@ Le contrôle d'immutabilité des huit fichiers
 `examples/published/` est exécuté au préalable.
 Des tests négatifs hôtes valident la résistance
 du comparateur à des coefficients FE incohérents ;
-**ces tests ne sont pas un PASS natif**.
+**ces seuls tests ne constituent pas un PASS natif**. Le PASS physique est désormais établi par l'archive native vérifiée ci-dessus.
 
 ## Qualifications encore ouvertes
 
