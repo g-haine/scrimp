@@ -114,7 +114,7 @@ class WaveCoenergySourceTests(unittest.TestCase):
                      "field_snapshots",".svg",
                      "p_evolution.gif","energy_balance",
                      "energy_and_ports.csv","provenance.json",
-                     "Refusing to render unqualified native physics"):
+                     "Refusing unqualified selected native physics case"):
             with self.subTest(term=term):
                 self.assertIn(term,self.renderer)
 
