@@ -89,6 +89,76 @@ ni une validation de la loi de Gauss
 électromagnétiques sous condition PEC,
 ni un test SuperLU_DIST.
 
+## Visualisation intégrée au fichier de l'exemple (25 novembre 2026)
+
+Le fichier canonique **`examples/maxwell_3d.py` génère désormais
+lui-même tous les visuels** lors de son exécution avec
+`--export --output <répertoire>`. Il n'est
+plus nécessaire d'exécuter un post-traitement
+externe après le pilote ; les résultats sont
+produits et archivés par la même simulation.
+
+Le calcul et les neuf portes scientifiques
+sont **strictement inchangés**. Une fois les
+exports collectifs `export_to_pv("E")` et
+`export_to_pv("B")` terminés, **seul le
+rang MPI 0** lit les données VTK et écrit
+dans `<répertoire>/visuals/` :
+
+- `maxwell3d_echange_energie.png` et
+  `.svg` : énergies `H_E`, `H_B`
+  et `H=H_E+H_B` directement issues des
+  quadratures FE GetFEM, à chaque temps CN
+  sauvegardé ;
+- `maxwell3d_vecteurs_E_tfinal.png` et
+  `maxwell3d_vecteurs_B_tfinal.png` :
+  champ vectoriel 3D **réel**, au temps
+  final, avec une trame constituée des
+  arêtes extérieures des tétraèdres VTK ;
+- `maxwell3d_B_3D_animation.gif` :
+  évolution 3D de `B` sur **tous** les
+  instants sauvegardés, caméra, domaine
+  et longueur de flèches fixes ;
+- `provenance.json` et `README.txt` :
+  SHA256 du vecteur d'état FE original,
+  effectifs de points et de tétraèdres,
+  nombre d'images, avertissement
+  pédagogique sur les flèches nodales.
+
+**Interprétation rigoureuse des images :**
+les flèches représentent des valeurs
+vectorielles aux nœuds VTK calculées par
+GetFEM, **pas** des degrés de liberté
+intrinsèques d'arête Nédélec ou de face RT.
+Aucun champ analytique ni état temporel
+synthétique n'est introduit pour la
+visualisation. Les bilans énergétiques
+physiques restent construits sur les
+quadratures FE originales, et non les
+normes des flèches nodales. La lecture
+VTU/PVD utilise `base64`, `ElementTree`,
+`NumPy`, `matplotlib` et `Pillow` via
+la pile graphique existante de l'image ;
+elle ne dépend pas de `vtk` Python.
+
+Le pilote MUMPS MPI1/2 exige maintenant la
+présence de **tous ces fichiers**, vérifie
+leur format, les **11 images du GIF** et
+l'égalité du SHA256 de provenance avec
+la trajectoire native de chaque
+configuration. Un échec graphique
+interrompt le PASS intégré et reste
+enregistré dans l'archive d'échec.
+
+**État au moment du changement :**
+le modèle Maxwell 3D physique a déjà été
+qualifié au commit `daac18cb`, mais la
+nouvelle génération automatique des visuels
+doit faire l'objet d'une **nouvelle
+exécution native**. Ne pas annoncer le
+rendu intégré comme validé avant le
+PASS correspondant.
+
 ## Objectif et justification
 
 Montrer en quelques lignes de physique et **quatre briques SCRIMP**
