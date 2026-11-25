@@ -5,6 +5,119 @@ MUMPS MPI1 PASS (10/10), and both authentic 15-second visual
 simulations independently re-audited on their archived evidence.
 No long-horizon subsystem-power PASS or gallery eigenmode is implied.**
 
+## Next native qualification: MPI2 FE parity and 15-second full power accounting — PENDING
+
+The original canonical Heat–Wave PDE has now been
+extended with an **output-only** switch
+`heat_wave_eq(..., physics_only=True)`,
+which runs the same real GetFEM/PETSc equations,
+strict algebraic DAE initializer and boundary
+`clamp`, creates the same Hamiltonian terms, and
+omits only the PNG/PVD writers. The existing
+default tutorial output behavior is unchanged.
+This resolves the known MPI file-writing conflict
+without ever mocking the solve, the FEM or a
+physical quadrature.
+
+The two-stage fail-closed acceptance script is:
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+conda activate scrimp
+
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-heat-wave-mpi-long-physics.sh
+```
+
+**Stage A — distributed full FE equivalence:**
+run the *same* gaussian canonical Heat–Wave model
+with MUMPS MPI1 and MPI2, 4 fixed CN steps of
+`0.001`. Require all oriented heat, wave, outer
+power and dissipation gates **on every rank**;
+archive the complete `5 x 7689` original GetFEM
+state vectors from each rank; compare all
+coefficient and FE quadrature traces across
+MPI1 and MPI2 with explicit
+`atol=5e-10, rtol=2e-8`, and require exact
+agreement of the two independently saved MPI2
+rank histories. An MPI2 physics or parity
+failure **prevents the long run**.
+
+**Stage B — the complete 15-second dissipative
+energy-power identity:** MUMPS MPI1,
+`dt=0.005`, `t_f=15`,
+**3,000 genuine CN steps and 3,001 original
+accepted-time observations**. The scientific
+difference from the already completed long
+**visual** simulations is crucial: their
+`dt_save=0.05` stored only **301 states**.
+They prove the long-time evolution of
+`H(t)`, but the CN midpoint identity
+`H^{n+1}-H^n=-dt D^{n+1/2}+dt P^{n+1/2}`
+cannot be tested by treating their
+*ten-step* gaps as one CN step.
+The new stage sets **`dt_save=dt`**,
+requiring every accepted FE state. GetFEM
+reassembles physical observables on
+the **real midpoint FE state of every
+single CN step**, never a fabricated
+subsampled midpoint. It measures:
+
+- independent heat and wave energies
+  and their sum, plus nonnegative and
+  nontrivial true heat-flux dissipation;
+- **each** heat and wave subsystem
+  energy balance and independently
+  recomputed total CN energy balance;
+- signed cancellation of power at the
+  automatically assembled two outward
+  interface facets and zero outer work;
+- **all-step cumulative**
+  `H(t)-H(0)+sum dt*D-sum dt*P` and
+  nonincreasing total Hamiltonian.
+
+The native probe writes full original
+FE histories for the **short MPI parity**
+but keeps the **long** evidence compact
+(the entire native time/H/energy/power
+traces, original first/last FE vectors
+and SHA256 of the complete original
+state history). Rank-local original
+data, run logs, image and source
+manifest, independently recomputed
+host-gate JSON and a ZIP are preserved
+even when a criterion fails.
+
+Default Stage B uses the historical
+`gaussian` profile to allow an extra
+independent end-state comparison with
+the genuine pre-existing
+`v130-heat-wave-long-gaussian-b9d56fcc-ySKGPg7G.zip`.
+To *separately* audit the alternative
+annular excitation, use
+`SCRIMP_V130_HW_LONG_PROFILE=gallery_packet`.
+For a cheap diagnostic dry run rather
+than full-time qualification, set
+`SCRIMP_V130_HW_LONG_STEPS=100`;
+the report records the actual horizon
+and makes no 15-second claim.
+
+**The full 15-second power proof and the
+current canonical MPI2 run remain
+PENDING until the real Docker image
+produces the new evidence.** Successful
+previous parallel-interface research
+pilots and completed 15-second visual
+runs are separate, still-valid
+qualifications; none is substituted for
+the requested new tests.
+Parallel VTK writing, SuperLU_DIST,
+modal whispering galleries and
+spatiotemporal convergence remain out
+of scope.
+
 ## Qualification after DAE initial correction — PASS (25 November 2026)
 
 **Source/archived evidence:** canonical
