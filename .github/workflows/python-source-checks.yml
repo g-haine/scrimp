@@ -70,6 +70,17 @@ jobs:
           python tests/test_v130_coenergy_boundary_power_orientation.py
           python scripts/check-v130-published-immutable.py
 
+      - name: Guard original nonlinear inviscid Saint-Venant extended BDF2 MPI physical pilot (source only)
+        run: |
+          python -m py_compile \
+            examples/shallow_water.py \
+            sandbox/probe_v130_issue28_shallow_short_physical.py \
+            scripts/verify-v130-shallow-water-extended.py \
+            tests/test_v130_shallow_water_extended_source.py
+          bash -n scripts/run-v130-shallow-water-extended-physical.sh
+          python tests/test_v130_shallow_water_extended_source.py
+          python scripts/check-v130-published-immutable.py
+
       - name: Guard genuine Heat-Wave MPI1/MPI2 FE parity and all-steps long CN physics (source only)
         run: |
           python -m py_compile \
