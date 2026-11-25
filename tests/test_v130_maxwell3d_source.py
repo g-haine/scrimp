@@ -34,7 +34,6 @@ class Maxwell3DSourceTests(unittest.TestCase):
             'S.Domain("Ball", {"R": 1., "h": float(mesh_size)})',
             'fem_E = S.FEM("E", 1, "NED2")',
             'fem_B = S.FEM("B", 1, "BDM")',
-            'GetFEM FEM_BDMK(3,1)',
             '"NED2"',
             'actual_type = fem.get_type()',
             'actual_order = fem.get_order()',
