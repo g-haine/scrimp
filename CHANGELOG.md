@@ -5,6 +5,55 @@ Changes to SCRIMP are recorded here. See also the
 
 ## 1.3.0 — in development (not released)
 
+### Exemple 2C : qualification physique complète MUMPS MPI1/MPI2 PASS (25 novembre 2026)
+
+- Archive GetFEM/PETSc native `v130-wave2d-coenergy-eeae81f7-siWdW8ft.zip`,
+  commit exact `eeae81f7099e61ed6edf62941c782e9d2ea56f2d`,
+  image `scrimp-mpi:v1.3.0-rc3` :
+  **10/10 pas CN sur 2459 DOFs**, MUMPS MPI1 et MPI2,
+  aucun rejet ni échec non linéaire, initialisation
+  DAE algébrique PASS (états différentiels préservés).
+  Les dix critères scientifiques sont PASS des deux côtés.
+- La vraie compliance anisotrope `T^{-1}`, les deux
+  régions concentriques, la loi intérieure `e_r/nu=-p`
+  (projection faible) et le feedback de bord passif
+  `U=+0.5Y` sont simultanément validés :
+  `H(tf)-H(0)+Li(tf)+Lb(tf)=0`.
+  `Li=0.035508373983860454`,
+  `Lb=0.0010393723378964645` ;
+  `H(0)=0.25557110317334153`,
+  `H(tf)=0.21902335685158436` (MPI1).
+  Les pertes internes et externes sont positives et
+  cohérentes avec les quadratures FE indépendantes.
+- Erreurs énergétiques absolues maximales par pas :
+  `9.81e-16` (MPI1), `4.39e-16` (MPI2).
+  Défauts cumulés maximaux : `7.17e-16` /
+  `2.60e-16`. Écart maximal sur toutes les
+  trajectoires FE `z` MPI1/2 : `2.687e-11`.
+  Les deux rangs MPI2 ont des tableaux FE
+  numériquement identiques et leur SHA256 concorde.
+- Les **66 VTU GetFEM authentiques** (3 champs
+  `q,p,e_r` × 11 instants × 2 exécutions)
+  et six séries PVD ont été vérifiés.
+  Le pilote a produit et archivé les visuels
+  `visuals/field_snapshots.{png,svg}`,
+  `visuals/energy_balance.{png,svg}`,
+  `visuals/p_evolution.gif`, le CSV énergétique,
+  le README et la provenance. Le CSV et les images
+  ont été examinés ; les figures utilisent les
+  échantillons VTK Float32, tandis que les bilans
+  reposent sur les intégrales GetFEM originales.
+- **Portée : seulement MUMPS MPI1/2, h=0.2,
+  dt=0.008, tf=0.08 et dix pas CN**.
+  Reste à produire une démonstration longue
+  (`scripts/run-v130-wave2d-showcase.sh 2c`),
+  à examiner l'animation et à évaluer séparément
+  convergence, temps long et autres solveurs.
+  Pas de qualification SuperLU_DIST 2C,
+  ni de changement de `master` ou
+  `examples/published/`.
+
+
 ### Exemple 2C : identification de l'orientation énergétique réelle du port Grad–Grad (25 novembre 2026)
 
 - Archive originale `v130-wave2d-coenergy-e1c5bc50-bRo68Qaf.zip` :
@@ -38,8 +87,9 @@ Changes to SCRIMP are recorded here. See also the
   échoué** et valide le signe sans transformer
   cet échantillon en qualification du modèle
   réparé. CI et préflight 2C incluent ce test.
-- **Statut : nouvelle simulation MUMPS MPI1/2 avec
-  feedback corrigé attendue ; 2C reste NON QUALIFIÉ.**
+- **Statut historique de cette étape :** simulation
+  réparée alors attendue ; **désormais PASS en
+  MUMPS MPI1/2** (nouvelle entrée ci-dessus).
   Pas de modification de `examples/published/`
   ni de libéralisation des critères énergétiques.
 
