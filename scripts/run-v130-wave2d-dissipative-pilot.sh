@@ -230,7 +230,7 @@ if selected.get("exit_code")==0 and str(selected.get("status","")).startswith("P
         report["errors"].append("User-facing visual output failed: "+str(exc))
         if report["status"].startswith("PASS_"):
             report["status"]="FAIL_REQUIRED_2D_VISUAL_OUTPUT"
-    (folder/"summary.json").write_text(json.dumps(report,indent=2)+"\\n")
+    (folder/"summary.json").write_text(json.dumps(report,indent=2)+"\n")
 archive=Path(str(folder)+".zip")
 with zipfile.ZipFile(archive,"x",compression=zipfile.ZIP_DEFLATED,
                      compresslevel=4,allowZip64=True) as z:
