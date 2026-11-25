@@ -126,7 +126,7 @@ def main():
         "full_physics_gate_claimed":False,
     }
     (args.out/f"preflight-rank{rank}.json").write_text(
-        json.dumps(preflight,indent=2)+"\\n",encoding="utf-8"
+        json.dumps(preflight,indent=2)+"\n",encoding="utf-8"
     )
     if (times.shape!=(args.steps+1,)
             or H.shape!=times.shape or states.shape!=(len(times),7689)
