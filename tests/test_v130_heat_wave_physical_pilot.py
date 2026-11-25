@@ -42,7 +42,6 @@ class HeatWavePilotSourceTest(unittest.TestCase):
             "oriented_interface_power_cancels",
             "outer_homogeneous_boundary_power_zero",
             "nonnegative_nontrivial_heat_dissipation",
-            "np.diff(H)+dt*(d-interface-exterior)",
             "with zipfile.ZipFile",
             '"native_exit_code":rc',
             "MPI2_qualified",
@@ -53,6 +52,30 @@ class HeatWavePilotSourceTest(unittest.TestCase):
         self.assertIn("CN_per_step_wave_balance_error",self.diagnostic)
         self.assertIn("CN_cumulative_total_balance_error",self.diagnostic)
         self.assertIn("collect_heat_wave_physics(",self.probe)
+
+    def test_cn_physical_balance_is_the_actual_executable_expression(self):
+        """Check the three-step CN identity by AST, not text formatting."""
+        marker = "python3 - \"$out\" <<'PY'\n"
+        verifier = self.runner.split(marker, 1)[1].split("\nPY\n", 1)[0]
+        tree = ast.parse(verifier)
+        values = {}
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Assign):
+                for target in node.targets:
+                    if isinstance(target, ast.Name) and target.id in ("dH", "dt", "res"):
+                        values[target.id] = node.value
+        self.assertEqual(set(values), {"dH", "dt", "res"})
+        for name, expression in (
+            ("dH", "np.diff(H)"),
+            ("dt", "np.diff(t)"),
+            ("res", "dH + dt*(d-interface-exterior)"),
+        ):
+            with self.subTest(name=name):
+                expected = ast.parse(expression, mode="eval").body
+                self.assertEqual(
+                    ast.dump(values[name], include_attributes=False),
+                    ast.dump(expected, include_attributes=False),
+                )
 
     def test_real_shipped_model_and_readonly_native_mount(self):
         for token in (
