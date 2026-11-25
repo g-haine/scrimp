@@ -149,6 +149,20 @@ interconnection**, indeed, one has
 
        u^I_H = y^I_w, \qquad u^I_W = y^I_H.
 
+.. note:: Automatic assembly of conforming interfaces (v1.3.0)
+
+   For this ``Concentric`` mesh, SCRIMP automatically resolves the
+   logical interface region ``10`` into the two adjacent sets of
+   facets and assembles each normal-dependent weak term on its
+   correct subdomain side, using that side's outward normal. This
+   is the default on the v1.3.0 preparation branch. The physical
+   gyrator relations ``U_T = Y_w`` and ``U_w = Y_T`` remain
+   part of the *model*, not something inferred from mesh topology.
+   Unsupported or ambiguous conforming interfaces fail explicitly.
+   See the `interface assembly and MPI production policy
+   <https://github.com/g-haine/scrimp/blob/release/1.3.0-preparation/docs/V130_INTERFACE_PV_PRODUCTION_DECISION_20261124.md>`_
+   for the scope, geometric orientation and native qualification.
+
 Structure-preserving discretization
 -----------------------------------
 
