@@ -149,6 +149,42 @@ class ShallowWaterNativeVisualizationSource(unittest.TestCase):
         cls.module=importlib.util.module_from_spec(spec)
         spec.loader.exec_module(cls.module)
 
+    def test_single_file_example_contract_and_independent_offline_tools(self):
+        """The user-facing tutorial must NEVER split its code into examples/."""
+        self.assertEqual(HELPER,CANONICAL)
+        self.assertFalse(
+            (ROOT/"examples/shallow_water_visualization.py").exists()
+        )
+        module=ast.parse(self.model)
+        expected={
+            "shallow_water_eq",
+            "vtk_array",
+            "native_triangular_field",
+            "true_pvd_files",
+            "render_original_shallow_water_spatial_VTU",
+            "render_native_shallow_water",
+        }
+        functions={
+            n.name for n in module.body if isinstance(n,ast.FunctionDef)
+        }
+        self.assertTrue(expected.issubset(functions))
+        self.assertNotIn("shallow_water_visualization",self.model)
+        for utility in (
+            "scripts/recover-v130-shallow-water-showcase.py",
+            "scripts/verify-v130-shallow-water-showcase.py",
+        ):
+            source=(ROOT/utility).read_text(encoding="utf-8")
+            self.assertIn("from examples.shallow_water import (",source)
+            self.assertNotIn("shallow_water_visualization",source)
+        self.assertNotIn(
+            "shallow_water_visualization.py",self.runner
+        )
+        # No GetFEM/PETSc import is forced by standalone VTK helpers.
+        # True native simulation imports SCRIMP only when invoked.
+        self.assertNotIn("import scrimp as S",
+                         self.model.split("def shallow_water_eq(",1)[0])
+        self.assertIn("    import scrimp as S",self.model)
+
     def test_original_pseudo_default_and_optional_visualization(self):
         for needle in (
             'showcase=False, showcase_output=None',
