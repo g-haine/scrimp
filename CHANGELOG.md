@@ -5,6 +5,57 @@ Changes to SCRIMP are recorded here. See also the
 
 ## 1.3.0 — in development (not released)
 
+### Maxwell 3D — visuels automatiques produits par l'exemple lui-même (25 novembre 2026)
+
+- Le modèle qualifié `examples/maxwell_3d.py`
+  crée désormais **sans script de post-traitement**
+  ses propres figures et son animation dès
+  `--export --output <répertoire>` :
+  courbes `H_E/H_B/H` en **PNG/SVG** issues
+  des intégrales FE originales ; vraies
+  vues vectorielles 3D finales `E` et `B`
+  en PNG ; **GIF B(t)** de toutes les
+  images CN sauvegardées. Les flèches
+  utilisent exclusivement les valeurs
+  nodales des VTU/PVD tétraédriques
+  **GetFEM authentiques** ; aucune
+  interpolation en temps ou champ
+  synthétique. Les échelles 3D et
+  la caméra sont fixes dans le GIF.
+- Le seul **rang MPI0** effectue le rendu
+  après les exports GetFEM collectifs.
+  Les fichiers sont déposés dans
+  `<output>/visuals/` et enrichis d'un
+  `provenance.json` référençant
+  l'empreinte SHA256 de la trajectoire
+  native, le nombre de nœuds/tétraèdres,
+  les instants d'animation, et un
+  avertissement sur les vecteurs nodaux
+  (qui ne sont pas les DOFs Nédélec/RT0).
+  Aucune nouvelle dépendance `vtk` :
+  lecture VTK inline-base64 directement
+  dans le même exemple avec la pile
+  Matplotlib/Pillow déjà présente.
+- Le pilote
+  `scripts/run-v130-maxwell3d-pilot.sh`
+  **échoue explicitement** si les figures,
+  le GIF (11 images attendues) ou la
+  provenance native manquent, si le
+  lecteur rencontre une géométrie
+  non tétraédrique, ou si les champs
+  des VTK divergent de la série CN.
+  Tests de protocole VTK natif et de
+  générateur `--export` ajoutés à
+  `tests/test_v130_maxwell3d_source.py`.
+  **Aucune modification des équations,
+  des seuils physiques ou du noyau.**
+- **Qualification** : le calcul Maxwell
+  3D MUMPS MPI1/2 du commit
+  `daac18cb` est validé ; la
+  **nouvelle sortie graphique intégrée**
+  attend son propre pilote natif.
+
+
 ### Maxwell 3D Nédélec/RT0 — première qualification native MUMPS MPI1/MPI2 PASS (25 novembre 2026)
 
 - **PASS natif** sur `examples/maxwell_3d.py`,
