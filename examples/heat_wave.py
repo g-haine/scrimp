@@ -15,10 +15,14 @@
 
 # Import scrimp
 import scrimp as S
+import numpy as np
+
+from scrimp.utils.fe_initialization import enforce_zero_dirichlet_initial_values
 
 def heat_wave_eq(
     heat_region=1, wave_region=2, *, factor_solver=None,
     final_time=2.0, time_step=0.001, save_step=0.05,
+    initial_wave_boundary="clamp",
 ):
     """A physically oriented, energy-dissipative coupled heat-wave example.
 
@@ -47,6 +51,15 @@ def heat_wave_eq(
         final_time: physical end time.
         time_step: fixed Crank–Nicolson timestep.
         save_step: accepted trajectory sampling interval.
+        initial_wave_boundary: compatible wave velocity initialization
+            when the exterior boundary belongs to the wave region.
+            "clamp" (default) sets exactly the exterior CG1 degrees
+            of freedom to zero, leaving interior L2-projected
+            coefficients unchanged. "constrained_l2" computes the
+            closest zero-trace field in the physical GetFEM L2 norm
+            (MPI1 only). "unconstrained" reproduces the historical,
+            generally DAE-incompatible Gaussian for diagnostics only.
+            Neither valid method relaxes algebraic DAE constraints.
     """
     
     # Init the distributed port-Hamiltonian system
@@ -237,10 +250,47 @@ def heat_wave_eq(
     # === Dirichlet boundary condition
     hw.set_control("Boundary", "0.")
 
-    # Set the initial data
+    # Set the original physical fields with the default true FE L2
+    # projection (not a nodal interpolation).
     hw.set_initial_value("T", "5.*np.exp(-25*((x-0.6)*(x-0.6)+y*y))")
     hw.set_initial_value("p", "5.*np.exp(-25*((x-0.6)*(x-0.6)+y*y))")
     hw.set_initial_value("q", "[0.,0.]")
+
+    # For a wave annulus, the Gaussian projected in CG1 has nonzero
+    # exterior-boundary coefficients, while homogeneous Dirichlet
+    # requires p=0 there. The strict algebraic DAE initializer must
+    # REJECT that initial field, not silently alter its dynamic state.
+    #
+    # Both remedies were previously native-qualified on this exact
+    # Concentric Heat-Wave system: (1) clamp only boundary CG1 DOFs,
+    # or (2) mass-orthogonal constrained L2 correction. The default
+    # is the minimal transparent clamp; both keep T and q unchanged.
+    # When heat is outside, there is no exterior wave Dirichlet trace.
+    if initial_wave_boundary not in ("clamp", "constrained_l2", "unconstrained"):
+        raise ValueError("initial_wave_boundary must be clamp, constrained_l2 "
+                         "or unconstrained")
+    hw.heat_wave_initialization_report = {
+        "method": "not_required_heat_outer" if not outer_is_wave
+                  else "unconstrained_historical_diagnostic",
+        "boundary_compatibility_enforced": False,
+    }
+    if outer_is_wave and initial_wave_boundary != "unconstrained":
+        original_T = np.asarray(hw.gf_model.variable("T")).reshape(-1).copy()
+        original_q = np.asarray(hw.gf_model.variable("q")).reshape(-1).copy()
+        report = enforce_zero_dirichlet_initial_values(
+            hw, "p", volume_region=wave_region, boundary_region=20,
+            method=initial_wave_boundary, factor_solver="mumps",
+        )
+        if (not np.array_equal(
+                np.asarray(hw.gf_model.variable("T")).reshape(-1), original_T
+            ) or not np.array_equal(
+                np.asarray(hw.gf_model.variable("q")).reshape(-1), original_q
+            )):
+            raise RuntimeError(
+                "Wave boundary compatibility changed the heat/stress initial data"
+            )
+        report["boundary_compatibility_enforced"] = True
+        hw.heat_wave_initialization_report = report
 
     ## Solve in time
     # CN is the second-order time integrator used for the paper's
@@ -287,7 +337,6 @@ def heat_wave_eq(
     # A true log-log diagnostic must omit t=0, rather than plotting
     # zero on a logarithmic axis. Keep this separate from the energy
     # identity plot used for the physical qualification.
-    import numpy as np
     import matplotlib.pyplot as plt
     t = np.asarray(hw.solution["t"], dtype=float)
     Hamiltonian = np.asarray(hw.get_Hamiltonian(), dtype=float)
