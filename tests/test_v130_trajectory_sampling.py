@@ -106,6 +106,55 @@ class AcceptedTSSampling(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "finite"):
                     sampling.saved_time_is_due(*args)
 
+    def test_fixed_CN_each_accepted_step_is_stored_at_real_long_step_2999(self):
+        # Reproduce the specific observed Heat-Wave failure: accepted
+        # step 2999 is slightly earlier than last_saved_t + dt_save.
+        # The genuine PETSc monitor did NOT save step 2999 although
+        # 3000 CN steps converged. This test changes no TS physics.
+        dt=.005
+        t_2998=14.99
+        t_2999=14.995-1.e-12
+        target=t_2998+dt
+        self.assertFalse(sampling.saved_time_is_due(
+            t_2999,target,dt
+        ))
+        self.assertTrue(sampling.fixed_cn_accepted_step_is_due(
+            2999,dt=dt,dt_save=dt,
+            ts_type="cn",ts_adapt_type="none"
+        ))
+        self.assertEqual(
+            sum(sampling.fixed_cn_accepted_step_is_due(
+                    i,dt=dt,dt_save=dt,
+                    ts_type="cn",ts_adapt_type="none"
+                ) for i in range(1,3001)),
+            3000,
+        )
+
+    def test_fixed_CN_does_not_change_other_sampling_policies(self):
+        cases = (
+            (1,.005,.05,"cn","none"),   # deliberately subsampled
+            (1,.005,.005,"cn","basic"), # adapted TS
+            (1,.005,.005,"bdf","none"), # different scheme
+            (1,.005,.004,"cn","none"),  # unequal sampling
+            (-1,.005,.005,"cn","none"), # synthetic final callback
+            (0,.005,.005,"cn","none"),  # initial TS state
+        )
+        for step,dt,dt_save,scheme,adapt in cases:
+            with self.subTest(case=(step,dt,dt_save,scheme,adapt)):
+                self.assertFalse(sampling.fixed_cn_accepted_step_is_due(
+                    step,dt=dt,dt_save=dt_save,
+                    ts_type=scheme,ts_adapt_type=adapt
+                ))
+
+    def test_fixed_CN_invalid_step_sizes_fail_closed(self):
+        for bad in (0.,float("nan"),float("inf"),-1.):
+            with self.subTest(bad=bad):
+                with self.assertRaisesRegex(ValueError,"positive and finite"):
+                    sampling.fixed_cn_accepted_step_is_due(
+                        12,dt=.005,dt_save=bad,
+                        ts_type="cn",ts_adapt_type="none"
+                    )
+
     def test_actual_dphs_monitor_invokes_roundoff_safe_helper(self):
         source = (ROOT/"scrimp"/"dphs.py").read_text()
         tree = ast.parse(source)
@@ -118,6 +167,8 @@ class AcceptedTSSampling(unittest.TestCase):
                  if isinstance(node, ast.Call)
                  and isinstance(node.func, ast.Name)]
         self.assertIn("saved_time_is_due",
+                      [node.func.id for node in calls])
+        self.assertIn("fixed_cn_accepted_step_is_due",
                       [node.func.id for node in calls])
         self.assertNotIn("next_saved_at_t - t <= 0", ast.get_source_segment(
             source, monitor
