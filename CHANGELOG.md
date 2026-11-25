@@ -5,7 +5,59 @@ Changes to SCRIMP are recorded here. See also the
 
 ## 1.3.0 — in development (not released)
 
-### Saint-Venant 2D non visqueux — qualification physique BDF2 MPI1/2 prolongée : pilote préparé (25 novembre 2026)
+### Saint-Venant 2D non visqueux — PASS natif MPI1/2 sur deux raffinements BDF2 à temps final fixé (25 novembre 2026)
+
+- **Nouvelle qualification physique obtenue :** archive native
+  `v130-shallow-original-extended-9d7a4df7-c8ZnnOFN.zip`,
+  SHA256
+  `47a2dd674d45372314b281e1624fd60e28d77f46b9db37b4b0f881ab4fc92d70`,
+  source `9d7a4df78f4fe48e9186e5d255cc9f95e5873291`,
+  image épinglée `scrimp-mpi:v1.3.0-rc3`.
+  `summary.json` :
+  **`PASS_SWE_BOUNDED_NATIVE_BDF2_MPI1_MPI2`**,
+  `errors=[]`, `examples/published` inchangés.
+- **Quatre vrais calculs MUMPS GetFEM/PETSc** de
+  `examples/shallow_water.py` avec initialisation DAE
+  `nonlinear_affine` explicitement opt-in,
+  données `h_0,p_0`, masse non linéaire, gyroscope
+  `explicit=True` et quatre ports homogènes inchangés :
+  `T=0.002`, `dt=1e-4` (**20 pas**) et
+  `dt=5e-5` (**40 pas**), MPI1 et MPI2.
+  **4 270 DOFs**, 21/41 états FE complets sauvegardés
+  par rang, **zéro rejet et zéro échec SNES**.
+  Relecture indépendante de tous les vrais fichiers
+  NPZ et des rapports physiques : **égalité bit-à-bit
+  des deux rangs MPI2** et écarts MPI1/MPI2
+  maximaux sur l'ensemble des coefficients FE de
+  `9.094947e-11` (20 pas) et `1.273293e-10` (40 pas).
+  Masse conservée à `1.8e-15…4.3e-15` ;
+  puissance des quatre frontières exactement nulle.
+- **Défaut énergétique BDF2 signé mesuré**
+  `H(T)-H(0)-W_bord` : `-0.00759581935199094`
+  à `dt=1e-4` puis `-0.0038443699522758834`
+  à `dt=5e-5`, malgré la conservation de masse.
+  Le défaut se réduit d'un facteur **`1.9758294457`**
+  au raffinement par 2 (`log2=0.9824584184`) ;
+  c'est une **tendance observée compatible avec
+  le terme gyroscopique retardé**, pas une preuve
+  d'ordre asymptotique ou de conservation exacte
+  du Hamiltonien. `relative_energy_defect_exchanged=1`
+  est tautologique quand `W_bord=0` et
+  ne constitue pas un critère physique indépendant.
+- **Périmètre strict :** la nouvelle preuve
+  qualifie `T=0.002` avec `nonlinear_affine`
+  sur MPI1/MPI2, **pas** la trajectoire publique
+  historique `T=0.5` avec initialisation `pseudo`,
+  ni les modèles Saint-Venant visqueux tournants
+  d'indice élevé, la convergence spatiale,
+  SuperLU_DIST, VTK MPI ou la préservation
+  exacte d'énergie. Rapport détaillé :
+  `docs/V130_SHALLOW_WATER_EXAMPLE_ACCEPTANCE.md`
+  et tutoriel
+  `docs/source/examples/shallow_water.rst`.
+
+
+### Saint-Venant 2D non visqueux — qualification physique BDF2 MPI1/2 prolongée : pilote préparé (25 novembre 2026) — stade historique désormais qualifié
 
 - **Poursuite des exemples après la qualification complète Heat–Wave.**
   Le vrai `examples/shallow_water.py` utilise une
@@ -59,8 +111,11 @@ Changes to SCRIMP are recorded here. See also the
   Tests de source et contrôles négatifs
   intégrés à la CI ; les huit sources
   `examples/published/` restent immuables.
-- **Statut : pilote préparé,
-  exécution native encore en attente.**
+- **Statut historique à l'étape de préparation : pilote non encore exécuté.**
+  Cette étape est depuis **qualifiée nativement** par
+  l'archive source `9d7a4df7` et le statut
+  `PASS_SWE_BOUNDED_NATIVE_BDF2_MPI1_MPI2`
+  consignés ci-dessus.
   Le scénario \`t_f=0.5\` avec
   initialisation historique \`pseudo\`
   demeure distinct et non qualifié
