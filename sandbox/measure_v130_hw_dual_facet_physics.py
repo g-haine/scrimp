@@ -42,6 +42,7 @@ def numeric(system, times, expr, region, *, cn=False):
 def collect_heat_wave_dual_facet_physics(
     system, times, H_total, *, heat_faces=HEAT_FACES, wave_faces=WAVE_FACES,
     heat_bulk=1, wave_bulk=2,
+    expected_dt=0.001, expected_steps=4,
 ):
     """Real GetFEM nodal energies and CN-midpoint separately sided powers.
 
@@ -61,10 +62,22 @@ def collect_heat_wave_dual_facet_physics(
         raise RuntimeError("Physical power requires two distinct one-sided regions")
     times=np.asarray(times,dtype=float).reshape(-1)
     H=np.asarray(H_total,dtype=float).reshape(-1)
-    if (times.shape!=(5,) or H.shape!=times.shape
-            or not np.allclose(times,np.arange(5)*.001,atol=1e-12,rtol=0)
-            or not np.all(np.isfinite(H))):
-        raise RuntimeError("Wrong original 4-step Heat-Wave physical history")
+    # Historical calls keep EXACTLY the four-step 0.001 reference.
+    # Extended native acceptance passes explicit CN dt and step count,
+    # and MUST save every accepted step. Testing powers at the midpoint
+    # of two subsampled states would NOT be a Crank-Nicolson identity.
+    expected_dt=float(expected_dt)
+    expected_steps=int(expected_steps)
+    if (not np.isfinite(expected_dt) or expected_dt<=0
+            or expected_steps<1 or times.shape!=(expected_steps+1,)
+            or H.shape!=times.shape
+            or not np.allclose(
+                times,np.arange(expected_steps+1)*expected_dt,
+                atol=1e-10,rtol=0
+            ) or not np.all(np.isfinite(H))):
+        raise RuntimeError(
+            "Wrong consecutive CN Heat-Wave history or incomplete saved step grid"
+        )
     available = {int(r) for r in np.asarray(
         system.domain.get_mesh()[0].regions(), dtype=np.int64
     ).reshape(-1)}
