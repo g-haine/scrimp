@@ -5,6 +5,51 @@ Changes to SCRIMP are recorded here. See also the
 
 ## 1.3.0 — in development (not released)
 
+### Exemple 2A — démonstration longue native de l'onde conservative 2D : PASS (25 novembre 2026)
+
+- Archive GetFEM authentique
+  `v130-wave2d-2a-showcase-bd6f5468-teEK1Ejz.zip`,
+  source `bd6f5468e3a167f2b2a3b9e1b72bcc54e1948d45`,
+  Docker `scrimp-mpi:v1.3.0-rc3`, **MUMPS MPI1**,
+  `h=0.1`, `dt=0.01`, `t_f=1`.
+  **8138 DOFs, 100/100 pas CN** sans rejet,
+  init DAE algébrique PASS avec résidu initial
+  et final exactement nuls, **7/7 critères physiques PASS**.
+- **Bilan énergétique signé original** :
+  `H(0)=0`,
+  `H(1)=0.03707053141235693`,
+  `W_boundary(1)=0.03707053141235698` ;
+  `H-H0=W_boundary` à tous les instants.
+  Défaut maximal par pas `2.0654051e-16`
+  et cumulé `1.2490009e-16`.
+  Les trois bords Neumann non forcés ont une
+  puissance exactement nulle ; l'énergie
+  accumulée vient de la commande de vitesse
+  au bord gauche (système conservatif **ouvert**).
+- Trajectoire `z` complète vérifiée par SHA256.
+  Les **404 vrais VTU** de `q,p,e_q,e_p`
+  (101 instants chacun), leurs PVD, le CSV
+  de 101 états, les cartes de champs PNG/SVG,
+  le graphique de puissance et le GIF de
+  101 images ont été inspectés. Le GIF montre
+  une perturbation entrant depuis la gauche
+  et se propageant dans le rectangle anisotrope.
+- **Terminologie FE** : `q=∇w` = gradient
+  du déplacement, `p=ρ∂_tw` = quantité de
+  mouvement ; la vitesse réelle est
+  `e_p=p/ρ` et la contrainte est `e_q=Tq`.
+  Les cartes génériques `p,|q|` représentent
+  momentum et gradient, non ces coénergies.
+- **Portée limitée à cette simulation longue
+  MUMPS MPI1**, distincte du pilote 2A court
+  déjà qualifié MPI1/2 et autres solveurs.
+  Pas de convergence h/dt ni de parité
+  MPI longue revendiquée. Prochaine étape :
+  long showcase **2B** avec mêmes paramètres
+  géométriques, matériaux, excitation de bord,
+  `h=0.1`, `dt=0.01`, `t_f=1`.
+
+
 ### Exemple 2C — démonstration longue native MUMPS validée sur 100 pas CN (25 novembre 2026)
 
 - Archive complète `v130-wave2d-2c-showcase-bc880100-9P5gcxWf.zip`,
