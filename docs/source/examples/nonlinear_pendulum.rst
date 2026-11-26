@@ -85,11 +85,9 @@ initial differential data, without a pseudo-time evolution:
 Only the initialization path has changed: the nonlinear
 GetFEM weak formulation, constitutive bricks, damping,
 forcing and original physical BDF2 scheme remain unchanged.
-The historical one-step pseudo-time relaxation is still
-available explicitly via
-`nonlinear_pendulum(initialization="legacy_pseudo")`.
-The corrected default has not been declared native-qualified
-before the independent pilot evidence is received.
+This is the unique initialization path in the example. Its native
+qualification is pending until the independent pilot evidence
+has been reviewed.
 
 The complete runnable example is:
 
