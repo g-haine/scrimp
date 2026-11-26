@@ -316,6 +316,13 @@ def main():
     to_zip.add(root/"manifest.json")
     to_zip.update(root.glob("*.host.log"))
     to_zip.update(root.glob("*.exitcode"))
+    # A scientifically rejected plot must not erase its genuine
+    # GetFEM trajectory. Preserve the original example's failure
+    # diagnostic in the ZIP for numerical post-mortem.
+    to_zip.update(root.glob(
+        "work_*/outputs/showcase/nonlinear_pendulum/"
+        "*/failed_native_constitutive_trace.npz"
+    ))
     archive=Path(str(root)+".zip")
     with zipfile.ZipFile(
         archive,"x",compression=zipfile.ZIP_DEFLATED,
