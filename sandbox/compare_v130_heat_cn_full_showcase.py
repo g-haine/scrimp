@@ -251,7 +251,18 @@ def main():
     }
     summary=root/"summary.json"
     summary.write_text(json.dumps(evidence,indent=2)+"\n")
+    # Keep a small, independently verifiable selection of ORIGINAL
+    # GetFEM VTU field snapshots, rather than only their hash inventory.
+    # The first native archive had a packaging omission: these genuine
+    # files were discovered and hashed, but not added to archive_files.
+    # Never publish "selected raw VTU included" without the bytes.
+    if len(sampled_vtu)!=8 or len({str(f) for f in sampled_vtu})!=8:
+        errors.append(
+            "Expected four authentic native VTK snapshots each for "
+            "preview and full MPI1; selected source files unavailable"
+        )
     archive_files=set(short)
+    archive_files.update(sampled_vtu)
     archive_files.add(summary)
     for f in root.glob("*.exitcode"):
         archive_files.add(f)
@@ -268,17 +279,60 @@ def main():
         "schema":"scrimp-heat-compact-evidence-manifest-v1",
         "full_original_VTK_retained_on_user_host":True,
         "complete_original_VTK_hashed_in_showcase_inventory":True,
+        "selected_original_GetFEM_VTK_count":len(sampled_vtu),
+        "selected_original_GetFEM_VTK_paths":sorted(
+            str(f.relative_to(root)) for f in sampled_vtu
+        ),
         "included_files":sorted(str(f.relative_to(root)) for f in archive_files),
     },indent=2)+"\n")
     archive_files.add(inclusion)
+    # Repack an existing user-host evidence directory WITHOUT rerunning
+    # Docker, physics or postprocessing. Atomic replacement keeps the
+    # original ZIP intact if the new archive fails validation.
+    import os
+    import tempfile
     import zipfile
     archive=Path(str(root)+".zip")
-    with zipfile.ZipFile(archive,"x",compression=zipfile.ZIP_DEFLATED,
-                         compresslevel=4,allowZip64=True) as z:
-        for f in sorted(archive_files):
-            if f.is_file():z.write(f,arcname=str(f.relative_to(root)))
+    with tempfile.NamedTemporaryFile(
+        prefix=archive.name+".",suffix=".tmp",
+        dir=archive.parent,delete=False
+    ) as fh:
+        pending=Path(fh.name)
+    try:
+        with zipfile.ZipFile(
+            pending,"w",compression=zipfile.ZIP_DEFLATED,
+            compresslevel=4,allowZip64=True
+        ) as z:
+            for f in sorted(archive_files):
+                if f.is_file():
+                    z.write(f,arcname=str(f.relative_to(root)))
+        with zipfile.ZipFile(pending) as z:
+            if z.testzip() is not None:
+                raise RuntimeError("Invalid ZIP CRC in new native archive")
+            vtk_in_zip=[n for n in z.namelist() if n.endswith(".vtu")]
+            if len(vtk_in_zip)!=8:
+                raise RuntimeError(
+                    f"Expected eight authentic GetFEM VTUs in ZIP, "
+                    f"got {len(vtk_in_zip)}"
+                )
+            for name in vtk_in_zip:
+                native=Path(root/name)
+                if hashlib.sha256(z.read(name)).hexdigest()!=(
+                    hashlib.sha256(native.read_bytes()).hexdigest()
+                ):
+                    raise RuntimeError(
+                        "ZIP GetFEM VTU differs from user-host source: "+name
+                    )
+        os.replace(pending,archive)
+    finally:
+        if pending.exists():
+            pending.unlink()
     print(json.dumps({
-        **evidence,"archive":str(archive),"evidence":str(root)
+        **evidence,
+        "archive":str(archive),
+        "evidence":str(root),
+        "selected_actual_GetFEM_VTU_in_archive":8,
+        "ZIP_CRC_pass":True,
     },indent=2),flush=True)
     raise SystemExit(bool(errors))
 
