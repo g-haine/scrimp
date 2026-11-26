@@ -8,6 +8,72 @@ The heat equation
    :undoc-members:
    :show-inheritance:
 
+.. _heat-v130-showcase:
+
+Running the 2-D heat example (SCRIMP v1.3)
+------------------------------------------
+
+The canonical example now defaults to **fixed-step Crank--Nicolson**
+(`dt=0.01`, `t_f=5`) and **strict algebraic DAE consistency
+initialization**. The strict initializer maintains the prescribed
+temperature field exactly and solves for the algebraic variables with
+an accuracy target of `1e-13`. This is a setting of this example,
+**not** a global change to the SCRIMP initializer. The semi-discrete
+GetFEM model, conductivity, mass, three temperature boundary controls
+and the left mixed Neumann/feedback boundary are unchanged.
+
+Run the real example directly; **no sandbox visualization script is
+required**:
+
+.. code-block:: console
+
+   python examples/heat.py
+
+In the working directory this creates the canonical
+`outputs/png/Hamiltonian_Heat_2D.png` and, under
+`outputs/showcase/heat/figures/`, the actual native FE figures
+`heat_temperature_snapshots.png`,
+`heat_energy_and_ports.png`, their SVG versions and the animated
+`heat_temperature_evolution.gif`. Every saved temperature state is
+also exported from the **same GetFEM calculation** to
+`outputs/pv/T/T.pvd` and its associated `T_*.vtu` files, readable
+by ParaView. The animated GIF uses selected original saved FE frames,
+without temporal interpolation. The DG1 spatial temperature maps
+show original GetFEM element values as cell averages for readability;
+they do not claim a continuous temperature across element edges.
+The energy/dissipation/power curves are independently integrated
+GetFEM field/port quantities, not graphical measurements.
+
+The exact quadratic CN identity is checked with
+
+.. code-block:: console
+
+   python examples/heat.py --check
+
+where the four physical boundary powers come from the native SCRIMP
+control-port effort--flow products, **not** from simply evaluating
+`T (J_Q.n)` at the DG temperature trace.
+
+For an inexpensive rendering preflight without altering the PDE:
+
+.. code-block:: console
+
+   python examples/heat.py --final-time .04 --check
+
+The separately qualified **historical BDF2/pseudo** integration
+remains reproducible explicitly:
+
+.. code-block:: console
+
+   python examples/heat.py --time-stepper bdf --initializer pseudo --no-showcase
+
+This legacy run keeps the original time settings, weak forms and
+`Hamiltonian_Heat_2D.png`; its boundary-power quadrature is
+approximate, unlike the exact quadratic CN step identity. The new CN
+configuration is qualified independently from the BDF2 reference;
+see `docs/V130_HEAT_2D_PHYSICAL_ACCEPTANCE.md` for archived
+MPI1/MPI2 scientific evidence and remaining validation status.
+
 Setting
 -------
 
