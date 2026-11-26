@@ -653,6 +653,7 @@ def main():
             "final_time":args.final_time,
             "steps":int(system.last_ts_steps),
             "DOFs":int(z.shape[1]),
+            "initialization_report":getattr(system,"initialization_report",None),
             "state_SHA256":hashlib.sha256(
                 np.ascontiguousarray(z).tobytes()
             ).hexdigest(),
