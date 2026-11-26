@@ -93,7 +93,7 @@ class NonlinearPendulumSourceV130(unittest.TestCase):
             'pendulum_phase_portrait.png',
             'pendulum_energy_and_power.png',
             'pendulum_motion.gif',
-            'cn_nonlinear_chain_rule_defect=cn_H_rate-cn_coenergy_rate',
+            'cn_chain_rule_defect=cn_H_rate-cn_coenergy_rate',
             'nonquadratic_H_CN_chain_rule_defect_not_assumed_zero',
             'nonlinear_pendulum(plot=True)',
         ):
