@@ -50,9 +50,7 @@ class FiniteDimensionalV130Source(unittest.TestCase):
             'sys.set_initial_value("p", p0)',
             'sys.gf_model.set_variable("e_q", np.array([stiffness*q0]))',
             'sys.gf_model.set_variable("e_p", np.array([p0/mass]))',
-            '"init_step": False',
-            '"init_step_ts_type": "pseudo", "init_step": True',
-            'initialization="exact"',
+            'init_step=False,',
             'ts_type="bdf", ts_bdf_order=2',
         ):
             with self.subTest(fragment=fragment):
@@ -62,6 +60,9 @@ class FiniteDimensionalV130Source(unittest.TestCase):
         source=(ROOT/"examples/mass_spring_damper.py"
                 ).read_text(encoding="utf-8")
         tree=ast.parse(source)
+        self.assertNotIn("legacy_pseudo",source)
+        self.assertNotIn("init_step_ts_type",source)
+        self.assertNotIn("initialization=",source)
         for fragment in (
             'if plot:',
             'sys.mass_spring_visuals = render_mass_spring_visuals(',
@@ -124,15 +125,18 @@ class FiniteDimensionalV130Source(unittest.TestCase):
             "bdf2_power_defect",
             "rk4_reference",
             "BDF2_k_ge_2_no_unverified_startup",
-            'initialization=args.initialization',
-            '"no_pseudo_time_initialization":args.initialization=="exact"',
+            '"initializer":"exact_constitutive"',
+            '"no_pseudo_time_initialization":True',
         ):
             with self.subTest(fragment=fragment):
                 self.assertIn(fragment,probe)
         self.assertNotIn("S.DPHS(",probe)
         self.assertNotIn("S.Brick(",probe)
+        self.assertNotIn("legacy_pseudo",probe)
+        self.assertNotIn("--initialization",probe)
         runner=(ROOT/"scripts/run-v130-mass-spring-physical-pilot.sh"
                 ).read_text(encoding="utf-8")
+        self.assertNotIn("--initialization",runner)
         for fragment in (
             'python -u /probe-msd.py',
             'mpiexec --oversubscribe --bind-to none -n "$mpi"',
