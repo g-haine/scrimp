@@ -100,7 +100,7 @@ for run in "preview:1:0.08:1" "mpi1:1:8:1" "mpi2:2:8:0"; do
         mpiexec --oversubscribe --bind-to none -n "$mpi" \
         python -u /probe-msd.py \
             --final-time "$tf" --time-step .01 \
-            --solver mumps --initialization exact \
+            --solver mumps \
             "${options[@]}" --out /artifacts \
         > "$out/$label.host.log" 2>&1 || rc=$?
     printf '%s\n' "$rc" > "$out/$label.exitcode"
