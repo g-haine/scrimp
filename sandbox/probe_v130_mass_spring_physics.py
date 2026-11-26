@@ -58,6 +58,8 @@ def main():
     parser.add_argument("--final-time",type=float,required=True)
     parser.add_argument("--time-step",type=float,required=True)
     parser.add_argument("--solver",default="mumps")
+    parser.add_argument("--initialization",choices=("exact","legacy_pseudo"),
+                        default="exact")
     parser.add_argument("--out",type=Path,required=True)
     args=parser.parse_args()
 
@@ -66,6 +68,7 @@ def main():
         final_time=args.final_time,
         time_step=args.time_step,
         plot=False,factor_solver=args.solver,
+        initialization=args.initialization,
     )
     t=np.asarray(system.solution["t"],dtype=float)
     z=np.asarray(system.solution["z"],dtype=float)
@@ -134,6 +137,13 @@ def main():
     }
     # Fail closed for genuine model errors, without pretending that
     # the PETSc BDF2 startup interval obeys a BDF1 power identity.
+    # The legacy pseudo initializer is retained as a deliberate
+    # regression reproducer, NOT accepted as a correct physical IC.
+    if system.mass_spring_initialization != args.initialization:
+        raise RuntimeError("Original example did not honor initialization mode")
+    if (args.initialization == "exact"
+            and system.time_scheme.getString("init_step","true") != "false"):
+        raise RuntimeError("Exact example initialization unexpectedly ran a TS")
     gates={
         "original_TS_converged":
             system.last_ts_converged_reason>0
@@ -181,7 +191,12 @@ def main():
             "original_q0":INITIAL_Q,"original_p0":INITIAL_P,
         },
         "time_stepper":"original_BDF2",
-        "initializer":"original_pseudo",
+        "initializer":args.initialization,
+        "no_pseudo_time_initialization":args.initialization=="exact",
+        "native_q0":float(q[0]),
+        "native_p0":float(p[0]),
+        "native_e_q0":float(eq[0]),
+        "native_e_p0":float(ep[0]),
         "power_identity_scope":"BDF2_k_ge_2_no_unverified_startup",
         "residuals":residuals,
         "gates":{k:bool(v) for k,v in gates.items()},
