@@ -49,7 +49,7 @@ class NonlinearPendulumSourceV130(unittest.TestCase):
         ast.parse(probe,filename=str(path))
         for fragment in (
             "from examples.nonlinear_pendulum import nonlinear_pendulum",
-            "system=nonlinear_pendulum(",
+            "system = nonlinear_pendulum(",
             'system.get_solution("theta")',
             'system.get_solution("p")',
             'system.get_solution("e_theta")',
