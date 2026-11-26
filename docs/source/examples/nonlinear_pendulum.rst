@@ -73,6 +73,24 @@ The GetFEM reference interval is only a weak-form assembly support,
 and the `/ell` normalization yields a single ODE residual.
 All variables are spatially constant.
 
+The example now initializes its **exact constitutive co-energies**
+from the original nonlinear sine law, preserving the prescribed
+initial differential data, without a pseudo-time evolution:
+
+.. math::
+
+   \theta_0=1.2,\qquad p_0=0,\qquad
+   e_{\theta,0}=mg\ell\sin(1.2),\qquad e_{p,0}=0.
+
+Only the initialization path has changed: the nonlinear
+GetFEM weak formulation, constitutive bricks, damping,
+forcing and original physical BDF2 scheme remain unchanged.
+The historical one-step pseudo-time relaxation is still
+available explicitly via
+`nonlinear_pendulum(initialization="legacy_pseudo")`.
+The corrected default has not been declared native-qualified
+before the independent pilot evidence is received.
+
 The complete runnable example is:
 
 .. literalinclude:: ../../../examples/nonlinear_pendulum.py
@@ -101,11 +119,49 @@ Numerical validation
 With zero torque and positive damping, the continuous Hamiltonian is
 non-increasing. With forcing, compare its change with the integrated
 input power minus viscous losses. The observed numerical defect should
-decrease under temporal refinement. Energy dissipation from BDF2 is
-numerical in addition to the physical damping.
+decrease under temporal refinement. BDF2 adds its own time-discretization
+effects to the physical dynamics.
+
+**Important distinction:** unlike the linear mass--spring example,
+the pendulum Hamiltonian is **not quadratic**, so a telescoping
+quadratic BDF2 identity expressed purely in differences of
+`H(z_n)` is **not exact**. For the original discrete BDF2
+equations at every physical step :math:`n\geq2`, the correct
+test is the true co-energy-weighted differential identity
+
+.. math::
+
+   e_{\theta,n}\,
+      \frac{3\theta_n-4\theta_{n-1}+\theta_{n-2}}{2\Delta t}
+   +e_{p,n}\,
+      \frac{3p_n-4p_{n-1}+p_{n-2}}{2\Delta t}
+   +d\,e_{p,n}^2-\tau(t_n)e_{p,n}=0.
+
+This is the power pairing of the actual **nonlinear residuals**,
+not a fictitious discrete gradient formula for the Hamiltonian.
+It does not cover PETSc's internal startup half-step.
+
+An independent MPI1/MPI2 diagnostic with both original
+zero-torque and externally forced `0.1*sin(2*pi*0.3*t)`
+cases is prepared:
+
+.. code-block:: console
+
+   SCRIMP_DOCKER_NO_SUDO=1 \\
+   SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \\
+   bash scripts/run-v130-nonlinear-pendulum-physical-pilot.sh
+
+The diagnostic checks all four true GetFEM lumped unknowns,
+the exact initial nonlinear constitutive laws, the original
+Hamiltonian, both BDF2 differential equations, their
+co-energy power pairing, the independent **full sine**
+RK4 reference, and complete MPI1/MPI2 parity.
 
 .. note::
 
-   This example has passed the automated numerical smoke tests and a
-   full default standalone run in the SCRIMP GetFEM/PETSc environment.
-   Quantitative temporal-refinement studies remain a separate check.
+   The example has previously completed numerical smoke tests and
+   an original standalone execution. That alone is not an
+   independent physical qualification. The exact-initial-state
+   revised pilot, full default horizon and reproducible example-native
+   PNG/SVG/GIF remain **native pending** until their actual evidence
+   has been reviewed.
