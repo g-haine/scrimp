@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SCRIMP v1.3.0 -- original finite-dimensional linear example acceptance.
-# Real GetFEM lumped port state, canonical BDF2/pseudo path, MUMPS MPI1/2.
+# Real GetFEM lumped port state, canonical BDF2 and exact coenergy IC, MPI1/2.
 # This is a short physical pilot only; long run/figures remain separate.
 set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -25,13 +25,13 @@ python3 scripts/check-v130-published-immutable.py
 
 mkdir -p sandbox/outputs
 out="$(mktemp -d "$root/sandbox/outputs/v130-mass-spring-physical-pilot-$(git rev-parse --short=8 HEAD)-XXXXXXXX")"
-printf '{"schema":"scrimp-v130-mass-spring-original-short-pilot-v1","source":"%s","image":"%s","image_revision":"%s","original_example":"examples/mass_spring_damper.py","original_weak_model_unchanged":true,"MPI":[1,2],"final_time":0.08,"time_step":0.01,"BDF2_startup_stage_not_assumed_to_be_BDF1":true,"full_horizon_and_showcase_pending":true}\n' \
+printf '{"schema":"scrimp-v130-mass-spring-original-short-pilot-v1","source":"%s","image":"%s","image_revision":"%s","original_example":"examples/mass_spring_damper.py","original_weak_model_unchanged":true,"initialization":"exact_constitutive_no_pseudo","MPI":[1,2],"final_time":0.08,"time_step":0.01,"BDF2_startup_stage_not_assumed_to_be_BDF1":true,"full_horizon_and_showcase_pending":true}\n' \
     "$(git rev-parse HEAD)" "$image" "$revision" > "$out/manifest.json"
 echo "SCRIMP 1.3.0 original MASS-SPRING-DAMPER: linear lumped pH/DAE physical pilot"
 echo "Original ODE m=1.5, k=5, c=0.25, f(t)=0.2 sin(2 pi t), initial (q,p)=(.4,0)"
-echo "Original GetFEM bricks, BDF2/pseudo initialization, dt=.01, t_f=.08, MPI1/2"
+echo "Original GetFEM bricks, BDF2 and exact algebraic coenergies at t=0, dt=.01, t_f=.08, MPI1/2"
 echo "Independent RK4 ODE; true co-energies; original H; quadratic BDF2 power identity k>=2"
-echo "No physics/source/solver changes; no visual claim; no edits to published examples"
+echo "No changes to physics, BDF2 or GetFEM bricks; exact initial data, no pseudo-time drift"
 echo "EVIDENCE: $out"
 
 overall=0
@@ -60,7 +60,7 @@ for mpi in 1 2; do
         mpiexec --oversubscribe --bind-to none -n "$mpi" \
         python -u /probe-msd.py \
           --final-time 0.08 --time-step 0.01 \
-          --solver mumps --out /artifacts \
+          --solver mumps --initialization exact --out /artifacts \
         > "$out/mpi$mpi.host.log" 2>&1 || rc=$?
     echo "$rc" > "$out/mpi$mpi.exitcode"
     if [[ "$rc" -ne 0 ]]; then
@@ -106,7 +106,8 @@ for mpi in (1,2):
             z=trace["z"]
             if (report["status"]!="PASS_ORIGINAL_LUMPED_ODE_NATIVE_PILOT"
                     or report["time_stepper"]!="original_BDF2"
-                    or report["initializer"]!="original_pseudo"
+                    or report["initializer"]!="exact"
+                    or report["no_pseudo_time_initialization"] is not True
                     or report["steps"]!=8
                     or report["saved_states"]!=9
                     or report["full_DAE_DOFs"]!=4
