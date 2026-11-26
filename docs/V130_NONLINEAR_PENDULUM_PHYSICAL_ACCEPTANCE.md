@@ -152,10 +152,64 @@ full-sine RK4 ODE, complete MPI1/MPI2 parity,
 all steps accepted, and immutable `examples/published`
 sources. The pilot creates a CRC-checked evidence ZIP.
 
-**The default full `t_f=12` run, its complete MPI
-history, independent temporal refinement and
-PNG/SVG/GIF from the original example remain
-unqualified** until the separate long native gate
-has passed. The eight-step CN gate above is complete.
+## Full twelve-second CN physical and visual gate — STAGED, NATIVE PENDING
+
+The original canonical example now contains its own
+`render_pendulum_visuals`, called by
+`nonlinear_pendulum(plot=True)`. It generates
+**directly from genuine accepted GetFEM lumped states**:
+`pendulum_trajectory.{png,svg}`,
+`pendulum_phase_portrait.{png,svg}`,
+`pendulum_energy_and_power.{png,svg}` and
+`pendulum_motion.gif` (schematic motion, no spatial FE mesh
+or interpolated state). Both the free and forced
+variants have their own `outputs/showcase/nonlinear_pendulum/`
+subdirectories.
+
+The canonical plots **do not** claim that nonlinear
+CN conserves `H` exactly. They explicitly compare the
+true Hamiltonian change, CN discrete work/dissipation
+and the measured nonquadratic chain-rule defect.
+These original user figures have **not** yet been
+validated by the native long campaign.
+
+To run the full acceptance after the short native PASS:
+
+```bash
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-nonlinear-pendulum-CN-full-showcase.sh
+```
+
+The **full acceptance runner** stages and checks:
+1. 8-step graphical **preflight for free and forced** original
+   canonical examples (9 real GetFEM states and 9 GIF frames each).
+2. Native `t_f=12, dt=.01`, 1200 accepted PETSc CN
+   steps (**1201 true full DAE states**), MUMPS MPI1
+   and MPI2, both physical torque cases.
+3. Native `t_f=12, dt=.005`, 2400 accepted CN
+   steps (**2401 true full DAE states**), MUMPS MPI1,
+   again free and forced.
+4. The source-independent verifier checks every recorded
+   CN differential step, full-sine GetFEM constitutive
+   law, exact co-energy power identity, Hamiltonian
+   chain-rule accounting, complete MPI1/MPI2 DAE parity
+   and both canonical figure inventories/actual GIFs.
+5. A convergence gate compares full numerical
+   trajectories to independent high-resolution
+   full-sine RK4. The observed `max(q,p)` error ratio
+   `error(dt=.01)/error(dt=.005)` must be within
+   `[3.3,4.7]`, consistent with second order, for
+   **both** forced and unforced cases. No fabricated
+   time states or visualizations are allowed.
+6. All native rank reports, raw original full histories,
+   canonical figures, file integrity evidence and
+   summary are packaged in a CRC-verified ZIP.
+
+**This full acceptance has NOT YET been run.**
+No full twelve-second release PASS may be recorded until
+the actual user-host scientific and image evidence
+passes the verification gates. The already accepted
+short CN MPI1/2 pilot remains valid.
 
 No claims are made about other LU backends or MPI4+.
