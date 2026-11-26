@@ -60,7 +60,7 @@ for mpi in 1 2; do
         mpiexec --oversubscribe --bind-to none -n "$mpi" \
         python -u /probe-msd.py \
           --final-time 0.08 --time-step 0.01 \
-          --solver mumps --initialization exact --out /artifacts \
+          --solver mumps --out /artifacts \
         > "$out/mpi$mpi.host.log" 2>&1 || rc=$?
     echo "$rc" > "$out/mpi$mpi.exitcode"
     if [[ "$rc" -ne 0 ]]; then
@@ -106,7 +106,7 @@ for mpi in (1,2):
             z=trace["z"]
             if (report["status"]!="PASS_ORIGINAL_LUMPED_ODE_NATIVE_PILOT"
                     or report["time_stepper"]!="original_BDF2"
-                    or report["initializer"]!="exact"
+                    or report["initializer"]!="exact_constitutive"
                     or report["no_pseudo_time_initialization"] is not True
                     or report["steps"]!=8
                     or report["saved_states"]!=9
