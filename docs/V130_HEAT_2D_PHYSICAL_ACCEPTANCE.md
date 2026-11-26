@@ -11,11 +11,18 @@ remains separately qualified and reproducible.
 
 ## Full 500-step CN + strict algebraic canonical example: NATIVE PASS
 
-**Original user-host archive:** `v130-heat-CN-full-showcase-92b9d870-gszcYbW2.zip`,
-**SHA256 `f7e42d747bb2b6059b73b50185cf31c3cfa489207894228e11916d83ced558e9`**,
-36 members, CRC test PASS; canonical example source/runner revision
-`92b9d870`; Docker `scrimp-mpi:v1.3.0-rc3`,
-image revision `1d6d0c90115213298047b28237a7f38087563a35`.
+**Native user-host evidence (original calculations at source revision
+`92b9d870`):**
+`sandbox/outputs/v130-heat-CN-full-showcase-92b9d870-gszcYbW2/`
+and the companion
+`v130-heat-CN-full-showcase-92b9d870-gszcYbW2.zip`.
+Docker `scrimp-mpi:v1.3.0-rc3`, image revision
+`1d6d0c90115213298047b28237a7f38087563a35`.
+The **original, superseded ZIP** had 36 members and SHA256
+`f7e42d747bb2b6059b73b50185cf31c3cfa489207894228e11916d83ced558e9`.
+**Do not use that SHA256 for the newly repacked archive**: its bytes
+changed when the selected raw VTUs were inserted. Its new SHA256
+has not been independently supplied in the user-host transcript.
 
 - Original `examples/heat.py`, not a research replacement, automatically
   chooses `ts_type=cn`, `init_step_ts_type=algebraic` with the **per-example**
@@ -73,24 +80,46 @@ image revision `1d6d0c90115213298047b28237a7f38087563a35`.
   Original VTK field files remain on the user host; the compact ZIP
   includes all real FE state histories and figures.
 
-**Archival packaging correction, not a physics failure.** The
-original 36-file ZIP above includes the genuine 501-frame **VTK hash
-inventory** and original PVD, but inadvertently contains **zero
-raw VTU files**, despite a metadata claim that selected raw VTUs
-had been included. This was independently discovered when inspecting
-the ZIP. `sandbox/compare_v130_heat_cn_full_showcase.py` now includes
-and checksum-verifies **eight genuine raw GetFEM VTUs** (four preview,
-four full MPI1) and supports **atomic repacking of the existing host
-evidence directory without rerunning PETSc/Docker**. The corrected ZIP
-and native VTU byte audit remain pending until repack evidence is
-received. No false raw-VTU proof is claimed for the original archive.
+**Archival packaging correction: CLOSED — native user-host PASS
+(26 November 2026).** The initially inspected 36-file ZIP inadvertently
+contained **zero raw VTUs**, despite a manifest that claimed their
+inclusion. The corrected
+`sandbox/compare_v130_heat_cn_full_showcase.py` was subsequently
+run **directly on the original evidence directory, without Docker or
+another TS simulation**. The user supplied the full host output:
 
-**Acceptance decision:** numerical and scientific CN + original
-visualization-generation gates **PASS** for the tested v1.3.0
-configuration. Remaining action is *evidence-archive completion*
-(selected original VTUs), not repeating 500 physical steps.
-No claim is made here about mesh or temporal convergence,
-other LU backends, MPI4+ or changing the physical model.
+- `status=PASS_NATIVE_HEAT_CN_500_STEPS_MPI1_MPI2_AND_VISUALS`,
+  `errors=[]`; all previously established MPI1/2 full-horizon
+  scientific and visualization gates independently recomputed.
+- `selected_actual_GetFEM_VTU_in_archive=8` (four genuine original
+  preview VTUs and four genuine original long-run MPI1 VTUs).
+- `ZIP_CRC_pass=true`; the script checks the actual raw VTU bytes
+  extracted from the new ZIP against their unchanged user-host
+  originals using SHA256, **before** atomically replacing the ZIP.
+- The entire authentic 501-state `T.pvd`/`T_*.vtu` series
+  remains in the original host evidence directory, indexed and
+  hashed in the archive's `native_vtk_inventory.json`.
+- The archive filename is unchanged, but the **pre-repack archive
+  SHA256 is obsolete**. A new digest must be computed if the
+  archive is moved or independently distributed.
+
+No new simulation was required and none of the equations, time
+integrator, initialization algorithm, or results was modified. The
+remaining packaging concern is **resolved**. The rebuilt ZIP has
+been validated by the user-host checker; no claim is made that
+the rebuilt ZIP itself was independently uploaded and reopened
+within this conversation.
+
+**Acceptance decision: FULL PASS; evidence archive CLOSED.**
+The canonical `examples/heat.py` v1.3.0 CN/strict-algebraic case is
+scientifically qualified for the tested configuration, with
+reproducible native PNG/SVG/GIF and complete user-host VTK series.
+No remaining heat-example acceptance action is required for this
+specified scope. The historical BDF2/pseudo case also remains
+qualified under its own separately documented scope.
+
+**Not claimed:** mesh or temporal convergence, other LU backends,
+MPI4+, or generalization to unrelated physical models.
 
 **26 November 2026 — NATIVE PASS (bounded: original long BDF2 model, MPI1/2,
 all 499 order-two steps, port powers, full FE parity, and user figures).
@@ -147,7 +176,8 @@ as recorded above.
 automatically selected strict initializer in the canonical example,
 500 steps, all original FE/power variables, all source-generated
 figures and original GetFEM/VTK/PVD series in MPI1 and MPI2.
-Only the small raw-VTU ZIP packaging fix above remains pending.
+The raw-VTU ZIP packaging fix is also validated and closed as
+documented above.
 
 ## Original source and authentic native evidence
 
@@ -162,9 +192,11 @@ Only the small raw-VTU ZIP packaging fix above remains pending.
   Original MPI1/MPI2 logs, full accepted FE trajectories, GetFEM
   quadrature histories for the Hamiltonian, Fourier dissipation and
   four boundary controls, original PNG figures, and JSON manifests.
-- Reproduction of this same instrumentation from the current branch:
-  `scripts/run-v130-heat-physical-diagnostic.sh`. The original user
-  entry point remains `python examples/heat.py` in the qualified environment.
+- Reproduction of the historical BDF2 instrumentation from the current
+  branch: `scripts/run-v130-heat-physical-diagnostic.sh`. The current
+  canonical user entry point `python examples/heat.py` now defaults to
+  CN/strict-algebraic; to reproduce the BDF2/pseudo baseline explicitly,
+  run `python examples/heat.py --time-stepper bdf --initializer pseudo --no-showcase`.
 - Eight tracked `examples/published/` sources remain immutable.
 
 ## Exact scope
@@ -280,8 +312,7 @@ an independently verified internal startup-stage power balance,
 temporal/mesh convergence, a different solver backend, MPI4+, or
 an independent partitioned-mesh scalability test.
 
-This acceptance closes the historical BDF2/pseudo heat model's physical
-gate. The upgraded canonical CN/algebraic user example has a separate
-pending qualification and is NOT covered by this verdict. No change was made to
-the original heat equations, bricks, FE spaces, boundary controls,
-or integration settings.
+This section qualifies specifically the historical BDF2/pseudo heat
+model. The current canonical CN/strict-algebraic example was qualified
+separately above. Neither configuration changes the original weak
+equations, bricks, FE spaces or boundary controls.
