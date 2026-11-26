@@ -87,10 +87,6 @@ satisfy the constraints. It does not change the mass, interconnection,
 damping, forcing or the subsequent BDF2 integrator. The generic SCRIMP
 DAE initializers are unchanged.
 
-To reproduce the historical pseudo-time trajectory for regression,
-call `mass_spring_damper(initialization="legacy_pseudo")` explicitly.
-The default is `initialization="exact"`.
-
 The complete runnable source is:
 
 .. literalinclude:: ../../../examples/mass_spring_damper.py
@@ -157,19 +153,9 @@ by applying a trapezoidal rule to a saved power plot.
 It covers BDF2 steps :math:`n\geq2`, not the internal PETSc
 **BDF2 startup stages**, which require a separate analysis.
 
-The original BDF2/pseudo short pilot at `dt=.01`, `t_f=.08`
-ran successfully in MPI1 and MPI2 and confirmed the correct
-differential equations and step-energy balance at residual
-`4.13e-14`, with full MPI state parity `8.88e-16`.
-**However, its physical-initial-state gate FAILED:** the pseudo
-initialization performed one small `dt=0.0001` evolution and replaced
-`p(0)=0` by `p(0)=-0.00019999666`, with a corresponding
-`q(0)-0.4=-1.33331e-8`. That historical configuration is
-**not qualified as a faithful initialization of the prescribed IVP**.
-
-The corrected native qualification pilot checks the *same* physical
-model, BDF2 time stepping and GetFEM weak forms, but starts from
-exactly consistent algebraic co-energies, with no pseudo step.
+The native qualification checks the physical model, BDF2 time
+stepping and GetFEM weak forms, starting from exactly consistent
+algebraic co-energies with no artificial initial time step.
 It uses MUMPS in MPI 1 and 2 and measures the actual algebraic
 relations
 :math:`e_q=kq`, :math:`e_p=p/m`, both differentiated BDF2
@@ -184,7 +170,7 @@ scheme, not a replacement SCRIMP model:
    SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \\
    bash scripts/run-v130-mass-spring-physical-pilot.sh
 
-**The corrected exact-initialization short pilot has now PASSED**
+**The exact-initialization short pilot has PASSED**
 its native GetFEM/PETSc MPI1/MPI2 scientific checks:
 `q_0=.4,p_0=0,e_{q,0}=2,e_{p,0}=0` exactly,
 maximum exact BDF2 step energy-power defect
@@ -221,11 +207,7 @@ regression (`f=0,c=0`) remain distinct optional tests.
 
 .. note::
 
-   The historical pseudo-started example passed the smoke and full
-   standalone execution tests, but changed the originally prescribed
-   initial momentum. This motivated the exact-constitutive-data fix.
-   Do not treat successful execution as proof of correct IVP data.
-   The corrected default has subsequently passed both the short
-   MPI1/MPI2 scientific acceptance **and** the complete eight-second
-   MPI1/MPI2 showcase. Historical `legacy_pseudo` remains available
-   for reproducing the original initial-data drift.
+   The exact constitutive initialization preserves the prescribed
+   physical initial state. It has passed both short MPI1/MPI2
+   scientific acceptance and the complete eight-second
+   MPI1/MPI2 showcase.
