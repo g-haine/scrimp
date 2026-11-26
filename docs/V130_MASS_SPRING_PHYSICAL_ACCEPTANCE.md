@@ -90,9 +90,9 @@ differential state as the physical initial state:
 `q(0)-0.4=-1.33331e-8`, `p(0)-0=-0.00019999666`.
 The latter is a finite, avoidable change of the physical
 initial condition, NOT a small error of the BDF2 time discretization.
-The legacy model remains reproducible explicitly by calling
-`mass_spring_damper(initialization="legacy_pseudo")`, but
-is **not** a qualified default for the prescribed IVP.
+The incorrect initialization mode has been **removed** from the
+canonical example. This historical failed test is retained only
+as a diagnostic record, not as a supported user mode.
 
 ## Accepted exact constitutive initial state: NATIVE PASS
 
@@ -107,7 +107,7 @@ Source `2568751b`, same Docker image, MUMPS MPI1 and MPI2.
 Only the example's handling of **exact initial co-energy DOFs**
 changed: `e_q=k*q0`, `e_p=p0/m` assigned directly with
 GetFEM's `set_variable`, and `init_step=False` for the
-default case. **No change** to constitutive, forcing,
+only supported initialization path. **No change** to constitutive, forcing,
 Dirac, mass or damping bricks; no change to the subsequent fixed
 PETSc BDF2 scheme. Generic SCRIMP DAE initialization is untouched.
 
