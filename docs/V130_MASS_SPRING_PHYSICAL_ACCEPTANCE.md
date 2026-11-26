@@ -2,9 +2,68 @@
 
 ## Status, 26 November 2026
 
-**Original canonical linear lumped pH model: SHORT MPI1/2 NATIVE PASS.**
-The full original `t_f=8` BDF2 trajectory and canonical example-native
-PNG/SVG/GIF user visualizations are **STAGED, NATIVE PENDING**.
+**FULL NATIVE PASS — original canonical linear lumped pH model**:
+exact initial state, 800 accepted BDF2 steps (`t_f=8`,
+`dt=.01`), 801 complete four-variable GetFEM/PETSc states,
+MUMPS MPI1 and MPI2, independent forced-ODE comparison,
+quadratic BDF2 energy-power identity for all 799 steps `k>=2`,
+and PNG/SVG/GIF visualizations generated **inside the original
+`examples/mass_spring_damper.py`**.
+
+Original user-host archive:
+`v130-mass-spring-8s-showcase-085c0bac-CYnvWUgS.zip`,
+source/runner revision `085c0bac`, Docker
+`scrimp-mpi:v1.3.0-rc3`.
+**SHA256 `1271220365ee60eaf019e3847cbfc620ba29acb4593255e50bcc6de8b75ed0c9`**;
+34 original evidence members, ZIP CRC PASS, opened and
+recomputed independently from native traces.
+
+- **No change** to physical GetFEM bricks, forcing, damping,
+  original scalar model, or original BDF2 solver.
+- Genuine initial state `(q,p,e_q,e_p)=(.4,0,2,0)`,
+  exactly preserved by the example's explicitly
+  constitutive-consistent no-pseudo-TS start.
+- All 800 full-horizon steps accepted with zero rejected steps and
+  nonlinear-solver failures on MPI1 and MPI2.
+- Full-history co-energy errors `4.44e-16` and `1.11e-16`;
+  original GetFEM Hamiltonian equals the analytical
+  `H=.5*k*q²+p²/(2*m)` throughout.
+- **Exact quadratic BDF2 identity**, evaluated solely for
+  `k=2,...,800`: maximum native energy-power
+  defect **`4.877327960027303e-13`**, independently
+  recomputed from original `q,p,e_q,e_p,H` and force histories.
+  No incorrect BDF1 identity is claimed for the PETSc startup.
+- MPI1-to-MPI2 maximum error over all 801 time samples and
+  all four DAE coefficients **`3.469446951953614e-18`**,
+  MPI2 rank0 and rank1 byte-identical.
+- Independent high-accuracy RK4 integration of the original
+  forced physical ODE: largest absolute `q` or `p`
+  discrepancy **`0.0008987341488750217`** over eight
+  seconds at fixed `dt=.01`. This is a solver-vs-reference
+  error measure, **not** a claimed convergence rate.
+- Native `H(0)=.4`, `H(8)=.11504667286073528`.
+  The prescribed forcing exchanges energy, so the correct
+  validation is the full signed dissipation/work balance.
+- Original example generated and saved
+  `mass_spring_trajectory.{png,svg}`,
+  `mass_spring_phase_portrait.{png,svg}`,
+  `mass_spring_energy_and_power.{png,svg}`, and
+  `mass_spring_motion.gif` (36 saved-time frames).
+  Pillow confirmed valid GIF frames, and all three PNGs
+  were visually inspected. The example's own native
+  `native_lumped_time_history.npz` exactly matches
+  the original GetFEM `q,p,H` and agrees with the
+  independently computed energy-power identity to roundoff.
+  The moving spring is expressly schematic, not an FE mesh.
+
+**Release decision: FULL PASS, scientific gate CLOSED for this
+configuration.** Source tests and the check protecting all eight
+immutable published examples also passed. No extra native
+run is required for the agreed acceptance.
+
+**Not claimed:** BDF2 startup-stage energy identity,
+dt-refinement order, alternative solver backends, MPI4+,
+or independent nonlinear-pendulum qualification.
 
 The canonical original weak GetFEM/PETSc model has exactly four global
 scalar unknowns `q,p,e_q,e_p`, with the actual prescribed
@@ -81,9 +140,9 @@ mass-spring DAE/BDF2 initial-value problem has passed all
 scientific native gates, in MPI1 and MPI2. This is not a
 long-run or visual qualification.
 
-## Full native example and user visualization release gate — PENDING
+## Full native example and user visualization release gate — COMPLETED
 
-The source-only staged runner
+The natively executed release runner
 `scripts/run-v130-mass-spring-full-showcase.sh` performs:
 
 1. A true eight-step MUMPS MPI1 preview with the **canonical
@@ -112,7 +171,9 @@ saved GetFEM lumped states**. The GIF is explicitly
 labeled *schematic*: it does not invent a spatial
 FE displacement mesh. No fabricated time interpolation.
 
-This gate must **not** be called PASS before actual
-user-host Docker execution. No claim about time-step
+**NATIVE PASS**, as evidenced by the SHA256-pinned user-host
+archive and independent numerical and graphical checks above.
+The original GetFEM and user-viewable figure files were produced
+by the same canonical source. No claim about time-step
 refinement, other LU backends, MPI4+, or nonlinear
 pendulum qualification is made.
