@@ -217,6 +217,17 @@ def main():
             errors.append(f"Original heat.py native showcase failed {label}: "
                           f"{type(exc).__name__}: {exc}")
 
+    # Keep a small, independently verifiable selection of ORIGINAL
+    # GetFEM VTU field snapshots, rather than only their hash inventory.
+    # The first native archive had a packaging omission: these genuine
+    # files were discovered and hashed, but not added to archive_files.
+    # Never publish "selected raw VTU included" without the bytes.
+    if len(sampled_vtu)!=8 or len({str(f) for f in sampled_vtu})!=8:
+        errors.append(
+            "Expected four authentic native VTK snapshots each for "
+            "preview and full MPI1; selected source files unavailable"
+        )
+
     evidence={
         "schema":"scrimp-v130-heat-CN-strict-full-physical-and-visual-v1",
         "status":("PASS_NATIVE_HEAT_CN_500_STEPS_MPI1_MPI2_AND_VISUALS"
@@ -251,16 +262,6 @@ def main():
     }
     summary=root/"summary.json"
     summary.write_text(json.dumps(evidence,indent=2)+"\n")
-    # Keep a small, independently verifiable selection of ORIGINAL
-    # GetFEM VTU field snapshots, rather than only their hash inventory.
-    # The first native archive had a packaging omission: these genuine
-    # files were discovered and hashed, but not added to archive_files.
-    # Never publish "selected raw VTU included" without the bytes.
-    if len(sampled_vtu)!=8 or len({str(f) for f in sampled_vtu})!=8:
-        errors.append(
-            "Expected four authentic native VTK snapshots each for "
-            "preview and full MPI1; selected source files unavailable"
-        )
     archive_files=set(short)
     archive_files.update(sampled_vtu)
     archive_files.add(summary)
