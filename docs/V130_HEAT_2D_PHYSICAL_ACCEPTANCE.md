@@ -17,6 +17,39 @@
 > Preserve the BDF2 qualification independently using
 > `scripts/run-v130-heat-physical-diagnostic.sh`.
 >
+> **Native CN short pilot 26 November — all physics PASS, global FE parity
+> FAIL (not released):** original user archive
+> `v130-heat-CN-pilot-1fc43520-LFg8YI8b.zip`; 16 ZIP members,
+> CRC PASS. Four genuine fixed CN steps at `h=.1, dt=.01, t_f=.04`
+> MPI1/2, zero TS rejections or SNES failures. Every per-rank genuine
+> CN/port/Hamiltonian gate PASS, maximum CN step defects
+> `1.5588e-14` (MPI1) and `9.2756e-15` (MPI2). Both MPI2 rank FE
+> replicas are byte-identical. Nonetheless the global MPI1-vs-MPI2
+> full-FE coefficient discrepancy is `1.99827153e-6` (criterion
+> `1e-8`), so the pilot status is **UNQUALIFIED**, NOT PASS.
+> The discrepancy already appears at the initialized `t=0` state
+> and, remarkably, satisfies `delta_z[k] = (-1)^k delta_z[0]`
+> on all 5830 DOFs to at most `2.3e-13`; it does not grow over time.
+> This is consistent with the CN algebraic-constraint alternating
+> parasitic mode excited by rank-dependent finite-precision LSQR
+> consistency initialization. `init_algebraic_accuracy=1e-11`
+> was not reached: MPI1 final residual `1.8196e-11`, MPI2
+> `1.3157e-11`, after the default 3 passes; both are still
+> within the looser physical feasibility criterion, without
+> changing prescribed differential state data.
+>
+> **Next diagnostic (SOURCE STAGED, native pending):**
+> `SCRIMP_V130_HEAT_CN_INIT_PROFILE=strict bash scripts/run-v130-heat-cn-pilot.sh`
+> reuses the exact original CN model, FE spaces, boundary
+> controls, plot and 4-step MPI1/2 checks but increases the
+> already-supported algebraic initialization max passes to 8,
+> targets accuracy `1e-13` and sets LSQR tolerances `1e-14`.
+> The physical and strict all-DOF MPI parity gates are **not relaxed**;
+> additionally the LSQR accuracy target must actually be met.
+> This is an isolated acceptance experiment, **not** the newly
+> qualified default. Preserve any failure archives and diagnose
+> convergence before choosing final time-stepper/initialization.
+>
 **26 November 2026 — NATIVE PASS (bounded: original long BDF2 model, MPI1/2,
 all 499 order-two steps, port powers, full FE parity, and user figures).
 PETSc BDF2 start-up half-step is not claimed as independently qualified.**
