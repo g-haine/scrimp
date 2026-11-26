@@ -16,16 +16,23 @@ revision="$("${docker_cmd[@]}" image inspect \
     echo "Unqualified GetFEM/PETSc Docker revision: $revision" >&2
     exit 2
 }
-python3 -m py_compile examples/heat.py
+python3 -m py_compile examples/heat.py sandbox/probe_v130_heat_cn_init_precision.py
+profile="${SCRIMP_V130_HEAT_CN_INIT_PROFILE:-default}"
+case "$profile" in
+  default) entrypoint="/workspace/scrimp/examples/heat.py" ;;
+  strict) entrypoint="/workspace/scrimp/sandbox/probe_v130_heat_cn_init_precision.py" ;;
+  *) echo "Unknown SCRIMP_V130_HEAT_CN_INIT_PROFILE=$profile (default|strict)" >&2
+     exit 2 ;;
+esac
 python3 tests/test_v130_heat_cn_source.py
 python3 scripts/check-v130-published-immutable.py
 
 mkdir -p sandbox/outputs
-out="$(mktemp -d "$root/sandbox/outputs/v130-heat-CN-pilot-$(git rev-parse --short=8 HEAD)-XXXXXXXX")"
-printf '{"schema":"scrimp-v130-heat-CN-algebraic-4-step-pilot-v1","source":"%s","image":"%s","image_revision":"%s","original_FEM_and_controls_unchanged":true,"time_stepper":"cn","initializer":"algebraic","MPI":[1,2],"CN_steps":4,"full_run_and_visuals_not_yet_qualified":true}\n' \
-    "$(git rev-parse HEAD)" "$image" "$revision" > "$out/manifest.json"
+out="$(mktemp -d "$root/sandbox/outputs/v130-heat-CN-$profile-pilot-$(git rev-parse --short=8 HEAD)-XXXXXXXX")"
+printf '{"schema":"scrimp-v130-heat-CN-algebraic-4-step-pilot-v1","source":"%s","image":"%s","image_revision":"%s","original_FEM_and_controls_unchanged":true,"time_stepper":"cn","initializer":"algebraic","MPI":[1,2],"CN_steps":4,"init_precision_profile":"%s","full_run_and_visuals_not_yet_qualified":true}\n' \
+    "$(git rev-parse HEAD)" "$image" "$revision" "$profile" > "$out/manifest.json"
 
-echo "SCRIMP 2-D heat CN + exact algebraic DAE projection — native four-step pilot"
+echo "SCRIMP 2-D heat CN + algebraic DAE projection — native four-step pilot, init profile=$profile"
 echo "Original physical mesh h=.1, dt=.01, t_f=.04; MUMPS, COO; MPI1/2"
 echo "No visual showcase yet — mathematical acceptance first"
 echo "EVIDENCE: $out"
@@ -34,6 +41,12 @@ for n in 1 2; do
     mkdir -p "$out/native_mpi$n" "$out/work_mpi$n"
     echo "RUN CN/algebraic MPI=$n"
     rc=0
+    extra_volumes=()
+    if [[ "$profile" == strict ]]; then
+        extra_volumes+=(
+          --volume "$root/sandbox/probe_v130_heat_cn_init_precision.py:/workspace/scrimp/sandbox/probe_v130_heat_cn_init_precision.py:ro"
+        )
+    fi
     "${docker_cmd[@]}" run --rm \
         --user "$(id -u):$(id -g)" \
         --env HOME=/tmp --env MPLBACKEND=Agg \
@@ -47,12 +60,13 @@ for n in 1 2; do
         --env SCRIMP_NONLINEAR_RESIDUAL_FORM=direct_getfem \
         --volume "$root/scrimp:/workspace/scrimp/scrimp:ro" \
         --volume "$root/examples/heat.py:/workspace/scrimp/examples/heat.py:ro" \
+        "${extra_volumes[@]}" \
         --volume "$out/native_mpi$n:/artifacts:rw" \
         --volume "$out/work_mpi$n:/scrimp-work:rw" \
         --workdir /scrimp-work \
         "$image" timeout -k 10s "${SCRIMP_V130_HEAT_CN_TIMEOUT:-900s}" \
         mpiexec --oversubscribe --bind-to none -n "$n" \
-        python -u -m examples.heat \
+        python -u "$entrypoint" \
           --time-stepper cn --initializer algebraic \
           --mesh-size 0.1 --time-step 0.01 --final-time 0.04 \
           --solver mumps --no-showcase --check --output /artifacts \
@@ -68,13 +82,14 @@ for n in 1 2; do
 done
 
 compare_rc=0
-python3 - "$out" <<'PY' || compare_rc=$?
+python3 - "$out" "$profile" <<'PY' || compare_rc=$?
 import json
 import sys
 from pathlib import Path
 import numpy as np
 
-root=Path(sys.argv[1]); errors=[]; traces={}; reports={}
+root=Path(sys.argv[1]); profile=sys.argv[2]
+errors=[]; traces={}; reports={}
 for mpi in (1,2):
     if (root/f"mpi{mpi}.exitcode").read_text().strip()!="0":
         errors.append(f"Native MPI{mpi} did not complete successfully")
@@ -105,6 +120,8 @@ for mpi in (1,2):
                 or init.get("strategy")!="algebraic"
                 or init.get("differential_initial_exact") is not True
                 or init.get("pseudo_ts_executed") is not False
+                or (profile == "strict"
+                    and init.get("accuracy_target_met") is not True)
                 or not gates or not all(gates.values())):
             errors.append(f"Original native FE/DAE/CN physics gate failed {key}")
         data=traces[key]
@@ -122,9 +139,17 @@ if len(traces)==3:
         data=traces[key]
         fe=float(np.max(np.abs(base["states"]-data["states"])))
         h=float(np.max(np.abs(base["H"]-data["H"])))
+        diff=base["states"]-data["states"]
+        first=diff[0]
+        sign_alternation=float(max(
+            np.max(np.abs(diff[i]-((-1)**i)*first))
+            for i in range(diff.shape[0])
+        ))
         parity[f"MPI1_to_MPI{key[0]}_rank{key[1]}"]={
             "max_FE_coefficient_abs_diff":fe,
             "max_H_abs_diff":h,
+            "max_CN_alternating_initial_difference_error":
+                sign_alternation,
         }
         if fe>1e-8 or h>1e-9:
             errors.append(f"Native MPI FE or H numerical mismatch: {key}")
@@ -134,6 +159,7 @@ summary={
               if not errors else "FAIL_OR_UNQUALIFIED_HEAT_CN_PILOT"),
     "errors":errors,
     "four_step_short_pilot_only":True,
+    "init_precision_profile":profile,
     "full_original_horizon_and_showcase_pending":True,
     "full_FE_MPI_parity":parity,
     "ranks":{
