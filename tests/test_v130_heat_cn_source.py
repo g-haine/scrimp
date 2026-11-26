@@ -96,6 +96,26 @@ class HeatCNSourceContract(unittest.TestCase):
         self.assertIn("Strict PETSc initializer options NOT APPLIED",pilot)
         self.assertNotIn("probe_v130_heat_cn_init_precision.py",pilot)
 
+    def test_full_showcase_archive_includes_actual_original_vtus(self):
+        # A prior compact ZIP accidentally saved only the VTK SHA256
+        # inventory, despite claiming raw VTU snapshots were included.
+        # These source-contract checks guard the archival inclusion.
+        source=(ROOT/"sandbox/compare_v130_heat_cn_full_showcase.py"
+                ).read_text(encoding="utf-8")
+        for fragment in (
+            "archive_files.update(sampled_vtu)",
+            "if len(vtk_in_zip)!=8:",
+            "hashlib.sha256(z.read(name)).hexdigest()",
+            "os.replace(pending,archive)",
+            "ZIP_CRC_pass",
+            "selected_actual_GetFEM_VTU_in_archive",
+        ):
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment,source)
+        # Independent packaging must not trigger another PETSc TS solve.
+        self.assertNotIn("docker run",source)
+        self.assertNotIn(".solve()",source)
+
     def test_historical_bdf2_pseudo_reproducibility_is_explicit(self):
         self.assertIn(
             'heat_eq(time_stepper="bdf", initializer="pseudo")',
