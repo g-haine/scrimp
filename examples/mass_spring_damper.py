@@ -165,7 +165,6 @@ def render_mass_spring_visuals(system, folder, *, mass, stiffness, damping):
     import json
     from petsc4py import PETSc
     import matplotlib.pyplot as plt
-    from matplotlib import cm, colors
     from PIL import Image
 
     times=np.asarray(system.solution["t"],dtype=float)
