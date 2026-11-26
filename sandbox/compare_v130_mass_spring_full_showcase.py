@@ -47,7 +47,7 @@ def main():
                 all_physics=meta.get("gates") or {}
                 target=(count-1)*0.01
                 if (meta.get("status")!="PASS_ORIGINAL_LUMPED_ODE_NATIVE_PILOT"
-                        or meta.get("initializer")!="exact"
+                        or meta.get("initializer")!="exact_constitutive"
                         or meta.get("no_pseudo_time_initialization") is not True
                         or meta.get("time_stepper")!="original_BDF2"
                         or meta.get("canonical_showcase") is not showcase
