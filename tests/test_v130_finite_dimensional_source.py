@@ -45,9 +45,14 @@ class FiniteDimensionalV130Source(unittest.TestCase):
             '"-damp_c*e_p*Test_p/ell"',
             '"(spring_k*q-e_q)*Test_e_q/ell"',
             '"(p/osc_mass-e_p)*Test_e_p/ell"',
-            'sys.set_initial_value("q", 0.4)',
-            'sys.set_initial_value("p", 0.0)',
-            'init_step_ts_type="pseudo"',
+            'q0, p0 = 0.4, 0.0',
+            'sys.set_initial_value("q", q0)',
+            'sys.set_initial_value("p", p0)',
+            'sys.gf_model.set_variable("e_q", np.array([stiffness*q0]))',
+            'sys.gf_model.set_variable("e_p", np.array([p0/mass]))',
+            '"init_step": False',
+            '"init_step_ts_type": "pseudo", "init_step": True',
+            'initialization="exact"',
             'ts_type="bdf", ts_bdf_order=2',
         ):
             with self.subTest(fragment=fragment):
@@ -70,6 +75,8 @@ class FiniteDimensionalV130Source(unittest.TestCase):
             "bdf2_power_defect",
             "rk4_reference",
             "BDF2_k_ge_2_no_unverified_startup",
+            'initialization=args.initialization',
+            '"no_pseudo_time_initialization":args.initialization=="exact"',
         ):
             with self.subTest(fragment=fragment):
                 self.assertIn(fragment,probe)
