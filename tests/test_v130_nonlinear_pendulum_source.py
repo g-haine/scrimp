@@ -101,6 +101,46 @@ class NonlinearPendulumSourceV130(unittest.TestCase):
                 self.assertIn(fragment,source)
         self.assertNotIn("BDF2",source)
 
+    def test_full_CNruns_include_twelve_second_MPI_and_refinement(self):
+        runner=(ROOT/"scripts/run-v130-nonlinear-pendulum-CN-full-showcase.sh"
+                ).read_text(encoding="utf-8")
+        checker=(ROOT/"sandbox/compare_v130_nonlinear_pendulum_CN_full.py"
+                 ).read_text(encoding="utf-8")
+        ast.parse(checker)
+        for piece in (
+            'preview_free:free:0:1:0.08:0.01:1:0.003',
+            'preview_forced:forced:0.1:1:0.08:0.01:1:0.003',
+            'free_mpi1:free:0:1:12:0.01:1:0.02',
+            'free_mpi2:free:0:2:12:0.01:0:0.02',
+            'free_refined:free:0:1:12:0.005:0:0.006',
+            'forced_mpi1:forced:0.1:1:12:0.01:1:0.02',
+            'forced_mpi2:forced:0.1:2:12:0.01:0:0.02',
+            'forced_refined:forced:0.1:1:12:0.005:0:0.006',
+            'check-v130-published-immutable.py',
+            '--showcase',
+            'python3 sandbox/compare_v130_nonlinear_pendulum_CN_full.py',
+        ):
+            with self.subTest(piece=piece):
+                self.assertIn(piece,runner)
+        for piece in (
+            'total_accepted_states_per_full_coarse_run',
+            'total_accepted_states_per_full_refined_run',
+            'np.log2(ratio)',
+            '3.3<=ratio<=4.7',
+            'complete_full_12s_CN_MPI1_MPI2_parity',
+            'original_canonical_example_figures',
+            'CN_nonlinear_chain_rule_defect',
+            'CN_coenergy_power_defect',
+            'CN_cumulative_H_minus_work',
+            'data["z"].shape==(count,4)',
+        ):
+            with self.subTest(piece=piece):
+                self.assertIn(piece,checker)
+        self.assertNotIn("import matplotlib",checker)
+        self.assertNotIn("plt.savefig",checker)
+        self.assertNotIn("S.DPHS(",checker)
+        self.assertNotIn("legacy_pseudo",runner)
+
     def test_native_driver_checks_mpi_and_force(self):
         source=(ROOT/"scripts/run-v130-nonlinear-pendulum-physical-pilot.sh"
                 ).read_text(encoding="utf-8")
