@@ -39,6 +39,9 @@ class NonlinearPendulumSourceV130(unittest.TestCase):
             'pend.gf_model.set_variable("e_p", np.array([p0/inertia]))',
             'init_step=False,',
             'ts_type="cn",',
+            'snes_atol=1e-12, snes_rtol=1e-12, snes_stol=1e-14,',
+            '"failed_native_constitutive_trace.npz"',
+            'worst_time=',
         ):
             with self.subTest(fragment=fragment):
                 self.assertIn(fragment,text)
