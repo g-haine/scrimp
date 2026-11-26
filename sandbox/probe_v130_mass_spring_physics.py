@@ -1,7 +1,7 @@
 """Native diagnostic of the ORIGINAL mass_spring_damper.py pH-DAE.
 
-Keep original weak forms, lumped ports, BDF2/pseudo startup, forcing and
-parameter values. Check the differential and constitutive relations,
+Keep original weak forms, lumped ports, BDF2 time integration, forcing
+and parameter values; the exact co-energy start is the accepted default. Check the differential and constitutive relations,
 the exact quadratic BDF2 step-energy identity (k>=2), and an
 independent high-accuracy RK4 approximation of the true forced ODE.
 This is a short qualification pilot, not a modified example.
@@ -60,6 +60,8 @@ def main():
     parser.add_argument("--solver",default="mumps")
     parser.add_argument("--initialization",choices=("exact","legacy_pseudo"),
                         default="exact")
+    parser.add_argument("--showcase",action="store_true",
+                        help="Render by canonical example (not by probe)")
     parser.add_argument("--out",type=Path,required=True)
     args=parser.parse_args()
 
@@ -67,7 +69,7 @@ def main():
     system=mass_spring_damper(
         final_time=args.final_time,
         time_step=args.time_step,
-        plot=False,factor_solver=args.solver,
+        plot=args.showcase,factor_solver=args.solver,
         initialization=args.initialization,
     )
     t=np.asarray(system.solution["t"],dtype=float)
@@ -176,6 +178,9 @@ def main():
         BDF2_ODE_p_defect=ode_p_defect,
         BDF2_step_power_defect=bdf2_power_defect,
     )
+    figures=getattr(system,"mass_spring_visuals",None)
+    if args.showcase and PETSc.COMM_WORLD.getRank()==0 and not figures:
+        raise RuntimeError("Canonical mass-spring did not publish visuals")
     report={
         "schema":"scrimp-v130-original-mass-spring-bdf2-pH-pilot-v1",
         "status":("PASS_ORIGINAL_LUMPED_ODE_NATIVE_PILOT"
@@ -193,6 +198,8 @@ def main():
         "time_stepper":"original_BDF2",
         "initializer":args.initialization,
         "no_pseudo_time_initialization":args.initialization=="exact",
+        "canonical_showcase":bool(args.showcase),
+        "canonical_visuals":figures,
         "native_q0":float(q[0]),
         "native_p0":float(p[0]),
         "native_e_q0":float(eq[0]),
