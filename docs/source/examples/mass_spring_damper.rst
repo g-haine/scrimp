@@ -91,11 +91,48 @@ The expected energy variation satisfies
 
    H(t)-H(0)=\int_0^t\bigl[f(s)e_p(s)-c\,e_p(s)^2\bigr],\mathrm ds.
 
-Compute the two integrals from the stored time histories to verify
-the numerical energy balance. BDF2 is not an exactly energy-preserving
-integrator: the measured defect should be examined under time-step
-refinement. A free undamped oscillator (`f=0`, `c=0`) is a useful
-additional regression case.
+The continuous work integral is useful for understanding the physics,
+but it should **not** be confused with an exact energy identity for
+BDF2. This example uses the original quadratic Hamiltonian and
+fixed-step BDF2, so every step :math:`n\geq2` also has the exact
+*discrete* quadratic identity
+
+.. math::
+
+   \frac{
+       H(z_n)-H(z_{n-1})
+       +H(2z_n-z_{n-1})-H(2z_{n-1}-z_{n-2})
+       +H(z_n-2z_{n-1}+z_{n-2})
+   }{2\Delta t}
+   +c\left(\frac{p_n}{m}\right)^2
+   -f(t_n)\frac{p_n}{m}=0.
+
+This identity is obtained by multiplying the **original**
+semi-discrete oscillator equation by its current co-energy, not
+by applying a trapezoidal rule to a saved power plot.
+It covers BDF2 steps :math:`n\geq2`, not the internal PETSc
+**BDF2 startup stages**, which require a separate analysis.
+
+A native qualification pilot checks the original model with
+MUMPS in MPI 1 and 2, measuring the actual algebraic relations
+:math:`e_q=kq`, :math:`e_p=p/m`, both differentiated BDF2
+equations, the exact step energy-power defect and the complete
+MPI state trajectory. The independent reference is the
+**forced two-state ODE**, integrated by a high-accuracy RK4
+scheme, not a replacement SCRIMP model:
+
+.. code-block:: console
+
+   SCRIMP_DOCKER_NO_SUDO=1 \\
+   SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \\
+   bash scripts/run-v130-mass-spring-physical-pilot.sh
+
+**This short pilot is not yet a native qualification** until
+its original GetFEM/PETSc output has been reviewed. A full default
+time horizon, temporal refinement and reproducible example-native
+visualizations will be qualified separately. A free undamped
+oscillator (`f=0`, `c=0`) is an additional possible
+regression case.
 
 .. note::
 
