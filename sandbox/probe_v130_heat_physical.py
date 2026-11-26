@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 
 import numpy as np
+import getfem as gf
 from petsc4py import PETSc
 
 from examples.heat import heat_eq
@@ -114,6 +115,66 @@ def main():
     if np.min(H) <= 0 or np.min(dissipation) < -1e-10:
         raise RuntimeError("Nonphysical Hamiltonian or negative Fourier dissipation")
 
+    # Correct discrete pH power: the flow/effort products on the control
+    # ports, not the pointwise T*J_Q.normal traces. DG T need not equal U_D
+    # on the Dirichlet facets; U_L*Y_L is the Neumann contribution.
+    if ("Heat flux" not in raw_port_powers or
+            len(raw_port_powers) != 5):
+        raise RuntimeError("Unexpected original heat power-port topology")
+    control_power = np.sum(np.stack([
+        val for key, val in raw_port_powers.items()
+        if key != "Heat flux"
+    ]), axis=0)
+    total_discrete_power = dissipation + control_power
+    port_work = np.r_[0., np.cumsum(
+        0.5*np.diff(time)*(total_discrete_power[1:]
+                          + total_discrete_power[:-1])
+    )]
+    port_balance_approx = H - H[0] + port_work
+
+    # Stronger exact BDF2 G-stability identity for a *quadratic* H:
+    # (a, 3a-4b+c)_M = H(a)-H(b)
+    #   + H(2a-b)-H(2b-c)+H(a-2b+c).
+    # Hence the original BDF2 weak equations imply
+    #   [H(a)-H(b)+H(2a-b)-H(2b-c)+H(a-2b+c)]/(2dt)
+    #   + D(a) + SUM P_control(a) = 0
+    # for each step n>=2. Every H below is a REAL GetFEM mass integral
+    # at an authentic combination of the original accepted FE vectors.
+    # It does not reuse the approximate trapezoidal time quadrature.
+    def quadratic_hamiltonian(state, current_t):
+        system.gf_model.set_time(float(current_t))
+        system.gf_model.to_variables(state)
+        return float(gf.asm_generic(
+            system.domain._int_method[0], 0, "0.5*T*rho*T", 1,
+            system.gf_model
+        ))
+
+    bdf2_power_balance_discrete = np.full(n, np.nan)
+    extrap_prev = quadratic_hamiltonian(
+        2*states[1]-states[0], time[1]
+    )
+    # PETSc BDF2 starts with its one-step implicit formula.
+    bdf1_first_step_balance = (
+        (H[1]-H[0] +
+         quadratic_hamiltonian(states[1]-states[0], time[1]))
+        /(time[1]-time[0]) + total_discrete_power[1]
+    )
+    for k in range(2, n):
+        extrap_current = quadratic_hamiltonian(
+            2*states[k]-states[k-1], time[k]
+        )
+        second_diff = quadratic_hamiltonian(
+            states[k]-2*states[k-1]+states[k-2], time[k]
+        )
+        bdf2_power_balance_discrete[k] = (
+            (H[k]-H[k-1]+extrap_current-extrap_prev+second_diff)
+            /(2*(time[k]-time[k-1]))
+            + total_discrete_power[k]
+        )
+        extrap_prev = extrap_current
+    if not np.all(np.isfinite(bdf2_power_balance_discrete[2:])):
+        raise RuntimeError("Nonfinite native BDF2 quadratic power identity")
+
     args.out.mkdir(parents=True, exist_ok=True)
     trace = args.out/f"rank{rank}.npz"
     report = args.out/f"rank{rank}.json"
@@ -127,6 +188,9 @@ def main():
         boundary_10=bflux[10], boundary_11=bflux[11],
         boundary_12=bflux[12], boundary_13=bflux[13],
         energy_defect_approximate=defect,
+        port_balance_approximate=port_balance_approx,
+        control_power=control_power,
+        discrete_bdf2_power_defect=bdf2_power_balance_discrete,
         **{"port_"+str(i): v for i, v in enumerate(raw_port_powers.values())}
     )
     record = {
@@ -151,6 +215,17 @@ def main():
         "max_BDF_trapezoid_energy_defect": float(np.max(np.abs(defect))),
         "final_BDF_trapezoid_energy_defect": float(defect[-1]),
         "relative_BDF_trapezoid_defect": float(np.max(np.abs(defect))/energy_scale),
+        "max_correct_port_trapezoid_energy_defect": float(
+            np.max(np.abs(port_balance_approx))),
+        "final_correct_port_trapezoid_energy_defect": float(
+            port_balance_approx[-1]),
+        "max_exact_BDF2_quadratic_power_defect": float(
+            np.max(np.abs(bdf2_power_balance_discrete[2:]))),
+        "rms_exact_BDF2_quadratic_power_defect": float(
+            np.sqrt(np.mean(bdf2_power_balance_discrete[2:]**2))),
+        "BDF1_initial_step_power_defect": float(
+            bdf1_first_step_balance),
+        "BDF2_uses_exact_quadratic_mass_identity": True,
         "BDF_trapezoid_is_exact_energy_identity": False,
         "energy_balance_physically_accepted": False,
         "states_sha256": hashlib.sha256(states.tobytes()).hexdigest()
@@ -162,7 +237,10 @@ def main():
             "max_H_independent_difference",
             "max_constitutive_dissipation_difference",
             "max_BDF_trapezoid_energy_defect",
-            "relative_BDF_trapezoid_defect")
+            "relative_BDF_trapezoid_defect",
+            "max_correct_port_trapezoid_energy_defect",
+            "max_exact_BDF2_quadratic_power_defect",
+            "BDF1_initial_step_power_defect")
     }), flush=True)
 
 
