@@ -122,11 +122,13 @@ the expected equations are
 
 .. math::
 
+   \begin{aligned}
    \frac{\theta_n-\theta_{n-1}}{\Delta t}
       &= \bar e_{p,n},\\
    \frac{p_n-p_{n-1}}{\Delta t}
       &= -\bar e_{\theta,n}-d\,\bar e_{p,n}
          +\bar\tau_n.
+   \end{aligned}
 
 The corresponding **exact discrete co-energy power pairing**
 tests the actual CN residual:
