@@ -98,6 +98,9 @@ class NonlinearPendulumSourceV130(unittest.TestCase):
             'pendulum_motion.gif',
             'cn_chain_rule_defect=cn_H_rate-cn_coenergy_rate',
             'nonquadratic_H_CN_chain_rule_defect_not_assumed_zero',
+            'snes_atol=1e-12, snes_rtol=1e-12, snes_stol=1e-14,',
+            'failed_native_constitutive_trace.npz',
+            'max_sine_error=',
             'nonlinear_pendulum(plot=True)',
         ):
             with self.subTest(fragment=fragment):
@@ -135,6 +138,7 @@ class NonlinearPendulumSourceV130(unittest.TestCase):
             'CN_nonlinear_chain_rule_defect',
             'CN_coenergy_power_defect',
             'CN_cumulative_H_minus_work',
+            'failed_native_constitutive_trace.npz',
             'data["z"].shape==(count,4)',
         ):
             with self.subTest(piece=piece):
