@@ -1,12 +1,77 @@
 # SCRIMP v1.3.0 — nonlinear lumped pendulum physical acceptance
 
-## Current status — SHORT PETSc CN MPI1/2 NATIVE PASS
+## Current status — FULL PETSc CN 12-second MPI1/2 NATIVE PASS
 
-The **short original CN model is qualified** in unforced and forced
-configurations at `dt=.01`, `t_f=.08`, MUMPS MPI1 and MPI2.
-This is a **scientific short pilot only**. Full 12-second, temporal
-refinement and canonical user figures remain unqualified pending
-the long native campaign.
+**FULL NATIVE SCIENTIFIC AND VISUAL PASS**, 26 November 2026.
+The original canonical nonlinear full-sine pendulum has been
+qualified with PETSc TSCN (endpoint trapezoidal), exact
+constitutive initial state, MUMPS MPI1/MPI2, two physical
+configurations (free and torque amplitude 0.1), complete
+12-second trajectories, temporal refinement, and real
+canonical PNG/SVG/GIF output.
+
+**User-host acceptance archive:**
+`v130-pendulum-CN-12s-showcase-b93cfd27-Kd1WLVcv.zip`.
+Source commit `b93cfd27dc3d69104da8d615d47fe6d1cc196302`,
+image `scrimp-mpi:v1.3.0-rc3`;
+SHA256 **`210b8fef9886c4966a42866c1d89bb786ead5f08f071741ddf16d62e581c47f0`**.
+Independent ZIP verification: **74 members, CRC PASS**.
+All eight planned native runs returned exit code 0.
+All eight immutable published source examples remained unchanged.
+
+| Full 12-second CN result | Free | Forced, torque amplitude 0.1 |
+| --- | ---: | ---: |
+| True accepted steps / states, dt=.01 | 1200 / 1201 | 1200 / 1201 |
+| True accepted steps / states, dt=.005 | 2400 / 2401 | 2400 / 2401 |
+| Max nonlinear sine constitutive error, dt=.01 | 3.464e-14 | 4.263e-14 |
+| Max native H versus analytic H | 8.882e-16 | 8.882e-16 |
+| Max CN co-energy power defect, dt=.01 | 4.836e-12 | 6.915e-12 |
+| Max MPI1/MPI2 complete four-DOF discrepancy | 7.860e-14 | 1.015e-13 |
+| Max theta/p RK4 error, dt=.01 | 5.735105e-3 | 5.732085e-3 |
+| Max theta/p RK4 error, dt=.005 | 1.433858e-3 | 1.433163e-3 |
+| RK4 error ratio coarse/refined | 3.999772 | 3.999606 |
+| **Observed order log2(ratio)** | **1.999918** | **1.999858** |
+| Native H(0) | 6.255270428583832 | 6.255270428583832 |
+| Native H(12) | 2.4964883366297386 | 2.4909090620990706 |
+
+Every run completed all its planned CN steps with the
+original four true GetFEM lumped DOFs and physical gates
+satisfied. MPI2 rank0/rank1 trajectories agree exactly;
+MPI1/MPI2 deviations are numerical roundoff. The unforced
+case displays strictly decreasing native H at every saved
+coarse interval (maximum increment `-2.5674991e-9`).
+
+The independent checker recomputed the true full-sine
+constitutive error, CN endpoint equations, nonquadratic
+co-energy power, accumulated Hamiltonian chain-rule
+accounting and independent full-sine RK4 errors directly
+from the raw NPZ records. The nonlinear Hamiltonian is
+**not** asserted to be exactly conserved by CN.
+
+**The canonical example itself** created the accepted
+free and forced user graphics: three PNG/SVG pairs
+(trajectory, phase portrait, physical energy and power),
+plus a 36-frame schematic pendulum GIF for each complete
+12-second simulation. These use actual saved GetFEM
+states without inventing a spatial FE mesh or
+interpolating physical solution states. The figure
+manifests and native NPZ histories were checked against
+the source trajectories, all PNGs opened successfully
+and the plotted physical balances were visually inspected.
+All graphical preview and full-run image gates PASS.
+
+**Release decision: FULL SCIENTIFIC GATE CLOSED for this
+configuration.** No additional native run is required
+for the originally agreed free/forced CN MPI1/2 and
+temporal-order acceptance. No claim is made for different
+nonlinear parameters, other LU backends, MPI4+, or
+a discrete-gradient exact-energy-preserving scheme.
+
+## Earlier short PETSc CN acceptance
+
+The **short original CN model also passed** in unforced
+and forced configurations at `dt=.01`, `t_f=.08`,
+MUMPS MPI1 and MPI2, prior to the full acceptance.
 
 User-provided native evidence:
 `v130-nonlinear-pendulum-physical-pilot-6621459f-PnkjIHci.zip`.
@@ -36,9 +101,9 @@ MPI2 state histories are byte-identical. The initial state is
 exact, including both nonlinear algebraic co-energies, and
 no artificial initialization TS is used.
 
-**Only this short CN gate is closed.** The original canonical
-12-second figures are not yet natively tested; source documentation
-must not claim they are scientifically qualified.
+The short CN pilot remains part of the documented evidence;
+the full twelve-second and visual acceptance above supersedes
+its limited scope.
 
 The **only canonical integration method** for
 `examples/nonlinear_pendulum.py` is now
@@ -112,7 +177,7 @@ figures clearly label these quantities.
 
 ## Historical fixed-BDF2 qualification — archive only
 
-**The last native user-host calculation was BDF2, NOT CN**:
+**An earlier native user-host calculation was BDF2, NOT CN**:
 source `2ae4bc7d`, original archive
 `v130-nonlinear-pendulum-physical-pilot-2ae4bc7d-PVKCy6u4.zip`,
 SHA256
@@ -152,7 +217,7 @@ full-sine RK4 ODE, complete MPI1/MPI2 parity,
 all steps accepted, and immutable `examples/published`
 sources. The pilot creates a CRC-checked evidence ZIP.
 
-## First full native CN attempt — REJECTED, root cause under test
+## First full native CN attempt — REJECTED, then corrected
 
 The original 12-second campaign at source `9d7696ff`
 was executed on the user host using Docker
@@ -184,31 +249,27 @@ and skipped subsequent MPI2, refinement, and forced runs.
 **The 1200-step TS completion does not imply success
 of the full scientific acceptance.**
 
-This residual is consistent with a nonlinear SNES
-relative/step stopping tolerance that is insufficiently
-strict over a longer trajectory. This is a **working
-hypothesis**, not a demonstrated root cause: the failed
-full native history was not available in the old ZIP
-for independent investigation of the offending time step.
-In a new source revision, the **canonical example** now
-sets PETSc nonlinear convergence thresholds explicitly,
-`snes_atol=1e-12`,
-`snes_rtol=1e-12`,
-`snes_stol=1e-14`.
-The GetFEM sine law, mass and Dirac bricks, exact
-initial state, CN integration and physical gate `1e-8`
-are **unchanged**. The tighter settings must be
-confirmed by a fresh user-host run, not assumed to fix
-the problem. If the gate fails again, the canonical
-renderer now saves the **original four-DOF GetFEM
-trajectory and signed sine-law residual**, with
-the worst time index, into
-`failed_native_constitutive_trace.npz`;
-the evidence packaging includes that file.
+The failure was compatible with loose nonlinear SNES
+convergence thresholds, but the old complete state
+trajectory was not archived, so that root cause was
+not established conclusively. The canonical example
+subsequently set `snes_atol=1e-12`,
+`snes_rtol=1e-12`, `snes_stol=1e-14`,
+without changing the physical GetFEM bricks, sine
+constitutive law, CN integrator or `1e-8`
+physical gate.
 
-**Status remains FULL SCIENTIFIC GATE PENDING.**
+**The new native full campaign passed** all scientific
+and visual gates, with maximum full-horizon sine
+constitutive errors of only `4.263e-14`.
+Thus the tightened-Newton configuration is validated
+for the tested model, although this does not prove
+which earlier SNES stopping condition caused the
+original residual. Diagnostic archival of true
+failed GetFEM histories remains enabled if any
+future run rejects a constitutive law.
 
-## Full twelve-second CN physical and visual gate — STAGED, NATIVE PENDING
+## Full twelve-second CN physical and visual gate — COMPLETED
 
 The original canonical example now contains its own
 `render_pendulum_visuals`, called by
@@ -226,8 +287,10 @@ The canonical plots **do not** claim that nonlinear
 CN conserves `H` exactly. They explicitly compare the
 true Hamiltonian change, CN discrete work/dissipation
 and the measured nonquadratic chain-rule defect.
-These original user figures have **not** yet been
-validated by the native long campaign.
+These user figures **passed the complete native 12-second
+campaign**, including bitwise equality of the original
+GetFEM state histories, PNG/SVG presence and 36 true
+accepted-time GIF frames in both physical variants.
 
 To run the full acceptance after the short native PASS:
 
@@ -237,7 +300,7 @@ SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
 bash scripts/run-v130-nonlinear-pendulum-CN-full-showcase.sh
 ```
 
-The **full acceptance runner** stages and checks:
+The **successfully executed full acceptance runner** checked:
 1. 8-step graphical **preflight for free and forced** original
    canonical examples (9 real GetFEM states and 9 GIF frames each).
 2. Native `t_f=12, dt=.01`, 1200 accepted PETSc CN
@@ -262,10 +325,10 @@ The **full acceptance runner** stages and checks:
    canonical figures, file integrity evidence and
    summary are packaged in a CRC-verified ZIP.
 
-**This full acceptance has NOT YET been run.**
-No full twelve-second release PASS may be recorded until
-the actual user-host scientific and image evidence
-passes the verification gates. The already accepted
-short CN MPI1/2 pilot remains valid.
+**NATIVE FULL PASS**: each original MPI run, both refined
+runs, the exact CN co-energy power/chain-rule evidence,
+second-order RK4 refinement and user-generated images
+passed. The uploaded SHA256-pinned archive and independent
+recomputation above close the agreed release gate.
 
 No claims are made about other LU backends or MPI4+.
