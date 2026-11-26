@@ -62,13 +62,34 @@ The implementation follows the standard SCRIMP workflow:
 #. Add two `State` objects with `kind="lumped"`, and their `CoState` objects.
 #. Call `add_lumped_port` for `q` and `p` (not `add_FEM`).
 #. Add mass, interconnection, damping, forcing and constitutive `Brick` objects.
-#. Initialize the states, integrate with implicit PETSc BDF2, then plot.
+#. Initialize the two states **and their constitutive co-energies**,
+   integrate with implicit PETSc BDF2, then plot.
 
 The factor `/ell` in each brick compensates for the integration over
 the reference interval length `ell`, so that the resulting scalar
 equations are exactly those above. The time-dependent forcing is
 assembled as a nonlinear/residual brick rather than as a fixed matrix
 term; this is needed in SCRIMP's current GetFEM assembly path.
+
+**Initial consistency is not a time-integration step.** The dynamical
+initial values are prescribed as `q0=0.4`, `p0=0`. Since this
+finite-dimensional model has explicit constitutive laws, the exact
+algebraic initialization is simply
+
+.. math::
+
+   e_q(0)=kq_0=2,\qquad e_p(0)=p_0/m=0.
+
+The example now assigns these two genuine scalar GetFEM co-energy
+variables directly and disables pseudo-time relaxation. This preserves
+**all** physical initial data instead of moving the momentum to
+satisfy the constraints. It does not change the mass, interconnection,
+damping, forcing or the subsequent BDF2 integrator. The generic SCRIMP
+DAE initializers are unchanged.
+
+To reproduce the historical pseudo-time trajectory for regression,
+call `mass_spring_damper(initialization="legacy_pseudo")` explicitly.
+The default is `initialization="exact"`.
 
 The complete runnable source is:
 
@@ -113,8 +134,21 @@ by applying a trapezoidal rule to a saved power plot.
 It covers BDF2 steps :math:`n\geq2`, not the internal PETSc
 **BDF2 startup stages**, which require a separate analysis.
 
-A native qualification pilot checks the original model with
-MUMPS in MPI 1 and 2, measuring the actual algebraic relations
+The original BDF2/pseudo short pilot at `dt=.01`, `t_f=.08`
+ran successfully in MPI1 and MPI2 and confirmed the correct
+differential equations and step-energy balance at residual
+`4.13e-14`, with full MPI state parity `8.88e-16`.
+**However, its physical-initial-state gate FAILED:** the pseudo
+initialization performed one small `dt=0.0001` evolution and replaced
+`p(0)=0` by `p(0)=-0.00019999666`, with a corresponding
+`q(0)-0.4=-1.33331e-8`. That historical configuration is
+**not qualified as a faithful initialization of the prescribed IVP**.
+
+The corrected native qualification pilot checks the *same* physical
+model, BDF2 time stepping and GetFEM weak forms, but starts from
+exactly consistent algebraic co-energies, with no pseudo step.
+It uses MUMPS in MPI 1 and 2 and measures the actual algebraic
+relations
 :math:`e_q=kq`, :math:`e_p=p/m`, both differentiated BDF2
 equations, the exact step energy-power defect and the complete
 MPI state trajectory. The independent reference is the
@@ -127,8 +161,8 @@ scheme, not a replacement SCRIMP model:
    SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \\
    bash scripts/run-v130-mass-spring-physical-pilot.sh
 
-**This short pilot is not yet a native qualification** until
-its original GetFEM/PETSc output has been reviewed. A full default
+**The corrected exact-initialization pilot is not yet native-qualified**
+until its new GetFEM/PETSc output has been reviewed. A full default
 time horizon, temporal refinement and reproducible example-native
 visualizations will be qualified separately. A free undamped
 oscillator (`f=0`, `c=0`) is an additional possible
@@ -136,6 +170,8 @@ regression case.
 
 .. note::
 
-   This example has passed the automated numerical smoke tests and a
-   full default standalone run in the SCRIMP GetFEM/PETSc environment.
-   Quantitative power-balance refinement remains a separate check.
+   The historical pseudo-started example passed the smoke and full
+   standalone execution tests, but changed the originally prescribed
+   initial momentum. This motivated the exact-constitutive-data fix.
+   Do not treat successful execution as proof of correct IVP data;
+   native acceptance for the corrected default is pending.
