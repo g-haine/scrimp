@@ -112,7 +112,7 @@ def nonlinear_pendulum(final_time=12.0, time_step=0.01,
         scheme["pc_factor_mat_solver_type"] = factor_solver
     # No pseudo-time step: the algebraic values are already consistent.
     pend.set_time_scheme(
-        ts_type="bdf", ts_bdf_order=2,
+        ts_type="cn",
         ts_exact_final_time="matchstep",
         ts_adapt_type="none",
         ksp_type="gmres", pc_type="lu",
@@ -155,7 +155,7 @@ def render_pendulum_visuals(
     """Render *original* accepted lumped GetFEM states in the example.
 
     No extra ODE integration, spatial FE simulation, interpolated
-    states, or fictitious quadratic BDF2 Hamiltonian identity.
+    states, or fictitious exact CN Hamiltonian conservation identity.
     Figures are saved so that direct command-line runs work headlessly.
     The motion GIF is explicitly a mechanical schematic.
     """
@@ -181,8 +181,9 @@ def render_pendulum_visuals(
         raise RuntimeError("Original nonlinear GetFEM history is incomplete")
     dt = float(t[1] - t[0])
     if not np.allclose(np.diff(t), dt, rtol=0., atol=1e-10):
-        raise RuntimeError("Pendulum BDF2 visualization needs fixed dt")
-    if (system.last_ts_converged_reason <= 0
+        raise RuntimeError("Pendulum CN visualization needs fixed dt")
+    if (system.time_scheme.getString("ts_type","").lower() != "cn"
+            or system.last_ts_converged_reason <= 0
             or system.last_ts_steps != n-1):
         raise RuntimeError("Refusing to render unconverged pendulum")
 
@@ -204,28 +205,58 @@ def render_pendulum_visuals(
             + repr((constitutive_error,H_error))
         )
 
-    # The actual BDF2 residual paired with nonlinear co-energies,
-    # NOT a discrete-gradient identity for nonquadratic H.
-    D2theta = (3*theta[2:]-4*theta[1:-1]+theta[:-2])/(2*dt)
-    D2p = (3*p[2:]-4*p[1:-1]+p[:-2])/(2*dt)
-    coenergy_rate = e_theta[2:]*D2theta + e_p[2:]*D2p
-    step_power_defect = (coenergy_rate+dissipation[2:]
-                         -input_power[2:])
-    max_step_power_defect = float(np.max(np.abs(step_power_defect)))
-    if max_step_power_defect > 1e-7:
+    # PETSc TSCN is the implicit trapezoidal/end-point theta rule,
+    # NOT the implicit midpoint rule. Evaluate the nonlinear forces
+    # at each accepted end-point, then average for the CN step.
+    # Both true nonlinear end-point co-energies are checked above.
+    delta_theta=np.diff(theta)/dt
+    delta_p=np.diff(p)/dt
+    mean_ep=(e_p[1:]+e_p[:-1])/2.
+    mean_etheta=(e_theta[1:]+e_theta[:-1])/2.
+    mean_torque=(torque[1:]+torque[:-1])/2.
+    cn_dissipation=damping*mean_ep**2
+    cn_input_power=mean_torque*mean_ep
+    cn_ode_theta_defect=delta_theta-mean_ep
+    cn_ode_p_defect=delta_p+mean_etheta+damping*mean_ep-mean_torque
+    cn_coenergy_rate=mean_etheta*delta_theta+mean_ep*delta_p
+    cn_power_defect=cn_coenergy_rate+cn_dissipation-cn_input_power
+    max_cn_power_defect=float(np.max(np.abs(cn_power_defect)))
+    if (np.max(np.abs(cn_ode_theta_defect))>1e-7
+            or np.max(np.abs(cn_ode_p_defect))>1e-7
+            or max_cn_power_defect>1e-7):
         raise RuntimeError(
-            "Nonlinear pendulum BDF2 co-energy power identity failed: "
-            + str(max_step_power_defect)
+            "Original pendulum trapezoidal CN equation/power identity failed: "
+            +str(max_cn_power_defect)
         )
-    # Work/dissipation quadrature is *approximate*, not an exact
-    # discrete energy ledger. Keep both signals visibly distinct.
-    work_rate = input_power-dissipation
-    work_trapezoidal = np.zeros(n)
-    work_trapezoidal[1:] = np.cumsum(
+
+    # Nonquadratic H: average nonlinear e_theta is generally
+    # NOT the exact discrete gradient of 1-cos(theta).
+    # This exact chain-rule defect is the difference between the
+    # observed Hamiltonian rate and the CN co-energy pairing.
+    cn_H_rate=np.diff(H)/dt
+    cn_chain_rule_defect=cn_H_rate-cn_coenergy_rate
+    cn_discrete_work=np.r_[0., np.cumsum(
+        dt*(cn_input_power-cn_dissipation)
+    )]
+    energy_change=H-H[0]
+    cn_cumulative_ledger_difference=energy_change-cn_discrete_work
+    # The identity below follows from the CN residual plus the
+    # exact definition of the nonlinear chain-rule defect. It is NOT
+    # a claim that either side vanishes.
+    if np.max(np.abs(
+        cn_cumulative_ledger_difference[1:]
+        -np.cumsum(dt*cn_chain_rule_defect)
+    ))>1e-7:
+        raise RuntimeError("Nonquadratic CN chain-rule accounting failed")
+
+    # A conventional trapezoid quadrature of CONTINUOUS nodal powers
+    # is separate from the genuine CN discrete work above.
+    work_rate=input_power-dissipation
+    work_trapezoidal=np.zeros(n)
+    work_trapezoidal[1:]=np.cumsum(
         .5*(work_rate[:-1]+work_rate[1:])*np.diff(t)
     )
-    energy_change = H-H[0]
-    quadrature_difference = energy_change-work_trapezoidal
+    quadrature_difference=energy_change-work_trapezoidal
 
     # Scalar histories are present on every rank, but the common
     # user-facing output directory is written only on MPI root.
@@ -265,7 +296,7 @@ def render_pendulum_visuals(
     fig.colorbar(dots,ax=ax,label="Time")
     ax.plot(theta[0],e_p[0],"o",ms=8,label="t=0")
     ax.plot(theta[-1],e_p[-1],"s",ms=8,label=f"t={t[-1]:g}")
-    ax.set(title="Nonlinear pendulum · original BDF2 phase portrait",
+    ax.set(title="Nonlinear pendulum · original CN phase portrait",
            xlabel="Angle θ (rad)",ylabel="Angular velocity p/I")
     ax.grid(True,alpha=.25)
     ax.legend()
@@ -280,18 +311,20 @@ def render_pendulum_visuals(
     ax[0,1].plot(t,input_power,label="External torque power τ·p/I")
     ax[0,1].set(title="Continuous physical power terms",ylabel="Power")
     ax[0,1].legend()
-    ax[1,0].plot(t[2:],coenergy_rate,label="e · BDF2(z)")
-    ax[1,0].plot(t[2:],input_power[2:]-dissipation[2:],
-                 "--",label="τ·e_p − d·e_p²")
-    ax[1,0].set(title="Exact BDF2 co-energy pairing (n ≥ 2)",
+    step_times=t[1:]
+    ax[1,0].plot(step_times,cn_coenergy_rate,
+                 label="CN averaged co-energy · Δz/Δt")
+    ax[1,0].plot(step_times,cn_input_power-cn_dissipation,
+                 "--",label="CN input power − CN dissipation")
+    ax[1,0].set(title="CN co-energy power identity (all steps)",
                 ylabel="Discrete co-energy rate")
     ax[1,0].legend()
     ax[1,1].plot(t,energy_change,label="H(t)−H(0)")
-    ax[1,1].plot(t,work_trapezoidal,"--",
-                 label="Trapezoidal integral of (P−D)")
+    ax[1,1].plot(t,cn_discrete_work,"--",
+                 label="Cumulative CN port work − dissipation")
     ax[1,1].set(
-        title="Hamiltonian vs. approximate work integral",
-        ylabel="Energy variation (not an exact BDF2 identity)",
+        title="CN work vs. nonquadratic Hamiltonian",
+        ylabel="Energy variation (chain-rule defect ≠ 0)",
     )
     ax[1,1].legend()
     for a in ax.flat:
@@ -342,8 +375,15 @@ def render_pendulum_visuals(
         t=t,theta=theta,p=p,e_theta=e_theta,e_p=e_p,H=H,
         torque=torque,input_power=input_power,
         viscous_dissipation=dissipation,
-        BDF2_coenergy_rate=coenergy_rate,
-        BDF2_power_defect=step_power_defect,
+        CN_coenergy_rate=cn_coenergy_rate,
+        CN_power_defect=cn_power_defect,
+        CN_ODE_theta_defect=cn_ode_theta_defect,
+        CN_ODE_p_defect=cn_ode_p_defect,
+        CN_step_input_power=cn_input_power,
+        CN_step_dissipation=cn_dissipation,
+        CN_chain_rule_defect=cn_chain_rule_defect,
+        CN_discrete_work=cn_discrete_work,
+        CN_cumulative_ledger_difference=cn_cumulative_ledger_difference,
         trapezoidal_work_minus_dissipation=work_trapezoidal,
         true_Hamiltonian_change=energy_change,
         H_minus_trapezoidal_work=quadrature_difference,
@@ -359,11 +399,16 @@ def render_pendulum_visuals(
         "GIF_genuine_accepted_frames":len(selected),
         "no_interpolated_or_spatial_FE_states":True,
         "motion_is_schematic":True,
-        "energy_integral_is_quadrature_NOT_exact_BDF2_ledger":True,
-        "BDF2_startup_energy_identity_not_claimed":True,
+        "time_stepper":"cn",
+        "CN_is_trapezoidal_not_implicit_midpoint":True,
+        "nonquadratic_H_CN_chain_rule_defect_not_assumed_zero":True,
+        "trapezoidal_quadrature_is_not_exact_CN_ledger":True,
         "max_nonlinear_coenergy_constitutive_error":constitutive_error,
         "max_native_Hamiltonian_error":H_error,
-        "max_coenergy_BDF2_power_defect_n_ge_2":max_step_power_defect,
+        "max_CN_step_coenergy_power_defect":max_cn_power_defect,
+        "max_CN_nonlinear_H_chain_rule_defect":float(
+            np.max(np.abs(cn_chain_rule_defect))
+        ),
         "figures":[
             "pendulum_trajectory.png","pendulum_trajectory.svg",
             "pendulum_phase_portrait.png","pendulum_phase_portrait.svg",
