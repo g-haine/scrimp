@@ -58,8 +58,6 @@ def main():
     parser.add_argument("--final-time",type=float,required=True)
     parser.add_argument("--time-step",type=float,required=True)
     parser.add_argument("--solver",default="mumps")
-    parser.add_argument("--initialization",choices=("exact","legacy_pseudo"),
-                        default="exact")
     parser.add_argument("--showcase",action="store_true",
                         help="Render by canonical example (not by probe)")
     parser.add_argument("--out",type=Path,required=True)
@@ -70,7 +68,6 @@ def main():
         final_time=args.final_time,
         time_step=args.time_step,
         plot=args.showcase,factor_solver=args.solver,
-        initialization=args.initialization,
     )
     t=np.asarray(system.solution["t"],dtype=float)
     z=np.asarray(system.solution["z"],dtype=float)
@@ -137,15 +134,10 @@ def main():
         "initial_prescribed_q_difference":initial[0],
         "initial_prescribed_p_difference":initial[1],
     }
-    # Fail closed for genuine model errors, without pretending that
-    # the PETSc BDF2 startup interval obeys a BDF1 power identity.
-    # The legacy pseudo initializer is retained as a deliberate
-    # regression reproducer, NOT accepted as a correct physical IC.
-    if system.mass_spring_initialization != args.initialization:
-        raise RuntimeError("Original example did not honor initialization mode")
-    if (args.initialization == "exact"
-            and system.time_scheme.getString("init_step","true") != "false"):
-        raise RuntimeError("Exact example initialization unexpectedly ran a TS")
+    # No pseudo-time relaxation in the canonical example. BDF2 startup
+    # itself must not be confused with a full BDF1 energy-power step.
+    if system.time_scheme.getString("init_step","true") != "false":
+        raise RuntimeError("Canonical example unexpectedly ran an initial TS")
     gates={
         "original_TS_converged":
             system.last_ts_converged_reason>0
@@ -196,8 +188,8 @@ def main():
             "original_q0":INITIAL_Q,"original_p0":INITIAL_P,
         },
         "time_stepper":"original_BDF2",
-        "initializer":args.initialization,
-        "no_pseudo_time_initialization":args.initialization=="exact",
+        "initializer":"exact_constitutive",
+        "no_pseudo_time_initialization":True,
         "canonical_showcase":bool(args.showcase),
         "canonical_visuals":figures,
         "native_q0":float(q[0]),
