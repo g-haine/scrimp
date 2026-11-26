@@ -1,6 +1,55 @@
 # SCRIMP v1.3.0 — nonlinear finite-dimensional pendulum acceptance
 
-## Status — SOURCE STAGED, NATIVE PENDING (26 November 2026)
+## Status — SHORT NATIVE MPI1/MPI2 PASS (26 November 2026)
+
+**NATIVE PASS** for the original nonlinear sine pendulum in both
+unforced and sinusoidally forced cases, with the single exact
+constitutive initial state, MUMPS MPI1/MPI2, eight accepted
+fixed BDF2 steps (`dt=.01`, `t_f=.08`), and **all four**
+GetFEM lumped state/co-energy coefficients on every rank.
+
+**User-host archive:** `v130-nonlinear-pendulum-physical-pilot-2ae4bc7d-PVKCy6u4.zip`,
+source commit `2ae4bc7d`, Docker `scrimp-mpi:v1.3.0-rc3`.
+SHA256 **`dcf6fca2ec56ff3f24fe39a8e55bfb790b29000a5fead5ec9cfba7b23bbd9d80`**.
+Independently opened: **22 files**, ZIP CRC passed; native NPZ
+trajectories and physical identities recomputed from raw coefficients.
+All six MPI rank reports and all scientific gates passed.
+
+| Native short-case result | Unforced | Forced (amplitude 0.1) |
+| --- | ---: | ---: |
+| Actual differential initial error | 0 | 0 |
+| Actual nonlinear co-energy initial error | 0 | 0 |
+| Max sine constitutive error | 3.193e-11 | 3.650e-11 |
+| Max BDF2 differential residual | 5.440e-14 | 5.707e-14 |
+| Max BDF2 co-energy power residual | 4.915e-13 | 5.257e-13 |
+| Max full-sine RK4 theta/p absolute error | 2.232e-4 | 2.228e-4 |
+| MPI1 vs MPI2 full DAE error (rank0/rank1) | 0 | 0 |
+| Original GetFEM H(0) | 6.255270428583832 | 6.255270428583832 |
+| Original GetFEM H(.08) | 6.252059671693924 | 6.251772872110134 |
+
+The GetFEM Hamiltonian matches the analytic **nonquadratic**
+Hamiltonian exactly at every saved state. In the unforced
+damped pilot H is monotonically decreasing; with forcing,
+the actual nonzero external power was recorded.
+
+**Important scientific scope:** the discrete
+co-energy-weighted BDF2 identity is not an exact
+telescoping Hamiltonian difference. At the short
+unforced horizon, the observed `H(.08)-H(0)`
+is about `-0.00321076`, whereas trapezoidal integration
+of the continuous `-d*e_p²` power at the saved times
+is about `-0.00113893`. Such quadrature must not be
+presented as an exact discrete energy ledger: the
+time-discrete solution and PETSc BDF2 startup contribute
+numerical error. This discrepancy does **not** contradict
+the verified discrete equation, and does not justify a
+claim of exact energy preservation or physical dissipation.
+Temporal refinement remains a separate qualification.
+
+**Decision:** SHORT NATIVE SCIENTIFIC PILOT **PASS**.
+Complete `t_f=12` simulation, MPI parity over all 1201
+states, and directly runnable original-example PNG/SVG/GIF
+visualizations remain **PENDING**.
 
 The canonical `examples/nonlinear_pendulum.py` models a genuine
 **nonlinear** single pendulum with two dynamical scalar states
@@ -37,8 +86,8 @@ explicitly and uses `init_step=False`, leaving its **physical
 BDF2**, nonlinear full sine, all weak bricks, MUMPS and other
 SCRIMP solver options unchanged. The example exposes **one**
 exact constitutive initialization path, with no legacy mode.
-This exact-initial-state change is **not yet accepted by a
-native GetFEM test** until the user-host pilot returns.
+This exact-initial-state change **passed** the native MPI1/MPI2
+short pilot above; the full-horizon gate remains pending.
 
 ## Correct nonlinear BDF2 physics
 
@@ -78,7 +127,7 @@ The PETSc order-two **startup half-step is not
 asserted to follow an unsupported BDF1 identity**.
 No temporal refinement-order claim is made by the pilot.
 
-## Native short release diagnostic — PENDING
+## Native short release diagnostic — COMPLETED
 
 `scripts/run-v130-nonlinear-pendulum-physical-pilot.sh`
 runs four *original* GetFEM/PETSc/MUMPS simulations:
@@ -97,8 +146,9 @@ The host checker enforces physical gates, complete
 MPI1/MPI2 state and power parity, MPI2 replica agreement,
 real source provenance, and an evidence ZIP with CRC.
 
-The executable remains **NOT YET NATIVE QUALIFIED**.
-No full default `t_f=12` or user-plot/GIF qualification
-is claimed until separate acceptance. No changes are
+The short native scientific qualification **PASSED** for
+both torque cases, for all ranks, as reported above.
+No full default `t_f=12` or original-example
+PNG/SVG/GIF qualification is claimed until separate acceptance. No changes are
 made to the eight immutable `examples/published`
 sources.
