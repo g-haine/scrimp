@@ -31,9 +31,7 @@ class NonlinearPendulumSourceV130(unittest.TestCase):
             'pend.set_initial_value("p", p0)',
             "mass*gravity*length*np.sin(theta0)",
             'pend.gf_model.set_variable("e_p", np.array([p0/inertia]))',
-            'initialization="exact"',
-            '"init_step": False',
-            '"init_step_ts_type": "pseudo", "init_step": True',
+            'init_step=False,',
             'ts_type="bdf", ts_bdf_order=2',
         ):
             with self.subTest(fragment=fragment):
@@ -43,6 +41,9 @@ class NonlinearPendulumSourceV130(unittest.TestCase):
         path=ROOT/"sandbox/probe_v130_nonlinear_pendulum_physics.py"
         probe=path.read_text(encoding="utf-8")
         ast.parse(probe,filename=str(path))
+        self.assertNotIn("legacy_pseudo",text)
+        self.assertNotIn("init_step_ts_type",text)
+        self.assertNotIn("initialization=",text)
         for fragment in (
             "from examples.nonlinear_pendulum import nonlinear_pendulum",
             "system=nonlinear_pendulum(",
@@ -56,12 +57,14 @@ class NonlinearPendulumSourceV130(unittest.TestCase):
             "G*np.sin(theta)",
             "rk4_reference",
             "PETSc_BDF2_startup_internal_stage_not_claimed",
-            "no_pseudo=(args.initialization==\"exact\")",
+            'system.time_scheme.getString("init_step","true")!="false"',
         ):
             with self.subTest(fragment=fragment):
                 self.assertIn(fragment,probe)
         self.assertNotIn("S.DPHS(",probe)
         self.assertNotIn("S.Brick(",probe)
+        self.assertNotIn("legacy_pseudo",probe)
+        self.assertNotIn("--initialization",probe)
         # A quadratic H(z)-difference identity is INVALID for nonlinear sin.
         self.assertNotIn("energy(2*",probe)
         self.assertNotIn("H[2:]-H[1:-1]",probe)
@@ -69,10 +72,11 @@ class NonlinearPendulumSourceV130(unittest.TestCase):
     def test_native_driver_checks_mpi_and_force(self):
         source=(ROOT/"scripts/run-v130-nonlinear-pendulum-physical-pilot.sh"
                 ).read_text(encoding="utf-8")
+        self.assertNotIn("--initialization",source)
         for fragment in (
             'for case in "free:0" "forced:0.1"',
             'for mpi in 1 2',
-            "--initialization exact",
+            '--solver mumps',
             "check-v130-published-immutable.py",
             "BDF2_nonquadratic_coenergy_power_defect",
             "parity_all_four_original_lumped_DAE_variables",
