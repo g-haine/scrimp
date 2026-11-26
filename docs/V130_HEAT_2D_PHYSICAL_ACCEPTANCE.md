@@ -38,6 +38,30 @@
 > within the looser physical feasibility criterion, without
 > changing prescribed differential state data.
 >
+> **26 November, first “strict” run INVALID as a precision experiment:**
+> archive `v130-heat-CN-strict-pilot-24229e1e-o5UV4ge2.zip`
+> (ZIP CRC verified). Its three ranks faithfully reproduce the
+> default initialization and CN result: 3 LSQR passes, accuracy target
+> `1e-11`, `accuracy_target_met=false`, and global FE MPI discrepancy
+> `1.99827157e-6`, despite excellent CN port-power balances.
+> Root cause: the first probe set `PETSc.Options()` BEFORE calling
+> `examples.heat.heat_eq()`, but the `DPHS` constructor invokes
+> `get_cleared_TS_options()` and clears the PETSc options database.
+> Hence **none of the requested stricter initializer settings was
+> actually transmitted to SCRIMP**. This result does NOT establish
+> that more accurate algebraic projection is ineffective.
+> The obsolete pre-constructor probe has been removed.
+>
+> **Corrected STRICT diagnostic (SOURCE STAGED, native pending):**
+> `SCRIMP_V130_HEAT_CN_INIT_PROFILE=strict bash scripts/run-v130-heat-cn-pilot.sh`
+> now uses the **canonical** `examples.heat` main entry point with
+> `--init-profile strict`, adds the four values to its
+> `heat.set_time_scheme(**scheme)` call AFTER the `DPHS` constructor,
+> and persists the actually selected values in `init_profile_applied`.
+> The host checker verifies the four option values, the algebraic
+> accuracy target, original energy balance and unchanged full-FE
+> parities. A repeat native run is required before any numerical claim.
+>
 > **Next diagnostic (SOURCE STAGED, native pending):**
 > `SCRIMP_V130_HEAT_CN_INIT_PROFILE=strict bash scripts/run-v130-heat-cn-pilot.sh`
 > reuses the exact original CN model, FE spaces, boundary
