@@ -113,7 +113,16 @@ def main():
                         ("input_power","external_power"),
                         ("BDF2_step_defect","BDF2_step_power_defect"),
                     ):
-                        if not np.array_equal(vis[name],original_trace[signal]):
+                        # Raw GetFEM values must match bitwise. Power
+                        # terms are independently recomputed from
+                        # algebraically equivalent p/m and e_p; rounding
+                        # at ~1e-17 is expected and not an invented plot.
+                        raw=name in ("time","q","p","e_q","e_p","H","force")
+                        ok=(np.array_equal(vis[name],original_trace[signal])
+                            if raw else
+                            np.allclose(vis[name],original_trace[signal],
+                                        atol=1e-12,rtol=0))
+                        if not ok:
                             errors.append(f"Not real FE data in canonical figure {label}/{name}")
                 for name in metadata.get("figures",[]):
                     file=folder/"figures"/name
