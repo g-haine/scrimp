@@ -36,7 +36,7 @@ def main():
 
     # This CALL preserves all original FEMs, controls, time scheme,
     # initial-data expression, and canonical Hamiltonian figure.
-    system = heat_eq()
+    system = heat_eq(time_stepper="bdf", initializer="pseudo")
     time = np.asarray(system.solution["t"], dtype=np.float64)
     states = np.asarray(system.solution["z"])
     n = len(time)
