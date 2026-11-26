@@ -192,8 +192,9 @@ maximum exact BDF2 step energy-power defect
 `3.47e-18`, and an independent RK4 forced-ODE error
 `6.00e-5` over the eight physical steps.
 
-The remaining full-horizon **800-step** user-visualization and MPI
-qualification is executed by
+The full-horizon **800-step** user-visualization and MPI
+qualification **PASSED on the user-host native MUMPS environment**
+on 26 November 2026, using
 
 .. code-block:: console
 
@@ -201,12 +202,22 @@ qualification is executed by
    SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \\
    bash scripts/run-v130-mass-spring-full-showcase.sh
 
-The long-run script checks original program-generated PNG/SVG/GIF
-on eight steps *before* running the two full MPI campaigns,
-then checks every saved state and every step's exact BDF2
-power identity. This long experiment is **staged, not yet
-native-qualified**. A time-step refinement study and an
-unforced, undamped regression (`f=0,c=0`) are distinct tests.
+This script first checked the original example-generated PNG/SVG/GIF
+on eight steps, then completed **800 fixed BDF2 steps**, saving
+**801 original four-variable DAE states** in both MPI1 and MPI2.
+Independent analysis of the original native ZIP
+`v130-mass-spring-8s-showcase-085c0bac-CYnvWUgS.zip`
+verified the maximum BDF2 step energy-power residual
+`4.87733e-13`, full-history MPI discrepancy `3.46945e-18`,
+prescribed exact initial data, and the original example's
+three PNG/SVG pairs plus a 36-frame schematic GIF.
+The largest discrepancy from the independent RK4 solution
+over `[0,8]` is `8.98734e-4` at `dt=.01`.
+These results **qualify this original example and its native
+figures at the specified configuration**. Details and archive
+SHA256 are documented in `docs/V130_MASS_SPRING_PHYSICAL_ACCEPTANCE.md`.
+A time-step refinement study and an unforced, undamped
+regression (`f=0,c=0`) remain distinct optional tests.
 
 .. note::
 
@@ -214,6 +225,7 @@ unforced, undamped regression (`f=0,c=0`) are distinct tests.
    standalone execution tests, but changed the originally prescribed
    initial momentum. This motivated the exact-constitutive-data fix.
    Do not treat successful execution as proof of correct IVP data.
-   The corrected default has subsequently passed short MPI1/MPI2
-   scientific acceptance; the complete eight-second showcase
-   remains pending until native host execution.
+   The corrected default has subsequently passed both the short
+   MPI1/MPI2 scientific acceptance **and** the complete eight-second
+   MPI1/MPI2 showcase. Historical `legacy_pseudo` remains available
+   for reproducing the original initial-data drift.
