@@ -81,7 +81,7 @@ class HeatCNSourceContract(unittest.TestCase):
             'heat.set_time_scheme(**scheme)',
             '"--init-profile",choices=("default","strict")',
             '"strict" if args.time_stepper == "cn" else "default"',
-            'init_profile=args.init_profile',
+            'init_profile=effective_init_profile',
             '"init_profile_applied"',
         ):
             with self.subTest(fragment=fragment):
