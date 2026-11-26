@@ -82,12 +82,12 @@ initial differential data, without a pseudo-time evolution:
    \theta_0=1.2,\qquad p_0=0,\qquad
    e_{\theta,0}=mg\ell\sin(1.2),\qquad e_{p,0}=0.
 
-Only the initialization path has changed: the nonlinear
-GetFEM weak formulation, constitutive bricks, damping,
-forcing and original physical BDF2 scheme remain unchanged.
-This is the unique initialization path in the example. Its native
-qualification is pending until the independent pilot evidence
-has been reviewed.
+The full sine GetFEM weak formulation, constitutive bricks,
+damping and forcing are retained. The canonical example uses
+**one** physical time scheme: PETSc `ts_type="cn"`, fixed time step,
+without any pseudo-time initialization. The former BDF2 short
+qualification was a useful diagnostic but **does not qualify CN**.
+The CN native qualification remains pending.
 
 The complete runnable example is:
 
@@ -111,37 +111,71 @@ For periodic forcing, call:
    from examples.nonlinear_pendulum import nonlinear_pendulum
    pend = nonlinear_pendulum(torque_amplitude=0.1, plot=True)
 
-Numerical validation
---------------------
+Numerical validation — Crank–Nicolson
+--------------------------------------
 
-With zero torque and positive damping, the continuous Hamiltonian is
-non-increasing. With forcing, compare its change with the integrated
-input power minus viscous losses. The observed numerical defect should
-decrease under temporal refinement. BDF2 adds its own time-discretization
-effects to the physical dynamics.
-
-**Important distinction:** unlike the linear mass--spring example,
-the pendulum Hamiltonian is **not quadratic**, so a telescoping
-quadratic BDF2 identity expressed purely in differences of
-`H(z_n)` is **not exact**. For the original discrete BDF2
-equations at every physical step :math:`n\geq2`, the correct
-test is the true co-energy-weighted differential identity
+The canonical example now uses **PETSc Crank–Nicolson** only.
+In PETSc 3.26, `ts_type="cn"` means the **endpoint trapezoidal**
+method, not the implicit midpoint method. Define the endpoint
+average :math:`\bar a_n=(a_{n-1}+a_n)/2`. At every step,
+the expected equations are
 
 .. math::
 
-   e_{\theta,n}\,
-      \frac{3\theta_n-4\theta_{n-1}+\theta_{n-2}}{2\Delta t}
-   +e_{p,n}\,
-      \frac{3p_n-4p_{n-1}+p_{n-2}}{2\Delta t}
-   +d\,e_{p,n}^2-\tau(t_n)e_{p,n}=0.
+   \frac{\theta_n-\theta_{n-1}}{\Delta t}
+      &= \bar e_{p,n},\\
+   \frac{p_n-p_{n-1}}{\Delta t}
+      &= -\bar e_{\theta,n}-d\,\bar e_{p,n}
+         +\bar\tau_n.
 
-This is the power pairing of the actual **nonlinear residuals**,
-not a fictitious discrete gradient formula for the Hamiltonian.
-It does not cover PETSc's internal startup half-step.
+The corresponding **exact discrete co-energy power pairing**
+tests the actual CN residual:
 
-An independent MPI1/MPI2 diagnostic with both original
-zero-torque and externally forced `0.1*sin(2*pi*0.3*t)`
-cases is prepared:
+.. math::
+
+   \bar e_{\theta,n}
+      \frac{\theta_n-\theta_{n-1}}{\Delta t}
+   +\bar e_{p,n}
+      \frac{p_n-p_{n-1}}{\Delta t}
+   +d\,\bar e_{p,n}^2
+   -\bar\tau_n\,\bar e_{p,n}=0.
+
+However, :math:`H=p^2/(2I)+mg\ell(1-\cos\theta)`
+is nonquadratic. The endpoint-averaged nonlinear effort
+is **not an exact discrete gradient**. Consequently,
+
+.. math::
+
+   \frac{H_n-H_{n-1}}{\Delta t}
+   =\bar\tau_n\,\bar e_{p,n}
+    -d\,\bar e_{p,n}^{2}
+    +\Gamma_n,
+
+where :math:`\Gamma_n` is the **measured CN nonlinear
+chain-rule defect**
+
+.. math::
+
+   \Gamma_n=
+      \frac{H_n-H_{n-1}
+      -\bar e_{\theta,n}(\theta_n-\theta_{n-1})
+      -\bar e_{p,n}(p_n-p_{n-1})}{\Delta t}.
+
+The canonical `python examples/nonlinear_pendulum.py` directly
+saves native trajectory, phase portrait, nonlinear energy/power
+plots (PNG/SVG) and a **schematic** GIF, all from actually
+accepted GetFEM states. Files are written to
+`outputs/showcase/nonlinear_pendulum/free/figures/`.
+The forced variant, called with `torque_amplitude=0.1`,
+writes instead to `outputs/showcase/nonlinear_pendulum/forced/figures/`.
+The plots explicitly distinguish true changes of :math:`H`,
+CN discrete port work and dissipation, and the chain-rule
+defect; no exact Hamiltonian conservation is implied.
+
+The short *historical BDF2* experiment (26 November 2026,
+source `2ae4bc7d`) passed MPI1/MPI2 with and without forcing.
+**It is not a native qualification of CN**, which must be tested
+again with the original GetFEM/PETSc implementation:
 
 .. code-block:: console
 
@@ -149,17 +183,15 @@ cases is prepared:
    SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \\
    bash scripts/run-v130-nonlinear-pendulum-physical-pilot.sh
 
-The diagnostic checks all four true GetFEM lumped unknowns,
-the exact initial nonlinear constitutive laws, the original
-Hamiltonian, both BDF2 differential equations, their
-co-energy power pairing, the independent **full sine**
-RK4 reference, and complete MPI1/MPI2 parity.
+The pilot checks both torque cases, full sine constitutive
+data, all CN step equations and power pairings, independent
+RK4 trajectories, and complete DAE MPI parity.
 
 .. note::
 
-   The example has previously completed numerical smoke tests and
-   an original standalone execution. That alone is not an
-   independent physical qualification. The exact-initial-state
-   revised pilot, full default horizon and reproducible example-native
-   PNG/SVG/GIF remain **native pending** until their actual evidence
-   has been reviewed.
+   **CN native qualification is pending** until the above
+   user-host calculation has been run and examined.
+   The original default twelve-second horizon and
+   example-native graphics require a further release
+   acceptance run. Do not infer a convergence order or
+   exact energy conservation from the earlier BDF2 pilot.
