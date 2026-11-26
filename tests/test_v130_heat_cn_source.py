@@ -25,6 +25,9 @@ class HeatCNSourceContract(unittest.TestCase):
         }
         self.assertEqual(defaults["time_stepper"],"cn")
         self.assertIsNone(defaults["initializer"])
+        self.assertIsNone(defaults["init_profile"])
+        self.assertIn('init_profile = "strict" if time_stepper == "cn" else "default"',
+                      self.source)
         self.assertFalse(defaults["showcase"])
         self.assertIn('initializer = "algebraic" if time_stepper == "cn" else "pseudo"',
                       self.source)
@@ -77,6 +80,7 @@ class HeatCNSourceContract(unittest.TestCase):
             'init_algebraic_ksp_atol=1e-14',
             'heat.set_time_scheme(**scheme)',
             '"--init-profile",choices=("default","strict")',
+            '"strict" if args.time_stepper == "cn" else "default"',
             'init_profile=args.init_profile',
             '"init_profile_applied"',
         ):
