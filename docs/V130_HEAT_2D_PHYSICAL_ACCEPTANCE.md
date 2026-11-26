@@ -1,79 +1,97 @@
 # SCRIMP v1.3.0 — canonical 2-D heat equation: native qualification
 
-> **26 November 2026 — new v1.3 example candidate, SOURCE STAGED,
-> native pending.** The original BDF2/pseudo demonstration documented
-> below is the *historical reference*, fully qualified at source
-> `9270b32`. The updated `examples/heat.py` now proposes CN with
-> linear-algebraic consistency initialization; the user's original
-> FEMs, weak forms, boundary controls and initial temperature are
-> unchanged. Its new self-contained true-GetFEM visualizations will
-> produce `outputs/showcase/heat/figures/heat_temperature_snapshots.png`,
-> `heat_temperature_evolution.gif`, `heat_energy_and_ports.png`
-> (plus SVG and genuine complete temperature VTK/PVD) when the
-> canonical script is run. **None of these new CN numerical or
-> visualization claims is native-qualified yet.** First run
-> `scripts/run-v130-heat-cn-pilot.sh` (four steps, MPI1/2),
-> then qualify the full canonical horizon and visual outputs.
-> Preserve the BDF2 qualification independently using
-> `scripts/run-v130-heat-physical-diagnostic.sh`.
->
-> **Native CN short pilot 26 November — all physics PASS, global FE parity
-> FAIL (not released):** original user archive
-> `v130-heat-CN-pilot-1fc43520-LFg8YI8b.zip`; 16 ZIP members,
-> CRC PASS. Four genuine fixed CN steps at `h=.1, dt=.01, t_f=.04`
-> MPI1/2, zero TS rejections or SNES failures. Every per-rank genuine
-> CN/port/Hamiltonian gate PASS, maximum CN step defects
-> `1.5588e-14` (MPI1) and `9.2756e-15` (MPI2). Both MPI2 rank FE
-> replicas are byte-identical. Nonetheless the global MPI1-vs-MPI2
-> full-FE coefficient discrepancy is `1.99827153e-6` (criterion
-> `1e-8`), so the pilot status is **UNQUALIFIED**, NOT PASS.
-> The discrepancy already appears at the initialized `t=0` state
-> and, remarkably, satisfies `delta_z[k] = (-1)^k delta_z[0]`
-> on all 5830 DOFs to at most `2.3e-13`; it does not grow over time.
-> This is consistent with the CN algebraic-constraint alternating
-> parasitic mode excited by rank-dependent finite-precision LSQR
-> consistency initialization. `init_algebraic_accuracy=1e-11`
-> was not reached: MPI1 final residual `1.8196e-11`, MPI2
-> `1.3157e-11`, after the default 3 passes; both are still
-> within the looser physical feasibility criterion, without
-> changing prescribed differential state data.
->
-> **26 November, first “strict” run INVALID as a precision experiment:**
-> archive `v130-heat-CN-strict-pilot-24229e1e-o5UV4ge2.zip`
-> (ZIP CRC verified). Its three ranks faithfully reproduce the
-> default initialization and CN result: 3 LSQR passes, accuracy target
-> `1e-11`, `accuracy_target_met=false`, and global FE MPI discrepancy
-> `1.99827157e-6`, despite excellent CN port-power balances.
-> Root cause: the first probe set `PETSc.Options()` BEFORE calling
-> `examples.heat.heat_eq()`, but the `DPHS` constructor invokes
-> `get_cleared_TS_options()` and clears the PETSc options database.
-> Hence **none of the requested stricter initializer settings was
-> actually transmitted to SCRIMP**. This result does NOT establish
-> that more accurate algebraic projection is ineffective.
-> The obsolete pre-constructor probe has been removed.
->
-> **Corrected STRICT diagnostic (SOURCE STAGED, native pending):**
-> `SCRIMP_V130_HEAT_CN_INIT_PROFILE=strict bash scripts/run-v130-heat-cn-pilot.sh`
-> now uses the **canonical** `examples.heat` main entry point with
-> `--init-profile strict`, adds the four values to its
-> `heat.set_time_scheme(**scheme)` call AFTER the `DPHS` constructor,
-> and persists the actually selected values in `init_profile_applied`.
-> The host checker verifies the four option values, the algebraic
-> accuracy target, original energy balance and unchanged full-FE
-> parities. A repeat native run is required before any numerical claim.
->
-> **Next diagnostic (SOURCE STAGED, native pending):**
-> `SCRIMP_V130_HEAT_CN_INIT_PROFILE=strict bash scripts/run-v130-heat-cn-pilot.sh`
-> reuses the exact original CN model, FE spaces, boundary
-> controls, plot and 4-step MPI1/2 checks but increases the
-> already-supported algebraic initialization max passes to 8,
-> targets accuracy `1e-13` and sets LSQR tolerances `1e-14`.
-> The physical and strict all-DOF MPI parity gates are **not relaxed**;
-> additionally the LSQR accuracy target must actually be met.
-> This is an isolated acceptance experiment, **not** the newly
-> qualified default. Preserve any failure archives and diagnose
-> convergence before choosing final time-stepper/initialization.
->
+**STATUS (26 November 2026): PASS — improved canonical CN/strict-algebraic
+heat 2-D example.** Original GetFEM weak formulation, conductivity,
+mass, FE spaces, mixed control ports and prescribed temperature data
+retained. All 500 fixed CN steps, `h=.1`, `dt=.01`, `t_f=5`,
+MPI1/2, strict all-DOF FE parity, dissipation, full quadratic CN
+step-power identity, original user PNG/SVG/GIF and genuine GetFEM/VTK
+history passed on the user host. Historical BDF2/pseudo simulation
+remains separately qualified and reproducible.
+
+## Full 500-step CN + strict algebraic canonical example: NATIVE PASS
+
+**Original user-host archive:** `v130-heat-CN-full-showcase-92b9d870-gszcYbW2.zip`,
+**SHA256 `f7e42d747bb2b6059b73b50185cf31c3cfa489207894228e11916d83ced558e9`**,
+36 members, CRC test PASS; canonical example source/runner revision
+`92b9d870`; Docker `scrimp-mpi:v1.3.0-rc3`,
+image revision `1d6d0c90115213298047b28237a7f38087563a35`.
+
+- Original `examples/heat.py`, not a research replacement, automatically
+  chooses `ts_type=cn`, `init_step_ts_type=algebraic` with the **per-example**
+  strict options `init_algebraic_accuracy=1e-13`,
+  `init_algebraic_max_passes=8`, and both LSQR tolerances `1e-14`.
+  No change to the generic SCRIMP DAE initializer.
+- The original canonical initial state is preserved exactly in the
+  differential temperature coefficients; initial algebraic
+  residual `4.1672128285e-14` (MPI1) and
+  `3.7133806177e-14` (MPI2), target `1e-13`: **PASS**.
+  Only three of the eight permitted LSQR correction passes were
+  required. No pseudo-time initialization.
+- Original 5,830 FE DOFs, **501 authentic accepted snapshots**,
+  zero rejected steps and zero nonlinear-solver failures.
+  All **500** original GetFEM Hamiltonian values decrease
+  monotonically from `7.02705436928772` to
+  `5.764488338085319` (MPI1).
+- All 501 Fourier dissipation samples are positive, minimum
+  `0.13101852399680086`; the internal Fourier constitutive
+  port agrees with the independently assembled quadratic form.
+  The four *true weak control-port* powers are the relevant boundary
+  terms: trace-based `T*(J_Q.Normal)` is not a substitute.
+- Independently recomputed 500-step CN energy balance
+  `H(5)-H(0) = -1.2625660312024012`,
+  `sum(dt D_CN) = 0.9309314591751581`,
+  `sum(dt P_ports,CN) = 0.33163457202721114`.
+  The maximal **per-step** quadratic CN identity residual is
+  `5.72745e-14` (MPI1) and `2.93489e-14` (MPI2);
+  maximal cumulative residual `6.75016e-14` and
+  `3.20e-14` respectively. **All 500 steps passed**, not
+  merely the final aggregate.
+- Full MPI1-to-MPI2 comparison across all 501 times and all
+  **5,830 coefficients**: maximum absolute error
+  `4.9181476669e-9`, below the **unchanged `1e-8`** gate;
+  Hamiltonian difference `5.77316e-14`, Fourier dissipation
+  difference `1.61537e-14`, and the largest original individual
+  control-port power difference `1.25802e-14`.
+  MPI2 rank 0 and rank 1 FE histories are **byte-identical**.
+- The *canonical user example itself* generated
+  `outputs/png/Hamiltonian_Heat_2D.png` and
+  `outputs/showcase/heat/figures/` containing:
+  `heat_temperature_snapshots.png/.svg` (four true DG1
+  temperature maps with one common colormap),
+  `heat_energy_and_ports.png/.svg` (quadratic Hamiltonian,
+  Fourier dissipation, four-port sum and CN closure),
+  and `heat_temperature_evolution.gif`
+  (**36 genuine saved FE frames**, checked with Pillow).
+  The PNGs were opened and visually inspected; no synthetic fields.
+- `outputs/pv/T/T.pvd` lists exactly 501 genuine
+  `T_00000.vtu` through `T_00500.vtu` files from GetFEM with
+  exact original accepted timestamps `0.00,0.01,...,5.00`.
+  The host run checked all 501 native file presences, sizes,
+  SHA256 hashes and PVD timestamps, storing the complete hash
+  inventory in `native_vtk_inventory.json`.
+  Original VTK field files remain on the user host; the compact ZIP
+  includes all real FE state histories and figures.
+
+**Archival packaging correction, not a physics failure.** The
+original 36-file ZIP above includes the genuine 501-frame **VTK hash
+inventory** and original PVD, but inadvertently contains **zero
+raw VTU files**, despite a metadata claim that selected raw VTUs
+had been included. This was independently discovered when inspecting
+the ZIP. `sandbox/compare_v130_heat_cn_full_showcase.py` now includes
+and checksum-verifies **eight genuine raw GetFEM VTUs** (four preview,
+four full MPI1) and supports **atomic repacking of the existing host
+evidence directory without rerunning PETSc/Docker**. The corrected ZIP
+and native VTU byte audit remain pending until repack evidence is
+received. No false raw-VTU proof is claimed for the original archive.
+
+**Acceptance decision:** numerical and scientific CN + original
+visualization-generation gates **PASS** for the tested v1.3.0
+configuration. Remaining action is *evidence-archive completion*
+(selected original VTUs), not repeating 500 physical steps.
+No claim is made here about mesh or temporal convergence,
+other LU backends, MPI4+ or changing the physical model.
+
 **26 November 2026 — NATIVE PASS (bounded: original long BDF2 model, MPI1/2,
 all 499 order-two steps, port powers, full FE parity, and user figures).
 PETSc BDF2 start-up half-step is not claimed as independently qualified.**
@@ -120,22 +138,16 @@ this example**. To prevent shipping this known non-parity configuration,
 `examples/heat.py` now uses the **strict initializer automatically
 for CN only**; this does not alter the generic SCRIMP defaults.
 The BDF2/pseudo configuration still selects its legacy initializer.
-The canonical default without an explicit `--init-profile` requires
-its own independent full-horizon native verification.
+The canonical default without an explicit `--init-profile`
+**has now passed** its own full-horizon native MPI1/2 verification,
+as recorded above.
 
-**Next required release gate — NATIVE PENDING:**
-`scripts/run-v130-heat-cn-full-showcase.sh`.
-This first checks the true GetFEM VTU-to-PNG/GIF renderer with a
-4-step original-model preview, then runs the canonical long
-`t_f=5, dt=.01` CN example with the automatic strict initializer,
-genuine 501-frame FE/VTK/ParaView output, and original-user PNG/SVG/GIF
-figures in MPI1, followed by the full 501-state MPI2 simulation.
-Its host checker tests each original quadrature-energy gate and
-every MPI1/MPI2 FE coefficient with the unchanged `1e-8`
-threshold, and verifies all VTK timestamps and genuine files.
-All original VTK remain in the host evidence folder; only selected
-hashed raw VTK are included in the more manageable evidence ZIP.
-No PASS for the full horizon/showcase is claimed before user-host runs.
+**Completed full-horizon release gate — NATIVE PASS:**
+`scripts/run-v130-heat-cn-full-showcase.sh` validated the
+automatically selected strict initializer in the canonical example,
+500 steps, all original FE/power variables, all source-generated
+figures and original GetFEM/VTK/PVD series in MPI1 and MPI2.
+Only the small raw-VTU ZIP packaging fix above remains pending.
 
 ## Original source and authentic native evidence
 
