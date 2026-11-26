@@ -15,6 +15,10 @@ class NonlinearPendulumSourceV130(unittest.TestCase):
         path=ROOT/"examples/nonlinear_pendulum.py"
         text=path.read_text(encoding="utf-8")
         ast.parse(text,filename=str(path))
+        # The only supported path initializes the exact nonlinear efforts.
+        self.assertNotIn("legacy_pseudo",text)
+        self.assertNotIn("init_step_ts_type",text)
+        self.assertNotIn("initialization=",text)
         for fragment in (
             "gravity = 9.81",
             "rotational_damping = 0.08",
@@ -41,9 +45,6 @@ class NonlinearPendulumSourceV130(unittest.TestCase):
         path=ROOT/"sandbox/probe_v130_nonlinear_pendulum_physics.py"
         probe=path.read_text(encoding="utf-8")
         ast.parse(probe,filename=str(path))
-        self.assertNotIn("legacy_pseudo",text)
-        self.assertNotIn("init_step_ts_type",text)
-        self.assertNotIn("initialization=",text)
         for fragment in (
             "from examples.nonlinear_pendulum import nonlinear_pendulum",
             "system=nonlinear_pendulum(",
