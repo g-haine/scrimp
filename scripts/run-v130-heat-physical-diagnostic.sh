@@ -106,7 +106,13 @@ if (1,0) in datasets and (2,0) in datasets and (2,1) in datasets:
             "max_outward_boundary_flux_absolute_difference":float(max(
                 np.max(np.abs(ref[f"boundary_{r}"]-x[f"boundary_{r}"]))
                 for r in (10,11,12,13)
-            ))
+            )),
+            "max_correct_port_power_absolute_difference":float(
+                np.max(np.abs(ref["control_power"]-x["control_power"]))),
+            "max_BDF2_quadratic_defect_MPI_absolute_difference":float(
+                np.max(np.abs(
+                    ref["discrete_bdf2_power_defect"][2:]
+                    - x["discrete_bdf2_power_defect"][2:]))),
         }
     for key, data in datasets.items():
         if (data["states"].shape!=(501,5830)
@@ -138,6 +144,15 @@ print(json.dumps({**report,"native_rank_reports":{
         "max_H_independent_difference":v["max_H_independent_difference"],
         "max_constitutive_dissipation_difference":v[
             "max_constitutive_dissipation_difference"
+        ],
+        "max_correct_port_trapezoid_energy_defect":v[
+            "max_correct_port_trapezoid_energy_defect"
+        ],
+        "max_exact_BDF2_quadratic_power_defect":v[
+            "max_exact_BDF2_quadratic_power_defect"
+        ],
+        "BDF1_initial_step_power_defect":v[
+            "BDF1_initial_step_power_defect"
         ],
     } for k,v in report["native_rank_reports"].items()
 }},indent=2),flush=True)
