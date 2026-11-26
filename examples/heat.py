@@ -22,13 +22,16 @@ def heat_eq(
     final_time=5.0, time_step=0.01, mesh_size=0.1, *,
     time_stepper="cn", initializer=None, factor_solver=None,
     showcase=False, showcase_output=None, check=False,
-    init_profile="default",
+    init_profile=None,
 ):
     """2-D mixed-boundary heat pH-DAE, with the original weak formulation.
 
     The v1.3 demonstration selects fixed-step Crank--Nicolson with
-    consistency projection of algebraic unknowns (no pseudo-time
-    alteration of the prescribed differential initial state).
+    strict consistency projection of algebraic unknowns (no pseudo-time
+    alteration of the prescribed differential initial state). The
+    stricter per-example initialization was necessary for full MPI
+    agreement of every coefficient; it does not change SCRIMP's
+    global initializer defaults.
 
     To reproduce the separately qualified historical BDF2 case, call
     heat_eq(time_stepper="bdf", initializer="pseudo", showcase=False).
@@ -45,6 +48,12 @@ def heat_eq(
         initializer = "algebraic" if time_stepper == "cn" else "pseudo"
     if initializer not in ("algebraic", "pseudo"):
         raise ValueError("initializer must be 'algebraic' or 'pseudo'")
+    if init_profile is None:
+        # The numerically qualified CN/DAE example must NOT silently
+        # select the loose initializer that excites alternating
+        # algebraic CN modes with rank-dependent FE coefficients.
+        # Preserve the historical BDF2/pseudo path separately.
+        init_profile = "strict" if time_stepper == "cn" else "default"
     if init_profile not in ("default", "strict"):
         raise ValueError("init_profile must be 'default' or 'strict'")
     if init_profile == "strict" and initializer != "algebraic":
@@ -608,9 +617,9 @@ def main():
     parser.add_argument("--time-stepper",choices=("cn","bdf"),default="cn")
     parser.add_argument("--initializer",choices=("algebraic","pseudo"),default=None)
     parser.add_argument("--init-profile",choices=("default","strict"),
-                        default="default",
-                        help="Experimental algebraic accuracy profile; "
-                             "strict is not yet a qualified user default")
+                        default=None,
+                        help="Algebraic precision profile: strict for the "
+                             "CN demo by default, default for legacy BDF2")
     parser.add_argument("--solver",choices=("mumps","superlu","superlu_dist"),
                         default="mumps")
     parser.add_argument("--mesh-size",type=float,default=.1)
@@ -625,6 +634,9 @@ def main():
     parser.add_argument("--output",type=Path,default=None,
                         help="Optional output directory for independent JSON/NPZ traces")
     args=parser.parse_args()
+    effective_init_profile = args.init_profile or (
+        "strict" if args.time_stepper == "cn" else "default"
+    )
     if args.solver == "superlu" and PETSc.COMM_WORLD.getSize()>1:
         parser.error("Sequential SuperLU is incompatible with MPI>1")
     if (args.showcase or args.check) and args.time_stepper != "cn":
@@ -637,7 +649,7 @@ def main():
         mesh_size=args.mesh_size,time_stepper=args.time_stepper,
         initializer=args.initializer,factor_solver=args.solver,
         showcase=args.showcase,showcase_output=args.showcase_output,
-        check=args.check,init_profile=args.init_profile,
+        check=args.check,init_profile=effective_init_profile,
     )
     report=getattr(system,"heat_cn_observations",None)
     if args.output is not None:
@@ -668,7 +680,7 @@ def main():
             "time_stepper":args.time_stepper,
             "initializer":(args.initializer or
                            ("algebraic" if args.time_stepper=="cn" else "pseudo")),
-            "init_profile":args.init_profile,
+            "init_profile":effective_init_profile,
             "mesh_size":args.mesh_size,
             "time_step":args.time_step,
             "final_time":args.final_time,
@@ -684,7 +696,7 @@ def main():
                     system.time_scheme.getString("init_algebraic_ksp_rtol","1e-13"),
                 "init_algebraic_ksp_atol":
                     system.time_scheme.getString("init_algebraic_ksp_atol","1e-13"),
-            } if args.init_profile == "strict" else None),
+            } if effective_init_profile == "strict" else None),
             "state_SHA256":hashlib.sha256(
                 np.ascontiguousarray(z).tobytes()
             ).hexdigest(),
