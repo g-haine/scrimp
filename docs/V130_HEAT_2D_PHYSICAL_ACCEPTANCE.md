@@ -78,6 +78,65 @@
 all 499 order-two steps, port powers, full FE parity, and user figures).
 PETSc BDF2 start-up half-step is not claimed as independently qualified.**
 
+## 26 November 2026 — improved CN/strict algebraic short pilot: PASS
+
+**Native archive:** `v130-heat-CN-strict-pilot-fcec569e-I3Fw63IG.zip`;
+SHA256 `ea5aadd97dbfb622362b83b06c5335527ec85d31bb88e2f66e54951e024b4ad6`.
+Checked ZIP CRC (16 authentic files), source `fcec569`,
+`scrimp-mpi:v1.3.0-rc3` OCI revision
+`1d6d0c90115213298047b28237a7f38087563a35`.
+
+The original unmodified heat weak formulation `h=.1`, `dt=.01`,
+`t_f=.04`, fixed CN, linear-algebraic DAE initializer, original
+temperature initial value, all original four boundary controls, MUMPS
+and COO were executed on MPI1 and MPI2 without rejected steps or
+nonlinear failures. The stricter options were **actually transmitted
+after DPHS construction**, confirmed by each original native JSON:
+
+- `init_algebraic_max_passes=8` (upper limit; convergence required
+  only three passes).
+- `init_algebraic_accuracy=1e-13`.
+- `init_algebraic_ksp_rtol=init_algebraic_ksp_atol=1e-14`.
+- MPI1 algebraic residual: **4.16721e-14**; MPI2 **3.71338e-14**.
+  Both have `accuracy_target_met=true`, and preserve every
+  differential temperature DOF exactly without pseudo-time.
+- Maximum stepwise exact quadratic CN power defect: **1.55891e-14**
+  (MPI1) / **9.27557e-15** (MPI2); cumulative defects
+  **2.33702e-14** / **1.04031e-14**.
+- All **5,830 FE coefficients**, across all five accepted times,
+  have maximum MPI1-to-MPI2 discrepancy **4.91798e-9**, below
+  the **unchanged** `1e-8` threshold. Hamiltonian discrepancy:
+  **2.04281e-14**. MPI2 ranks 0/1 are identical.
+- The previously identified sign-alternating CN algebraic
+  initialization mode is now at small, controlled magnitude:
+  its MPI difference alternates with error at most
+  **2.50525e-13**. Numerical parity passed, not merely
+  coincident Hamiltonians.
+
+**Decision:** the native four-step MPI1/MPI2 CN/strict pilot **PASS**.
+The historical loose/default initializer had `1.99827e-6`
+coefficient discrepancy and remains **UNQUALIFIED as the default for
+this example**. To prevent shipping this known non-parity configuration,
+`examples/heat.py` now uses the **strict initializer automatically
+for CN only**; this does not alter the generic SCRIMP defaults.
+The BDF2/pseudo configuration still selects its legacy initializer.
+The canonical default without an explicit `--init-profile` requires
+its own independent full-horizon native verification.
+
+**Next required release gate — NATIVE PENDING:**
+`scripts/run-v130-heat-cn-full-showcase.sh`.
+This first checks the true GetFEM VTU-to-PNG/GIF renderer with a
+4-step original-model preview, then runs the canonical long
+`t_f=5, dt=.01` CN example with the automatic strict initializer,
+genuine 501-frame FE/VTK/ParaView output, and original-user PNG/SVG/GIF
+figures in MPI1, followed by the full 501-state MPI2 simulation.
+Its host checker tests each original quadrature-energy gate and
+every MPI1/MPI2 FE coefficient with the unchanged `1e-8`
+threshold, and verifies all VTK timestamps and genuine files.
+All original VTK remain in the host evidence folder; only selected
+hashed raw VTK are included in the more manageable evidence ZIP.
+No PASS for the full horizon/showcase is claimed before user-host runs.
+
 ## Original source and authentic native evidence
 
 - Canonical source: `examples/heat.py`, unchanged; source revision
