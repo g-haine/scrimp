@@ -16,11 +16,10 @@ revision="$("${docker_cmd[@]}" image inspect \
     echo "Unqualified GetFEM/PETSc Docker revision: $revision" >&2
     exit 2
 }
-python3 -m py_compile examples/heat.py sandbox/probe_v130_heat_cn_init_precision.py
+python3 -m py_compile examples/heat.py
 profile="${SCRIMP_V130_HEAT_CN_INIT_PROFILE:-default}"
 case "$profile" in
-  default) entrypoint="/workspace/scrimp/examples/heat.py" ;;
-  strict) entrypoint="/workspace/scrimp/sandbox/probe_v130_heat_cn_init_precision.py" ;;
+  default|strict) ;;
   *) echo "Unknown SCRIMP_V130_HEAT_CN_INIT_PROFILE=$profile (default|strict)" >&2
      exit 2 ;;
 esac
@@ -41,12 +40,6 @@ for n in 1 2; do
     mkdir -p "$out/native_mpi$n" "$out/work_mpi$n"
     echo "RUN CN/algebraic MPI=$n"
     rc=0
-    extra_volumes=()
-    if [[ "$profile" == strict ]]; then
-        extra_volumes+=(
-          --volume "$root/sandbox/probe_v130_heat_cn_init_precision.py:/workspace/scrimp/sandbox/probe_v130_heat_cn_init_precision.py:ro"
-        )
-    fi
     "${docker_cmd[@]}" run --rm \
         --user "$(id -u):$(id -g)" \
         --env HOME=/tmp --env MPLBACKEND=Agg \
@@ -60,14 +53,13 @@ for n in 1 2; do
         --env SCRIMP_NONLINEAR_RESIDUAL_FORM=direct_getfem \
         --volume "$root/scrimp:/workspace/scrimp/scrimp:ro" \
         --volume "$root/examples/heat.py:/workspace/scrimp/examples/heat.py:ro" \
-        "${extra_volumes[@]}" \
         --volume "$out/native_mpi$n:/artifacts:rw" \
         --volume "$out/work_mpi$n:/scrimp-work:rw" \
         --workdir /scrimp-work \
         "$image" timeout -k 10s "${SCRIMP_V130_HEAT_CN_TIMEOUT:-900s}" \
         mpiexec --oversubscribe --bind-to none -n "$n" \
-        python -u "$entrypoint" \
-          --time-stepper cn --initializer algebraic \
+        python -u -m examples.heat \
+          --time-stepper cn --initializer algebraic --init-profile "$profile" \
           --mesh-size 0.1 --time-step 0.01 --final-time 0.04 \
           --solver mumps --no-showcase --check --output /artifacts \
         > "$out/mpi$n.host.log" 2>&1 || rc=$?
@@ -111,9 +103,20 @@ for mpi in (1,2):
         meta=reports[key]
         init=meta.get("initialization_report") or {}
         gates=(meta.get("physics") or {}).get("gates") or {}
+        applied=meta.get("init_profile_applied")
+        if profile=="strict" and (
+                not isinstance(applied,dict)
+                or applied.get("init_algebraic_max_passes")!="8"
+                or applied.get("init_algebraic_accuracy")!="1e-13"
+                or applied.get("init_algebraic_ksp_rtol")!="1e-14"
+                or applied.get("init_algebraic_ksp_atol")!="1e-14"):
+            errors.append(
+                f"Strict PETSc initializer options NOT APPLIED: {key}: {applied}"
+            )
         if (meta.get("status")!="PASS_CN_HEAT_NATIVE_PHYSICS"
                 or meta.get("time_stepper")!="cn"
                 or meta.get("initializer")!="algebraic"
+                or meta.get("init_profile")!=profile
                 or meta.get("steps")!=4
                 or meta.get("DOFs")!=5830
                 or init.get("status")!="PASS"
