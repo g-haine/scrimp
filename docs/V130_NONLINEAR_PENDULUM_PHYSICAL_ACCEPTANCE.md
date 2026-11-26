@@ -152,6 +152,62 @@ full-sine RK4 ODE, complete MPI1/MPI2 parity,
 all steps accepted, and immutable `examples/published`
 sources. The pilot creates a CRC-checked evidence ZIP.
 
+## First full native CN attempt — REJECTED, root cause under test
+
+The original 12-second campaign at source `9d7696ff`
+was executed on the user host using Docker
+`scrimp-mpi:v1.3.0-rc3`.
+Evidence archive:
+`v130-pendulum-CN-12s-showcase-9d7696ff-BaMf42Vz.zip`,
+SHA256
+`79faf60b7a9d3250b4f302e33a30c513ed06881a34012b392364b60485f9cbc1`,
+**35 members, CRC PASS**. The two 8-step original
+program-generated free and forced previews passed, including
+PNG/SVG/GIF.
+
+The **12-second free MPI1** simulation completed 1200 accepted
+CN steps, with **0 rejected steps** and **0 nonlinear solver
+failures** (2393 SNES iterations). Immediately afterward,
+the original example's **physical constitutive gate rejected**
+its genuine full GetFEM history:
+
+```text
+max |e_theta - 9.81 sin(theta)| = 1.3611093940824048e-7
+acceptance limit             = 1e-8
+max |GetFEM H - analytic H| = 8.881784197001252e-16
+```
+
+Because rendering is intentionally fail-closed, the full
+program produced **no unqualified full figures**.
+The full-host script correctly marked free MPI1 unqualified
+and skipped subsequent MPI2, refinement, and forced runs.
+**The 1200-step TS completion does not imply success
+of the full scientific acceptance.**
+
+This residual is consistent with a nonlinear SNES
+relative/step stopping tolerance that is insufficiently
+strict over a longer trajectory. This is a **working
+hypothesis**, not a demonstrated root cause: the failed
+full native history was not available in the old ZIP
+for independent investigation of the offending time step.
+In a new source revision, the **canonical example** now
+sets PETSc nonlinear convergence thresholds explicitly,
+`snes_atol=1e-12`,
+`snes_rtol=1e-12`,
+`snes_stol=1e-14`.
+The GetFEM sine law, mass and Dirac bricks, exact
+initial state, CN integration and physical gate `1e-8`
+are **unchanged**. The tighter settings must be
+confirmed by a fresh user-host run, not assumed to fix
+the problem. If the gate fails again, the canonical
+renderer now saves the **original four-DOF GetFEM
+trajectory and signed sine-law residual**, with
+the worst time index, into
+`failed_native_constitutive_trace.npz`;
+the evidence packaging includes that file.
+
+**Status remains FULL SCIENTIFIC GATE PENDING.**
+
 ## Full twelve-second CN physical and visual gate — STAGED, NATIVE PENDING
 
 The original canonical example now contains its own
