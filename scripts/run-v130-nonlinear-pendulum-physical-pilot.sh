@@ -88,7 +88,7 @@ for case in "free:0" "forced:0.1"; do
             mpiexec --oversubscribe --bind-to none -n "$mpi" \
             python -u /probe-pend.py \
                 --final-time .08 --dt .01 --angle 1.2 --torque "$torque" \
-                --solver mumps --initialization exact \
+                --solver mumps \
                 --out /artifacts \
             > "$out/$label.host.log" 2>&1 || rc=$?
         printf '%s\n' "$rc" > "$out/$label.exitcode"
@@ -130,7 +130,7 @@ for case,torque in (("free",0.),("forced",.1)):
                 traces[key]=arr
                 if (info["status"]!="PASS_ORIGINAL_NONLINEAR_PENDULUM_NATIVE_PILOT"
                         or info["steps"]!=8 or info["saved_states"]!=9
-                        or info["DAE_DOFs"]!=4 or info["initialization"]!="exact"
+                        or info["DAE_DOFs"]!=4 or info["initialization"]!="exact_constitutive"
                         or info["pseudo_TS_executed"] is not False
                         or info["original_fully_nonlinear_sine"] is not True
                         or abs(info["torque_amplitude"]-torque)>1e-14
