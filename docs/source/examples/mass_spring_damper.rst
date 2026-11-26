@@ -103,6 +103,29 @@ Run from the repository root (in the SCRIMP Conda environment):
 
    python examples/mass_spring_damper.py
 
+**The user-facing example itself now saves its visualizations** in
+`outputs/showcase/mass_spring_damper/figures/`:
+
+- `mass_spring_trajectory.png/.svg`: original GetFEM displacement,
+  momentum, velocity and applied force over the saved time grid.
+- `mass_spring_phase_portrait.png/.svg`: phase path
+  :math:`(q,p/m)`, colored by accepted PETSc time.
+- `mass_spring_energy_and_power.png/.svg`: original Hamiltonian,
+  viscous dissipation, applied-force power, both sides of the
+  exact quadratic BDF2 identity **for steps** :math:`n\\geq2`,
+  and its true discrete residual.
+- `mass_spring_motion.gif`: **schematic** mass/spring motion,
+  using selected original saved state coefficients. This does
+  not construct or imply a finite-element spatial model.
+  No interpolated or fabricated time states are included.
+
+A machine-readable `manifest.json` and the original
+`native_lumped_time_history.npz` are also written next to the
+`figures` directory. The optional `plot=False` function argument
+turns off figure creation without changing the physical solve.
+The separate research diagnostics do **not** render these figures;
+they only inspect the output produced by this example.
+
 Verification
 ------------
 
@@ -161,17 +184,36 @@ scheme, not a replacement SCRIMP model:
    SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \\
    bash scripts/run-v130-mass-spring-physical-pilot.sh
 
-**The corrected exact-initialization pilot is not yet native-qualified**
-until its new GetFEM/PETSc output has been reviewed. A full default
-time horizon, temporal refinement and reproducible example-native
-visualizations will be qualified separately. A free undamped
-oscillator (`f=0`, `c=0`) is an additional possible
-regression case.
+**The corrected exact-initialization short pilot has now PASSED**
+its native GetFEM/PETSc MPI1/MPI2 scientific checks:
+`q_0=.4,p_0=0,e_{q,0}=2,e_{p,0}=0` exactly,
+maximum exact BDF2 step energy-power defect
+`4.21e-14`, maximum complete DAE MPI1/2 discrepancy
+`3.47e-18`, and an independent RK4 forced-ODE error
+`6.00e-5` over the eight physical steps.
+
+The remaining full-horizon **800-step** user-visualization and MPI
+qualification is executed by
+
+.. code-block:: console
+
+   SCRIMP_DOCKER_NO_SUDO=1 \\
+   SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \\
+   bash scripts/run-v130-mass-spring-full-showcase.sh
+
+The long-run script checks original program-generated PNG/SVG/GIF
+on eight steps *before* running the two full MPI campaigns,
+then checks every saved state and every step's exact BDF2
+power identity. This long experiment is **staged, not yet
+native-qualified**. A time-step refinement study and an
+unforced, undamped regression (`f=0,c=0`) are distinct tests.
 
 .. note::
 
    The historical pseudo-started example passed the smoke and full
    standalone execution tests, but changed the originally prescribed
    initial momentum. This motivated the exact-constitutive-data fix.
-   Do not treat successful execution as proof of correct IVP data;
-   native acceptance for the corrected default is pending.
+   Do not treat successful execution as proof of correct IVP data.
+   The corrected default has subsequently passed short MPI1/MPI2
+   scientific acceptance; the complete eight-second showcase
+   remains pending until native host execution.
