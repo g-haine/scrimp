@@ -118,6 +118,12 @@ def nonlinear_pendulum(final_time=12.0, time_step=0.01,
         ksp_type="gmres", pc_type="lu",
         t_0=0.0, t_f=float(final_time),
         dt=float(time_step), dt_save=float(time_step),
+        # A long nonlinear CN orbit must satisfy the actual
+        # algebraic sine law at EVERY saved time, not merely
+        # report TS/SNES convergence under loose default
+        # relative tolerances. This tightens Newton convergence
+        # without changing the original pH equations or CN.
+        snes_atol=1e-12, snes_rtol=1e-12, snes_stol=1e-14,
         init_step=False,
         **scheme,
     )
@@ -200,9 +206,31 @@ def render_pendulum_visuals(
     )
     H_error = float(np.max(np.abs(H-analytic_H)))
     if constitutive_error > 1e-8 or H_error > 1e-8:
+        # Do not silently weaken the physical accuracy gate.
+        # Preserve the authentic four-DOF trajectory for a
+        # subsequent scientific diagnosis even if the renderer
+        # refuses to draw physically inconsistent curves.
+        err_theta=np.abs(e_theta-gravitational_torque*np.sin(theta))
+        at=int(np.argmax(err_theta))
+        if PETSc.COMM_WORLD.getRank()==0:
+            folder=Path(folder)
+            folder.mkdir(parents=True,exist_ok=True)
+            np.savez_compressed(
+                folder/"failed_native_constitutive_trace.npz",
+                t=t,theta=theta,p=p,e_theta=e_theta,e_p=e_p,H=H,
+                nonlinear_constitutive_defect=(
+                    e_theta-gravitational_torque*np.sin(theta)
+                ),
+            )
         raise RuntimeError(
             "Nonlinear GetFEM constitutive law/Hamiltonian failed: "
-            + repr((constitutive_error,H_error))
+            f"max_sine_error={constitutive_error:.12g}, "
+            f"max_H_error={H_error:.12g}, "
+            f"worst_index={at}, worst_time={t[at]:.12g}, "
+            f"worst_theta={theta[at]:.12g}, "
+            f"worst_e_theta={e_theta[at]:.12g}; "
+            "authentic trajectory preserved in "
+            "failed_native_constitutive_trace.npz"
         )
 
     # PETSc TSCN is the implicit trapezoidal/end-point theta rule,
