@@ -58,6 +58,55 @@ class FiniteDimensionalV130Source(unittest.TestCase):
             with self.subTest(fragment=fragment):
                 self.assertIn(fragment,source)
 
+    def test_canonical_example_itself_writes_reproducible_figures(self):
+        source=(ROOT/"examples/mass_spring_damper.py"
+                ).read_text(encoding="utf-8")
+        tree=ast.parse(source)
+        for fragment in (
+            'if plot:',
+            'sys.mass_spring_visuals = render_mass_spring_visuals(',
+            'def render_mass_spring_visuals(',
+            'system.get_solution("q")',
+            'system.get_solution("p")',
+            'system.get_solution("e_q")',
+            'system.get_solution("e_p")',
+            "system.get_Hamiltonian()",
+            "mass_spring_trajectory.png",
+            "mass_spring_phase_portrait.png",
+            "mass_spring_energy_and_power.png",
+            "mass_spring_motion.gif",
+            "BDF2_startup_energy_identity_not_claimed",
+            "no_spatial_FEM_or_time_interpolation",
+            "mass_spring_damper(plot=True)",
+        ):
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment,source)
+        self.assertIn(
+            "render_mass_spring_visuals",
+            [node.name for node in tree.body
+             if isinstance(node,ast.FunctionDef)],
+        )
+        checker=(ROOT/"sandbox/compare_v130_mass_spring_full_showcase.py"
+                 ).read_text(encoding="utf-8")
+        ast.parse(checker)
+        runner=(ROOT/"scripts/run-v130-mass-spring-full-showcase.sh"
+                ).read_text(encoding="utf-8")
+        for fragment in (
+            "mass_spring_damper",
+            "preview:1:0.08:1",
+            "mpi1:1:8:1",
+            "mpi2:2:8:0",
+            "--showcase",
+            "check-v130-published-immutable.py",
+        ):
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment,runner)
+        self.assertIn("canonical_visuals_are_generated_by_example_not_test",checker)
+        self.assertIn("full_MUMPS_MPI1_MPI2_parity",checker)
+        self.assertNotIn("import matplotlib",checker)
+        self.assertNotIn("plt.savefig(",checker)
+        self.assertNotIn("S.DPHS(",checker)
+
     def test_original_model_native_audit_uses_ODE_not_a_surrogate(self):
         probe=(ROOT/"sandbox/probe_v130_mass_spring_physics.py"
                ).read_text(encoding="utf-8")
