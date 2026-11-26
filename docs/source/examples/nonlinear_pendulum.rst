@@ -87,7 +87,9 @@ damping and forcing are retained. The canonical example uses
 **one** physical time scheme: PETSc `ts_type="cn"`, fixed time step,
 without any pseudo-time initialization. The former BDF2 short
 qualification was a useful diagnostic but **does not qualify CN**.
-The CN native qualification remains pending.
+The exact-initial-state CN formulation has now passed
+the short and complete twelve-second native scientific
+qualification described below.
 
 The complete runnable example is:
 
@@ -187,10 +189,11 @@ The genuine native archive and SHA256 checksum are
 recorded in `docs/V130_NONLINEAR_PENDULUM_PHYSICAL_ACCEPTANCE.md`.
 
 The full **twelve-second** canonical CN acceptance
-is staged separately; it includes **1200 steps**
-in MPI1/MPI2, **2400-step refinement** in MPI1,
-and the original program-generated PNG/SVG/GIF
-for both free and forced motion:
+also **PASSED natively** on 26 November 2026. It
+includes **1200 steps** in MPI1/MPI2, a **2400-step
+refinement** in MPI1, and the original
+program-generated PNG/SVG/GIF for both free and
+forced motion. The verified run is reproducible using:
 
 .. code-block:: console
 
@@ -198,14 +201,38 @@ for both free and forced motion:
    SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \\
    bash scripts/run-v130-nonlinear-pendulum-CN-full-showcase.sh
 
-The full test includes independent RK4 error refinement
-and validates the actual user-facing figures in addition
-to all the native physical CN residuals and MPI parity.
+The full test independently recomputes the true original
+GetFEM `sin(theta)` constitutive law, Hamiltonian,
+endpoint CN equation/power residuals and the nonlinear
+chain-rule correction from all **1201 accepted four-DOF
+GetFEM snapshots** in both MPI1 and MPI2. Complete
+MPI1/MPI2 state differences are bounded by
+`1.02e-13`. Against an independent full-sine RK4
+reference, the maximum trajectory errors on the
+coarse and refined time grids decrease with ratios
+`3.999772` (free) and `3.999606` (forced),
+giving observed orders **1.999918** and **1.999858**.
+
+The example itself generated and saved, for both
+physics variants, the verified trajectory, phase
+portrait and energy/power PNG/SVG graphics and the
+36-frame schematic motion GIF. Its saved state
+histories were compared directly to the original
+native GetFEM records. The 74-member evidence ZIP
+`v130-pendulum-CN-12s-showcase-b93cfd27-Kd1WLVcv.zip`
+passed CRC and independent numerical inspection.
+For the exact source commit, Docker image and
+archive SHA256, see
+`docs/V130_NONLINEAR_PENDULUM_PHYSICAL_ACCEPTANCE.md`.
 
 .. note::
 
-   **The short native CN pilot is qualified**, but the
-   full twelve-second, temporal-refinement and original
-   example-visualization gates remain pending actual host
-   execution. No exact conservation of the nonquadratic
-   Hamiltonian is claimed.
+   **The complete twelve-second original nonlinear
+   CN example is native-qualified** in the tested
+   MUMPS MPI1/MPI2 configurations, including temporal
+   refinement and source-generated visualizations.
+   The exact Hamiltonian conservation of a
+   nonquadratic system is **not** claimed: the
+   measured CN chain-rule defect is accounted
+   for explicitly. Other solvers, MPI4+ and other
+   physical parameter sets are not covered.
