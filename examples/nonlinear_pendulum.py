@@ -28,8 +28,17 @@ import scrimp as S
 
 def nonlinear_pendulum(final_time=12.0, time_step=0.01,
                        initial_angle=1.2, torque_amplitude=0.0,
-                       plot=False, *, factor_solver=None):
-    """Integrate a nonlinear (possibly forced) pendulum with damping."""
+                       plot=False, *, factor_solver=None,
+                       initialization="exact"):
+    """Integrate a nonlinear (possibly forced) pendulum with damping.
+
+    Default: initialize algebraic co-energies from exact nonlinear
+    constitutive laws, preserving prescribed angle/momentum exactly.
+    Historical pseudo-time relaxation remains explicitly available
+    via initialization="legacy_pseudo".
+    """
+    if initialization not in ("exact", "legacy_pseudo"):
+        raise ValueError("initialization must be 'exact' or 'legacy_pseudo'")
     mass = 1.0
     length = 1.0
     gravity = 9.81
@@ -86,24 +95,41 @@ def nonlinear_pendulum(final_time=12.0, time_step=0.01,
     for brick in bricks:
         pend.add_brick(brick)
 
-    pend.set_initial_value("theta", float(initial_angle))
-    pend.set_initial_value("p", 0.0)
+    theta0 = float(initial_angle)
+    p0 = 0.0
+    if not np.isfinite(theta0):
+        raise ValueError("initial_angle must be finite")
+    pend.set_initial_value("theta", theta0)
+    pend.set_initial_value("p", p0)
+    if initialization == "exact":
+        # Both co-energies are one-DOF GetFEM lumped variables.
+        # Set the ACTUAL full nonlinear constitutive effort at t=0;
+        # do not use the small-angle approximation or evolve
+        # prescribed differential states in an artificial pseudo TS.
+        pend.gf_model.set_variable(
+            "e_theta", np.array([mass*gravity*length*np.sin(theta0)])
+        )
+        pend.gf_model.set_variable("e_p", np.array([p0/inertia]))
+    pend.pendulum_initialization = initialization
 
     # None leaves the qualified MUMPS default unchanged.
     # Non-default backends are chosen explicitly by example callers.
     scheme = {}
     if factor_solver is not None:
         scheme["pc_factor_mat_solver_type"] = factor_solver
+    init_options = (
+        {"init_step": False}
+        if initialization == "exact"
+        else {"init_step_ts_type": "pseudo", "init_step": True}
+    )
     pend.set_time_scheme(
-        # Preserve this example's original explicit pseudo initialization.
-        init_step_ts_type="pseudo",
         ts_type="bdf", ts_bdf_order=2,
         ts_exact_final_time="matchstep",
         ts_adapt_type="none",
         ksp_type="gmres", pc_type="lu",
         t_0=0.0, t_f=float(final_time),
         dt=float(time_step), dt_save=float(time_step),
-        init_step=True,
+        **init_options,
         **scheme,
     )
     pend.solve()
