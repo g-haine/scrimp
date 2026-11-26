@@ -1,6 +1,44 @@
 # SCRIMP v1.3.0 — nonlinear lumped pendulum physical acceptance
 
-## Current status — PETSc CN source prepared; NATIVE CN PENDING
+## Current status — SHORT PETSc CN MPI1/2 NATIVE PASS
+
+The **short original CN model is qualified** in unforced and forced
+configurations at `dt=.01`, `t_f=.08`, MUMPS MPI1 and MPI2.
+This is a **scientific short pilot only**. Full 12-second, temporal
+refinement and canonical user figures remain unqualified pending
+the long native campaign.
+
+User-provided native evidence:
+`v130-nonlinear-pendulum-physical-pilot-6621459f-PnkjIHci.zip`.
+Original source revision `6621459f`,
+image `scrimp-mpi:v1.3.0-rc3`.
+**SHA256 `7c076d2c782b3702bcf046d7c849eb22860fe2c7199b57f68562c0d3aec63ec9`**,
+**22 files**, archive **CRC PASS**. The original six NPZ trajectories
+were read and their endpoint-CN differential equations, power pairing,
+energy accounting, and complete MPI1/2 DOFs independently recomputed.
+
+| Short native CN metric | Free | Forced, amplitude 0.1 |
+| --- | ---: | ---: |
+| Native exact initial state error | 0 | 0 |
+| Max full-sine constitutive error | 1.776e-15 | 1.776e-15 |
+| Max endpoint CN derivative residual | 1.533e-14 | 1.277e-14 |
+| Max original co-energy CN power defect | 1.434e-13 | 1.114e-13 |
+| Nonzero nonlinear H chain-rule defect | 2.385e-5 | 2.379e-5 |
+| Max cumulative CN chain accounting defect | 3.345e-15 | 2.593e-15 |
+| Max error to independent full-sine RK4 | 2.269e-5 | 2.262e-5 |
+| All four original DAE DOFs MPI1/2 parity | 1.110e-16 | 1.110e-16 |
+| Original H(0) | 6.255270428583832 | 6.255270428583832 |
+| Original H(.08) | 6.254143694389639 | 6.253854348550849 |
+
+All four original cases completed without numerical failures:
+unforced/forced at MPI1 and MPI2. Both rank0 and rank1
+MPI2 state histories are byte-identical. The initial state is
+exact, including both nonlinear algebraic co-energies, and
+no artificial initialization TS is used.
+
+**Only this short CN gate is closed.** The original canonical
+12-second figures are not yet natively tested; source documentation
+must not claim they are scientifically qualified.
 
 The **only canonical integration method** for
 `examples/nonlinear_pendulum.py` is now
@@ -27,8 +65,8 @@ e_p0 = 0
 ```
 
 No old BDF2/pseudo choice is retained in the canonical
-example. The current GetFEM/PETSc CN system is
-**not yet natively qualified**.
+example. The current GetFEM/PETSc CN system has **passed the
+eight-step MPI1/2 native gate** described above.
 
 ## Correct trapezoidal CN step identities
 
@@ -88,7 +126,7 @@ The old *BDF2* step co-energy residual was below
 `5.26e-13`. These results **cannot** be used to
 qualify or infer the behavior of the new CN scheme.
 
-## Native CN gate — not yet run
+## Native short CN gate — completed
 
 Run directly from the user-host repository:
 
@@ -116,8 +154,8 @@ sources. The pilot creates a CRC-checked evidence ZIP.
 
 **The default full `t_f=12` run, its complete MPI
 history, independent temporal refinement and
-PNG/SVG/GIF from the original example are not yet
-scientifically qualified.** Those are separate
-acceptance stages after the short CN pilot.
+PNG/SVG/GIF from the original example remain
+unqualified** until the separate long native gate
+has passed. The eight-step CN gate above is complete.
 
 No claims are made about other LU backends or MPI4+.
