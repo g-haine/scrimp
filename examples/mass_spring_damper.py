@@ -26,7 +26,8 @@ import scrimp as S
 
 
 def mass_spring_damper(
-    final_time=8.0, time_step=0.01, plot=False, *, factor_solver=None
+    final_time=8.0, time_step=0.01, plot=False, *,
+    factor_solver=None, initialization="exact",
 ):
     """Simulate the forced, damped oscillator using lumped dynamic ports.
 
@@ -34,7 +35,15 @@ def mass_spring_damper(
     -------
     scrimp.DPHS
         Solved system with Hamiltonian terms and time histories.
+
+    By default, impose the *exact* constitutive co-energies at t=0
+    and preserve the prescribed differential state (q0,p0). The
+    historical one-step pseudo-time relaxation is reproduced with
+    initialization="legacy_pseudo"; it moves the physical initial
+    momentum, and is therefore not the qualified default.
     """
+    if initialization not in ("exact", "legacy_pseudo"):
+        raise ValueError("initialization must be 'exact' or 'legacy_pseudo'")
     mass = 1.5
     stiffness = 5.0
     damping = 0.25
@@ -81,24 +90,40 @@ def mass_spring_damper(
     for brick in bricks:
         sys.add_brick(brick)
 
-    sys.set_initial_value("q", 0.4)
-    sys.set_initial_value("p", 0.0)
+    q0, p0 = 0.4, 0.0
+    sys.set_initial_value("q", q0)
+    sys.set_initial_value("p", p0)
+    if initialization == "exact":
+        # These are true zero-dimensional GetFEM variables (one DOF
+        # each), NOT FE fields to interpolate. The algebraic laws are
+        # e_q = dH/dq = k*q and e_p = dH/dp = p/m. Initialize both
+        # exactly rather than evolving (q,p) during a pseudo-TS.
+        sys.gf_model.set_variable("e_q", np.array([stiffness*q0]))
+        sys.gf_model.set_variable("e_p", np.array([p0/mass]))
+    # Explicitly expose the mode for physical acceptance diagnostics.
+    sys.mass_spring_initialization = initialization
     # An omitted factor_solver leaves the current SCRIMP/PETSc default
     # (MUMPS) untouched. Users can explicitly select superlu (serial),
     # superlu_dist (MPI), or another PETSc-supported LU backend.
     scheme = {}
     if factor_solver is not None:
         scheme["pc_factor_mat_solver_type"] = factor_solver
+    # With fully consistent initial differential AND algebraic DOFs
+    # no initial TS is necessary. Keep historical pseudo only by
+    # explicit opt-in; the physical BDF2 time integrator is unchanged.
+    init_options = (
+        {"init_step": False}
+        if initialization == "exact"
+        else {"init_step_ts_type": "pseudo", "init_step": True}
+    )
     sys.set_time_scheme(
-        # Preserve this example's original explicit pseudo initialization.
-        init_step_ts_type="pseudo",
         ts_type="bdf", ts_bdf_order=2,
         ts_exact_final_time="matchstep",
         ts_adapt_type="none",
         ksp_type="gmres", pc_type="lu",
         t_0=0.0, t_f=float(final_time),
         dt=float(time_step), dt_save=float(time_step),
-        init_step=True,
+        **init_options,
         **scheme,
     )
     sys.solve()
