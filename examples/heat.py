@@ -22,6 +22,7 @@ def heat_eq(
     final_time=5.0, time_step=0.01, mesh_size=0.1, *,
     time_stepper="cn", initializer=None, factor_solver=None,
     showcase=False, showcase_output=None, check=False,
+    init_profile="default",
 ):
     """2-D mixed-boundary heat pH-DAE, with the original weak formulation.
 
@@ -44,6 +45,10 @@ def heat_eq(
         initializer = "algebraic" if time_stepper == "cn" else "pseudo"
     if initializer not in ("algebraic", "pseudo"):
         raise ValueError("initializer must be 'algebraic' or 'pseudo'")
+    if init_profile not in ("default", "strict"):
+        raise ValueError("init_profile must be 'default' or 'strict'")
+    if init_profile == "strict" and initializer != "algebraic":
+        raise ValueError("Strict initialization requires algebraic projection")
     if not (np.isfinite(final_time) and np.isfinite(time_step)
             and np.isfinite(mesh_size)
             and 0. < final_time <= 50.
@@ -213,6 +218,17 @@ def heat_eq(
         scheme["ts_bdf_order"] = 2
     if factor_solver is not None:
         scheme["pc_factor_mat_solver_type"] = factor_solver
+    if init_profile == "strict":
+        # Experimental MPI-parity diagnostic. Pass options HERE,
+        # after DPHS construction: DPHS.__init__ clears the global
+        # PETSc options database. Setting PETSc.Options before
+        # heat_eq() silently loses all such requests.
+        scheme.update(
+            init_algebraic_max_passes=8,
+            init_algebraic_accuracy=1e-13,
+            init_algebraic_ksp_rtol=1e-14,
+            init_algebraic_ksp_atol=1e-14,
+        )
     heat.set_time_scheme(**scheme)
 
     # Solve
@@ -591,6 +607,10 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--time-stepper",choices=("cn","bdf"),default="cn")
     parser.add_argument("--initializer",choices=("algebraic","pseudo"),default=None)
+    parser.add_argument("--init-profile",choices=("default","strict"),
+                        default="default",
+                        help="Experimental algebraic accuracy profile; "
+                             "strict is not yet a qualified user default")
     parser.add_argument("--solver",choices=("mumps","superlu","superlu_dist"),
                         default="mumps")
     parser.add_argument("--mesh-size",type=float,default=.1)
@@ -617,7 +637,7 @@ def main():
         mesh_size=args.mesh_size,time_stepper=args.time_stepper,
         initializer=args.initializer,factor_solver=args.solver,
         showcase=args.showcase,showcase_output=args.showcase_output,
-        check=args.check,
+        check=args.check,init_profile=args.init_profile,
     )
     report=getattr(system,"heat_cn_observations",None)
     if args.output is not None:
@@ -648,12 +668,23 @@ def main():
             "time_stepper":args.time_stepper,
             "initializer":(args.initializer or
                            ("algebraic" if args.time_stepper=="cn" else "pseudo")),
+            "init_profile":args.init_profile,
             "mesh_size":args.mesh_size,
             "time_step":args.time_step,
             "final_time":args.final_time,
             "steps":int(system.last_ts_steps),
             "DOFs":int(z.shape[1]),
             "initialization_report":getattr(system,"initialization_report",None),
+            "init_profile_applied":({
+                "init_algebraic_max_passes":
+                    system.time_scheme.getString("init_algebraic_max_passes","3"),
+                "init_algebraic_accuracy":
+                    system.time_scheme.getString("init_algebraic_accuracy","1e-11"),
+                "init_algebraic_ksp_rtol":
+                    system.time_scheme.getString("init_algebraic_ksp_rtol","1e-13"),
+                "init_algebraic_ksp_atol":
+                    system.time_scheme.getString("init_algebraic_ksp_atol","1e-13"),
+            } if args.init_profile == "strict" else None),
             "state_SHA256":hashlib.sha256(
                 np.ascontiguousarray(z).tobytes()
             ).hexdigest(),
