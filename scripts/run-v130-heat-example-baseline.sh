@@ -43,6 +43,7 @@ rc=0
   "$image" timeout -k 10s "${SCRIMP_V130_HEAT_TIMEOUT:-1800s}" \
   mpiexec --oversubscribe --bind-to none -n 1 \
   python -u /workspace/scrimp/examples/heat.py \
+    --time-stepper bdf --initializer pseudo --no-showcase \
   >"$out/native.host.log" 2>&1 || rc=$?
 printf '%s\n' "$rc" > "$out/native.exitcode"
 
