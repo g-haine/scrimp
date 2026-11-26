@@ -66,6 +66,32 @@ class HeatCNSourceContract(unittest.TestCase):
             with self.subTest(fragment=fragment):
                 self.assertIn(fragment,self.source)
 
+    def test_strict_init_options_are_applied_inside_heat_scheme(self):
+        # Setting PETSc.Options() before DPHS() is ineffective because
+        # DPHS.__init__ resets that global PETSc option database.
+        for fragment in (
+            'if init_profile == "strict":',
+            'init_algebraic_max_passes=8',
+            'init_algebraic_accuracy=1e-13',
+            'init_algebraic_ksp_rtol=1e-14',
+            'init_algebraic_ksp_atol=1e-14',
+            'heat.set_time_scheme(**scheme)',
+            '"--init-profile",choices=("default","strict")',
+            'init_profile=args.init_profile',
+            '"init_profile_applied"',
+        ):
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment,self.source)
+        self.assertLess(
+            self.source.index('init_algebraic_max_passes=8'),
+            self.source.index('heat.set_time_scheme(**scheme)'),
+        )
+        pilot=(ROOT/"scripts/run-v130-heat-cn-pilot.sh").read_text(
+            encoding="utf-8")
+        self.assertIn('--init-profile "$profile"',pilot)
+        self.assertIn("Strict PETSc initializer options NOT APPLIED",pilot)
+        self.assertNotIn("probe_v130_heat_cn_init_precision.py",pilot)
+
     def test_historical_bdf2_pseudo_reproducibility_is_explicit(self):
         self.assertIn(
             'heat_eq(time_stepper="bdf", initializer="pseudo")',
