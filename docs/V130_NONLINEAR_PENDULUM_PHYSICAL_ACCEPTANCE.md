@@ -1,154 +1,123 @@
-# SCRIMP v1.3.0 — nonlinear finite-dimensional pendulum acceptance
+# SCRIMP v1.3.0 — nonlinear lumped pendulum physical acceptance
 
-## Status — SHORT NATIVE MPI1/MPI2 PASS (26 November 2026)
+## Current status — PETSc CN source prepared; NATIVE CN PENDING
 
-**NATIVE PASS** for the original nonlinear sine pendulum in both
-unforced and sinusoidally forced cases, with the single exact
-constitutive initial state, MUMPS MPI1/MPI2, eight accepted
-fixed BDF2 steps (`dt=.01`, `t_f=.08`), and **all four**
-GetFEM lumped state/co-energy coefficients on every rank.
+The **only canonical integration method** for
+`examples/nonlinear_pendulum.py` is now
+`ts_type="cn"` (PETSc 3.26 endpoint trapezoidal rule,
+not implicit midpoint), with `ts_adapt_type="none"`,
+fixed `dt=.01`, and exactly consistent initial
+lumped co-energies with `init_step=False`.
 
-**User-host archive:** `v130-nonlinear-pendulum-physical-pilot-2ae4bc7d-PVKCy6u4.zip`,
-source commit `2ae4bc7d`, Docker `scrimp-mpi:v1.3.0-rc3`.
-SHA256 **`dcf6fca2ec56ff3f24fe39a8e55bfb790b29000a5fead5ec9cfba7b23bbd9d80`**.
-Independently opened: **22 files**, ZIP CRC passed; native NPZ
-trajectories and physical identities recomputed from raw coefficients.
-All six MPI rank reports and all scientific gates passed.
-
-| Native short-case result | Unforced | Forced (amplitude 0.1) |
-| --- | ---: | ---: |
-| Actual differential initial error | 0 | 0 |
-| Actual nonlinear co-energy initial error | 0 | 0 |
-| Max sine constitutive error | 3.193e-11 | 3.650e-11 |
-| Max BDF2 differential residual | 5.440e-14 | 5.707e-14 |
-| Max BDF2 co-energy power residual | 4.915e-13 | 5.257e-13 |
-| Max full-sine RK4 theta/p absolute error | 2.232e-4 | 2.228e-4 |
-| MPI1 vs MPI2 full DAE error (rank0/rank1) | 0 | 0 |
-| Original GetFEM H(0) | 6.255270428583832 | 6.255270428583832 |
-| Original GetFEM H(.08) | 6.252059671693924 | 6.251772872110134 |
-
-The GetFEM Hamiltonian matches the analytic **nonquadratic**
-Hamiltonian exactly at every saved state. In the unforced
-damped pilot H is monotonically decreasing; with forcing,
-the actual nonzero external power was recorded.
-
-**Important scientific scope:** the discrete
-co-energy-weighted BDF2 identity is not an exact
-telescoping Hamiltonian difference. At the short
-unforced horizon, the observed `H(.08)-H(0)`
-is about `-0.00321076`, whereas trapezoidal integration
-of the continuous `-d*e_p²` power at the saved times
-is about `-0.00113893`. Such quadrature must not be
-presented as an exact discrete energy ledger: the
-time-discrete solution and PETSc BDF2 startup contribute
-numerical error. This discrepancy does **not** contradict
-the verified discrete equation, and does not justify a
-claim of exact energy preservation or physical dissipation.
-Temporal refinement remains a separate qualification.
-
-**Decision:** SHORT NATIVE SCIENTIFIC PILOT **PASS**.
-Complete `t_f=12` simulation, MPI parity over all 1201
-states, and directly runnable original-example PNG/SVG/GIF
-visualizations remain **PENDING**.
-
-The canonical `examples/nonlinear_pendulum.py` models a genuine
-**nonlinear** single pendulum with two dynamical scalar states
-`theta,p`, two constitutive scalar co-energies
-`e_theta,e_p`, and a full sine restoring torque.
-Its reference interval is only the GetFEM weak-form
-normalization support; there is no physical spatial FE mesh.
-
-Original parameters and equations **unchanged**:
+The physical GetFEM nonlinear model is unchanged:
+`m=1`, `length=1`, `I=1`, `g=9.81`,
+`damping=.08`, `theta0=1.2`, `p0=0`.
+There are four true lumped GetFEM scalar DOFs:
+`theta,p,e_theta,e_p` and no spatial PDE.
 
 ```text
-m=1, length=1, I=m length²=1, g=9.81, damping=0.08
-theta_dot = p/I
-p_dot = -m*g*length*sin(theta) - damping*p/I
-        + torque_amplitude*sin(2*pi*0.3*t)
-H = p²/(2*I) + m*g*length*(1-cos(theta))
+H(theta,p) = p²/(2*I) + m*g*length*(1-cos(theta))
 e_theta = m*g*length*sin(theta)
 e_p = p/I
-H_dot = -damping*e_p² + torque*e_p
+theta_dot = e_p
+p_dot = -e_theta - damping*e_p
+        + torque_amplitude*sin(2*pi*0.3*t)
+e_theta0 = m*g*length*sin(theta0)
+e_p0 = 0
 ```
 
-The default prescribed physical IVP is
-`theta(0)=1.2`, `p(0)=0`. In contrast to
-an artificial pseudo-time relaxation, this
-fully explicit constitutive model permits the exact,
-reproducible GetFEM scalar co-energies
+No old BDF2/pseudo choice is retained in the canonical
+example. The current GetFEM/PETSc CN system is
+**not yet natively qualified**.
+
+## Correct trapezoidal CN step identities
+
+Let `delta a = (a_n-a_(n-1))/dt` and
+`mean(a) = (a_n+a_(n-1))/2`.
+PETSc `TSCN` uses the **endpoint** trapezoidal
+variant of `TSTHETA`, with theta=1/2 and endpoint=true.
+
+The independent checker must measure the true nonlinear
+endpoint GetFEM co-energy variables and then test
+**all physical time steps n>=1**:
 
 ```text
-e_theta(0)=9.81*sin(1.2), e_p(0)=0.
+delta(theta) = mean(e_p)
+delta(p) = -mean(e_theta) - damping*mean(e_p) + mean(torque)
+mean(e_theta)*delta(theta) + mean(e_p)*delta(p)
+      + damping*mean(e_p)^2 - mean(torque)*mean(e_p) = 0
 ```
 
-The canonical example now initializes both algebraic variables
-explicitly and uses `init_step=False`, leaving its **physical
-BDF2**, nonlinear full sine, all weak bricks, MUMPS and other
-SCRIMP solver options unchanged. The example exposes **one**
-exact constitutive initialization path, with no legacy mode.
-This exact-initial-state change **passed** the native MPI1/MPI2
-short pilot above; the full-horizon gate remains pending.
+This **discrete co-energy power identity** follows from
+the actual CN differential residual and interconnection
+skew-symmetry. It is **not** an exact equality between
+Hamiltonian change and external port work minus damping:
+`H(theta,p)` is not quadratic.
 
-## Correct nonlinear BDF2 physics
-
-Unlike the *quadratic* mass–spring Hamiltonian, the pendulum
-Hamiltonian includes `1-cos(theta)`. The telescoping
-quadratic BDF2 `H` formula from the linear oscillator
-is **mathematically inapplicable**.
-
-For original BDF2 steps `n>=2`, define
+The actual nonquadratic chain-rule defect is
 
 ```text
-D2 z[n] = (3*z[n]-4*z[n-1]+z[n-2])/(2*dt).
+Gamma_n = delta(H) - mean(e_theta)*delta(theta)
+                      - mean(e_p)*delta(p)
+delta(H) = mean(torque)*mean(e_p)
+           - damping*mean(e_p)^2 + Gamma_n
 ```
 
-The correct, exactly checkable **nonquadratic co-energy
-BDF2 power identity** follows by pairing the *actual
-discrete differential equations* with the current
-constitutive efforts:
+Therefore the accumulated Hamiltonian difference from
+the CN discrete work must equal the accumulated
+`dt*Gamma_n` up to the measured CN residual.
+**Gamma_n is measured, never assumed to vanish.**
+Ordinary trapezoidal quadrature of nodal physical
+`torque*e_p - damping*e_p²` is also different
+from the genuine CN discrete work; the canonical
+figures clearly label these quantities.
 
-```text
-e_theta[n]*D2theta[n] + e_p[n]*D2p[n]
-  + damping*e_p[n]² - torque(t[n])*e_p[n] = 0.
+## Historical fixed-BDF2 qualification — archive only
+
+**The last native user-host calculation was BDF2, NOT CN**:
+source `2ae4bc7d`, original archive
+`v130-nonlinear-pendulum-physical-pilot-2ae4bc7d-PVKCy6u4.zip`,
+SHA256
+`dcf6fca2ec56ff3f24fe39a8e55bfb790b29000a5fead5ec9cfba7b23bbd9d80`.
+Archive opened: 22 files and CRC PASS. Four runs
+(unforced/forced with torque amplitude 0.1; MPI1/MPI2),
+eight BDF2 steps each, all four lumped DOFs present.
+Physical initial data exact, full-sine relations accepted,
+full-MPI state discrepancy 0, independent RK4 check PASS.
+The old *BDF2* step co-energy residual was below
+`5.26e-13`. These results **cannot** be used to
+qualify or infer the behavior of the new CN scheme.
+
+## Native CN gate — not yet run
+
+Run directly from the user-host repository:
+
+```bash
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-nonlinear-pendulum-physical-pilot.sh
 ```
 
-This is **not** an equality of a BDF2 finite
-difference of `H(theta,p)` to power. The nonlinearity
-precludes that inference. The **continuous** physical
-Hamiltonian is independently compared to the original
-GetFEM Hamiltonian from the saved accepted state.
-For the unforced damped case, its overall trajectory
-is required not to increase within solver tolerance.
-For the driven case the nonzero forcing power is
-retained with its correct sign and no monotonicity claim
-is made.
+The script must run the *canonical example* in
+four original-physics configurations:
+unforced `torque_amplitude=0` and forced
+`torque_amplitude=.1`, in each case MPI1/MPI2,
+`t_f=.08`, `dt=.01`. Each rank stores the
+nine true accepted four-variable GetFEM snapshots.
 
-The PETSc order-two **startup half-step is not
-asserted to follow an unsupported BDF1 identity**.
-No temporal refinement-order claim is made by the pilot.
+Scientific acceptance requires exact prescribed initial
+states, true nonlinear end-point constitutive laws,
+correct GetFEM H, genuine PETSc TSCN endpoint
+residuals and their power pairing, nonzero nonlinear
+chain-defect accounting, agreement with independent
+full-sine RK4 ODE, complete MPI1/MPI2 parity,
+all steps accepted, and immutable `examples/published`
+sources. The pilot creates a CRC-checked evidence ZIP.
 
-## Native short release diagnostic — COMPLETED
+**The default full `t_f=12` run, its complete MPI
+history, independent temporal refinement and
+PNG/SVG/GIF from the original example are not yet
+scientifically qualified.** Those are separate
+acceptance stages after the short CN pilot.
 
-`scripts/run-v130-nonlinear-pendulum-physical-pilot.sh`
-runs four *original* GetFEM/PETSc/MUMPS simulations:
-
-- No external torque, `t_f=.08, dt=.01`, MPI1 and MPI2.
-- Genuine external torque `0.1*sin(2*pi*0.3*t)`,
-  same eight physical steps, MPI1 and MPI2.
-
-Each native rank saves all nine accepted full four-DOF
-DAE states, independent RK4 reference to the **original
-full sine ODE**, constitutive errors, actual nonlinear
-Hamiltonian, viscous dissipation, forcing power, all
-second-order BDF2 residuals and the exact
-**co-energy-weighted nonlinear BDF2 step identity**.
-The host checker enforces physical gates, complete
-MPI1/MPI2 state and power parity, MPI2 replica agreement,
-real source provenance, and an evidence ZIP with CRC.
-
-The short native scientific qualification **PASSED** for
-both torque cases, for all ranks, as reported above.
-No full default `t_f=12` or original-example
-PNG/SVG/GIF qualification is claimed until separate acceptance. No changes are
-made to the eight immutable `examples/published`
-sources.
+No claims are made about other LU backends or MPI4+.
