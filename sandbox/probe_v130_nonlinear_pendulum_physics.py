@@ -60,15 +60,12 @@ def main():
     parser.add_argument("--angle",type=float,default=1.2)
     parser.add_argument("--torque",type=float,default=0.)
     parser.add_argument("--solver",default="mumps")
-    parser.add_argument("--initialization",choices=("exact","legacy_pseudo"),
-                        default="exact")
     parser.add_argument("--out",type=Path,required=True)
     args=parser.parse_args()
     system=nonlinear_pendulum(
         final_time=args.final_time,time_step=args.dt,
         initial_angle=args.angle,torque_amplitude=args.torque,
         plot=False,factor_solver=args.solver,
-        initialization=args.initialization,
     )
 
     t=np.asarray(system.solution["t"],dtype=float)
@@ -129,11 +126,8 @@ def main():
             float(etheta[0]-G*np.sin(args.angle)),
         "e_p_initial_drift":float(ep[0]),
     }
-    if system.pendulum_initialization!=args.initialization:
-        raise RuntimeError("Canonical pendulum initialization selection lost")
-    no_pseudo=(args.initialization=="exact")
-    if no_pseudo and system.time_scheme.getString("init_step","true")!="false":
-        raise RuntimeError("Exact nonlinear pendulum unexpectedly ran pseudo TS")
+    if system.time_scheme.getString("init_step","true")!="false":
+        raise RuntimeError("Canonical nonlinear pendulum unexpectedly ran initial TS")
 
     gates={
         "native_BDF2_completed":
@@ -197,8 +191,8 @@ def main():
                                "inertia":1.,"damping":.08,
                                "torque_frequency_hz":.3},
         "time_scheme":"original_fixed_BDF2",
-        "initialization":args.initialization,
-        "pseudo_TS_executed":not no_pseudo,
+        "initialization":"exact_constitutive",
+        "pseudo_TS_executed":False,
         "steps":int(system.last_ts_steps),
         "saved_states":n,
         "DAE_DOFs":int(z.shape[1]),
