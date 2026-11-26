@@ -174,26 +174,38 @@ The plots explicitly distinguish true changes of :math:`H`,
 CN discrete port work and dissipation, and the chain-rule
 defect; no exact Hamiltonian conservation is implied.
 
-The short *historical BDF2* experiment (26 November 2026,
-source `2ae4bc7d`) passed MPI1/MPI2 with and without forcing.
-**It is not a native qualification of CN**, which must be tested
-again with the original GetFEM/PETSc implementation:
+The original CN short physical pilot has **PASSED natively**:
+eight accepted steps (`dt=.01`, `t_f=.08`), both
+unforced and forced torque cases, MUMPS MPI1 and MPI2.
+All four lumped GetFEM DAE variables agreed to
+`1.11e-16` across MPI configurations. The maximum
+nonlinear CN co-energy power defect was `1.43e-13`,
+the nonlinear Hamiltonian chain-rule accounting closed
+to `3.35e-15`, and the maximum deviation from an
+independent full-sine RK4 solution was `2.27e-5`.
+The genuine native archive and SHA256 checksum are
+recorded in `docs/V130_NONLINEAR_PENDULUM_PHYSICAL_ACCEPTANCE.md`.
+
+The full **twelve-second** canonical CN acceptance
+is staged separately; it includes **1200 steps**
+in MPI1/MPI2, **2400-step refinement** in MPI1,
+and the original program-generated PNG/SVG/GIF
+for both free and forced motion:
 
 .. code-block:: console
 
    SCRIMP_DOCKER_NO_SUDO=1 \\
    SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \\
-   bash scripts/run-v130-nonlinear-pendulum-physical-pilot.sh
+   bash scripts/run-v130-nonlinear-pendulum-CN-full-showcase.sh
 
-The pilot checks both torque cases, full sine constitutive
-data, all CN step equations and power pairings, independent
-RK4 trajectories, and complete DAE MPI parity.
+The full test includes independent RK4 error refinement
+and validates the actual user-facing figures in addition
+to all the native physical CN residuals and MPI parity.
 
 .. note::
 
-   **CN native qualification is pending** until the above
-   user-host calculation has been run and examined.
-   The original default twelve-second horizon and
-   example-native graphics require a further release
-   acceptance run. Do not infer a convergence order or
-   exact energy conservation from the earlier BDF2 pilot.
+   **The short native CN pilot is qualified**, but the
+   full twelve-second, temporal-refinement and original
+   example-visualization gates remain pending actual host
+   execution. No exact conservation of the nonquadratic
+   Hamiltonian is claimed.
