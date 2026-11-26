@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # SCRIMP v1.3 original nonlinear lumped pendulum: SOURCE-STAGED native pilot.
 # Full sine restoring torque, MUMPS MPI1/2, unforced and forced cases.
-# Keep original GetFEM bricks and BDF2 integrator; exact IC by default.
+# Keep original GetFEM bricks; PETSc trapezoidal CN, exact constitutive IC.
 set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
@@ -37,7 +37,7 @@ out=Path(sys.argv[1])
     "original_example":"examples/nonlinear_pendulum.py",
     "source_staged_native_pending":True,
     "original_full_sine_model_unchanged":True,
-    "original_BDF2_unchanged":True,
+    "time_scheme":"PETSc_TSCN_endpoint_trapezoidal",
     "exact_coenergy_initial_without_pseudo":True,
     "original_angle0":1.2,
     "original_momentum0":0.,
@@ -46,16 +46,17 @@ out=Path(sys.argv[1])
         {"name":"forced","torque":.1,"MPI":[1,2]},
     ],
     "t_f":.08,"dt":.01,
-    "nonquadratic_power_identity":
-        "e_theta D2theta + e_p D2p + d e_p² - tau e_p = 0",
-    "no_false_quadratic_H_BDF2_claim":True,
+    "nonquadratic_CN_step_power_identity":
+        "mean(e_theta)*delta(theta)/dt + mean(e_p)*delta(p)/dt"
+        " + damping*mean(e_p)^2 - mean(tau)*mean(e_p) = 0",
+    "nonlinear_H_chain_rule_defect_NOT_claimed_zero":True,
 },indent=2)+"\n")
 PY
 echo "SCRIMP v1.3 nonlinear pendulum ORIGINAL full-sine pH/DAE short physical pilot"
 echo "Exact (theta0,p0,e_theta0,e_p0)=(1.2,0,9.81 sin(1.2),0)"
-echo "Nonlinear energy/effort, BDF2 dt=.01, t_f=.08, MUMPS MPI1+MPI2"
+echo "Nonlinear energy/effort, CN (endpoint trapezoid) dt=.01, t_f=.08, MUMPS MPI1+MPI2"
 echo "Two genuine original force cases: unforced and torque amplitude 0.1"
-echo "True nonquadratic BDF2 coenergy/ODE power, independent full-sine RK4"
+echo "True CN all-interval coenergy/ODE power + nonlinear chain-rule defect + full-sine RK4"
 echo "No code inside examples/published modified; no figures or full-horizon claim"
 echo "EVIDENCE: $out"
 
@@ -128,9 +129,11 @@ for case,torque in (("free",0.),("forced",.1)):
                 key=(case,mpi,rank)
                 reports[key]=info
                 traces[key]=arr
-                if (info["status"]!="PASS_ORIGINAL_NONLINEAR_PENDULUM_NATIVE_PILOT"
+                if (info["status"]!="PASS_ORIGINAL_NONLINEAR_PENDULUM_CN_NATIVE"
                         or info["steps"]!=8 or info["saved_states"]!=9
                         or info["DAE_DOFs"]!=4 or info["initialization"]!="exact_constitutive"
+                        or info["time_scheme"]!="PETSc_TSCN_endpoint_trapezoidal"
+                        or info["nonquadratic_H_chain_rule_defect_NOT_zero"] is not True
                         or info["pseudo_TS_executed"] is not False
                         or info["original_fully_nonlinear_sine"] is not True
                         or abs(info["torque_amplitude"]-torque)>1e-14
@@ -149,7 +152,9 @@ for case,torque in (("free",0.),("forced",.1)):
             discrepancies={}
             for name in ("t","z","theta","p","e_theta","e_p","H",
                          "torque","input_power","viscous_dissipation",
-                         "BDF2_nonquadratic_coenergy_power_defect"):
+                         "CN_coenergy_power_defect",
+                         "CN_nonlinear_chain_rule_defect",
+                         "CN_chain_accounting_defect"):
                 a,b=ref[name],other[name]
                 if a.shape!=b.shape:
                     errors.append(f"Original pendulum MPI shape {case}/{rank}/{name}")
@@ -163,12 +168,12 @@ for case,torque in (("free",0.),("forced",.1)):
             errors.append(f"Original nonlinear MPI2 replicas differ: {case}")
 
 summary={
-    "schema":"scrimp-v130-original-nonlinear-pendulum-native-short-v1",
-    "status":("PASS_ORIGINAL_PENDULUM_FULL_SINE_BDF2_FORCED_UNFORCED_MPI1_MPI2"
+    "schema":"scrimp-v130-original-nonlinear-pendulum-CN-native-short-v1",
+    "status":("PASS_ORIGINAL_PENDULUM_FULL_SINE_CN_FORCED_UNFORCED_MPI1_MPI2"
               if not errors else "FAIL_OR_UNQUALIFIED_PENDULUM_SHORT_PILOT"),
     "errors":errors,
     "full_sine_nonlinear_constitutive":True,
-    "no_false_quadratic_BDF2_H_identity":True,
+    "nonlinear_H_chain_rule_defect_explicit":True,
     "fully_preserved_physical_initial_data":not errors,
     "short_pilot_only":True,
     "full_horizon_and_canonical_visuals_pending":True,
@@ -193,7 +198,7 @@ PY
 if [[ "$compare_rc" != 0 ]]; then overall=1; fi
 echo "ARCHIVE: $out.zip"
 if [[ "$overall" == 0 ]]; then
-    echo "PASS_ORIGINAL_PENDULUM_FULL_SINE_BDF2_FORCED_UNFORCED_MPI1_MPI2"
+    echo "PASS_ORIGINAL_PENDULUM_FULL_SINE_CN_FORCED_UNFORCED_MPI1_MPI2"
 else
     echo "FAIL_OR_UNQUALIFIED_PENDULUM_SHORT_PILOT" >&2
 fi
