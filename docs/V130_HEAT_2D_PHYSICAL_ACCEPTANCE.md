@@ -1,5 +1,22 @@
 # SCRIMP v1.3.0 — canonical 2-D heat equation: native qualification
 
+> **26 November 2026 — new v1.3 example candidate, SOURCE STAGED,
+> native pending.** The original BDF2/pseudo demonstration documented
+> below is the *historical reference*, fully qualified at source
+> `9270b32`. The updated `examples/heat.py` now proposes CN with
+> linear-algebraic consistency initialization; the user's original
+> FEMs, weak forms, boundary controls and initial temperature are
+> unchanged. Its new self-contained true-GetFEM visualizations will
+> produce `outputs/showcase/heat/figures/heat_temperature_snapshots.png`,
+> `heat_temperature_evolution.gif`, `heat_energy_and_ports.png`
+> (plus SVG and genuine complete temperature VTK/PVD) when the
+> canonical script is run. **None of these new CN numerical or
+> visualization claims is native-qualified yet.** First run
+> `scripts/run-v130-heat-cn-pilot.sh` (four steps, MPI1/2),
+> then qualify the full canonical horizon and visual outputs.
+> Preserve the BDF2 qualification independently using
+> `scripts/run-v130-heat-physical-diagnostic.sh`.
+>
 **26 November 2026 — NATIVE PASS (bounded: original long BDF2 model, MPI1/2,
 all 499 order-two steps, port powers, full FE parity, and user figures).
 PETSc BDF2 start-up half-step is not claimed as independently qualified.**
@@ -135,7 +152,8 @@ an independently verified internal startup-stage power balance,
 temporal/mesh convergence, a different solver backend, MPI4+, or
 an independent partitioned-mesh scalability test.
 
-This acceptance closes the canonical `examples/heat.py` physical
-example gate for the targeted v1.3.0 release. No change was made to
+This acceptance closes the historical BDF2/pseudo heat model's physical
+gate. The upgraded canonical CN/algebraic user example has a separate
+pending qualification and is NOT covered by this verdict. No change was made to
 the original heat equations, bricks, FE spaces, boundary controls,
 or integration settings.
