@@ -35,9 +35,8 @@ e_theta(0)=9.81*sin(1.2), e_p(0)=0.
 The canonical example now initializes both algebraic variables
 explicitly and uses `init_step=False`, leaving its **physical
 BDF2**, nonlinear full sine, all weak bricks, MUMPS and other
-SCRIMP solver options unchanged. The historical pseudo-time
-initialization is still available using
-`nonlinear_pendulum(initialization="legacy_pseudo")`.
+SCRIMP solver options unchanged. The example exposes **one**
+exact constitutive initialization path, with no legacy mode.
 This exact-initial-state change is **not yet accepted by a
 native GetFEM test** until the user-host pilot returns.
 
