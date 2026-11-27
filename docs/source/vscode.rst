@@ -131,12 +131,16 @@ the fix must update their **own copy** of devcontainer.json;
 pulling the SCRIMP Git repository does not modify existing
 independent projects.
 
-The development tag is scrimp-mpi:v1.3.0-rc1. It **passed its
-first native Docker build and 1/2-rank CLI smoke on 19 November 2026**,
-including a newly scaffolded project, an actual serial oscillator
-simulation and a CSV saved on the host. It is not yet release-qualified
-or published. This tag is the *pre-release default* in
-the project's .devcontainer configuration. The Docker build **does
+The initial ``scrimp-mpi:v1.3.0-rc1`` image **passed its
+first native Docker build and 1/2-rank CLI smoke on
+19 November 2026**, including a scaffolded project and an
+actual serial oscillator simulation. That is *historical*
+qualification. The later local ``scrimp-mpi:v1.3.0-rc3``
+image has passed the more extensive v1.3.0 GetFEM/PETSc
+MPI and physical-example campaigns, but remains
+**unpublished**. Existing project templates may still
+pin ``rc1``; explicitly select a qualified, installed
+image tag for the project being run. The Docker build **does
 not access any local simulations**, even from a developer checkout.
 Explicit library development with uncommitted changes uses
 SCRIMP_DOCKER_SOURCE=local (still using physical source staging).
@@ -356,8 +360,13 @@ simultaneous MPI worker ranks, and breakpoints inside compiled
 GetFEM/PETSc/MUMPS C/C++/Fortran code, are different workflows
 and are **not** qualified by this Python test.
 
-SCRIMP initializes output directories relative to the working
-directory (outputs/log, outputs/mesh, outputs/png, outputs/pv).
+Modern SCRIMP examples create **one** output tree per working
+directory: ``outputs/<system_name>/{png,svg,gif,mesh,log,npz,json}``.
+Importing SCRIMP does **not** pre-create generic
+``outputs/log``, ``outputs/mesh``, ``outputs/png``
+or ``outputs/pv`` siblings. Historical unscoped ``Domain``
+and explicitly configured legacy output callers retain
+their old paths; existing archived user files are not deleted.
 Linux Dev Containers attempts to map the mambauser UID/GID to that
 of the host user. Test host output-directory permissions before
 large runs; Windows and macOS use different Docker Desktop volume
