@@ -27,7 +27,7 @@ user.
    Windows/macOS/ARM64 remain best-effort.
 
 Default: precompiled Docker and standalone project
--------------------------------------------------
+--------------------------------------------------
 
 1. Install Docker (on Windows, Docker Desktop with WSL2; on macOS,
    Docker Desktop). VS Code and Dev Containers are recommended for
