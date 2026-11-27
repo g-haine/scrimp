@@ -9,6 +9,56 @@ Branche : `release/1.3.0-preparation`. **Aucun tag v1.3.0 publié.**
 Les affirmations scientifiques ci-dessous concernent les configurations
 explicitement testées, jamais une garantie universelle pour tout modèle.
 
+## Mise à jour documentation et sortie des exemples — 27 novembre, fin de matinée
+
+Le guide public [`energy_and_power.rst`](source/energy_and_power.rst)
+documente désormais les vraies conventions du code :
+échantillonnage Hamiltonien sur les états GetFEM,
+CN par pas *seulement* si chaque état TS accepté est sauvegardé,
+CN sous-échantillonné, BDF/BDF2 et ARKIMEX avec **trapèzes
+nodaux approximatifs** ; aucune conservation ou passivité
+exacte n'est annoncée sans identité discrète propre au modèle.
+Les pages `index.rst`, `examples.rst` et les tutoriels canoniques
+ont été actualisés, ainsi que `install.rst`, `vscode.rst`,
+`GUI.rst` et `README.md`. Le brouillon de GUI n'est plus
+présenté comme une fonction qualifiée.
+
+**Preuves natives distinctes et chronologiquement exactes :**
+
+- Source `a471a637` : 9/9 **PASS** pour les vrais calculs
+  d'exemples et leurs sorties, mais **dossiers parasites
+  `outputs/{log,mesh,png,pv}` présents**.
+- Source `ab6c6fd` : **Heat–Wave MPI2 UNIQUEMENT PASS**
+  du correctif de structure ; exactement
+  `runs/heat_wave_mpi2/outputs/heat_wave/`,
+  aucun dossier générique voisin, exactement un
+  `Concentric.msh` dans `mesh/`, deux PVD
+  et 5 PNG / 5 SVG / 2 NPZ, ZIP CRC PASS.
+- **Nouvelle campagne 9/9 sur le correctif** :
+  **EN ATTENTE** d'exécution locale, à lancer par
+  `scripts/run-v130-example-user-output-smoke.sh`
+  **sans** `SCRIMP_V130_EXAMPLE_OUTPUT_ONLY`.
+
+**Compilation documentaire :** le workflow GitHub Actions
+`.github/workflows/documentation.yml` est déclenché sur les
+pushs et construit HTML, LaTeX puis PDF. Un test de
+parité des textes, commandes et chemins est maintenant
+exécuté avant le build. Un pilote local non destructif
+`scripts/run-v130-docs-build.sh` reconstruit réellement
+HTML, LaTeX et PDF dans `sandbox/outputs/`,
+conserve les logs et produit un résumé avec le commit
+source. **Aucun PASS HTML/PDF actuel n'est attribué
+sans résultat de compilation visible**. Les dépendances
+Sphinx/LaTeX doivent être présentes sur la machine
+utilisée pour ce pilote.
+
+**Après ces deux gates :** vérifier le packaging/wheel,
+l'installation propre et les versions Sphinx/`setup.py`
+(qui sont encore `1.2.0`), puis décider des issues
+et préparer la release. Les travaux #28 et
+l'optimisation complète Docker restent hors chemin
+critique par défaut.
+
 ## Mise à jour source du 27 novembre — sortie des huit exemples (EN ATTENTE du smoke natif)
 
 Un chantier transversal a été intégré à `release/1.3.0-preparation` :
