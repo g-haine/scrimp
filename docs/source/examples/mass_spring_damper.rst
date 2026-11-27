@@ -100,7 +100,8 @@ Run from the repository root (in the SCRIMP Conda environment):
    python examples/mass_spring_damper.py
 
 **The user-facing example itself now saves its visualizations** in
-`outputs/showcase/mass_spring_damper/figures/`:
+``outputs/mass_spring_damper/png/`` and
+``outputs/mass_spring_damper/svg/``:
 
 - `mass_spring_trajectory.png/.svg`: original GetFEM displacement,
   momentum, velocity and applied force over the saved time grid.
@@ -110,14 +111,17 @@ Run from the repository root (in the SCRIMP Conda environment):
   viscous dissipation, applied-force power, both sides of the
   exact quadratic BDF2 identity **for steps** :math:`n\\geq2`,
   and its true discrete residual.
-- `mass_spring_motion.gif`: **schematic** mass/spring motion,
+- ``gif/mass_spring_motion.gif``: **schematic** mass/spring motion,
   using selected original saved state coefficients. This does
   not construct or imply a finite-element spatial model.
   No interpolated or fabricated time states are included.
 
-A machine-readable `manifest.json` and the original
-`native_lumped_time_history.npz` are also written next to the
-`figures` directory. The optional `plot=False` function argument
+The canonical ``plot_Hamiltonian()`` additionally writes
+``png/mass_spring_Hamiltonian.png``,
+``svg/mass_spring_Hamiltonian.svg`` and an energy/power
+``npz``. A machine-readable ``json/manifest.json``
+and ``npz/native_lumped_time_history.npz``
+are also written under the same system root. The optional `plot=False` function argument
 turns off figure creation without changing the physical solve.
 The separate research diagnostics do **not** render these figures;
 they only inspect the output produced by this example.
@@ -132,8 +136,12 @@ The expected energy variation satisfies
    H(t)-H(0)=\int_0^t\bigl[f(s)e_p(s)-c\,e_p(s)^2\bigr],\mathrm ds.
 
 The continuous work integral is useful for understanding the physics,
-but it should **not** be confused with an exact energy identity for
-BDF2. This example uses the original quadratic Hamiltonian and
+but it should **not** be confused with the **generic
+nodal-trapezoid plot**, which is only an approximation
+for BDF2 (:doc:`../energy_and_power`). This
+specific example separately measures its own discrete
+quadratic identity, not an identity supplied by
+``compute_powers()``. This example uses the original quadratic Hamiltonian and
 fixed-step BDF2, so every step :math:`n\geq2` also has the exact
 *discrete* quadratic identity
 
