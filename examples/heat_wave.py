@@ -866,7 +866,7 @@ def heat_wave_eq(
         return hw
 
     # Plot the Hamiltonian and save the output
-    hw.plot_Hamiltonian(save_figure=True, filename="Hamiltonian_Heat"+str(heat_region)+"_Wave"+str(wave_region)+"_2D.png")
+    hw.plot_Hamiltonian(save_figure=True, show=False, filename="Hamiltonian_Heat"+str(heat_region)+"_Wave"+str(wave_region)+"_2D.png")
     
     # Genuine log-log H(t) at saved FE times, no fictitious log(0).
     # The shared figure is written once; GetFEM energy computation was
