@@ -177,13 +177,18 @@ class Hamiltonian:
         if rank == 0:
             logging.info("Start computing the Hamiltonian")
         start=time.perf_counter()
+        # An attempted recomputation targets the caller's CURRENT FE
+        # trajectory. Invalidate the cache BEFORE validating its clock:
+        # if that clock is malformed, the previously sampled values are
+        # retained for diagnosis, but must never be advertised as the
+        # Hamiltonian of this new trajectory.
+        self.invalidate()
         times=np.asarray(solution["t"],dtype=float)
         states=solution["z"]
         if (times.ndim!=1 or times.size==0 or len(states)!=len(times)
                 or not np.all(np.isfinite(times))
                 or (len(times)>1 and np.any(np.diff(times)<=0))):
             raise ValueError("Invalid accepted GetFEM Hamiltonian time/state history")
-        self.__is_computed=False
         values=[[] for _ in self.__terms]
         for k,t in enumerate(times):
             gf_model.set_time(float(t))
