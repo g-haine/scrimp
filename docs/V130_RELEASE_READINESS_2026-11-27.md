@@ -30,15 +30,18 @@ puis **F5** jusqu'à la fin de la simulation. Le fichier
 GUI locale du candidat testé, **pas** une installation depuis
 GHCR ni le débogage MPI multiprocessus.
 
-La CI Python source demeure **rouge** sur une vérification
-de conformité des en-têtes Python : 89 fichiers suivis
-comportent des variations historiques du bandeau ou n'ont
-pas le bandeau exact exigé par
-`tests/test_python_headers.py`. Une normalisation source
-sans changement d'exécution reste requise. La confirmation
-HTML/LaTeX/PDF après mise à jour du numéro de version,
-le tirage de l'image par digest sur hôte vierge, une vraie
-parité de PDE MPI sur l'image de distribution finale et la
+La CI Python source a obtenu **SUCCESS** sur
+`7bdfb2685e9faae06a8d68a7197a6475a093a127`
+après normalisation des seuls bandeaux de licence de
+89 fichiers Python suivis (aucune modification des équations).
+La PR #31 comporte désormais également un pilote
+`scripts/run-v130-distribution-heat-wave-mpi-parity.sh` qui
+compare, sur les calculs GetFEM natifs de la **seule image
+Docker** et sans montage du dépôt SCRIMP, les trajectoires
+du Hamiltonien Heat-Wave en MPI1 et MPI2. Son exécution
+native sur le candidat est **encore à réaliser**.
+La confirmation HTML/LaTeX/PDF après mise à jour du numéro
+de version, le tirage de l'image par digest sur hôte vierge et la
 publication GHCR restent ouverts. Aucun tag ni image publique.
 
 Voir [porte de qualification Docker-first](V130_DOCKER_FIRST_RELEASE_GATE.md).
