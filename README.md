@@ -87,11 +87,13 @@ working_directory/
 
 There is **one `outputs/` root per working directory**; examples
 do not create generic `outputs/log`, `outputs/mesh`,
-`outputs/png` or `outputs/pv` siblings. The eight original examples
-completed a real nine-case native I/O smoke on 27 November 2026,
-including Heat--Wave MPI2. The revised *clean* layout also passed a
-targeted native Heat--Wave MPI2 run. Full nine-case requalification
-**after** that directory fix remains a separate release gate.
+`outputs/png` or `outputs/pv` siblings. All eight canonical examples (eight MPI1 configurations and
+Heat--Wave MPI2 as a ninth case) completed the **revised clean-layout**
+native smoke on 27 November 2026, source `20d79d0d`:
+`PASS_V130_ALL_NINE_REAL_USER_EXAMPLE_OUTPUT_CASES`, with
+exactly one `outputs/` root, no legacy sibling folders,
+genuine PVD/VTU time data and valid ZIP CRC. This
+closes the canonical example output-layout gate.
 
 `DPHS.plot_Hamiltonian()` exports actual total/partial energies
 and raw port powers in PNG/SVG/NPZ. The helper
