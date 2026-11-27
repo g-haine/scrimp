@@ -28,6 +28,51 @@ workspace.
   tests on Windows/macOS. No public v1.3.0 image, release tag or ZIP
   has been published.
 
+## Ubuntu native and independent ZIP acceptance (2026-11-27)
+
+**PASS, bounded to the exact local x86_64/Ubuntu environment**:
+candidate image `scrimp-mpi:v1.3.0-dist-rc2` was built from
+`91d7eb1a12329d54854f13cd60d7860c36b856a4`; OCI image ID
+`sha256:94b5c725c213ee3d3737d26ad190b2c103deec1b9b573b3dca340939f7a6a270`
+and its revision label both matched. The native smoke passed
+GetFEM descriptors and MUMPS/PETSc/SLEPc imports under MPI1/2,
+a genuine lumped oscillator (10 accepted BDF2 steps, no solver
+failures), 11 persistent CSV samples and exact analytic
+`H(q,p)=2.5*q²+p²/3` to floating-point round-off, two-rank MPI
+startup, and import-only PETSc options diagnostics.
+
+The independent distribution gate
+`PASS_STANDALONE_ZIP_IMAGE_SERIAL_MPI_STARTUP` then PASSed on
+the same image, extracting the tested ten-file
+`scrimp-project-template.zip` and running it in a separate
+user-only bind mount, with physically verified host-persistent
+`outputs/oscillator.csv`. Evidence:
+`sandbox/outputs/v130-docker-distribution-YQpvlaPX/`.
+The package wheel `scrimp-1.3.0-py3-none-any.whl` was also
+built, payload-audited and installed into an isolated metadata
+environment, without claiming native scientific dependencies
+are available outside Docker. The qualified *distribution*
+image is not yet public or pushed to GHCR.
+
+**Ubuntu VS Code user report, provisional GUI acceptance:** opening
+the actual extracted distribution ZIP in a new project directory,
+restarting VS Code once, and using the Dev Container appeared to
+work. The user supplied its `oscillator.csv`: 11 rows at
+`t=0,0.01,...,0.10`, correct energy identity to about
+`5.6e-17`, `H(0)=0.4`, `H(0.1)=0.39928159`.
+The user has **not explicitly confirmed F5 breakpoint, F10
+single-stepping, or debugpy in that newly extracted ZIP**, so
+mark those separate UI gates PENDING, despite the previously
+qualified November 20 preview.
+
+**Remaining release gates:** independent fresh-host/digest pull,
+full VS Code F5/F10 confirmation against the final published
+digest, one genuine distributed MPI PDE physics test against
+the final distribution, refreshed strict HTML/LaTeX/PDF after
+the version updates, clean source CI, review of the issue
+backlog, and actual GHCR publication. No release tag or image
+publication is claimed.
+
 ## Candidate construction — do not replace rc3 or local images
 
 Run from the SCRIMP source checkout on Ubuntu with working Docker
