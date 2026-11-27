@@ -27,13 +27,31 @@ working_dir/
         └── json/              # provenance et vérification des exports
 ```
 
-Les sous-répertoires sont créés à la demande. Le fichier historique
-`outputs/mesh/<geometry>.msh` est **toujours utilisé pour l'import
-GetFEM** ; une copie authentique est conservée dans
-`outputs/<system_name>/mesh/` après construction du `Domain`
-lorsque la géométrie l'a généré. Le maillage n'est ni regénéré
-ni altéré pour la présentation. Certains modèles concentrés ne
-génèrent naturellement aucun maillage Gmsh.
+**Un seul répertoire `outputs/` par répertoire de travail** :
+tous les systèmes sont regroupés sous `outputs/<system_name>/`,
+sans `outputs/log`, `outputs/png`, `outputs/pv` ou
+`outputs/mesh` génériques à côté. Les sous-dossiers typés
+sont créés à la demande, à l'intérieur du système concerné.
+
+L'import normal de `scrimp` ne crée plus de dossiers génériques.
+Les exemples transmettent explicitement
+`mesh_output_dir=system.get_output_path("mesh",create=True)`
+au constructeur de `Domain`. Pour les géométries Gmsh,
+le **véritable `.msh` est écrit directement à cet emplacement**
+puis lu par GetFEM depuis **ce même fichier**, après la
+synchronisation MPI. Il n'est ni dupliqué, ni régénéré,
+ni déplacé pour la présentation. Certains modèles concentrés
+n'utilisent aucun maillage Gmsh.
+
+Compatibilité : pour une application historique appelant
+`Domain(...)` **sans** `mesh_output_dir`, SCRIMP conserve
+l'ancien `outputs/mesh/<geometry>.msh`, créé à la demande.
+L'appel explicite `scrimp.utils.config.set_paths(...)`
+conserve également son comportement historique de création
+des dossiers standards. Seul le **parcours normal des
+nouveaux exemples** garantit l'absence de dossiers parasites.
+Les résultats produits avant ce changement ne sont pas
+supprimés par SCRIMP.
 
 Les exemples de pendule forcé/libre ont deux racines distinctes :
 `nonlinear_pendulum_free` et `nonlinear_pendulum_forced`.
@@ -149,9 +167,25 @@ exécute neuf cas **réels** sous la même image GetFEM/PETSc
 que les qualifications antérieures : huit exemples
 en MPI1 et un Heat–Wave MPI2 supplémentaire,
 chaque exemple via son **point d'entrée Python public**.
-Il vérifie le contenu PNG/SVG/NPZ, les séries PVD et
-chaque VTU annoncée, les horodatages ParaView,
-les logs et l'absence de fichiers fantômes.
+La première campagne, source `a471a637`, a donné
+`PASS_V130_ALL_NINE_REAL_USER_EXAMPLE_OUTPUT_CASES`,
+avec CRC ZIP correct, sur les sorties et la physique de ces cas,
+**mais a révélé quatre anciens dossiers génériques parasites
+dans `outputs/`, plus des copies superflues de certains `.msh`**.
+Cette archive historique n'est pas modifiée.
+
+Le pilote renforcé contrôle maintenant **en plus**
+qu'`outputs/` ne contient que le sous-dossier du
+système exécuté (chaque cas dispose d'un répertoire
+de travail distinct), sans `log`, `mesh`, `png`
+ni `pv` génériques voisins. Il exige un unique
+maillage natif `.msh` directement sous
+`outputs/<system_name>/mesh/` pour chacun des
+exemples 2D ; aucun `.msh` fictif pour les deux
+exemples concentrés. Il vérifie aussi PNG/SVG/NPZ,
+les séries PVD/VTU, leurs horodatages et les logs.
+Une **nouvelle campagne native** est indispensable
+pour valider cette correction de l'arborescence.
 Une archive ZIP conservant les résultats est produite
 en cas de réussite complète ; les dossiers sont conservés
 pour diagnostic si une exécution échoue.
@@ -164,9 +198,11 @@ SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
 bash scripts/run-v130-example-user-output-smoke.sh
 ```
 
-**Statut actuel : SOURCE STAGED / NATIVE PENDING.**
-L'ancienne physique numériquement acceptée n'est pas
-remise en cause par les nouvelles sorties, mais
-les nouveaux chemins, conventions de power sampling
-et figures doivent être acceptés avec cette campagne
-avant fermeture du volet « exemples v1.3.0 ».
+**Statut au 27 novembre : neuf exemples natifs PASS
+pour les sorties et la physique sous `a471a637`.
+La correction de la structure des dossiers est SOURCE STAGED,
+sa requalification native est EN ATTENTE.**
+La réussite de la première campagne n'atteste donc
+pas encore l'absence de dossiers génériques après
+ce correctif. Ne pas annoncer une validation finale
+des chemins avant le prochain résultat.
