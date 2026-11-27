@@ -59,6 +59,7 @@ def wave_coenergy_eq(
 
     # Init the distributed port-Hamiltonian system
     wave = S.DPHS("real")
+    wave.set_output_name("wave_coenergy")
 
     # TUTORIAL 2C-01: concentric disk/annulus and physical labels
     # Set the domain (using the built-in geometry `Concentric`)
@@ -381,7 +382,18 @@ def main():
         time_step=args.time_step,factor_solver=args.solver,
     )
     if args.output is None:
+        # Executing the original tutorial produces its own figures
+        # and true GetFEM ParaView states, with shared MPI rank0 writer.
+        system.plot_Hamiltonian(
+            save_figure=True,show=False,
+            filename="wave_coenergy_hamiltonian.png"
+        )
+        for variable in ("q", "p", "e_r"):
+            system.export_to_pv(variable,t="All")
+        if comm.rank==0:
+            print("SCRIMP wave_coenergy user outputs:",system._output_root,flush=True)
         return
+
     args.output.mkdir(parents=True,exist_ok=True)
     try:
         obs = measure_coenergy(system)
