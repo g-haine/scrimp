@@ -9,6 +9,76 @@ Visual annular-gallery evidence is distinct: eigenmodes,
 MPI2 long time, MPI-parallel VTK and SuperLU_DIST remain
 unqualified.**
 
+## Next open gate — complete 15-second MPI1/MPI2 FE parity (27 November 2026, SOURCE-STAGED)
+
+The reference Heat–Wave physics is **already qualified** for:
+- Four real 0.001-second CN steps on 7,689 GetFEM DOFs,
+  MPI1 versus MPI2 complete FE and heat/wave/interface
+  physical parity.
+- All 3,000 real 0.005-second CN steps through `t_f=15`,
+  in MPI1, including 3,001 accepted FE states and
+  the independent total and individual subsystem
+  energy-power identities.
+- Both 15-second authentic GetFEM visualization
+  datasets (Gaussian and optional annular packet),
+  without claiming modal purity.
+
+**Unresolved independent question:** does the *entire*
+15-second Gaussian coupled PDE retain every CN
+energy/power identity, exact two-rank agreement, and
+full FE trajectory parity when run with MUMPS MPI2?
+The earlier four-step MPI check and 15-second MPI1
+run are NOT a proof of this full-horizon comparison.
+
+A **dedicated**, original-model-native experiment is
+now source-staged, not yet run:
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-heat-wave-full-mpi2-physics.sh
+```
+
+It deliberately runs the **unqualified MPI2 full
+horizon first**. Only on MPI2 success does it
+repeat the previously accepted MPI1 15-second case
+as a fresh directly comparable baseline. This is
+necessary to compare all 3,001 actual original
+GetFEM state vectors (not merely their endpoints)
+and **every** independently assembled heat, wave,
+interface, boundary and cumulative power sample.
+
+The probe is the already validated
+`sandbox/probe_v130_heat_wave_mpi_extended.py`
+with `--store-full-states`. The new checker
+`scripts/verify-v130-heat-wave-full-mpi2.py`
+retains the verified physical acceptance algorithm,
+requires 3,001 consecutive GetFEM accepted-time
+snapshots, all 7,689 coefficients at each time
+and the original full native MUMPS physical gates
+**on all three ranks**. MPI2 rank0/rank1 histories
+must be bitwise identical, while MPI1 and MPI2
+full histories must pass the established strict
+`atol=5e-10, rtol=2e-8` FE/power comparison.
+The complete original rank-local NPZ arrays,
+logs and summary are preserved in a CRC-verified ZIP.
+The large source histories (3 × 3,001 × 7,689
+float64 FE coefficients) intentionally make this
+an evidence-heavy experiment.
+
+**PENDING NATIVE OUTPUT.** Do not claim full
+15-second MPI2 parity or per-step power balance
+before this new evidence has actually passed.
+This scientific pilot deliberately suppresses
+parallel ParaView and plotting output; no
+parallel VTK, `SuperLU_DIST`, time/mesh-refinement
+or whispering-gallery eigenmode qualification is
+implied. The known MPI1 and short MPI1/2
+qualification remain valid regardless of this
+new experiment's result.
+
 ## Native qualification COMPLETE — MPI1/MPI2 parity and full 15-second CN power balance (25 November 2026)
 
 **Canonical actual GetFEM/PETSc evidence:**
