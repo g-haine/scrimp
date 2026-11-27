@@ -71,7 +71,7 @@ class HWCNdtRefinementV130(unittest.TestCase):
         for needle in (
             'original_model_unchanged',
             '"same_original_mesh_h":.05',
-            'a["z"].shape!=(steps+1,FE_DOF)',
+            'a.get("z",np.array([])).shape!=(steps+1,FE_DOF)',
             'np.array_equal(a["z"][0],a["z0"])',
             'np.array_equal(a["z"][-1],a["zf"])',
             'meta.get("status")=="PASS_NATIVE_STRICT_DAE_CN_ORIENTED_POWER"',
