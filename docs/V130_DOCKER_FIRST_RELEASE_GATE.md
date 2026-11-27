@@ -20,13 +20,18 @@ workspace.
   passed the strict Sphinx HTML/LaTeX build (zero Sphinx warnings)
   and compiled a real 168-page PDF. This is **not** an image
   distribution qualification.
-- **Still pending:** new distribution image built from final sources;
-  its exact OCI revision and installed Python version; standalone
-  release ZIP and host-volume permissions; a genuinely fresh-machine
-  install; GUI/F5 acceptance with the new image; wheel build/metadata
-  audit; registry publication and image digest verification; optional
-  tests on Windows/macOS. No public v1.3.0 image, release tag or ZIP
-  has been published.
+- **Now qualified, bounded to Ubuntu/amd64:** built and inspected
+  `scrimp-mpi:v1.3.0-dist-rc2` (revision `91d7eb1a`); real native
+  stack/MUMPS MPI1/2 smoke, standalone ten-file project ZIP with
+  source-independent simulation and host-persistent CSV, wheel metadata
+  audit, and the user-confirmed VS Code Dev Container F5/F10/F5
+  debugging path. The Python source CI became green on the subsequent
+  release-preparation branch, after standardizing 89 Python headers.
+- **Still pending:** a truly fresh host/registry pull by immutable
+  digest, an image-internal physical MPI PDE parity gate, final
+  strict HTML/LaTeX/PDF build on the 1.3.0 sources, registry publication
+  and digest verification; Windows/macOS remain best-effort. No public
+  v1.3.0 image, release tag or ZIP has been published.
 
 ## Ubuntu native and independent ZIP acceptance (2026-11-27)
 
@@ -111,8 +116,8 @@ installation on the user's host.
 
 ## Independent ZIP/image runtime acceptance
 
-**This is a new gate, not yet run on a freshly built image.** It creates
-the same standalone release ZIP used for distribution, extracts it
+**PASS on the local dist-rc2 Ubuntu/amd64 image (2026-11-27).** It creates
+the same standalone release ZIP intended for distribution, extracts it
 into an isolated test workspace, then mounts **only that project**
 into the container. No source-tree volume is mounted. The exact
 `org.opencontainers.image.revision` label must match the Git SHA,
@@ -135,6 +140,37 @@ project/host CSV. A serial oscillator plus `mpi_check.py` is an
 **installation and MPI startup gate**, not an MPI PDE physics audit.
 Native GetFEM/PETSc/MUMPS physics remains separately covered by
 `scripts/smoke-v130-docker-candidate.sh` and existing PDE tests.
+
+## Original-image MPI PDE parity (independent of source checkout)
+
+A new bounded gate `scripts/run-v130-distribution-heat-wave-mpi-parity.sh`
+executes the original, image-internal
+`examples.heat_wave.heat_wave_eq(physics_only=True)` on one and
+two ranks of **the same tagged Docker image**, with identical genuine
+GetFEM weak forms, mesh, physical initialization, MUMPS and fixed
+Crank--Nicolson steps. The *only* host mount is an isolated directory
+containing the MPI probe and its output files: there is no SCRIMP
+source or canonical-example bind mount. Rank zero writes the 11
+native Hamiltonian samples (0 to 0.02 by 0.002), and a standard-library
+checker compares the complete Hamiltonian trajectories to
+`relative_l2 <= 1e-7`. A PASS proves only this bounded physical
+observable's MPI1/MPI2 parity, **not** fieldwise or universal MPI
+equivalence.
+
+The gate is prepared and **has not yet been run natively** on
+`dist-rc2`. From this feature worktree, use the actual image's
+OCI revision, not the moving worktree HEAD:
+
+```bash
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DISTRIBUTION_IMAGE=scrimp-mpi:v1.3.0-dist-rc2 \
+SCRIMP_V130_EXPECT_REVISION=91d7eb1a12329d54854f13cd60d7860c36b856a4 \
+bash scripts/run-v130-distribution-heat-wave-mpi-parity.sh
+```
+
+It creates non-destructive
+`sandbox/outputs/v130-distribution-heat-wave-mpi-*/` evidence with
+rank-specific `series.json`, logs, and a fail-closed `summary.json`.
 
 ## Wheel and fresh-machine checks (separate required gates)
 
