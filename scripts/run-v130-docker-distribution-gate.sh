@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
+# Copyright (C) 2015-2026 ISAE-SUPAERO -- GNU GPLv3
 # SCRIMP v1.3.0: fail-closed, source-independent USER runtime qualification.
 # Build/packaging happen separately; this never pulls/pushes/prunes images.
 set -Eeuo pipefail
