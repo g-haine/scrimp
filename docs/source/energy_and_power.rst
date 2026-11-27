@@ -70,7 +70,7 @@ contribution to the total energy balance. A generic port plot cannot
 establish that identity without verifying the model's actual weak forms.
 
 Crank--Nicolson: only consecutive *accepted* PETSc states
---------------------------------------------------------
+---------------------------------------------------------
 
 For PETSc ``ts_type="cn"``, SCRIMP uses the ``cn_step`` power convention
 **only if every accepted TS step has its two consecutive end states saved**.
