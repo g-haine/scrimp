@@ -918,10 +918,17 @@ physical power and full MPI1/MPI2
 in this one Gaussian/MUMPS configuration.
 The original strict pointwise FAIL
 remains historically correct for its
-different criterion. Parallel VTK output,
-other LU backends, mesh/time convergence
-and gallery-mode spectral identification
-remain separate, unqualified questions.
-See `docs/V130_HEAT_WAVE_PHYSICAL_AUDIT.md`
-for the complete evidence and distinctions.
+different criterion. Future executions
+of `scripts/run-v130-heat-wave-full-mpi2-physics.sh`
+now use the accepted full-vector normwise
+and independent physical power gate;
+the historical pointwise script has not
+been changed.
+
+Parallel VTK output, other LU backends,
+mesh/time convergence and gallery-mode
+spectral identification remain separate,
+unqualified questions. See
+`docs/V130_HEAT_WAVE_PHYSICAL_AUDIT.md`
+for complete evidence and distinctions.
 
