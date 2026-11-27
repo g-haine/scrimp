@@ -82,6 +82,7 @@ def wave_eq(
 
     # TUTORIAL 2B-01: DPHS, domain, energy and co-energy variables
     system = S.DPHS("real")
+    system.set_output_name("wave_dissipative")
     system.set_domain(S.Domain("Rectangle", {
         "L": 2., "l": 1., "h": mesh_size,
     }))
@@ -452,6 +453,20 @@ def main():
             "Original GetFEM tensor Hamiltonian/boundary work or "
             "resistive energy loss failed scientific acceptance"
         )
+    # Regular end-user invocation writes original GetFEM figures/data
+    # under ./outputs/wave_dissipative/, never rank-named probe folders.
+    # Explicit --output retains historical per-rank scientific
+    # evidence semantics and existing runner paths unchanged.
+    if args.output is None:
+        system.plot_Hamiltonian(
+            save_figure=True,show=False,
+            filename="wave_dissipative_hamiltonian.png"
+        )
+        for variable in ("q", "p", "e_q", "e_p", "f_r", "e_r"):
+            system.export_to_pv(variable,t="All")
+        if comm.rank==0:
+            print("SCRIMP wave_dissipative user outputs:",system._output_root,flush=True)
+
     if args.export:
         # Required collective: root-only writer first validates rank
         # replication before producing shared native VTK/PVD.
