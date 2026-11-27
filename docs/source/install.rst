@@ -2,7 +2,7 @@ How to install
 ==============
 
 **Docker is the recommended/default installation for SCRIMP v1.3.0.**
-The future public distribution will provide a precompiled Linux image
+The published Linux/AMD64 image provides a precompiled environment
 containing Python, GetFEM 5.5, PETSc/SLEPc (complex), MUMPS, OpenMPI and
 SCRIMP itself. User simulations and their outputs live in an
 **independent, host-owned project**, not inside the image or a SCRIMP
@@ -11,21 +11,23 @@ user.
 
 .. important::
 
-   **Pre-release status, 27 November 2026:** the candidate
-   ``ghcr.io/g-haine/scrimp:1.3.0-dist-rc3`` has been published
-   on GHCR and **successfully pulled by immutable digest** on a fresh
-   Ubuntu 24.04/AMD64 GitHub-hosted runner. Its standalone user ZIP,
-   genuine oscillator/host CSV, MPI startup and original Heat--Wave
-   MPI1/MPI2 Hamiltonian parity gates passed. The source revision is
-   ``58dbe187de308979938153f9adfcf94dac4df85a``, and the OCI index
-   digest is ``sha256:0cbbce6ad42b23552aff9d12555342f3864b50522054fe039c161a7145b2732a``.
-   The package may still be private. The **stable**
-   ``ghcr.io/g-haine/scrimp:1.3.0`` tag and official project ZIP
-   have **not** been published; the commands below are for the
-   future stable release.
+   **SCRIMP v1.3.0 (27 November 2026):** the stable Git tag and
+   **public** ``ghcr.io/g-haine/scrimp:1.3.0`` Docker image are available.
+   The stable image retains the accepted ``dist-rc4`` OCI index digest
+   ``sha256:737f58f12475723c0924f25528a0794a767fe6051dbecbd80a194d3b15eb3f01``
+   and was built from Git revision
+   ``17ae5a1ce063ff5481812dc73f3d3fc88c153c70``.
+   A fresh Ubuntu 24.04/AMD64 runner validated the independent user
+   project/host CSV, MPI startup and native Heat--Wave Hamiltonian
+   parity (`CI evidence
+   <https://github.com/g-haine/scrimp/actions/runs/46030753404>`_).
+   The standalone user ZIP is distributed separately through the
+   `v1.3.0 GitHub Release
+   <https://github.com/g-haine/scrimp/releases/tag/v1.3.0>`_.
+   Windows/macOS/ARM64 remain best-effort.
 
-Default: precompiled Docker and standalone project (after release)
-------------------------------------------------------------------
+Default: precompiled Docker and standalone project
+-------------------------------------------------
 
 1. Install Docker (on Windows, Docker Desktop with WSL2; on macOS,
    Docker Desktop). VS Code and Dev Containers are recommended for
@@ -33,7 +35,7 @@ Default: precompiled Docker and standalone project (after release)
 2. Download the matching
    ``scrimp-project-template.zip`` asset from the SCRIMP v1.3.0
    GitHub Release and unpack it into your own project directory. The
-   released ZIP must embed the **validated** image reference in
+   release ZIP embeds the **validated** image reference in
    ``.devcontainer/devcontainer.json``.
 3. Pull the released Docker image:
 
@@ -71,10 +73,11 @@ Default: precompiled Docker and standalone project (after release)
 
 The complete standalone workspace, release ZIP generation, explicit
 image tags and F5 debugging are documented in :doc:`vscode`.
-The distribution qualification contract (including exact Git revision,
-separate candidate tag, image metadata, host CSV and MPI check) is in
-``docs/V130_DOCKER_FIRST_RELEASE_GATE.md``. Until that gate and a
-fresh-machine installation pass, **do not publish the final tag**.
+The distribution qualification contract (including exact source
+revision, image metadata, host CSV and MPI tests) is documented
+in ``docs/V130_DOCKER_FIRST_RELEASE_GATE.md``. All required
+Linux/AMD64 distribution checks have passed; that does not
+qualify other platforms.
 
 Alternative: native Conda installation
 --------------------------------------
@@ -98,7 +101,7 @@ replacement for the candidate Docker stack.
 Modern parallel Docker image (GetFEM 5.5)
 -----------------------------------------
 
-The v1.3.0 **candidate** Docker recipe is in ``docker/Dockerfile``,
+The v1.3.0 **Docker build** recipe is in ``docker/Dockerfile``,
 with dependencies in ``docker/environment.yml``. It uses one
 consistent conda-forge OpenMPI stack and complex PETSc/SLEPc/MUMPS.
 The PETSc/SLEPc Python bindings are compiled against the installed
@@ -138,14 +141,10 @@ support, NumPy ABI, complex PETSc and distributed MUMPS at 1/2 ranks.
 It explicitly rejects Nédélec-II order k>=3, which has **not**
 been implemented.
 
-The original ``rc1`` build instructions above are a retained
-candidate-build workflow, not the currently qualified image tag:
-the local v1.3.0 pre-release tests use
-``scrimp-mpi:v1.3.0-rc3``. A **fresh candidate rebuild from
-current sources**, with source provenance, package smoke and
-MPI physics validation, remains a separate release-packaging
-task. Do not replace or delete an existing qualified image
-merely because the Docker recipe is checked into Git.
+The ``rc1`` script default is a **local development candidate tag**,
+not the public image. To use the stable qualified environment,
+pull ``ghcr.io/g-haine/scrimp:1.3.0`` instead. Do not overwrite a
+validated local image while experimenting with source builds.
 
 For interactive development with an **independent local
 simulation project** (not the source checkout), see :doc:`vscode`.
@@ -155,7 +154,7 @@ For a manual command-line session from the user's simulation folder:
 
     cd ~/MySCRIMPProject
     sudo docker run --rm -it -v "$PWD:/work" \
-        --workdir /work scrimp-mpi:v1.3.0-rc3 bash
+        --workdir /work ghcr.io/g-haine/scrimp:1.3.0 bash
 
 This binds the local workspace read-write, so simulations and outputs
 persist on the host even when the container is removed. On Linux,
@@ -163,7 +162,7 @@ check UID/GID mapping before relying on direct docker-run commands;
 the VS Code Dev Containers template enables UID matching.
 
 Further instructions and the cache-validation protocol are in
-``docs/V130_DOCKER_BUILD.md``. The image is **not released**.
+``docs/V130_DOCKER_BUILD.md``. The stable image is publicly available as ``ghcr.io/g-haine/scrimp:1.3.0``.
 Existing Sphinx/Conda instructions for the stable ``scrimp.yml``
 environment remain unchanged.
 
@@ -177,12 +176,11 @@ Windows and macOS users: best-effort Docker/Dev Containers
 ------------------------------------------------------------
 
 SCRIMP has users on Windows and macOS. These are **best-effort
-installation workflows**, not evidence of independently tested native
-Windows/macOS PETSc/GetFEM/MUMPS compatibility. The qualified v1.3.0
-development baseline is currently a **Linux/Ubuntu Docker image**,
-and a public v1.3.0 image is not yet available. Check the selected
-image tag and its platform before relying on it; do not assume
-that ``scrimp-mpi:v1.3.0-rc3`` can be pulled from a public registry.
+installation workflows**, not independently qualified native
+Windows/macOS GetFEM/PETSc/MUMPS configurations. The released
+Linux/AMD64 image is ``ghcr.io/g-haine/scrimp:1.3.0``.
+Check its platform before use; historical local tags like
+``scrimp-mpi:v1.3.0-rc3`` are not published GHCR tags.
 
 **Windows 10/11 (WSL2):** install Docker Desktop, enable its WSL2
 backend and integration for your Linux distribution, and install
@@ -190,15 +188,14 @@ VS Code plus the Dev Containers extension. Open a **WSL2 Linux**
 terminal and verify ``docker version``. Keep your SCRIMP user
 project under the WSL2 Linux filesystem (rather than an NTFS
 ``/mnt/c`` mount) if you will create many numerical outputs.
-From this terminal, once a **compatible image has been built or
-provided locally**, run:
+From this terminal, after pulling a compatible image, run:
 
 .. code-block:: bash
 
     cd ~/MySCRIMPProject
     docker images
     docker run --rm -v "$PWD:/work" -w /work \
-        YOUR_LOCALLY_AVAILABLE_SCRIMP_IMAGE:TAG \
+        ghcr.io/g-haine/scrimp:1.3.0 \
         python simulations/first_simulation.py
 
 These commands run a Linux container through WSL2; they do **not**
@@ -221,7 +218,7 @@ performance and GetFEM/PETSc/MUMPS MPI behavior remain unqualified:
     cd ~/MySCRIMPProject
     docker run --rm --platform linux/amd64 \
         -v "$PWD:/work" -w /work \
-        YOUR_LOCALLY_AVAILABLE_SCRIMP_AMD64_IMAGE:TAG \
+        ghcr.io/g-haine/scrimp:1.3.0 \
         python simulations/first_simulation.py
 
 Do not infer scientific accuracy or MPI safety from a successful
