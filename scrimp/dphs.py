@@ -2761,6 +2761,10 @@ class DPHS:
         # Avoid publishing a stale successful algebraic result when a
         # DPHS object is solved again with pseudo/BDF or fails early.
         self.initialization_report = None
+        # This physical solve owns a NEW trajectory; neither an earlier
+        # Hamiltonian series nor port-power samples may be reused.
+        self.hamiltonian.invalidate()
+        self.powers_computed = False
         matrix_mode = os.environ.get(
             "SCRIMP_MATRIX_MEMORY_MODE", "legacy"
         ).strip().lower()
