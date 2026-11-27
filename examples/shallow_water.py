@@ -59,6 +59,7 @@ def shallow_water_eq(
 
     # Init the distributed port-Hamiltonian system
     swe = S.DPHS("real")
+    swe.set_output_name("shallow_water",output_dir=showcase_output)
     
     # Set the domain (using the built-in geometry `Rectangle`)
     # Labels: Omega = 1, Gamma_Bottom = 10, Gamma_Right = 11, Gamma_Top = 12, Gamma_Left = 13
@@ -273,33 +274,36 @@ def shallow_water_eq(
         # True GetFEM field exports, not FEM coefficients guessed to
         # live at mesh nodes. In particular p uses a different DG1
         # sampling mesh from the continuous CG2 scalar height h.
-        output = (Path(showcase_output) if showcase_output is not None
-                  else Path.cwd()/"outputs"/"showcase"/"shallow_water")
+        output = swe._output_root
         output=output.resolve()
         output.mkdir(parents=True,exist_ok=True)
-        swe.export_to_pv("h",path=str(output))
-        swe.export_to_pv("p",path=str(output))
+        swe.plot_Hamiltonian(
+            with_powers=False,save_figure=True,
+            filename="shallow_water_Hamiltonian.png",show=False
+        )
+        swe.export_to_pv("h")
+        swe.export_to_pv("p")
         swe.shallow_water_visuals=render_native_shallow_water(
             swe,output,rho=rho,
         )
         print(
             "SCRIMP Saint-Venant 2D native visuals saved to: "
-            f"{output/'figures'}",
+            f"{output/'png'}",
             flush=True,
         )
         print(
             "  surface + velocity animation: "
-            f"{output/'figures'/'saint_venant_surface_vitesse.gif'}",
+            f"{output/'gif'/'saint_venant_surface_vitesse.gif'}",
             flush=True,
         )
         print(
             "  Hamiltonian and mass: "
-            f"{output/'figures'/'saint_venant_H_masse_bilan.png'}",
+            f"{output/'png'/'saint_venant_H_masse_bilan.png'}",
             flush=True,
         )
         print(
             "  original GetFEM fields: "
-            f"{output/'pv'/'h'/'h.pvd'} ; {output/'pv'/'p'/'p.pvd'}",
+            f"{output/'mesh'/'h'/'h.pvd'} ; {output/'mesh'/'p'/'p.pvd'}",
             flush=True,
         )
     else:
@@ -469,7 +473,10 @@ def native_triangular_field(filename, field_name):
 
 def true_pvd_files(root, name, true_times):
     """Demand exactly one genuine native VTK snapshot for each saved FE t."""
-    pvd = root/"pv"/name/(name+".pvd")
+    pvd = root/"mesh"/name/(name+".pvd")
+    if not pvd.is_file():
+        # Read old user-owned archived output directories unchanged.
+        pvd = root/"pv"/name/(name+".pvd")
     if not pvd.is_file():
         raise FileNotFoundError("Missing original GetFEM PVD: "+str(pvd))
     sets=ET.parse(pvd).getroot().findall(".//DataSet")
@@ -493,7 +500,7 @@ def true_pvd_files(root, name, true_times):
 
 def render_original_shallow_water_spatial_VTU(
     folder, true_times, *, rho=1000., max_gif_frames=36,
-    figures_directory=None,
+    figures_directory=None, gif_directory=None,
 ):
     """Render ONLY real GetFEM h/p FE fields from complete original VTU.
 
@@ -513,8 +520,12 @@ def render_original_shallow_water_spatial_VTU(
             or np.any(np.diff(t)<=0) or not np.isfinite(rho) or rho<=0):
         raise ValueError("Invalid original PVD clock or water density")
     figures=(Path(figures_directory).resolve()
-             if figures_directory is not None else folder/"figures")
+             if figures_directory is not None else folder/"png")
+    animated=(Path(gif_directory).resolve()
+              if gif_directory is not None else
+              (figures if figures_directory is not None else folder/"gif"))
     figures.mkdir(parents=True,exist_ok=True)
+    animated.mkdir(parents=True,exist_ok=True)
     h_files=true_pvd_files(folder,"h",t)
     p_files=true_pvd_files(folder,"p",t)
 
@@ -648,7 +659,7 @@ def render_original_shallow_water_spatial_VTU(
         with Image.open(buffer) as image:
             frames.append(image.convert("RGB").copy())
     frames[0].save(
-        figures/"saint_venant_surface_vitesse.gif",
+        animated/"saint_venant_surface_vitesse.gif",
         save_all=True,append_images=frames[1:],
         duration=160,loop=0,optimize=False,
     )
@@ -686,8 +697,13 @@ def render_native_shallow_water(system, folder, *, rho=1000.,
 
     folder=Path(folder).resolve()
     folder.mkdir(parents=True,exist_ok=True)
-    figures=folder/"figures"
-    figures.mkdir(exist_ok=True)
+    figures=folder/"png"
+    svg=folder/"svg"
+    gif=folder/"gif"
+    data=folder/"npz"
+    metadata=folder/"json"
+    for directory in (figures,svg,gif,data,metadata):
+        directory.mkdir(parents=True,exist_ok=True)
     t=np.asarray(system.solution["t"],dtype=float).reshape(-1)
     H=np.asarray(system.get_Hamiltonian(),dtype=float).reshape(-1)
     mass=np.asarray(system.get_quantity("h",region=1),dtype=float).reshape(-1)
@@ -726,7 +742,7 @@ def render_native_shallow_water(system, folder, *, rho=1000.,
     # PETSc solve must not lose its independent physical quadratures
     # because of an unrelated plotting error (original 14181a94 case).
     np.savez_compressed(
-        folder/"physical_FE_traces.npz",
+        data/"physical_FE_traces.npz",
         t=t,H=H,mass=mass,kinetic=kinetic,potential=potential,
         boundary_power=P, boundary_work=boundary_work,
         numerical_BDF2_energy_defect=energy_defect,
@@ -736,7 +752,7 @@ def render_native_shallow_water(system, folder, *, rho=1000.,
     # without any synthetic FE values or separate nonlinear solve.
     spatial=render_original_shallow_water_spatial_VTU(
         folder,t,rho=rho,max_gif_frames=max_gif_frames,
-        figures_directory=figures,
+        figures_directory=figures,gif_directory=gif,
     )
 
     # Scientific plots from the exact FE integral histories, NOT from
@@ -755,7 +771,7 @@ def render_native_shallow_water(system, folder, *, rho=1000.,
     axes[1].legend();axes[1].grid(alpha=.3)
     fig.tight_layout()
     fig.savefig(figures/"saint_venant_H_masse_bilan.png",dpi=170)
-    fig.savefig(figures/"saint_venant_H_masse_bilan.svg")
+    fig.savefig(svg/"saint_venant_H_masse_bilan.svg")
     plt.close(fig)
 
     provenance={
@@ -790,7 +806,7 @@ def render_native_shallow_water(system, folder, *, rho=1000.,
         "final_BDF2_energy_defect":float(energy_defect[-1]),
         "max_original_boundary_power":float(np.max(abs(P))),
     }
-    (folder/"provenance.json").write_text(
+    (metadata/"provenance.json").write_text(
         json.dumps(provenance,indent=2)+"\n",encoding="utf-8",
     )
     return provenance
@@ -821,7 +837,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--showcase-output", default=None,
         help="Directory for figures and original h/p VTK "
-             "(default: ./outputs/showcase/shallow_water)",
+             "(default: ./outputs/shallow_water/{png,svg,gif,mesh,...})",
     )
     parser.add_argument("--final-time",type=float,default=None)
     parser.add_argument("--time-step",type=float,default=0.0001)
