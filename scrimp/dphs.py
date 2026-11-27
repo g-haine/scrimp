@@ -808,9 +808,7 @@ class DPHS:
             from shutil import copy2
             source = Path(outputs_path) / "mesh" / (domain.get_name()+".msh")
             if source.is_file():
-                destination = self.get_output_path(
-                    "mesh", source.name, create=True
-                )
+                destination = self.get_output_path("mesh",create=True) / source.name
                 if source.resolve() != destination.resolve():
                     copy2(source, destination)
         if self._auto_internal_interface_pilot:
