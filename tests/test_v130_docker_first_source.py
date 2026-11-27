@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import ast
 from pathlib import Path
-import re
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -64,7 +63,7 @@ class DockerFirstReleaseSourceTests(unittest.TestCase):
         self.assertIn('version("scrimp")', text)
         self.assertIn('assert actual == "1.3.0"', text)
         self.assertIn("scrimp-project-template.zip", text)
-        self.assertIn("os" if False else "outputs/oscillator.csv", text)
+        self.assertIn("outputs/oscillator.csv", text)
         self.assertIn("simulations/mpi_check.py", text)
         self.assertIn("testzip()", text)
         self.assertNotIn("--push", text)
