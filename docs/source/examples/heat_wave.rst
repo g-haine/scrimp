@@ -835,16 +835,20 @@ datasets remain complete and
 independently audited.
 The **native 15-second MPI2** per-step
 energy-power and oriented-interface
-checks subsequently passed as well,
-but full MPI1/MPI2 coefficient parity
-failed the original pointwise gate.
+checks have also PASSED.
+A subsequent read-only check of the 3,001
+complete 7,689-DOF states established
+**full MPI1/MPI2 normwise coefficient-space
+parity**, while retaining the original
+historical pointwise comparator FAIL.
 Parallel VTK output, SuperLU_DIST,
-h/dt convergence and spectral
-gallery-mode identification remain
-unqualified.
+h/dt convergence and gallery-mode
+spectral identification remain unqualified.
 
-**Full Gaussian 15-second MPI1/MPI2 native
-experiment completed on 27 November 2026.**
+**Full Gaussian 15-second MPI1/MPI2
+native scientific acceptance PASSED
+on 27 November 2026 in coefficient-vector
+norms and physical power balances.**
 Both true 7,689-DOF GetFEM/PETSc CN simulations
 completed **all 3,000 steps**, with 3,001
 originally saved FE states, and both ranks of
@@ -862,24 +866,38 @@ maximum normalized coefficient-vector
 Euclidean error at any saved time was only
 `7.6446e-10`, while the original
 Hamiltonian difference was at most
-`3.7748e-15`. Thus the **full MPI parity
-gate is not yet accepted** under its
-original pointwise definition.
+`3.7748e-15`. Thus the original **stronger pointwise
+gate failed**, while a distinct
+normwise full-vector parity criterion
+was subsequently accepted on the
+same archived native data.
 
-A dedicated **offline, read-only
-normwise reassessment** now tests those
-same original 3,001 complete FE states
-using the **same numeric absolute and
-relative thresholds** on true vector
+The **read-only normwise reassessment PASSED**
+on those same 3,001 complete FE states.
+It applies the unchanged **numeric
+absolute and relative thresholds**
+`atol=5e-10, rtol=2e-8` to full vector
 :math:`L^\infty` and coefficient
-:math:`\ell^2` norms rather than
-per coefficient. The unmodified
-pointwise physical/port-power checks
-and native rank evidence must pass.
-The old strict FAIL remains documented
-unchanged; no expensive new PDE
-simulation is required to carry out
-the separate reassessment:
+:math:`\ell^2` norms, and also requires
+the normalized :math:`\ell^2` error at
+each instant to remain below the
+relative threshold. There were **zero**
+failed vector-norm steps. The maximum
+`L∞` threshold utilization was only
+`0.556815`, the maximum Euclidean
+threshold utilization `0.024581`,
+and the maximum normalized per-time
+:math:`\ell^2` error `7.64462e-10`.
+
+All original independently recomputed
+CN thermal/wave/interface power checks
+and **unchanged pointwise** observables
+passed for all three native ranks.
+The original strict pointwise FE
+comparator FAIL and its **1,178**
+individual exceedances remain preserved.
+This acceptance can be reproduced
+without a new native solve:
 
 .. code-block:: bash
 
@@ -890,14 +908,20 @@ the separate reassessment:
      sandbox/outputs/v130-heat-wave-full-15s-MPI1-MPI2-e6326198-fhkvnmsR \\
      --out /tmp/heat-wave-full-MPI-norm-reassessment.json
 
-The comparison is of **finite-element
-coefficient-vector norms**, not a
-mass-weighted FE error estimate.
-Native long-horizon power balances
-are PASS, but normwise MPI parity
-remains **pending actual offline
-verification**. Parallel VTK output,
-other solver backends, mesh/time
-convergence and gallery-eigenmode
-status are separate qualifications.
+The qualification is of **original
+finite-element coefficient-vector norms**,
+not a mass-matrix-weighted physical FE
+error estimate or elementwise arithmetic
+identity. The native long-horizon CN
+physical power and full MPI1/MPI2
+**normwise parity gates are both PASS**,
+in this one Gaussian/MUMPS configuration.
+The original strict pointwise FAIL
+remains historically correct for its
+different criterion. Parallel VTK output,
+other LU backends, mesh/time convergence
+and gallery-mode spectral identification
+remain separate, unqualified questions.
+See `docs/V130_HEAT_WAVE_PHYSICAL_AUDIT.md`
+for the complete evidence and distinctions.
 
