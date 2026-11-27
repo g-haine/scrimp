@@ -1,0 +1,151 @@
+name: v1.3.0 GHCR immutable-digest clean-install acceptance
+
+# A new GitHub-hosted Ubuntu VM, NOT a Docker rebuild or an existing
+# workstation daemon. This is a bounded release-candidate smoke.
+# The push trigger runs the first qualification directly on the PR branch;
+# the workflow_dispatch trigger can be used after this workflow is present
+# on the default branch (GitHub's dispatch requirement).
+on:
+  push:
+    branches:
+      - feature/v130-docker-first-distribution
+    paths:
+      - .github/workflows/v130-ghcr-clean-install.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  ghcr-clean-install:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      SCRIMP_DOCKER_NO_SUDO: "1"
+      SCRIMP_V130_EXPECT_REVISION: "58dbe187de308979938153f9adfcf94dac4df85a"
+      SCRIMP_V130_DISTRIBUTION_IMAGE: "ghcr.io/g-haine/scrimp@sha256:0cbbce6ad42b23552aff9d12555342f3864b50522054fe039c161a7145b2732a"
+
+    steps:
+      - name: Verify fresh Ubuntu AMD64 runner and absent candidate image
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = x86_64
+          echo "Runner: $RUNNER_OS / $(uname -m)"
+          docker version
+          df -h /
+          if docker image inspect "$SCRIMP_V130_DISTRIBUTION_IMAGE" >/dev/null 2>&1; then
+            echo "FAIL: candidate image was already in the runner's local daemon"
+            exit 2
+          fi
+          echo "PASS: no pre-existing SCRIMP candidate image in the runner"
+
+      - name: Authenticate to GHCR with ephemeral GitHub Actions identity
+        shell: bash
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # Private GHCR packages must grant this repository Actions read access.
+          # Never store a personal PAT in the repository or in a log.
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io \
+            --username "$GITHUB_ACTOR" --password-stdin
+
+      - name: Pull the immutable GHCR digest (no build, no local image)
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker pull --platform linux/amd64 "$SCRIMP_V130_DISTRIBUTION_IMAGE"
+          REVISION="$(docker image inspect --format \
+            '{{index .Config.Labels "org.opencontainers.image.revision"}}' \
+            "$SCRIMP_V130_DISTRIBUTION_IMAGE")"
+          PLATFORM="$(docker image inspect --format \
+            '{{.Os}}/{{.Architecture}}' "$SCRIMP_V130_DISTRIBUTION_IMAGE")"
+          test "$REVISION" = "$SCRIMP_V130_EXPECT_REVISION"
+          test "$PLATFORM" = linux/amd64
+          docker buildx imagetools inspect "$SCRIMP_V130_DISTRIBUTION_IMAGE"
+          echo "PASS: pulled exact GHCR digest; source revision and platform match"
+          df -h /
+
+      - name: Fetch only the exact Git source required to verify the ZIP
+        uses: actions/checkout@v4
+        with:
+          ref: 58dbe187de308979938153f9adfcf94dac4df85a
+          persist-credentials: false
+
+      - name: Verify source/image version match
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SCRIMP_V130_EXPECT_REVISION"
+          test -z "$(git status --porcelain --untracked-files=no)"
+          echo "PASS: checkout matches the image source exactly"
+
+      - name: Run source-independent user ZIP, serial physics, output and MPI gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/run-v130-docker-distribution-gate.sh
+
+      - name: Verify image-internal real Heat-Wave PDE at MPI 1 and 2
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/run-v130-distribution-heat-wave-mpi-parity.sh
+
+      - name: Record immutable artifact provenance and runner scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import subprocess
+          from pathlib import Path
+
+          def docker_info(fmt):
+              return subprocess.check_output([
+                  "docker", "image", "inspect", "--format", fmt,
+                  os.environ["SCRIMP_V130_DISTRIBUTION_IMAGE"],
+              ], text=True).strip()
+
+          evidence = {
+              "status": "PASS_GHCR_FRESH_UBUNTU_VM_INSTALL_AND_MPI_PHYSICS",
+              "ghcr_index": os.environ["SCRIMP_V130_DISTRIBUTION_IMAGE"],
+              "local_pulled_image_id": docker_info("{{.Id}}"),
+              "oci_source_revision": docker_info(
+                  '{{index .Config.Labels "org.opencontainers.image.revision"}}'
+              ),
+              "platform": docker_info("{{.Os}}/{{.Architecture}}"),
+              "runner_os": os.environ.get("RUNNER_OS"),
+              "runner_arch": os.environ.get("RUNNER_ARCH"),
+              "commit": os.environ.get("SCRIMP_V130_EXPECT_REVISION"),
+              "gates": [
+                  "PASS_STANDALONE_ZIP_IMAGE_SERIAL_MPI_STARTUP",
+                  "PASS_NATIVE_HEAT_WAVE_MPI1_MPI2_HAMILTONIAN_PARITY",
+              ],
+              "not_tested": [
+                  "VS Code GUI F5/F10 on a genuinely new desktop",
+                  "Windows/macOS or non-AMD64",
+                  "global MPI equivalence or full-field parity",
+                  "actual public v1.3.0 release assets",
+              ],
+          }
+          target = Path("sandbox/outputs/v130-ghcr-fresh-runner-summary.json")
+          target.parent.mkdir(parents=True, exist_ok=True)
+          target.write_text(json.dumps(evidence, indent=2) + "\n")
+          print(json.dumps(evidence, indent=2))
+          PY
+
+      - name: Preserve bounded release acceptance logs and ZIP evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v130-ghcr-immutable-fresh-ubuntu-acceptance
+          path: |
+            sandbox/outputs/v130-ghcr-fresh-runner-summary.json
+            sandbox/outputs/v130-docker-distribution-*/
+            sandbox/outputs/v130-distribution-heat-wave-mpi-*/
+          if-no-files-found: warn
+          retention-days: 30
