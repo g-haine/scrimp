@@ -25,11 +25,15 @@ from petsc4py import PETSc
 comm = PETSc.COMM_WORLD
 rank = comm.getRank()
 
-def set_paths(path=None):
+def set_paths(path=None, *, create=True):
     """Set the default path of scrimp
 
     Args:
         path (str): the path
+        create (bool): allocate legacy outputs/log,png,mesh,pv.
+            Explicit callers retain the old default (True); SCRIMP's
+            import uses create=False so new per-system examples do not
+            create a second unrelated outputs tree.
     """
 	
     global outputs_path
@@ -41,7 +45,7 @@ def set_paths(path=None):
         
     outputs_path = os.path.join(module_path, "outputs")
     
-    if rank==0:
+    if create and rank==0:
         for path in [os.path.join("outputs", "log"), os.path.join("outputs", "png"), os.path.join("outputs", "mesh"), os.path.join("outputs", "pv")]:
             composed_path = os.path.join(module_path, path)
             if not os.path.isdir(composed_path):
@@ -80,6 +84,9 @@ def set_verbose(verbose=1):
     
     if rank==0:
         if verbose==0:
+            # A lazy import must not force an unrelated global log
+            # directory; explicit quiet-mode users still get a file.
+            os.makedirs(os.path.join(outputs_path,"log"),exist_ok=True)
             # Set the log file
             logging.basicConfig(
                 filename=os.path.join(outputs_path, "log", "scrimp.log"),
