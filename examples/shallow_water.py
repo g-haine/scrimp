@@ -309,7 +309,7 @@ def shallow_water_eq(
     else:
         # Preserve the original tutorial's default outputs exactly.
         swe.plot_Hamiltonian(
-            save_figure=True,
+            save_figure=True,show=False,
             filename="Hamiltonian_Inviscid_Shallow_Water_2D.png",
         )
         swe.export_to_pv("h")
