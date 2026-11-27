@@ -1,15 +1,13 @@
 # SCRIMP v1.3.0 — sorties des exemples et API Hamiltonien / puissances
 
-**Statut au 27 novembre 2026 :** neuf véritables
-simulations canoniques ont **PASSÉ** la première campagne de
-sorties utilisateur sur la source `a471a637`.
-Après correction des dossiers génériques parasites,
-**Heat–Wave MPI2 a PASSÉ** la vérification ciblée sur la
-source `ab6c6fd6` (un seul `outputs/`, un `.msh`,
-deux PVD et ZIP CRC PASS).
-**La revalidation complète des neuf cas sous ce
-nouvel agencement reste EN ATTENTE**. Les archives
-historiques ne sont pas modifiées.
+**Statut au 27 novembre 2026 : EXEMPLES VALIDÉS (9/9 NATIFS).**
+La campagne du commit `20d79d0d` a confirmé
+`PASS_V130_ALL_NINE_REAL_USER_EXAMPLE_OUTPUT_CASES`,
+sur huit exemples canoniques MPI1 et Heat–Wave MPI2,
+**sans dossiers de sorties parasites**, avec contrôle
+des `.msh`, PVD/VTU, PNG/SVG/NPZ et ZIP CRC PASS.
+Les campagnes historiques `a471a637` et
+`ab6c6fd6` sont conservées intactes.
 
 ## 1. Une structure prédictible pour chaque système
 
@@ -221,12 +219,12 @@ d'environnement `SCRIMP_V130_EXAMPLE_OUTPUT_ONLY`,
 le pilote continue d'exiger les **neuf** cas et leur
 statut `PASS_V130_ALL_NINE_REAL_USER_EXAMPLE_OUTPUT_CASES`.
 
-**Statut au 27 novembre :** première campagne native
-9/9 PASS sous `a471a637` ; **nouvelle vérification de
-la structure MPI2 Heat–Wave PASS** sous `ab6c6fd6`.
-Une nouvelle campagne **complète 9/9** sur le
-nouvel agencement reste nécessaire avant de geler
-le contrat des sorties pour la release.
+**Statut au 27 novembre : contrat des sorties qualifié par
+une campagne complète 9/9 native sur `20d79d0d`.**
+Tous les exemples respectent le dossier de travail
+`working_dir/outputs/<system_name>/` sans sortie
+globalement partagée hors de ce dossier.
+Leurs anciennes archives restent distinctes et reproductibles.
 
 L'interprétation des puissances CN avec sauvegardes
 espacées, BDF/BDF2 et ARKIMEX est détaillée dans
