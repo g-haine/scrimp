@@ -31,6 +31,37 @@ class UserExampleOutputLayoutTests(unittest.TestCase):
                 self.assertIn("plot_Hamiltonian(",source)
                 self.assertNotIn('Path.cwd()/"outputs"/"png"',source)
 
+    def test_every_canonical_domain_is_scoped_to_its_output_root(self):
+        # The package now imports without eager global outputs/dirs.
+        # A single forgotten S.Domain(...) creates a legacy
+        # outputs/mesh sibling and breaks the user's file layout.
+        for filename in MODELS:
+            src=(ROOT/"examples"/filename).read_text(encoding="utf-8")
+            tree=ast.parse(src,filename=filename)
+            for node in ast.walk(tree):
+                if not isinstance(node,ast.Call):
+                    continue
+                fn=node.func
+                if not (isinstance(fn,ast.Attribute)
+                        and isinstance(fn.value,ast.Name)
+                        and fn.value.id=="S" and fn.attr=="Domain"):
+                    continue
+                names={keyword.arg for keyword in node.keywords}
+                with self.subTest(example=filename,line=node.lineno):
+                    self.assertIn(
+                        "mesh_output_dir",names,
+                        f"{filename}:Domain at line {node.lineno} "
+                        "would generate a global outputs/mesh sibling",
+                    )
+
+    def test_native_smoke_rejects_any_extra_global_output_sibling(self):
+        src=(ROOT/"scripts/run-v130-example-user-output-smoke.sh").read_text()
+        self.assertIn('output_parent=work/"outputs"',src)
+        self.assertIn('siblings!=[system]',src)
+        self.assertIn('unexpected global output siblings',src)
+        self.assertIn('len(msh)!=1',src)
+        self.assertIn('"no_generic_legacy_output_siblings":True',src)
+
     def test_heat_wave_user_can_see_real_subsystem_transfer(self):
         src=(ROOT/"examples/heat_wave.py").read_text(encoding="utf-8")
         for needle in (
