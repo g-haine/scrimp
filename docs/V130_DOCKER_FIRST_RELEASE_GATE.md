@@ -89,9 +89,17 @@ Native GetFEM/PETSc/MUMPS physics remains separately covered by
 
 ## Wheel and fresh-machine checks (separate required gates)
 
-Build a wheel from clean release sources into a new `dist/` path,
-inspect its `METADATA` name/version and payload, and check the
-build without relying on a previously editable install. Run the
+Build a wheel from clean release sources, check its `METADATA`
+name/version, payload and installation into an isolated Python venv
+(without importing missing native libraries):
+
+```bash
+python3 scripts/audit-v130-wheel.py
+```
+
+The audit keeps the wheel and `summary.json` in a new
+`sandbox/outputs/v130-wheel-audit-*/` directory. It proves packaging,
+not that a host with no GetFEM can run SCRIMP. Run the
 tests inside the **candidate image**, rather than treating a
 host-side Conda installation as proof of Docker portability.
 
