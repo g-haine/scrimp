@@ -69,6 +69,46 @@ evidence is `v130-auto-interface-MPI-CN-241f58fb-YEJXJhSK.zip`.
 This proves only the documented Heat-Wave test scope; it is not
 a tagged or published v1.3.0 release.
 
+## v1.3.0 examples, energy/power and output files (pre-release)
+
+The eight canonical Python examples now produce **their own real
+GetFEM/PETSc plots and numerical data**, rather than requiring users
+to invoke sandbox acceptance probes to render figures. The v1.3
+user output convention is
+
+```text
+working_directory/
+└── outputs/
+    └── system_name/
+        ├── png/     svg/     gif/
+        ├── mesh/    log/
+        └── npz/     json/
+```
+
+There is **one `outputs/` root per working directory**; examples
+do not create generic `outputs/log`, `outputs/mesh`,
+`outputs/png` or `outputs/pv` siblings. The eight original examples
+completed a real nine-case native I/O smoke on 27 November 2026,
+including Heat--Wave MPI2. The revised *clean* layout also passed a
+targeted native Heat--Wave MPI2 run. Full nine-case requalification
+**after** that directory fix remains a separate release gate.
+
+`DPHS.plot_Hamiltonian()` exports actual total/partial energies
+and raw port powers in PNG/SVG/NPZ. The helper
+`compute_powers()` uses genuine CN step powers only when
+**every accepted CN state is saved**; for decimated CN, BDF,
+BDF2 and ARKIMEX it reports true saved-state nodal powers and an
+**approximate trapezoidal work**, not hidden solver-stage work.
+A generic plotted balance is not proof of energy conservation or
+passivity for an arbitrary model.
+
+See the [energy and time integration guide](docs/source/energy_and_power.rst),
+[example output contract](docs/V130_EXAMPLES_OUTPUT_CONTRACT.md), and
+[release-readiness status](docs/V130_RELEASE_READINESS_2026-11-27.md).
+The documentation workflow builds HTML, LaTeX and PDF on pushes;
+a maintained local reproducer is
+`bash scripts/run-v130-docs-build.sh` (requires Sphinx and LaTeX).
+
 ## v1.3.0 preview: start your own SCRIMP project in VS Code
 
 The upcoming v1.3.0 user workflow separates **installation** from
@@ -97,16 +137,18 @@ The future precompiled `ghcr.io/g-haine/scrimp:1.3.0` image
 under pre-release validation. No SCRIMP source checkout should be
 required of end users after the release project's ZIP asset ships.
 
-## Experimental GetFEM 5.5 / NumPy 2 experimental MPI stack
+## GetFEM 5.5 / NumPy 2 native MPI candidate (v1.3.0)
 
-For a from-source **parallel GetFEM 5.5** build (Conda or Docker), MPI
-dependency checks, 2D acoustic-wave scaling scripts, and an opt-in
-GHCR image publication workflow, see
+For a from-source **parallel GetFEM 5.5** build (Conda or Docker),
+MPI dependency checks, actual wave scaling experiments and
+an opt-in GHCR image publication workflow, see
 [installation and MPI build instructions](docs/source/install.rst).
 
-The conventional `scrimp.yml` setup remains unchanged until
-GetFEM 5.5 + NumPy 2 and physical parallel benchmarks pass in CI.
-No experimental container is advertised as validated or released yet.
+The local `scrimp-mpi:v1.3.0-rc3` image has passed the specified
+native GetFEM/PETSc physical and MPI tests on Ubuntu. It is
+**not** a publicly released image, nor evidence of a completed
+clean-room installation or Windows/macOS qualification. The
+conventional `scrimp.yml` environment remains unchanged.
 
 ## v1.3.0 development — PETSc/MUMPS performance
 
