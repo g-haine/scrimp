@@ -74,6 +74,15 @@ latex_elements = {
 \DeclareUnicodeCharacter{00B2}{\textsuperscript{2}}
 \DeclareUnicodeCharacter{00B7}{\ensuremath{\cdot}}
 \DeclareUnicodeCharacter{222B}{\ensuremath{\int}}
+\DeclareUnicodeCharacter{0394}{\ensuremath{\Delta}}
+\DeclareUnicodeCharacter{03B8}{\ensuremath{\theta}}
+\DeclareUnicodeCharacter{03C1}{\ensuremath{\rho}}
+\DeclareUnicodeCharacter{03C4}{\ensuremath{\tau}}
+\DeclareUnicodeCharacter{03C9}{\ensuremath{\omega}}
+\DeclareUnicodeCharacter{2260}{\ensuremath{\neq}}
+\DeclareUnicodeCharacter{2265}{\ensuremath{\geq}}
+\DeclareUnicodeCharacter{2013}{--}
+\DeclareUnicodeCharacter{2014}{---}
 ''',
 }
 
