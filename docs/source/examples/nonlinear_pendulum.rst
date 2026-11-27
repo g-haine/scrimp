@@ -169,9 +169,13 @@ The canonical `python examples/nonlinear_pendulum.py` directly
 saves native trajectory, phase portrait, nonlinear energy/power
 plots (PNG/SVG) and a **schematic** GIF, all from actually
 accepted GetFEM states. Files are written to
-`outputs/showcase/nonlinear_pendulum/free/figures/`.
-The forced variant, called with `torque_amplitude=0.1`,
-writes instead to `outputs/showcase/nonlinear_pendulum/forced/figures/`.
+``outputs/nonlinear_pendulum_free/``,
+with images under ``png/``, ``svg/`` and ``gif/``,
+and original numerical histories under ``npz/``.
+The forced variant, called with ``torque_amplitude=0.1``,
+writes instead to ``outputs/nonlinear_pendulum_forced/``.
+Both also save the generic ``plot_Hamiltonian()``
+PNG/SVG/NPZ outputs.
 The plots explicitly distinguish true changes of :math:`H`,
 CN discrete port work and dissipation, and the chain-rule
 defect; no exact Hamiltonian conservation is implied.
