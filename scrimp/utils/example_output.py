@@ -6,7 +6,7 @@
 """Deterministic, per-system user output layout (no GetFEM/PETSc dependency).
 
 Examples should save to:
-  <working_directory>/<system_name>/outputs/
+  <working_directory>/outputs/<system_name>/
       png/  svg/  gif/  mesh/  log/  npz/  csv/  json/
 
 Directories are created only when actual files are written. A custom
@@ -34,7 +34,7 @@ def output_root(system_name, *, working_dir=None, output_dir=None):
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", name) or name in (".", ".."):
         raise ValueError("system_name must be a nonempty safe folder name")
     work = Path.cwd() if working_dir is None else Path(working_dir)
-    return (work / name / "outputs").expanduser().resolve()
+    return (work / "outputs" / name).expanduser().resolve()
 
 
 def output_folder(root, kind, *, create=True):
