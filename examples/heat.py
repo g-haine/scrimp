@@ -73,6 +73,7 @@ def heat_eq(
 
     # Init the distributed port-Hamiltonian system
     heat = S.DPHS("real")
+    heat.set_output_name("heat",output_dir=showcase_output)
 
     # Set the domain (using the built-in geometry `Rectangle`)
     # Labels: Omega = 1, Gamma_Bottom = 10, Gamma_Right = 11, Gamma_Top = 12, Gamma_Left = 13
@@ -271,11 +272,10 @@ def heat_eq(
             heat.export_to_pv("T", t="All")
             from petsc4py import PETSc
             if PETSc.COMM_WORLD.getRank() == 0:
-                base = (Path(showcase_output) if showcase_output is not None
-                        else Path.cwd() / "outputs" / "showcase" / "heat")
+                base = heat._output_root
                 heat.heat_visuals = render_heat_visuals(
                     base, observations,
-                    Path.cwd() / "outputs" / "pv" / "T" / "T.pvd",
+                    heat.get_output_path("mesh") / "T" / "T.pvd",
                 )
 
     return heat
@@ -395,8 +395,12 @@ def render_heat_visuals(folder, observed, pvd_file, max_gif_frames=36):
     from PIL import Image
 
     folder = Path(folder)
-    images = folder / "figures"
-    images.mkdir(parents=True, exist_ok=True)
+    png=folder/"png"
+    svg=folder/"svg"
+    gif=folder/"gif"
+    metadata=folder/"json"
+    for directory in (png,svg,gif,metadata):
+        directory.mkdir(parents=True,exist_ok=True)
     t = observed["time"]
     H = observed["H"]
     d = observed["dissipation"]
@@ -533,8 +537,8 @@ def render_heat_visuals(folder, observed, pvd_file, max_gif_frames=36):
         ax=axs.ravel().tolist(),shrink=.75,label="T (GetFEM DG1)"
     )
     fig.suptitle("2-D heat diffusion — original GetFEM temperature field")
-    fig.savefig(images/"heat_temperature_snapshots.png",dpi=170)
-    fig.savefig(images/"heat_temperature_snapshots.svg")
+    fig.savefig(png/"heat_temperature_snapshots.png",dpi=170)
+    fig.savefig(svg/"heat_temperature_snapshots.svg")
     plt.close(fig)
 
     # Physical balance: CN step work, NOT an approximated BDF2 integral.
@@ -562,13 +566,13 @@ def render_heat_visuals(folder, observed, pvd_file, max_gif_frames=36):
         ax.set_xlabel("Time")
         ax.grid(True,alpha=.25)
     fig.suptitle("2-D heat · real GetFEM dissipation and control ports")
-    fig.savefig(images/"heat_energy_and_ports.png",dpi=170)
-    fig.savefig(images/"heat_energy_and_ports.svg")
+    fig.savefig(png/"heat_energy_and_ports.png",dpi=170)
+    fig.savefig(svg/"heat_energy_and_ports.svg")
     plt.close(fig)
 
     # One native DG1 field per frame, with common color limits and no
     # temporal interpolation. The original complete VTK/PVD stays
-    # available in outputs/pv/T for ParaView.
+    # available in outputs/heat/mesh/T for ParaView.
     gif_frames=[]
     for k in range(len(selected)):
         fig,ax=plt.subplots(figsize=(7.2,3.9))
@@ -584,7 +588,7 @@ def render_heat_visuals(folder, observed, pvd_file, max_gif_frames=36):
         with Image.open(buffer) as image:
             gif_frames.append(image.convert("RGB").copy())
     gif_frames[0].save(
-        images/"heat_temperature_evolution.gif",
+        gif/"heat_temperature_evolution.gif",
         save_all=True,append_images=gif_frames[1:],
         duration=170,loop=0,optimize=False,
     )
@@ -602,7 +606,7 @@ def render_heat_visuals(folder, observed, pvd_file, max_gif_frames=36):
         "native_DG1_cellwise_graphics_only":True,
         "no_spatial_or_time_interpolation":True,
     }
-    (folder/"manifest.json").write_text(
+    (metadata/"manifest.json").write_text(
         json.dumps(metadata,indent=2)+"\n",encoding="utf-8"
     )
     return metadata
