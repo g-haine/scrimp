@@ -501,7 +501,7 @@ def render_heat_wave_energy_ports(system, *, heat_region, wave_region):
         "physical_data_npz":str(data_path),
     }
     (json_folder/(stem+".json")).write_text(
-        json.dumps(result,indent=2)+"\\n",encoding="utf-8"
+        json.dumps(result,indent=2)+"\n",encoding="utf-8"
     )
     print("SCRIMP Heat–Wave plots and physical data:",root,flush=True)
     return result
