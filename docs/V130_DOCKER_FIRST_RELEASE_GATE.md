@@ -16,10 +16,15 @@ workspace.
   checks and the independent Dev Container preview.
 - **Canonical examples:** full nine-case user-output campaign at
   `20d79d0d` passed with no generic output siblings.
-- **Documentation:** `cf75f4f761c2854788e5ef519375b31e7f040509`
-  passed the strict Sphinx HTML/LaTeX build (zero Sphinx warnings)
-  and compiled a real 168-page PDF. This is **not** an image
-  distribution qualification.
+- **Documentation:** the initial PDF qualification at
+  `cf75f4f761c2854788e5ef519375b31e7f040509` was superseded
+  by the actual version-`1.3.0` build at
+  `e81003b7ef32360c755a4db56b65d4093b744aea`: 8/8
+  source tests, strict Sphinx HTML/LaTeX with **zero Sphinx
+  warnings** and genuine `scrimp.pdf` (**168 pages**).
+  The final pdfLaTeX log has no unresolved references but
+  still contains three `hyperref` PDF-string warnings and
+  small layout box warnings. These are not Sphinx warnings.
 - **Now qualified, bounded to Ubuntu/amd64:** built and inspected
   `scrimp-mpi:v1.3.0-dist-rc2` (revision `91d7eb1a`); real native
   stack/MUMPS MPI1/2 smoke, standalone ten-file project ZIP with
@@ -74,12 +79,28 @@ Ubuntu Dev Container and independent ZIP at image `dist-rc2`;
 it does **not** qualify an image freshly pulled from a registry,
 Windows/macOS, or multi-process MPI debugging.
 
-**Remaining release gates:** independent fresh-host/digest pull,
-one genuine distributed MPI PDE physics test against the final
-distribution, refreshed strict HTML/LaTeX/PDF after the version
-updates, clean source CI, review of the issue backlog, and actual
-GHCR publication. After the final digest exists, recheck GUI F5/F10
-against that published artifact. No release tag or image
+**Now PASS (additional evidence received 2026-11-27):**
+the original image-internal Heat–Wave PDE, using GetFEM and MUMPS
+on 3,154 mesh elements / 7,689 DoFs, ran 10 accepted CN steps
+to `t=0.02` with 1 and 2 MPI ranks. Both computed 11
+genuine FE Hamiltonians; the full trajectory relative
+`L2` difference was `4.252240939683056e-15`,
+versus the independently specified `1e-7` acceptance tolerance.
+The gate explicitly mounted only its independent probe directory,
+no SCRIMP sources, and returned
+`PASS_NATIVE_HEAT_WAVE_MPI1_MPI2_HAMILTONIAN_PARITY`.
+This is **energy observable parity**, not full-state FE equivalence
+or a claim for other MPI sizes. Evidence:
+`sandbox/outputs/v130-distribution-heat-wave-mpi-wb9SrBRd/`.
+
+**Remaining release gates:** a final rebuilt image from the
+settled release sources, immutable GHCR digest push/pull
+verification on a **fresh host** with independent ZIP and
+host-owned outputs, review of the issue backlog, and actual
+release approval/publication. Recheck GUI F5/F10 against
+the final published artifact when that digest exists.
+The image `dist-rc2` and this successful document build
+are local qualifications only. No release tag or image
 publication is claimed.
 
 ## Candidate construction — do not replace rc3 or local images
@@ -157,9 +178,14 @@ checker compares the complete Hamiltonian trajectories to
 observable's MPI1/MPI2 parity, **not** fieldwise or universal MPI
 equivalence.
 
-The gate is prepared and **has not yet been run natively** on
-`dist-rc2`. From this feature worktree, use the actual image's
-OCI revision, not the moving worktree HEAD:
+**PASS, native execution on Ubuntu/amd64, 2026-11-27, image
+`dist-rc2`.** Full gate result
+`PASS_NATIVE_HEAT_WAVE_MPI1_MPI2_HAMILTONIAN_PARITY`:
+MPI1/MPI2, 10 accepted steps, 11 Hamiltonian samples,
+relative L2 difference `4.252240939683056e-15` versus
+`1e-7` tolerance. From this feature worktree, reproduce
+the qualification using the image's **actual** OCI revision,
+not the moving worktree HEAD:
 
 ```bash
 SCRIMP_DOCKER_NO_SUDO=1 \
