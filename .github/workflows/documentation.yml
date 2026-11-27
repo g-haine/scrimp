@@ -17,6 +17,14 @@ jobs:
           python tests/test_v130_docs_release_source.py
           bash -n scripts/run-v130-docs-build.sh
           bash -n scripts/run-v130-example-user-output-smoke.sh
+      - name: Docker-first source and standalone project contracts
+        run: |
+          python3 -m unittest -v tests.test_v130_docker_first_source tests.test_project_starter
+          bash -n scripts/run-v130-docker-distribution-gate.sh
+      - name: Audit pure-Python v1.3.0 wheel and isolated metadata install
+        run: |
+          python3 -m pip install --upgrade setuptools wheel
+          python3 scripts/audit-v130-wheel.py
       - name: Sphinx HTML and LaTeX source builds
         run: |
           sphinx-build -n -W --keep-going -b html docs/source docs/build
