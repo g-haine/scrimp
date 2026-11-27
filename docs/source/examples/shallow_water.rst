@@ -699,15 +699,19 @@ The default output location is determined by the current directory:
 
 .. code-block:: text
 
-   outputs/showcase/shallow_water/
-   ├── figures/
-   │   ├── saint_venant_surface_vitesse.gif
+   outputs/shallow_water/
+   ├── png/
    │   ├── saint_venant_champs_t*.png
    │   ├── saint_venant_H_masse_bilan.png
-   │   └── saint_venant_H_masse_bilan.svg
-   ├── physical_FE_traces.npz
-   ├── provenance.json
-   └── pv/
+   │   └── shallow_water_Hamiltonian.png
+   ├── svg/
+   │   ├── saint_venant_H_masse_bilan.svg
+   │   └── shallow_water_Hamiltonian.svg
+   ├── gif/saint_venant_surface_vitesse.gif
+   ├── npz/physical_FE_traces.npz
+   ├── json/provenance.json
+   └── mesh/
+       ├── Rectangle.msh
        ├── h/h.pvd
        └── p/p.pvd
 
@@ -730,7 +734,7 @@ original outputs. It is *not* necessary to generate the figures.
 The native example produces:
 
 - Three synchronized views in
-  ``figures/saint_venant_surface_vitesse.gif``:
+  ``gif/saint_venant_surface_vitesse.gif``:
   the 2-D free surface represented as a **3-D
   height graph** (not a simulated 3-D fluid),
   a top-down map of actual water height
@@ -740,11 +744,14 @@ The native example produces:
   spanning the simulation, with fixed
   height/velocity color ranges and no
   invented intermediate time states.
-- ``figures/saint_venant_H_masse_bilan.png``
+- ``png/saint_venant_H_masse_bilan.png``
   and the equivalent SVG with actual
   GetFEM kinetic and potential Hamiltonian,
   conserved mass, and *measured* BDF2
-  defect after external boundary work.
+  defect after external boundary work. The
+  **generic** ``compute_powers()``/trapezoidal
+  plot is only an approximate nodal work integral
+  for BDF2; see :doc:`../energy_and_power`.
 - The distinct original CG2 ``h`` and DG1
   ``p`` VTU meshes for inspection in ParaView,
   original numeric energy/mass traces and
