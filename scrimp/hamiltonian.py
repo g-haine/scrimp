@@ -284,6 +284,14 @@ class Hamiltonian:
             logging.error(f"index {index} out of {len(self.__terms)}")
             raise err
 
+    def invalidate(self):
+        """Mark cached values stale when a physical TS trajectory changes.
+
+        Existing accepted values remain available for an explicit audit,
+        but get_Hamiltonian() recomputes on the new time/state history.
+        """
+        self.__is_computed = False
+
     def set_is_computed(self):
         """This function sets the Hamiltonian as computed."""
 
