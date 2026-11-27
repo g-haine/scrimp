@@ -15,9 +15,12 @@ The updated v1.3.0 **source** now exposes the two heat/wave
 subsystem energies and their interface transfer directly
 in the *original* example. The following command produces
 real original GetFEM/PETSc states (not synthetic figures).
-The nine-case new-output acceptance smoke is **native
-pending**; the previously validated energy/MPI physics
-is independent of this new user-facing I/O test.
+The first nine-case original-example smoke **passed** on
+27 November 2026, including a Heat--Wave MPI2 run.
+A later targeted MPI2 run also **passed** the strict
+single-output-tree check after removal of legacy
+global output siblings. The **full nine-case**
+revalidation of the revised output tree remains pending.
 
 .. code-block:: bash
 
@@ -631,7 +634,9 @@ true GetFEM-mass minimizing correction
 initializer is never relaxed.
 
 The physical example automatically
-writes in ``outputs/showcase/heat_wave_annulus``:
+writes under ``outputs/heat_wave/`` in its typed
+``png/``, ``svg/``, ``gif/``,
+``npz/`` and ``json/`` folders:
 
 - ``heat_wave_H_long_loglog.png`` and
   ``.svg``, together with the native
@@ -647,15 +652,15 @@ writes in ``outputs/showcase/heat_wave_annulus``:
   showing an approximate CG1
   kinetic-velocity fraction in
   the outer ring ``r>=0.82``;
-- ``provenance.json`` with the
+- ``json/heat_wave_long_showcase.json`` with the
   exact selected GetFEM times,
   the initial profile, and explicit
   qualification limitations.
 
-All original ``T``, ``p`` and
-``q`` VTK/PVD time series are
-retained for detailed ParaView
-inspection. The **H(t)** curve is an
+The exported original ``T`` and ``p``
+VTK/PVD time series are
+retained under ``outputs/heat_wave/mesh/``
+for detailed ParaView inspection. The **H(t)** curve is an
 actual FE Hamiltonian quadrature;
 the images show actual native
 GetFEM fields at nodes.
