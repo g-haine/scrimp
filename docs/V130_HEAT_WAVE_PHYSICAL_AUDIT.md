@@ -1,13 +1,87 @@
 # SCRIMP v1.3.0 — Heat–Wave 2D: physically meaningful example
 
-**25 November 2026 — native Heat–Wave 2D qualification PASS:
-MUMPS MPI1/MPI2 physical FE and CN power parity on four steps,
-AND MUMPS MPI1 full 15-second energy-power identity on all
-3,000 consecutive CN steps. All 3,001 original accepted FE states
-were archived after the generic output-monitor correction.
-Visual annular-gallery evidence is distinct: eigenmodes,
-MPI2 long time, MPI-parallel VTK and SuperLU_DIST remain
-unqualified.**
+**27 November 2026 — Gaussian Heat–Wave 2D full 15-second CN
+scientific qualification PASS: MUMPS MPI1/MPI2 full original
+FE **coefficient-vector normwise parity** and independently
+verified heat/wave/interface energy-power balances, for all
+3,000 fixed CN steps and 3,001 real saved states per rank.
+The old stronger *per-DOF pointwise* parity criterion remains
+historical FAIL and is not silently reclassified.
+Parallel VTK, SuperLU_DIST, h/dt convergence and
+annular whispering-gallery eigenmodes are separate, unqualified
+questions.**
+
+## FULL 15-second Gaussian CN physical and normwise MPI parity — PASS (27 November 2026)
+
+**Release acceptance for this specific configuration is CLOSED.**
+The user ran `tests/test_v130_heat_wave_full_mpi_norm_reassessment.py`
+(**5 tests, PASS**) followed by the read-only,
+source-independent `scripts/reassess-v130-heat-wave-full-mpi2-norm-parity.py`.
+The host returned `errors=[]` and
+`PASS_HEAT_WAVE_FULL_15S_MPI1_MPI2_CN_NORM_PARITY`.
+
+This assessment consumed the **original**, already completed
+GetFEM/PETSc/MUMPS native evidence, without rerunning the PDE,
+changing its bricks, solver tolerances, time discretization,
+physical gates or file contents:
+`sandbox/outputs/v130-heat-wave-full-15s-MPI1-MPI2-e6326198-fhkvnmsR/`;
+original native source `e6326198d5cfe8c1921e85605be59f0eea51bd07`,
+Docker `scrimp-mpi:v1.3.0-rc3`, normwise reassessment
+script introduced by commit `8f93f9d`.
+The original CRC-checked native ZIP and its original
+`summary.json` **remain unchanged** and legitimately retain
+`FAIL_OR_UNQUALIFIED_FULL_HEAT_WAVE_MPI2`
+for the *different, historical pointwise test*.
+The new acceptance report was saved separately at
+`/tmp/heat-wave-full-MPI-norm-reassessment.json`.
+
+| Complete `t_f=15`, `dt=.005` original GetFEM diagnostic | Measured |
+| --- | ---: |
+| Original accepted CN steps / saved states | 3000 / 3001 per rank |
+| True original FE coefficients / saved state | 7689 |
+| Total original coefficients compared MPI1 vs MPI2 | **23,074,689** |
+| MPI2 rank0/rank1 (all original state/power histories) | **bitwise identical** |
+| Original MPI1/MPI2 initial field under original per-DOF test | **PASS** |
+| Max original coefficient absolute difference | `2.758281700265819e-9` |
+| Worst `L∞` vector-norm threshold utilization | **`0.5568153478790921`** |
+| Worst coefficient `ℓ²` vector-norm threshold utilization | **`0.024581041997172655`** |
+| Largest relative coefficient `ℓ²` error at any saved instant | `7.644623431064666e-10` |
+| Full space-time relative coefficient `ℓ²` error | `1.2364288236185605e-10` |
+| Failed vector `L∞` steps | **0 / 3001** |
+| Failed vector `ℓ²` steps | **0 / 3001** |
+| Violations of original strict *pointwise* metric (diagnostic only) | **1178 / 23,074,689** |
+| Largest MPI1/MPI2 GetFEM `H(t)` absolute difference | `3.774758283725532e-15` |
+| Largest MPI1/MPI2 heat flux dissipation difference | `1.6342482922482304e-13` |
+| All other original scalar heat/wave/port power traces, with OLD pointwise tolerance | **PASS** |
+| Original independent CN heat, wave, interface and cumulative power gates on three ranks | **PASS** |
+
+The accepted, *explicitly defined* normwise field comparison
+uses the **same numeric** `atol=5e-10`,
+`rtol=2e-8` as the previous experiment, applied
+to full **coefficient vectors at each of all 3,001 times**:
+
+```text
+||z_MPI1-z_MPI2||_inf <= atol + rtol*max(||z_MPI1||_inf, ||z_MPI2||_inf)
+||z_MPI1-z_MPI2||_2   <= sqrt(7689)*atol
+                          + rtol*max(||z_MPI1||_2, ||z_MPI2||_2)
+||z_MPI1-z_MPI2||_2 / max(||z_MPI1||_2, ||z_MPI2||_2) <= rtol
+```
+
+This is **numerical equivalence in coefficient-space
+`L∞` and `ℓ²` vector norms**, combined with the
+original **strict pointwise observable/power comparisons**
+and the independently recomputed CN physics.
+It is **not** per-DOF pointwise equivalence,
+mass-matrix-weighted physical FE `L²` convergence,
+MPI rank arithmetic identity, or a claim about
+MPI-parallel VTK writers, other solvers, 2+ MPI scaling,
+mesh/time convergence or gallery spectral purity.
+In particular, do not modify the historical native FAIL
+report to retroactively assert a pointwise PASS.
+
+**No additional native GetFEM/PETSc computation is required
+for this exact full-horizon, two-rank Gaussian normwise
+parity and physical energy-power acceptance.**
 
 ## 15-second MPI1/MPI2 post-mortem — quantitative diagnosis (27 November 2026)
 
@@ -48,14 +122,14 @@ parallel numerical roundoff**, but does not establish
 the particular cause (matrix reduction, factorization,
 or other rank-dependent arithmetic ordering).
 
-### Follow-up scientific acceptance metric — source-staged, not yet verified
+### Follow-up scientific acceptance metric — COMPLETED; historical rationale
 
 To avoid both (a) weakening the physical GetFEM/PETSc
 tolerances, and (b) treating an individually near-zero
 DOF as the scale for an *entire* FE coefficient vector,
-a **read-only independent re-assessment** now applies
+a **read-only independent re-assessment applied and passed**
 the exact same `atol=5e-10` and `rtol=2e-8`
-to **coefficient-vector norms at every time**:
+on **coefficient-vector norms at every time**:
 
 ```text
 ||z_MPI1-z_MPI2||_infinity
@@ -96,16 +170,14 @@ python scripts/reassess-v130-heat-wave-full-mpi2-norm-parity.py \
   --out /tmp/heat-wave-full-MPI-norm-reassessment.json
 ```
 
-**Current acceptance status remains the historical
-strict pointwise FAIL**, until this new metric
-has been executed and independently verified
-against the original native records. If accepted,
-the full MPI1/MPI2 equivalence must be explicitly
-qualified as **normwise coefficient-space parity**
-and CN physical observable parity, **not** identical
-coefficients or proven mass-weighted FE convergence.
-Neither parallel VTK writing nor spectral gallery
-mode purity follows from this check.
+**The new reassessment has PASSED on the original native
+dataset**, as recorded in the release decision above.
+The original pointwise comparison remains its historically
+correct FAIL, while the complete **normwise coefficient-space
+parity and CN physical observable parity are accepted**.
+Neither identical MPI1/MPI2 individual coefficients,
+mass-weighted FE convergence, parallel VTK output nor
+gallery spectral purity follows from this acceptance.
 
 ## Full 15-second MPI1/MPI2 first attempt — PHYSICS PASS, STRICT PARITY GATE FAIL (27 November 2026)
 
@@ -185,9 +257,11 @@ then decide whether the existing *comparison
 metric* is appropriate or whether a real
 numerical MPI discrepancy needs investigation.
 
-**Full MPI2 native parity remains PENDING.**
-Do not conflate three separate correct
-physical solves with a proven full FE parity.
+**Historical strict pointwise result: FAIL.**
+The newly completed, different normwise full FE
+equivalence test has **PASSED** (see current
+release decision above). Physical balances
+passed under both assessments.
 
 ## Historical staging note — complete 15-second MPI1/MPI2 FE parity (experiment since run)
 
@@ -253,9 +327,9 @@ an evidence-heavy experiment.
 original full MPI2 per-step physical powers
 passed, but strict coefficient pointwise
 parity failed as recorded above. The
-separate read-only normwise reassessment
-is pending. No repeated native solve is
-required just to assess the archived data.
+separate read-only normwise reassessment subsequently
+**PASSED**. No repeated native solve is needed
+to assess the archived data.
 This scientific pilot deliberately suppresses
 parallel ParaView and plotting output; no
 parallel VTK, `SuperLU_DIST`, time/mesh-refinement
