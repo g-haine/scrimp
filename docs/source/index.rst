@@ -114,6 +114,7 @@ User's guide
     started
     getfem_gwfl
     initialization
+    energy_and_power
     explicit_bricks
     performance
     examples
