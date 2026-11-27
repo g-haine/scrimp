@@ -1,15 +1,16 @@
 # SCRIMP v1.3.0 — Heat–Wave 2D: physically meaningful example
 
-**27 November 2026 — Gaussian Heat–Wave 2D full 15-second CN
-scientific qualification PASS: MUMPS MPI1/MPI2 full original
-FE **coefficient-vector normwise parity** and independently
-verified heat/wave/interface energy-power balances, for all
-3,000 fixed CN steps and 3,001 real saved states per rank.
-The old stronger *per-DOF pointwise* parity criterion remains
-historical FAIL and is not silently reclassified.
+**27 November 2026 — Gaussian Heat–Wave 2D:
+FULL 15-second CN scientific qualification PASS.**
+MUMPS MPI1/MPI2 equivalence in **original FE
+coefficient-vector norms**, with independently verified
+heat/wave/interface energy-power balances for all 3,000
+fixed CN steps and 3,001 real saved states per rank.
+The old stronger *per-DOF pointwise* parity criterion
+remains a historical FAIL and is not reclassified.
 Parallel VTK, SuperLU_DIST, h/dt convergence and
-annular whispering-gallery eigenmodes are separate, unqualified
-questions.**
+annular whispering-gallery modes are separate,
+unqualified questions.
 
 ## FULL 15-second Gaussian CN physical and normwise MPI parity — PASS (27 November 2026)
 
