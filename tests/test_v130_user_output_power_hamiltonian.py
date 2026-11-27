@@ -169,7 +169,10 @@ class UserOutputPowerHamiltonianTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             h.compute({"t":[0.,.01,.01],"z":[[1.],[2.],[3.]]},
                       model,domain)
-        self.assertEqual(term.get_values(),[1.,2.])
+        # The GetFEM mock intentionally evaluates time + state, so
+        # the accepted samples are 1.00 and 2.01 (not 2.00).
+        # The invalid duplicate timestamp must preserve both values.
+        self.assertEqual(term.get_values(),[1.,2.01])
         self.assertFalse(h.get_is_computed())
 
     def test_production_source_uses_new_core_api_with_legacy_fallback(self):
