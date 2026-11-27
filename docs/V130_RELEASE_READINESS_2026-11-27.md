@@ -34,10 +34,13 @@ présenté comme une fonction qualifiée.
   aucun dossier générique voisin, exactement un
   `Concentric.msh` dans `mesh/`, deux PVD
   et 5 PNG / 5 SVG / 2 NPZ, ZIP CRC PASS.
-- **Nouvelle campagne 9/9 sur le correctif** :
-  **EN ATTENTE** d'exécution locale, à lancer par
-  `scripts/run-v130-example-user-output-smoke.sh`
-  **sans** `SCRIMP_V130_EXAMPLE_OUTPUT_ONLY`.
+- Source `20d79d0d` : **9/9 PASS FINAL** après
+  correction de l'arborescence, y compris Heat–Wave
+  MPI2 ; chaque dossier de travail possède
+  uniquement `outputs/<system_name>/` et aucun
+  `outputs/{log,mesh,png,pv}` générique ;
+  maillage Gmsh unique, PVD/VTU valides, ZIP CRC PASS.
+  **P0 exemples clos.**
 
 **Compilation documentaire :** le workflow GitHub Actions
 `.github/workflows/documentation.yml` est déclenché sur les
@@ -47,10 +50,16 @@ exécuté avant le build. Un pilote local non destructif
 `scripts/run-v130-docs-build.sh` reconstruit réellement
 HTML, LaTeX et PDF dans `sandbox/outputs/`,
 conserve les logs et produit un résumé avec le commit
-source. **Aucun PASS HTML/PDF actuel n'est attribué
-sans résultat de compilation visible**. Les dépendances
-Sphinx/LaTeX doivent être présentes sur la machine
-utilisée pour ce pilote.
+source. Le **premier build effectif** du commit
+`20d79d0d` a produit HTML et LaTeX (39
+avertissements Sphinx), mais le PDF a **ÉCHOUÉ**
+sur le caractère `U+2212` dans du code verbatim
+(`pdflatex`). Les titres/docstrings/références
+en cause ont été corrigés en source ; une
+nouvelle compilation **stricte, zéro avertissement,
+HTML/LaTeX/PDF** est encore requise. Le pilote
+et la CI traitent maintenant les avertissements
+Sphinx comme des échecs par défaut.
 
 **Après ces deux gates :** vérifier le packaging/wheel,
 l'installation propre et les versions Sphinx/`setup.py`
@@ -59,7 +68,7 @@ et préparer la release. Les travaux #28 et
 l'optimisation complète Docker restent hors chemin
 critique par défaut.
 
-## Mise à jour source du 27 novembre — sortie des huit exemples (EN ATTENTE du smoke natif)
+## Historique — sortie des huit exemples (avant acceptation finale)
 
 Un chantier transversal a été intégré à `release/1.3.0-preparation` :
 
@@ -84,13 +93,14 @@ Un chantier transversal a été intégré à `release/1.3.0-preparation` :
   agencement, sans modification de leurs formes faibles
   ni des huit sources immuables `examples/published/`.
 
-La campagne native a **PASSÉ ses neuf cas** au commit
-`a471a637`, avec ZIP CRC correct ; cependant les dossiers
-parasites précédents existaient encore. Le correctif de
-création des dossiers et l'écriture directe des maillages
-sont **SOURCE STAGED / nouvelle qualification native en
-attente**. Les anciennes preuves physiques demeurent
-valides et distinctes.
+La première campagne native 9/9 sur `a471a637`
+a confirmé les sorties mais révélé des dossiers
+parasites. Après le correctif de création des
+dossiers et l'écriture directe des maillages,
+la **seconde campagne complète 9/9** sur
+`20d79d0d` a **PASSÉ** l'ensemble des
+vérifications. Les anciennes preuves physiques
+demeurent valides et distinctes.
 
 Voir [contrat complet de sorties, quadratures et tests](V130_EXAMPLES_OUTPUT_CONTRACT.md).
 
@@ -118,9 +128,8 @@ Les huit exemples canoniques sont raccordés
 sans paramétrage explicite restent compatibles.
 Le smoke-test est maintenant **fail-closed** sur
 les anciens dossiers parasites et les doublons
-de maillages. **Cette correction de l'arborescence
-attend encore son nouveau PASS natif** ; ne pas
-extrapoler le PASS initial à ce comportement.
+de maillages. La campagne complète `20d79d0d`
+a validé ces nouvelles barrières sur **9/9 cas**.
 
 ## 1. Décision générale
 
