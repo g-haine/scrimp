@@ -833,11 +833,15 @@ power identity in MPI1** is also
 The two long native visualization
 datasets remain complete and
 independently audited.
-MPI2 full-horizon energy-power
-and parallel VTK output,
-SuperLU_DIST, h/dt convergence
-and spectral gallery-mode
-identification remain unqualified.
+The **native 15-second MPI2** per-step
+energy-power and oriented-interface
+checks subsequently passed as well,
+but full MPI1/MPI2 coefficient parity
+failed the original pointwise gate.
+Parallel VTK output, SuperLU_DIST,
+h/dt convergence and spectral
+gallery-mode identification remain
+unqualified.
 
 **Full Gaussian 15-second MPI1/MPI2 native
 experiment completed on 27 November 2026.**
