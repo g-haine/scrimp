@@ -3804,54 +3804,127 @@ class DPHS:
             
         return HamTot
 
-    def plot_Hamiltonian(self, with_powers=True, save_figure=False, filename="Hamiltonian.png"):
-        """Plot each term constituting the Hamiltonian and the Hamiltonian
+    def plot_Hamiltonian(self, with_powers=True, save_figure=False,
+                         filename="Hamiltonian.png", *, show=True,
+                         save_data=True):
+        """Visualize **genuine** Hamiltonian terms and cumulative port work.
 
-        May include the `power terms`, i.e. the sum over [t_0, t_f] of the flow/effort product of algebraic ports.
+        A primary user-facing SCRIMP method: no approximation is made
+        to GetFEM energy integrals, and every rank participates in any
+        GetFEM/MPI assembly. Only rank0 writes shared figures and data.
 
-        In MPI runs this method must be called on every rank, since computing
-        Hamiltonian terms and port powers requires collective GetFEM assembly.
-        Only rank 0 creates and displays the plot.
-
-        Args:
-            - with_powers (bool): if `True` (default), the plot will also contains the power of each algebraic ports
-            - save_figure (bool): if 'True' (defaults: False), save the plot
-            - filename (str): the name of the file where the plot is saved (defaults: `Hamiltonian.png`)
+        Parameters
+        ----------
+        with_powers : bool
+            Integrate computed algebraic port powers with the sampling
+            convention of the *actual PETSc TS history*. CN step work
+            is exact at the specified accepted grid when consecutive
+            states are stored; subsampled CN and BDF/other schemes
+            carry an explicit approximate nodal-trapezoid label.
+            This is **not** automatically a model-independent exact
+            Hamiltonian power identity.
+        save_figure : bool
+            Write PNG and SVG figures. Without a configured output
+            directory, preserve legacy outputs/png/<filename> and
+            use outputs/svg/<stem>.svg for the additional vector plot.
+        filename : str
+            Basename ending in '.png' or '.svg'. Either extension
+            results in both format-specific files when saved.
+        show : bool
+            Display the Matplotlib figure on rank0 (legacy default).
+            Set False in batch/native tests to avoid a GUI dependency.
+        save_data : bool
+            When saving a figure, also write a compressed NPZ with the
+            true accepted time grid, full Hamiltonian and separate
+            terms plus the genuine sampled raw port powers.
         """
-
         if not self.hamiltonian.get_is_computed():
             self.compute_Hamiltonian()
 
-        t = np.array(self.solution["t"])
-        HamTot = np.zeros(t.size)
+        t = np.asarray(self.solution["t"], dtype=float)
+        if t.ndim != 1 or not len(t) or not np.all(np.isfinite(t)):
+            raise ValueError("Cannot plot an incomplete Hamiltonian clock")
+        terms = self.hamiltonian.get_terms()
+        if not terms:
+            raise ValueError("No Hamiltonian terms have been defined")
+
+        HamTot = np.zeros(len(t),dtype=float)
+        plot_terms=[]
+        for idx,term in enumerate(terms):
+            values=np.asarray(term.get_values(),dtype=float)
+            if values.shape!=t.shape or not np.all(np.isfinite(values)):
+                raise RuntimeError(
+                    "Hamiltonian term has stale/incomplete FE values: "+
+                    term.get_description()
+                )
+            HamTot += values
+            plot_terms.append((idx,term.get_description(),values))
+
+        fig = None
         ax = None
         if rank == 0:
-            fig = plt.figure(figsize=[8, 5])
-            ax = fig.add_subplot(111)
+            fig,ax = plt.subplots(figsize=(9,5.5))
+            for _,name,values in plot_terms:
+                ax.plot(t,values,label=name,lw=1.6)
+            if len(terms)>1:
+                ax.plot(t,HamTot,label=self.hamiltonian.get_name(),
+                        lw=2.4,color="black")
 
-        for _, term in enumerate(self.hamiltonian):
-            values = np.array(term.get_values())
-            HamTot += values
-            if rank == 0:
-                ax.plot(t, values, label=term.get_description())
-
-        if len(self.hamiltonian) > 1 and rank == 0:
-            ax.plot(t, HamTot, label=self.hamiltonian.get_name())
-
-        # GetFEM power assembly can involve MPI collectives: every rank must
-        # enter plot_powers(), even though only rank 0 draws the result.
+        # This is a collective GetFEM operation on MPI models; every
+        # rank enters even if only rank0 owns the Matplotlib axis.
         if with_powers:
-            self.plot_powers(ax, HamTot=HamTot)
+            self.plot_powers(ax,HamTot=HamTot)
 
-        if rank == 0:
-            ax.legend()
-            ax.grid(axis="both")
-            ax.set_xlabel("time t")
-            ax.set_ylabel("Hamiltonian terms")
-            ax.set_title("Evolution of Hamiltonian terms")
+        paths={}
+        if rank==0:
+            ax.set_xlabel("Time")
+            ax.set_ylabel("Energy / cumulative signed port work")
+            ax.set_title(self.hamiltonian.get_name())
+            ax.grid(True,alpha=.25)
+            ax.legend(loc="best")
+            fig.tight_layout()
             if save_figure:
-                plt.savefig(os.path.join(outputs_path, "png", filename), dpi=300)
-            plt.show()
+                stem=Path(filename).stem
+                if (Path(filename).name!=filename or
+                        Path(filename).suffix.lower() not in (".png",".svg")):
+                    raise ValueError(
+                        "Hamiltonian output filename must be a .png/.svg basename"
+                    )
+                png=self.get_output_path("png",stem+".png",create=True)
+                svg=self.get_output_path("svg",stem+".svg",create=True)
+                fig.savefig(png,dpi=200)
+                fig.savefig(svg)
+                paths.update(png=str(png),svg=str(svg))
+                if save_data:
+                    traces={"t":t,"H_total":HamTot}
+                    for idx,name,values in plot_terms:
+                        traces[f"H_term_{idx}"]=values
+                    traces["H_term_descriptions"]=np.asarray(
+                        [name for _,name,_ in plot_terms],dtype=str
+                    )
+                    if with_powers:
+                        for port_idx,port in enumerate(self.ports.values()):
+                            if port.get_algebraic() and not port.get_substituted():
+                                traces[f"port_{port_idx}_power"]=np.asarray(
+                                    port.get_power(),dtype=float
+                                )
+                                traces[f"port_{port_idx}_name"]=np.asarray(
+                                    port.get_name(),dtype=str
+                                )
+                                traces[f"port_{port_idx}_sampling"]=np.asarray(
+                                    port.get_power_sampling(),dtype=str
+                                )
+                                traces[f"port_{port_idx}_dissipative"]=np.asarray(
+                                    int(port.get_dissipative()),dtype=int
+                                )
+                    npz=self.get_output_path("npz",stem+".npz",create=True)
+                    np.savez_compressed(npz,**traces)
+                    paths["npz"]=str(npz)
+                logging.info("Hamiltonian figures and data: %s",paths)
+            if show:
+                plt.show()
+            plt.close(fig)
+        return paths if rank==0 else None
 
     def compute_powers(self):
         """Compute raw signed algebraic-port powers with typed sampling.
