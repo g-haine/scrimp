@@ -398,8 +398,8 @@ def render_heat_visuals(folder, observed, pvd_file, max_gif_frames=36):
     png=folder/"png"
     svg=folder/"svg"
     gif=folder/"gif"
-    metadata=folder/"json"
-    for directory in (png,svg,gif,metadata):
+    metadata_dir=folder/"json"
+    for directory in (png,svg,gif,metadata_dir):
         directory.mkdir(parents=True,exist_ok=True)
     t = observed["time"]
     H = observed["H"]
@@ -606,7 +606,7 @@ def render_heat_visuals(folder, observed, pvd_file, max_gif_frames=36):
         "native_DG1_cellwise_graphics_only":True,
         "no_spatial_or_time_interpolation":True,
     }
-    (metadata/"manifest.json").write_text(
+    (metadata_dir/"manifest.json").write_text(
         json.dumps(metadata,indent=2)+"\n",encoding="utf-8"
     )
     return metadata
