@@ -198,6 +198,24 @@ SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
 bash scripts/run-v130-example-user-output-smoke.sh
 ```
 
+Avant cette campagne complète, on peut vérifier **un seul
+cas natif MPI2**, sans le présenter comme une acceptation
+des neuf exemples :
+
+```bash
+SCRIMP_V130_EXAMPLE_OUTPUT_ONLY=heat_wave_mpi2 \
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-example-user-output-smoke.sh
+```
+
+Ce mode ne rend `PASS_V130_SINGLE_REAL_USER_EXAMPLE_OUTPUT_CASE`
+que si le système concerné respecte les sorties natives et
+l'absence de dossiers génériques parasites. Sans la variable
+d'environnement `SCRIMP_V130_EXAMPLE_OUTPUT_ONLY`,
+le pilote continue d'exiger les **neuf** cas et leur
+statut `PASS_V130_ALL_NINE_REAL_USER_EXAMPLE_OUTPUT_CASES`.
+
 **Statut au 27 novembre : neuf exemples natifs PASS
 pour les sorties et la physique sous `a471a637`.
 La correction de la structure des dossiers est SOURCE STAGED,
