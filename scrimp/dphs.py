@@ -1251,12 +1251,11 @@ class DPHS:
         is a deliberate v1.3.0 development-branch policy change.
         MPI2, DAE and full physical-model gates remain open.
 
-        Args:
-            name_variable (str): initial dynamic variable
-            expression (str): SCRIMP Python/NumPy initial expression
-            method (str): "l2" (default) or "interpolation" (legacy)
-            projection_mim (gf.MeshIm, optional): override the domain's
-                integration rule, e.g. HCT composite integration.
+        :param name_variable: Initial dynamic variable.
+        :param expression: SCRIMP Python/NumPy initial expression.
+        :param method: "l2" (default) or "interpolation" (legacy).
+        :param projection_mim: Optional GetFEM MeshIm replacing the domain's
+            integration rule, e.g. HCT composite integration.
         """
 
         self._compile_internal_interfaces_if_needed()
