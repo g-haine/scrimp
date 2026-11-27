@@ -54,6 +54,29 @@ autodoc_mock_imports = [
     'slepc4py',  # Avoid loading the native SLEPc extension in Sphinx autodoc.
 ]
 
+# -- External type hints and LaTeX Unicode -------------------------------
+
+# GetFEM is deliberately mocked for Sphinx autobuild; its native Model
+# class has no local Sphinx Python domain inventory to cross-reference.
+# Ignore only that external type, not missing SCRIMP API references.
+nitpick_ignore = [
+    ('py:class', 'getfem.Model'),
+]
+
+# The public documentation includes verbatim Python source that uses
+# typographically correct Unicode math signs in Matplotlib labels.
+# pdfLaTeX/inputenc does not always map these inside Pygments code
+# listings. Supply TeX equivalents without editing user examples,
+# the physical model or any rendered figure labels.
+latex_elements = {
+    'preamble': r'''
+\DeclareUnicodeCharacter{2212}{\ensuremath{-}}
+\DeclareUnicodeCharacter{00B2}{\textsuperscript{2}}
+\DeclareUnicodeCharacter{00B7}{\ensuremath{\cdot}}
+\DeclareUnicodeCharacter{222B}{\ensuremath{\int}}
+''',
+}
+
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
