@@ -46,6 +46,7 @@ def mass_spring_damper(
     interval_length = 1.0
 
     sys = S.DPHS("real")
+    sys.set_output_name("mass_spring_damper")
     sys.set_domain(S.Domain("Interval", {"L": interval_length, "h": 1.0}))
 
     q = S.State("q", "Displacement", "lumped")
@@ -123,7 +124,10 @@ def mass_spring_damper(
     if plot:
         destination=(
             Path(output_dir) if output_dir is not None
-            else Path.cwd()/"outputs"/"showcase"/"mass_spring_damper"
+            else sys._output_root
+        )
+        sys.plot_Hamiltonian(
+            save_figure=True,filename="mass_spring_Hamiltonian.png",show=False
         )
         # Original GetFEM/PETSc accepted states, not probe-generated art.
         sys.mass_spring_visuals = render_mass_spring_visuals(
@@ -208,14 +212,20 @@ def render_mass_spring_visuals(system, folder, *, mass, stiffness, damping):
 
     # These scalar quantities exist on every MPI rank. Only the root
     # writes the shared figures; no need to render one copy per rank.
-    figures=Path(folder)/"figures"
     if PETSc.COMM_WORLD.getRank()!=0:
         return None
-    figures.mkdir(parents=True,exist_ok=True)
+    root=Path(folder)
+    png=root/"png"
+    svg=root/"svg"
+    gif=root/"gif"
+    data=root/"npz"
+    metadata=root/"json"
+    for directory in (png,svg,gif,data,metadata):
+        directory.mkdir(parents=True,exist_ok=True)
 
     def save_both(fig,stem):
-        fig.savefig(figures/(stem+".png"),dpi=180)
-        fig.savefig(figures/(stem+".svg"))
+        fig.savefig(png/(stem+".png"),dpi=180)
+        fig.savefig(svg/(stem+".svg"))
         plt.close(fig)
 
     fig,(ax1,ax2)=plt.subplots(
@@ -310,12 +320,12 @@ def render_mass_spring_visuals(system, folder, *, mass, stiffness, damping):
         with Image.open(buffer) as image:
             gif_frames.append(image.convert("RGB").copy())
     gif_frames[0].save(
-        figures/"mass_spring_motion.gif",
+        gif/"mass_spring_motion.gif",
         save_all=True,append_images=gif_frames[1:],
         duration=160,loop=0,optimize=False
     )
 
-    history=Path(folder)/"native_lumped_time_history.npz"
+    history=data/"native_lumped_time_history.npz"
     np.savez_compressed(
         history,time=times,q=q,p=p,e_q=eq,e_p=ep,H=H,
         force=force,dissipation=dissipation,input_power=input_power,
@@ -342,7 +352,7 @@ def render_mass_spring_visuals(system, folder, *, mass, stiffness, damping):
             "mass_spring_energy_and_power.svg","mass_spring_motion.gif",
         ],
     }
-    (Path(folder)/"manifest.json").write_text(
+    (metadata/"manifest.json").write_text(
         json.dumps(manifest,indent=2)+"\n",encoding="utf-8"
     )
     return manifest
