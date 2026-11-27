@@ -224,7 +224,7 @@ class ShallowWaterNativeVisualizationSource(unittest.TestCase):
         self.assertIn('swe.shallow_water_visuals=render_native_shallow_water(',self.model)
         self.assertIn("saint_venant_surface_vitesse.gif",self.model)
         self.assertIn("saint_venant_H_masse_bilan.png",self.model)
-        self.assertIn('Path.cwd()/"outputs"/"showcase"/"shallow_water"',self.model)
+        self.assertIn('swe.set_output_name("shallow_water",output_dir=showcase_output)',self.model)
         self.assertNotIn("shallow_water_visualization",self.model)
 
     def test_opt_in_legacy_and_custom_visual_cli_are_reproducible(self):
@@ -280,8 +280,8 @@ class ShallowWaterNativeVisualizationSource(unittest.TestCase):
             'if showcase:',
             'init_step_ts_type="nonlinear_affine"',
             '"nonlinear_affine"',
-            'swe.export_to_pv("h",path=str(output))',
-            'swe.export_to_pv("p",path=str(output))',
+            'swe.export_to_pv("h")',
+            'swe.export_to_pv("p")',
             'swe.shallow_water_visuals=render_native_shallow_water(',
             'swe.export_to_pv("h")',
             'ts_bdf_order=2',
@@ -462,11 +462,11 @@ class ShallowWaterNativeVisualizationSource(unittest.TestCase):
             self.assertEqual(output["gif_original_FE_frames"],5)
             self.assertEqual(output["true_FE_states"],5)
             self.assertFalse(output["H_exact_conservation_claimed"])
-            images=sorted((base/"figures").glob("saint_venant_champs_t*.png"))
+            images=sorted((base/"png").glob("saint_venant_champs_t*.png"))
             self.assertEqual(len(images),4)
-            self.assertTrue((base/"figures"/"saint_venant_H_masse_bilan.png").is_file())
-            self.assertTrue((base/"physical_FE_traces.npz").is_file())
-            with Image.open(base/"figures"/"saint_venant_surface_vitesse.gif") as gif:
+            self.assertTrue((base/"png"/"saint_venant_H_masse_bilan.png").is_file())
+            self.assertTrue((base/"npz"/"physical_FE_traces.npz").is_file())
+            with Image.open(base/"gif"/"saint_venant_surface_vitesse.gif") as gif:
                 self.assertEqual(gif.n_frames,5)
 
     def test_launcher_is_native_original_and_fail_closed(self):
