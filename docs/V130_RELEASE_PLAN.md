@@ -1,5 +1,25 @@
 # SCRIMP v1.3.0 — release plan and acceptance gates
 
+> **Current status snapshot — 27 November 2026:**
+> [Release readiness, examples and issue triage](V130_RELEASE_READINESS_2026-11-27.md).
+> The original plan below is the authoritative **release-scope contract**,
+> but many dated experiment descriptions are historical.
+> **Heat–Wave Gaussian 15 s CN physical MPI1/MPI2 is PASS**
+> (normwise complete FE trajectory and independently checked
+> subsystem energy/power), and its four fixed-mesh dt-refinement
+> native simulations are physically PASS. Their observed
+> Richardson ratios `3.0165`/`3.3382` are **NOT evidence of
+> demonstrated temporal order 2**; the old `PASS...SECOND_ORDER`
+> label was too permissive and has been withdrawn from the
+> future scientific checker. See
+> [Heat–Wave physical audit](V130_HEAT_WAVE_PHYSICAL_AUDIT.md).
+> Focus next on **useful canonical example outputs**, incomplete
+> user tutorials, #26 documentation, final install/wheel/Sphinx
+> checks and explicit issue-scope decisions. New nonlinear DAE
+> generalization, Maxwell 3D and additional convergence studies
+> are not mandatory release blockers. `examples/published/` stays
+> immutable; no native test is declared PASS solely by source staging.
+
 > **Examples solver policy — 23 November 2026 (native PETSc
 > direct-solver preflight 7/7 PASS):** the existing qualified Docker rc3 contains
 > `mumps`, `superlu` and `superlu_dist` according to the user's
