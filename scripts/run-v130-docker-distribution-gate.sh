@@ -22,6 +22,17 @@ if [[ ! "$EXPECTED" =~ ^[0-9a-f]{40}$ ]]; then
     echo "ERROR: set SCRIMP_V130_EXPECT_REVISION to the exact 40-char Git SHA." >&2
     exit 2
 fi
+# The release ZIP must be created from exactly the code version that
+# produced the candidate image; do not mix two Git revisions.
+SOURCE_SHA="$(git -C "$ROOT" rev-parse HEAD)"
+if [[ "$SOURCE_SHA" != "$EXPECTED" ]]; then
+    echo "ERROR: workspace revision $SOURCE_SHA != candidate source $EXPECTED" >&2
+    exit 3
+fi
+if [[ -n "$(git -C "$ROOT" status --porcelain --untracked-files=no)" ]]; then
+    echo "ERROR: tracked local modifications would make the ZIP untraceable." >&2
+    exit 3
+fi
 mkdir -p "$ROOT/sandbox/outputs"
 OUT="$(mktemp -d "$ROOT/sandbox/outputs/v130-docker-distribution-XXXXXXXX")"
 exec > >(tee "$OUT/gate.log") 2>&1
