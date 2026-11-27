@@ -55,6 +55,21 @@ jobs:
           SCRIMP_DOCKER_NO_SUDO=1 \
           SCRIMP_DOCKER_CANDIDATE_IMAGE=scrimp-mpi:candidate \
             bash scripts/smoke-v130-docker-candidate.sh
+      - name: Qualify standalone ZIP and Docker image as an independent user
+        run: |
+          # The candidate is built from this checkout with the exact
+          # GitHub commit embedded as its OCI source revision.
+          SCRIMP_DOCKER_NO_SUDO=1 \
+          SCRIMP_V130_DISTRIBUTION_IMAGE=scrimp-mpi:candidate \
+          SCRIMP_V130_EXPECT_REVISION="$GITHUB_SHA" \
+            bash scripts/run-v130-docker-distribution-gate.sh
+      - name: Preserve Docker distribution evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scrimp-v130-docker-distribution-evidence
+          path: sandbox/outputs/v130-docker-distribution-*/
+          if-no-files-found: warn
       # ubuntu-24.04 hosted runners may expose only 2 physical CPU slots.
       # OpenMPI must be allowed to start 4 ranks for FUNCTIONAL CI checks.
       # --oversubscribe must never be used for performance benchmarks.
