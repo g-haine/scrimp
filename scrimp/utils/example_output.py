@@ -6,12 +6,12 @@
 """Deterministic, per-system user output layout (no GetFEM/PETSc dependency).
 
 Examples should save to:
-  <working_directory>/outputs/<system_name>/
+  <working_directory>/<system_name>/outputs/
       png/  svg/  gif/  mesh/  log/  npz/  csv/  json/
 
 Directories are created only when actual files are written. A custom
-output_dir is interpreted as the whole <system_name> root, so existing
-users passing explicit output directories retain complete control.
+output_dir is interpreted as the WHOLE output root of this system,
+so existing callers passing an explicit destination retain full control.
 No rank suffix is introduced for shared figures/VTK; MPI-only raw
 evidence remains explicitly rank-labelled by the testing harnesses.
 """
@@ -34,7 +34,7 @@ def output_root(system_name, *, working_dir=None, output_dir=None):
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", name) or name in (".", ".."):
         raise ValueError("system_name must be a nonempty safe folder name")
     work = Path.cwd() if working_dir is None else Path(working_dir)
-    return (work / "outputs" / name).expanduser().resolve()
+    return (work / name / "outputs").expanduser().resolve()
 
 
 def output_folder(root, kind, *, create=True):
