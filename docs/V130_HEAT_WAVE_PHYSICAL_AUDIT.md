@@ -12,6 +12,62 @@ Parallel VTK, SuperLU_DIST, h/dt convergence and
 annular whispering-gallery modes are separate,
 unqualified questions.
 
+## Next release gate — temporal CN convergence at fixed original mesh (SOURCE STAGED, NATIVE PENDING)
+
+The accepted physical MPI1/MPI2 Heat–Wave problem has
+`h=0.05` **hard-coded in the canonical source**.
+To avoid a premature change to its original FE discretization,
+the next qualification checks **time-step refinement first**,
+on the *identical* conforming GetFEM mesh,
+exact pH-DAE initial state and source-native power assembly.
+No special surrogate ODE, fabricated field, altered solver
+configuration or spatial interpolation is used.
+
+New scientific driver:
+`scripts/run-v130-heat-wave-CN-dt-refinement.sh`.
+Run the canonical `examples/heat_wave.py` via the already
+qualified native full-state physical probe, on the
+same Gaussian 7,689-DOF system, using MUMPS MPI1:
+`t_f=.2` and four CN grids
+`dt=.01, .005, .0025, .00125` (respectively
+**20, 40, 80, 160 accepted steps**, every original FE
+state and physical power trace saved).
+At each grid the already qualified independent
+heat/wave/interface power and dissipative
+CN gates must **all pass**.
+
+The new source-independent verifier
+`sandbox/compare_v130_heat_wave_CN_dt_refinement.py`
+compares **the complete original full FE coefficient vectors
+at matching true accepted times** for triples
+`(.01,.005,.0025)` and
+`(.005,.0025,.00125)`, requiring each
+`||z_dt-z_dt/2||_F / ||z_dt/2-z_dt/4||_F`
+to lie in `[3,5]` (consistent with
+second-order CN temporal *self-convergence*).
+Both triples use the unchanged physical mesh and common
+`t_f=.2`; no data are manufactured or interpolated.
+A CRC-verified ZIP contains every native original state and
+all physical power histories. This is an **observed temporal
+self-convergence** test for the FE semidiscretization, not a
+comparison to the analytical infinite-dimensional PDE solution.
+Space-mesh convergence and physical mass-weighted FE error
+estimation are **separate and unqualified**.
+
+To execute:
+
+```bash
+cd ~/Simulations/scrimp
+git pull --ff-only
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
+bash scripts/run-v130-heat-wave-CN-dt-refinement.sh
+```
+
+**Status: SOURCE-STAGED, native 4-case temporal experiment NOT
+YET RUN.** The already accepted Gaussian MPI and
+15-second physical power evidence above remains valid.
+
 ## FULL 15-second Gaussian CN physical and normwise MPI parity — PASS (27 November 2026)
 
 **Release acceptance for this specific configuration is CLOSED.**
