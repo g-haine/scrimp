@@ -52,6 +52,7 @@ autodoc_mock_imports = [
     'scipy',
     'petsc4py',
     'slepc4py',  # Avoid loading the native SLEPc extension in Sphinx autodoc.
+    'mpi4py',  # Documentation-only build must not load a native MPI library.
 ]
 
 # -- External type hints and LaTeX Unicode -------------------------------
