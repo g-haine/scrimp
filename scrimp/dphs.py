@@ -31,6 +31,8 @@ from scrimp.utils.matrix_memory import (
 )
 from scrimp.utils.phase_memory_audit import PhaseMemoryAudit
 from scrimp.utils.power_integration import integrate_port_power
+from scrimp.utils.power_sampling import select_port_power_sampling
+from scrimp.utils.example_output import output_root, output_folder, output_file
 from scrimp.utils.async_binary_trajectory import (
     RankSender, LazyTrajectory, wait_for_manifest,
 )
@@ -54,6 +56,7 @@ import logging
 import matplotlib.pyplot as plt
 import matplotlib.pylab as pl
 import numpy as np
+from pathlib import Path
 import os
 import re
 from mpi4py import MPI
@@ -432,6 +435,9 @@ class DPHS:
         self.hamiltonian = Hamiltonian("Hamiltonian")
         #: To check if the powers have been computed
         self.powers_computed = False
+        #: None preserves legacy user output locations. Canonical v1.3
+        #: examples opt into working_dir/outputs/<system_name>/.
+        self._output_root = None
         #: Tangent (non-linear + linear) mass matrix of the system in PETSc CSR format
         self.tangent_mass = PETSc.Mat().create(comm=comm)
         #: Non-linear mass matrix of the system in PETSc CSR format
@@ -506,6 +512,52 @@ class DPHS:
 
         if rank == 0:
             logging.info(f"A model with {basis_field} unknowns has been initialized")
+
+    def set_output_directory(self, root):
+        """Set this system's output root without moving existing files.
+
+        A value of None restores legacy SCRIMP output locations.
+        Source-level native probes may continue using their explicit
+        paths. User-facing examples should normally prefer
+        set_output_name('heat_wave') or the like.
+        """
+        self._output_root = None if root is None else Path(root).expanduser().resolve()
+        return self._output_root
+
+    def set_output_name(self, system_name, *, working_dir=None, output_dir=None):
+        """Use working_dir/outputs/system_name/{png,svg,mesh,log,...}.
+
+        If output_dir is given, it is treated as this system's explicit
+        root; no extra 'outputs' or name component is appended.
+        This call does not create directories or touch old results.
+        """
+        self._output_root = output_root(
+            system_name, working_dir=working_dir, output_dir=output_dir
+        )
+        return self._output_root
+
+    def get_output_path(self, kind, filename=None, *, create=False):
+        """Return a typed output path without implicit directory changes.
+
+        With no configured root, return the historical outputs/png and
+        outputs/pv layout for backward-compatible library callers.
+        """
+        if self._output_root is not None:
+            if filename is None:
+                return output_folder(self._output_root,kind,create=create)
+            return output_file(self._output_root,filename,kind,create=create)
+        if kind not in ("png","svg","gif","mesh","log","npz","csv","json"):
+            raise ValueError("Invalid SCRIMP output type "+str(kind))
+        legacy = "pv" if kind=="mesh" else kind
+        folder = Path(outputs_path)/legacy
+        if create:
+            folder.mkdir(parents=True,exist_ok=True)
+        if filename is None:
+            return folder
+        name = Path(filename)
+        if str(filename)!=name.name or not name.name:
+            raise ValueError("Output filename must be a basename")
+        return folder/name
 
     def _checkpoint_provenance_collective(self):
         """Reject a missing or divergent full GetFEM model on all MPI ranks."""
@@ -3824,7 +3876,22 @@ class DPHS:
         
         start = time.perf_counter()
         ts_type = self.time_scheme.getString("ts_type", "bdf").lower()
-        sampling = "cn_step" if ts_type == "cn" else "instantaneous"
+        sampling = select_port_power_sampling(
+            ts_type, self.solution["t"],
+            accepted_steps=getattr(self,"last_ts_steps",None),
+            dt=self.time_scheme.getString("dt",""),
+            adapt_type=self.time_scheme.getString("ts_adapt_type",""),
+        )
+        # A CN simulation saving one frame every N>1 accepted steps
+        # cannot reconstruct step work from averages of saved frames.
+        # Sample the actual saved nodal powers instead. The existing
+        # plot integrator explicitly labels their trapezoid as APPROX.
+        if rank==0 and ts_type=="cn" and sampling!="cn_step":
+            logging.warning(
+                "CN powers: stored states are not all consecutive accepted "
+                "PETSc steps; using instantaneous nodal samples, and any "
+                "subsequent integrated-work plot is approximate"
+            )
         self.powers_computed = False
         for _, port in self.ports.items():
             port.compute(
@@ -4107,7 +4174,11 @@ class DPHS:
             raise err
 
         if path is not None:
+            # Preserve the historical explicit export_to_pv(path=...) API.
             path = os.path.join(path, "pv", name_variable)
+        elif self._output_root is not None:
+            # Canonical v1.3 user layout: outputs/<name>/mesh/<field>/.
+            path = os.path.join(self._output_root, "mesh", name_variable)
         else:
             path = os.path.join(outputs_path, "pv", name_variable)
 
