@@ -76,8 +76,8 @@ class DocumentationReleaseSourceTests(unittest.TestCase):
         self.assertIn("-b latex",runner)
         self.assertIn("latexmk",runner)
         workflow=(ROOT/".github/workflows/documentation.yml").read_text()
-        self.assertIn("sphinx-build -b html",workflow)
-        self.assertIn("sphinx-build -b latex",workflow)
+        self.assertIn("sphinx-build -n -b html",workflow)
+        self.assertIn("sphinx-build -n -b latex",workflow)
         self.assertIn("latex-action",workflow)
 
 
