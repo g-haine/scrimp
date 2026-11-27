@@ -24,7 +24,7 @@ revalidation of the revised output tree remains pending.
 
 .. code-block:: bash
 
-   python -m examples.heat_wave \\
+   python -m examples.heat_wave \
        --final-time 0.2 --time-step 0.002 --save-step 0.002
 
 Files are stored in ``./outputs/heat_wave/``:
@@ -82,8 +82,8 @@ To choose a different user output root:
 
 .. code-block:: bash
 
-   python -m examples.heat_wave \\
-       --final-time 0.2 --time-step 0.002 --save-step 0.002 \\
+   python -m examples.heat_wave \
+       --final-time 0.2 --time-step 0.002 --save-step 0.002 \
        --output-dir /tmp/my-heat-wave-results
 
 The full output contract, MPI root-only writer
