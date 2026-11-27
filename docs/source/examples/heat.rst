@@ -29,14 +29,17 @@ required**:
 
    python examples/heat.py
 
-In the working directory this creates the canonical
-`outputs/png/Hamiltonian_Heat_2D.png` and, under
-`outputs/showcase/heat/figures/`, the actual native FE figures
-`heat_temperature_snapshots.png`,
-`heat_energy_and_ports.png`, their SVG versions and the animated
-`heat_temperature_evolution.gif`. Every saved temperature state is
-also exported from the **same GetFEM calculation** to
-`outputs/pv/T/T.pvd` and its associated `T_*.vtu` files, readable
+The example writes into **one system output root**,
+``outputs/heat/`` (not global ``outputs/png`` or
+``outputs/showcase``). It creates the real GetFEM
+``png/Hamiltonian_Heat_2D.png``,
+``png/heat_temperature_snapshots.png``,
+``png/heat_energy_and_ports.png`` and corresponding SVGs,
+as well as ``gif/heat_temperature_evolution.gif``.
+Every saved temperature state is exported from the
+**same GetFEM calculation** into
+``mesh/T/T.pvd`` and its associated ``T_*.vtu``,
+readable
 by ParaView. The animated GIF uses selected original saved FE frames,
 without temporal interpolation. The DG1 spatial temperature maps
 show original GetFEM element values as cell averages for readability;
