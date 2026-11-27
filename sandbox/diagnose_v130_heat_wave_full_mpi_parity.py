@@ -137,6 +137,7 @@ def state_mismatch_summary(coarse,parallel,time):
              "relative_l2":float(steps_rel_l2[n]),
              "pointwise_failures":int(steps_violations[n])}
             for n in (0,1,4,20,100,200,500,1000,1500,2000,2500,3000)
+            if n<len(time)
         ],
         "t_final_largest_original_DOF_differences":[
             {"DOF":int(j),
@@ -169,8 +170,8 @@ def scalar_trace_comparison(a,b):
             "pointwise_old_allclose":bool(np.allclose(
                 x,y,atol=ABS_REFERENCE,rtol=REL_REFERENCE
             )),
-            "max_MIP1_magnitude":float(np.max(np.abs(x))),
-            "max_MIP2_magnitude":float(np.max(np.abs(y))),
+            "max_MPI1_magnitude":float(np.max(np.abs(x))),
+            "max_MPI2_magnitude":float(np.max(np.abs(y))),
         }
     return out
 
