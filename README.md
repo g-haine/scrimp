@@ -27,21 +27,25 @@ GetFEM 5.5, complex PETSc/SLEPc, MUMPS and MPI stack. User simulations and
 outputs remain in a **separate local project**, never in the image or the
 SCRIMP Git repository.
 
-**Release status (27 November 2026):** a **pre-release** Docker image
-`ghcr.io/g-haine/scrimp:1.3.0-dist-rc3` has been published and qualified
-on a fresh GitHub-hosted Ubuntu 24.04/AMD64 runner **by immutable digest**:
-`sha256:0cbbce6ad42b23552aff9d12555342f3864b50522054fe039c161a7145b2732a`.
-The independent ZIP/oscillator/MPI-startup and genuine Heat--Wave MPI1/MPI2
-Hamiltonian parity gates passed. This tag may have restricted GHCR visibility.
-**The stable `ghcr.io/g-haine/scrimp:1.3.0` image, official project ZIP and
-GitHub Release are NOT yet published.** Do not confuse the pre-release
-candidate with the stable release.
+**SCRIMP v1.3.0 (27 November 2026):** the stable
+[Git tag](https://github.com/g-haine/scrimp/tree/v1.3.0) and **public
+Linux/AMD64 Docker image** `ghcr.io/g-haine/scrimp:1.3.0`
+are available. The stable image is the **unchanged** qualified
+`dist-rc4` index (digest
+`sha256:737f58f12475723c0924f25528a0794a767fe6051dbecbd80a194d3b15eb3f01`),
+built from revision `17ae5a1ce063ff5481812dc73f3d3fc88c153c70`.
+A fresh Ubuntu 24.04/AMD64 runner passed the independent project ZIP,
+real oscillator/host CSV, MPI startup and native Heat--Wave MPI1/MPI2
+Hamiltonian parity
+([qualification evidence](https://github.com/g-haine/scrimp/actions/runs/46030753404)).
+The official user ZIP is a separate asset of the
+[v1.3.0 GitHub Release](https://github.com/g-haine/scrimp/releases/tag/v1.3.0).
 
-**Once the public v1.3.0 release and image are qualified and published:**
+**Recommended installation:**
 
 1. Install Docker, plus VS Code and its **Dev Containers** extension if desired.
-2. Download the **scrimp-project-template.zip** asset from the matching GitHub
-   Release and extract it in your own simulations directory. The released ZIP
+2. Download the **scrimp-project-template.zip** asset from the
+   [v1.3.0 GitHub Release](https://github.com/g-haine/scrimp/releases/tag/v1.3.0) and extract it in your own simulations directory. The released ZIP
    will refer to the verified Docker image explicitly.
 3. Pull the image and open the extracted project in VS Code:
 
@@ -84,14 +88,12 @@ users with a working existing native environment; it is not the v1.3.0 default.
 The historical `scrimp.yml` remains separate from the GetFEM 5.5/NumPy 2
 Docker candidate; this change does not silently upgrade host dependencies.
 
-## v1.3.0 release preparation: conforming interfaces and MPI ParaView
+## v1.3.0: conforming interfaces and MPI ParaView
 
-**On the `release/1.3.0-preparation` branch only**, SCRIMP now
-automatically resolves conforming internal interfaces and, for MPI
-with complete identical mesh/FE-state replicas, uses **rank 0 as the
-single writer** of shared ParaView `.pvd`/`.vtu` outputs.
-Both implementations are part of the default code paths rather
-than opt-in pilots; **there is no published v1.3.0 release yet**.
+In **v1.3.0**, SCRIMP automatically detects conforming internal
+interfaces and, in MPI runs with complete identical mesh/FE-state
+replicas, uses **rank 0 as the single writer** of shared ParaView
+`.pvd`/`.vtu` files. Both behaviors are enabled by default.
 
 An ambiguous/nonconforming interface or a ParaView model with
 incomplete or inconsistent per-rank states **fails explicitly**,
@@ -121,10 +123,10 @@ feature flags, at commit `241f58fb` in the pinned v1.3.0 RC3 image:
 energy/port-power balances and complete shared ParaView output.
 The reproducible check is `scripts/run-v130-production-defaults.sh`;
 evidence is `v130-auto-interface-MPI-CN-241f58fb-YEJXJhSK.zip`.
-This proves only the documented Heat-Wave test scope; it is not
-a tagged or published v1.3.0 release.
+This proves the documented Heat-Wave test scope only, not all
+geometries or MPI configurations.
 
-## v1.3.0 examples, energy/power and output files (pre-release)
+## v1.3.0 examples, energy/power and output files
 
 The eight canonical Python examples now produce **their own real
 GetFEM/PETSc plots and numerical data**, rather than requiring users
@@ -166,19 +168,21 @@ The documentation workflow builds HTML, LaTeX and PDF on pushes;
 a maintained local reproducer is
 `bash scripts/run-v130-docs-build.sh` (requires Sphinx and LaTeX).
 
-## v1.3.0 preview: start your own SCRIMP project in VS Code
+## v1.3.0: start your own SCRIMP project in VS Code
 
-The upcoming v1.3.0 user workflow separates **installation** from
+The v1.3.0 user workflow separates **installation** from
 **simulations**. The goal is to choose a precompiled Docker image,
 compile Docker locally, or use native Conda — and then work in the
 **same independent VS Code project**. Your scripts, geometries and
 results stay on your computer; they are never baked into Docker.
 
 A reusable starter lives in [project-template](project-template/).
-During development, create a project from a temporary SCRIMP checkout:
+The official release ZIP already selects the stable image. To create
+an independent project from a source checkout, select it explicitly:
 
 ```bash
-python3 scripts/create-scrimp-project.py "$HOME/MySCRIMPProject"
+python3 scripts/create-scrimp-project.py "$HOME/MySCRIMPProject" \
+    --image ghcr.io/g-haine/scrimp:1.3.0
 ```
 
 Open that new directory with VS Code and use **Dev Containers:
@@ -189,33 +193,33 @@ mass–spring–damper simulation that saves
 native interpreter instead of reopening in a container.
 
 See the [complete first-project / Dev Containers tutorial](docs/source/vscode.rst).
-The future precompiled `ghcr.io/g-haine/scrimp:1.3.0` image
-**is not published or qualified yet**, and the template is still
-under pre-release validation. No SCRIMP source checkout should be
-required of end users after the release project's ZIP asset ships.
+The public precompiled image is qualified on Linux/AMD64. Users of
+the official release ZIP need **no SCRIMP source checkout**.
+Older source-tree templates may still default to local development
+images; the official ZIP pins the stable GHCR tag.
 
-## GetFEM 5.5 / NumPy 2 native MPI candidate (v1.3.0)
+## GetFEM 5.5 / NumPy 2 native MPI environment (v1.3.0)
 
 For a from-source **parallel GetFEM 5.5** build (Conda or Docker),
 MPI dependency checks, actual wave scaling experiments and
 an opt-in GHCR image publication workflow, see
 [installation and MPI build instructions](docs/source/install.rst).
 
-The local `scrimp-mpi:v1.3.0-rc3` image has passed the specified
-native GetFEM/PETSc physical and MPI tests on Ubuntu. It is
-**not** a publicly released image, nor evidence of a completed
-clean-room installation or Windows/macOS qualification. The
-conventional `scrimp.yml` environment remains unchanged.
+The released image contains SCRIMP's five maintained GetFEM 5.5
+patches, complex PETSc/SLEPc and distributed MUMPS. Its independent
+fresh-host Ubuntu/AMD64 acceptance is **not** a validation of
+Windows/macOS, ARM64 or native Conda. The historical `scrimp.yml`
+remains unchanged.
 
-## v1.3.0 development — PETSc/MUMPS performance
+## v1.3.0 PETSc/MUMPS performance
 
-The development branch introduces an exact `on_change` MUMPS reuse policy
+SCRIMP v1.3.0 uses an exact `on_change` MUMPS reuse policy
 by default: the symbolic factor is retained while the sparse graph stays
 unchanged, and the numerical factor is retained only when the actual PETSc
 coefficients have not changed. On MPI runs, MUMPS parallel symbolic
 analysis is enabled by default, subject to explicit solver options.
 
-The v1.3.0 code is **not yet released**. The qualification compares the
+The v1.3.0 qualification compares the
 original v1.2.0 wave example in serial with the current code in serial
 and on 2/4/6 ranks, including actual full vectors and per-stage timings:
 
