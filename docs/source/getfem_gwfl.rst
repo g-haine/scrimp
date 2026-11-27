@@ -84,7 +84,7 @@ but a **native GetFEM** test should also check the actual
 regions or MPI assembly could influence the result.
 
 Native #28 example: viscous Saint-Venant
----------------------------------------
+----------------------------------------
 
 On 20 November 2026, native GetFEM boundary integrals exposed
 a wrong-sign rotating wall control in the viscous Saint-Venant
