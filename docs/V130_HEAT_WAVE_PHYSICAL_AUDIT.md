@@ -9,6 +9,88 @@ Visual annular-gallery evidence is distinct: eigenmodes,
 MPI2 long time, MPI-parallel VTK and SuperLU_DIST remain
 unqualified.**
 
+## Full 15-second MPI1/MPI2 first attempt — PHYSICS PASS, STRICT PARITY GATE FAIL (27 November 2026)
+
+The native user-host full-length run on source `e6326198`
+completed *both* MUMPS MPI2 and MPI1 original Gaussian
+Heat–Wave solves, **3,000 accepted CN steps**, fixed
+`dt=.005`, `t_f=15`, **3,001 original GetFEM
+time states per rank**, **7,689 DOFs**. Source guards
+passed and all eight published snapshots remained immutable.
+
+**Original evidence (historical FAIL not rewritten):**
+`v130-heat-wave-full-15s-MPI1-MPI2-e6326198-fhkvnmsR.zip`.
+The native comparison status correctly remains
+`FAIL_OR_UNQUALIFIED_FULL_HEAT_WAVE_MPI2`.
+Both MPI2 ranks saved **bitwise identical**
+full original FE coefficient and physical power traces.
+Every native and independently recomputed
+**per-rank physics gate passed** in all three runs:
+positive thermal dissipation, nonnegative heat/wave
+energy, canceling oriented interface power, homogeneous
+outer work, individual CN subsystem and total energy
+balance at every step, cumulative balance, and monotone
+Hamiltonian.
+
+| Original 15-second physical result | MPI2 (both ranks) | MPI1 |
+| --- | ---: | ---: |
+| H(0) | 0.7836421211876798 | 0.7836421211876778 |
+| H(15) | 0.008268389052222184 | 0.008268389052222169 |
+| Largest independent total CN step defect | 2.198e-15 | 4.018e-15 |
+| Largest heat subsystem CN defect | 1.450e-15 | 1.381e-15 |
+| Largest wave subsystem CN defect | 2.226e-15 | 3.979e-15 |
+| Largest cumulative CN power defect | 2.670e-15 | 5.698e-15 |
+| Largest signed interface power | 8.882e-16 | 3.109e-15 |
+
+**Only the full space-time MPI parity checker rejected**
+the evidence. It stopped on the final original
+coefficient array `zf`:
+`max|zf_MPI1-zf_MPI2|=2.758281700265819e-9`.
+The original per-coefficient `np.allclose` gate uses
+`atol=5e-10, rtol=2e-8`. Since near-zero FE
+coefficients receive almost only the absolute
+allowance, a small absolute difference can fail
+even though full physical energies agree to
+around `1.5e-17` at the endpoint.
+**This is a possible explanation, not a
+verified attribution.** The historical verifier
+aborts on the first failing array, so its
+summary does not establish the full space-time
+maximum or any normalized FE error metric.
+
+To avoid a scientifically unjustified tolerance
+increase or re-running the already completed
+native PDE, the source now includes the
+**read-only offline diagnostic**
+
+```bash
+python tests/test_v130_heat_wave_full_mpi_diagnostic_source.py
+python sandbox/diagnose_v130_heat_wave_full_mpi_parity.py \
+  sandbox/outputs/v130-heat-wave-full-15s-MPI1-MPI2-e6326198-fhkvnmsR \
+  --out /tmp/heat-wave-full-MPI-parity-diagnostic.json
+```
+
+It reads the **original** three native FE time histories,
+verifies the exact MPI2 replica,
+reports pointwise tolerance violations,
+their count, time and DOF indices,
+the maximum raw and scaled errors,
+the normalized full-space-time and per-time
+L2 differences, the twelve largest
+final-state discrepancies and
+independent mismatches for every
+original GetFEM scalar/power trace.
+The old evidence and original `FAIL`
+are unchanged. The diagnostic cannot mark a
+model **PASS**. First inspect these metrics,
+then decide whether the existing *comparison
+metric* is appropriate or whether a real
+numerical MPI discrepancy needs investigation.
+
+**Full MPI2 native parity remains PENDING.**
+Do not conflate three separate correct
+physical solves with a proven full FE parity.
+
 ## Next open gate — complete 15-second MPI1/MPI2 FE parity (27 November 2026, SOURCE-STAGED)
 
 The reference Heat–Wave physics is **already qualified** for:
