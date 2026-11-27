@@ -51,7 +51,9 @@ class DockerFirstReleaseSourceTests(unittest.TestCase):
                 self.assertGreaterEqual(conda_pos, 0)
                 self.assertLess(docker_pos, conda_pos)
                 self.assertIn("ghcr.io/g-haine/scrimp:1.3.0", text)
-                self.assertIn("not yet", text.lower())
+                self.assertIn("sha256:737f58f12475723c0924f25528a0794a767fe6051dbecbd80a194d3b15eb3f01", text)
+                self.assertIn("public", text.lower())
+                self.assertNotIn("not yet published", text.lower())
                 self.assertIn("independent", text.lower())
         self.assertIn("Docker", (ROOT / "docs/source/started.rst").read_text())
 
