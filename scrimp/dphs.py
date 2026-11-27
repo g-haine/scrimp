@@ -436,7 +436,7 @@ class DPHS:
         #: To check if the powers have been computed
         self.powers_computed = False
         #: None preserves legacy user output locations. Canonical v1.3
-        #: examples opt into working_dir/<system_name>/outputs/.
+        #: examples opt into working_dir/outputs/<system_name>/.
         self._output_root = None
         #: Tangent (non-linear + linear) mass matrix of the system in PETSc CSR format
         self.tangent_mass = PETSc.Mat().create(comm=comm)
@@ -525,7 +525,7 @@ class DPHS:
         return self._output_root
 
     def set_output_name(self, system_name, *, working_dir=None, output_dir=None):
-        """Use working_dir/system_name/outputs/{png,svg,mesh,log,...}.
+        """Use working_dir/outputs/system_name/{png,svg,mesh,log,...}.
 
         If output_dir is given, it is treated as this system's explicit
         root; no extra 'outputs' or name component is appended.
@@ -4288,7 +4288,7 @@ class DPHS:
             # Preserve the historical explicit export_to_pv(path=...) API.
             path = os.path.join(path, "pv", name_variable)
         elif self._output_root is not None:
-            # Canonical v1.3 user layout: <name>/outputs/mesh/<field>/.
+            # Canonical v1.3 user layout: outputs/<name>/mesh/<field>/.
             path = os.path.join(self._output_root, "mesh", name_variable)
         else:
             path = os.path.join(outputs_path, "pv", name_variable)
