@@ -15,12 +15,13 @@ The updated v1.3.0 **source** now exposes the two heat/wave
 subsystem energies and their interface transfer directly
 in the *original* example. The following command produces
 real original GetFEM/PETSc states (not synthetic figures).
-The first nine-case original-example smoke **passed** on
-27 November 2026, including a Heat--Wave MPI2 run.
-A later targeted MPI2 run also **passed** the strict
-single-output-tree check after removal of legacy
-global output siblings. The **full nine-case**
-revalidation of the revised output tree remains pending.
+The strict **full nine-case native example-output
+campaign passed on 27 November 2026**, commit `20d79d0d`,
+including Heat--Wave MPI2 and a ZIP CRC check.
+All cases use a single ``outputs/<system_name>/`` directory,
+without legacy global output siblings. This acceptance
+covers these original GetFEM/PETSc example configurations,
+not arbitrary user-supplied PDE models.
 
 .. code-block:: bash
 
