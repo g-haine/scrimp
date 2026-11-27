@@ -1,5 +1,27 @@
 # SCRIMP v1.3.0 — solver policy and systematic example qualification
 
+> **Current inventory as of 27 November 2026:** the dated
+> first-staging entries and `NATIVE PENDING` labels below
+> preserve the historical state of those exact experiments;
+> they are **not** the current acceptance summary.
+> See [release readiness/issue triage](V130_RELEASE_READINESS_2026-11-27.md)
+> and the model-specific physical evidence.
+> `mass_spring_damper.py`, `nonlinear_pendulum.py`,
+> `heat_wave.py` (Gaussian), and the 1D/string and 2D
+> wave example sequences have now passed their stated
+> scientific/native acceptance scopes. Heat–Wave MPI1/2
+> full-horizon is **normwise coefficient-space** qualified;
+> the historical *per-coefficient pointwise* comparator
+> remains a separate FAIL. Heat–Wave's four native dt grids
+> all pass the physical energy/port-power gates,
+> but **do not prove temporal order two**.
+> The immediate next gate is the **educational usefulness and
+> reproducibility of figures from the canonical examples**,
+> especially separate Heat–Wave energy/port-power views,
+> followed by outstanding `heat.py`/`shallow_water.py`
+> tutorial and output checks and final release packaging.
+> Never modify the eight immutable `examples/published/` sources.
+
 **23 November 2026 — actual MPI sparse LU preflight 7/7 PASS; all archived publication code protected by an immutable, byte-for-byte Git baseline.**
 
 ## 24 November — First tutorial: 1D vibrating string (NATIVE PASS)
