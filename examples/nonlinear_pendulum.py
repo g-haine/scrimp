@@ -47,7 +47,10 @@ def nonlinear_pendulum(final_time=12.0, time_step=0.01,
     # Separate free and forced user runs without overwriting each other.
     pend_variant="free" if float(torque_amplitude)==0. else "forced"
     pend.set_output_name("nonlinear_pendulum_"+pend_variant)
-    pend.set_domain(S.Domain("Interval", {"L": interval_length, "h": 1.0}))
+    pend.set_domain(S.Domain(
+        "Interval", {"L": interval_length, "h": 1.0},
+        mesh_output_dir=pend.get_output_path("mesh",create=False),
+    ))
 
     angle = S.State("theta", "Angular position (rad)", "lumped")
     momentum = S.State("p", "Angular momentum", "lumped")
