@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Native canonical Heat-Wave CN temporal self-convergence ONLY.
+# Native canonical Heat-Wave fixed-mesh CN physical refinement diagnostic.
 # Original GetFEM Concentric h=.05 is unchanged; no mesh refinement.
 # Four real full pH-DAE solutions at common final time .2:
 # 20/40/80/160 fixed-CN steps, dt=.01/.005/.0025/.00125.
@@ -57,12 +57,12 @@ root=Path(sys.argv[1])
     "no_gallery_eigenmode_claim":True,
 },indent=2)+"\n")
 PY
-echo "SCRIMP v1.3.0 original Heat-Wave full GetFEM FE CN temporal self-convergence"
+echo "SCRIMP v1.3.0 original Heat-Wave full GetFEM FE CN physical refinement"
 echo "ONE fixed original h=.05 mesh; MUMPS MPI1; gaussian physically compatible state"
 echo "dt=.01, .005, .0025, .00125; t_f=.2, 20/40/80/160 real CN steps"
 echo "All 7689 original GetFEM coefficients / saved state, no reconstruction"
 echo "Physical heat/wave/interface power must PASS at every native dt"
-echo "Independent full FE Richardson self-convergence ratios checked twice"
+echo "Original full FE time-refinement ratios REPORTED only (no order-two claim)"
 echo "Evidence: $out"
 overall=0
 for record in \
@@ -119,9 +119,9 @@ python3 sandbox/compare_v130_heat_wave_CN_dt_refinement.py "$out" \
     || compare_rc=$?
 if [[ "$compare_rc" != 0 ]]; then overall=1; fi
 if [[ "$overall" == 0 ]]; then
-    echo "PASS_HEATWAVE_CN_TEMPORAL_SECOND_ORDER_FIXED_SPATIAL_MESH"
+    echo "PASS_HEATWAVE_CN_FIXED_MESH_PHYSICAL_REFINEMENT_DIAGNOSTIC"
 else
-    echo "FAIL_OR_UNQUALIFIED_HEATWAVE_CN_TEMPORAL_ORDER — archived" >&2
+    echo "FAIL_OR_UNQUALIFIED_HEATWAVE_CN_PHYSICAL_REFINEMENT — archived" >&2
 fi
 echo "ARCHIVE: $out.zip"
 exit "$overall"
