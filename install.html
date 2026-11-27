@@ -1,0 +1,1105 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>How to install &mdash; SCRIMP 1.3.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+    <link rel="shortcut icon" href="_static/Logo-ico.png"/>
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=1f29e9d3"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="First SCRIMP project with VS Code (v1.3.0)" href="vscode.html" />
+    <link rel="prev" title="SCRIMP" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            SCRIMP
+              <img src="_static/Logo.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">How to install</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#default-precompiled-docker-and-standalone-project">Default: precompiled Docker and standalone project</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#alternative-native-conda-installation">Alternative: native Conda installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#modern-parallel-docker-image-getfem-5-5">Modern parallel Docker image (GetFEM 5.5)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#windows-and-macos-users-best-effort-docker-dev-containers">Windows and macOS users: best-effort Docker/Dev Containers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#local-getfem-5-5-mpi-compilation-conda-environment">Local GetFEM 5.5 MPI compilation (Conda environment)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#native-getfem-mpi-assembly-timing-verbosity">Native GetFEM MPI assembly timing verbosity</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#native-getfem-mpi-assembly-audit-important">Native GetFEM MPI assembly audit (important)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#d-wave-hamiltonian-and-boundary-power-balance-mpi">2D wave Hamiltonian and boundary-power balance (MPI)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#optional-scrimp-phase-profiling-without-rebuilding-getfem">Optional SCRIMP phase profiling (without rebuilding GetFEM)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#d-acoustic-wave-strong-scaling">2D acoustic-wave strong scaling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#tests">Tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#code-structure">Code structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#documentation">Documentation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="vscode.html">First SCRIMP project with VS Code (v1.3.0)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="vscode.html#what-is-on-the-user-s-computer">What is on the user’s computer?</a></li>
+<li class="toctree-l2"><a class="reference internal" href="vscode.html#creating-the-independent-workspace">Creating the independent workspace</a></li>
+<li class="toctree-l2"><a class="reference internal" href="vscode.html#a-precompiled-docker-installation-recommended">A. Precompiled Docker installation (recommended)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="vscode.html#b-locally-compiled-docker-installation">B. Locally compiled Docker installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="vscode.html#vs-code-workflow-for-either-docker-installation">VS Code workflow for either Docker installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="vscode.html#python-is-installed-even-if-vs-code-says-no-python-found">Python is installed, even if VS Code says “No Python found”</a></li>
+<li class="toctree-l2"><a class="reference internal" href="vscode.html#python-environment-recognition-and-editable-scrimp-imports">Python environment recognition and editable SCRIMP imports</a></li>
+<li class="toctree-l2"><a class="reference internal" href="vscode.html#using-an-existing-local-sandbox-directory">Using an existing local sandbox directory</a></li>
+<li class="toctree-l2"><a class="reference internal" href="vscode.html#c-native-conda-source-installation-without-docker">C. Native Conda / source installation (without Docker)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="vscode.html#known-limitations">Known limitations</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="started.html">Getting started</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="started.html#port-hamiltonian-framework">Port-Hamiltonian framework</a></li>
+<li class="toctree-l2"><a class="reference internal" href="started.html#structure-preserving-discretization">Structure-preserving discretization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="started.html#choosing-distributed-or-global-scalar-ports">Choosing distributed or global scalar ports</a></li>
+<li class="toctree-l2"><a class="reference internal" href="started.html#coding-within-scrimp">Coding within SCRIMP</a></li>
+<li class="toctree-l2"><a class="reference internal" href="started.html#working-with-simulation-outputs">Working with simulation outputs</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="getfem_gwfl.html">GetFEM GWFL matrix notation in Python</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="getfem_gwfl.html#sign-check-a-boundary-tangent">Sign-check a boundary tangent</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getfem_gwfl.html#native-28-example-viscous-saint-venant">Native #28 example: viscous Saint-Venant</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="initialization.html">DAE initial conditions and initialization</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="initialization.html#mathematical-motivation">Mathematical motivation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="initialization.html#three-alternative-strategies">Three alternative strategies</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="initialization.html#algebraic-projection-init-step-ts-type-algebraic">Algebraic projection — <cite>init_step_ts_type=”algebraic”</cite></a></li>
+<li class="toctree-l3"><a class="reference internal" href="initialization.html#historical-pseudo-time-relaxation-pseudo">Historical pseudo-time relaxation — <cite>pseudo</cite></a></li>
+<li class="toctree-l3"><a class="reference internal" href="initialization.html#tiny-step-bdf2-initialization-bdf">Tiny-step BDF2 initialization — <cite>bdf</cite></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="initialization.html#quick-comparison">Quick comparison</a></li>
+<li class="toctree-l2"><a class="reference internal" href="initialization.html#scientific-qualification-and-limits">Scientific qualification and limits</a></li>
+<li class="toctree-l2"><a class="reference internal" href="initialization.html#mesh-dependence-of-the-algebraic-residual-criterion">Mesh dependence of the algebraic residual criterion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="initialization.html#finite-difference-perturbations-and-roundoff">Finite-difference perturbations and roundoff</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="energy_and_power.html">Energy, powers and time discretization (v1.3.0)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="energy_and_power.html#hamiltonian-physical-value-not-a-time-quadrature">Hamiltonian: physical value, not a time quadrature</a></li>
+<li class="toctree-l2"><a class="reference internal" href="energy_and_power.html#port-powers-raw-signs-not-universal-energy-balance">Port powers: raw signs, not universal energy balance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="energy_and_power.html#crank-nicolson-only-consecutive-accepted-petsc-states">Crank–Nicolson: only consecutive <em>accepted</em> PETSc states</a></li>
+<li class="toctree-l2"><a class="reference internal" href="energy_and_power.html#bdf-bdf2-arkimex-and-other-petsc-ts-types">BDF, BDF2, ARKIMEX and other PETSc TS types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="energy_and_power.html#how-to-inspect-the-sampling-used-in-a-run">How to inspect the sampling used in a run</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="explicit_bricks.html">Fully explicit nonlinear bricks</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="explicit_bricks.html#accepted-step-contract">Accepted-step contract</a></li>
+<li class="toctree-l2"><a class="reference internal" href="explicit_bricks.html#usage-and-restrictions">Usage and restrictions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="explicit_bricks.html#native-acceptance">Native acceptance</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="performance.html">Solver reuse and MPI</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="performance.html#v1-3-0-development-candidate">v1.3.0 development candidate</a></li>
+<li class="toctree-l2"><a class="reference internal" href="performance.html#reproducible-performance-qualification">Reproducible performance qualification</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="examples.html">Examples</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="examples/wave.html">The wave equation — 2A: conservative anisotropic membrane</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave.html#examples.wave.main"><code class="docutils literal notranslate"><span class="pre">main()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave.html#examples.wave.measure_wave_2d"><code class="docutils literal notranslate"><span class="pre">measure_wave_2d()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave.html#examples.wave.wave_eq"><code class="docutils literal notranslate"><span class="pre">wave_eq()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave.html#why-this-example">Why this example?</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave.html#the-physical-model">The physical model</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave.html#energy-variables-co-energy-variables-and-power">Energy variables, co-energy variables and power</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave.html#from-the-strong-equation-to-pfem">From the strong equation to PFEM</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave.html#build-the-real-scrimp-model">Build the real SCRIMP model</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave.html#installation-and-genuine-scientific-checks">Installation and genuine scientific checks</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="examples/wave.html#longer-native-showcase-100-step-energy-and-wave-propagation">Longer native showcase: 100-step energy and wave propagation</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave.html#scientific-references">Scientific references</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave.html#module-examples.wave_dissipative">2B — Adding a resistive port: heterogeneous damping</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="examples/wave.html#examples.wave_dissipative.main"><code class="docutils literal notranslate"><span class="pre">main()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="examples/wave.html#examples.wave_dissipative.measure_wave_2d"><code class="docutils literal notranslate"><span class="pre">measure_wave_2d()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="examples/wave.html#examples.wave_dissipative.wave_eq"><code class="docutils literal notranslate"><span class="pre">wave_eq()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="examples/wave.html#what-changes-relative-to-2a">What changes relative to 2A?</a></li>
+<li class="toctree-l4"><a class="reference internal" href="examples/wave.html#why-add-a-separate-resistive-port">Why add a separate resistive port?</a></li>
+<li class="toctree-l4"><a class="reference internal" href="examples/wave.html#build-the-actual-getfem-petsc-model">Build the actual GetFEM/PETSc model</a></li>
+<li class="toctree-l4"><a class="reference internal" href="examples/wave.html#physical-qualification-original-boundary-work-minus-dissipation">Physical qualification: original boundary work minus dissipation</a></li>
+<li class="toctree-l4"><a class="reference internal" href="examples/wave.html#long-native-dissipative-showcase-100-cn-steps">Long native dissipative showcase — 100 CN steps</a></li>
+<li class="toctree-l4"><a class="reference internal" href="examples/wave.html#a-versus-2b-same-physical-inputs-different-dissipation">2A versus 2B — same physical inputs, different dissipation</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="examples/wave_coenergy.html">The wave equation — 2C: co-energy and localized damping</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave_coenergy.html#examples.wave_coenergy.main"><code class="docutils literal notranslate"><span class="pre">main()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave_coenergy.html#examples.wave_coenergy.measure_coenergy"><code class="docutils literal notranslate"><span class="pre">measure_coenergy()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave_coenergy.html#examples.wave_coenergy.wave_coenergy_eq"><code class="docutils literal notranslate"><span class="pre">wave_coenergy_eq()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave_coenergy.html#why-this-third-tutorial">Why this third tutorial?</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave_coenergy.html#the-true-material-inverse">The true material inverse</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave_coenergy.html#two-regions-and-substituted-ports">Two regions and substituted ports</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave_coenergy.html#the-co-energy-balance-and-feedback-sign">The co-energy balance and feedback sign</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave_coenergy.html#a-physically-visible-initial-pulse">A physically visible initial pulse</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave_coenergy.html#native-outputs-and-visualizations">Native outputs and visualizations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave_coenergy.html#qualification-evidence-original-getfem-cn-mpi-1-and-2">Qualification evidence — original GetFEM CN, MPI 1 and 2</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/wave_coenergy.html#long-time-visualization-100-accepted-physical-cn-steps">Long-time visualization — 100 accepted physical CN steps</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="examples/maxwell_3d.html">Maxwell equations in 3D — patched Nédélec-II / BDM1 example</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="examples/maxwell_3d.html#why-a-new-maxwell-example">Why a new Maxwell example?</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/maxwell_3d.html#a-normalized-maxwell-system">A normalized Maxwell system</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/maxwell_3d.html#compatible-3d-spaces-and-their-getfem-patches">Compatible 3D spaces and their GetFEM patches</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/maxwell_3d.html#a-skew-adjoint-discrete-maxwell-interconnection">A skew-adjoint discrete Maxwell interconnection</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/maxwell_3d.html#how-to-run-and-qualify-this-3d-example">How to run and qualify this 3D example</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/maxwell_3d.html#native-patched-nedelec-ii-bdm1-qualification-pass-25-november-2026">Native patched Nédélec-II / BDM1 qualification — PASS, 25 November 2026</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/maxwell_3d.html#figures-and-animation-generated-by-the-example-itself">Figures and animation generated by the example itself</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/maxwell_3d.html#historical-baseline-maxwell-3d-qualification-pass-25-november-2026">Historical <em>baseline</em> Maxwell 3D qualification — PASS, 25 November 2026</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="examples/mass_spring_damper.html">Mass–spring–damper</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="examples/mass_spring_damper.html#a-two-state-finite-dimensional-port-hamiltonian-model">A two-state finite-dimensional port-Hamiltonian model</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/mass_spring_damper.html#discretization-and-code">Discretization and code</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/mass_spring_damper.html#verification">Verification</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="examples/nonlinear_pendulum.html">Nonlinear pendulum</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="examples/nonlinear_pendulum.html#a-nonlinear-port-hamiltonian-ode">A nonlinear port-Hamiltonian ODE</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/nonlinear_pendulum.html#implementation-notes">Implementation notes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/nonlinear_pendulum.html#numerical-validation-cranknicolson">Numerical validation — Crank–Nicolson</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="examples/heat.html">The heat equation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat.html#examples.heat.heat_eq"><code class="docutils literal notranslate"><span class="pre">heat_eq()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat.html#examples.heat.main"><code class="docutils literal notranslate"><span class="pre">main()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat.html#examples.heat.measure_heat_cn"><code class="docutils literal notranslate"><span class="pre">measure_heat_cn()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat.html#examples.heat.render_heat_visuals"><code class="docutils literal notranslate"><span class="pre">render_heat_visuals()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat.html#running-the-2-d-heat-example-scrimp-v1-3">Running the 2-D heat example (SCRIMP v1.3)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat.html#setting">Setting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat.html#port-hamiltonian-framework">Port-Hamiltonian framework</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat.html#structure-preserving-discretization">Structure-preserving discretization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat.html#simulation">Simulation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="examples/heat_wave.html">Heat wave coupling</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat_wave.html#examples.heat_wave.heat_wave_eq"><code class="docutils literal notranslate"><span class="pre">heat_wave_eq()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat_wave.html#examples.heat_wave.render_heat_wave_energy_ports"><code class="docutils literal notranslate"><span class="pre">render_heat_wave_energy_ports()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat_wave.html#examples.heat_wave.render_heat_wave_long_showcase"><code class="docutils literal notranslate"><span class="pre">render_heat_wave_long_showcase()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat_wave.html#run-and-inspect-the-canonical-example">Run and inspect the canonical example</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat_wave.html#setting">Setting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat_wave.html#port-hamiltonian-framework">Port-Hamiltonian framework</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat_wave.html#structure-preserving-discretization">Structure-preserving discretization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat_wave.html#simulation">Simulation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat_wave.html#long-time-wave-gallery-exploration-v1-3-0">Long-time wave gallery exploration (v1.3.0)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat_wave.html#native-qualification-mpi1-2-fe-parity-and-full-length-cn-power">Native qualification: MPI1/2 FE parity and full-length CN power</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/heat_wave.html#native-qualification-and-long-time-observations-25-november-2026">Native qualification and long-time observations (25 November 2026)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="examples/shallow_water.html">The shallow water equation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="examples/shallow_water.html#examples.shallow_water.native_triangular_field"><code class="docutils literal notranslate"><span class="pre">native_triangular_field()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/shallow_water.html#examples.shallow_water.render_native_shallow_water"><code class="docutils literal notranslate"><span class="pre">render_native_shallow_water()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/shallow_water.html#examples.shallow_water.render_original_shallow_water_spatial_VTU"><code class="docutils literal notranslate"><span class="pre">render_original_shallow_water_spatial_VTU()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/shallow_water.html#examples.shallow_water.shallow_water_eq"><code class="docutils literal notranslate"><span class="pre">shallow_water_eq()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/shallow_water.html#examples.shallow_water.true_pvd_files"><code class="docutils literal notranslate"><span class="pre">true_pvd_files()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/shallow_water.html#examples.shallow_water.vtk_array"><code class="docutils literal notranslate"><span class="pre">vtk_array()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/shallow_water.html#setting">Setting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/shallow_water.html#port-hamiltonian-framework">Port-Hamiltonian framework</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/shallow_water.html#structure-preserving-discretization">Structure-preserving discretization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/shallow_water.html#simulation">Simulation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/shallow_water.html#extended-native-physical-validation-scrimp-v1-3-0">Extended native physical validation (SCRIMP v1.3.0)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="examples/shallow_water.html#original-inviscid-free-surface-visualizations-v1-3-0-direct-example-run">Original inviscid free-surface visualizations (v1.3.0, direct example run)</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="lumped.html">Finite-dimensional port-Hamiltonian systems</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="lumped.html#global-scalar-ports-tested-examples">Global scalar ports (tested examples)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lumped.html#global-algebraic-variables">Global algebraic variables</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lumped.html#why-do-bricks-use-a-spatial-domain">Why do bricks use a spatial domain?</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lumped.html#solver-and-present-limits">Solver and present limits</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lumped.html#examples">Examples</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks.html">Notebooks</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="notebooks.html#install-jupyter">Install jupyter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="notebooks.html#run-jupyter">Run jupyter</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="GUI.html">Graphical user interface (experimental)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="biblio.html">References</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="biblio.html#articles">Articles</a></li>
+<li class="toctree-l2"><a class="reference internal" href="biblio.html#book-chapters">Book Chapters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="biblio.html#proceedings">Proceedings</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="scrimp.html">Code documentation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.html#folders">Folders</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="scrimp.examples.html">scrimp.examples</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.examples.html#wave">Wave</a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.examples.html#heat">Heat</a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.examples.html#heat-wave-coupling">Heat-Wave coupling</a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.examples.html#shallow-water">Shallow water</a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.examples.html#finite-dimensional-models">Finite-dimensional models</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="scrimp.utils.html">scrimp.utils</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.utils.html#module-scrimp.utils.config">Config</a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.utils.html#module-scrimp.utils.linalg">Linear algebra</a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.utils.html#module-scrimp.utils.mesh">Mesh</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="scrimp.sandbox.html">scrimp.sandbox</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.sandbox.html#experimental-pde-ode-coupling">Experimental PDE–ODE coupling</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.html#module-scrimp.dphs">Distributed port-Hamiltonian system</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS"><code class="docutils literal notranslate"><span class="pre">DPHS</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.F"><code class="docutils literal notranslate"><span class="pre">DPHS.F</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.IFunction"><code class="docutils literal notranslate"><span class="pre">DPHS.IFunction()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.IJacobian"><code class="docutils literal notranslate"><span class="pre">DPHS.IJacobian()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.J"><code class="docutils literal notranslate"><span class="pre">DPHS.J</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.add_FEM"><code class="docutils literal notranslate"><span class="pre">DPHS.add_FEM()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.add_brick"><code class="docutils literal notranslate"><span class="pre">DPHS.add_brick()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.add_control_port"><code class="docutils literal notranslate"><span class="pre">DPHS.add_control_port()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.add_costate"><code class="docutils literal notranslate"><span class="pre">DPHS.add_costate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.add_lumped_port"><code class="docutils literal notranslate"><span class="pre">DPHS.add_lumped_port()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.add_parameter"><code class="docutils literal notranslate"><span class="pre">DPHS.add_parameter()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.add_port"><code class="docutils literal notranslate"><span class="pre">DPHS.add_port()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.add_state"><code class="docutils literal notranslate"><span class="pre">DPHS.add_state()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.allocate_memory"><code class="docutils literal notranslate"><span class="pre">DPHS.allocate_memory()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.assemble_mass"><code class="docutils literal notranslate"><span class="pre">DPHS.assemble_mass()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.assemble_nl_mass"><code class="docutils literal notranslate"><span class="pre">DPHS.assemble_nl_mass()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.assemble_nl_stiffness"><code class="docutils literal notranslate"><span class="pre">DPHS.assemble_nl_stiffness()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.assemble_rhs"><code class="docutils literal notranslate"><span class="pre">DPHS.assemble_rhs()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.assemble_stiffness"><code class="docutils literal notranslate"><span class="pre">DPHS.assemble_stiffness()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.audit_interface_brick_plan"><code class="docutils literal notranslate"><span class="pre">DPHS.audit_interface_brick_plan()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.audit_interface_ownership"><code class="docutils literal notranslate"><span class="pre">DPHS.audit_interface_ownership()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.bricks"><code class="docutils literal notranslate"><span class="pre">DPHS.bricks</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.buffer"><code class="docutils literal notranslate"><span class="pre">DPHS.buffer</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.compute_Hamiltonian"><code class="docutils literal notranslate"><span class="pre">DPHS.compute_Hamiltonian()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.compute_powers"><code class="docutils literal notranslate"><span class="pre">DPHS.compute_powers()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.controls"><code class="docutils literal notranslate"><span class="pre">DPHS.controls</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.costates"><code class="docutils literal notranslate"><span class="pre">DPHS.costates</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.disable_all_bricks"><code class="docutils literal notranslate"><span class="pre">DPHS.disable_all_bricks()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.display"><code class="docutils literal notranslate"><span class="pre">DPHS.display()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.domain"><code class="docutils literal notranslate"><span class="pre">DPHS.domain</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.enable_all_bricks"><code class="docutils literal notranslate"><span class="pre">DPHS.enable_all_bricks()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.event"><code class="docutils literal notranslate"><span class="pre">DPHS.event()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.exclude_algebraic_var_from_lte"><code class="docutils literal notranslate"><span class="pre">DPHS.exclude_algebraic_var_from_lte()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.export_matrices"><code class="docutils literal notranslate"><span class="pre">DPHS.export_matrices()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.export_to_pv"><code class="docutils literal notranslate"><span class="pre">DPHS.export_to_pv()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.get_Hamiltonian"><code class="docutils literal notranslate"><span class="pre">DPHS.get_Hamiltonian()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.get_cleared_TS_options"><code class="docutils literal notranslate"><span class="pre">DPHS.get_cleared_TS_options()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.get_output_path"><code class="docutils literal notranslate"><span class="pre">DPHS.get_output_path()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.get_profile"><code class="docutils literal notranslate"><span class="pre">DPHS.get_profile()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.get_quantity"><code class="docutils literal notranslate"><span class="pre">DPHS.get_quantity()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.get_solution"><code class="docutils literal notranslate"><span class="pre">DPHS.get_solution()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.gf_model"><code class="docutils literal notranslate"><span class="pre">DPHS.gf_model</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.hamiltonian"><code class="docutils literal notranslate"><span class="pre">DPHS.hamiltonian</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.init_matrix"><code class="docutils literal notranslate"><span class="pre">DPHS.init_matrix()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.init_parameter"><code class="docutils literal notranslate"><span class="pre">DPHS.init_parameter()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.init_step"><code class="docutils literal notranslate"><span class="pre">DPHS.init_step()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.initial_value_set"><code class="docutils literal notranslate"><span class="pre">DPHS.initial_value_set</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.initialization_report"><code class="docutils literal notranslate"><span class="pre">DPHS.initialization_report</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.linear_mass"><code class="docutils literal notranslate"><span class="pre">DPHS.linear_mass</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.load_checkpoint"><code class="docutils literal notranslate"><span class="pre">DPHS.load_checkpoint()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.lumped_variables"><code class="docutils literal notranslate"><span class="pre">DPHS.lumped_variables</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.mass"><code class="docutils literal notranslate"><span class="pre">DPHS.mass</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.monitor"><code class="docutils literal notranslate"><span class="pre">DPHS.monitor()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.nl_mass"><code class="docutils literal notranslate"><span class="pre">DPHS.nl_mass</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.nl_stiffness"><code class="docutils literal notranslate"><span class="pre">DPHS.nl_stiffness</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.plot_Hamiltonian"><code class="docutils literal notranslate"><span class="pre">DPHS.plot_Hamiltonian()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.plot_powers"><code class="docutils literal notranslate"><span class="pre">DPHS.plot_powers()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.ports"><code class="docutils literal notranslate"><span class="pre">DPHS.ports</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.postevent"><code class="docutils literal notranslate"><span class="pre">DPHS.postevent()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.powers_computed"><code class="docutils literal notranslate"><span class="pre">DPHS.powers_computed</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.profiler"><code class="docutils literal notranslate"><span class="pre">DPHS.profiler</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.rhs"><code class="docutils literal notranslate"><span class="pre">DPHS.rhs</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.save_checkpoint"><code class="docutils literal notranslate"><span class="pre">DPHS.save_checkpoint()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.set_control"><code class="docutils literal notranslate"><span class="pre">DPHS.set_control()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.set_domain"><code class="docutils literal notranslate"><span class="pre">DPHS.set_domain()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.set_from_vector"><code class="docutils literal notranslate"><span class="pre">DPHS.set_from_vector()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.set_initial_value"><code class="docutils literal notranslate"><span class="pre">DPHS.set_initial_value()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.set_linear_flags"><code class="docutils literal notranslate"><span class="pre">DPHS.set_linear_flags()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.set_output_directory"><code class="docutils literal notranslate"><span class="pre">DPHS.set_output_directory()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.set_output_name"><code class="docutils literal notranslate"><span class="pre">DPHS.set_output_name()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.set_time_scheme"><code class="docutils literal notranslate"><span class="pre">DPHS.set_time_scheme()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.solution"><code class="docutils literal notranslate"><span class="pre">DPHS.solution</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.solve"><code class="docutils literal notranslate"><span class="pre">DPHS.solve()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.solve_done"><code class="docutils literal notranslate"><span class="pre">DPHS.solve_done</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.spy_Dirac"><code class="docutils literal notranslate"><span class="pre">DPHS.spy_Dirac()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.states"><code class="docutils literal notranslate"><span class="pre">DPHS.states</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.stiffness"><code class="docutils literal notranslate"><span class="pre">DPHS.stiffness</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.stop_TS"><code class="docutils literal notranslate"><span class="pre">DPHS.stop_TS</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.tangent_mass"><code class="docutils literal notranslate"><span class="pre">DPHS.tangent_mass</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.tangent_stiffness"><code class="docutils literal notranslate"><span class="pre">DPHS.tangent_stiffness</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.dphs.DPHS.ts_start"><code class="docutils literal notranslate"><span class="pre">DPHS.ts_start</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.html#module-scrimp.domain">Domain</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="scrimp.html#scrimp.domain.Domain"><code class="docutils literal notranslate"><span class="pre">Domain</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.domain.Domain.display"><code class="docutils literal notranslate"><span class="pre">Domain.display()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.domain.Domain.get_boundaries"><code class="docutils literal notranslate"><span class="pre">Domain.get_boundaries()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.domain.Domain.get_dim"><code class="docutils literal notranslate"><span class="pre">Domain.get_dim()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.domain.Domain.get_isSet"><code class="docutils literal notranslate"><span class="pre">Domain.get_isSet()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.domain.Domain.get_mesh"><code class="docutils literal notranslate"><span class="pre">Domain.get_mesh()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.domain.Domain.get_name"><code class="docutils literal notranslate"><span class="pre">Domain.get_name()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.domain.Domain.get_subdomains"><code class="docutils literal notranslate"><span class="pre">Domain.get_subdomains()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.domain.Domain.resolve_interface"><code class="docutils literal notranslate"><span class="pre">Domain.resolve_interface()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.domain.Domain.set_mim_auto"><code class="docutils literal notranslate"><span class="pre">Domain.set_mim_auto()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.html#module-scrimp.hamiltonian">Hamiltonian / Term</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="scrimp.html#scrimp.hamiltonian.Hamiltonian"><code class="docutils literal notranslate"><span class="pre">Hamiltonian</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.hamiltonian.Hamiltonian.add_term"><code class="docutils literal notranslate"><span class="pre">Hamiltonian.add_term()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.hamiltonian.Hamiltonian.compute"><code class="docutils literal notranslate"><span class="pre">Hamiltonian.compute()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.hamiltonian.Hamiltonian.get_is_computed"><code class="docutils literal notranslate"><span class="pre">Hamiltonian.get_is_computed()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.hamiltonian.Hamiltonian.get_name"><code class="docutils literal notranslate"><span class="pre">Hamiltonian.get_name()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.hamiltonian.Hamiltonian.get_terms"><code class="docutils literal notranslate"><span class="pre">Hamiltonian.get_terms()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.hamiltonian.Hamiltonian.invalidate"><code class="docutils literal notranslate"><span class="pre">Hamiltonian.invalidate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.hamiltonian.Hamiltonian.set_is_computed"><code class="docutils literal notranslate"><span class="pre">Hamiltonian.set_is_computed()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.hamiltonian.Hamiltonian.set_name"><code class="docutils literal notranslate"><span class="pre">Hamiltonian.set_name()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="scrimp.html#scrimp.hamiltonian.Term"><code class="docutils literal notranslate"><span class="pre">Term</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.hamiltonian.Term.get_description"><code class="docutils literal notranslate"><span class="pre">Term.get_description()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.hamiltonian.Term.get_expression"><code class="docutils literal notranslate"><span class="pre">Term.get_expression()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.hamiltonian.Term.get_mesh_id"><code class="docutils literal notranslate"><span class="pre">Term.get_mesh_id()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.hamiltonian.Term.get_regions"><code class="docutils literal notranslate"><span class="pre">Term.get_regions()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.hamiltonian.Term.get_values"><code class="docutils literal notranslate"><span class="pre">Term.get_values()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.hamiltonian.Term.replace_values"><code class="docutils literal notranslate"><span class="pre">Term.replace_values()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.hamiltonian.Term.set_value"><code class="docutils literal notranslate"><span class="pre">Term.set_value()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.html#module-scrimp.port">Port / Parameter</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="scrimp.html#scrimp.port.Parameter"><code class="docutils literal notranslate"><span class="pre">Parameter</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.port.Parameter.get_description"><code class="docutils literal notranslate"><span class="pre">Parameter.get_description()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.port.Parameter.get_expression"><code class="docutils literal notranslate"><span class="pre">Parameter.get_expression()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.port.Parameter.get_kind"><code class="docutils literal notranslate"><span class="pre">Parameter.get_kind()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.port.Parameter.get_name"><code class="docutils literal notranslate"><span class="pre">Parameter.get_name()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.port.Parameter.get_name_port"><code class="docutils literal notranslate"><span class="pre">Parameter.get_name_port()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="scrimp.html#scrimp.port.Port"><code class="docutils literal notranslate"><span class="pre">Port</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.port.Port.add_parameter"><code class="docutils literal notranslate"><span class="pre">Port.add_parameter()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.port.Port.compute"><code class="docutils literal notranslate"><span class="pre">Port.compute()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.port.Port.get_algebraic"><code class="docutils literal notranslate"><span class="pre">Port.get_algebraic()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.port.Port.get_assembly_region"><code class="docutils literal notranslate"><span class="pre">Port.get_assembly_region()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.port.Port.get_dissipative"><code class="docutils literal notranslate"><span class="pre">Port.get_dissipative()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.port.Port.get_effort"><code class="docutils literal notranslate"><span class="pre">Port.get_effort()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.port.Port.get_fem"><code class="docutils literal notranslate"><span class="pre">Port.get_fem()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.port.Port.get_flow"><code class="docutils literal notranslate"><span class="pre">Port.get_flow()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.port.Port.get_isSet"><code class="docutils literal notranslate"><span class="pre">Port.get_isSet()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.port.Port.get_is_computed"><code class="docutils literal notranslate"><span class="pre">Port.get_is_computed()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.port.Port.get_kind"><code class="docutils literal notranslate"><span class="pre">Port.get_kind()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.port.Port.get_mesh_id"><code class="docutils literal notranslate"><span class="pre">Port.get_mesh_id()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.port.Port.get_name"><code class="docutils literal notranslate"><span class="pre">Port.get_name()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.port.Port.get_parameter"><code class="docutils literal notranslate"><span class="pre">Port.get_parameter()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.port.Port.get_parameters"><code class="docutils literal notranslate"><span class="pre">Port.get_parameters()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.port.Port.get_power"><code class="docutils literal notranslate"><span class="pre">Port.get_power()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.port.Port.get_power_sampling"><code class="docutils literal notranslate"><span class="pre">Port.get_power_sampling()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.port.Port.get_region"><code class="docutils literal notranslate"><span class="pre">Port.get_region()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.port.Port.get_substituted"><code class="docutils literal notranslate"><span class="pre">Port.get_substituted()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.port.Port.init_parameter"><code class="docutils literal notranslate"><span class="pre">Port.init_parameter()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.port.Port.set_assembly_region"><code class="docutils literal notranslate"><span class="pre">Port.set_assembly_region()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.port.Port.set_fem"><code class="docutils literal notranslate"><span class="pre">Port.set_fem()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.port.Port.set_isSet"><code class="docutils literal notranslate"><span class="pre">Port.set_isSet()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.port.Port.set_is_computed"><code class="docutils literal notranslate"><span class="pre">Port.set_is_computed()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.port.Port.set_power"><code class="docutils literal notranslate"><span class="pre">Port.set_power()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.html#module-scrimp.state">State</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="scrimp.html#scrimp.state.State"><code class="docutils literal notranslate"><span class="pre">State</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.state.State.get_costate"><code class="docutils literal notranslate"><span class="pre">State.get_costate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.state.State.get_description"><code class="docutils literal notranslate"><span class="pre">State.get_description()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.state.State.get_kind"><code class="docutils literal notranslate"><span class="pre">State.get_kind()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.state.State.get_mesh_id"><code class="docutils literal notranslate"><span class="pre">State.get_mesh_id()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.state.State.get_name"><code class="docutils literal notranslate"><span class="pre">State.get_name()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.state.State.get_port"><code class="docutils literal notranslate"><span class="pre">State.get_port()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.state.State.get_region"><code class="docutils literal notranslate"><span class="pre">State.get_region()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.state.State.set_costate"><code class="docutils literal notranslate"><span class="pre">State.set_costate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.state.State.set_port"><code class="docutils literal notranslate"><span class="pre">State.set_port()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.html#module-scrimp.costate">Co-state</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="scrimp.html#scrimp.costate.CoState"><code class="docutils literal notranslate"><span class="pre">CoState</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.costate.CoState.get_state"><code class="docutils literal notranslate"><span class="pre">CoState.get_state()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.costate.CoState.get_substituted"><code class="docutils literal notranslate"><span class="pre">CoState.get_substituted()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.html#module-scrimp.control">Control</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="scrimp.html#scrimp.control.Control_Port"><code class="docutils literal notranslate"><span class="pre">Control_Port</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.control.Control_Port.get_description_control"><code class="docutils literal notranslate"><span class="pre">Control_Port.get_description_control()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.control.Control_Port.get_description_observation"><code class="docutils literal notranslate"><span class="pre">Control_Port.get_description_observation()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.control.Control_Port.get_name_control"><code class="docutils literal notranslate"><span class="pre">Control_Port.get_name_control()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.control.Control_Port.get_name_obervation"><code class="docutils literal notranslate"><span class="pre">Control_Port.get_name_obervation()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.control.Control_Port.get_position"><code class="docutils literal notranslate"><span class="pre">Control_Port.get_position()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.html#module-scrimp.fem">FEM</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="scrimp.html#scrimp.fem.FEM"><code class="docutils literal notranslate"><span class="pre">FEM</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.fem.FEM.get_dim"><code class="docutils literal notranslate"><span class="pre">FEM.get_dim()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.fem.FEM.get_fem"><code class="docutils literal notranslate"><span class="pre">FEM.get_fem()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.fem.FEM.get_isSet"><code class="docutils literal notranslate"><span class="pre">FEM.get_isSet()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.fem.FEM.get_mesh"><code class="docutils literal notranslate"><span class="pre">FEM.get_mesh()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.fem.FEM.get_name"><code class="docutils literal notranslate"><span class="pre">FEM.get_name()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.fem.FEM.get_order"><code class="docutils literal notranslate"><span class="pre">FEM.get_order()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.fem.FEM.get_type"><code class="docutils literal notranslate"><span class="pre">FEM.get_type()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.fem.FEM.set_dim"><code class="docutils literal notranslate"><span class="pre">FEM.set_dim()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.fem.FEM.set_fem"><code class="docutils literal notranslate"><span class="pre">FEM.set_fem()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.fem.FEM.set_mesh"><code class="docutils literal notranslate"><span class="pre">FEM.set_mesh()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="scrimp.html#module-scrimp.brick">Brick</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="scrimp.html#scrimp.brick.Brick"><code class="docutils literal notranslate"><span class="pre">Brick</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.brick.Brick.add_id_brick_to_list"><code class="docutils literal notranslate"><span class="pre">Brick.add_id_brick_to_list()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.brick.Brick.disable_id_bricks"><code class="docutils literal notranslate"><span class="pre">Brick.disable_id_bricks()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.brick.Brick.enable_id_bricks"><code class="docutils literal notranslate"><span class="pre">Brick.enable_id_bricks()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.brick.Brick.get_assembly_regions"><code class="docutils literal notranslate"><span class="pre">Brick.get_assembly_regions()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.brick.Brick.get_dt"><code class="docutils literal notranslate"><span class="pre">Brick.get_dt()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.brick.Brick.get_explicit"><code class="docutils literal notranslate"><span class="pre">Brick.get_explicit()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.brick.Brick.get_form"><code class="docutils literal notranslate"><span class="pre">Brick.get_form()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.brick.Brick.get_id_bricks"><code class="docutils literal notranslate"><span class="pre">Brick.get_id_bricks()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.brick.Brick.get_linear"><code class="docutils literal notranslate"><span class="pre">Brick.get_linear()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.brick.Brick.get_mesh_id"><code class="docutils literal notranslate"><span class="pre">Brick.get_mesh_id()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.brick.Brick.get_name"><code class="docutils literal notranslate"><span class="pre">Brick.get_name()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.brick.Brick.get_position"><code class="docutils literal notranslate"><span class="pre">Brick.get_position()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.brick.Brick.get_regions"><code class="docutils literal notranslate"><span class="pre">Brick.get_regions()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="scrimp.html#scrimp.brick.Brick.set_assembly_regions"><code class="docutils literal notranslate"><span class="pre">Brick.set_assembly_regions()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference external" href="https://impacts.ens2m.fr/">ANR Impacts</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/g-haine/scrimp">GitHub repo</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://g-haine.github.io/scrimp/latex/scrimp.pdf">PDF documentation</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">SCRIMP</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">How to install</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/install.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="how-to-install">
+<h1>How to install<a class="headerlink" href="#how-to-install" title="Link to this heading"></a></h1>
+<p><strong>Docker is the recommended/default installation for SCRIMP v1.3.0.</strong>
+The published Linux/AMD64 image provides a precompiled environment
+containing Python, GetFEM 5.5, PETSc/SLEPc (complex), MUMPS, OpenMPI and
+SCRIMP itself. User simulations and their outputs live in an
+<strong>independent, host-owned project</strong>, not inside the image or a SCRIMP
+source checkout. A source checkout is <strong>not</strong> needed by a released-image
+user.</p>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p><strong>SCRIMP v1.3.0 (27 November 2026):</strong> the stable Git tag and
+<strong>public</strong> <code class="docutils literal notranslate"><span class="pre">ghcr.io/g-haine/scrimp:1.3.0</span></code> Docker image are available.
+The stable image retains the accepted <code class="docutils literal notranslate"><span class="pre">dist-rc4</span></code> OCI index digest
+<code class="docutils literal notranslate"><span class="pre">sha256:737f58f12475723c0924f25528a0794a767fe6051dbecbd80a194d3b15eb3f01</span></code>
+and was built from Git revision
+<code class="docutils literal notranslate"><span class="pre">17ae5a1ce063ff5481812dc73f3d3fc88c153c70</span></code>.
+A fresh Ubuntu 24.04/AMD64 runner validated the independent user
+project/host CSV, MPI startup and native Heat–Wave Hamiltonian
+parity (<a class="reference external" href="https://github.com/g-haine/scrimp/actions/runs/46030753404">CI evidence</a>).
+The standalone user ZIP is distributed separately through the
+<a class="reference external" href="https://github.com/g-haine/scrimp/releases/tag/v1.3.0">v1.3.0 GitHub Release</a>.
+Windows/macOS/ARM64 remain best-effort.</p>
+</div>
+<section id="default-precompiled-docker-and-standalone-project">
+<h2>Default: precompiled Docker and standalone project<a class="headerlink" href="#default-precompiled-docker-and-standalone-project" title="Link to this heading"></a></h2>
+<ol class="arabic">
+<li><p>Install Docker (on Windows, Docker Desktop with WSL2; on macOS,
+Docker Desktop). VS Code and Dev Containers are recommended for
+editing/debugging but <strong>not required</strong> for command-line execution.</p></li>
+<li><p>Download the matching
+<code class="docutils literal notranslate"><span class="pre">scrimp-project-template.zip</span></code> asset from the SCRIMP v1.3.0
+GitHub Release and unpack it into your own project directory. The
+release ZIP embeds the <strong>validated</strong> image reference in
+<code class="docutils literal notranslate"><span class="pre">.devcontainer/devcontainer.json</span></code>.</p></li>
+<li><p>Pull the released Docker image:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>pull<span class="w"> </span>ghcr.io/g-haine/scrimp:1.3.0
+</pre></div>
+</div>
+</li>
+<li><p>Open the project directory in VS Code and choose
+<strong>Dev Containers: Reopen in Container</strong>. In its terminal, run:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>simulations/first_simulation.py
+mpiexec<span class="w"> </span>-n<span class="w"> </span><span class="m">2</span><span class="w"> </span>python<span class="w"> </span>simulations/mpi_check.py
+</pre></div>
+</div>
+<p>The oscillator is a real serial SCRIMP simulation and saves
+<code class="docutils literal notranslate"><span class="pre">outputs/oscillator.csv</span></code> <strong>on the host</strong>. The second command
+checks only MPI startup, not a distributed PDE power/physics result.</p>
+</li>
+<li><p>Without VS Code, execute the same project by mounting your
+independent workspace (Linux shell):</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>~/MySCRIMPProject
+docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>--user<span class="w"> </span><span class="s2">"</span><span class="k">$(</span>id<span class="w"> </span>-u<span class="k">)</span><span class="s2">:</span><span class="k">$(</span>id<span class="w"> </span>-g<span class="k">)</span><span class="s2">"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-e<span class="w"> </span><span class="nv">HOME</span><span class="o">=</span>/tmp<span class="w"> </span>-e<span class="w"> </span><span class="nv">XDG_CACHE_HOME</span><span class="o">=</span>/tmp/.cache<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-v<span class="w"> </span><span class="s2">"</span><span class="nv">$PWD</span><span class="s2">:/work:rw"</span><span class="w"> </span>-w<span class="w"> </span>/work<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>ghcr.io/g-haine/scrimp:1.3.0<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>python<span class="w"> </span>simulations/first_simulation.py
+</pre></div>
+</div>
+<p>On Docker Desktop, permissions and mount semantics differ; consult
+the Windows/macOS guidance below. No numerical output belongs
+in a throwaway container filesystem.</p>
+</li>
+</ol>
+<p>The complete standalone workspace, release ZIP generation, explicit
+image tags and F5 debugging are documented in <a class="reference internal" href="vscode.html"><span class="doc">First SCRIMP project with VS Code (v1.3.0)</span></a>.
+The distribution qualification contract (including exact source
+revision, image metadata, host CSV and MPI tests) is documented
+in <code class="docutils literal notranslate"><span class="pre">docs/V130_DOCKER_FIRST_RELEASE_GATE.md</span></code>. All required
+Linux/AMD64 distribution checks have passed; that does not
+qualify other platforms.</p>
+</section>
+<section id="alternative-native-conda-installation">
+<h2>Alternative: native Conda installation<a class="headerlink" href="#alternative-native-conda-installation" title="Link to this heading"></a></h2>
+<p>The original Conda workflow is retained for current users and
+advanced developers. It is <strong>not</strong> the v1.3.0 default.</p>
+<ol class="arabic simple">
+<li><p>Install <a class="reference external" href="https://docs.conda.io/">Conda</a> or
+<a class="reference external" href="https://mamba.readthedocs.io/">Micromamba</a>.</p></li>
+<li><p>Clone the repository: <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">clone</span> <span class="pre">https://github.com/g-haine/scrimp</span></code>.</p></li>
+<li><p>Enter the folder: <code class="docutils literal notranslate"><span class="pre">cd</span> <span class="pre">scrimp</span></code>.</p></li>
+<li><p>Run <code class="docutils literal notranslate"><span class="pre">conda</span> <span class="pre">env</span> <span class="pre">create</span> <span class="pre">-f</span> <span class="pre">scrimp.yml</span></code>.</p></li>
+<li><p>Activate: <code class="docutils literal notranslate"><span class="pre">conda</span> <span class="pre">activate</span> <span class="pre">scrimp</span></code>.</p></li>
+<li><p>Install SCRIMP: <code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">-m</span> <span class="pre">pip</span> <span class="pre">install</span> <span class="pre">-e</span> <span class="pre">.</span></code>.</p></li>
+</ol>
+<p>The historical <code class="docutils literal notranslate"><span class="pre">scrimp.yml</span></code> deliberately retains its older
+packaged GetFEM/NumPy dependencies for existing users; <strong>do not</strong>
+interpret native Conda as a validated GetFEM 5.5/MPI/NumPy 2
+replacement for the candidate Docker stack.</p>
+</section>
+<section id="modern-parallel-docker-image-getfem-5-5">
+<h2>Modern parallel Docker image (GetFEM 5.5)<a class="headerlink" href="#modern-parallel-docker-image-getfem-5-5" title="Link to this heading"></a></h2>
+<p>The v1.3.0 <strong>Docker build</strong> recipe is in <code class="docutils literal notranslate"><span class="pre">docker/Dockerfile</span></code>,
+with dependencies in <code class="docutils literal notranslate"><span class="pre">docker/environment.yml</span></code>. It uses one
+consistent conda-forge OpenMPI stack and complex PETSc/SLEPc/MUMPS.
+The PETSc/SLEPc Python bindings are compiled against the installed
+native libraries and NumPy 2 headers. GetFEM 5.5 is compiled with
+<code class="docutils literal notranslate"><span class="pre">--enable-paralevel=2</span></code>, including SCRIMP’s approved simplex
+BDM/Nédélec source patches.</p>
+<p>Native dependencies are now compiled in <strong>cache-friendly layers
+before copying SCRIMP’s Python sources</strong>. Docker BuildKit retains
+APT, Micromamba, pip and verified GetFEM tarball downloads.</p>
+<p>The candidate build driver fetches the selected GitHub revision
+by default into a temporary checkout and stages only audited tracked
+sources in a <em>second</em> isolated context. It <strong>never hands Docker the
+live SCRIMP repository</strong>, even if the user has tens of gigabytes
+of simulations under sandbox/outputs. For intentionally local
+library development, set <cite>SCRIMP_DOCKER_SOURCE=local</cite>; this still
+copies only tracked allowlisted source files into the build context.
+Neither mode includes user simulation data.</p>
+<p>Use an <strong>independently tagged candidate</strong>, not the qualified existing
+<code class="docutils literal notranslate"><span class="pre">scrimp-mpi:local</span></code> image:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>~/Simulations/scrimp
+git<span class="w"> </span>pull<span class="w"> </span>--ff-only
+bash<span class="w"> </span>scripts/build-v130-docker-candidate.sh
+bash<span class="w"> </span>scripts/smoke-v130-docker-candidate.sh
+</pre></div>
+</div>
+<p>By default these target <code class="docutils literal notranslate"><span class="pre">scrimp-mpi:v1.3.0-rc1</span></code>. The build script
+writes <code class="docutils literal notranslate"><span class="pre">sandbox/outputs/v130-docker-build.log</span></code> and records the
+built image ID; the smoke writes
+<code class="docutils literal notranslate"><span class="pre">sandbox/outputs/v130-docker-smoke.log</span></code>, exports the exact
+resolved Conda package spec and checks the GetFEM simplex descriptor
+support, NumPy ABI, complex PETSc and distributed MUMPS at 1/2 ranks.
+It explicitly rejects Nédélec-II order k&gt;=3, which has <strong>not</strong>
+been implemented.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">rc1</span></code> script default is a <strong>local development candidate tag</strong>,
+not the public image. To use the stable qualified environment,
+pull <code class="docutils literal notranslate"><span class="pre">ghcr.io/g-haine/scrimp:1.3.0</span></code> instead. Do not overwrite a
+validated local image while experimenting with source builds.</p>
+<p>For interactive development with an <strong>independent local
+simulation project</strong> (not the source checkout), see <a class="reference internal" href="vscode.html"><span class="doc">First SCRIMP project with VS Code (v1.3.0)</span></a>.
+For a manual command-line session from the user’s simulation folder:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>~/MySCRIMPProject
+sudo<span class="w"> </span>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>-it<span class="w"> </span>-v<span class="w"> </span><span class="s2">"</span><span class="nv">$PWD</span><span class="s2">:/work"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--workdir<span class="w"> </span>/work<span class="w"> </span>ghcr.io/g-haine/scrimp:1.3.0<span class="w"> </span>bash
+</pre></div>
+</div>
+<p>This binds the local workspace read-write, so simulations and outputs
+persist on the host even when the container is removed. On Linux,
+check UID/GID mapping before relying on direct docker-run commands;
+the VS Code Dev Containers template enables UID matching.</p>
+<p>Further instructions and the cache-validation protocol are in
+<code class="docutils literal notranslate"><span class="pre">docs/V130_DOCKER_BUILD.md</span></code>. The stable image is publicly available as <code class="docutils literal notranslate"><span class="pre">ghcr.io/g-haine/scrimp:1.3.0</span></code>.
+Existing Sphinx/Conda instructions for the stable <code class="docutils literal notranslate"><span class="pre">scrimp.yml</span></code>
+environment remain unchanged.</p>
+<p>The GitHub Actions workflow <code class="docutils literal notranslate"><span class="pre">.github/workflows/docker-mpi.yml</span></code>
+is still manual-only and separately checks MPI/native assembly,
+algebra and representative wave physics. GHCR publication remains
+opt-in and must follow actual image validation; the local candidate
+build script never publishes.</p>
+</section>
+<section id="windows-and-macos-users-best-effort-docker-dev-containers">
+<h2>Windows and macOS users: best-effort Docker/Dev Containers<a class="headerlink" href="#windows-and-macos-users-best-effort-docker-dev-containers" title="Link to this heading"></a></h2>
+<p>SCRIMP has users on Windows and macOS. These are <strong>best-effort
+installation workflows</strong>, not independently qualified native
+Windows/macOS GetFEM/PETSc/MUMPS configurations. The released
+Linux/AMD64 image is <code class="docutils literal notranslate"><span class="pre">ghcr.io/g-haine/scrimp:1.3.0</span></code>.
+Check its platform before use; historical local tags like
+<code class="docutils literal notranslate"><span class="pre">scrimp-mpi:v1.3.0-rc3</span></code> are not published GHCR tags.</p>
+<p><strong>Windows 10/11 (WSL2):</strong> install Docker Desktop, enable its WSL2
+backend and integration for your Linux distribution, and install
+VS Code plus the Dev Containers extension. Open a <strong>WSL2 Linux</strong>
+terminal and verify <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">version</span></code>. Keep your SCRIMP user
+project under the WSL2 Linux filesystem (rather than an NTFS
+<code class="docutils literal notranslate"><span class="pre">/mnt/c</span></code> mount) if you will create many numerical outputs.
+From this terminal, after pulling a compatible image, run:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>~/MySCRIMPProject
+docker<span class="w"> </span>images
+docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>-v<span class="w"> </span><span class="s2">"</span><span class="nv">$PWD</span><span class="s2">:/work"</span><span class="w"> </span>-w<span class="w"> </span>/work<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>ghcr.io/g-haine/scrimp:1.3.0<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>python<span class="w"> </span>simulations/first_simulation.py
+</pre></div>
+</div>
+<p>These commands run a Linux container through WSL2; they do <strong>not</strong>
+constitute a native Windows compilation. If Docker Desktop’s
+integration/permissions differ, use its documented WSL2 integration
+settings. Use <a class="reference internal" href="vscode.html"><span class="doc">First SCRIMP project with VS Code (v1.3.0)</span></a> for the independent project workflow.</p>
+<p><strong>macOS (Intel/Apple Silicon):</strong> install Docker Desktop for the
+machine architecture and VS Code/Dev Containers. Once an image
+exists locally, inspect its architecture using
+<code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">image</span> <span class="pre">inspect</span> <span class="pre">IMAGE:TAG</span></code>; a Linux AMD64-only image
+will not become ARM64-native merely because Docker Desktop
+can start it with emulation. On an Apple Silicon machine,
+<code class="docutils literal notranslate"><span class="pre">--platform</span> <span class="pre">linux/amd64</span></code> is a possible <strong>experimental</strong>
+compatibility option for an AMD64 image, but its numerical
+performance and GetFEM/PETSc/MUMPS MPI behavior remain unqualified:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>~/MySCRIMPProject
+docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>--platform<span class="w"> </span>linux/amd64<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-v<span class="w"> </span><span class="s2">"</span><span class="nv">$PWD</span><span class="s2">:/work"</span><span class="w"> </span>-w<span class="w"> </span>/work<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>ghcr.io/g-haine/scrimp:1.3.0<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>python<span class="w"> </span>simulations/first_simulation.py
+</pre></div>
+</div>
+<p>Do not infer scientific accuracy or MPI safety from a successful
+container launch. Prefer a separately built and validated ARM64
+image when one becomes available. Docker Desktop’s bind-mount
+permissions and filesystem performance differ from native Linux.</p>
+<p>In <strong>all</strong> cases, begin with the bundled oscillator and a bounded
+two-rank MPI start-up check, then progress to validated PDE models.
+If your setup differs from the tested Linux baseline, record image
+digest/platform, Python/PETSc/GetFEM versions and raw logs when
+reporting a problem. Windows/macOS use is welcome, but it is
+<strong>not a mandatory v1.3.0 release-blocking acceptance gate</strong>.</p>
+</section>
+<section id="local-getfem-5-5-mpi-compilation-conda-environment">
+<h2>Local GetFEM 5.5 MPI compilation (Conda environment)<a class="headerlink" href="#local-getfem-5-5-mpi-compilation-conda-environment" title="Link to this heading"></a></h2>
+<p>This approach enables a source build without Docker and keeps a
+separate, isolated environment instead of modifying your existing
+SCRIMP installation:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Ubuntu: GL runtime for the Gmsh Python wheel.</span>
+sudo<span class="w"> </span>apt-get<span class="w"> </span>update
+sudo<span class="w"> </span>apt-get<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span>binutils<span class="w"> </span>file<span class="w"> </span>libglu1-mesa<span class="w"> </span>libgl1
+
+<span class="c1"># Create a new environment from the same solver-compatible recipe.</span>
+conda<span class="w"> </span>env<span class="w"> </span>create<span class="w"> </span>-n<span class="w"> </span>scrimp55<span class="w"> </span>-f<span class="w"> </span>docker/environment.yml
+conda<span class="w"> </span>activate<span class="w"> </span>scrimp55
+
+<span class="c1"># Build matching NumPy-2 Python wrappers against the installed</span>
+<span class="c1"># complex native PETSc/SLEPc (conda petsc4py may require NumPy&lt;2).</span>
+bash<span class="w"> </span>scripts/install-petsc-python-bindings.sh
+
+<span class="c1"># Compile the official GetFEM 5.5 sources in MPI level 2.</span>
+<span class="nv">GETFEM_VERSION</span><span class="o">=</span><span class="m">5</span>.5<span class="w"> </span><span class="nv">MAKE_JOBS</span><span class="o">=</span><span class="m">4</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>bash<span class="w"> </span>scripts/build-getfem-mpi.sh
+
+python<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>--no-deps<span class="w"> </span>--no-build-isolation<span class="w"> </span>-e<span class="w"> </span>.
+python<span class="w"> </span>sandbox/smoke_modern_stack.py
+mpiexec<span class="w"> </span>-n<span class="w"> </span><span class="m">2</span><span class="w"> </span>python<span class="w"> </span>sandbox/smoke_modern_stack.py
+mpiexec<span class="w"> </span>-n<span class="w"> </span><span class="m">2</span><span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>unittest<span class="w"> </span>-v<span class="w"> </span>tests.test_mpi_algebra
+</pre></div>
+</div>
+<p>The build script uses the active <code class="docutils literal notranslate"><span class="pre">CONDA_PREFIX</span></code>, the
+<code class="docutils literal notranslate"><span class="pre">mpicc/mpicxx/mpifort</span></code> wrappers and a local build directory
+<code class="docutils literal notranslate"><span class="pre">.build/getfem</span></code>. It refuses to silently install a serial
+GetFEM: it checks the runtime value
+<code class="docutils literal notranslate"><span class="pre">getfem.util_mpi_parallelism_level()</span> <span class="pre">==</span> <span class="pre">2</span></code>.</p>
+<p><strong>Python 3.12 installation compatibility:</strong> The GetFEM 5.5 tarball
+still bundles an older Automake <code class="docutils literal notranslate"><span class="pre">py-compile</span></code> that imports
+<code class="docutils literal notranslate"><span class="pre">imp</span></code>, which was removed from Python 3.12. The shared
+<code class="docutils literal notranslate"><span class="pre">scripts/build-getfem-mpi.sh</span></code> installation therefore overrides
+<strong>only</strong> Automake’s bytecode compiler
+(<code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">install</span> <span class="pre">'am__py_compile=:'</span></code>), and immediately performs
+<code class="docutils literal notranslate"><span class="pre">compileall</span></code> with the active Python interpreter. This retains
+native build and installation, rather than downgrading Python
+or installing a global <code class="docutils literal notranslate"><span class="pre">imp</span></code> shim.</p>
+<p>To build the latest <strong>development</strong> GetFEM, use
+<code class="docutils literal notranslate"><span class="pre">GETFEM_SOURCE=git</span> <span class="pre">GETFEM_REF=&lt;commit-sha&gt;</span></code> and keep the
+specific upstream commit in the experiment manifest.
+That is separate from the stable <strong>5.5 release</strong>. The tarball
+checksum may be pinned through <code class="docutils literal notranslate"><span class="pre">GETFEM_SHA256</span></code>; this
+must be set when turning an experimental recipe into a
+reproducible release.</p>
+<p><strong>NumPy 2 compatibility</strong> is currently a validation goal, not
+an asserted upstream guarantee. The C extension must be compiled
+against the NumPy 2 headers in the environment and tested at
+runtime. If either compilation or tests fail, do not downgrade
+NumPy silently inside the modern environment; preserve the
+error logs for debugging. Keep <code class="docutils literal notranslate"><span class="pre">scrimp.yml</span></code> as a fallback.</p>
+</section>
+<section id="native-getfem-mpi-assembly-timing-verbosity">
+<h2>Native GetFEM MPI assembly timing verbosity<a class="headerlink" href="#native-getfem-mpi-assembly-timing-verbosity" title="Link to this heading"></a></h2>
+<p>GetFEM 5.5 prints <code class="docutils literal notranslate"><span class="pre">Assembly</span> <span class="pre">time</span> <span class="pre">...</span></code> for <strong>every model assembly</strong>
+on the master MPI rank, even when SCRIMP calls
+<code class="docutils literal notranslate"><span class="pre">gf.util_trace_level(0)</span></code>. This comes from an unconditional
+C++ <code class="docutils literal notranslate"><span class="pre">std::cout</span></code> in <code class="docutils literal notranslate"><span class="pre">src/getfem_models.cc</span></code>, rather than
+SCRIMP’s Python logger.</p>
+<p>For <strong>new native GetFEM builds made with SCRIMP’s build script</strong>,
+<code class="docutils literal notranslate"><span class="pre">scripts/patches/getfem-5.5/0000-mpi-assembly-timing.patch</span></code> changes
+only this diagnostic print, after extracting the upstream source and
+before compilation. It is applied by the same ordered patch loop as
+the BDM fix. Normal execution is quiet. To restore upstream-style
+per-assembly timing information for diagnosis, set:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nv">SCRIMP_GETFEM_ASSEMBLY_TIMING</span><span class="o">=</span><span class="m">1</span><span class="w"> </span>mpiexec<span class="w"> </span>-n<span class="w"> </span><span class="m">4</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>python<span class="w"> </span>sandbox/smoke_modern_stack.py
+</pre></div>
+</div>
+<p>The flag must be present in the environment <strong>inside</strong> the
+container and on all MPI ranks. The source patch fails to apply if
+GetFEM’s expected code has changed: it must be reviewed rather than
+silently forced. Neither mathematical expressions, assembly results,
+nor MPI communication are changed. Avoid silencing all stdout/stderr
+in Python: GetFEM’s native errors and diagnostics must remain visible.</p>
+<p><strong>An image built before this change still prints the messages.</strong>
+Rebuilding the native GetFEM layer is necessary to change that image;
+defer it to the next planned image rebuild rather than recompiling
+GetFEM solely to remove cosmetic output.</p>
+</section>
+<section id="native-getfem-mpi-assembly-audit-important">
+<h2>Native GetFEM MPI assembly audit (important)<a class="headerlink" href="#native-getfem-mpi-assembly-audit-important" title="Link to this heading"></a></h2>
+<p>Before interpreting any parallel simulation, compare the <strong>raw
+GetFEM outputs</strong> at P=1, 2 and 4. The official GetFEM MPI
+documentation says:</p>
+<ul class="simple">
+<li><p>Model RHS vectors are <strong>globally assembled and replicated</strong> on
+every rank. A complete vector is expected and by itself is <strong>not</strong>
+a reason to divide its values by P.</p></li>
+<li><p>Tangent matrices are normally <strong>distributed contributions</strong>;
+the GetFEM-to-PETSc bridge must ADD these across ranks.</p></li>
+<li><p>The original maintainer’s GetFEM 5.4.2 build instead returned
+full replicated tangent matrices and P-fold nonlinear RHS terms;
+this is a measured local behavior, <strong>not</strong> an assumption for 5.5.</p></li>
+</ul>
+<p>We explicitly audit native matrices, generic nonlinear RHS,
+prescribed source RHS and their sum, separately, without invoking
+SCRIMP’s normalization, PETSc transfer or MUMPS:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>mkdir<span class="w"> </span>-p<span class="w"> </span>sandbox/outputs/getfem-assembly
+<span class="k">for</span><span class="w"> </span>n<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="m">2</span><span class="w"> </span><span class="m">4</span><span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<span class="w">    </span>mpiexec<span class="w"> </span>-n<span class="w"> </span><span class="s2">"</span><span class="nv">$n</span><span class="s2">"</span><span class="w"> </span>python<span class="w"> </span>-u<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>sandbox/diagnose_getfem_mpi_assembly.py<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--output<span class="w"> </span><span class="s2">"sandbox/outputs/getfem-assembly/</span><span class="si">${</span><span class="nv">n</span><span class="si">}</span><span class="s2">.json"</span>
+<span class="k">done</span>
+
+python<span class="w"> </span>sandbox/analyze_getfem_mpi_assembly.py<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>sandbox/outputs/getfem-assembly/*.json
+</pre></div>
+</div>
+<p>The analytical references on [0,1], with u=1 and source=2,
+are -1 for the generic RHS, +2 for the source-only RHS,
++1 for the mixed RHS, and 1/2 for the linear/nonlinear
+tangent actions on a vector of ones.</p>
+<p>The analyzer reports whether the generic RHS or source RHS
+are <strong>physical</strong> or <strong>P-fold duplicated</strong>, and whether tangent
+matrices are <strong>full and replicated</strong> or <strong>distributed by
+contribution</strong>. The GetFEM 5.5 Docker build was measured with
+correct raw generic and source RHS and distributed matrix
+contributions on P=2/4. The Docker image therefore sets:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nv">SCRIMP_GETFEM_MATRIX_MODE</span><span class="o">=</span>distributed
+<span class="nv">SCRIMP_GETFEM_RHS_MODE</span><span class="o">=</span>auto
+<span class="nv">SCRIMP_GETFEM_SOURCE_RHS_MODE</span><span class="o">=</span>raw
+</pre></div>
+</div>
+<p>The default for non-Docker environments remains
+<code class="docutils literal notranslate"><span class="pre">SCRIMP_GETFEM_MATRIX_MODE=replicated</span></code>, preserving the behavior
+of the previously validated <em>local</em> GetFEM 5.4.2 installation.
+For a freshly compiled GetFEM <strong>never</strong> copy these flags blindly:
+first measure the native assembly with the diagnostic above, then
+run its analyzer with the matching <code class="docutils literal notranslate"><span class="pre">--matrix-mode</span> <span class="pre">replicated</span></code>
+or <code class="docutils literal notranslate"><span class="pre">--matrix-mode</span> <span class="pre">distributed</span></code> parameter. For this GetFEM 5.5
+container the mandatory CI command is:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>sandbox/analyze_getfem_mpi_assembly.py<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--matrix-mode<span class="w"> </span>distributed<span class="w"> </span>--require-physical-rhs<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>sandbox/outputs/getfem-assembly/*.json
+</pre></div>
+</div>
+<p>The RHS bridge calibrates generic contributions in
+<code class="docutils literal notranslate"><span class="pre">SCRIMP_GETFEM_RHS_MODE=auto</span></code>, while
+<code class="docutils literal notranslate"><span class="pre">SCRIMP_GETFEM_SOURCE_RHS_MODE=raw</span></code>
+preserves unscaled GetFEM source terms that are assembled once.</p>
+<p><strong>Do not change RHS normalization solely because GetFEM returns
+full vectors or matrices.</strong> First compare raw numerical values with
+the known integrals and the P=1 reference. Preserve logs from
+both GetFEM 5.4.2 and GetFEM 5.5 to distinguish an installation
+issue from an upstream GetFEM convention.</p>
+<p>GetFEM parallelism reference:
+<a class="reference external" href="https://getfem.org/userdoc/parallel.html">GetFEM parallel documentation</a>.</p>
+</section>
+<section id="d-wave-hamiltonian-and-boundary-power-balance-mpi">
+<h2>2D wave Hamiltonian and boundary-power balance (MPI)<a class="headerlink" href="#d-wave-hamiltonian-and-boundary-power-balance-mpi" title="Link to this heading"></a></h2>
+<p>Before timing the parallel solver, validate the <strong>undamped</strong> wave
+example’s port-Hamiltonian power identity using the same GetFEM
+Hamiltonian integrands as <code class="docutils literal notranslate"><span class="pre">examples/wave.py</span></code>. The prescribed
+left-boundary input in the published example is nearly zero during
+short smoke runs; a separate <strong>nonzero boundary drive</strong> prevents
+vacuous energy-balance checks without changing the wave equations.</p>
+<p>For the quadratic Hamiltonian and Crank–Nicolson, check the discrete
+midpoint identity (all four control ports have
+<code class="docutils literal notranslate"><span class="pre">dissipative=True</span></code>, meaning a positive <code class="docutils literal notranslate"><span class="pre">flow*effort</span></code> is
+subtracted from energy in SCRIMP’s existing plot convention):</p>
+<div class="math notranslate nohighlight">
+\[H(z_{k})-H(z_{k-1}) + (t_k-t_{k-1})
+\sum_{\Gamma} \int_{\Gamma}
+f_{\Gamma}(z_{k-1/2}) e_{\Gamma}(z_{k-1/2}) \,d\Gamma = 0.\]</div>
+<p>The residual is calculated <strong>per time step</strong> at midpoint <em>state and
+time</em>, not inferred from Hamiltonian conservation with zero input.
+It also checks each scalar GetFEM integral is the same on every
+rank before accepting it. The full Hamiltonian, each boundary
+power trace, the signed work and the numerical defect are exported.</p>
+<p>Inside the validated GetFEM 5.5 container (from repository root):</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>mkdir<span class="w"> </span>-p<span class="w"> </span>sandbox/outputs/energy
+<span class="k">for</span><span class="w"> </span>n<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="m">2</span><span class="w"> </span><span class="m">4</span><span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<span class="w">    </span>mpiexec<span class="w"> </span>--oversubscribe<span class="w"> </span>-n<span class="w"> </span><span class="s2">"</span><span class="nv">$n</span><span class="s2">"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>python<span class="w"> </span>sandbox/check_acoustic_energy_mpi.py<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--mesh<span class="w"> </span><span class="m">0</span>.2<span class="w"> </span>--dt<span class="w"> </span><span class="m">0</span>.002<span class="w"> </span>--final-time<span class="w"> </span><span class="m">0</span>.02<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--drive-left<span class="w"> </span><span class="s1">'0.08*sin(20*t)'</span><span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--output<span class="w"> </span><span class="s2">"sandbox/outputs/energy/wave_</span><span class="si">${</span><span class="nv">n</span><span class="si">}</span><span class="s2">.json"</span>
+<span class="k">done</span>
+
+python<span class="w"> </span>sandbox/analyze_acoustic_power_balance.py<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>sandbox/outputs/energy/wave_*.json
+</pre></div>
+</div>
+<p>Use <code class="docutils literal notranslate"><span class="pre">--diagnose-only</span></code> to archive <strong>raw measurements</strong>, without
+asserting an energy tolerance, when investigating a previously
+unvalidated GetFEM build; do not describe such a run as validated.
+CI uses a strict numeric gate and compares the complete Hamiltonian
+and boundary-power trajectories at MPI 1, 2 and 4. Hosted CI uses
+oversubscribed cores and its timing data are <strong>not</strong> suitable for
+strong-scaling claims.</p>
+<p>This check covers the <em>linear undamped acoustic problem</em>. It does
+not yet prove energy consistency for nonlinear Saint-Venant models
+or for substituted/dissipative ports.</p>
+</section>
+<section id="optional-scrimp-phase-profiling-without-rebuilding-getfem">
+<h2>Optional SCRIMP phase profiling (without rebuilding GetFEM)<a class="headerlink" href="#optional-scrimp-phase-profiling-without-rebuilding-getfem" title="Link to this heading"></a></h2>
+<p>For v1.3.0 development, SCRIMP can measure its own GetFEM assembly
+steps, GetFEM-to-PETSc transfers, DAE consistency initialization,
+PETSc TS calls and implicit residual/Jacobian callbacks <strong>per MPI rank</strong>.
+Profiling is disabled by default. It adds no MPI collectives inside
+PETSc callbacks; reports are gathered explicitly after the solve.</p>
+<p>Update the Python sources from the branch under development, then
+reuse the <strong>existing local Docker image</strong> with a bind mount; no new
+GetFEM compilation is necessary:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>pull<span class="w"> </span>--ff-only
+mkdir<span class="w"> </span>-p<span class="w"> </span>sandbox/outputs/scaling-profile
+sudo<span class="w"> </span>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--cpuset-cpus<span class="o">=</span><span class="s2">"0,2,4,6"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-e<span class="w"> </span><span class="nv">SCRIMP_MUMPS_RESET_PC_ON_JACOBIAN</span><span class="o">=</span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-v<span class="w"> </span><span class="s2">"</span><span class="nv">$PWD</span><span class="s2">:/workspace/scrimp"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>scrimp-mpi:local<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>mpiexec<span class="w"> </span>--map-by<span class="w"> </span>hwthread<span class="w"> </span>--bind-to<span class="w"> </span>hwthread<span class="w"> </span>-n<span class="w"> </span><span class="m">4</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>python<span class="w"> </span>-u<span class="w"> </span>sandbox/bench_acoustic_2d.py<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--mesh<span class="w"> </span><span class="m">0</span>.08<span class="w"> </span>--dt<span class="w"> </span><span class="m">0</span>.002<span class="w"> </span>--final-time<span class="w"> </span><span class="m">0</span>.04<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--save-dt<span class="w"> </span><span class="m">0</span>.01<span class="w"> </span>--profile<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--output<span class="w"> </span>/workspace/scrimp/sandbox/outputs/scaling-profile/wave_4.json
+</pre></div>
+</div>
+<p>The container’s non-root user needs write access to the chosen output
+directory. Alternatively, write JSON under <code class="docutils literal notranslate"><span class="pre">/tmp</span></code> inside the
+container and pipe/copy it to a local file. Without <code class="docutils literal notranslate"><span class="pre">--profile</span></code>,
+the original benchmark behaves as before.</p>
+<p>In other DPHS scripts, set <code class="docutils literal notranslate"><span class="pre">SCRIMP_PROFILE=1</span></code> <strong>before</strong> constructing
+the DPHS and call <code class="docutils literal notranslate"><span class="pre">system.get_profile()</span></code> on <strong>every</strong> MPI rank
+after <code class="docutils literal notranslate"><span class="pre">system.solve()</span></code>. The return value is JSON-serializable.</p>
+<p>Reported wall durations use per-event MPI rank min/mean/max, and
+record the number of calls. <strong>Nested timers overlap</strong>:
+<code class="docutils literal notranslate"><span class="pre">main.petsc.ts_solve</span></code> includes time spent in Python IFunction
+and IJacobian callbacks, whose timings in turn include GetFEM and
+PETSc bridge work. The derived <code class="docutils literal notranslate"><span class="pre">main.petsc.non_callback_remainder</span></code>
+subtracts callback durations on each rank; it includes factorization,
+solve, monitoring and MPI waiting, and is <strong>not pure MUMPS time</strong>.
+For the acoustic benchmark, add <code class="docutils literal notranslate"><span class="pre">--petsc-log</span></code> on a <strong>separate
+profiling run</strong> to activate PETSc’s native event logger programmatically
+(<code class="docutils literal notranslate"><span class="pre">PETSc.Log.begin()</span></code> before setup and <code class="docutils literal notranslate"><span class="pre">PETSc.Log.view()</span></code> after
+the simulation, collectively on all ranks). This distinction matters:
+DPHS currently clears PETSc’s options database at construction,
+so relying on the command-line <code class="docutils literal notranslate"><span class="pre">-log_view</span></code> alone can be misleading.
+PETSc’s printed summary contains native matrix, factorization and
+solve events, including <code class="docutils literal notranslate"><span class="pre">MatLUFactorSym</span></code>, <code class="docutils literal notranslate"><span class="pre">MatLUFactorNum</span></code> and
+<code class="docutils literal notranslate"><span class="pre">MatSolve</span></code> when exposed by the linked PETSc build.</p>
+<p>With <code class="docutils literal notranslate"><span class="pre">SCRIMP_MUMPS_RESET_PC_ON_JACOBIAN=1</span></code>, the profiler also
+reports <code class="docutils literal notranslate"><span class="pre">main.petsc.pc_reset</span></code> (inclusive in
+<code class="docutils literal notranslate"><span class="pre">main.petsc.callback.ijacobian</span></code>). Do not disable this stability
+workaround simply to improve benchmark timings without verifying
+sparsity lifecycle and physical parity.</p>
+<p>These measurements do not alter matrices, RHS scaling, equations
+or the Crank–Nicolson scheme.</p>
+</section>
+<section id="d-acoustic-wave-strong-scaling">
+<h2>2D acoustic-wave strong scaling<a class="headerlink" href="#d-acoustic-wave-strong-scaling" title="Link to this heading"></a></h2>
+<p>The non-graphical <code class="docutils literal notranslate"><span class="pre">sandbox/bench_acoustic_2d.py</span></code> builds the
+<em>existing</em> <code class="docutils literal notranslate"><span class="pre">examples/wave.py</span></code> model without modifying its
+physical variational forms. It replaces only the spatial mesh
+spacing, final integration horizon, numerical solver and output
+frequency. It reports separately model construction/meshing,
+complete solve (assembly + DAE initialization + PETSc TS),
+peak rank RSS and physical state norms.</p>
+<p>For <strong>strong scaling</strong>, hold <code class="docutils literal notranslate"><span class="pre">--mesh</span></code>, <code class="docutils literal notranslate"><span class="pre">--dt</span></code>
+and <code class="docutils literal notranslate"><span class="pre">--final-time</span></code> strictly fixed:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>mkdir<span class="w"> </span>-p<span class="w"> </span>sandbox/outputs/scaling
+
+<span class="k">for</span><span class="w"> </span>n<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="m">2</span><span class="w"> </span><span class="m">4</span><span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<span class="w">    </span><span class="nv">SCRIMP_MUMPS_RESET_PC_ON_JACOBIAN</span><span class="o">=</span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span><span class="nv">SCRIMP_GETFEM_SOURCE_RHS_MODE</span><span class="o">=</span>raw<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>mpiexec<span class="w"> </span>-n<span class="w"> </span><span class="s2">"</span><span class="nv">$n</span><span class="s2">"</span><span class="w"> </span>python<span class="w"> </span>-u<span class="w"> </span>sandbox/bench_acoustic_2d.py<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--mesh<span class="w"> </span><span class="m">0</span>.05<span class="w"> </span>--dt<span class="w"> </span><span class="m">0</span>.001<span class="w"> </span>--final-time<span class="w"> </span><span class="m">0</span>.02<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--save-dt<span class="w"> </span><span class="m">0</span>.01<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--output<span class="w"> </span><span class="s2">"sandbox/outputs/scaling/wave_</span><span class="si">${</span><span class="nv">n</span><span class="si">}</span><span class="s2">ranks.json"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>&gt;<span class="w"> </span><span class="s2">"sandbox/outputs/scaling/wave_</span><span class="si">${</span><span class="nv">n</span><span class="si">}</span><span class="s2">ranks.log"</span><span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span>
+<span class="k">done</span>
+</pre></div>
+</div>
+<p>To summarize multiple comparable runs automatically:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>sandbox/analyze_acoustic_scaling.py<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>sandbox/outputs/scaling/wave_*ranks.json
+</pre></div>
+</div>
+<p>For more robust measurements, repeat each configuration several
+times and provide all of the resulting JSON files to the analyzer.
+It refuses mismatched meshes, end times, integrator settings or
+significantly different physical field norms. The benchmark itself
+exposes per-rank peak memory usage; for detailed PETSc timing,
+append <code class="docutils literal notranslate"><span class="pre">-log_view</span></code> to the command line and capture its log.</p>
+<p>Report strong-scaling speedup
+<span class="math notranslate nohighlight">\(S_P=T_1/T_P\)</span> and efficiency <span class="math notranslate nohighlight">\(E_P=S_P/P\)</span>
+only for the <strong>same mesh, time scheme, time horizon and
+solver configuration</strong>. Check final field norms and
+all MPI convergence statuses first. Repeat runs and report
+medians and variation: a single wall-clock number is not
+a meaningful scaling study. Use PETSc <code class="docutils literal notranslate"><span class="pre">-log_view</span></code> to
+profile internal operations and separate GetFEM assembly,
+MUMPS factorization, python-to-PETSc data transfer,
+mesh construction and per-step all-rank gathers.</p>
+</section>
+<section id="tests">
+<h2>Tests<a class="headerlink" href="#tests" title="Link to this heading"></a></h2>
+<p>Run targeted non-graphical tests with:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>-m<span class="w"> </span>unittest<span class="w"> </span>-v<span class="w"> </span>tests.test_lumped_ports
+mpiexec<span class="w"> </span>-n<span class="w"> </span><span class="m">1</span><span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>unittest<span class="w"> </span>-v<span class="w"> </span>tests.test_mpi_algebra
+mpiexec<span class="w"> </span>-n<span class="w"> </span><span class="m">2</span><span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>unittest<span class="w"> </span>-v<span class="w"> </span>tests.test_mpi_algebra
+mpiexec<span class="w"> </span>-n<span class="w"> </span><span class="m">4</span><span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>unittest<span class="w"> </span>-v<span class="w"> </span>tests.test_mpi_algebra
+</pre></div>
+</div>
+<p>The graphical examples below require a Matplotlib GUI backend:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>examples/mass_spring_damper.py
+python<span class="w"> </span>examples/nonlinear_pendulum.py
+</pre></div>
+</div>
+</section>
+<section id="code-structure">
+<h2>Code structure<a class="headerlink" href="#code-structure" title="Link to this heading"></a></h2>
+<p><strong>SCRIMP</strong> is a Python package. The <code class="docutils literal notranslate"><span class="pre">scrimp/__init__.py</span></code> file
+is its root. For instance, the linear-algebra utilities can be
+imported as <code class="docutils literal notranslate"><span class="pre">import</span> <span class="pre">scrimp.utils.linalg</span></code>.</p>
+</section>
+<section id="documentation">
+<h2>Documentation<a class="headerlink" href="#documentation" title="Link to this heading"></a></h2>
+<p>Full documentation is published at
+<a class="reference external" href="https://g-haine.github.io/scrimp/">SCRIMP documentation</a>.
+It is generated with <a class="reference external" href="https://www.sphinx-doc.org/">Sphinx</a>.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="SCRIMP" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="vscode.html" class="btn btn-neutral float-right" title="First SCRIMP project with VS Code (v1.3.0)" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2015-2026 ISAE-SUPAERO.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

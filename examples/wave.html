@@ -1,0 +1,1508 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The wave equation — 2A: conservative anisotropic membrane &mdash; SCRIMP 1.3.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+    <link rel="shortcut icon" href="../_static/Logo-ico.png"/>
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=1f29e9d3"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="The wave equation — 2C: co-energy and localized damping" href="wave_coenergy.html" />
+    <link rel="prev" title="Examples" href="../examples.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            SCRIMP
+              <img src="../_static/Logo.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../install.html">How to install</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../install.html#default-precompiled-docker-and-standalone-project">Default: precompiled Docker and standalone project</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../install.html#alternative-native-conda-installation">Alternative: native Conda installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../install.html#modern-parallel-docker-image-getfem-5-5">Modern parallel Docker image (GetFEM 5.5)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../install.html#windows-and-macos-users-best-effort-docker-dev-containers">Windows and macOS users: best-effort Docker/Dev Containers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../install.html#local-getfem-5-5-mpi-compilation-conda-environment">Local GetFEM 5.5 MPI compilation (Conda environment)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../install.html#native-getfem-mpi-assembly-timing-verbosity">Native GetFEM MPI assembly timing verbosity</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../install.html#native-getfem-mpi-assembly-audit-important">Native GetFEM MPI assembly audit (important)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../install.html#d-wave-hamiltonian-and-boundary-power-balance-mpi">2D wave Hamiltonian and boundary-power balance (MPI)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../install.html#optional-scrimp-phase-profiling-without-rebuilding-getfem">Optional SCRIMP phase profiling (without rebuilding GetFEM)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../install.html#d-acoustic-wave-strong-scaling">2D acoustic-wave strong scaling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../install.html#tests">Tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../install.html#code-structure">Code structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../install.html#documentation">Documentation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../vscode.html">First SCRIMP project with VS Code (v1.3.0)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../vscode.html#what-is-on-the-user-s-computer">What is on the user’s computer?</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../vscode.html#creating-the-independent-workspace">Creating the independent workspace</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../vscode.html#a-precompiled-docker-installation-recommended">A. Precompiled Docker installation (recommended)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../vscode.html#b-locally-compiled-docker-installation">B. Locally compiled Docker installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../vscode.html#vs-code-workflow-for-either-docker-installation">VS Code workflow for either Docker installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../vscode.html#python-is-installed-even-if-vs-code-says-no-python-found">Python is installed, even if VS Code says “No Python found”</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../vscode.html#python-environment-recognition-and-editable-scrimp-imports">Python environment recognition and editable SCRIMP imports</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../vscode.html#using-an-existing-local-sandbox-directory">Using an existing local sandbox directory</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../vscode.html#c-native-conda-source-installation-without-docker">C. Native Conda / source installation (without Docker)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../vscode.html#known-limitations">Known limitations</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../started.html">Getting started</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../started.html#port-hamiltonian-framework">Port-Hamiltonian framework</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../started.html#structure-preserving-discretization">Structure-preserving discretization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../started.html#choosing-distributed-or-global-scalar-ports">Choosing distributed or global scalar ports</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../started.html#coding-within-scrimp">Coding within SCRIMP</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../started.html#working-with-simulation-outputs">Working with simulation outputs</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../getfem_gwfl.html">GetFEM GWFL matrix notation in Python</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../getfem_gwfl.html#sign-check-a-boundary-tangent">Sign-check a boundary tangent</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../getfem_gwfl.html#native-28-example-viscous-saint-venant">Native #28 example: viscous Saint-Venant</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../initialization.html">DAE initial conditions and initialization</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../initialization.html#mathematical-motivation">Mathematical motivation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../initialization.html#three-alternative-strategies">Three alternative strategies</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../initialization.html#algebraic-projection-init-step-ts-type-algebraic">Algebraic projection — <cite>init_step_ts_type=”algebraic”</cite></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../initialization.html#historical-pseudo-time-relaxation-pseudo">Historical pseudo-time relaxation — <cite>pseudo</cite></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../initialization.html#tiny-step-bdf2-initialization-bdf">Tiny-step BDF2 initialization — <cite>bdf</cite></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../initialization.html#quick-comparison">Quick comparison</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../initialization.html#scientific-qualification-and-limits">Scientific qualification and limits</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../initialization.html#mesh-dependence-of-the-algebraic-residual-criterion">Mesh dependence of the algebraic residual criterion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../initialization.html#finite-difference-perturbations-and-roundoff">Finite-difference perturbations and roundoff</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../energy_and_power.html">Energy, powers and time discretization (v1.3.0)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../energy_and_power.html#hamiltonian-physical-value-not-a-time-quadrature">Hamiltonian: physical value, not a time quadrature</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../energy_and_power.html#port-powers-raw-signs-not-universal-energy-balance">Port powers: raw signs, not universal energy balance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../energy_and_power.html#crank-nicolson-only-consecutive-accepted-petsc-states">Crank–Nicolson: only consecutive <em>accepted</em> PETSc states</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../energy_and_power.html#bdf-bdf2-arkimex-and-other-petsc-ts-types">BDF, BDF2, ARKIMEX and other PETSc TS types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../energy_and_power.html#how-to-inspect-the-sampling-used-in-a-run">How to inspect the sampling used in a run</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../explicit_bricks.html">Fully explicit nonlinear bricks</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../explicit_bricks.html#accepted-step-contract">Accepted-step contract</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../explicit_bricks.html#usage-and-restrictions">Usage and restrictions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../explicit_bricks.html#native-acceptance">Native acceptance</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../performance.html">Solver reuse and MPI</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../performance.html#v1-3-0-development-candidate">v1.3.0 development candidate</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../performance.html#reproducible-performance-qualification">Reproducible performance qualification</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="../examples.html">Examples</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">The wave equation — 2A: conservative anisotropic membrane</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#examples.wave.main"><code class="docutils literal notranslate"><span class="pre">main()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#examples.wave.measure_wave_2d"><code class="docutils literal notranslate"><span class="pre">measure_wave_2d()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#examples.wave.wave_eq"><code class="docutils literal notranslate"><span class="pre">wave_eq()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#why-this-example">Why this example?</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#the-physical-model">The physical model</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#energy-variables-co-energy-variables-and-power">Energy variables, co-energy variables and power</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#from-the-strong-equation-to-pfem">From the strong equation to PFEM</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#build-the-real-scrimp-model">Build the real SCRIMP model</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#installation-and-genuine-scientific-checks">Installation and genuine scientific checks</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#longer-native-showcase-100-step-energy-and-wave-propagation">Longer native showcase: 100-step energy and wave propagation</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#scientific-references">Scientific references</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#module-examples.wave_dissipative">2B — Adding a resistive port: heterogeneous damping</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#examples.wave_dissipative.main"><code class="docutils literal notranslate"><span class="pre">main()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#examples.wave_dissipative.measure_wave_2d"><code class="docutils literal notranslate"><span class="pre">measure_wave_2d()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#examples.wave_dissipative.wave_eq"><code class="docutils literal notranslate"><span class="pre">wave_eq()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#what-changes-relative-to-2a">What changes relative to 2A?</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#why-add-a-separate-resistive-port">Why add a separate resistive port?</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#build-the-actual-getfem-petsc-model">Build the actual GetFEM/PETSc model</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#physical-qualification-original-boundary-work-minus-dissipation">Physical qualification: original boundary work minus dissipation</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#long-native-dissipative-showcase-100-cn-steps">Long native dissipative showcase — 100 CN steps</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#a-versus-2b-same-physical-inputs-different-dissipation">2A versus 2B — same physical inputs, different dissipation</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="wave_coenergy.html">The wave equation — 2C: co-energy and localized damping</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="wave_coenergy.html#examples.wave_coenergy.main"><code class="docutils literal notranslate"><span class="pre">main()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="wave_coenergy.html#examples.wave_coenergy.measure_coenergy"><code class="docutils literal notranslate"><span class="pre">measure_coenergy()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="wave_coenergy.html#examples.wave_coenergy.wave_coenergy_eq"><code class="docutils literal notranslate"><span class="pre">wave_coenergy_eq()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="wave_coenergy.html#why-this-third-tutorial">Why this third tutorial?</a></li>
+<li class="toctree-l3"><a class="reference internal" href="wave_coenergy.html#the-true-material-inverse">The true material inverse</a></li>
+<li class="toctree-l3"><a class="reference internal" href="wave_coenergy.html#two-regions-and-substituted-ports">Two regions and substituted ports</a></li>
+<li class="toctree-l3"><a class="reference internal" href="wave_coenergy.html#the-co-energy-balance-and-feedback-sign">The co-energy balance and feedback sign</a></li>
+<li class="toctree-l3"><a class="reference internal" href="wave_coenergy.html#a-physically-visible-initial-pulse">A physically visible initial pulse</a></li>
+<li class="toctree-l3"><a class="reference internal" href="wave_coenergy.html#native-outputs-and-visualizations">Native outputs and visualizations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="wave_coenergy.html#qualification-evidence-original-getfem-cn-mpi-1-and-2">Qualification evidence — original GetFEM CN, MPI 1 and 2</a></li>
+<li class="toctree-l3"><a class="reference internal" href="wave_coenergy.html#long-time-visualization-100-accepted-physical-cn-steps">Long-time visualization — 100 accepted physical CN steps</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="maxwell_3d.html">Maxwell equations in 3D — patched Nédélec-II / BDM1 example</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="maxwell_3d.html#why-a-new-maxwell-example">Why a new Maxwell example?</a></li>
+<li class="toctree-l3"><a class="reference internal" href="maxwell_3d.html#a-normalized-maxwell-system">A normalized Maxwell system</a></li>
+<li class="toctree-l3"><a class="reference internal" href="maxwell_3d.html#compatible-3d-spaces-and-their-getfem-patches">Compatible 3D spaces and their GetFEM patches</a></li>
+<li class="toctree-l3"><a class="reference internal" href="maxwell_3d.html#a-skew-adjoint-discrete-maxwell-interconnection">A skew-adjoint discrete Maxwell interconnection</a></li>
+<li class="toctree-l3"><a class="reference internal" href="maxwell_3d.html#how-to-run-and-qualify-this-3d-example">How to run and qualify this 3D example</a></li>
+<li class="toctree-l3"><a class="reference internal" href="maxwell_3d.html#native-patched-nedelec-ii-bdm1-qualification-pass-25-november-2026">Native patched Nédélec-II / BDM1 qualification — PASS, 25 November 2026</a></li>
+<li class="toctree-l3"><a class="reference internal" href="maxwell_3d.html#figures-and-animation-generated-by-the-example-itself">Figures and animation generated by the example itself</a></li>
+<li class="toctree-l3"><a class="reference internal" href="maxwell_3d.html#historical-baseline-maxwell-3d-qualification-pass-25-november-2026">Historical <em>baseline</em> Maxwell 3D qualification — PASS, 25 November 2026</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="mass_spring_damper.html">Mass–spring–damper</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="mass_spring_damper.html#a-two-state-finite-dimensional-port-hamiltonian-model">A two-state finite-dimensional port-Hamiltonian model</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mass_spring_damper.html#discretization-and-code">Discretization and code</a></li>
+<li class="toctree-l3"><a class="reference internal" href="mass_spring_damper.html#verification">Verification</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="nonlinear_pendulum.html">Nonlinear pendulum</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="nonlinear_pendulum.html#a-nonlinear-port-hamiltonian-ode">A nonlinear port-Hamiltonian ODE</a></li>
+<li class="toctree-l3"><a class="reference internal" href="nonlinear_pendulum.html#implementation-notes">Implementation notes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="nonlinear_pendulum.html#numerical-validation-cranknicolson">Numerical validation — Crank–Nicolson</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="heat.html">The heat equation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="heat.html#examples.heat.heat_eq"><code class="docutils literal notranslate"><span class="pre">heat_eq()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="heat.html#examples.heat.main"><code class="docutils literal notranslate"><span class="pre">main()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="heat.html#examples.heat.measure_heat_cn"><code class="docutils literal notranslate"><span class="pre">measure_heat_cn()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="heat.html#examples.heat.render_heat_visuals"><code class="docutils literal notranslate"><span class="pre">render_heat_visuals()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="heat.html#running-the-2-d-heat-example-scrimp-v1-3">Running the 2-D heat example (SCRIMP v1.3)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="heat.html#setting">Setting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="heat.html#port-hamiltonian-framework">Port-Hamiltonian framework</a></li>
+<li class="toctree-l3"><a class="reference internal" href="heat.html#structure-preserving-discretization">Structure-preserving discretization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="heat.html#simulation">Simulation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="heat_wave.html">Heat wave coupling</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="heat_wave.html#examples.heat_wave.heat_wave_eq"><code class="docutils literal notranslate"><span class="pre">heat_wave_eq()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="heat_wave.html#examples.heat_wave.render_heat_wave_energy_ports"><code class="docutils literal notranslate"><span class="pre">render_heat_wave_energy_ports()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="heat_wave.html#examples.heat_wave.render_heat_wave_long_showcase"><code class="docutils literal notranslate"><span class="pre">render_heat_wave_long_showcase()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="heat_wave.html#run-and-inspect-the-canonical-example">Run and inspect the canonical example</a></li>
+<li class="toctree-l3"><a class="reference internal" href="heat_wave.html#setting">Setting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="heat_wave.html#port-hamiltonian-framework">Port-Hamiltonian framework</a></li>
+<li class="toctree-l3"><a class="reference internal" href="heat_wave.html#structure-preserving-discretization">Structure-preserving discretization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="heat_wave.html#simulation">Simulation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="heat_wave.html#long-time-wave-gallery-exploration-v1-3-0">Long-time wave gallery exploration (v1.3.0)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="heat_wave.html#native-qualification-mpi1-2-fe-parity-and-full-length-cn-power">Native qualification: MPI1/2 FE parity and full-length CN power</a></li>
+<li class="toctree-l3"><a class="reference internal" href="heat_wave.html#native-qualification-and-long-time-observations-25-november-2026">Native qualification and long-time observations (25 November 2026)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="shallow_water.html">The shallow water equation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="shallow_water.html#examples.shallow_water.native_triangular_field"><code class="docutils literal notranslate"><span class="pre">native_triangular_field()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="shallow_water.html#examples.shallow_water.render_native_shallow_water"><code class="docutils literal notranslate"><span class="pre">render_native_shallow_water()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="shallow_water.html#examples.shallow_water.render_original_shallow_water_spatial_VTU"><code class="docutils literal notranslate"><span class="pre">render_original_shallow_water_spatial_VTU()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="shallow_water.html#examples.shallow_water.shallow_water_eq"><code class="docutils literal notranslate"><span class="pre">shallow_water_eq()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="shallow_water.html#examples.shallow_water.true_pvd_files"><code class="docutils literal notranslate"><span class="pre">true_pvd_files()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="shallow_water.html#examples.shallow_water.vtk_array"><code class="docutils literal notranslate"><span class="pre">vtk_array()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="shallow_water.html#setting">Setting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="shallow_water.html#port-hamiltonian-framework">Port-Hamiltonian framework</a></li>
+<li class="toctree-l3"><a class="reference internal" href="shallow_water.html#structure-preserving-discretization">Structure-preserving discretization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="shallow_water.html#simulation">Simulation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="shallow_water.html#extended-native-physical-validation-scrimp-v1-3-0">Extended native physical validation (SCRIMP v1.3.0)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="shallow_water.html#original-inviscid-free-surface-visualizations-v1-3-0-direct-example-run">Original inviscid free-surface visualizations (v1.3.0, direct example run)</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../lumped.html">Finite-dimensional port-Hamiltonian systems</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../lumped.html#global-scalar-ports-tested-examples">Global scalar ports (tested examples)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../lumped.html#global-algebraic-variables">Global algebraic variables</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../lumped.html#why-do-bricks-use-a-spatial-domain">Why do bricks use a spatial domain?</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../lumped.html#solver-and-present-limits">Solver and present limits</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../lumped.html#examples">Examples</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../notebooks.html">Notebooks</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../notebooks.html#install-jupyter">Install jupyter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../notebooks.html#run-jupyter">Run jupyter</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../GUI.html">Graphical user interface (experimental)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../biblio.html">References</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../biblio.html#articles">Articles</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../biblio.html#book-chapters">Book Chapters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../biblio.html#proceedings">Proceedings</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../scrimp.html">Code documentation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../scrimp.html#folders">Folders</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../scrimp.examples.html">scrimp.examples</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.examples.html#wave">Wave</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.examples.html#heat">Heat</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.examples.html#heat-wave-coupling">Heat-Wave coupling</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.examples.html#shallow-water">Shallow water</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.examples.html#finite-dimensional-models">Finite-dimensional models</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../scrimp.utils.html">scrimp.utils</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.utils.html#module-scrimp.utils.config">Config</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.utils.html#module-scrimp.utils.linalg">Linear algebra</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.utils.html#module-scrimp.utils.mesh">Mesh</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../scrimp.sandbox.html">scrimp.sandbox</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.sandbox.html#experimental-pde-ode-coupling">Experimental PDE–ODE coupling</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../scrimp.html#module-scrimp.dphs">Distributed port-Hamiltonian system</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS"><code class="docutils literal notranslate"><span class="pre">DPHS</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.F"><code class="docutils literal notranslate"><span class="pre">DPHS.F</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.IFunction"><code class="docutils literal notranslate"><span class="pre">DPHS.IFunction()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.IJacobian"><code class="docutils literal notranslate"><span class="pre">DPHS.IJacobian()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.J"><code class="docutils literal notranslate"><span class="pre">DPHS.J</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.add_FEM"><code class="docutils literal notranslate"><span class="pre">DPHS.add_FEM()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.add_brick"><code class="docutils literal notranslate"><span class="pre">DPHS.add_brick()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.add_control_port"><code class="docutils literal notranslate"><span class="pre">DPHS.add_control_port()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.add_costate"><code class="docutils literal notranslate"><span class="pre">DPHS.add_costate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.add_lumped_port"><code class="docutils literal notranslate"><span class="pre">DPHS.add_lumped_port()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.add_parameter"><code class="docutils literal notranslate"><span class="pre">DPHS.add_parameter()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.add_port"><code class="docutils literal notranslate"><span class="pre">DPHS.add_port()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.add_state"><code class="docutils literal notranslate"><span class="pre">DPHS.add_state()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.allocate_memory"><code class="docutils literal notranslate"><span class="pre">DPHS.allocate_memory()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.assemble_mass"><code class="docutils literal notranslate"><span class="pre">DPHS.assemble_mass()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.assemble_nl_mass"><code class="docutils literal notranslate"><span class="pre">DPHS.assemble_nl_mass()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.assemble_nl_stiffness"><code class="docutils literal notranslate"><span class="pre">DPHS.assemble_nl_stiffness()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.assemble_rhs"><code class="docutils literal notranslate"><span class="pre">DPHS.assemble_rhs()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.assemble_stiffness"><code class="docutils literal notranslate"><span class="pre">DPHS.assemble_stiffness()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.audit_interface_brick_plan"><code class="docutils literal notranslate"><span class="pre">DPHS.audit_interface_brick_plan()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.audit_interface_ownership"><code class="docutils literal notranslate"><span class="pre">DPHS.audit_interface_ownership()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.bricks"><code class="docutils literal notranslate"><span class="pre">DPHS.bricks</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.buffer"><code class="docutils literal notranslate"><span class="pre">DPHS.buffer</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.compute_Hamiltonian"><code class="docutils literal notranslate"><span class="pre">DPHS.compute_Hamiltonian()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.compute_powers"><code class="docutils literal notranslate"><span class="pre">DPHS.compute_powers()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.controls"><code class="docutils literal notranslate"><span class="pre">DPHS.controls</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.costates"><code class="docutils literal notranslate"><span class="pre">DPHS.costates</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.disable_all_bricks"><code class="docutils literal notranslate"><span class="pre">DPHS.disable_all_bricks()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.display"><code class="docutils literal notranslate"><span class="pre">DPHS.display()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.domain"><code class="docutils literal notranslate"><span class="pre">DPHS.domain</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.enable_all_bricks"><code class="docutils literal notranslate"><span class="pre">DPHS.enable_all_bricks()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.event"><code class="docutils literal notranslate"><span class="pre">DPHS.event()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.exclude_algebraic_var_from_lte"><code class="docutils literal notranslate"><span class="pre">DPHS.exclude_algebraic_var_from_lte()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.export_matrices"><code class="docutils literal notranslate"><span class="pre">DPHS.export_matrices()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.export_to_pv"><code class="docutils literal notranslate"><span class="pre">DPHS.export_to_pv()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.get_Hamiltonian"><code class="docutils literal notranslate"><span class="pre">DPHS.get_Hamiltonian()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.get_cleared_TS_options"><code class="docutils literal notranslate"><span class="pre">DPHS.get_cleared_TS_options()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.get_output_path"><code class="docutils literal notranslate"><span class="pre">DPHS.get_output_path()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.get_profile"><code class="docutils literal notranslate"><span class="pre">DPHS.get_profile()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.get_quantity"><code class="docutils literal notranslate"><span class="pre">DPHS.get_quantity()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.get_solution"><code class="docutils literal notranslate"><span class="pre">DPHS.get_solution()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.gf_model"><code class="docutils literal notranslate"><span class="pre">DPHS.gf_model</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.hamiltonian"><code class="docutils literal notranslate"><span class="pre">DPHS.hamiltonian</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.init_matrix"><code class="docutils literal notranslate"><span class="pre">DPHS.init_matrix()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.init_parameter"><code class="docutils literal notranslate"><span class="pre">DPHS.init_parameter()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.init_step"><code class="docutils literal notranslate"><span class="pre">DPHS.init_step()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.initial_value_set"><code class="docutils literal notranslate"><span class="pre">DPHS.initial_value_set</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.initialization_report"><code class="docutils literal notranslate"><span class="pre">DPHS.initialization_report</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.linear_mass"><code class="docutils literal notranslate"><span class="pre">DPHS.linear_mass</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.load_checkpoint"><code class="docutils literal notranslate"><span class="pre">DPHS.load_checkpoint()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.lumped_variables"><code class="docutils literal notranslate"><span class="pre">DPHS.lumped_variables</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.mass"><code class="docutils literal notranslate"><span class="pre">DPHS.mass</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.monitor"><code class="docutils literal notranslate"><span class="pre">DPHS.monitor()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.nl_mass"><code class="docutils literal notranslate"><span class="pre">DPHS.nl_mass</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.nl_stiffness"><code class="docutils literal notranslate"><span class="pre">DPHS.nl_stiffness</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.plot_Hamiltonian"><code class="docutils literal notranslate"><span class="pre">DPHS.plot_Hamiltonian()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.plot_powers"><code class="docutils literal notranslate"><span class="pre">DPHS.plot_powers()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.ports"><code class="docutils literal notranslate"><span class="pre">DPHS.ports</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.postevent"><code class="docutils literal notranslate"><span class="pre">DPHS.postevent()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.powers_computed"><code class="docutils literal notranslate"><span class="pre">DPHS.powers_computed</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.profiler"><code class="docutils literal notranslate"><span class="pre">DPHS.profiler</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.rhs"><code class="docutils literal notranslate"><span class="pre">DPHS.rhs</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.save_checkpoint"><code class="docutils literal notranslate"><span class="pre">DPHS.save_checkpoint()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.set_control"><code class="docutils literal notranslate"><span class="pre">DPHS.set_control()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.set_domain"><code class="docutils literal notranslate"><span class="pre">DPHS.set_domain()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.set_from_vector"><code class="docutils literal notranslate"><span class="pre">DPHS.set_from_vector()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.set_initial_value"><code class="docutils literal notranslate"><span class="pre">DPHS.set_initial_value()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.set_linear_flags"><code class="docutils literal notranslate"><span class="pre">DPHS.set_linear_flags()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.set_output_directory"><code class="docutils literal notranslate"><span class="pre">DPHS.set_output_directory()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.set_output_name"><code class="docutils literal notranslate"><span class="pre">DPHS.set_output_name()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.set_time_scheme"><code class="docutils literal notranslate"><span class="pre">DPHS.set_time_scheme()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.solution"><code class="docutils literal notranslate"><span class="pre">DPHS.solution</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.solve"><code class="docutils literal notranslate"><span class="pre">DPHS.solve()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.solve_done"><code class="docutils literal notranslate"><span class="pre">DPHS.solve_done</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.spy_Dirac"><code class="docutils literal notranslate"><span class="pre">DPHS.spy_Dirac()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.states"><code class="docutils literal notranslate"><span class="pre">DPHS.states</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.stiffness"><code class="docutils literal notranslate"><span class="pre">DPHS.stiffness</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.stop_TS"><code class="docutils literal notranslate"><span class="pre">DPHS.stop_TS</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.tangent_mass"><code class="docutils literal notranslate"><span class="pre">DPHS.tangent_mass</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.tangent_stiffness"><code class="docutils literal notranslate"><span class="pre">DPHS.tangent_stiffness</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.dphs.DPHS.ts_start"><code class="docutils literal notranslate"><span class="pre">DPHS.ts_start</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../scrimp.html#module-scrimp.domain">Domain</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../scrimp.html#scrimp.domain.Domain"><code class="docutils literal notranslate"><span class="pre">Domain</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.domain.Domain.display"><code class="docutils literal notranslate"><span class="pre">Domain.display()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.domain.Domain.get_boundaries"><code class="docutils literal notranslate"><span class="pre">Domain.get_boundaries()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.domain.Domain.get_dim"><code class="docutils literal notranslate"><span class="pre">Domain.get_dim()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.domain.Domain.get_isSet"><code class="docutils literal notranslate"><span class="pre">Domain.get_isSet()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.domain.Domain.get_mesh"><code class="docutils literal notranslate"><span class="pre">Domain.get_mesh()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.domain.Domain.get_name"><code class="docutils literal notranslate"><span class="pre">Domain.get_name()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.domain.Domain.get_subdomains"><code class="docutils literal notranslate"><span class="pre">Domain.get_subdomains()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.domain.Domain.resolve_interface"><code class="docutils literal notranslate"><span class="pre">Domain.resolve_interface()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.domain.Domain.set_mim_auto"><code class="docutils literal notranslate"><span class="pre">Domain.set_mim_auto()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../scrimp.html#module-scrimp.hamiltonian">Hamiltonian / Term</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../scrimp.html#scrimp.hamiltonian.Hamiltonian"><code class="docutils literal notranslate"><span class="pre">Hamiltonian</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.hamiltonian.Hamiltonian.add_term"><code class="docutils literal notranslate"><span class="pre">Hamiltonian.add_term()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.hamiltonian.Hamiltonian.compute"><code class="docutils literal notranslate"><span class="pre">Hamiltonian.compute()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.hamiltonian.Hamiltonian.get_is_computed"><code class="docutils literal notranslate"><span class="pre">Hamiltonian.get_is_computed()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.hamiltonian.Hamiltonian.get_name"><code class="docutils literal notranslate"><span class="pre">Hamiltonian.get_name()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.hamiltonian.Hamiltonian.get_terms"><code class="docutils literal notranslate"><span class="pre">Hamiltonian.get_terms()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.hamiltonian.Hamiltonian.invalidate"><code class="docutils literal notranslate"><span class="pre">Hamiltonian.invalidate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.hamiltonian.Hamiltonian.set_is_computed"><code class="docutils literal notranslate"><span class="pre">Hamiltonian.set_is_computed()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.hamiltonian.Hamiltonian.set_name"><code class="docutils literal notranslate"><span class="pre">Hamiltonian.set_name()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../scrimp.html#scrimp.hamiltonian.Term"><code class="docutils literal notranslate"><span class="pre">Term</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.hamiltonian.Term.get_description"><code class="docutils literal notranslate"><span class="pre">Term.get_description()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.hamiltonian.Term.get_expression"><code class="docutils literal notranslate"><span class="pre">Term.get_expression()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.hamiltonian.Term.get_mesh_id"><code class="docutils literal notranslate"><span class="pre">Term.get_mesh_id()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.hamiltonian.Term.get_regions"><code class="docutils literal notranslate"><span class="pre">Term.get_regions()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.hamiltonian.Term.get_values"><code class="docutils literal notranslate"><span class="pre">Term.get_values()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.hamiltonian.Term.replace_values"><code class="docutils literal notranslate"><span class="pre">Term.replace_values()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.hamiltonian.Term.set_value"><code class="docutils literal notranslate"><span class="pre">Term.set_value()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../scrimp.html#module-scrimp.port">Port / Parameter</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../scrimp.html#scrimp.port.Parameter"><code class="docutils literal notranslate"><span class="pre">Parameter</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.port.Parameter.get_description"><code class="docutils literal notranslate"><span class="pre">Parameter.get_description()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.port.Parameter.get_expression"><code class="docutils literal notranslate"><span class="pre">Parameter.get_expression()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.port.Parameter.get_kind"><code class="docutils literal notranslate"><span class="pre">Parameter.get_kind()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.port.Parameter.get_name"><code class="docutils literal notranslate"><span class="pre">Parameter.get_name()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.port.Parameter.get_name_port"><code class="docutils literal notranslate"><span class="pre">Parameter.get_name_port()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../scrimp.html#scrimp.port.Port"><code class="docutils literal notranslate"><span class="pre">Port</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.port.Port.add_parameter"><code class="docutils literal notranslate"><span class="pre">Port.add_parameter()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.port.Port.compute"><code class="docutils literal notranslate"><span class="pre">Port.compute()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.port.Port.get_algebraic"><code class="docutils literal notranslate"><span class="pre">Port.get_algebraic()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.port.Port.get_assembly_region"><code class="docutils literal notranslate"><span class="pre">Port.get_assembly_region()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.port.Port.get_dissipative"><code class="docutils literal notranslate"><span class="pre">Port.get_dissipative()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.port.Port.get_effort"><code class="docutils literal notranslate"><span class="pre">Port.get_effort()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.port.Port.get_fem"><code class="docutils literal notranslate"><span class="pre">Port.get_fem()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.port.Port.get_flow"><code class="docutils literal notranslate"><span class="pre">Port.get_flow()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.port.Port.get_isSet"><code class="docutils literal notranslate"><span class="pre">Port.get_isSet()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.port.Port.get_is_computed"><code class="docutils literal notranslate"><span class="pre">Port.get_is_computed()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.port.Port.get_kind"><code class="docutils literal notranslate"><span class="pre">Port.get_kind()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.port.Port.get_mesh_id"><code class="docutils literal notranslate"><span class="pre">Port.get_mesh_id()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.port.Port.get_name"><code class="docutils literal notranslate"><span class="pre">Port.get_name()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.port.Port.get_parameter"><code class="docutils literal notranslate"><span class="pre">Port.get_parameter()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.port.Port.get_parameters"><code class="docutils literal notranslate"><span class="pre">Port.get_parameters()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.port.Port.get_power"><code class="docutils literal notranslate"><span class="pre">Port.get_power()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.port.Port.get_power_sampling"><code class="docutils literal notranslate"><span class="pre">Port.get_power_sampling()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.port.Port.get_region"><code class="docutils literal notranslate"><span class="pre">Port.get_region()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.port.Port.get_substituted"><code class="docutils literal notranslate"><span class="pre">Port.get_substituted()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.port.Port.init_parameter"><code class="docutils literal notranslate"><span class="pre">Port.init_parameter()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.port.Port.set_assembly_region"><code class="docutils literal notranslate"><span class="pre">Port.set_assembly_region()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.port.Port.set_fem"><code class="docutils literal notranslate"><span class="pre">Port.set_fem()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.port.Port.set_isSet"><code class="docutils literal notranslate"><span class="pre">Port.set_isSet()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.port.Port.set_is_computed"><code class="docutils literal notranslate"><span class="pre">Port.set_is_computed()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.port.Port.set_power"><code class="docutils literal notranslate"><span class="pre">Port.set_power()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../scrimp.html#module-scrimp.state">State</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../scrimp.html#scrimp.state.State"><code class="docutils literal notranslate"><span class="pre">State</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.state.State.get_costate"><code class="docutils literal notranslate"><span class="pre">State.get_costate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.state.State.get_description"><code class="docutils literal notranslate"><span class="pre">State.get_description()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.state.State.get_kind"><code class="docutils literal notranslate"><span class="pre">State.get_kind()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.state.State.get_mesh_id"><code class="docutils literal notranslate"><span class="pre">State.get_mesh_id()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.state.State.get_name"><code class="docutils literal notranslate"><span class="pre">State.get_name()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.state.State.get_port"><code class="docutils literal notranslate"><span class="pre">State.get_port()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.state.State.get_region"><code class="docutils literal notranslate"><span class="pre">State.get_region()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.state.State.set_costate"><code class="docutils literal notranslate"><span class="pre">State.set_costate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.state.State.set_port"><code class="docutils literal notranslate"><span class="pre">State.set_port()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../scrimp.html#module-scrimp.costate">Co-state</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../scrimp.html#scrimp.costate.CoState"><code class="docutils literal notranslate"><span class="pre">CoState</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.costate.CoState.get_state"><code class="docutils literal notranslate"><span class="pre">CoState.get_state()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.costate.CoState.get_substituted"><code class="docutils literal notranslate"><span class="pre">CoState.get_substituted()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../scrimp.html#module-scrimp.control">Control</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../scrimp.html#scrimp.control.Control_Port"><code class="docutils literal notranslate"><span class="pre">Control_Port</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.control.Control_Port.get_description_control"><code class="docutils literal notranslate"><span class="pre">Control_Port.get_description_control()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.control.Control_Port.get_description_observation"><code class="docutils literal notranslate"><span class="pre">Control_Port.get_description_observation()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.control.Control_Port.get_name_control"><code class="docutils literal notranslate"><span class="pre">Control_Port.get_name_control()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.control.Control_Port.get_name_obervation"><code class="docutils literal notranslate"><span class="pre">Control_Port.get_name_obervation()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.control.Control_Port.get_position"><code class="docutils literal notranslate"><span class="pre">Control_Port.get_position()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../scrimp.html#module-scrimp.fem">FEM</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../scrimp.html#scrimp.fem.FEM"><code class="docutils literal notranslate"><span class="pre">FEM</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.fem.FEM.get_dim"><code class="docutils literal notranslate"><span class="pre">FEM.get_dim()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.fem.FEM.get_fem"><code class="docutils literal notranslate"><span class="pre">FEM.get_fem()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.fem.FEM.get_isSet"><code class="docutils literal notranslate"><span class="pre">FEM.get_isSet()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.fem.FEM.get_mesh"><code class="docutils literal notranslate"><span class="pre">FEM.get_mesh()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.fem.FEM.get_name"><code class="docutils literal notranslate"><span class="pre">FEM.get_name()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.fem.FEM.get_order"><code class="docutils literal notranslate"><span class="pre">FEM.get_order()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.fem.FEM.get_type"><code class="docutils literal notranslate"><span class="pre">FEM.get_type()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.fem.FEM.set_dim"><code class="docutils literal notranslate"><span class="pre">FEM.set_dim()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.fem.FEM.set_fem"><code class="docutils literal notranslate"><span class="pre">FEM.set_fem()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.fem.FEM.set_mesh"><code class="docutils literal notranslate"><span class="pre">FEM.set_mesh()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../scrimp.html#module-scrimp.brick">Brick</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../scrimp.html#scrimp.brick.Brick"><code class="docutils literal notranslate"><span class="pre">Brick</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.brick.Brick.add_id_brick_to_list"><code class="docutils literal notranslate"><span class="pre">Brick.add_id_brick_to_list()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.brick.Brick.disable_id_bricks"><code class="docutils literal notranslate"><span class="pre">Brick.disable_id_bricks()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.brick.Brick.enable_id_bricks"><code class="docutils literal notranslate"><span class="pre">Brick.enable_id_bricks()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.brick.Brick.get_assembly_regions"><code class="docutils literal notranslate"><span class="pre">Brick.get_assembly_regions()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.brick.Brick.get_dt"><code class="docutils literal notranslate"><span class="pre">Brick.get_dt()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.brick.Brick.get_explicit"><code class="docutils literal notranslate"><span class="pre">Brick.get_explicit()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.brick.Brick.get_form"><code class="docutils literal notranslate"><span class="pre">Brick.get_form()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.brick.Brick.get_id_bricks"><code class="docutils literal notranslate"><span class="pre">Brick.get_id_bricks()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.brick.Brick.get_linear"><code class="docutils literal notranslate"><span class="pre">Brick.get_linear()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.brick.Brick.get_mesh_id"><code class="docutils literal notranslate"><span class="pre">Brick.get_mesh_id()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.brick.Brick.get_name"><code class="docutils literal notranslate"><span class="pre">Brick.get_name()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.brick.Brick.get_position"><code class="docutils literal notranslate"><span class="pre">Brick.get_position()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.brick.Brick.get_regions"><code class="docutils literal notranslate"><span class="pre">Brick.get_regions()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../scrimp.html#scrimp.brick.Brick.set_assembly_regions"><code class="docutils literal notranslate"><span class="pre">Brick.set_assembly_regions()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference external" href="https://impacts.ens2m.fr/">ANR Impacts</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/g-haine/scrimp">GitHub repo</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://g-haine.github.io/scrimp/latex/scrimp.pdf">PDF documentation</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">SCRIMP</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../examples.html">Examples</a></li>
+      <li class="breadcrumb-item active">The wave equation — 2A: conservative anisotropic membrane</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/examples/wave.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="the-wave-equation-2a-conservative-anisotropic-membrane">
+<h1>The wave equation — 2A: conservative anisotropic membrane<a class="headerlink" href="#the-wave-equation-2a-conservative-anisotropic-membrane" title="Link to this heading"></a></h1>
+<p id="module-examples.wave"><span id="wave-2d"></span>Conservative 2D anisotropic membrane with mixed boundary ports.</p>
+<p>2D mixed-boundary anisotropic membrane, energy variables q=grad w,
+p=rho*w_t, coenergy e_q=T q and e_p=p/rho. This preserves the
+original model’s four boundary ports and its actual GetFEM GWFL
+Hamiltonian 0.5*q.T.q, where T is the full tensor parameter.</p>
+<p>Physical outward-normal traction: u_N=n.e_q at bottom/right/top;
+observation y_N=e_p. Left side prescribes u_D=e_p (velocity) and
+observes y_D=n.e_q (traction). The pH energy balance is</p>
+<blockquote>
+<div><p>H(t)-H(0) = integral (u_N*y_N + u_D*y_D) dt.</p>
+</div></blockquote>
+<p>The negative flow-side algebraic rows impose Y_N=e_p and U_D=e_p:
+this is the same physical sign convention as qualified wave_1d.py.
+The <em>physical</em> sign of the measured work is audited independently
+against the original GetFEM Hamiltonian; no success is inferred
+solely from these formulae.</p>
+<p>This tutorial starts from EXACTLY zero, compatible with zero
+initial Dirichlet velocity and initial normal stress, and uses
+a left-boundary velocity that is zero at t=0 but nontrivial soon
+after. The original model, before promotion, passed real MUMPS MPI1/2
+10-step TSCN physical and shared-ParaView tests at cf42089d;
+other LU backends require independent native acceptance.</p>
+<p>Scientific context: Haine, Matignon, Serhani (2023), anisotropic
+heterogeneous wave PFEM, DOI 10.4208/ijnam2023-1005; and
+Brugnoli, Haine, Matignon (2022) on mixed boundary control.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="examples.wave.main">
+<span class="sig-prename descclassname"><span class="pre">examples.wave.</span></span><span class="sig-name descname"><span class="pre">main</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#examples.wave.main" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="examples.wave.measure_wave_2d">
+<span class="sig-prename descclassname"><span class="pre">examples.wave.</span></span><span class="sig-name descname"><span class="pre">measure_wave_2d</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">system</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#examples.wave.measure_wave_2d" title="Link to this definition"></a></dt>
+<dd><p>Measure ORIGINAL GetFEM energy and all four signed port powers.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="examples.wave.wave_eq">
+<span class="sig-prename descclassname"><span class="pre">examples.wave.</span></span><span class="sig-name descname"><span class="pre">wave_eq</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">mesh_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">final_time</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.08</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_step</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.008</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">factor_solver</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#examples.wave.wave_eq" title="Link to this definition"></a></dt>
+<dd><p>Build and integrate the conservative mixed-boundary 2D pH wave.</p>
+<p>The time/mesh defaults are intentionally for native installation
+acceptance, not for a convergence order or published benchmark.</p>
+</dd></dl>
+
+<section id="why-this-example">
+<h2>Why this example?<a class="headerlink" href="#why-this-example" title="Link to this heading"></a></h2>
+<p>The <a class="reference internal" href="../started.html"><span class="doc">first tutorial</span></a> showed a <strong>one-dimensional</strong>
+string and its two boundary ports. Our next model is genuinely
+<strong>two-dimensional</strong>, heterogeneous and anisotropic, with <strong>mixed
+boundary control</strong>: three boundary segments prescribe an outward
+normal traction, while the fourth prescribes a <em>velocity</em>. We will
+keep exactly the same materials, mesh and boundary convention when
+we add an internal dissipative port in example <strong>2B</strong>. We will
+then study the complementary co-energy formulation in example
+<strong>2C</strong> (<a class="reference internal" href="wave_coenergy.html"><span class="doc">The wave equation — 2C: co-energy and localized damping</span></a>).</p>
+<p>This page describes the actual code in <code class="docutils literal notranslate"><span class="pre">examples/wave.py</span></code>.
+Its snippets are included <strong>directly from that file</strong>, avoiding
+manual discrepancies between the tutorial and the program.
+The validated source is the same for all PETSc solver backends.</p>
+</section>
+<section id="the-physical-model">
+<h2>The physical model<a class="headerlink" href="#the-physical-model" title="Link to this heading"></a></h2>
+<p>Let <span class="math notranslate nohighlight">\(\Omega=(0,2)\times(0,1)\)</span> and let <span class="math notranslate nohighlight">\(w(t,x,y)\)</span>
+denote the transverse displacement of a membrane. We consider</p>
+<div class="math notranslate nohighlight">
+\[\rho(x)\,\partial_{tt} w
+- \operatorname{div}(T(x,y)\nabla w)=0,\]</div>
+<p>where the in-plane tension tensor and areal mass density are</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}T(x,y)=\begin{bmatrix}5+x&amp;xy\\xy&amp;2+y\end{bmatrix},
+\qquad \rho(x)=3-x.\end{split}\]</div>
+<p>Here <span class="math notranslate nohighlight">\(T\)</span> is <strong>not</strong> a scalar Young modulus. It is a
+symmetric, positive-definite anisotropic tensor; both <span class="math notranslate nohighlight">\(T\)</span>
+and <span class="math notranslate nohighlight">\(\rho\)</span> vary spatially. The lower, right and upper
+boundaries are <span class="math notranslate nohighlight">\(\Gamma_N\)</span> (GetFEM regions 10, 11 and 12).
+The left boundary is <span class="math notranslate nohighlight">\(\Gamma_D\)</span> (region 13). Writing
+<span class="math notranslate nohighlight">\(n\)</span> for the <strong>outward</strong> unit normal, the controls are</p>
+<div class="math notranslate nohighlight">
+\[n\cdot(T\nabla w)=u_N \quad\hbox{on }\Gamma_N,
+\qquad \partial_t w=u_D \quad\hbox{on }\Gamma_D.\]</div>
+<p>The second condition prescribes <em>velocity</em>, <strong>not</strong> displacement.
+This is sometimes called a velocity-Dirichlet port in the
+port-Hamiltonian literature.</p>
+</section>
+<section id="energy-variables-co-energy-variables-and-power">
+<h2>Energy variables, co-energy variables and power<a class="headerlink" href="#energy-variables-co-energy-variables-and-power" title="Link to this heading"></a></h2>
+<p>We choose the energy states</p>
+<div class="math notranslate nohighlight">
+\[q=\nabla w,\qquad p=\rho\,\partial_t w,\]</div>
+<p>and their conjugate co-energies</p>
+<div class="math notranslate nohighlight">
+\[e_q=Tq,\qquad e_p=p/\rho.\]</div>
+<p>Thus <span class="math notranslate nohighlight">\(q\)</span> and <span class="math notranslate nohighlight">\(e_q\)</span> are <strong>vectors</strong>,
+whereas <span class="math notranslate nohighlight">\(p\)</span> and <span class="math notranslate nohighlight">\(e_p\)</span> are <strong>scalars</strong>. The
+first-order port-Hamiltonian dynamics are</p>
+<div class="math notranslate nohighlight">
+\[\partial_t q=\nabla e_p,\qquad
+\partial_t p=\operatorname{div}e_q.\]</div>
+<p>The physical Hamiltonian is</p>
+<div class="math notranslate nohighlight" id="equation-wave-2d-conservative-energy">
+<span class="eqno">(1)<a class="headerlink" href="#equation-wave-2d-conservative-energy" title="Link to this equation"></a></span>\[\mathcal H(q,p)=\tfrac12\int_{\Omega}
+\left(q\cdot Tq+\frac{p^2}{\rho}\right)\,\mathrm dx.\]</div>
+<p>In the <strong>GetFEM Generic Weak Form Language</strong> (GWFL),
+<code class="docutils literal notranslate"><span class="pre">q.T.q</span></code> denotes <span class="math notranslate nohighlight">\(q\cdot Tq\)</span>: <code class="docutils literal notranslate"><span class="pre">T</span></code> is the
+<strong>tensor parameter’s identifier</strong>, not the transpose
+operator from Python/NumPy. The actual code therefore
+correctly uses <code class="docutils literal notranslate"><span class="pre">&quot;0.5*q.T.q&quot;</span></code>.</p>
+<p>With our boundary orientation, the collocated outputs are</p>
+<div class="math notranslate nohighlight">
+\[y_N=e_p \quad\hbox{on }\Gamma_N,\qquad
+y_D=n\cdot e_q \quad\hbox{on }\Gamma_D.\]</div>
+<p>The energy exchanged with the environment is</p>
+<div class="math notranslate nohighlight" id="equation-wave-2d-conservative-power">
+<span class="eqno">(2)<a class="headerlink" href="#equation-wave-2d-conservative-power" title="Link to this equation"></a></span>\[\frac{\mathrm d\mathcal H}{\mathrm dt}
+=\int_{\Gamma_N}u_N y_N\,\mathrm ds
+ +\int_{\Gamma_D}u_D y_D\,\mathrm ds.\]</div>
+<p>Our short demonstration uses <strong>zero</strong> Neumann tractions,
+with a nontrivial prescribed left velocity. Thus the
+left-hand boundary supplies the entire mechanical work;
+the right, top and bottom boundary powers are zero.</p>
+</section>
+<section id="from-the-strong-equation-to-pfem">
+<h2>From the strong equation to PFEM<a class="headerlink" href="#from-the-strong-equation-to-pfem" title="Link to this heading"></a></h2>
+<p>Integrating <span class="math notranslate nohighlight">\(\partial_t p=\operatorname{div}e_q\)</span>
+against a test function <span class="math notranslate nohighlight">\(\varphi_p\)</span> gives</p>
+<div class="math notranslate nohighlight">
+\[\int_\Omega\partial_t p\,\varphi_p
+=-\int_\Omega e_q\cdot\nabla\varphi_p
+ +\int_{\Gamma_N}u_N\varphi_p
+ +\int_{\Gamma_D}y_D\varphi_p.\]</div>
+<p>The first equation is tested without integration by parts:</p>
+<div class="math notranslate nohighlight">
+\[\int_\Omega\partial_t q\cdot\varphi_q
+=\int_\Omega\nabla e_p\cdot\varphi_q.\]</div>
+<p>These two choices yield the partitioned finite-element
+discretization (PFEM): <code class="docutils literal notranslate"><span class="pre">DG1</span></code> for vector strain
+<span class="math notranslate nohighlight">\(q\)</span>, <code class="docutils literal notranslate"><span class="pre">CG2</span></code> for scalar momentum <span class="math notranslate nohighlight">\(p\)</span>,
+and <code class="docutils literal notranslate"><span class="pre">DG1</span></code> boundary traces. The exact finite-element
+spaces and material definitions are shown below.</p>
+<p>In SCRIMP’s assembly convention, the <em>flow-side</em>
+algebraic variables for the Neumann velocity observations
+are <strong>``-Y_B``, ``-Y_R``, ``-Y_T``</strong>, and the
+velocity input on the left appears as <strong>``-U_L``</strong>.
+The corresponding effort-side test terms are negative
+velocity traces. The signs make the measured
+powers consistent with <a class="reference internal" href="#equation-wave-2d-conservative-power">(2)</a>.
+They have been checked by native GetFEM/PETSc simulations,
+not merely assumed from the matrix layout.</p>
+</section>
+<section id="build-the-real-scrimp-model">
+<h2>Build the real SCRIMP model<a class="headerlink" href="#build-the-real-scrimp-model" title="Link to this heading"></a></h2>
+<p>To reproduce the snippets in a notebook, begin with these
+imports and the <em>same tested defaults</em> (the command-line entry
+point accepts other values):</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">scrimp</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">S</span>
+
+<span class="n">mesh_size</span> <span class="o">=</span> <span class="mf">0.2</span>
+<span class="n">final_time</span> <span class="o">=</span> <span class="mf">0.08</span>
+<span class="n">time_step</span> <span class="o">=</span> <span class="mf">0.008</span>
+<span class="n">factor_solver</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># Production default: MUMPS</span>
+</pre></div>
+</div>
+<p>The four boundary identifiers are taken directly from
+the Python module, too:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">BOUNDARIES</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="p">(</span><span class="s2">"bottom"</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="s2">"B"</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">"right"</span><span class="p">,</span> <span class="mi">11</span><span class="p">,</span> <span class="s2">"R"</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">"top"</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="s2">"T"</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">"left"</span><span class="p">,</span> <span class="mi">13</span><span class="p">,</span> <span class="s2">"L"</span><span class="p">),</span>
+<span class="p">)</span>
+
+
+</pre></div>
+</div>
+<p>The following seven sections are taken <strong>literally</strong> from
+<code class="docutils literal notranslate"><span class="pre">examples/wave.py:wave_eq()</span></code>; no duplicate hand-written
+Python excerpts are maintained in Sphinx. The boundary
+index tuple <code class="docutils literal notranslate"><span class="pre">BOUNDARIES</span></code> is defined at module level.</p>
+<p><strong>1. Instantiate the DPHS, domain, states and co-states.</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">system</span> <span class="o">=</span> <span class="n">S</span><span class="o">.</span><span class="n">DPHS</span><span class="p">(</span><span class="s2">"real"</span><span class="p">)</span>
+<span class="n">system</span><span class="o">.</span><span class="n">set_output_name</span><span class="p">(</span><span class="s2">"wave_2d"</span><span class="p">)</span>
+<span class="n">system</span><span class="o">.</span><span class="n">set_domain</span><span class="p">(</span><span class="n">S</span><span class="o">.</span><span class="n">Domain</span><span class="p">(</span><span class="s2">"Rectangle"</span><span class="p">,</span> <span class="p">{</span>
+    <span class="s2">"L"</span><span class="p">:</span> <span class="mf">2.</span><span class="p">,</span> <span class="s2">"l"</span><span class="p">:</span> <span class="mf">1.</span><span class="p">,</span> <span class="s2">"h"</span><span class="p">:</span> <span class="n">mesh_size</span><span class="p">,</span>
+<span class="p">},</span> <span class="n">mesh_output_dir</span><span class="o">=</span><span class="n">system</span><span class="o">.</span><span class="n">get_output_path</span><span class="p">(</span><span class="s2">"mesh"</span><span class="p">,</span><span class="n">create</span><span class="o">=</span><span class="kc">True</span><span class="p">)))</span>
+
+<span class="n">q</span> <span class="o">=</span> <span class="n">S</span><span class="o">.</span><span class="n">State</span><span class="p">(</span><span class="s2">"q"</span><span class="p">,</span> <span class="s2">"Strain"</span><span class="p">,</span> <span class="s2">"vector-field"</span><span class="p">)</span>
+<span class="n">p</span> <span class="o">=</span> <span class="n">S</span><span class="o">.</span><span class="n">State</span><span class="p">(</span><span class="s2">"p"</span><span class="p">,</span> <span class="s2">"Linear momentum"</span><span class="p">,</span> <span class="s2">"scalar-field"</span><span class="p">)</span>
+<span class="n">system</span><span class="o">.</span><span class="n">add_state</span><span class="p">(</span><span class="n">q</span><span class="p">)</span>
+<span class="n">system</span><span class="o">.</span><span class="n">add_state</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+<span class="n">system</span><span class="o">.</span><span class="n">add_costate</span><span class="p">(</span><span class="n">S</span><span class="o">.</span><span class="n">CoState</span><span class="p">(</span><span class="s2">"e_q"</span><span class="p">,</span> <span class="s2">"Stress"</span><span class="p">,</span> <span class="n">q</span><span class="p">))</span>
+<span class="n">system</span><span class="o">.</span><span class="n">add_costate</span><span class="p">(</span><span class="n">S</span><span class="o">.</span><span class="n">CoState</span><span class="p">(</span><span class="s2">"e_p"</span><span class="p">,</span> <span class="s2">"Velocity"</span><span class="p">,</span> <span class="n">p</span><span class="p">))</span>
+
+</pre></div>
+</div>
+<p><strong>2. Define the four mixed boundary ports.</strong> Only the left port
+uses <code class="docutils literal notranslate"><span class="pre">position=&quot;flow&quot;</span></code>, since it imposes the velocity
+instead of the normal traction.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">side</span><span class="p">,</span> <span class="n">region</span><span class="p">,</span> <span class="n">suffix</span> <span class="ow">in</span> <span class="n">BOUNDARIES</span><span class="p">:</span>
+    <span class="c1"># Only the LEFT boundary is velocity-controlled (flow port).</span>
+    <span class="n">is_left</span> <span class="o">=</span> <span class="n">side</span> <span class="o">==</span> <span class="s2">"left"</span>
+    <span class="n">system</span><span class="o">.</span><span class="n">add_control_port</span><span class="p">(</span><span class="n">S</span><span class="o">.</span><span class="n">Control_Port</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s2">"Boundary control (</span><span class="si">{</span><span class="n">side</span><span class="si">}</span><span class="s2">)"</span><span class="p">,</span>
+        <span class="sa">f</span><span class="s2">"U_</span><span class="si">{</span><span class="n">suffix</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+        <span class="s2">"Velocity"</span> <span class="k">if</span> <span class="n">is_left</span> <span class="k">else</span> <span class="s2">"Outward normal traction"</span><span class="p">,</span>
+        <span class="sa">f</span><span class="s2">"Y_</span><span class="si">{</span><span class="n">suffix</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+        <span class="s2">"Outward normal traction"</span> <span class="k">if</span> <span class="n">is_left</span> <span class="k">else</span> <span class="s2">"Velocity"</span><span class="p">,</span>
+        <span class="s2">"scalar-field"</span><span class="p">,</span>
+        <span class="n">region</span><span class="o">=</span><span class="n">region</span><span class="p">,</span>
+        <span class="n">position</span><span class="o">=</span><span class="s2">"flow"</span> <span class="k">if</span> <span class="n">is_left</span> <span class="k">else</span> <span class="s2">"effort"</span><span class="p">,</span>
+    <span class="p">))</span>
+
+</pre></div>
+</div>
+<p><strong>3. Choose the PFEM spaces and material coefficients.</strong>
+GetFEM’s nested GWFL matrix definition is symmetric and
+represents the actual inhomogeneous tensor <span class="math notranslate nohighlight">\(T\)</span>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">fem</span> <span class="ow">in</span> <span class="p">(</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">FEM</span><span class="p">(</span><span class="s2">"q"</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">"DG"</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">FEM</span><span class="p">(</span><span class="s2">"p"</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="s2">"CG"</span><span class="p">),</span>
+    <span class="o">*</span><span class="p">(</span><span class="n">S</span><span class="o">.</span><span class="n">FEM</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Boundary control (</span><span class="si">{</span><span class="n">side</span><span class="si">}</span><span class="s2">)"</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">"DG"</span><span class="p">)</span>
+      <span class="k">for</span> <span class="n">side</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">BOUNDARIES</span><span class="p">),</span>
+<span class="p">):</span>
+    <span class="n">system</span><span class="o">.</span><span class="n">add_FEM</span><span class="p">(</span><span class="n">fem</span><span class="p">)</span>
+
+<span class="c1"># This T is symmetric positive definite throughout [0,2] x [0,1].</span>
+<span class="c1"># GWFL nested matrices list COLUMNS; it is symmetric here.</span>
+<span class="n">system</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">S</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span>
+    <span class="s2">"T"</span><span class="p">,</span> <span class="s2">"Anisotropic membrane tension"</span><span class="p">,</span> <span class="s2">"tensor-field"</span><span class="p">,</span>
+    <span class="s2">"[[5+x,x*y],[x*y,2+y]]"</span><span class="p">,</span> <span class="s2">"q"</span><span class="p">,</span>
+<span class="p">))</span>
+<span class="n">system</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">S</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span>
+    <span class="s2">"rho"</span><span class="p">,</span> <span class="s2">"Areal mass density"</span><span class="p">,</span> <span class="s2">"scalar-field"</span><span class="p">,</span>
+    <span class="s2">"3-x"</span><span class="p">,</span> <span class="s2">"p"</span><span class="p">,</span>
+<span class="p">))</span>
+
+</pre></div>
+</div>
+<p><strong>4. Assemble the Dirac structure and constitutive laws.</strong>
+The rows with <code class="docutils literal notranslate"><span class="pre">dt=True</span></code> represent the differential
+part of the port-Hamiltonian DAE. Boundary observations and
+constraints are algebraic; the signs are visible here.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">bricks</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">"M_q"</span><span class="p">,</span> <span class="s2">"q.Test_q"</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">dt</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">position</span><span class="o">=</span><span class="s2">"flow"</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">"M_p"</span><span class="p">,</span> <span class="s2">"p*Test_p"</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">dt</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">position</span><span class="o">=</span><span class="s2">"flow"</span><span class="p">),</span>
+    <span class="c1"># Signed algebraic observation in *flow*:</span>
+    <span class="c1">#   -Y_N = -e_p -&gt; Y_N=e_p (Neumann outputs).</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">"-M_Y_B"</span><span class="p">,</span> <span class="s2">"-Y_B*Test_Y_B"</span><span class="p">,</span> <span class="p">[</span><span class="mi">10</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">"flow"</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">"-M_Y_R"</span><span class="p">,</span> <span class="s2">"-Y_R*Test_Y_R"</span><span class="p">,</span> <span class="p">[</span><span class="mi">11</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">"flow"</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">"-M_Y_T"</span><span class="p">,</span> <span class="s2">"-Y_T*Test_Y_T"</span><span class="p">,</span> <span class="p">[</span><span class="mi">12</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">"flow"</span><span class="p">),</span>
+    <span class="c1"># Mixed left velocity input: -U_L=-e_p -&gt; U_L=e_p.</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">"-M_U_L"</span><span class="p">,</span> <span class="s2">"-U_L*Test_Y_L"</span><span class="p">,</span> <span class="p">[</span><span class="mi">13</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">"flow"</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">"D"</span><span class="p">,</span> <span class="s2">"Grad(e_p).Test_q"</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">"effort"</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">"-D^T"</span><span class="p">,</span> <span class="s2">"-e_q.Grad(Test_p)"</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">"effort"</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">"B_B"</span><span class="p">,</span> <span class="s2">"U_B*Test_p"</span><span class="p">,</span> <span class="p">[</span><span class="mi">10</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">"effort"</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">"B_R"</span><span class="p">,</span> <span class="s2">"U_R*Test_p"</span><span class="p">,</span> <span class="p">[</span><span class="mi">11</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">"effort"</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">"B_T"</span><span class="p">,</span> <span class="s2">"U_T*Test_p"</span><span class="p">,</span> <span class="p">[</span><span class="mi">12</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">"effort"</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">"B_L"</span><span class="p">,</span> <span class="s2">"Y_L*Test_p"</span><span class="p">,</span> <span class="p">[</span><span class="mi">13</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">"effort"</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">"-B_B^T"</span><span class="p">,</span> <span class="s2">"-e_p*Test_Y_B"</span><span class="p">,</span> <span class="p">[</span><span class="mi">10</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">"effort"</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">"-B_R^T"</span><span class="p">,</span> <span class="s2">"-e_p*Test_Y_R"</span><span class="p">,</span> <span class="p">[</span><span class="mi">11</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">"effort"</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">"-B_T^T"</span><span class="p">,</span> <span class="s2">"-e_p*Test_Y_T"</span><span class="p">,</span> <span class="p">[</span><span class="mi">12</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">"effort"</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">"-B_L^T"</span><span class="p">,</span> <span class="s2">"-e_p*Test_Y_L"</span><span class="p">,</span> <span class="p">[</span><span class="mi">13</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">"effort"</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">"-M_e_q"</span><span class="p">,</span> <span class="s2">"-e_q.Test_e_q"</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">"CR_q"</span><span class="p">,</span> <span class="s2">"q.T.Test_e_q"</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">"-M_e_p"</span><span class="p">,</span> <span class="s2">"-e_p*Test_e_p"</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">"CR_p"</span><span class="p">,</span> <span class="s2">"p/rho*Test_e_p"</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
+<span class="p">]</span>
+<span class="k">for</span> <span class="n">brick</span> <span class="ow">in</span> <span class="n">bricks</span><span class="p">:</span>
+    <span class="n">system</span><span class="o">.</span><span class="n">add_brick</span><span class="p">(</span><span class="n">brick</span><span class="p">)</span>
+
+</pre></div>
+</div>
+<p><strong>5. Prescribe compatible initial data and controls.</strong>
+We set <span class="math notranslate nohighlight">\(q_0=p_0=0\)</span>, so <span class="math notranslate nohighlight">\(e_q=e_p=0\)</span>
+at the initial instant, and apply</p>
+<div class="math notranslate nohighlight">
+\[u_D(t,y)=0.2\sin(4\pi t)\sin(\pi y).\]</div>
+<p>This input also vanishes at <span class="math notranslate nohighlight">\(t=0\)</span> and at the
+corners of the left boundary. It is already nonzero
+during the ten-step installation smoke.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Exactly compatible at t=0 (zero stress and zero velocity).</span>
+<span class="c1"># The left boundary injects energy immediately after t=0.</span>
+<span class="k">for</span> <span class="n">side</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">BOUNDARIES</span><span class="p">:</span>
+    <span class="n">value</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="s2">"0.2*sin(4*pi*t)*sin(pi*y)"</span>
+        <span class="k">if</span> <span class="n">side</span> <span class="o">==</span> <span class="s2">"left"</span> <span class="k">else</span> <span class="s2">"0."</span>
+    <span class="p">)</span>
+    <span class="n">system</span><span class="o">.</span><span class="n">set_control</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Boundary control (</span><span class="si">{</span><span class="n">side</span><span class="si">}</span><span class="s2">)"</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+<span class="n">system</span><span class="o">.</span><span class="n">set_initial_value</span><span class="p">(</span><span class="s2">"q"</span><span class="p">,</span> <span class="s2">"[0., 0.]"</span><span class="p">)</span>
+<span class="n">system</span><span class="o">.</span><span class="n">set_initial_value</span><span class="p">(</span><span class="s2">"p"</span><span class="p">,</span> <span class="s2">"0."</span><span class="p">)</span>
+
+</pre></div>
+</div>
+<p><strong>6. Solve the actual DAE.</strong> The <code class="docutils literal notranslate"><span class="pre">algebraic</span></code> initial
+projection is strict and preserves the prescribed
+differential data. For the quick installation check
+we use fixed Crank–Nicolson,
+<span class="math notranslate nohighlight">\(t_f=0.08\)</span>, <span class="math notranslate nohighlight">\(\Delta t=0.008\)</span>,
+and ten accepted time steps, not a five-second
+publication reproduction.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">options</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="k">if</span> <span class="n">factor_solver</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">options</span><span class="p">[</span><span class="s2">"pc_factor_mat_solver_type"</span><span class="p">]</span> <span class="o">=</span> <span class="n">factor_solver</span>
+<span class="n">system</span><span class="o">.</span><span class="n">set_time_scheme</span><span class="p">(</span>
+    <span class="n">init_step_ts_type</span><span class="o">=</span><span class="s2">"algebraic"</span><span class="p">,</span> <span class="n">init_step</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">ts_type</span><span class="o">=</span><span class="s2">"cn"</span><span class="p">,</span> <span class="n">ts_adapt_type</span><span class="o">=</span><span class="s2">"none"</span><span class="p">,</span>
+    <span class="n">ts_exact_final_time</span><span class="o">=</span><span class="s2">"matchstep"</span><span class="p">,</span>
+    <span class="n">ksp_type</span><span class="o">=</span><span class="s2">"gmres"</span><span class="p">,</span> <span class="n">pc_type</span><span class="o">=</span><span class="s2">"lu"</span><span class="p">,</span>
+    <span class="n">t_0</span><span class="o">=</span><span class="mf">0.</span><span class="p">,</span> <span class="n">t_f</span><span class="o">=</span><span class="n">final_time</span><span class="p">,</span>
+    <span class="n">dt</span><span class="o">=</span><span class="n">time_step</span><span class="p">,</span> <span class="n">dt_save</span><span class="o">=</span><span class="n">time_step</span><span class="p">,</span>
+    <span class="o">**</span><span class="n">options</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">system</span><span class="o">.</span><span class="n">solve</span><span class="p">()</span>
+
+</pre></div>
+</div>
+<p><strong>7. Register the real anisotropic Hamiltonian.</strong>
+The two integrals are evaluated by GetFEM on the
+actual finite-element fields.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">system</span><span class="o">.</span><span class="n">hamiltonian</span><span class="o">.</span><span class="n">set_name</span><span class="p">(</span>
+    <span class="s2">"Anisotropic membrane mechanical energy (mixed boundary control)"</span>
+<span class="p">)</span>
+<span class="n">system</span><span class="o">.</span><span class="n">hamiltonian</span><span class="o">.</span><span class="n">add_term</span><span class="p">(</span><span class="n">S</span><span class="o">.</span><span class="n">Term</span><span class="p">(</span>
+    <span class="s2">"Potential energy (q dot T q)"</span><span class="p">,</span> <span class="s2">"0.5*q.T.q"</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+<span class="p">))</span>
+<span class="n">system</span><span class="o">.</span><span class="n">hamiltonian</span><span class="o">.</span><span class="n">add_term</span><span class="p">(</span><span class="n">S</span><span class="o">.</span><span class="n">Term</span><span class="p">(</span>
+    <span class="s2">"Kinetic energy"</span><span class="p">,</span> <span class="s2">"0.5*p*p/rho"</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+<span class="p">))</span>
+</pre></div>
+</div>
+<p>To reproduce the complete program, use the canonical
+entry point, which encapsulates the steps above
+(and defines <code class="docutils literal notranslate"><span class="pre">BOUNDARIES</span></code>):</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>-m<span class="w"> </span>examples.wave<span class="w"> </span>--solver<span class="w"> </span>mumps<span class="w"> </span>--check<span class="w"> </span>--export<span class="w"> </span>--output<span class="w"> </span>outputs/my_wave_2d
+</pre></div>
+</div>
+</section>
+<section id="installation-and-genuine-scientific-checks">
+<h2>Installation and genuine scientific checks<a class="headerlink" href="#installation-and-genuine-scientific-checks" title="Link to this heading"></a></h2>
+<p>The result must be a real <strong>GetFEM/PETSc</strong> solve, not an LU
+factorization smoke. The common <code class="docutils literal notranslate"><span class="pre">measure_wave_2d()</span></code>
+function checks convergence, the strict initial DAE
+projection, nonzero left power and the mechanical
+energy/work equality <strong>at every accepted CN step</strong>:</p>
+<div class="math notranslate nohighlight">
+\[\mathcal H(t_k)-\mathcal H(t_{k-1})
+-\Delta t_k\left(P_{B,k}+P_{R,k}+P_{T,k}+P_{L,k}\right)
+\simeq 0.\]</div>
+<p>The port powers <span class="math notranslate nohighlight">\(P_{\ast,k}\)</span> are the genuine
+<code class="docutils literal notranslate"><span class="pre">cn_step</span></code> GetFEM integrals sampled on the <strong>mean FE
+state</strong> of the accepted step, not instantaneous endpoint
+powers. Never trapezoid-integrate the <code class="docutils literal notranslate"><span class="pre">P[0]</span></code> sample.</p>
+<p>The <strong>initial MUMPS native pilot</strong> passed in MPI 1
+and MPI 2, with 2,230 DOFs, ten accepted steps and
+numerical energy/power defects below
+<span class="math notranslate nohighlight">\(3\times10^{-18}\)</span>. Both ranks had identical
+full trajectories; the MPI 1/MPI 2 state difference
+was below <span class="math notranslate nohighlight">\(4.2\times10^{-14}\)</span>. All four
+fields (<code class="docutils literal notranslate"><span class="pre">q</span></code>, <code class="docutils literal notranslate"><span class="pre">p</span></code>, <code class="docutils literal notranslate"><span class="pre">e_q</span></code>, <code class="docutils literal notranslate"><span class="pre">e_p</span></code>)
+were exported as valid, root-only shared VTU/PVD,
+with <strong>11 time frames per field</strong>. This is a
+qualified <strong>MUMPS MPI1/2</strong> result only, not yet
+a five-backend installation acceptance.</p>
+<p>The complete installation acceptance requires:
+MUMPS (MPI 1/2), sequential SuperLU (MPI 1),
+and SuperLU_DIST (MPI 1/2). The three backends
+must reproduce the same state, Hamiltonian,
+physical powers, and ParaView outputs.
+SuperLU standard is <strong>serial-only</strong>.</p>
+<p>To save the four original GetFEM variable series,
+open <code class="docutils literal notranslate"><span class="pre">outputs/my_wave_2d/pv/q/q.pvd</span></code>,
+<code class="docutils literal notranslate"><span class="pre">pv/p/p.pvd</span></code>, <code class="docutils literal notranslate"><span class="pre">pv/e_q/e_q.pvd</span></code> or
+<code class="docutils literal notranslate"><span class="pre">pv/e_p/e_p.pvd</span></code> in ParaView and play the
+11 frames. The vector fields <code class="docutils literal notranslate"><span class="pre">q</span></code> and
+<code class="docutils literal notranslate"><span class="pre">e_q</span></code> may be displayed with arrows; the
+velocity is <code class="docutils literal notranslate"><span class="pre">e_p</span></code> (not momentum <code class="docutils literal notranslate"><span class="pre">p</span></code>).</p>
+<section id="longer-native-showcase-100-step-energy-and-wave-propagation">
+<h3>Longer native showcase: 100-step energy and wave propagation<a class="headerlink" href="#longer-native-showcase-100-step-energy-and-wave-propagation" title="Link to this heading"></a></h3>
+<p><strong>PASS, 25 November 2026</strong>, on the complete original
+GetFEM/PETSc MUMPS MPI1 archive
+<code class="docutils literal notranslate"><span class="pre">v130-wave2d-2a-showcase-bd6f5468-teEK1Ejz.zip</span></code>
+(source <code class="docutils literal notranslate"><span class="pre">bd6f5468e3a167f2b2a3b9e1b72bcc54e1948d45</span></code>,
+native Docker image <code class="docutils literal notranslate"><span class="pre">scrimp-mpi:v1.3.0-rc3</span></code>).
+This longer visual run used <code class="docutils literal notranslate"><span class="pre">h=0.1</span></code>, <code class="docutils literal notranslate"><span class="pre">dt=0.01</span></code>
+and <code class="docutils literal notranslate"><span class="pre">tf=1</span></code>, with <strong>8,138 DOFs</strong>, <strong>100/100
+accepted fixed Crank–Nicolson steps</strong>, zero
+rejections, exact DAE initialization, and
+<strong>7/7 original physical acceptance gates passed</strong>.</p>
+<div class="math notranslate nohighlight">
+\[\mathcal H(0)=0,\qquad
+\mathcal H(1)=0.03707053141235693,\qquad
+W_{\partial}(1)=0.03707053141235698.\]</div>
+<p>The <strong>open conservative</strong> boundary-work balance
+<code class="docutils literal notranslate"><span class="pre">H(t)-H(0)=W_boundary(t)</span></code> holds at each
+accepted CN step (maximum absolute defect
+<code class="docutils literal notranslate"><span class="pre">2.07e-16</span></code>) and cumulatively (maximum
+<code class="docutils literal notranslate"><span class="pre">1.25e-16</span></code>). The <em>left imposed-velocity
+port</em> supplies the energy; all three other
+Neumann boundaries carry exactly zero power.</p>
+<p>The original <code class="docutils literal notranslate"><span class="pre">rank0.npz</span></code> is accompanied by
+<strong>four PVD series and 404 authentic GetFEM VTU
+files</strong>, for <code class="docutils literal notranslate"><span class="pre">q</span></code>, <code class="docutils literal notranslate"><span class="pre">p</span></code>, <code class="docutils literal notranslate"><span class="pre">e_q</span></code> and <code class="docutils literal notranslate"><span class="pre">e_p</span></code>,
+each at <strong>101 times</strong> from 0 to 1.
+The renderer generated from the actual FE data:
+<code class="docutils literal notranslate"><span class="pre">visuals/field_snapshots.{png,svg}</span></code>,
+<code class="docutils literal notranslate"><span class="pre">visuals/energy_balance.{png,svg}</span></code>,
+<code class="docutils literal notranslate"><span class="pre">visuals/p_evolution.gif</span></code> (101 frames),
+<code class="docutils literal notranslate"><span class="pre">visuals/energy_and_ports.csv</span></code>, plus a
+machine-readable provenance JSON. The animation
+shows a boundary-generated disturbance
+propagating through the anisotropic rectangle.</p>
+<p><strong>Interpretation of fields matters:</strong>
+<code class="docutils literal notranslate"><span class="pre">q=Grad(w)</span></code> is the <em>displacement gradient</em>
+(not stress), while <code class="docutils literal notranslate"><span class="pre">p=rho*dt(w)</span></code> is <em>momentum</em>
+(not velocity). The velocity is <code class="docutils literal notranslate"><span class="pre">e_p=p/rho</span></code>,
+and the stress-like energy co-variable is
+<code class="docutils literal notranslate"><span class="pre">e_q=T*q</span></code>. The generic maps and GIF currently
+display <code class="docutils literal notranslate"><span class="pre">p</span></code> and <code class="docutils literal notranslate"><span class="pre">|q|</span></code>; they must not be
+labeled velocity or stress. The original
+<code class="docutils literal notranslate"><span class="pre">e_p</span></code> and <code class="docutils literal notranslate"><span class="pre">e_q</span></code> VTK series permit these
+physical quantities to be visualized separately.</p>
+<p>To reproduce the independently qualified
+long MUMPS MPI1 visual run:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>~/Simulations/scrimp
+git<span class="w"> </span>pull<span class="w"> </span>--ff-only
+conda<span class="w"> </span>activate<span class="w"> </span>scrimp
+<span class="nv">SCRIMP_DOCKER_NO_SUDO</span><span class="o">=</span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
+<span class="nv">SCRIMP_V130_DAE_IMAGE</span><span class="o">=</span>scrimp-mpi:v1.3.0-rc3<span class="w"> </span><span class="se">\</span>
+bash<span class="w"> </span>scripts/run-v130-wave2d-showcase.sh<span class="w"> </span>2a
+</pre></div>
+</div>
+<p>This long-run result is <strong>not an MPI1/MPI2 parity
+test or a mesh/time convergence study</strong>. The short
+MUMPS MPI1/2 and other solver installation
+acceptance remains a separate experiment.
+The displacement <code class="docutils literal notranslate"><span class="pre">w</span></code> is not an independent
+state of this energy-based DAE; any animation
+of it must identify its reconstruction
+method and gauge.</p>
+</section>
+</section>
+<section id="scientific-references">
+<h2>Scientific references<a class="headerlink" href="#scientific-references" title="Link to this heading"></a></h2>
+<p>This introductory 2D example illustrates the
+PFEM framework analyzed by <strong>Haine, Matignon and
+Serhani (2023)</strong>, <em>Numerical Analysis of a
+Structure-Preserving Space-Discretization for an
+Anisotropic and Heterogeneous Boundary Controlled
+N-Dimensional Wave Equation As a Port-Hamiltonian
+System</em>, DOI <cite>10.4208/ijnam2023-1005</cite>, and
+the mixed-boundary-control work of <strong>Brugnoli,
+Haine and Matignon (2022)</strong>. The tutorial is
+<strong>not</strong> a numerical reproduction of either paper.</p>
+<p>The next section introduces a physically distinct
+<strong>resistive port</strong> in <code class="docutils literal notranslate"><span class="pre">examples/wave_dissipative.py</span></code>
+while keeping the same material, domain and
+conventions. The later <a class="reference internal" href="wave_coenergy.html"><span class="doc">The wave equation — 2C: co-energy and localized damping</span></a>
+chapter changes the state variables and adds
+spatially localized damping.</p>
+</section>
+<section id="module-examples.wave_dissipative">
+<span id="b-adding-a-resistive-port-heterogeneous-damping"></span><h2>2B — Adding a resistive port: heterogeneous damping<a class="headerlink" href="#module-examples.wave_dissipative" title="Link to this heading"></a></h2>
+<p>Dissipative 2D anisotropic membrane with mixed boundary ports.</p>
+<p>2D mixed-boundary anisotropic membrane, energy variables q=grad w,
+p=rho*w_t, coenergy e_q=T q and e_p=p/rho. This preserves the
+original model’s four boundary ports and its actual GetFEM GWFL
+Hamiltonian 0.5*q.T.q, where T is the full tensor parameter.</p>
+<p>Physical outward-normal traction: u_N=n.e_q at bottom/right/top;
+observation y_N=e_p. Left side prescribes u_D=e_p (velocity) and
+observes y_D=n.e_q (traction). The physical pH energy balance is</p>
+<blockquote>
+<div><p>H(t)-H(0) = W_boundary(t) - integral_0^t D(s) ds.</p>
+</div></blockquote>
+<p>The signed algebraic boundary rows impose Y_N=e_p and U_D=e_p.
+The additional port obeys f_r=-e_p, e_r=nu*f_r with nu&gt;=0.
+Thus its positive dissipated power is e_r*f_r=nu*f_r*f_r and
+dH/dt = signed_boundary_work_rate - integral_Omega(nu*f_r*f_r).
+The <em>physical</em> sign of the measured work is audited independently
+against the original GetFEM Hamiltonian; no success is inferred
+solely from these formulae.</p>
+<p>As in qualified 2A, the initial strain and momentum are exactly zero,
+the left velocity input starts at zero, and the tensor, density,
+boundary mesh and 10-step CN discretization are unchanged.
+The only new physics is nu(x)=damping_strength*0.5*(2-x)&gt;=0.</p>
+<p>Scientific context: Haine, Matignon, Serhani (2023), anisotropic
+heterogeneous wave PFEM, DOI 10.4208/ijnam2023-1005; and
+Brugnoli, Haine, Matignon (2022) on mixed boundary control.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="examples.wave_dissipative.main">
+<span class="sig-prename descclassname"><span class="pre">examples.wave_dissipative.</span></span><span class="sig-name descname"><span class="pre">main</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#examples.wave_dissipative.main" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="examples.wave_dissipative.measure_wave_2d">
+<span class="sig-prename descclassname"><span class="pre">examples.wave_dissipative.</span></span><span class="sig-name descname"><span class="pre">measure_wave_2d</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">system</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#examples.wave_dissipative.measure_wave_2d" title="Link to this definition"></a></dt>
+<dd><p>Measure original GetFEM H, boundary work and independent resistive loss.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="examples.wave_dissipative.wave_eq">
+<span class="sig-prename descclassname"><span class="pre">examples.wave_dissipative.</span></span><span class="sig-name descname"><span class="pre">wave_eq</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">mesh_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">final_time</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.08</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_step</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.008</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">damping_strength</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">factor_solver</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#examples.wave_dissipative.wave_eq" title="Link to this definition"></a></dt>
+<dd><p>Build and integrate the dissipative mixed-boundary 2D pH wave.</p>
+<p>The time/mesh defaults are intentionally for native installation
+acceptance, not for a convergence order or published benchmark.</p>
+</dd></dl>
+
+<section id="what-changes-relative-to-2a">
+<h3>What changes relative to 2A?<a class="headerlink" href="#what-changes-relative-to-2a" title="Link to this heading"></a></h3>
+<p>This second example introduces <strong>one new physical feature</strong>:
+distributed viscous damping of the 2D anisotropic membrane.
+The independent, executable source is
+<cite>examples/wave_dissipative.py</cite>. Its rectangle,
+material tensor, density, normal directions, four boundary
+control ports, finite-element spaces for <cite>q</cite> and <cite>p</cite>,
+initial conditions and fixed Crank–Nicolson scheme
+are <em>identical</em> to those of <a class="reference internal" href="#"><span class="doc">The wave equation — 2A: conservative anisotropic membrane</span></a>.</p>
+<p>On <span class="math notranslate nohighlight">\(\Omega=(0,2)\times(0,1)\)</span>, the equation now reads</p>
+<div class="math notranslate nohighlight">
+\[\rho(x)\,\partial_{tt}w
+-\operatorname{div}(T(x,y)\nabla w)
++\nu(x)\,\partial_t w=0,\]</div>
+<p>with the same symmetric positive-definite tension and mass as
+example 2A and the additional nonnegative, spatially varying
+damping coefficient</p>
+<div class="math notranslate nohighlight">
+\[\nu(x)=\tfrac12(2-x)\geq0.\]</div>
+<p>The damping is nonzero throughout the interior except on the
+right boundary. We may choose a nonnegative strength multiplier
+in the executable; the default is <cite>damping_strength=1.0</cite>.
+<strong>Damping does not change the Hamiltonian:</strong></p>
+<div class="math notranslate nohighlight">
+\[\mathcal H(q,p)=\tfrac12\int_\Omega
+\left(q\cdot Tq+\frac{p^2}{\rho}\right)\,\mathrm dx.\]</div>
+</section>
+<section id="why-add-a-separate-resistive-port">
+<h3>Why add a separate resistive port?<a class="headerlink" href="#why-add-a-separate-resistive-port" title="Link to this heading"></a></h3>
+<p>We retain the <em>skew-adjoint</em> interconnection of 2A and
+expose the dissipation as a new scalar algebraic port
+<cite>(f_r,e_r)</cite>. The state and co-energy variables are still</p>
+<div class="math notranslate nohighlight">
+\[q=\nabla w,\quad p=\rho\,\partial_t w,\qquad
+e_q=Tq,\quad e_p=p/\rho.\]</div>
+<p>The additional constitutive and coupling equations are</p>
+<div class="math notranslate nohighlight">
+\[f_r=-e_p,\qquad e_r=\nu f_r,\]</div>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{pmatrix}\partial_t q\\ \partial_t p\\ f_r\end{pmatrix}
+=
+\begin{bmatrix}
+0&amp;\nabla&amp;0\\
+\operatorname{div}&amp;0&amp;I\\
+0&amp;-I&amp;0
+\end{bmatrix}
+\begin{pmatrix}e_q\\e_p\\e_r\end{pmatrix}.\end{split}\]</div>
+<p>Indeed, <cite>e_r=-nu e_p</cite> and
+<cite>partial_t p=operatorname{div}e_q-nu e_p</cite>.
+The discrete resistive port introduces <strong>two algebraic
+fields</strong> <cite>f_r</cite> and <cite>e_r</cite> (both CG2), while
+preserving the mechanical variables and boundary ports
+from example 2A.</p>
+<p>The dissipation power is <em>positive</em>:</p>
+<div class="math notranslate nohighlight" id="equation-wave2b-dissipated-power">
+<span class="eqno">(3)<a class="headerlink" href="#equation-wave2b-dissipated-power" title="Link to this equation"></a></span>\[D(t)=\int_\Omega f_r\,e_r\,\mathrm dx
+    =\int_\Omega \nu\,f_r^2\,\mathrm dx\geq0.\]</div>
+<p>Consequently, for the same boundary work
+<span class="math notranslate nohighlight">\(W_\partial(t)\)</span> as 2A,</p>
+<div class="math notranslate nohighlight" id="equation-wave2b-energy-dissipation">
+<span class="eqno">(4)<a class="headerlink" href="#equation-wave2b-energy-dissipation" title="Link to this equation"></a></span>\[\mathcal H(t)-\mathcal H(0)
+= W_\partial(t)-\int_0^t D(s)\,\mathrm ds.\]</div>
+<p>A dissipative system can <strong>still gain mechanical energy</strong>
+if its boundary ports inject more power than it dissipates.
+The correct identity is therefore
+<span class="math notranslate nohighlight">\(\Delta H=W_\partial-L_\nu\)</span>, <em>not</em>
+the unconditional monotonicity of <span class="math notranslate nohighlight">\(H\)</span>.</p>
+</section>
+<section id="build-the-actual-getfem-petsc-model">
+<h3>Build the actual GetFEM/PETSc model<a class="headerlink" href="#build-the-actual-getfem-petsc-model" title="Link to this heading"></a></h3>
+<p>The following code fragments are <strong>read directly from</strong>
+<cite>examples/wave_dissipative.py</cite>; they are not second,
+manually maintained versions of the solver.</p>
+<p><strong>1. Construct the same 2D physical and co-energy states:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">system</span> <span class="o">=</span> <span class="n">S</span><span class="o">.</span><span class="n">DPHS</span><span class="p">(</span><span class="s2">"real"</span><span class="p">)</span>
+<span class="n">system</span><span class="o">.</span><span class="n">set_output_name</span><span class="p">(</span><span class="s2">"wave_dissipative"</span><span class="p">)</span>
+<span class="n">system</span><span class="o">.</span><span class="n">set_domain</span><span class="p">(</span><span class="n">S</span><span class="o">.</span><span class="n">Domain</span><span class="p">(</span><span class="s2">"Rectangle"</span><span class="p">,</span> <span class="p">{</span>
+    <span class="s2">"L"</span><span class="p">:</span> <span class="mf">2.</span><span class="p">,</span> <span class="s2">"l"</span><span class="p">:</span> <span class="mf">1.</span><span class="p">,</span> <span class="s2">"h"</span><span class="p">:</span> <span class="n">mesh_size</span><span class="p">,</span>
+<span class="p">},</span> <span class="n">mesh_output_dir</span><span class="o">=</span><span class="n">system</span><span class="o">.</span><span class="n">get_output_path</span><span class="p">(</span><span class="s2">"mesh"</span><span class="p">,</span><span class="n">create</span><span class="o">=</span><span class="kc">True</span><span class="p">)))</span>
+
+<span class="n">q</span> <span class="o">=</span> <span class="n">S</span><span class="o">.</span><span class="n">State</span><span class="p">(</span><span class="s2">"q"</span><span class="p">,</span> <span class="s2">"Strain"</span><span class="p">,</span> <span class="s2">"vector-field"</span><span class="p">)</span>
+<span class="n">p</span> <span class="o">=</span> <span class="n">S</span><span class="o">.</span><span class="n">State</span><span class="p">(</span><span class="s2">"p"</span><span class="p">,</span> <span class="s2">"Linear momentum"</span><span class="p">,</span> <span class="s2">"scalar-field"</span><span class="p">)</span>
+<span class="n">system</span><span class="o">.</span><span class="n">add_state</span><span class="p">(</span><span class="n">q</span><span class="p">)</span>
+<span class="n">system</span><span class="o">.</span><span class="n">add_state</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+<span class="n">system</span><span class="o">.</span><span class="n">add_costate</span><span class="p">(</span><span class="n">S</span><span class="o">.</span><span class="n">CoState</span><span class="p">(</span><span class="s2">"e_q"</span><span class="p">,</span> <span class="s2">"Stress"</span><span class="p">,</span> <span class="n">q</span><span class="p">))</span>
+<span class="n">system</span><span class="o">.</span><span class="n">add_costate</span><span class="p">(</span><span class="n">S</span><span class="o">.</span><span class="n">CoState</span><span class="p">(</span><span class="s2">"e_p"</span><span class="p">,</span> <span class="s2">"Velocity"</span><span class="p">,</span> <span class="n">p</span><span class="p">))</span>
+
+</pre></div>
+</div>
+<p><strong>2. Reuse the exact 2A mixed boundary control:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">side</span><span class="p">,</span> <span class="n">region</span><span class="p">,</span> <span class="n">suffix</span> <span class="ow">in</span> <span class="n">BOUNDARIES</span><span class="p">:</span>
+    <span class="c1"># Only the LEFT boundary is velocity-controlled (flow port).</span>
+    <span class="n">is_left</span> <span class="o">=</span> <span class="n">side</span> <span class="o">==</span> <span class="s2">"left"</span>
+    <span class="n">system</span><span class="o">.</span><span class="n">add_control_port</span><span class="p">(</span><span class="n">S</span><span class="o">.</span><span class="n">Control_Port</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s2">"Boundary control (</span><span class="si">{</span><span class="n">side</span><span class="si">}</span><span class="s2">)"</span><span class="p">,</span>
+        <span class="sa">f</span><span class="s2">"U_</span><span class="si">{</span><span class="n">suffix</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+        <span class="s2">"Velocity"</span> <span class="k">if</span> <span class="n">is_left</span> <span class="k">else</span> <span class="s2">"Outward normal traction"</span><span class="p">,</span>
+        <span class="sa">f</span><span class="s2">"Y_</span><span class="si">{</span><span class="n">suffix</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+        <span class="s2">"Outward normal traction"</span> <span class="k">if</span> <span class="n">is_left</span> <span class="k">else</span> <span class="s2">"Velocity"</span><span class="p">,</span>
+        <span class="s2">"scalar-field"</span><span class="p">,</span>
+        <span class="n">region</span><span class="o">=</span><span class="n">region</span><span class="p">,</span>
+        <span class="n">position</span><span class="o">=</span><span class="s2">"flow"</span> <span class="k">if</span> <span class="n">is_left</span> <span class="k">else</span> <span class="s2">"effort"</span><span class="p">,</span>
+    <span class="p">))</span>
+
+</pre></div>
+</div>
+<p><strong>3. Add precisely one scalar dissipative port:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">system</span><span class="o">.</span><span class="n">add_port</span><span class="p">(</span><span class="n">S</span><span class="o">.</span><span class="n">Port</span><span class="p">(</span>
+    <span class="s2">"Damping"</span><span class="p">,</span> <span class="s2">"f_r"</span><span class="p">,</span> <span class="s2">"e_r"</span><span class="p">,</span> <span class="s2">"scalar-field"</span><span class="p">,</span>
+    <span class="n">dissipative</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">region</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+<span class="p">))</span>
+
+</pre></div>
+</div>
+<p><strong>4. Reuse DG1/CG2 and add CG2 for damping,
+with the same tensor and density:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">fem</span> <span class="ow">in</span> <span class="p">(</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">FEM</span><span class="p">(</span><span class="s2">"q"</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">"DG"</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">FEM</span><span class="p">(</span><span class="s2">"p"</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="s2">"CG"</span><span class="p">),</span>
+    <span class="o">*</span><span class="p">(</span><span class="n">S</span><span class="o">.</span><span class="n">FEM</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Boundary control (</span><span class="si">{</span><span class="n">side</span><span class="si">}</span><span class="s2">)"</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">"DG"</span><span class="p">)</span>
+      <span class="k">for</span> <span class="n">side</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">BOUNDARIES</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">FEM</span><span class="p">(</span><span class="s2">"Damping"</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="s2">"CG"</span><span class="p">),</span>
+<span class="p">):</span>
+    <span class="n">system</span><span class="o">.</span><span class="n">add_FEM</span><span class="p">(</span><span class="n">fem</span><span class="p">)</span>
+
+<span class="c1"># This T is symmetric positive definite throughout [0,2] x [0,1].</span>
+<span class="c1"># GWFL nested matrices list COLUMNS; it is symmetric here.</span>
+<span class="n">system</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">S</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span>
+    <span class="s2">"T"</span><span class="p">,</span> <span class="s2">"Anisotropic membrane tension"</span><span class="p">,</span> <span class="s2">"tensor-field"</span><span class="p">,</span>
+    <span class="s2">"[[5+x,x*y],[x*y,2+y]]"</span><span class="p">,</span> <span class="s2">"q"</span><span class="p">,</span>
+<span class="p">))</span>
+<span class="n">system</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">S</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span>
+    <span class="s2">"rho"</span><span class="p">,</span> <span class="s2">"Areal mass density"</span><span class="p">,</span> <span class="s2">"scalar-field"</span><span class="p">,</span>
+    <span class="s2">"3-x"</span><span class="p">,</span> <span class="s2">"p"</span><span class="p">,</span>
+<span class="p">))</span>
+<span class="n">system</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">S</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span>
+    <span class="s2">"nu"</span><span class="p">,</span> <span class="s2">"Nonnegative heterogeneous viscous damping"</span><span class="p">,</span> <span class="s2">"scalar-field"</span><span class="p">,</span>
+    <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">damping_strength</span><span class="si">}</span><span class="s2">*0.5*(2.0-x)"</span><span class="p">,</span> <span class="s2">"Damping"</span><span class="p">,</span>
+<span class="p">))</span>
+
+</pre></div>
+</div>
+<p><strong>5. Keep all 20 original 2A weak-form bricks
+and add exactly five resistive ones.</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">bricks</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">"M_q"</span><span class="p">,</span> <span class="s2">"q.Test_q"</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">dt</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">position</span><span class="o">=</span><span class="s2">"flow"</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">"M_p"</span><span class="p">,</span> <span class="s2">"p*Test_p"</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">dt</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">position</span><span class="o">=</span><span class="s2">"flow"</span><span class="p">),</span>
+    <span class="c1"># Signed algebraic observation in *flow*:</span>
+    <span class="c1">#   -Y_N = -e_p -&gt; Y_N=e_p (Neumann outputs).</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">"-M_Y_B"</span><span class="p">,</span> <span class="s2">"-Y_B*Test_Y_B"</span><span class="p">,</span> <span class="p">[</span><span class="mi">10</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">"flow"</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">"-M_Y_R"</span><span class="p">,</span> <span class="s2">"-Y_R*Test_Y_R"</span><span class="p">,</span> <span class="p">[</span><span class="mi">11</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">"flow"</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">"-M_Y_T"</span><span class="p">,</span> <span class="s2">"-Y_T*Test_Y_T"</span><span class="p">,</span> <span class="p">[</span><span class="mi">12</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">"flow"</span><span class="p">),</span>
+    <span class="c1"># Mixed left velocity input: -U_L=-e_p -&gt; U_L=e_p.</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">"-M_U_L"</span><span class="p">,</span> <span class="s2">"-U_L*Test_Y_L"</span><span class="p">,</span> <span class="p">[</span><span class="mi">13</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">"flow"</span><span class="p">),</span>
+    <span class="c1"># f_r=-e_p, algebraic resistive flow.</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">"M_r"</span><span class="p">,</span> <span class="s2">"f_r*Test_f_r"</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">"flow"</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">"D"</span><span class="p">,</span> <span class="s2">"Grad(e_p).Test_q"</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">"effort"</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">"-D^T"</span><span class="p">,</span> <span class="s2">"-e_q.Grad(Test_p)"</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">"effort"</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">"B_B"</span><span class="p">,</span> <span class="s2">"U_B*Test_p"</span><span class="p">,</span> <span class="p">[</span><span class="mi">10</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">"effort"</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">"B_R"</span><span class="p">,</span> <span class="s2">"U_R*Test_p"</span><span class="p">,</span> <span class="p">[</span><span class="mi">11</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">"effort"</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">"B_T"</span><span class="p">,</span> <span class="s2">"U_T*Test_p"</span><span class="p">,</span> <span class="p">[</span><span class="mi">12</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">"effort"</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">"B_L"</span><span class="p">,</span> <span class="s2">"Y_L*Test_p"</span><span class="p">,</span> <span class="p">[</span><span class="mi">13</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">"effort"</span><span class="p">),</span>
+    <span class="c1"># e_r=-nu*e_p enters momentum equation.</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">"I_r"</span><span class="p">,</span> <span class="s2">"e_r*Test_p"</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">"effort"</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">"-I_r^T"</span><span class="p">,</span> <span class="s2">"-e_p*Test_f_r"</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">"effort"</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">"-B_B^T"</span><span class="p">,</span> <span class="s2">"-e_p*Test_Y_B"</span><span class="p">,</span> <span class="p">[</span><span class="mi">10</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">"effort"</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">"-B_R^T"</span><span class="p">,</span> <span class="s2">"-e_p*Test_Y_R"</span><span class="p">,</span> <span class="p">[</span><span class="mi">11</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">"effort"</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">"-B_T^T"</span><span class="p">,</span> <span class="s2">"-e_p*Test_Y_T"</span><span class="p">,</span> <span class="p">[</span><span class="mi">12</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">"effort"</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">"-B_L^T"</span><span class="p">,</span> <span class="s2">"-e_p*Test_Y_L"</span><span class="p">,</span> <span class="p">[</span><span class="mi">13</span><span class="p">],</span> <span class="n">position</span><span class="o">=</span><span class="s2">"effort"</span><span class="p">),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">"-M_e_q"</span><span class="p">,</span> <span class="s2">"-e_q.Test_e_q"</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">"CR_q"</span><span class="p">,</span> <span class="s2">"q.T.Test_e_q"</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">"-M_e_p"</span><span class="p">,</span> <span class="s2">"-e_p*Test_e_p"</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">"CR_p"</span><span class="p">,</span> <span class="s2">"p/rho*Test_e_p"</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
+    <span class="c1"># Resistive constitutive law e_r=nu*f_r.</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">"-M_e_r"</span><span class="p">,</span> <span class="s2">"-e_r*Test_e_r"</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
+    <span class="n">S</span><span class="o">.</span><span class="n">Brick</span><span class="p">(</span><span class="s2">"CR_r"</span><span class="p">,</span> <span class="s2">"nu*f_r*Test_e_r"</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
+<span class="p">]</span>
+<span class="k">for</span> <span class="n">brick</span> <span class="ow">in</span> <span class="n">bricks</span><span class="p">:</span>
+    <span class="n">system</span><span class="o">.</span><span class="n">add_brick</span><span class="p">(</span><span class="n">brick</span><span class="p">)</span>
+
+</pre></div>
+</div>
+<p>The extra bricks are <cite>M_r</cite>, <cite>I_r</cite>,
+<cite>-I_r^T</cite>, <cite>-M_e_r</cite> and <cite>CR_r</cite>.
+Their orientations implement
+<cite>f_r=-e_p</cite> and <cite>e_r=nu f_r</cite>.
+In particular, adding a negative <cite>e_r</cite> term by hand
+to the Hamiltonian would be wrong: the port itself
+carries the positive dissipated power in
+<a class="reference internal" href="#equation-wave2b-dissipated-power">(3)</a>.</p>
+<p><strong>6. Start with the same compatible states and control pulse:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Exactly compatible at t=0 (zero stress and zero velocity).</span>
+<span class="c1"># The left boundary injects energy immediately after t=0.</span>
+<span class="k">for</span> <span class="n">side</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">BOUNDARIES</span><span class="p">:</span>
+    <span class="n">value</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="s2">"0.2*sin(4*pi*t)*sin(pi*y)"</span>
+        <span class="k">if</span> <span class="n">side</span> <span class="o">==</span> <span class="s2">"left"</span> <span class="k">else</span> <span class="s2">"0."</span>
+    <span class="p">)</span>
+    <span class="n">system</span><span class="o">.</span><span class="n">set_control</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Boundary control (</span><span class="si">{</span><span class="n">side</span><span class="si">}</span><span class="s2">)"</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+<span class="n">system</span><span class="o">.</span><span class="n">set_initial_value</span><span class="p">(</span><span class="s2">"q"</span><span class="p">,</span> <span class="s2">"[0., 0.]"</span><span class="p">)</span>
+<span class="n">system</span><span class="o">.</span><span class="n">set_initial_value</span><span class="p">(</span><span class="s2">"p"</span><span class="p">,</span> <span class="s2">"0."</span><span class="p">)</span>
+
+</pre></div>
+</div>
+<p><strong>7. Apply the same strict algebraic DAE initialization
+and fixed CN step, without pseudo-time relaxation:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">options</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="k">if</span> <span class="n">factor_solver</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">options</span><span class="p">[</span><span class="s2">"pc_factor_mat_solver_type"</span><span class="p">]</span> <span class="o">=</span> <span class="n">factor_solver</span>
+<span class="n">system</span><span class="o">.</span><span class="n">set_time_scheme</span><span class="p">(</span>
+    <span class="n">init_step_ts_type</span><span class="o">=</span><span class="s2">"algebraic"</span><span class="p">,</span> <span class="n">init_step</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">ts_type</span><span class="o">=</span><span class="s2">"cn"</span><span class="p">,</span> <span class="n">ts_adapt_type</span><span class="o">=</span><span class="s2">"none"</span><span class="p">,</span>
+    <span class="n">ts_exact_final_time</span><span class="o">=</span><span class="s2">"matchstep"</span><span class="p">,</span>
+    <span class="n">ksp_type</span><span class="o">=</span><span class="s2">"gmres"</span><span class="p">,</span> <span class="n">pc_type</span><span class="o">=</span><span class="s2">"lu"</span><span class="p">,</span>
+    <span class="n">t_0</span><span class="o">=</span><span class="mf">0.</span><span class="p">,</span> <span class="n">t_f</span><span class="o">=</span><span class="n">final_time</span><span class="p">,</span>
+    <span class="n">dt</span><span class="o">=</span><span class="n">time_step</span><span class="p">,</span> <span class="n">dt_save</span><span class="o">=</span><span class="n">time_step</span><span class="p">,</span>
+    <span class="o">**</span><span class="n">options</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">system</span><span class="o">.</span><span class="n">solve</span><span class="p">()</span>
+
+</pre></div>
+</div>
+<p><strong>8. Compute the unchanged physical Hamiltonian:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">system</span><span class="o">.</span><span class="n">hamiltonian</span><span class="o">.</span><span class="n">set_name</span><span class="p">(</span>
+    <span class="s2">"Anisotropic membrane mechanical energy (mixed boundary control)"</span>
+<span class="p">)</span>
+<span class="n">system</span><span class="o">.</span><span class="n">hamiltonian</span><span class="o">.</span><span class="n">add_term</span><span class="p">(</span><span class="n">S</span><span class="o">.</span><span class="n">Term</span><span class="p">(</span>
+    <span class="s2">"Potential energy (q dot T q)"</span><span class="p">,</span> <span class="s2">"0.5*q.T.q"</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+<span class="p">))</span>
+<span class="n">system</span><span class="o">.</span><span class="n">hamiltonian</span><span class="o">.</span><span class="n">add_term</span><span class="p">(</span><span class="n">S</span><span class="o">.</span><span class="n">Term</span><span class="p">(</span>
+    <span class="s2">"Kinetic energy"</span><span class="p">,</span> <span class="s2">"0.5*p*p/rho"</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+<span class="p">))</span>
+</pre></div>
+</div>
+</section>
+<section id="physical-qualification-original-boundary-work-minus-dissipation">
+<h3>Physical qualification: original boundary work minus dissipation<a class="headerlink" href="#physical-qualification-original-boundary-work-minus-dissipation" title="Link to this heading"></a></h3>
+<p>For each <em>accepted</em> CN step, the program measures the original
+GetFEM Hamiltonian and all four port powers on the <strong>mean
+finite-element state</strong>. The resistive power is computed by
+SCRIMP’s native <cite>Port.compute()</cite>, and checked independently
+by a second GetFEM volume quadrature of <cite>nu*f_r*f_r</cite>.
+The intended stepwise residual is</p>
+<div class="math notranslate nohighlight">
+\[\mathcal R_k
+=\mathcal H_k-\mathcal H_{k-1}
+-\Delta t_k\sum_{\Gamma}P_{\Gamma,k}
++\Delta t_k D_k \simeq0.\]</div>
+<p>The script also verifies the cumulative
+<a class="reference internal" href="#equation-wave2b-energy-dissipation">(4)</a>, the nonnegativity
+of the actual dissipated power, the resistive
+flow equation, and the consistency of the
+11-snapshot accepted FE history. Because
+<cite>nu f_r</cite> has higher polynomial degree than
+the CG2 space of <cite>e_r</cite>, the constitutive
+relationship is <strong>discrete weak projection</strong>;
+a pointwise zero <cite>L^2</cite> error is <strong>not</strong>
+an appropriate acceptance criterion.</p>
+<p>Run a short, <em>real</em> GetFEM/PETSc check (not a
+standalone LU smoke):</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">python -m examples.wave_dissipative --solver mumps \</span>
+<span class="go">    --mesh-size 0.2 --final-time 0.08 --time-step 0.008 \</span>
+<span class="go">    --damping-strength 1 --check --export \</span>
+<span class="go">    --output outputs/my_wave_2d_dissipative</span>
+</pre></div>
+</div>
+<p>The native qualification runner below checks <strong>MUMPS MPI1/2</strong>
+and all six finite-element exports (<cite>q</cite>, <cite>p</cite>,
+<cite>e_q</cite>, <cite>e_p</cite>, <cite>f_r</cite>, <cite>e_r</cite>).
+Its physical results must be inspected <strong>before</strong>
+declaring this example qualified:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">SCRIMP_DOCKER_NO_SUDO=1 \</span>
+<span class="go">SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \</span>
+<span class="go">bash scripts/run-v130-wave2d-dissipative-pilot.sh</span>
+</pre></div>
+</div>
+</section>
+<section id="long-native-dissipative-showcase-100-cn-steps">
+<h3>Long native dissipative showcase — 100 CN steps<a class="headerlink" href="#long-native-dissipative-showcase-100-cn-steps" title="Link to this heading"></a></h3>
+<p><strong>PASS, 25 November 2026</strong>, on the authentic
+GetFEM/PETSc archive
+<code class="docutils literal notranslate"><span class="pre">v130-wave2d-2b-showcase-dbdc49cf-G1CKQAVG.zip</span></code>
+(source <code class="docutils literal notranslate"><span class="pre">dbdc49cfcac47d4daa1706b3fc2fa4b53646b0a2</span></code>,
+pinned Docker <code class="docutils literal notranslate"><span class="pre">scrimp-mpi:v1.3.0-rc3</span></code>).
+The actual executable <code class="docutils literal notranslate"><span class="pre">examples/wave_dissipative.py</span></code>
+ran with <code class="docutils literal notranslate"><span class="pre">h=0.1</span></code>, <code class="docutils literal notranslate"><span class="pre">dt=0.01</span></code>, <code class="docutils literal notranslate"><span class="pre">tf=1</span></code> and
+<code class="docutils literal notranslate"><span class="pre">damping_strength=1.0</span></code>, on <strong>MUMPS MPI1</strong>:
+<strong>10,204 DOFs</strong>, <strong>100/100 fixed CN steps</strong>,
+zero rejected steps or nonlinear failures,
+and PASS on exact-algebraic DAE initialisation
+(the algebraic residual is zero). All
+<strong>10 native physical gates passed</strong>.</p>
+<table class="docutils align-default" id="id1">
+<caption><span class="caption-text">Original long 2B power/energy audit</span><a class="headerlink" href="#id1" title="Link to this table"></a></caption>
+<colgroup>
+<col style="width: 60.0%" />
+<col style="width: 40.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Quantity</p></th>
+<th class="head"><p>Measured value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Hamiltonian at <code class="docutils literal notranslate"><span class="pre">t=0</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">0</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Hamiltonian at <code class="docutils literal notranslate"><span class="pre">t=1</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">0.03205555671004583</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Injected signed boundary work <code class="docutils literal notranslate"><span class="pre">W(1)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">0.03710798721523879</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Cumulative viscous loss <code class="docutils literal notranslate"><span class="pre">L(1)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">0.005052430505192933</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Maximum absolute defect per CN step</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">9.39e-17</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Maximum absolute cumulative defect</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">9.28e-17</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Native time series <code class="docutils literal notranslate"><span class="pre">q,p,e_q,e_p,f_r,e_r</span></code></p></td>
+<td><p>6 × 101 = <strong>606 VTU</strong>, six PVD</p></td>
+</tr>
+</tbody>
+</table>
+<p>The original FE arrays satisfy the <strong>open
+dissipative balance</strong> <code class="docutils literal notranslate"><span class="pre">H-H0=W_boundary-L</span></code>,
+not unconditional monotonicity of <code class="docutils literal notranslate"><span class="pre">H</span></code>.
+The three non-driven Neumann boundaries
+carry exactly zero power. The integral
+<code class="docutils literal notranslate"><span class="pre">D=integral</span> <span class="pre">f_r*e_r</span></code> is positive and agrees
+with an independently assembled GetFEM
+volume integral <code class="docutils literal notranslate"><span class="pre">integral</span> <span class="pre">nu*f_r*f_r</span></code>.
+The flow equation <code class="docutils literal notranslate"><span class="pre">f_r=-e_p</span></code> is satisfied
+to machine precision in its FE test.</p>
+<p>The archive includes true 101-frame VTK/PVD
+series for all six fields, plus energy CSV,
+PNG/SVG figures and a 101-frame animation
+<code class="docutils literal notranslate"><span class="pre">p_evolution.gif</span></code>. All 101 VTK timestamps
+were verified against the original CN states.</p>
+</section>
+<section id="a-versus-2b-same-physical-inputs-different-dissipation">
+<h3>2A versus 2B — same physical inputs, different dissipation<a class="headerlink" href="#a-versus-2b-same-physical-inputs-different-dissipation" title="Link to this heading"></a></h3>
+<p>The independently inspected 2A and 2B long
+archives have the <strong>same rectangle, anisotropic
+tensor, density, velocity boundary drive,
+mesh size and CN time grid</strong>. The VTK mesh
+coordinates and cell connectivity for the
+field <code class="docutils literal notranslate"><span class="pre">p</span></code> coincide exactly at <code class="docutils literal notranslate"><span class="pre">t=0</span></code>,
+<code class="docutils literal notranslate"><span class="pre">t=0.5</span></code>, <code class="docutils literal notranslate"><span class="pre">t=1</span></code>. Adding two algebraic
+resistive fields increases the model DOFs
+from 8,138 (2A) to 10,204 (2B).</p>
+<table class="docutils align-default" id="id2">
+<caption><span class="caption-text">Original FE energy comparison at <code class="docutils literal notranslate"><span class="pre">tf=1</span></code></span><a class="headerlink" href="#id2" title="Link to this table"></a></caption>
+<colgroup>
+<col style="width: 40.0%" />
+<col style="width: 30.0%" />
+<col style="width: 30.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Quantity</p></th>
+<th class="head"><p>Conservative 2A</p></th>
+<th class="head"><p>Dissipative 2B</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Injected work <code class="docutils literal notranslate"><span class="pre">W(1)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">0.03707053141235698</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">0.03710798721523879</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Dissipated energy <code class="docutils literal notranslate"><span class="pre">L(1)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">0</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">0.005052430505192933</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Remaining mechanical energy <code class="docutils literal notranslate"><span class="pre">H(1)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">0.03707053141235693</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">0.03205555671004583</span></code></p></td>
+</tr>
+</tbody>
+</table>
+<p><strong>2B has 13.528% less mechanical energy</strong>
+than 2A at <code class="docutils literal notranslate"><span class="pre">t=1</span></code>. The <em>applied control is
+identical</em>, but the <em>work delivered</em> need not
+be: it depends on the dynamical response.
+Consequently the difference in stored energy
+is not exactly the dissipated energy.
+The exact comparison identity is</p>
+<div class="math notranslate nohighlight">
+\[\mathcal H_{2A}-\mathcal H_{2B}
+= L_{2B} - (W_{2B}-W_{2A}),\]</div>
+<p>which matches the real GetFEM values to
+<code class="docutils literal notranslate"><span class="pre">2.08e-17</span></code>. This distinction matters when
+illustrating dissipation in an <strong>open</strong>
+port-Hamiltonian system.</p>
+<p>A separate comparison figure of the native
+fields <code class="docutils literal notranslate"><span class="pre">p</span></code> at <code class="docutils literal notranslate"><span class="pre">t=0.5</span></code> and <code class="docutils literal notranslate"><span class="pre">t=1</span></code> uses the
+<strong>same color scale</strong> for both simulations.
+It depicts <em>momentum</em> <code class="docutils literal notranslate"><span class="pre">p</span></code>, not velocity
+<code class="docutils literal notranslate"><span class="pre">e_p</span></code>; the original <code class="docutils literal notranslate"><span class="pre">e_p</span></code> VTK series
+is available for a velocity-specific figure.
+The resulting pointwise visual differences
+are moderate on this time interval; the
+energy deficit is the clearer diagnostic.</p>
+<p>To reproduce the long 2B showcase:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>~/Simulations/scrimp
+git<span class="w"> </span>pull<span class="w"> </span>--ff-only
+conda<span class="w"> </span>activate<span class="w"> </span>scrimp
+<span class="nv">SCRIMP_DOCKER_NO_SUDO</span><span class="o">=</span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
+<span class="nv">SCRIMP_V130_DAE_IMAGE</span><span class="o">=</span>scrimp-mpi:v1.3.0-rc3<span class="w"> </span><span class="se">\</span>
+bash<span class="w"> </span>scripts/run-v130-wave2d-showcase.sh<span class="w"> </span>2b
+</pre></div>
+</div>
+<p><strong>Scope:</strong> MUMPS MPI1 only at the long showcase
+resolution. The short native MUMPS MPI1/MPI2
+2B pilot passed separately; this archive
+does <strong>not</strong> establish mesh/time convergence,
+long-run MPI1/2 parity or SuperLU_DIST
+qualification for 2B.</p>
+<p>The progressive example <strong>2C</strong>, <a class="reference internal" href="wave_coenergy.html"><span class="doc">The wave equation — 2C: co-energy and localized damping</span></a>,
+will then introduce an explicitly different co-energy
+formulation, instead of merely renaming these variables.</p>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../examples.html" class="btn btn-neutral float-left" title="Examples" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="wave_coenergy.html" class="btn btn-neutral float-right" title="The wave equation — 2C: co-energy and localized damping" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2015-2026 ISAE-SUPAERO.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,180 @@
+\babel@toc {english}{}\relax 
+\contentsline {chapter}{\numberline {1}What is SCRIMP?}{3}{chapter.1}%
+\contentsline {section}{\numberline {1.1}Port\sphinxhyphen {}Hamiltonian systems}{3}{section.1.1}%
+\contentsline {subsection}{\numberline {1.1.1}What are they?}{3}{subsection.1.1.1}%
+\contentsline {subsection}{\numberline {1.1.2}The Partitioned Finite Element Method}{4}{subsection.1.1.2}%
+\contentsline {section}{\numberline {1.2}Coding philosophy}{4}{section.1.2}%
+\contentsline {chapter}{\numberline {2}User’s guide}{5}{chapter.2}%
+\contentsline {section}{\numberline {2.1}How to install}{5}{section.2.1}%
+\contentsline {subsection}{\numberline {2.1.1}Default: precompiled Docker and standalone project}{5}{subsection.2.1.1}%
+\contentsline {subsection}{\numberline {2.1.2}Alternative: native Conda installation}{6}{subsection.2.1.2}%
+\contentsline {subsection}{\numberline {2.1.3}Modern parallel Docker image (GetFEM 5.5)}{6}{subsection.2.1.3}%
+\contentsline {subsection}{\numberline {2.1.4}Windows and macOS users: best\sphinxhyphen {}effort Docker/Dev Containers}{7}{subsection.2.1.4}%
+\contentsline {subsection}{\numberline {2.1.5}Local GetFEM 5.5 MPI compilation (Conda environment)}{8}{subsection.2.1.5}%
+\contentsline {subsection}{\numberline {2.1.6}Native GetFEM MPI assembly timing verbosity}{9}{subsection.2.1.6}%
+\contentsline {subsection}{\numberline {2.1.7}Native GetFEM MPI assembly audit (important)}{9}{subsection.2.1.7}%
+\contentsline {subsection}{\numberline {2.1.8}2D wave Hamiltonian and boundary\sphinxhyphen {}power balance (MPI)}{10}{subsection.2.1.8}%
+\contentsline {subsection}{\numberline {2.1.9}Optional SCRIMP phase profiling (without rebuilding GetFEM)}{11}{subsection.2.1.9}%
+\contentsline {subsection}{\numberline {2.1.10}2D acoustic\sphinxhyphen {}wave strong scaling}{12}{subsection.2.1.10}%
+\contentsline {subsection}{\numberline {2.1.11}Tests}{12}{subsection.2.1.11}%
+\contentsline {subsection}{\numberline {2.1.12}Code structure}{12}{subsection.2.1.12}%
+\contentsline {subsection}{\numberline {2.1.13}Documentation}{13}{subsection.2.1.13}%
+\contentsline {section}{\numberline {2.2}First SCRIMP project with VS Code (v1.3.0)}{13}{section.2.2}%
+\contentsline {subsection}{\numberline {2.2.1}What is on the user’s computer?}{13}{subsection.2.2.1}%
+\contentsline {subsection}{\numberline {2.2.2}Creating the independent workspace}{13}{subsection.2.2.2}%
+\contentsline {subsection}{\numberline {2.2.3}A. Precompiled Docker installation (recommended)}{14}{subsection.2.2.3}%
+\contentsline {subsection}{\numberline {2.2.4}B. Locally compiled Docker installation}{14}{subsection.2.2.4}%
+\contentsline {subsection}{\numberline {2.2.5}VS Code workflow for either Docker installation}{15}{subsection.2.2.5}%
+\contentsline {subsection}{\numberline {2.2.6}Python is installed, even if VS Code says “No Python found”}{15}{subsection.2.2.6}%
+\contentsline {subsection}{\numberline {2.2.7}Python environment recognition and editable SCRIMP imports}{16}{subsection.2.2.7}%
+\contentsline {subsection}{\numberline {2.2.8}Using an existing local sandbox directory}{18}{subsection.2.2.8}%
+\contentsline {subsection}{\numberline {2.2.9}C. Native Conda / source installation (without Docker)}{18}{subsection.2.2.9}%
+\contentsline {subsection}{\numberline {2.2.10}Known limitations}{18}{subsection.2.2.10}%
+\contentsline {section}{\numberline {2.3}Getting started}{19}{section.2.3}%
+\contentsline {subsection}{\numberline {2.3.1}Port\sphinxhyphen {}Hamiltonian framework}{19}{subsection.2.3.1}%
+\contentsline {subsection}{\numberline {2.3.2}Structure\sphinxhyphen {}preserving discretization}{20}{subsection.2.3.2}%
+\contentsline {subsection}{\numberline {2.3.3}Choosing distributed or global scalar ports}{22}{subsection.2.3.3}%
+\contentsline {subsection}{\numberline {2.3.4}Coding within SCRIMP}{22}{subsection.2.3.4}%
+\contentsline {subsection}{\numberline {2.3.5}Working with simulation outputs}{27}{subsection.2.3.5}%
+\contentsline {section}{\numberline {2.4}GetFEM GWFL matrix notation in Python}{29}{section.2.4}%
+\contentsline {subsection}{\numberline {2.4.1}Sign\sphinxhyphen {}check a boundary tangent}{30}{subsection.2.4.1}%
+\contentsline {subsection}{\numberline {2.4.2}Native \#28 example: viscous Saint\sphinxhyphen {}Venant}{30}{subsection.2.4.2}%
+\contentsline {section}{\numberline {2.5}DAE initial conditions and initialization}{31}{section.2.5}%
+\contentsline {subsection}{\numberline {2.5.1}Mathematical motivation}{31}{subsection.2.5.1}%
+\contentsline {subsection}{\numberline {2.5.2}Three alternative strategies}{31}{subsection.2.5.2}%
+\contentsline {subsubsection}{Algebraic projection — \sphinxtitleref {init\_step\_ts\_type=”algebraic”}}{31}{subsubsection*.5}%
+\contentsline {subsubsection}{Historical pseudo\sphinxhyphen {}time relaxation — \sphinxtitleref {pseudo}}{32}{subsubsection*.6}%
+\contentsline {subsubsection}{Tiny\sphinxhyphen {}step BDF2 initialization — \sphinxtitleref {bdf}}{32}{subsubsection*.7}%
+\contentsline {subsection}{\numberline {2.5.3}Quick comparison}{33}{subsection.2.5.3}%
+\contentsline {subsection}{\numberline {2.5.4}Scientific qualification and limits}{33}{subsection.2.5.4}%
+\contentsline {subsection}{\numberline {2.5.5}Mesh dependence of the algebraic residual criterion}{34}{subsection.2.5.5}%
+\contentsline {subsection}{\numberline {2.5.6}Finite\sphinxhyphen {}difference perturbations and roundoff}{35}{subsection.2.5.6}%
+\contentsline {section}{\numberline {2.6}Energy, powers and time discretization (v1.3.0)}{35}{section.2.6}%
+\contentsline {subsection}{\numberline {2.6.1}Hamiltonian: physical value, not a time quadrature}{35}{subsection.2.6.1}%
+\contentsline {subsection}{\numberline {2.6.2}Port powers: raw signs, not universal energy balance}{35}{subsection.2.6.2}%
+\contentsline {subsection}{\numberline {2.6.3}Crank\textendash {}Nicolson: only consecutive \sphinxstyleemphasis {accepted} PETSc states}{36}{subsection.2.6.3}%
+\contentsline {subsection}{\numberline {2.6.4}BDF, BDF2, ARKIMEX and other PETSc TS types}{36}{subsection.2.6.4}%
+\contentsline {subsection}{\numberline {2.6.5}How to inspect the sampling used in a run}{37}{subsection.2.6.5}%
+\contentsline {section}{\numberline {2.7}Fully explicit nonlinear bricks}{37}{section.2.7}%
+\contentsline {subsection}{\numberline {2.7.1}Accepted\sphinxhyphen {}step contract}{37}{subsection.2.7.1}%
+\contentsline {subsection}{\numberline {2.7.2}Usage and restrictions}{37}{subsection.2.7.2}%
+\contentsline {subsection}{\numberline {2.7.3}Native acceptance}{38}{subsection.2.7.3}%
+\contentsline {section}{\numberline {2.8}Solver reuse and MPI}{38}{section.2.8}%
+\contentsline {subsection}{\numberline {2.8.1}v1.3.0 development candidate}{38}{subsection.2.8.1}%
+\contentsline {subsection}{\numberline {2.8.2}Reproducible performance qualification}{39}{subsection.2.8.2}%
+\contentsline {section}{\numberline {2.9}Examples}{40}{section.2.9}%
+\contentsline {subsection}{\numberline {2.9.1}The wave equation — 2A: conservative anisotropic membrane}{40}{subsection.2.9.1}%
+\contentsline {subsubsection}{Why this example?}{41}{subsubsection*.14}%
+\contentsline {subsubsection}{The physical model}{41}{subsubsection*.15}%
+\contentsline {subsubsection}{Energy variables, co\sphinxhyphen {}energy variables and power}{41}{subsubsection*.16}%
+\contentsline {subsubsection}{From the strong equation to PFEM}{42}{subsubsection*.17}%
+\contentsline {subsubsection}{Build the real SCRIMP model}{42}{subsubsection*.18}%
+\contentsline {subsubsection}{Installation and genuine scientific checks}{45}{subsubsection*.19}%
+\contentsline {paragraph}{Longer native showcase: 100\sphinxhyphen {}step energy and wave propagation}{46}{paragraph*.20}%
+\contentsline {subsubsection}{Scientific references}{46}{subsubsection*.21}%
+\contentsline {subsubsection}{2B — Adding a resistive port: heterogeneous damping}{46}{subsubsection*.22}%
+\contentsline {paragraph}{What changes relative to 2A?}{47}{paragraph*.26}%
+\contentsline {paragraph}{Why add a separate resistive port?}{47}{paragraph*.27}%
+\contentsline {paragraph}{Build the actual GetFEM/PETSc model}{48}{paragraph*.28}%
+\contentsline {paragraph}{Physical qualification: original boundary work minus dissipation}{51}{paragraph*.29}%
+\contentsline {paragraph}{Long native dissipative showcase — 100 CN steps}{51}{paragraph*.30}%
+\contentsline {paragraph}{2A versus 2B — same physical inputs, different dissipation}{52}{paragraph*.31}%
+\contentsline {subsection}{\numberline {2.9.2}The wave equation — 2C: co\sphinxhyphen {}energy and localized damping}{53}{subsection.2.9.2}%
+\contentsline {subsubsection}{Why this third tutorial?}{53}{subsubsection*.37}%
+\contentsline {subsubsection}{The true material inverse}{54}{subsubsection*.38}%
+\contentsline {subsubsection}{Two regions and substituted ports}{54}{subsubsection*.39}%
+\contentsline {subsubsection}{The co\sphinxhyphen {}energy balance and feedback sign}{56}{subsubsection*.40}%
+\contentsline {subsubsection}{A physically visible initial pulse}{57}{subsubsection*.41}%
+\contentsline {subsubsection}{Native outputs and visualizations}{58}{subsubsection*.42}%
+\contentsline {subsubsection}{Qualification evidence — original GetFEM CN, MPI 1 and 2}{59}{subsubsection*.43}%
+\contentsline {subsubsection}{Long\sphinxhyphen {}time visualization — 100 accepted physical CN steps}{60}{subsubsection*.44}%
+\contentsline {subsection}{\numberline {2.9.3}Maxwell equations in 3D — patched Nédélec\sphinxhyphen {}II / BDM1 example}{60}{subsection.2.9.3}%
+\contentsline {subsubsection}{Why a new Maxwell example?}{60}{subsubsection*.45}%
+\contentsline {subsubsection}{A normalized Maxwell system}{61}{subsubsection*.46}%
+\contentsline {subsubsection}{Compatible 3D spaces and their GetFEM patches}{61}{subsubsection*.47}%
+\contentsline {subsubsection}{A skew\sphinxhyphen {}adjoint discrete Maxwell interconnection}{62}{subsubsection*.48}%
+\contentsline {subsubsection}{How to run and qualify this 3D example}{64}{subsubsection*.49}%
+\contentsline {subsubsection}{Native patched Nédélec\sphinxhyphen {}II / BDM1 qualification — PASS, 25 November 2026}{64}{subsubsection*.50}%
+\contentsline {subsubsection}{Figures and animation generated by the example itself}{65}{subsubsection*.51}%
+\contentsline {subsubsection}{Historical \sphinxstyleemphasis {baseline} Maxwell 3D qualification — PASS, 25 November 2026}{65}{subsubsection*.52}%
+\contentsline {subsection}{\numberline {2.9.4}Mass\textendash {}spring\textendash {}damper}{66}{subsection.2.9.4}%
+\contentsline {subsubsection}{A two\sphinxhyphen {}state finite\sphinxhyphen {}dimensional port\sphinxhyphen {}Hamiltonian model}{66}{subsubsection*.53}%
+\contentsline {subsubsection}{Discretization and code}{67}{subsubsection*.54}%
+\contentsline {subsubsection}{Verification}{75}{subsubsection*.55}%
+\contentsline {subsection}{\numberline {2.9.5}Nonlinear pendulum}{76}{subsection.2.9.5}%
+\contentsline {subsubsection}{A nonlinear port\sphinxhyphen {}Hamiltonian ODE}{76}{subsubsection*.56}%
+\contentsline {subsubsection}{Implementation notes}{76}{subsubsection*.57}%
+\contentsline {subsubsection}{Numerical validation — Crank\textendash {}Nicolson}{86}{subsubsection*.58}%
+\contentsline {subsection}{\numberline {2.9.6}The heat equation}{87}{subsection.2.9.6}%
+\contentsline {subsubsection}{Running the 2\sphinxhyphen {}D heat example (SCRIMP v1.3)}{88}{subsubsection*.65}%
+\contentsline {subsubsection}{Setting}{89}{subsubsection*.66}%
+\contentsline {subsubsection}{Port\sphinxhyphen {}Hamiltonian framework}{89}{subsubsection*.67}%
+\contentsline {subsubsection}{Structure\sphinxhyphen {}preserving discretization}{90}{subsubsection*.68}%
+\contentsline {subsubsection}{Simulation}{91}{subsubsection*.69}%
+\contentsline {subsection}{\numberline {2.9.7}Heat wave coupling}{96}{subsection.2.9.7}%
+\contentsline {subsubsection}{Run and inspect the canonical example}{97}{subsubsection*.75}%
+\contentsline {subsubsection}{Setting}{98}{subsubsection*.76}%
+\contentsline {subsubsection}{Port\sphinxhyphen {}Hamiltonian framework}{98}{subsubsection*.77}%
+\contentsline {subsubsection}{Structure\sphinxhyphen {}preserving discretization}{99}{subsubsection*.78}%
+\contentsline {subsubsection}{Simulation}{100}{subsubsection*.79}%
+\contentsline {subsubsection}{Long\sphinxhyphen {}time wave gallery exploration (v1.3.0)}{106}{subsubsection*.80}%
+\contentsline {subsubsection}{Native qualification: MPI1/2 FE parity and full\sphinxhyphen {}length CN power}{106}{subsubsection*.81}%
+\contentsline {subsubsection}{Native qualification and long\sphinxhyphen {}time observations (25 November 2026)}{107}{subsubsection*.82}%
+\contentsline {subsection}{\numberline {2.9.8}The shallow water equation}{109}{subsection.2.9.8}%
+\contentsline {subsubsection}{Setting}{110}{subsubsection*.91}%
+\contentsline {subsubsection}{Port\sphinxhyphen {}Hamiltonian framework}{110}{subsubsection*.92}%
+\contentsline {subsubsection}{Structure\sphinxhyphen {}preserving discretization}{110}{subsubsection*.93}%
+\contentsline {subsubsection}{Simulation}{112}{subsubsection*.94}%
+\contentsline {subsubsection}{Extended native physical validation (SCRIMP v1.3.0)}{117}{subsubsection*.95}%
+\contentsline {subsubsection}{Original inviscid free\sphinxhyphen {}surface visualizations (v1.3.0, direct example run)}{118}{subsubsection*.96}%
+\contentsline {section}{\numberline {2.10}Finite\sphinxhyphen {}dimensional port\sphinxhyphen {}Hamiltonian systems}{120}{section.2.10}%
+\contentsline {subsection}{\numberline {2.10.1}Global scalar ports (tested examples)}{120}{subsection.2.10.1}%
+\contentsline {subsection}{\numberline {2.10.2}Global algebraic variables}{120}{subsection.2.10.2}%
+\contentsline {subsection}{\numberline {2.10.3}Why do bricks use a spatial domain?}{120}{subsection.2.10.3}%
+\contentsline {subsection}{\numberline {2.10.4}Solver and present limits}{121}{subsection.2.10.4}%
+\contentsline {subsection}{\numberline {2.10.5}Examples}{121}{subsection.2.10.5}%
+\contentsline {section}{\numberline {2.11}Notebooks}{121}{section.2.11}%
+\contentsline {subsection}{\numberline {2.11.1}Install jupyter}{122}{subsection.2.11.1}%
+\contentsline {subsection}{\numberline {2.11.2}Run jupyter}{122}{subsection.2.11.2}%
+\contentsline {section}{\numberline {2.12}Graphical user interface (experimental)}{122}{section.2.12}%
+\contentsline {section}{\numberline {2.13}Bibliography}{122}{section.2.13}%
+\contentsline {subsection}{\numberline {2.13.1}Articles}{122}{subsection.2.13.1}%
+\contentsline {subsection}{\numberline {2.13.2}Book Chapters}{123}{subsection.2.13.2}%
+\contentsline {subsection}{\numberline {2.13.3}Proceedings}{124}{subsection.2.13.3}%
+\contentsline {section}{\numberline {2.14}Code documentation}{125}{section.2.14}%
+\contentsline {subsection}{\numberline {2.14.1}Folders}{126}{subsection.2.14.1}%
+\contentsline {subsubsection}{scrimp.examples}{126}{subsubsection*.99}%
+\contentsline {paragraph}{Wave}{126}{paragraph*.100}%
+\contentsline {paragraph}{Heat}{127}{paragraph*.101}%
+\contentsline {paragraph}{Heat\sphinxhyphen {}Wave coupling}{127}{paragraph*.102}%
+\contentsline {paragraph}{Shallow water}{129}{paragraph*.103}%
+\contentsline {paragraph}{Finite\sphinxhyphen {}dimensional models}{130}{paragraph*.104}%
+\contentsline {subparagraph}{Returns}{130}{subparagraph*.105}%
+\contentsline {subsubsection}{scrimp.utils}{131}{subsubsection*.106}%
+\contentsline {paragraph}{Config}{131}{paragraph*.107}%
+\contentsline {paragraph}{Linear algebra}{131}{paragraph*.111}%
+\contentsline {subparagraph}{Parameters}{133}{subparagraph*.119}%
+\contentsline {subparagraph}{Returns}{133}{subparagraph*.120}%
+\contentsline {subparagraph}{Parameters}{133}{subparagraph*.122}%
+\contentsline {subparagraph}{Returns}{134}{subparagraph*.123}%
+\contentsline {paragraph}{Mesh}{134}{paragraph*.124}%
+\contentsline {subsubsection}{scrimp.sandbox}{136}{subsubsection*.131}%
+\contentsline {paragraph}{Experimental PDE\textendash {}ODE coupling}{136}{paragraph*.132}%
+\contentsline {subsection}{\numberline {2.14.2}Distributed port\sphinxhyphen {}Hamiltonian system}{136}{subsection.2.14.2}%
+\contentsline {subsubsection}{Parameters}{140}{subsubsection*.177}%
+\contentsline {subsubsection}{Parameters}{142}{subsubsection*.190}%
+\contentsline {subsection}{\numberline {2.14.3}Domain}{145}{subsection.2.14.3}%
+\contentsline {subsection}{\numberline {2.14.4}Hamiltonian / Term}{146}{subsection.2.14.4}%
+\contentsline {subsection}{\numberline {2.14.5}Port / Parameter}{147}{subsection.2.14.5}%
+\contentsline {subsection}{\numberline {2.14.6}State}{151}{subsection.2.14.6}%
+\contentsline {subsection}{\numberline {2.14.7}Co\sphinxhyphen {}state}{152}{subsection.2.14.7}%
+\contentsline {subsection}{\numberline {2.14.8}Control}{153}{subsection.2.14.8}%
+\contentsline {subsection}{\numberline {2.14.9}FEM}{153}{subsection.2.14.9}%
+\contentsline {subsection}{\numberline {2.14.10}Brick}{155}{subsection.2.14.10}%
+\contentsline {chapter}{\numberline {3}Credits}{157}{chapter.3}%
+\contentsline {section}{\numberline {3.1}Development}{157}{section.3.1}%
+\contentsline {section}{\numberline {3.2}Funding}{157}{section.3.2}%
+\contentsline {section}{\numberline {3.3}Third\sphinxhyphen {}party}{157}{section.3.3}%
+\contentsline {section}{\numberline {3.4}How to cite SCRIMP?}{157}{section.3.4}%
+\contentsline {chapter}{Python Module Index}{159}{section*.320}%
+\contentsline {chapter}{Index}{161}{section*.321}%
