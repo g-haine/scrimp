@@ -64,7 +64,10 @@ def wave_coenergy_eq(
     # TUTORIAL 2C-01: concentric disk/annulus and physical labels
     # Set the domain (using the built-in geometry `Concentric`)
     # Labels: Disk = 1, Annulus = 2, Interface = 10, Boundary = 20
-    omega = S.Domain("Concentric", {"R": 1.0, "r": 0.6, "h": mesh_size})
+    omega = S.Domain(
+        "Concentric", {"R": 1.0, "r": 0.6, "h": mesh_size},
+        mesh_output_dir=wave.get_output_path("mesh",create=True),
+    )
     
     # And add it to the dphs
     wave.set_domain(omega)
