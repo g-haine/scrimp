@@ -1,11 +1,16 @@
 How to install
 ==============
 
-This page describes the conventional environment as well as the
-**experimental GetFEM 5.5 / NumPy 2 / MPI level 2** installation.
-The modern stack is NOT yet declared validated: the Docker build,
-NumPy ABI import, MPI algebra tests and physics/scalability benchmarks
-must pass on real machines before it becomes the release default.
+This page distinguishes the existing native Conda route from the
+GetFEM 5.5 / NumPy 2 / MPI level 2 **v1.3.0 candidate**.
+The local ``scrimp-mpi:v1.3.0-rc3`` image has passed genuine
+GetFEM/PETSc MPI, DAE and physical-example tests on Ubuntu
+(including Heat--Wave MPI2), with a pinned OCI revision.
+This qualification applies to that exact image and the tested
+source overlays. It is **not** evidence that a public GHCR tag
+or fresh-machine installation has already been published or
+qualified. The previous wording calling *all* modern MPI
+validation pending is historical.
 
 **New users:** read :doc:`vscode` for the planned v1.3.0
 post-install experience: an independent local simulation project,
@@ -73,10 +78,14 @@ support, NumPy ABI, complex PETSc and distributed MUMPS at 1/2 ranks.
 It explicitly rejects Nédélec-II order k>=3, which has **not**
 been implemented.
 
-These commands are prepared but **the full candidate clean build and
-MPI validation have not yet been run** on the user's workstation.
-Do not replace or delete ``scrimp-mpi:local`` merely because the
-Docker recipe is checked into Git.
+The original ``rc1`` build instructions above are a retained
+candidate-build workflow, not the currently qualified image tag:
+the local v1.3.0 pre-release tests use
+``scrimp-mpi:v1.3.0-rc3``. A **fresh candidate rebuild from
+current sources**, with source provenance, package smoke and
+MPI physics validation, remains a separate release-packaging
+task. Do not replace or delete an existing qualified image
+merely because the Docker recipe is checked into Git.
 
 For interactive development with an **independent local
 simulation project** (not the source checkout), see :doc:`vscode`.
@@ -86,7 +95,7 @@ For a manual command-line session from the user's simulation folder:
 
     cd ~/MySCRIMPProject
     sudo docker run --rm -it -v "$PWD:/work" \
-        --workdir /work scrimp-mpi:v1.3.0-rc1 bash
+        --workdir /work scrimp-mpi:v1.3.0-rc3 bash
 
 This binds the local workspace read-write, so simulations and outputs
 persist on the host even when the container is removed. On Linux,
