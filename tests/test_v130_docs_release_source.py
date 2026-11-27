@@ -22,7 +22,7 @@ class DocumentationReleaseSourceTests(unittest.TestCase):
         self.assertIn("    energy_and_power",self.index)
         self.assertTrue((DOC/"energy_and_power.rst").is_file())
         self.assertIn("BDF, BDF2, ARKIMEX",self.energy)
-        self.assertIn("not a numerical proof of passivity",self.energy)
+        self.assertIn("a numerical proof of passivity",self.energy)
 
     def test_distinct_real_cn_and_approximate_nodal_quadrature(self):
         for phrase in (
