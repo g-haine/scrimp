@@ -570,7 +570,10 @@ def heat_wave_eq(
 
     # Set the domain (using the built-in geometry `Concentric`)
     # Labels: Disk = 1, Annulus = 2, Interface = 10, Boundary = 20
-    omega = S.Domain("Concentric", {"R": 1.0, "r": 0.6, "h": 0.05})
+    omega = S.Domain(
+        "Concentric", {"R": 1.0, "r": 0.6, "h": 0.05},
+        mesh_output_dir=hw.get_output_path("mesh",create=True),
+    )
     
     # And add it to the dphs
     hw.set_domain(omega)
