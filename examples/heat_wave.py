@@ -314,6 +314,189 @@ def render_heat_wave_long_showcase(times, H, *, profile, wave_region):
     return result
 
 
+
+def render_heat_wave_energy_ports(system, *, heat_region, wave_region):
+    """Render true GetFEM heat-wave energy transfer from the canonical run.
+
+    The two oriented interface sides and the heat-flux dissipation are
+    sampled from the actual solved GetFEM state/mesh. Step-associated
+    CN power and its discrete identity are claimed ONLY if every real
+    accepted PETSc step has been saved. Otherwise powers are honest
+    instantaneous nodal samples; their integrated work is approximate.
+    The renderer is user-facing and must be called collectively in MPI.
+    """
+    from matplotlib import pyplot as plt
+    from scrimp.utils.power_sampling import select_port_power_sampling
+    import json
+
+    t=np.asarray(system.solution["t"],dtype=float)
+    if (t.ndim!=1 or len(t)<2 or not np.all(np.isfinite(t))
+            or not np.all(np.diff(t)>0)):
+        raise ValueError("Real GetFEM coupled time history is incomplete")
+    terms=system.hamiltonian.get_terms()
+    if len(terms)!=3:
+        raise RuntimeError("Canonical Heat-Wave has three physical energy terms")
+    parts=[np.asarray(term.get_values(),dtype=float) for term in terms]
+    if any(a.shape!=t.shape or not np.all(np.isfinite(a)) for a in parts):
+        raise RuntimeError("Missing complete original heat/wave energy terms")
+    heat=parts[0]
+    wave=parts[1]+parts[2]
+    total=np.asarray(system.get_Hamiltonian(),dtype=float)
+    if not np.allclose(heat+wave,total,rtol=1e-11,atol=1e-11):
+        raise RuntimeError("Native Hamiltonian is not heat plus wave")
+
+    heat_facet=int(system.ports["Interface Heat"].get_assembly_region())
+    wave_facet=int(system.ports["Interface Wave"].get_assembly_region())
+    if heat_facet==wave_facet or 10 in (heat_facet,wave_facet):
+        raise RuntimeError("Missing distinct oriented one-sided GetFEM interface")
+    sampling=select_port_power_sampling(
+        system.time_scheme.getString("ts_type",""),
+        t,accepted_steps=getattr(system,"last_ts_steps",None),
+        dt=system.time_scheme.getString("dt",""),
+        adapt_type=system.time_scheme.getString("ts_adapt_type",""),
+    )
+    consecutive=(sampling=="cn_step")
+    def quantity(expr,region):
+        a=np.asarray(
+            system.get_quantity(expr,region=region,CN=consecutive),
+            dtype=float,
+        ).reshape(-1)
+        if a.shape!=t.shape or not np.all(np.isfinite(a)):
+            raise RuntimeError("Invalid real GetFEM quantity "+expr)
+        return a
+
+    # Original physical weak-form sign: -heat + wave + outer.
+    p_heat=quantity("U_T*Y_T",heat_facet)
+    p_wave=quantity("U_w*Y_w",wave_facet)
+    d_heat=quantity("e_Q.e_Q",heat_region)
+    p_outer=quantity("U_bnd*Y_bnd",20)
+    outer_sign=1. if wave_region==2 else -1.
+    p_physical=-p_heat+p_wave+outer_sign*p_outer
+    if np.min(d_heat)<-1e-9:
+        raise RuntimeError("Physical thermal dissipation became negative")
+    if np.max(np.abs(p_wave-p_heat))>1e-7*max(
+        1.,float(np.max(np.abs(p_heat))),float(np.max(np.abs(p_wave)))
+    ):
+        raise RuntimeError("Physical one-sided interface powers do not cancel")
+    # The model prescribes a zero outer boundary control. We *measure*
+    # its power rather than setting the returned quantity to zero.
+    dt=np.diff(t)
+    if consecutive:
+        # P[0] is an initial instantaneous value; k>=1 are CN
+        # accepted-step powers at the mean FE state.
+        per_step=np.diff(total)+dt*(d_heat[1:]-p_physical[1:])
+        if np.max(np.abs(per_step))>1e-7*max(1.,np.max(np.abs(total))):
+            raise RuntimeError("Exact-saved CN physical step power identity failed")
+        exchanged=np.r_[0.,np.cumsum(dt*p_physical[1:])]
+        dissipated=np.r_[0.,np.cumsum(dt*d_heat[1:])]
+    else:
+        # Honest approximate trapezoid on SUBSAMPLED accepted nodal
+        # states, NOT a discrete CN step power identity.
+        per_step=None
+        exchanged=np.r_[
+            0.,np.cumsum(.5*dt*(p_physical[1:]+p_physical[:-1]))
+        ]
+        dissipated=np.r_[
+            0.,np.cumsum(.5*dt*(d_heat[1:]+d_heat[:-1]))
+        ]
+
+    root=system.get_output_path("png",create=False).parent
+    from petsc4py import PETSc
+    rank=PETSc.COMM_WORLD.getRank()
+    if rank!=0:
+        return None
+    png=system.get_output_path("png",create=True)
+    svg=system.get_output_path("svg",create=True)
+    npz=system.get_output_path("npz",create=True)
+    json_folder=system.get_output_path("json",create=True)
+
+    fig,ax=plt.subplots(figsize=(9,5))
+    ax.plot(t,heat,label="H heat",lw=1.8)
+    ax.plot(t,wave,label="H wave",lw=1.8)
+    ax.plot(t,total,label="H total",lw=2.2,color="black")
+    ax.set(xlabel="Time",ylabel="Energy",
+           title="Coupled Heat–Wave · subsystem energies")
+    ax.legend()
+    ax.grid(alpha=.25)
+    fig.tight_layout()
+    fig.savefig(png/"heat_wave_subsystem_energies.png",dpi=190)
+    fig.savefig(svg/"heat_wave_subsystem_energies.svg")
+    plt.close(fig)
+
+    fig,ax=plt.subplots(figsize=(9,5))
+    ax.plot(t,p_heat,label="Heat-side interface: U_T Y_T",lw=1.3)
+    ax.plot(t,p_wave,label="Wave-side interface: U_w Y_w",
+            linestyle="--",lw=1.3)
+    ax.plot(t,p_wave-p_heat,label="Net oriented interface",
+            linewidth=1.7,color="black")
+    ax.plot(t,d_heat,label="Heat dissipation (>=0)",lw=1.6)
+    ax.set(xlabel="Time",ylabel="Power",
+           title="Real GetFEM interface power and thermal dissipation")
+    ax.legend()
+    ax.grid(alpha=.25)
+    fig.tight_layout()
+    fig.savefig(png/"heat_wave_interface_powers.png",dpi=190)
+    fig.savefig(svg/"heat_wave_interface_powers.svg")
+    plt.close(fig)
+
+    fig,ax=plt.subplots(figsize=(9,5))
+    ax.plot(t,total-total[0],label="H(t)-H(0)",lw=2)
+    ax.plot(t,exchanged-dissipated,
+            label=("CN exact-step W - D" if consecutive
+                   else "Nodal trapezoid W - D (approximate)"),
+            lw=1.6,linestyle="--")
+    ax.set(xlabel="Time",ylabel="Cumulative energy",
+           title="Heat–Wave · physical energy and work")
+    ax.legend()
+    ax.grid(alpha=.25)
+    fig.tight_layout()
+    fig.savefig(png/"heat_wave_energy_work.png",dpi=190)
+    fig.savefig(svg/"heat_wave_energy_work.svg")
+    plt.close(fig)
+
+    stem="heat_wave_observables"
+    data_path=npz/(stem+".npz")
+    np.savez_compressed(
+        data_path,t=t,H_heat=heat,H_wave=wave,H_total=total,
+        interface_heat_power=p_heat,interface_wave_power=p_wave,
+        heat_dissipation=d_heat,outer_boundary_power=p_outer,
+        physical_net_boundary_power=p_physical,
+        work=exchanged,dissipation_integral=dissipated,
+        CN_step_balance_error=(
+            per_step if per_step is not None else np.asarray([],dtype=float)
+        ),
+    )
+    result={
+        "schema":"scrimp-v130-heat-wave-canonical-physical-figures-v1",
+        "source":"original accepted GetFEM states in examples/heat_wave.py",
+        "output_root":str(root),
+        "temperature_mesh":str(root/"mesh"/"T"/"T.pvd"),
+        "wave_mesh":str(root/"mesh"/"p"/"p.pvd"),
+        "interface_heat_region":heat_facet,
+        "interface_wave_region":wave_facet,
+        "true_saved_FE_states":int(len(t)),
+        "original_FE_DOF_per_state":int(system.gf_model.nbdof()),
+        "power_sampling":sampling,
+        "CN_step_power_identity_claimed":consecutive,
+        "subsampled_trapezoid_work_approximate":not consecutive,
+        "max_one_sided_interface_power_mismatch":float(np.max(np.abs(p_wave-p_heat))),
+        "max_CN_step_balance_error":(
+            None if per_step is None else float(np.max(np.abs(per_step)))
+        ),
+        "figures":[
+            "heat_wave_subsystem_energies",
+            "heat_wave_interface_powers",
+            "heat_wave_energy_work",
+        ],
+        "physical_data_npz":str(data_path),
+    }
+    (json_folder/(stem+".json")).write_text(
+        json.dumps(result,indent=2)+"\\n",encoding="utf-8"
+    )
+    print("SCRIMP Heat–Wave plots and physical data:",root,flush=True)
+    return result
+
+
 def heat_wave_eq(
     heat_region=1, wave_region=2, *, factor_solver=None,
     final_time=2.0, time_step=0.001, save_step=0.05,
