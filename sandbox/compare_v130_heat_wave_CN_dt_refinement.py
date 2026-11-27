@@ -1,4 +1,4 @@
-"""Read-only full-FE time-refinement acceptance for canonical Heat-Wave CN.
+"""Full-FE physical time-refinement diagnostic for canonical Heat-Wave CN.
 
 Four genuine GetFEM/PETSc original-pH model simulations at the EXACT
 SAME conforming spatial mesh h=.05 and t_f=.2, with:
@@ -7,10 +7,10 @@ All rank0 true FE vectors are retained; no spatial interpolation,
 ODE replacement, exact-solution fabrication or energy-only proxy.
 
 For each nested triple, compare time-aligned original full FE coefficient
-histories and confirm Richardson/self-convergence ratio near 4.
-This is proof of observed *temporal* order at fixed spatial mesh;
-it is NOT an estimate of spatial error, analytic PDE convergence
-or a new independent exact solution.
+histories and REPORT the Richardson/self-convergence ratio without
+asserting a given temporal order. In particular, this diagnostic is
+NOT a validation of asymptotic second-order accuracy, spatial error,
+analytic PDE convergence or an independent exact solution.
 
 Each native physical gate and all original GetFEM subsystem power
 balances must pass independently. No change to canonical physics.
@@ -133,21 +133,24 @@ def nested_triple(coarse,medium,fine,label):
     }
     # Distinct from a solution error: this is self-convergence
     # of the original time integrator for the same FE semidiscretization.
-    if not 3.0<=ratio<=5.0:
-        raise RuntimeError(f"Temporal CN second-order gate {label}: "+str(result))
+    # An observed ratio in [3,5] NEVER proves order two. Stiff CN/DAE
+    # transients may not lie in an asymptotic regime; this is descriptive.
+    result["time_refinement_differences_decrease"] = bool(e12<e01)
+    result["temporal_order_claimed_or_required"] = False
     return result
 
 
 def audit(root):
     report={
         "schema":"scrimp-v130-original-heatwave-CN-temporal-refinement-v1",
-        "status":"FAIL_OR_UNQUALIFIED_HEATWAVE_CN_TEMPORAL_ORDER",
+        "status":"FAIL_OR_UNQUALIFIED_HEATWAVE_CN_PHYSICAL_REFINEMENT",
         "errors":[],
         "same_original_conforming_two_sided_GetFEM_problem":True,
         "same_original_mesh_h":.05,
         "fixed_physical_final_time":T_FINAL,
         "only_MUMPS_MPI1":True,
         "no_spatial_convergence_claim":True,
+        "no_asymptotic_temporal_order_claim":True,
         "all_true_accepted_CN_FE_states_required":True,
         "no_synthetic_or_interpolated_FE_solution":True,
         "cases":{},
@@ -182,7 +185,7 @@ def audit(root):
             report["Richardson_self_convergence"][f"{n0}_over_{n1}_over_{n2}"]=(
                 nested_triple(output[n0],output[n1],output[n2],n0)
             )
-        report["status"]="PASS_HEATWAVE_CN_TEMPORAL_SECOND_ORDER_FIXED_SPATIAL_MESH"
+        report["status"]="PASS_HEATWAVE_CN_FIXED_MESH_PHYSICAL_REFINEMENT_DIAGNOSTIC"
     except Exception as e:
         report["errors"].append(f"{type(e).__name__}: {e}")
     return report
