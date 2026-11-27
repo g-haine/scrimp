@@ -1,5 +1,11 @@
 # SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
+#
 # Copyright (C) 2015-2026 ISAE-SUPAERO -- GNU GPLv3
+# 
+# See the LICENSE file for license information.
+#
+# github: https://github.com/g-haine/scrimp
+
 """Check physically compatible initial-data code before native PETSc gates.
 
 Uses GetFEM-like fake DOF ordering ONLY for isolated index mapping.

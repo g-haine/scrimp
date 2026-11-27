@@ -1,3 +1,11 @@
+# SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
+#
+# Copyright (C) 2015-2026 ISAE-SUPAERO -- GNU GPLv3
+# 
+# See the LICENSE file for license information.
+#
+# github: https://github.com/g-haine/scrimp
+
 # SCRIMP v1.3.0 — canonical 2D heat physical diagnostic, not a model rewrite.
 # Reuse the unmodified examples/heat.py entry point; collect real GetFEM data.
 # No exact BDF2 energy identity is assumed.

@@ -1,5 +1,11 @@
 # SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
+#
 # Copyright (C) 2015-2026 ISAE-SUPAERO -- GNU GPLv3
+# 
+# See the LICENSE file for license information.
+#
+# github: https://github.com/g-haine/scrimp
+
 """Dependency-free regression for exact constant-gain GetFEM feedback.
 
 This loads only the real helper AST from dphs.py, not PETSc/GetFEM;

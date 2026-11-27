@@ -1,3 +1,11 @@
+# SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
+#
+# Copyright (C) 2015-2026 ISAE-SUPAERO -- GNU GPLv3
+# 
+# See the LICENSE file for license information.
+#
+# github: https://github.com/g-haine/scrimp
+
 """Source-only SCRIMP v1.3 finite-dimensional pedagogy/physical-model checks.
 
 Never pretend this qualifies a GetFEM/PETSc execution: the companion

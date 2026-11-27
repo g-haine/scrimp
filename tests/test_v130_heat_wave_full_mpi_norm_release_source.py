@@ -1,3 +1,11 @@
+# SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
+#
+# Copyright (C) 2015-2026 ISAE-SUPAERO -- GNU GPLv3
+# 
+# See the LICENSE file for license information.
+#
+# github: https://github.com/g-haine/scrimp
+
 """Source and negative-control regression for future Heat-Wave MPI full runs.
 
 The historical per-DOF strict verifier is deliberately unchanged.

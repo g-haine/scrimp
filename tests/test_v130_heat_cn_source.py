@@ -1,3 +1,11 @@
+# SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
+#
+# Copyright (C) 2015-2026 ISAE-SUPAERO -- GNU GPLv3
+# 
+# See the LICENSE file for license information.
+#
+# github: https://github.com/g-haine/scrimp
+
 # SCRIMP v1.3.0 — source-only contract for upgraded canonical heat example.
 # A native PETSc/GetFEM physical PASS requires the separate Docker pilot.
 import ast

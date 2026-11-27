@@ -1,3 +1,11 @@
+# SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
+#
+# Copyright (C) 2015-2026 ISAE-SUPAERO -- GNU GPLv3
+# 
+# See the LICENSE file for license information.
+#
+# github: https://github.com/g-haine/scrimp
+
 """Post-mortem of a completed, but not yet accepted, 15s Heat-Wave run.
 
 Read only ORIGINAL archived native GetFEM vectors and power traces.

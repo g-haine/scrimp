@@ -1,4 +1,12 @@
 #!/usr/bin/env python3
+# SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
+#
+# Copyright (C) 2015-2026 ISAE-SUPAERO -- GNU GPLv3
+# 
+# See the LICENSE file for license information.
+#
+# github: https://github.com/g-haine/scrimp
+
 """Read-only norm-based reassessment of archived original Heat-Wave MPI1/2.
 
 Reuses the EXACT existing independent per-rank physics/clock audit.

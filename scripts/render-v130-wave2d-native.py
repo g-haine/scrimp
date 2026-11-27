@@ -1,6 +1,12 @@
 #!/usr/bin/env python3
 # SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
+#
 # Copyright (C) 2015-2026 ISAE-SUPAERO -- GNU GPLv3
+# 
+# See the LICENSE file for license information.
+#
+# github: https://github.com/g-haine/scrimp
+
 """User-facing images/animation from ORIGINAL GetFEM VTK and CN power archives.
 
 Supports 2A, 2B, 2C when they provide the native rank0.npz / pv/*.pvd

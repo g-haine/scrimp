@@ -1,3 +1,11 @@
+# SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
+#
+# Copyright (C) 2015-2026 ISAE-SUPAERO -- GNU GPLv3
+# 
+# See the LICENSE file for license information.
+#
+# github: https://github.com/g-haine/scrimp
+
 # SCRIMP v1.3.0 — source-only binary GetFEM VTK decoding regression.
 # Native 2D FE data is not synthesized by this test; actual qualification
 # remains in the MPI pilots. This synthetic fixture guards the byte format.

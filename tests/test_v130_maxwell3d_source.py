@@ -1,5 +1,11 @@
 # SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
+#
 # Copyright (C) 2015-2026 ISAE-SUPAERO -- GNU GPLv3
+# 
+# See the LICENSE file for license information.
+#
+# github: https://github.com/g-haine/scrimp
+
 """Source-only contract for patched 3D Nedelec-II/BDM1 Maxwell tutorial.
 
 Does not imply native GetFEM/PETSc acceptance: only the pinned

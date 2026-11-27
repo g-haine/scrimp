@@ -1,5 +1,11 @@
 # SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
+#
 # Copyright (C) 2015-2026 ISAE-SUPAERO -- GNU GPLv3
+# 
+# See the LICENSE file for license information.
+#
+# github: https://github.com/g-haine/scrimp
+
 """Static contract for genuine 2C coenergy and the visualization pipeline.
 
 Native GetFEM/PETSc scientific PASS is ONLY reported by the pilot,

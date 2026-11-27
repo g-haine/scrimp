@@ -1,4 +1,12 @@
 #!/usr/bin/env python3
+# SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
+#
+# Copyright (C) 2015-2026 ISAE-SUPAERO -- GNU GPLv3
+# 
+# See the LICENSE file for license information.
+#
+# github: https://github.com/g-haine/scrimp
+
 """Reusable full 15-second original Heat-Wave CN MPI1/2 release checker.
 
 This is the accepted normwise coefficient-space criterion validated
