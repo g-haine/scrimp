@@ -18,10 +18,10 @@ echo "SCRIMP v1.3.0 complete documentation build"
 echo "Source commit: $(git rev-parse HEAD)"
 echo "Build output: $out"
 echo "PDF requested: ${SCRIMP_V130_DOC_PDF:-1}"
-echo "Strict warnings: ${SCRIMP_V130_DOC_STRICT:-0}"
+echo "Strict warnings: ${SCRIMP_V130_DOC_STRICT:-1}"
 
 opts=(-n)
-if [[ "${SCRIMP_V130_DOC_STRICT:-0}" == 1 ]]; then
+if [[ "${SCRIMP_V130_DOC_STRICT:-1}" == 1 ]]; then
     opts+=(-W --keep-going)
 fi
 export PYTHONDONTWRITEBYTECODE=1
@@ -84,7 +84,7 @@ report={
     "latex_warnings":count_warnings(root/"latex.log"),
     "pdf_log_available":(root/"pdf.log").is_file(),
     "strict_warnings_enforced":bool(int(
-        __import__("os").environ.get("SCRIMP_V130_DOC_STRICT","0"))),
+        __import__("os").environ.get("SCRIMP_V130_DOC_STRICT","1"))),
 }
 (root/"summary.json").write_text(json.dumps(report,indent=2)+"\n")
 print(json.dumps(report,indent=2),flush=True)
