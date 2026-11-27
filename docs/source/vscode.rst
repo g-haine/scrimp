@@ -1,20 +1,23 @@
-First SCRIMP project with VS Code (v1.3.0 preview)
-======================================================
+First SCRIMP project with VS Code (v1.3.0)
+==========================================
 
 .. important::
 
-   This is the **target v1.3.0 experience**, being developed on
-   the release/1.3.0-preparation branch. The public GHCR v1.3.0 image
-   and the Dev Containers end-to-end qualification are **not yet released**.
+   The **public Linux/AMD64 image** ``ghcr.io/g-haine/scrimp:1.3.0``
+   and stable Git tag ``v1.3.0`` are published. The image passed
+   independent Ubuntu 24.04/AMD64 acceptance for the standalone
+   project, MPI startup and native Heat--Wave Hamiltonian parity.
+   Windows/macOS, ARM64 and graphical multi-process MPI debugging
+   remain unqualified.
 
 What is on the user's computer?
 -------------------------------
 
 **Docker with a precompiled image is the default v1.3.0 installation
-path.** The local native Conda route remains available for existing
-users and advanced development. The public image and release ZIP are
-not yet available; all examples below that mention the final GHCR tag
-are **future release instructions**, not a present availability claim.
+path.** The native Conda route remains available for existing
+users and advanced development. The user project ZIP is a
+separate `GitHub Release asset
+<https://github.com/g-haine/scrimp/releases/tag/v1.3.0>`_.
 
 After installation the user has **three separate components**:
 
@@ -49,32 +52,32 @@ The second script checks MPI startup, **not physical MPI parity**.
 Creating the independent workspace
 ----------------------------------
 
-When SCRIMP v1.3.0 is released, download the standalone
-scrimp-project-template.zip archive from GitHub Releases and extract
-it as your own project. The released archive must already contain
-the **verified public Docker image tag** in its Dev Container config,
-so the new user need not edit any image setting. That release asset
-**is not published yet**.
-At release packaging time the maintainer must embed the **validated**
-GHCR tag in the ZIP's Dev Container metadata, for example:
+Download ``scrimp-project-template.zip`` from the
+`v1.3.0 GitHub Release
+<https://github.com/g-haine/scrimp/releases/tag/v1.3.0>`_
+and extract it as your own project. The official archive
+already selects ``ghcr.io/g-haine/scrimp:1.3.0`` in the
+Dev Container configuration.
+
+Maintainers can rebuild the user ZIP with:
 
 .. code-block:: bash
 
    python3 scripts/package-scrimp-project-template.py \
        --image ghcr.io/g-haine/scrimp:1.3.0
 
-This command only creates a local ZIP: it does not publish that
-image or asset. Only run it with the GHCR tag after qualification.
+This produces an archive only; it does not publish an image.
 
-During development, obtain the template from GitHub once:
+For source customization (not required with the release ZIP):
 
 .. code-block:: bash
 
    BOOTSTRAP="$(mktemp -d -t scrimp-starter.XXXXXXXX)"
-   git clone --depth 1 --branch release/1.3.0-preparation \
+   git clone --depth 1 --branch v1.3.0 \
        https://github.com/g-haine/scrimp.git "$BOOTSTRAP/source"
    python3 "$BOOTSTRAP/source/scripts/create-scrimp-project.py" \
-       "$HOME/MySCRIMPProject"
+       "$HOME/MySCRIMPProject" \
+       --image ghcr.io/g-haine/scrimp:1.3.0
 
 The BOOTSTRAP directory is a separate **newly created** temporary
 source checkout. The user's new project is in MySCRIMPProject and
@@ -84,17 +87,17 @@ existing user directory to make room for it.
 
 The generator refuses to overwrite any pre-existing directory and
 never copies the source repository's sandbox, output data or Git history.
-For future release packaging, the ZIP is built by:
+To package the user project from source:
 
 .. code-block:: bash
 
-   python3 scripts/package-scrimp-project-template.py
+   python3 scripts/package-scrimp-project-template.py \
+       --image ghcr.io/g-haine/scrimp:1.3.0
 
-A. Precompiled Docker installation (planned release path)
----------------------------------------------------------
+A. Precompiled Docker installation (recommended)
+------------------------------------------------
 
-After the image has **passed validation and actually been published**,
-the planned pull command is:
+Pull the qualified, public Linux/AMD64 image:
 
 .. code-block:: bash
 
@@ -102,9 +105,9 @@ the planned pull command is:
 
 No compilation or SCRIMP source checkout is required. The image is
 stored in Docker's image store, *not* in the user's simulations folder.
-The published project template should select that image by default.
-For the pre-release template, change the image field in
-.devcontainer/devcontainer.json to this tag **only after it exists**.
+The official release ZIP selects the stable image by default.
+For a project generated from a historical source-tree
+template, explicitly use ``--image ghcr.io/g-haine/scrimp:1.3.0``.
 
 B. Locally compiled Docker installation
 ---------------------------------------
@@ -144,12 +147,10 @@ The initial ``scrimp-mpi:v1.3.0-rc1`` image **passed its
 first native Docker build and 1/2-rank CLI smoke on
 19 November 2026**, including a scaffolded project and an
 actual serial oscillator simulation. That is *historical*
-qualification. The later local ``scrimp-mpi:v1.3.0-rc3``
-image has passed the more extensive v1.3.0 GetFEM/PETSc
-MPI and physical-example campaigns, but remains
-**unpublished**. Existing project templates may still
-pin ``rc1``; explicitly select a qualified, installed
-image tag for the project being run. The Docker build **does
+qualification. The final ``dist-rc4`` image passed fresh-host GetFEM/PETSc/MUMPS
+and MPI acceptance; it was promoted **unchanged** to public
+``ghcr.io/g-haine/scrimp:1.3.0``. Historic source templates may
+still reference a local ``rc1`` candidate; select the stable tag. The Docker build **does
 not access any local simulations**, even from a developer checkout.
 Explicit library development with uncommitted changes uses
 SCRIMP_DOCKER_SOURCE=local (still using physical source staging).
@@ -426,8 +427,8 @@ Interpreter** and choose the Conda interpreter. Do not select
 Reopen in Container. Native installation is distinct from compiling
 a Docker image locally, which still targets a Linux container.
 
-Known limitations / release gates
----------------------------------
+Known limitations
+-----------------
 
 - The candidate image **passed its Linux native build** and the
   1/2-rank CLI smoke. A **real VS Code Dev Container session** on
@@ -443,8 +444,8 @@ Known limitations / release gates
   user environments, not mandatory release gates nor independently
   qualified native runtimes. MPI multi-process debugging and
   model-specific physical power balance require separate qualification.
-- The public GHCR v1.3.0 tag and starter project ZIP are not
-  published; both require an accepted release.
+- The public GHCR v1.3.0 image is available and Ubuntu/AMD64 qualified.
+  The starter ZIP is distributed as a separate GitHub Release asset.
 - The introductory oscillator is a serial model; use validated
   PDE scripts for MPI and Hamiltonian/power-balance qualification.
 - The old >45 GB Docker-context regression is addressed by staging
