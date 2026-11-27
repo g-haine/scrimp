@@ -534,34 +534,33 @@ def heat_wave_eq(
     SCRIMP_AUTO_INTERFACE=0 only to recover legacy manual assembly
     if your model was already oriented by hand.
 
-    Args:
-        heat_region: domain label of the heat equation (1 or 2).
-        wave_region: domain label of the wave equation (the other one).
-        factor_solver: optional PETSc LU solver (default: SCRIMP MUMPS).
-        final_time: physical end time.
-        time_step: fixed Crank–Nicolson timestep.
-        save_step: accepted trajectory sampling interval.
-        initial_wave_profile: "gaussian" retains the historical heat/wave
-            condition. "gallery_packet" is a smooth high-angular-wavenumber
-            wave excitation concentrated near the outer radius, with
-            zero initial heat and stress. It is NOT a certified cavity
-            eigenmode and is available only for a wave annulus.
-        long_showcase: produce an opt-in real-GetFEM annular-wave PNG/GIF
-            showcase after successful physical integration and VTK export.
-        physics_only: run the same full native PDE and initialize the
-            original Hamiltonian terms but skip plots and ParaView files.
-            This allows genuine parallel physics audits on all MPI ranks
-            without concurrent writers; defaults to False and changes
-            no equations, FEM or physical initialization.
-        initial_wave_boundary: compatible wave velocity initialization
-            when the exterior boundary belongs to the wave region.
-            "clamp" (default) sets exactly the exterior CG1 degrees
-            of freedom to zero, leaving interior L2-projected
-            coefficients unchanged. "constrained_l2" computes the
-            closest zero-trace field in the physical GetFEM L2 norm
-            (MPI1 only). "unconstrained" reproduces the historical,
-            generally DAE-incompatible Gaussian for diagnostics only.
-            Neither valid method relaxes algebraic DAE constraints.
+    :param heat_region: Domain label of the heat equation (1 or 2).
+    :param wave_region: Domain label of the wave equation (the other one).
+    :param factor_solver: Optional PETSc LU solver (default: SCRIMP MUMPS).
+    :param final_time: Physical end time.
+    :param time_step: Fixed Crank--Nicolson time step.
+    :param save_step: Accepted trajectory sampling interval.
+    :param initial_wave_profile: "gaussian" retains the historical heat/wave
+        condition. "gallery_packet" is a smooth high-angular-wavenumber
+        wave excitation concentrated near the outer radius, with
+        zero initial heat and stress. It is **not** a certified cavity
+        eigenmode and is available only for a wave annulus.
+    :param long_showcase: Produce an opt-in native GetFEM annular-wave PNG/GIF
+        showcase after successful physical integration and VTK export.
+    :param physics_only: Run the same full native PDE and initialize the
+        original Hamiltonian terms but skip plots and ParaView files.
+        This allows genuine parallel physics audits on all MPI ranks
+        without concurrent writers; defaults to False and changes
+        no equations, FEM or physical initialization.
+    :param initial_wave_boundary: Compatible wave velocity initialization
+        when the exterior boundary belongs to the wave region. "clamp"
+        (default) sets exactly the exterior CG1 degrees of freedom to zero,
+        leaving interior L2-projected coefficients unchanged.
+        "constrained_l2" computes the closest zero-trace field in the
+        physical GetFEM L2 norm (MPI1 only). "unconstrained" reproduces
+        the historical, generally DAE-incompatible Gaussian for diagnostics.
+        Neither valid method relaxes algebraic DAE constraints.
+    :param output_dir: Optional explicit user output directory.
     """
     
     # Init the distributed port-Hamiltonian system
