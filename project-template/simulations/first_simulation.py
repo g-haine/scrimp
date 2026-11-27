@@ -60,15 +60,23 @@ def main() -> None:
     ):
         system.add_brick(brick)
 
-    system.set_initial_value("q", 0.4)
-    system.set_initial_value("p", 0.0)
+    # Same initialization as the qualified canonical
+    # examples/mass_spring_damper.py: provide consistent differential
+    # AND algebraic values. The time-only forcing brick is marked
+    # linear=False to reassemble its RHS at each time; the default
+    # linear-only DAE initializer is therefore deliberately NOT used.
+    q0, p0 = 0.4, 0.0
+    system.set_initial_value("q", q0)
+    system.set_initial_value("p", p0)
+    system.gf_model.set_variable("e_q", np.array([5.0 * q0]))
+    system.gf_model.set_variable("e_p", np.array([p0 / 1.5]))
     system.set_time_scheme(
         ts_type="bdf", ts_bdf_order=2,
         ts_exact_final_time="matchstep", ts_adapt_type="none",
         ksp_type="gmres", pc_type="lu",
         pc_factor_mat_solver_type="superlu",
         t_0=0.0, t_f=0.10, dt=0.01, dt_save=0.01,
-        init_step=True,
+        init_step=False,
     )
     system.solve()
 
