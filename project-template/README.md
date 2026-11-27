@@ -13,32 +13,31 @@ Changing a simulation **never rebuilds** the SCRIMP Docker image.
 - **With native Conda:** SCRIMP and dependencies instead live in your
   activated Conda environment; this project directory stays the same.
 
-## Default: precompiled Docker image (after v1.3.0 is published)
+## Default: precompiled Docker image (SCRIMP v1.3.0)
 
-The future released image is expected to be
-`ghcr.io/g-haine/scrimp:1.3.0` (**not yet published**).
-The final GitHub Release project ZIP will need its Dev Container
-image name set to that **verified published** tag at packaging time.
-Once published, install Docker (Docker Desktop on Windows/macOS)
-and pull the image:
+The stable, **public Linux/AMD64 image** is
+`ghcr.io/g-haine/scrimp:1.3.0`, qualified by immutable digest
+on a fresh Ubuntu runner. Windows/macOS and ARM64 compatibility
+are best-effort, not independently qualified. Pull the image:
 
 ```bash
 docker pull ghcr.io/g-haine/scrimp:1.3.0
 ```
 
-The **official release ZIP will already include** that verified image
-reference in `.devcontainer/devcontainer.json`; users of the released
-ZIP must not need to edit it. The current Git-branch preview template
-still selects a **local rc1 development image** and must not be
-mistaken for the published release ZIP.
+The **official v1.3.0 GitHub Release ZIP** selects this stable
+image in `.devcontainer/devcontainer.json`; end users need not
+edit it. Older source-tree templates may still select local
+`scrimp-mpi:v1.3.0-rc1`; to create a stable-image project from
+sources, pass
+`--image ghcr.io/g-haine/scrimp:1.3.0` to the generator.
 
 ## Option B: Docker image built locally
 
 Build SCRIMP via the official candidate build procedure (from a
 temporary checkout of the GitHub repository, **not this project**).
 It produces `scrimp-mpi:v1.3.0-rc1` for development/validation.
-The template's default Dev Container image is that local candidate
-tag **until the public image is qualified and released**.
+Local source builds are a developer-only alternative to the
+public stable image.
 
 Alternatively, edit `.devcontainer/devcontainer.json` to refer to
 another **already built** local SCRIMP image. Always use the **complete
@@ -221,11 +220,13 @@ on the host.
 - Version your own project using Git if desired. It is **not**
   a checkout of the SCRIMP library.
 
-## Release status
+## Release qualification
 
-This starter project is being prepared on the
-`release/1.3.0-preparation` branch. The public `v1.3.0` image
-and native cross-platform installation are **not yet qualified**.
+The **public v1.3.0 Linux/AMD64 image** passed independent
+user-workspace/host CSV, MPI startup and native Heat--Wave MPI1/MPI2
+Hamiltonian parity tests. Native Windows/macOS/ARM64 and
+multi-process debugging remain unqualified.
+
 The **Linux VS Code Dev Container terminal run** passed the actual
 first SCRIMP simulation, host-persistent CSV and two-rank MPI
 startup on 19 November 2026. On **20 November**, Python
