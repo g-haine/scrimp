@@ -33,16 +33,39 @@ GHCR ni le débogage MPI multiprocessus.
 La CI Python source a obtenu **SUCCESS** sur
 `7bdfb2685e9faae06a8d68a7197a6475a093a127`
 après normalisation des seuls bandeaux de licence de
-89 fichiers Python suivis (aucune modification des équations).
-La PR #31 comporte désormais également un pilote
-`scripts/run-v130-distribution-heat-wave-mpi-parity.sh` qui
-compare, sur les calculs GetFEM natifs de la **seule image
-Docker** et sans montage du dépôt SCRIMP, les trajectoires
-du Hamiltonien Heat-Wave en MPI1 et MPI2. Son exécution
-native sur le candidat est **encore à réaliser**.
-La confirmation HTML/LaTeX/PDF après mise à jour du numéro
-de version, le tirage de l'image par digest sur hôte vierge et la
-publication GHCR restent ouverts. Aucun tag ni image publique.
+89 fichiers Python suivis (aucune modification des équations) ;
+une nouvelle CI complète a également obtenu **SUCCESS**
+sur `e81003b7ef32360c755a4db56b65d4093b744aea`.
+
+**PASS du calcul Heat–Wave réellement embarqué dans
+`scrimp-mpi:v1.3.0-dist-rc2`**, sans montage du dépôt :
+maillage 3 154 éléments, 7 689 DoFs, CN de 0 à 0,02
+par 10 pas `dt=0.002` acceptés, 0 échec de solveur,
+11 Hamiltoniens FE en MPI1 et MPI2 ; écart relatif L2
+`4.252240939683056e-15` sous la tolérance fixée
+`1e-7`. Statut
+`PASS_NATIVE_HEAT_WAVE_MPI1_MPI2_HAMILTONIAN_PARITY`.
+La portée est la **parité de la trajectoire énergétique**,
+et non une parité champ FE ou MPI générale. Preuves :
+`sandbox/outputs/v130-distribution-heat-wave-mpi-wb9SrBRd/`.
+
+**PASS documentaire 1.3.0 sur `e81003b7`** :
+8/8 tests, Sphinx HTML et LaTeX avec
+`-n -W --keep-going` et **zéro avertissement Sphinx**
+de chaque côté, puis `latexmk` produisant le PDF réel
+`SCRIMP, Release 1.3.0` de **168 pages**. Statut
+`PASS_HTML_LATEX_PDF_BUILT`. L'archive de 258 entrées
+a passé le CRC ; le PDF et le rapport sont présents.
+Le journal LaTeX final ne contient plus de références
+non résolues, mais conserve des avertissements typographiques
+(`hyperref`, boîtes trop pleines). Preuves :
+`sandbox/outputs/v130-docs-build-e81003b7-JoPsDG4H/`.
+
+**Encore ouverts** : image définitive depuis la révision
+de sources stabilisée, publication privée/prérelease GHCR
+suivie d'un `docker pull` **par digest** sur hôte vierge
+et du test ZIP externe, revue des issues et décision de
+release. Aucun tag ni image publique à ce stade.
 
 Voir [porte de qualification Docker-first](V130_DOCKER_FIRST_RELEASE_GATE.md).
 
