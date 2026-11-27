@@ -44,6 +44,9 @@ def nonlinear_pendulum(final_time=12.0, time_step=0.01,
     interval_length = 1.0
 
     pend = S.DPHS("real")
+    # Separate free and forced user runs without overwriting each other.
+    pend_variant="free" if float(torque_amplitude)==0. else "forced"
+    pend.set_output_name("nonlinear_pendulum_"+pend_variant)
     pend.set_domain(S.Domain("Interval", {"L": interval_length, "h": 1.0}))
 
     angle = S.State("theta", "Angular position (rad)", "lumped")
@@ -142,8 +145,10 @@ def nonlinear_pendulum(final_time=12.0, time_step=0.01,
         variant = "free" if float(torque_amplitude) == 0.0 else "forced"
         destination = (
             Path(output_dir) if output_dir is not None
-            else Path.cwd() / "outputs" / "showcase" / "nonlinear_pendulum"
-            / variant
+            else pend._output_root
+        )
+        pend.plot_Hamiltonian(
+            save_figure=True,filename="pendulum_Hamiltonian.png",show=False
         )
         pend.pendulum_visuals = render_pendulum_visuals(
             pend, destination, inertia=inertia,
@@ -291,12 +296,17 @@ def render_pendulum_visuals(
     if PETSc.COMM_WORLD.getRank() != 0:
         return None
     folder = Path(folder)
-    figures = folder/"figures"
-    figures.mkdir(parents=True, exist_ok=True)
+    png=folder/"png"
+    svg=folder/"svg"
+    gif=folder/"gif"
+    data=folder/"npz"
+    metadata=folder/"json"
+    for directory in (png,svg,gif,data,metadata):
+        directory.mkdir(parents=True,exist_ok=True)
 
     def save_figure(fig, name):
-        fig.savefig(figures/(name+".png"), dpi=180)
-        fig.savefig(figures/(name+".svg"))
+        fig.savefig(png/(name+".png"), dpi=180)
+        fig.savefig(svg/(name+".svg"))
         plt.close(fig)
 
     variant = "free" if torque_amplitude == 0. else "forced"
@@ -393,13 +403,13 @@ def render_pendulum_visuals(
         with Image.open(buffer) as frame:
             gif_frames.append(frame.convert("RGB").copy())
     gif_frames[0].save(
-        figures/"pendulum_motion.gif",
+        gif/"pendulum_motion.gif",
         save_all=True,append_images=gif_frames[1:],
         duration=160,loop=0,optimize=False,
     )
 
     np.savez_compressed(
-        folder/"native_lumped_time_history.npz",
+        data/"native_lumped_time_history.npz",
         t=t,theta=theta,p=p,e_theta=e_theta,e_p=e_p,H=H,
         torque=torque,input_power=input_power,
         viscous_dissipation=dissipation,
@@ -444,7 +454,7 @@ def render_pendulum_visuals(
             "pendulum_motion.gif",
         ],
     }
-    (folder/"manifest.json").write_text(
+    (metadata/"manifest.json").write_text(
         json.dumps(manifest,indent=2)+"\n",encoding="utf-8"
     )
     return manifest
