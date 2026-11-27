@@ -151,6 +151,10 @@ class UserOutputPowerHamiltonianTests(unittest.TestCase):
         self.assertFalse(h.get_is_computed())
         h.compute(states,model,domain)
         self.assertEqual(len(h[1].get_values()),3)
+        h.invalidate()
+        self.assertFalse(h.get_is_computed())
+        h.compute(states,model,domain)
+        self.assertEqual(t.get_values(),[1.,2.1,3.2])
 
     def test_invalid_hamiltonian_history_does_not_corrupt_accepted_values(self):
         Hamiltonian,Term,Model=hamiltonian_with_mock_getfem()
@@ -173,6 +177,9 @@ class UserOutputPowerHamiltonianTests(unittest.TestCase):
             "def set_output_name(",
             "def get_output_path(",
             "def set_output_directory(",
+            "source = Path(outputs_path) / \"mesh\" / (domain.get_name()+\".msh\")",
+            "self.hamiltonian.invalidate()",
+            "self.powers_computed = False",
             "select_port_power_sampling(",
             "accepted_steps=getattr(self,\"last_ts_steps\",None)",
             "CN powers: stored states are not all consecutive accepted",
