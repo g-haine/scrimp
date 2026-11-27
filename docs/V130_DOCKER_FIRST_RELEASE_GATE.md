@@ -54,23 +54,27 @@ environment, without claiming native scientific dependencies
 are available outside Docker. The qualified *distribution*
 image is not yet public or pushed to GHCR.
 
-**Ubuntu VS Code user report, provisional GUI acceptance:** opening
-the actual extracted distribution ZIP in a new project directory,
-restarting VS Code once, and using the Dev Container appeared to
-work. The user supplied its `oscillator.csv`: 11 rows at
-`t=0,0.01,...,0.10`, correct energy identity to about
-`5.6e-17`, `H(0)=0.4`, `H(0.1)=0.39928159`.
-The user has **not explicitly confirmed F5 breakpoint, F10
-single-stepping, or debugpy in that newly extracted ZIP**, so
-mark those separate UI gates PENDING, despite the previously
-qualified November 20 preview.
+**PASS — Ubuntu VS Code GUI and debugpy using the independent ZIP:**
+the user extracted the qualified distribution ZIP into a separate
+project, opened the project in VS Code Dev Containers (a VS Code
+close/reopen was needed once), and executed the original starter
+simulation. Its host-persistent `oscillator.csv` contains 11 samples
+at `t=0,0.01,...,0.10` with the analytical energy identity to
+about `5.6e-17`, `H(0)=0.4`, `H(0.1)=0.39928159`.
+The user **explicitly confirmed** the debugging sequence on
+2026-11-27: **F5** stopped at a breakpoint, **F10** advanced
+instruction by instruction, and **F5** resumed the simulation
+through successful completion. This qualifies the tested local
+Ubuntu Dev Container and independent ZIP at image `dist-rc2`;
+it does **not** qualify an image freshly pulled from a registry,
+Windows/macOS, or multi-process MPI debugging.
 
 **Remaining release gates:** independent fresh-host/digest pull,
-full VS Code F5/F10 confirmation against the final published
-digest, one genuine distributed MPI PDE physics test against
-the final distribution, refreshed strict HTML/LaTeX/PDF after
-the version updates, clean source CI, review of the issue
-backlog, and actual GHCR publication. No release tag or image
+one genuine distributed MPI PDE physics test against the final
+distribution, refreshed strict HTML/LaTeX/PDF after the version
+updates, clean source CI, review of the issue backlog, and actual
+GHCR publication. After the final digest exists, recheck GUI F5/F10
+against that published artifact. No release tag or image
 publication is claimed.
 
 ## Candidate construction — do not replace rc3 or local images
