@@ -37,10 +37,14 @@ class Domain:
     Lists are used to handle interconnection of pHs, allowing for several meshes in the dpHs.
     """
 
-    def __init__(self, name: str, parameters: dict, refine=0, terminal=1):
+    def __init__(self, name: str, parameters: dict, refine=0, terminal=1,
+                 *, mesh_output_dir=None):
         """Constructor of the `domain` member of a dpHs"""
 
         self._name = name
+        # Optional direct destination for the exact native .msh. Avoid
+        # generating global outputs/mesh then copying the same file.
+        self._mesh_output_dir = mesh_output_dir
         self._isSet = False  #: A boolean to check if the domain has been set
         self._mesh = list()  #: A list of getfem Mesh objects
         self._subdomains = list(
@@ -56,7 +60,10 @@ class Domain:
 
         if name in built_in_methods:
             mesh_function = getattr(scrimp.utils.mesh, name)
-            gf_mesh = mesh_function(parameters, refine=refine, terminal=0)
+            gf_mesh = mesh_function(
+                parameters, refine=refine, terminal=0,
+                mesh_output_dir=mesh_output_dir
+            )
             self._mesh.append(gf_mesh[0])
             self._dim.append(gf_mesh[1])
             self._subdomains.append(gf_mesh[2])
@@ -111,11 +118,16 @@ class Domain:
                     gmsh.model.mesh.generate(gmsh.model.getDimension())
                     for i in range(refine):
                         gmsh.model.mesh.refine()
+                    # The .geo case follows the same per-system native
+                    # Gmsh write/import path as built-in geometries.
+                    mesh_filename = scrimp.utils.mesh._mesh_file(
+                        basename+".msh", mesh_output_dir
+                    )
                     if rank==0:
-                        gmsh.write(os.path.join(outputs_path, "mesh", basename+".msh"))
+                        gmsh.write(mesh_filename)
                     comm.barrier()
                     gmsh.finalize()
-                    mesh = gf.Mesh("import", "gmsh_with_lower_dim_elt", os.path.join(outputs_path, "mesh", basename+".msh"))
+                    mesh = gf.Mesh("import", "gmsh_with_lower_dim_elt", mesh_filename)
                     self._mesh.append(mesh)
 
                 elif fileextension == ".py":
