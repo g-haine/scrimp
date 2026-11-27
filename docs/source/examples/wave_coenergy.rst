@@ -106,7 +106,7 @@ not a numerical regularization hidden in SCRIMP.
    :end-before: # TUTORIAL 2C-05:
 
 The co-energy balance and feedback sign
---------------------------------------
+---------------------------------------
 
 The semidiscrete system is
 
@@ -259,7 +259,7 @@ should be considered for the public Sphinx gallery
 after labeling the inner damping region explicitly.
 
 Qualification evidence — original GetFEM CN, MPI 1 and 2
--------------------------------------------------------
+--------------------------------------------------------
 
 **PASS, 25 November 2026** on the original full-precision FE
 archive ``v130-wave2d-coenergy-eeae81f7-siWdW8ft.zip``
@@ -321,7 +321,7 @@ under ``visuals/`` and ``mumps_mpi*/pv/``.
 
 
 Long-time visualization — 100 accepted physical CN steps
--------------------------------------------------------
+--------------------------------------------------------
 
 **PASS, 25 November 2026** on the authentic GetFEM
 archive ``v130-wave2d-2c-showcase-bc880100-9P5gcxWf.zip``,
