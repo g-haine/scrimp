@@ -109,6 +109,27 @@ class Term:
             raise err
         self.__values.append(value)
 
+    def replace_values(self, values):
+        """Atomically replace the sampled values after a successful assembly.
+
+        Repeated compute_Hamiltonian() calls must not append a second copy
+        of an existing time history. Reject invalid GetFEM scalar results
+        before changing the previously accepted series.
+        """
+        scalars=[]
+        for value in values:
+            arr=np.asarray(value)
+            if arr.ndim!=0 or not np.all(np.isfinite(arr)):
+                raise FloatingPointError(
+                    "Nonfinite or nonscalar GetFEM Hamiltonian term"
+                )
+            if np.iscomplexobj(arr):
+                if abs(arr.imag)>1e-12*max(1.,abs(arr.real)):
+                    raise FloatingPointError("Complex Hamiltonian has nonzero imaginary part")
+                arr=arr.real
+            scalars.append(float(arr))
+        self.__values=scalars
+
 
 class Hamiltonian:
     """This class defines the Hamiltoninan."""
@@ -139,26 +160,38 @@ class Hamiltonian:
             raise err
 
         self.__terms.append(term)
+        self.__is_computed = False
 
     def compute(self, solution: dict, gf_model: gf.Model, domain: Domain):
-        """Compute each `term` constituting the Hamiltonian
+        """Sample all Hamiltonian terms on real accepted FE states/times.
 
-        Args:
-            - solutions (dict):         The solution of the dphs
-            - gf_model (GetFEM Model):  The model getfem of the dphs
-            - domain (Domain):          The domain of the dphs
+        Uses the same real GetFEM generic weak-form integrals as the
+        historical implementation. Crucially, set the model time before
+        each assembly (a Hamiltonian may contain t-dependent parameters)
+        and replace, rather than append, previously sampled histories.
+
+        Each term's published values are updated only if the full
+        calculation succeeds. Recomputing twice is numerically idempotent
+        and cannot silently double the length of its trace.
         """
-
         if rank == 0:
             logging.info("Start computing the Hamiltonian")
-
-        start = time.perf_counter()
-        for t, _ in enumerate(solution["t"]):
-            gf_model.to_variables(solution["z"][t])
-            for _, term in enumerate(self):
-                term_value_at_t = 0.0
+        start=time.perf_counter()
+        times=np.asarray(solution["t"],dtype=float)
+        states=solution["z"]
+        if (times.ndim!=1 or times.size==0 or len(states)!=len(times)
+                or not np.all(np.isfinite(times))
+                or (len(times)>1 and np.any(np.diff(times)<=0))):
+            raise ValueError("Invalid accepted GetFEM Hamiltonian time/state history")
+        self.__is_computed=False
+        values=[[] for _ in self.__terms]
+        for k,t in enumerate(times):
+            gf_model.set_time(float(t))
+            gf_model.to_variables(states[k])
+            for i,term in enumerate(self.__terms):
+                term_value_at_t=0.0
                 for region in term.get_regions():
-                    term_value_at_t += gf.asm(
+                    term_value_at_t+=gf.asm(
                         "generic",
                         domain._int_method[term.get_mesh_id()],
                         0,
@@ -166,13 +199,27 @@ class Hamiltonian:
                         region,
                         gf_model,
                     )
-                term.set_value(term_value_at_t)
-
+                candidate=np.asarray(term_value_at_t)
+                if (candidate.ndim!=0 or
+                        not np.all(np.isfinite(candidate))):
+                    raise FloatingPointError(
+                        "Invalid GetFEM Hamiltonian term "+term.get_description()
+                    )
+                if np.iscomplexobj(candidate):
+                    if abs(candidate.imag)>1e-12*max(1.,abs(candidate.real)):
+                        raise FloatingPointError(
+                            "Complex Hamiltonian has nonzero imaginary part: "+
+                            term.get_description()
+                        )
+                    candidate=candidate.real
+                values[i].append(float(candidate))
+        for term,series in zip(self.__terms,values):
+            term.replace_values(series)
         self.set_is_computed()
-
-        if rank == 0:
+        if rank==0:
             logging.info(
-                f"Hamiltonian has been computed in {str(time.perf_counter() - start)} s"
+                "Hamiltonian computed for %d genuine states in %.4gs",
+                len(times),time.perf_counter()-start,
             )
 
     def get_name(self) -> str:
