@@ -680,7 +680,7 @@ for the distinct native qualification
 and evidence.
 
 Native qualification: MPI1/2 FE parity and full-length CN power
---------------------------------------------------------------
+---------------------------------------------------------------
 
 The short native Heat--Wave case has a
 true physical **MUMPS MPI1 PASS**.
