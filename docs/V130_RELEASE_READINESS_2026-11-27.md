@@ -34,15 +34,43 @@ Un chantier transversal a été intégré à `release/1.3.0-preparation` :
   agencement, sans modification de leurs formes faibles
   ni des huit sources immuables `examples/published/`.
 
-Les tests source Python et la campagne
-`scripts/run-v130-example-user-output-smoke.sh` sont prêts :
-**neuf vrais cas** (les huit modèles MPI1 plus Heat–Wave
-MPI2). **Ces nouveaux chemins/post-traitements ne sont
-pas encore qualifiés par exécution native**. Ne pas les
-marquer PASS avant leur résultat. Les anciennes
-qualifications physiques restent valides et séparées.
+La campagne native a **PASSÉ ses neuf cas** au commit
+`a471a637`, avec ZIP CRC correct ; cependant les dossiers
+parasites précédents existaient encore. Le correctif de
+création des dossiers et l'écriture directe des maillages
+sont **SOURCE STAGED / nouvelle qualification native en
+attente**. Les anciennes preuves physiques demeurent
+valides et distinctes.
 
 Voir [contrat complet de sorties, quadratures et tests](V130_EXAMPLES_OUTPUT_CONTRACT.md).
+
+### État des sorties utilisateur — 27 novembre, après la campagne native
+
+La campagne originale de source `a471a637` a exécuté
+**huit exemples canoniques en MPI1 et Heat–Wave en MPI2** :
+`PASS_V130_ALL_NINE_REAL_USER_EXAMPLE_OUTPUT_CASES`, ZIP
+CRC correct, réels fichiers PNG, SVG, GIF, NPZ, PVD
+et VTU reproduits directement par les exemples.
+Ce résultat prouve leurs sorties et leurs parcours
+dans ces neuf configurations.
+
+**La revue de leur arborescence a révélé un défaut
+distinct** : des répertoires `outputs/log`,
+`outputs/png`, `outputs/mesh`, `outputs/pv`
+créés à l'import de SCRIMP et une écriture
+transitoire supplémentaire des maillages Gmsh.
+Un correctif source a depuis supprimé la création
+automatique des répertoires génériques et fait écrire
+et importer les maillages directement sous
+`working_dir/outputs/<system_name>/mesh/`.
+Les huit exemples canoniques sont raccordés
+à ce nouveau chemin ; les chemins historiques
+sans paramétrage explicite restent compatibles.
+Le smoke-test est maintenant **fail-closed** sur
+les anciens dossiers parasites et les doublons
+de maillages. **Cette correction de l'arborescence
+attend encore son nouveau PASS natif** ; ne pas
+extrapoler le PASS initial à ce comportement.
 
 ## 1. Décision générale
 
