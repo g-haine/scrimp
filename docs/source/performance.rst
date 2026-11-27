@@ -42,7 +42,7 @@ it uses exact coefficient comparisons and must pass its own numerical
 and MPI regression before the version is released.
 
 Reproducible performance qualification
-=====================================
+======================================
 
 On the validated local Docker image ``scrimp-mpi:local``:
 
