@@ -1,6 +1,6 @@
-========================================
+=========================================
 DAE initial conditions and initialization
-========================================
+=========================================
 
 .. important::
 
@@ -302,7 +302,7 @@ See `scripts/run-v130-dae-default-promotion.sh`
 for the native migration acceptance test.
 
 Mesh dependence of the algebraic residual criterion
-=================================================
+===================================================
 
 .. important::
 
@@ -355,7 +355,7 @@ a poorly scaled coefficient norm is not a proof of physical
 incompatibility.
 
 Finite-difference perturbations and roundoff
-===========================================
+============================================
 
 The original rectangular shallow-water example has
 fluid heights of order three, density :math:`\rho=1000`
