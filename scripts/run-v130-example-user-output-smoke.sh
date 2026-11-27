@@ -77,14 +77,39 @@ import json,sys
 from xml.etree import ElementTree as ET
 work=Path(sys.argv[1]); system=sys.argv[2]; label=sys.argv[3]
 root=work/"outputs"/system
+# A single outputs/ in the user working directory, and *only*
+# per-system children beneath it. Reject the historical global
+# sibling outputs/log,outputs/png,outputs/mesh,outputs/pv.
+# This structural gate catches real GetFEM import side effects,
+# not just the public example's explicit path configuration.
+output_parent=work/"outputs"
+siblings=sorted(p.name for p in output_parent.iterdir())
+if siblings!=[system]:
+    raise RuntimeError(
+        f"{label}: unexpected global output siblings {siblings!r}; "
+        f"required exactly outputs/{system}/"
+    )
+if (work/system/"outputs").exists() or (root/"outputs").exists():
+    raise RuntimeError(f"{label}: unintended nested outputs directory")
 png=list((root/"png").glob("*.png"))
 svg=list((root/"svg").glob("*.svg"))
 data=list((root/"npz").glob("*.npz"))
 pv=list((root/"mesh").glob("*/*.pvd"))
 gif=list((root/"gif").glob("*.gif"))
+msh=list((root/"mesh").glob("*.msh"))
+# Every 2-D FEM example with a genuine Gmsh Domain writes exactly
+# one original .msh directly to its own mesh/ folder. The two
+# lumped examples use the native GetFEM Interval, not Gmsh.
+expected_mesh=label not in ("mass_spring","pendulum")
+if expected_mesh and len(msh)!=1:
+    raise RuntimeError(
+        f"{label}: required one original per-system Gmsh mesh; found {msh}"
+    )
+if not expected_mesh and msh:
+    raise RuntimeError(f"{label}: invented Gmsh mesh on lumped model: {msh}")
 if not png or not svg or not data:
     raise RuntimeError(f"{label}: missing canonical PNG/SVG/NPZ in {root}")
-for p in [*png,*svg,*data,*gif,*pv]:
+for p in [*png,*svg,*data,*gif,*pv,*msh]:
     if not p.is_file() or p.stat().st_size<100:
         raise RuntimeError(f"{label}: invalid native output {p}")
 for p in pv:
@@ -102,7 +127,10 @@ manifest={
     "case":label,"status":"PASS_CANONICAL_REAL_GETFEM_USER_OUTPUTS",
     "working_directory":str(work),"system_name":system,
     "output_root":str(root),"png":len(png),"svg":len(svg),
-    "npz":len(data),"gif":len(gif),"pvd":len(pv),
+    "npz":len(data),"gif":len(gif),"pvd":len(pv),"msh":len(msh),
+    "only_one_outputs_root":True,
+    "no_generic_legacy_output_siblings":True,
+    "original_Gmsh_mesh_is_in_system_mesh":bool(msh),
     "readable_true_VTK_clocks":True if pv else None,
 }
 print(json.dumps(manifest,indent=2),flush=True)
