@@ -4032,9 +4032,10 @@ class DPHS:
         If HamTot is provided, the plotted Balance retains the historic
         sign convention; its constancy is model-dependent.
 
-        ax (Matplotlib axis): the gca of matplotlib when this function
-            is called from plot_Hamiltonian().
-        HamTot (Numpy array): the values of the Hamiltonian over time
+        :param ax: Optional Matplotlib axes, shared with
+            ``plot_Hamiltonian()`` when provided.
+        :param HamTot: Optional NumPy array containing the Hamiltonian
+            values at the stored times.
         """
 
         if not self.powers_computed:
