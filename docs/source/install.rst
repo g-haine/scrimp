@@ -238,7 +238,7 @@ NumPy silently inside the modern environment; preserve the
 error logs for debugging. Keep ``scrimp.yml`` as a fallback.
 
 Native GetFEM MPI assembly timing verbosity
------------------------------------------
+-------------------------------------------
 
 GetFEM 5.5 prints ``Assembly time ...`` for **every model assembly**
 on the master MPI rank, even when SCRIMP calls
@@ -405,7 +405,7 @@ not yet prove energy consistency for nonlinear Saint-Venant models
 or for substituted/dissipative ports.
 
 Optional SCRIMP phase profiling (without rebuilding GetFEM)
----------------------------------------------------------
+-----------------------------------------------------------
 
 For v1.3.0 development, SCRIMP can measure its own GetFEM assembly
 steps, GetFEM-to-PETSc transfers, DAE consistency initialization,
