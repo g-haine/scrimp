@@ -108,7 +108,7 @@ remaining release task. Neither an order-2 proof nor
 an h-convergence study is required solely to make this
 example useful for v1.3.0.
 
-## Next release gate — temporal CN convergence at fixed original mesh (SOURCE STAGED, NATIVE PENDING)
+## Historical staging — fixed-mesh CN temporal comparison (subsequently run)
 
 The accepted physical MPI1/MPI2 Heat–Wave problem has
 `h=0.05` **hard-coded in the canonical source**.
@@ -160,9 +160,12 @@ SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \
 bash scripts/run-v130-heat-wave-CN-dt-refinement.sh
 ```
 
-**Status: SOURCE-STAGED, native 4-case temporal experiment NOT
-YET RUN.** The already accepted Gaussian MPI and
-15-second physical power evidence above remains valid.
+**The four-case native campaign has since completed**;
+its correct physical interpretation is documented in
+the 27 November section above. Its original printed
+second-order status was overclaimed, and the checker
+has since removed that classification. Existing MPI
+and 15-second physical power evidence remains valid.
 
 ## FULL 15-second Gaussian CN physical and normwise MPI parity — PASS (27 November 2026)
 
