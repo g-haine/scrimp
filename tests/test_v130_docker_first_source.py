@@ -82,6 +82,26 @@ class DockerFirstReleaseSourceTests(unittest.TestCase):
         self.assertIn('src=$PROJECT,dst=/work', text)
         self.assertNotIn('src=$ROOT,dst=/work', text)
 
+    def test_distribution_mpi_pde_gate_uses_image_internal_canonical_physics(self):
+        script = (ROOT / "scripts/run-v130-distribution-heat-wave-mpi-parity.sh"
+                  ).read_text(encoding="utf-8")
+        self.assertIn("SCRIMP_V130_DISTRIBUTION_IMAGE", script)
+        self.assertIn("SCRIMP_V130_EXPECT_REVISION", script)
+        self.assertIn("org.opencontainers.image.revision", script)
+        self.assertIn("physics_only=True", script)
+        self.assertIn("model.get_Hamiltonian()", script)
+        self.assertIn("relative_l2", script)
+        self.assertIn("PASS_NATIVE_HEAT_WAVE_MPI1_MPI2_HAMILTONIAN_PARITY", script)
+        self.assertIn("source_isolation", script)
+        self.assertIn("mpi1/series.json", script)
+        self.assertIn("mpi2/series.json", script)
+        self.assertNotIn('src=$root,dst=/work', script)
+        self.assertNotIn('--volume "$root:', script)
+        self.assertNotIn('src=$root/scrimp', script)
+        self.assertNotIn('src=$root/examples', script)
+        self.assertNotIn("docker pull", script)
+        self.assertNotIn("--push", script)
+
     def test_docker_release_zip_is_separate_from_source_preview(self):
         import json
         config = json.loads((ROOT / "project-template/.devcontainer/devcontainer.json")
