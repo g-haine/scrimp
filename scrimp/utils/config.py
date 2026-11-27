@@ -28,12 +28,11 @@ rank = comm.getRank()
 def set_paths(path=None, *, create=True):
     """Set the default path of scrimp
 
-    Args:
-        path (str): the path
-        create (bool): allocate legacy outputs/log,png,mesh,pv.
-            Explicit callers retain the old default (True); SCRIMP's
-            import uses create=False so new per-system examples do not
-            create a second unrelated outputs tree.
+    :param path: Optional base working directory.
+    :param create: Allocate legacy ``outputs/log,png,mesh,pv`` folders.
+        Explicit callers retain the historical default (True).
+        The SCRIMP package import uses ``create=False``, preventing
+        unrelated shared folders beside ``outputs/<system_name>/``.
     """
 	
     global outputs_path
