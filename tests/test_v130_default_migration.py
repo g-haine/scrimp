@@ -37,46 +37,83 @@ MODERN_ALGEBRAIC_EXAMPLES = (
 
 
 class TestDefaultMigration(unittest.TestCase):
-    def test_all_original_examples_preserve_explicit_pseudo(self):
+    def test_original_examples_preserve_their_qualified_initialization(self):
+        """Guard every historical and subsequently qualified example path.
+
+        Heat has explicit CN/algebraic and BDF2/pseudo modes. Lumped
+        oscillator and pendulum now set exactly consistent co-states and
+        intentionally skip a pseudo-time initializer; they must not be
+        forced back to pseudo by a stale migration source assertion.
+        Saint-Venant retains historical pseudo API and the separately
+        qualified nonlinear-affine native showcase.
+        """
         for name in LEGACY_EXAMPLES:
             with self.subTest(example=name):
                 src=(ROOT / "examples" / name).read_text(
                     encoding="utf-8"
                 )
                 tree=ast.parse(src)
-                found=[]
-                for node in ast.walk(tree):
-                    if not (
-                        isinstance(node,ast.Call)
-                        and isinstance(node.func,ast.Attribute)
-                        and node.func.attr=="set_time_scheme"
-                    ):
-                        continue
-                    vals={
-                        kw.arg:kw.value for kw in node.keywords
-                        if kw.arg
+                schemes=[
+                    node for node in ast.walk(tree)
+                    if isinstance(node,ast.Call)
+                    and isinstance(node.func,ast.Attribute)
+                    and node.func.attr=="set_time_scheme"
+                ]
+                self.assertTrue(schemes,"No set_time_scheme call")
+                if name=="heat.py":
+                    self.assertEqual(len(schemes),1)
+                    self.assertIn(
+                        'initializer = "algebraic" if time_stepper == "cn" else "pseudo"',
+                        src,
+                    )
+                    self.assertIn('init_step_ts_type=initializer',src)
+                    self.assertIn('heat.set_time_scheme(**scheme)',src)
+                    self.assertIn('time_stepper="bdf", initializer="pseudo"',src)
+                elif name in ("mass_spring_damper.py","nonlinear_pendulum.py"):
+                    self.assertEqual(len(schemes),1)
+                    options={
+                        kw.arg:kw.value for kw in schemes[0].keywords
+                        if kw.arg is not None
                     }
-                    if "init_step_ts_type" in vals:
-                        arg=vals["init_step_ts_type"]
+                    self.assertIn("init_step",options)
+                    self.assertIsInstance(options["init_step"],ast.Constant)
+                    self.assertIs(options["init_step"].value,False)
+                    self.assertNotIn("init_step_ts_type",options)
+                    co_states=(
+                        ("e_q","e_p") if name=="mass_spring_damper.py"
+                        else ("e_theta","e_p")
+                    )
+                    assignments=[
+                        n.args[0].value for n in ast.walk(tree)
+                        if isinstance(n,ast.Call)
+                        and isinstance(n.func,ast.Attribute)
+                        and n.func.attr=="set_variable"
+                        and n.args and isinstance(n.args[0],ast.Constant)
+                    ]
+                    for state in co_states:
+                        self.assertIn(state,assignments)
+                    if name=="nonlinear_pendulum.py":
+                        self.assertIn('np.sin(theta0)',src)
+                        self.assertIn('ts_type="cn"',src)
+                    else:
+                        self.assertIn('ts_type="bdf"',src)
+                else:
+                    strategies=[]
+                    for scheme in schemes:
+                        vals={
+                            kw.arg:kw.value for kw in scheme.keywords
+                            if kw.arg is not None
+                        }
+                        arg=vals.get("init_step_ts_type")
                         if isinstance(arg,ast.Constant):
-                            found.append(arg.value)
-                        else:
-                            found.append("<dynamic>")
-                self.assertTrue(found,"No set_time_scheme call")
-                if name=="shallow_water.py":
-                    # Historical Python API without showcase keeps
-                    # pseudo, and --no-showcase retains that CLI path.
-                    # The *direct executable* defaults to the fully
-                    # visual nonlinear_affine mode for reproducibility.
-                    self.assertEqual(found,["pseudo","nonlinear_affine"])
+                            strategies.append(arg.value)
+                    self.assertEqual(strategies,["pseudo","nonlinear_affine"])
                     self.assertIn("if showcase:",src)
                     self.assertIn('showcase=False, showcase_output=None',src)
                     self.assertIn('parser.set_defaults(showcase=True)',src)
-                    self.assertIn('"--no-showcase", dest="showcase", action="store_false"',src)
-                else:
-                    self.assertTrue(
-                        all(x=="pseudo" for x in found),
-                        f"Historical example changed initializer: {found}",
+                    self.assertIn(
+                        '"--no-showcase", dest="showcase", action="store_false"',
+                        src,
                     )
 
     def test_separately_qualified_wave_tutorials_use_algebraic(self):
