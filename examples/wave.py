@@ -82,7 +82,7 @@ def wave_eq(
     system.set_output_name("wave_2d")
     system.set_domain(S.Domain("Rectangle", {
         "L": 2., "l": 1., "h": mesh_size,
-    }))
+    }, mesh_output_dir=system.get_output_path("mesh",create=True)))
 
     q = S.State("q", "Strain", "vector-field")
     p = S.State("p", "Linear momentum", "scalar-field")
