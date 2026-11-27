@@ -136,16 +136,16 @@ from pathlib import Path
 from PIL import Image
 root=Path(sys.argv[1])
 label,variant=sys.argv[2:]
-folder=root/f"work_{label}/outputs/showcase/nonlinear_pendulum"/variant
-manifest=json.loads((folder/"manifest.json").read_text())
+folder=root/f"work_{label}"/"outputs"/f"nonlinear_pendulum_{variant}"
+manifest=json.loads((folder/"json"/"manifest.json").read_text())
 assert manifest["time_stepper"]=="cn"
 assert manifest["original_saved_GetFEM_DAE_states"]==9
 assert manifest["GIF_genuine_accepted_frames"]==9
 assert len(manifest["figures"])==7
 for name in manifest["figures"]:
-    f=folder/"figures"/name
+    f=folder/name.rsplit(".",1)[-1]/name
     assert f.is_file() and f.stat().st_size>1200,str(f)
-with Image.open(folder/"figures/pendulum_motion.gif") as image:
+with Image.open(folder/"gif/pendulum_motion.gif") as image:
     assert image.n_frames==9
 print("PASS original canonical nonlinear CN "+variant+" PNG/SVG/GIF preview")
 PY
@@ -162,8 +162,8 @@ python3 sandbox/compare_v130_nonlinear_pendulum_CN_full.py "$out" \
 if [[ "$compare_rc" != 0 ]]; then overall=1; fi
 if [[ "$overall" == 0 ]]; then
     echo "PASS_ORIGINAL_PENDULUM_CN_12S_MPI1_MPI2_REFINEMENT_AND_VISUALS"
-    echo "FULL FREE FIGURES: $out/work_free_mpi1/outputs/showcase/nonlinear_pendulum/free/figures"
-    echo "FULL FORCED FIGURES: $out/work_forced_mpi1/outputs/showcase/nonlinear_pendulum/forced/figures"
+    echo "FULL FREE FIGURES: $out/work_free_mpi1/outputs/nonlinear_pendulum_free/{png,svg,gif,npz,json}"
+    echo "FULL FORCED FIGURES: $out/work_forced_mpi1/outputs/nonlinear_pendulum_forced/{png,svg,gif,npz,json}"
 else
     echo "FAIL_OR_UNQUALIFIED_PENDULUM_CN_12S — all native evidence retained" >&2
 fi
