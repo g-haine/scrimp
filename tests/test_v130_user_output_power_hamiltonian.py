@@ -63,6 +63,7 @@ class UserOutputPowerHamiltonianTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root=self.paths.output_root("heat_wave",working_dir=tmp)
             self.assertEqual(root,Path(tmp)/"outputs"/"heat_wave")
+            self.assertNotEqual(root,Path(tmp)/"heat_wave"/"outputs")
             # Resolving alone must not write anything.
             self.assertFalse(root.exists())
             figure=self.paths.output_file(root,"Hamiltonian.png","png")
@@ -79,6 +80,31 @@ class UserOutputPowerHamiltonianTests(unittest.TestCase):
             self.assertEqual(
                 self.paths.output_root("ignored",output_dir=root),root
             )
+
+    def test_public_import_does_not_create_legacy_global_output_directories(self):
+        # Avoid the historical duplicate structure:
+        # work/outputs/{log,mesh,png,pv,<system>/}.
+        init=(ROOT/"scrimp/__init__.py").read_text(encoding="utf-8")
+        config=(ROOT/"scrimp/utils/config.py").read_text(encoding="utf-8")
+        self.assertIn("scrimp.utils.config.set_paths(create=False)",init)
+        self.assertIn("def set_paths(path=None, *, create=True):",config)
+        self.assertIn("if create and rank==0:",config)
+        self.assertIn('return (work / "outputs" / name)',OUT.read_text())
+        self.assertNotIn('return (work / name / "outputs")',OUT.read_text())
+
+    def test_direct_native_mesh_write_does_not_make_global_copies(self):
+        domain=(ROOT/"scrimp/domain.py").read_text(encoding="utf-8")
+        mesh=(ROOT/"scrimp/utils/mesh.py").read_text(encoding="utf-8")
+        core=DPHS.read_text(encoding="utf-8")
+        self.assertIn("mesh_output_dir=mesh_output_dir",domain)
+        self.assertIn("def _mesh_file(name, mesh_output_dir=None):",mesh)
+        for built_in in ("Disk","Rectangle","Concentric","Ball"):
+            self.assertIn(
+                f'_mesh_file("{built_in}.msh", mesh_output_dir)',mesh
+            )
+        self.assertIn('getattr(domain, "_mesh_output_dir", None) is None',core)
+        # Legacy unscoped geometries remain available to external users.
+        self.assertIn('os.path.join(outputs_path, "mesh")',mesh)
 
     def test_output_traversal_and_bad_kind_rejected(self):
         for name in ("../bad","/bad","x/y","..",""):
