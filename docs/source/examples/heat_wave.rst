@@ -8,6 +8,86 @@ Heat wave coupling
    :undoc-members:
    :show-inheritance:
 
+Run and inspect the canonical example
+-------------------------------------
+
+The updated v1.3.0 **source** now exposes the two heat/wave
+subsystem energies and their interface transfer directly
+in the *original* example. The following command produces
+real original GetFEM/PETSc states (not synthetic figures).
+The nine-case new-output acceptance smoke is **native
+pending**; the previously validated energy/MPI physics
+is independent of this new user-facing I/O test.
+
+.. code-block:: bash
+
+   python -m examples.heat_wave \\
+       --final-time 0.2 --time-step 0.002 --save-step 0.002
+
+Files are stored in ``./outputs/heat_wave/``:
+
+.. code-block:: text
+
+   outputs/heat_wave/
+     png/       Hamiltonian_Heat1_Wave2_2D.png
+                heat_wave_subsystem_energies.png
+                heat_wave_interface_powers.png
+                heat_wave_energy_work.png
+     svg/       (corresponding vector figures)
+     mesh/      Concentric.msh, T/T.pvd, p/p.pvd
+                (original GetFEM VTU time series)
+     log/       scrimp.log
+     npz/       heat_wave_observables.npz
+     json/      heat_wave_observables.json
+
+The canonical ``plot_Hamiltonian`` method additionally
+saves ``npz/Hamiltonian_Heat1_Wave2_2D.npz`` containing
+the numerical original Hamiltonian terms and
+explicitly classified port powers. ``p`` represents
+the wave velocity, ``q`` its stress, and ``T``
+the heat-side temperature.
+
+The energy figure plots separately
+:math:`H_H(t)`, :math:`H_W(t)` and
+:math:`H_H(t)+H_W(t)`. The powers figure
+plots ``U_T*Y_T`` on the heat side and
+``U_w*Y_w`` on the wave side, **using two
+distinct, outward-oriented interface facets**.
+The physical interface combination is
+``-U_T*Y_T + U_w*Y_w``. Its vanishing is
+a *sum of signed exchanges*, not an assertion
+that each exchanged power must be zero.
+The heat-side dissipation is
+``D = integral(e_Q.e_Q, Omega_H) >= 0``.
+
+**Numerical interpretation matters:** with the
+command above, each real accepted CN step has been
+saved and the canonical example checks the
+per-step discrete identity of its quadratic
+Hamiltonian (for the validated physical weak form).
+The long default run ``dt=.001, dt_save=.05``
+saves **subsampled** states: it cannot reconstruct
+the true CN per-step stage powers from these
+snapshots alone. Its plot uses actual instantaneous
+nodal GetFEM powers and an explicitly labelled
+**approximate** trapezoidal cumulative work.
+The general SCRIMP API does not promise
+an exact port-Hamiltonian identity for every
+PETSc TS method or nonlinear Hamiltonian.
+
+To choose a different user output root:
+
+.. code-block:: bash
+
+   python -m examples.heat_wave \\
+       --final-time 0.2 --time-step 0.002 --save-step 0.002 \\
+       --output-dir /tmp/my-heat-wave-results
+
+The full output contract, MPI root-only writer
+policy, source tests and native acceptance command
+are recorded in
+``docs/V130_EXAMPLES_OUTPUT_CONTRACT.md``.
+
 Setting
 -------
 
