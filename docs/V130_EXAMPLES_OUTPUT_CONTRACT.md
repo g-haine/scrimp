@@ -1,10 +1,15 @@
 # SCRIMP v1.3.0 — sorties des exemples et API Hamiltonien / puissances
 
-**Statut au 27 novembre 2026 : modifications source intégrées sur
-`release/1.3.0-preparation`, qualification native des nouveaux chemins
-**EN ATTENTE**.** Les campagnes déjà archivées conservent leurs anciens
-noms de fichiers et leur valeur scientifique. Ne jamais renommer ni
-écraser leurs archives historiques.
+**Statut au 27 novembre 2026 :** neuf véritables
+simulations canoniques ont **PASSÉ** la première campagne de
+sorties utilisateur sur la source `a471a637`.
+Après correction des dossiers génériques parasites,
+**Heat–Wave MPI2 a PASSÉ** la vérification ciblée sur la
+source `ab6c6fd6` (un seul `outputs/`, un `.msh`,
+deux PVD et ZIP CRC PASS).
+**La revalidation complète des neuf cas sous ce
+nouvel agencement reste EN ATTENTE**. Les archives
+historiques ne sont pas modifiées.
 
 ## 1. Une structure prédictible pour chaque système
 
@@ -216,11 +221,16 @@ d'environnement `SCRIMP_V130_EXAMPLE_OUTPUT_ONLY`,
 le pilote continue d'exiger les **neuf** cas et leur
 statut `PASS_V130_ALL_NINE_REAL_USER_EXAMPLE_OUTPUT_CASES`.
 
-**Statut au 27 novembre : neuf exemples natifs PASS
-pour les sorties et la physique sous `a471a637`.
-La correction de la structure des dossiers est SOURCE STAGED,
-sa requalification native est EN ATTENTE.**
-La réussite de la première campagne n'atteste donc
-pas encore l'absence de dossiers génériques après
-ce correctif. Ne pas annoncer une validation finale
-des chemins avant le prochain résultat.
+**Statut au 27 novembre :** première campagne native
+9/9 PASS sous `a471a637` ; **nouvelle vérification de
+la structure MPI2 Heat–Wave PASS** sous `ab6c6fd6`.
+Une nouvelle campagne **complète 9/9** sur le
+nouvel agencement reste nécessaire avant de geler
+le contrat des sorties pour la release.
+
+L'interprétation des puissances CN avec sauvegardes
+espacées, BDF/BDF2 et ARKIMEX est détaillée dans
+le guide Sphinx public
+[`energy_and_power.rst`](source/energy_and_power.rst).
+Sa compilation HTML/PDF et les tests documentaires
+font partie des derniers critères de publication.
