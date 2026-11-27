@@ -63,7 +63,10 @@ def shallow_water_eq(
     
     # Set the domain (using the built-in geometry `Rectangle`)
     # Labels: Omega = 1, Gamma_Bottom = 10, Gamma_Right = 11, Gamma_Top = 12, Gamma_Left = 13
-    swe.set_domain(S.Domain("Rectangle", {"L": 2.0, "l": 0.5, "h": 0.1}))
+    swe.set_domain(S.Domain(
+        "Rectangle", {"L": 2.0, "l": 0.5, "h": 0.1},
+        mesh_output_dir=swe.get_output_path("mesh",create=True),
+    ))
     
     # Define the states and costates
     states = [
