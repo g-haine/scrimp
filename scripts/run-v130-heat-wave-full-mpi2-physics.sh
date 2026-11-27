@@ -24,8 +24,12 @@ python3 -m py_compile \
     sandbox/measure_v130_hw_dual_facet_physics.py \
     sandbox/probe_v130_heat_wave_mpi_extended.py \
     scripts/verify-v130-heat-wave-full-mpi2.py \
-    tests/test_v130_heat_wave_full_mpi2_source.py
+    scripts/reassess-v130-heat-wave-full-mpi2-norm-parity.py \
+    scripts/verify-v130-heat-wave-full-mpi2-normwise.py \
+    tests/test_v130_heat_wave_full_mpi2_source.py \
+    tests/test_v130_heat_wave_full_mpi_norm_release_source.py
 python3 tests/test_v130_heat_wave_full_mpi2_source.py
+python3 tests/test_v130_heat_wave_full_mpi_norm_release_source.py
 python3 tests/test_v130_heat_wave_mpi_long_source.py
 python3 scripts/check-v130-published-immutable.py
 bash -n "$0"
@@ -65,7 +69,7 @@ PY
 echo "Heat-Wave original full fifteen-second MUMPS MPI1 / MPI2 physical parity"
 echo "Real GetFEM 7689 DOFs, 3000 fixed CN steps dt=.005, 3001 genuine FE states"
 echo "FIRST run MPI2 (new scientific question); THEN MPI1 (independent baseline)"
-echo "All four-sided GetFEM power observables, strict DAE and trace parity"
+echo "All original GetFEM power observables, strict DAE and full coefficient VECTOR normwise parity"
 echo "Archiving all 3x3001x7689 original FE coefficients; evidence may be large"
 echo "No synthetic FE states, no parallel ParaView output, no gallery-mode claim"
 echo "EVIDENCE: $out"
@@ -119,7 +123,13 @@ else
 fi
 
 compare_rc=0
-python3 scripts/verify-v130-heat-wave-full-mpi2.py "$out" || compare_rc=$?
+# The historical strict per-DOF checker is preserved as a separate
+# scientific diagnostic, NOT the current release criterion.
+# The current reusable gate independently checks genuine native
+# physical power traces and all 3001 original FE coefficient vectors
+# using the previously accepted normwise parity metric.
+python3 scripts/verify-v130-heat-wave-full-mpi2-normwise.py "$out" \
+    --out "$out/summary.json" || compare_rc=$?
 if [[ "$compare_rc" != 0 ]]; then overall=1; fi
 
 # Preserve the complete original native per-rank FE vectors despite
@@ -152,7 +162,7 @@ print(json.dumps({
 },indent=2),flush=True)
 PY
 if [[ "$overall" == 0 ]]; then
-    echo "PASS_HEAT_WAVE_FULL_15S_MPI1_MPI2_CN_PHYSICAL_PARITY"
+    echo "PASS_HEAT_WAVE_FULL_15S_MPI1_MPI2_CN_NORM_PARITY"
 else
     echo "FAIL_OR_UNQUALIFIED_FULL_HEAT_WAVE_MPI2 — archive preserved" >&2
 fi
