@@ -1,3 +1,5 @@
+# SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
+# Copyright (C) 2015-2026 ISAE-SUPAERO -- GNU GPLv3
 """Docker-first v1.3.0 release source contracts (no Docker/Conda needed)."""
 from __future__ import annotations
 
