@@ -27,6 +27,12 @@ each scientific qualification must state its physical model,
 solver, mesh (where applicable), accepted time steps and
 energy/port-power evidence.
 
+For interpreting the Hamiltonian plots and the difference between
+Crank--Nicolson step powers and approximate BDF/ARKIMEX
+post-processing, read :doc:`energy_and_power`. The canonical
+examples generate their own figures and data under
+``outputs/<system_name>/``.
+
 .. toctree::
    :maxdepth: 1
    :glob:
