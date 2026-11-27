@@ -21,6 +21,12 @@
   solve conventions, collective power computations and safer shared
   ParaView outputs. Native 1/2/4/6-rank campaigns and scoped full-field
   and Hamiltonian checks establish reproducibility in the tested models.
+- **GetFEM 5.5 source patches:** five SCRIMP-maintained patches fix MPI
+  assembly verbosity, tetrahedral BDM degrees of freedom and Python
+  extension linking, and provide first-/second-kind simplicial
+  Nédélec elements. These are **SCRIMP-side additions**, not claims
+  that the patches have been merged upstream. Nédélec-II is supported
+  only at polynomial degrees **k=1 and k=2**.
 - **Nonlinear and DAE support:** correct state-dependent mass Jacobians,
   fully explicit nonlinear weak-form terms evaluated at the last
   accepted state, and consistent **linear** algebraic DAE initialization
@@ -64,6 +70,33 @@ not rewritten. There are, however, **observable default changes**:
 - Canonical example results now have a consistent per-model output
   layout, with no duplicate generic output directories.
 
+## SCRIMP-maintained patches to GetFEM 5.5
+
+The prebuilt SCRIMP Docker environment uses upstream **GetFEM 5.5
+with five explicit, version-pinned source patches**. They are applied
+in a reproducible sequence by `scripts/build-getfem-mpi.sh`, and
+incompatible source revisions are rejected rather than silently
+building an unpatched library.
+
+| Patch | User-visible purpose |
+| --- | --- |
+| `0000-mpi-assembly-timing.patch` | Make GetFEM's MPI assembly-time printing opt-in via `SCRIMP_GETFEM_ASSEMBLY_TIMING=1`, avoiding noisy default logs. |
+| `0001-bdm-tetrahedron-unisolvent-dofs.patch` | Correct face and interior degrees of freedom for tetrahedral Brezzi–Douglas–Marini elements; targeted native checks cover **k=1,2**. |
+| `0002-python-interface-link-in-tree.patch` | Make the Python `_getfem` extension link against the freshly built GetFEM archives, not an unrelated installed library. |
+| `0003-nedelec-first-kind-simplices.patch` | Add `FEM_NEDELEC1(N,K)` on triangles and tetrahedra. The **k=0** descriptor delegates to GetFEM's built-in lowest-order Nédélec; targeted higher-order tests cover **k=1,2**. |
+| `0004-nedelec-second-kind-simplices.patch` | Add `FEM_NEDELEC2(N,K)` on triangles and tetrahedra for **k=1,2 only**; **k≥3 is not implemented**. |
+
+SCRIMP exposes `NED1`/`NEDELEC1` and
+`NED2`/`NEDELEC2` aliases through `S.FEM`; unsupported
+descriptors fail explicitly instead of silently falling back to
+another element family. These patches were evaluated with targeted
+finite-element constructors, unisolvency/DoF, mass-matrix and
+continuity checks. **That is not an exhaustive certification of all
+orders, geometries or MPI physics**, nor a claim of upstream GetFEM
+acceptance. See
+[GetFEM 5.5 patch inventory](../scripts/patches/getfem-5.5/README.md)
+and [higher-order follow-up](V130_GETFEM_HIGHER_ORDER_TODO.md).
+
 ## Scientific qualification — what the tests actually establish
 
 - A local Ubuntu/AMD64 Docker runtime has undergone source, FE family,
@@ -78,11 +111,6 @@ not rewritten. There are, however, **observable default changes**:
   Hamiltonian relative L2 difference: **4.28e-15** (threshold 1e-7).
   Evidence: [GitHub Actions run 46025625273, attempt 2](
   https://github.com/g-haine/scrimp/actions/runs/46025625273).
-- A separate original-state viscous 1-D Saint–Venant / translating-tank
-  user project exercised nonlinear mass on 647 DoFs for up to 6,250
-  accepted CN steps without nonlinear failures. Its physical energy
-  balance and wall treatment still require investigation; it is
-  **evidence of solver robustness, not a proof of exact passivity**.
 
 ## Installation (once the stable v1.3.0 release is published)
 
@@ -110,9 +138,10 @@ exists.** They are final-user instructions conditional on publication.
 - The qualified pre-release distribution is **Linux/AMD64**. Windows,
   macOS, Apple Silicon, multi-process GUI debugging and MPI VTK
   without full replicas are not generally qualified.
-- The original viscous sloshing-tank model's wall and energy audit, as
-  well as modernization of SCRIMP's own graphical GUI (not VS Code),
-  are explicitly **post-v1.3.0** follow-ups.
+- Modernization of SCRIMP's own graphical GUI (not VS Code),
+  including its handling of supported and unsupported DAE
+  initialization strategies, is a **post-v1.3.0** follow-up
+  (tracked in [issue #32](https://github.com/g-haine/scrimp/issues/32)).
 
 For full version-by-version corrections, reproducibility details,
 numerical acceptance gates, and past diagnostic attempts, see
