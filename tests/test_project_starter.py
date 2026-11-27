@@ -15,6 +15,7 @@ source-distribution checks are skipped when run inside the container.
 """
 from __future__ import annotations
 
+import ast
 import json
 from pathlib import Path
 import subprocess
@@ -89,6 +90,56 @@ class StarterProjectTest(unittest.TestCase):
         self.assertIn("system.solve()", example)
         self.assertIn("outputs/oscillator.csv", example)
         self.assertNotIn("plt.show()", example)
+
+    def test_starter_oscillator_has_consistent_lumped_initial_data(self):
+        """Regression: the linear-only DAE projector rejects time-only forcing.
+
+        The canonical mass_spring_damper example uses explicit initial
+        co-energy values and init_step=False because its four unknowns
+        already satisfy the constitutive laws at t=0. The standalone
+        starter must retain that physically consistent initialization,
+        even though the forcing RHS is assembled with linear=False.
+        """
+        starter = (
+            TEMPLATE / "simulations/first_simulation.py"
+        ).read_text(encoding="utf-8")
+        canonical = (
+            ROOT / "examples/mass_spring_damper.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('sys.gf_model.set_variable("e_q"', canonical)
+        self.assertIn('sys.gf_model.set_variable("e_p"', canonical)
+        self.assertIn("init_step=False", canonical)
+
+        tree = ast.parse(starter)
+        calls = [
+            node for node in ast.walk(tree) if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+        ]
+        self.assertTrue(any(
+            node.func.attr == "set_variable" and node.args
+            and isinstance(node.args[0], ast.Constant)
+            and node.args[0].value == "e_q" for node in calls
+        ))
+        self.assertTrue(any(
+            node.func.attr == "set_variable" and node.args
+            and isinstance(node.args[0], ast.Constant)
+            and node.args[0].value == "e_p" for node in calls
+        ))
+        schemes = [
+            node for node in calls if node.func.attr == "set_time_scheme"
+        ]
+        self.assertEqual(len(schemes), 1)
+        initializers = [
+            keyword.value for keyword in schemes[0].keywords
+            if keyword.arg == "init_step"
+        ]
+        self.assertEqual(len(initializers), 1)
+        self.assertIsInstance(initializers[0], ast.Constant)
+        self.assertIs(initializers[0].value, False)
+        self.assertIn("stiffness * q0", starter)
+        self.assertIn("p0 / mass", starter)
+        self.assertIn('linear=False, position="effort"', starter)
+        self.assertNotIn('pc_factor_mat_solver_type="superlu"', starter)
 
     def test_generator_default_image_is_local_candidate_with_tag(self):
         with tempfile.TemporaryDirectory() as temporary:
