@@ -23,7 +23,7 @@ setuptools.setup(
 
     name="scrimp",
 
-    version="1.2.0",
+    version="1.3.0",
 
     author="Giuseppe Ferraro",
 
