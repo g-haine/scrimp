@@ -10,6 +10,12 @@ First SCRIMP project with VS Code (v1.3.0 preview)
 What is on the user's computer?
 -------------------------------
 
+**Docker with a precompiled image is the default v1.3.0 installation
+path.** The local native Conda route remains available for existing
+users and advanced development. The public image and release ZIP are
+not yet available; all examples below that mention the final GHCR tag
+are **future release instructions**, not a present availability claim.
+
 After installation the user has **three separate components**:
 
 1. Local VS Code (Python and, for Docker, Dev Containers extensions).
@@ -45,7 +51,10 @@ Creating the independent workspace
 
 When SCRIMP v1.3.0 is released, download the standalone
 scrimp-project-template.zip archive from GitHub Releases and extract
-it as your own project. That release asset **is not published yet**.
+it as your own project. The released archive must already contain
+the **verified public Docker image tag** in its Dev Container config,
+so the new user need not edit any image setting. That release asset
+**is not published yet**.
 At release packaging time the maintainer must embed the **validated**
 GHCR tag in the ZIP's Dev Container metadata, for example:
 
