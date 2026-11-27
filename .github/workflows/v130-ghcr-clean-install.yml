@@ -1,17 +1,23 @@
 name: v1.3.0 GHCR immutable-digest clean-install acceptance
 
-# A new GitHub-hosted Ubuntu VM, NOT a Docker rebuild or an existing
-# workstation daemon. This is a bounded release-candidate smoke.
-# The push trigger runs the first qualification directly on the PR branch;
-# the workflow_dispatch trigger can be used after this workflow is present
-# on the default branch (GitHub's dispatch requirement).
+# Release-candidate smoke on a NEW GitHub-hosted Ubuntu AMD64 VM.
+# Push a tag v1.3.0-rcN pointing to the exact source revision used to
+# build/publish ghcr.io/g-haine/scrimp:1.3.0-dist-rcN.
+# The registry index digest is resolved at runtime, then pinned for
+# all Docker operations; the source revision is read from that Git tag.
+# No rebuilding GetFEM/PETSc and no locally cached candidate image.
 on:
   push:
-    branches:
-      - feature/v130-docker-first-distribution
-    paths:
-      - .github/workflows/v130-ghcr-clean-install.yml
+    tags:
+      - "v1.3.0-rc*"
+  # Manual rerun is supported when this workflow is on the default
+  # branch (GitHub's workflow_dispatch requirement).
   workflow_dispatch:
+    inputs:
+      candidate_tag:
+        description: "Existing immutable Git tag, e.g. v1.3.0-rc4"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -23,10 +29,37 @@ jobs:
     timeout-minutes: 90
     env:
       SCRIMP_DOCKER_NO_SUDO: "1"
-      SCRIMP_V130_EXPECT_REVISION: "58dbe187de308979938153f9adfcf94dac4df85a"
-      SCRIMP_V130_DISTRIBUTION_IMAGE: "ghcr.io/g-haine/scrimp@sha256:0cbbce6ad42b23552aff9d12555342f3864b50522054fe039c161a7145b2732a"
 
     steps:
+      - name: Check out exactly the release-candidate Git tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.candidate_tag || github.ref_name }}
+          persist-credentials: false
+
+      - name: Derive expected revision and GHCR tag from immutable Git tag
+        shell: bash
+        env:
+          CANDIDATE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.candidate_tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$CANDIDATE_TAG" =~ ^v1[.]3[.]0-rc([1-9][0-9]*)$ ]]; then
+            echo "FAIL: expected a tag v1.3.0-rcN with N>=1" >&2
+            exit 2
+          fi
+          rc_number="${BASH_REMATCH[1]}"
+          revision="$(git rev-parse HEAD)"
+          test "$revision" = "$(git rev-parse HEAD^{commit})"
+          test -z "$(git status --porcelain --untracked-files=no)"
+
+          image_tag="ghcr.io/g-haine/scrimp:1.3.0-dist-rc${rc_number}"
+          printf 'SCRIMP_V130_EXPECT_REVISION=%s\n' "$revision" >> "$GITHUB_ENV"
+          printf 'SCRIMP_V130_RC_GIT_TAG=%s\n' "$CANDIDATE_TAG" >> "$GITHUB_ENV"
+          printf 'SCRIMP_V130_CANDIDATE_IMAGE_TAG=%s\n' "$image_tag" >> "$GITHUB_ENV"
+          echo "Source tag: $CANDIDATE_TAG"
+          echo "Exact source revision: $revision"
+          echo "Candidate registry tag: $image_tag"
+
       - name: Verify fresh Ubuntu AMD64 runner and absent candidate image
         shell: bash
         run: |
@@ -35,52 +68,63 @@ jobs:
           echo "Runner: $RUNNER_OS / $(uname -m)"
           docker version
           df -h /
-          if docker image inspect "$SCRIMP_V130_DISTRIBUTION_IMAGE" >/dev/null 2>&1; then
-            echo "FAIL: candidate image was already in the runner's local daemon"
+          if docker image inspect "$SCRIMP_V130_CANDIDATE_IMAGE_TAG" >/dev/null 2>&1; then
+            echo "FAIL: candidate image already present in the runner's Docker daemon" >&2
             exit 2
           fi
           echo "PASS: no pre-existing SCRIMP candidate image in the runner"
 
-      - name: Authenticate to GHCR with ephemeral GitHub Actions identity
+      - name: Authenticate to GHCR using the ephemeral GitHub Actions identity
         shell: bash
         env:
           GHCR_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          # Private GHCR packages must grant this repository Actions read access.
-          # Never store a personal PAT in the repository or in a log.
+          # A private package must grant this repository Actions read access.
+          # Never put a personal PAT in the repository or workflow logs.
           printf '%s' "$GHCR_TOKEN" | docker login ghcr.io \
             --username "$GITHUB_ACTOR" --password-stdin
 
-      - name: Pull the immutable GHCR digest (no build, no local image)
+      - name: Resolve the GHCR OCI index digest and pull immutably
         shell: bash
         run: |
           set -euo pipefail
-          docker pull --platform linux/amd64 "$SCRIMP_V130_DISTRIBUTION_IMAGE"
-          REVISION="$(docker image inspect --format \
-            '{{index .Config.Labels "org.opencontainers.image.revision"}}' \
-            "$SCRIMP_V130_DISTRIBUTION_IMAGE")"
-          PLATFORM="$(docker image inspect --format \
-            '{{.Os}}/{{.Architecture}}' "$SCRIMP_V130_DISTRIBUTION_IMAGE")"
-          test "$REVISION" = "$SCRIMP_V130_EXPECT_REVISION"
-          test "$PLATFORM" = linux/amd64
-          docker buildx imagetools inspect "$SCRIMP_V130_DISTRIBUTION_IMAGE"
-          echo "PASS: pulled exact GHCR digest; source revision and platform match"
+          registry_info="$(docker buildx imagetools inspect "$SCRIMP_V130_CANDIDATE_IMAGE_TAG")"
+          printf '%s\n' "$registry_info"
+          index_digest="$(printf '%s\n' "$registry_info" | awk '$1=="Digest:" {print $2; exit}')"
+          if [[ ! "$index_digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "FAIL: no valid OCI registry index digest for candidate tag" >&2
+            exit 2
+          fi
+          pinned_image="ghcr.io/g-haine/scrimp@${index_digest}"
+          docker pull --platform linux/amd64 "$pinned_image"
+
+          # Fail closed if the mutable candidate tag was moved during the pull.
+          current_digest="$(docker buildx imagetools inspect "$SCRIMP_V130_CANDIDATE_IMAGE_TAG" |
+            awk '$1=="Digest:" {print $2; exit}')"
+          test "$current_digest" = "$index_digest"
+
+          revision="$(docker image inspect --format \
+            '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$pinned_image")"
+          platform="$(docker image inspect --format \
+            '{{.Os}}/{{.Architecture}}' "$pinned_image")"
+          test "$revision" = "$SCRIMP_V130_EXPECT_REVISION"
+          test "$platform" = linux/amd64
+
+          printf 'SCRIMP_V130_DISTRIBUTION_IMAGE=%s\n' "$pinned_image" >> "$GITHUB_ENV"
+          printf 'SCRIMP_V130_OCI_INDEX_DIGEST=%s\n' "$index_digest" >> "$GITHUB_ENV"
+          echo "PASS: immutable GHCR pull / source revision / AMD64 platform match"
+          echo "Registry digest: $index_digest"
+          echo "Pulled config ID: $(docker image inspect --format '{{.Id}}' "$pinned_image")"
           df -h /
 
-      - name: Fetch only the exact Git source required to verify the ZIP
-        uses: actions/checkout@v4
-        with:
-          ref: 58dbe187de308979938153f9adfcf94dac4df85a
-          persist-credentials: false
-
-      - name: Verify source/image version match
+      - name: Verify exact source/image match for the user ZIP
         shell: bash
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$SCRIMP_V130_EXPECT_REVISION"
           test -z "$(git status --porcelain --untracked-files=no)"
-          echo "PASS: checkout matches the image source exactly"
+          echo "PASS: independent user ZIP source is the image's recorded Git revision"
 
       - name: Run source-independent user ZIP, serial physics, output and MPI gate
         shell: bash
@@ -112,7 +156,10 @@ jobs:
 
           evidence = {
               "status": "PASS_GHCR_FRESH_UBUNTU_VM_INSTALL_AND_MPI_PHYSICS",
+              "candidate_git_tag": os.environ["SCRIMP_V130_RC_GIT_TAG"],
+              "candidate_registry_tag": os.environ["SCRIMP_V130_CANDIDATE_IMAGE_TAG"],
               "ghcr_index": os.environ["SCRIMP_V130_DISTRIBUTION_IMAGE"],
+              "ghcr_index_digest": os.environ["SCRIMP_V130_OCI_INDEX_DIGEST"],
               "local_pulled_image_id": docker_info("{{.Id}}"),
               "oci_source_revision": docker_info(
                   '{{index .Config.Labels "org.opencontainers.image.revision"}}'
@@ -120,7 +167,7 @@ jobs:
               "platform": docker_info("{{.Os}}/{{.Architecture}}"),
               "runner_os": os.environ.get("RUNNER_OS"),
               "runner_arch": os.environ.get("RUNNER_ARCH"),
-              "commit": os.environ.get("SCRIMP_V130_EXPECT_REVISION"),
+              "commit": os.environ["SCRIMP_V130_EXPECT_REVISION"],
               "gates": [
                   "PASS_STANDALONE_ZIP_IMAGE_SERIAL_MPI_STARTUP",
                   "PASS_NATIVE_HEAT_WAVE_MPI1_MPI2_HAMILTONIAN_PARITY",
