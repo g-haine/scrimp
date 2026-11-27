@@ -19,15 +19,66 @@ direction of a physical boundary control.
 See the [SCRIMP matrix notation and sign-check guide](docs/source/getfem_gwfl.rst)
 and the [official GetFEM GWFL documentation ("Explicit matrices")](https://getfem.org/userdoc/gasm_high.html#explicit-matrices).
 
-# How to install
-The easiest way to install SCRIMP is to use a conda environment.
+# Installation — Docker first for v1.3.0
 
-1. Install <a href="https://docs.anaconda.com/free/anaconda/install/index.html"> Anaconda</a>
-2. Clone the git repository: ```git clone https://github.com/g-haine/scrimp```
-3. Enter the folder: ```cd scrimp```
-4. Create the conda environment:  ```conda env create --file /path/to/scrimp/scrimp.yml```
-5. Activate the environment:  ```conda activate scrimp```
-6. Finish with pip: ```pip install -e .```
+**The recommended v1.3.0 installation is the precompiled Docker image**, not a
+host-side Conda environment. Docker supplies SCRIMP with its tested Linux
+GetFEM 5.5, complex PETSc/SLEPc, MUMPS and MPI stack. User simulations and
+outputs remain in a **separate local project**, never in the image or the
+SCRIMP Git repository.
+
+**Release status (27 November 2026):** this is the *planned* public installation
+path. Neither `ghcr.io/g-haine/scrimp:1.3.0` nor the final project ZIP has been
+published or clean-install qualified. Do not use these steps as proof that a
+public image already exists. The currently qualified image is a local,
+Ubuntu-tested release candidate (`scrimp-mpi:v1.3.0-rc3`).
+
+**Once the public v1.3.0 release and image are qualified and published:**
+
+1. Install Docker, plus VS Code and its **Dev Containers** extension if desired.
+2. Download the **scrimp-project-template.zip** asset from the matching GitHub
+   Release and extract it in your own simulations directory. The released ZIP
+   will refer to the verified Docker image explicitly.
+3. Pull the image and open the extracted project in VS Code:
+
+   ```bash
+   docker pull ghcr.io/g-haine/scrimp:1.3.0
+   ```
+
+4. Choose **Dev Containers: Reopen in Container** and execute:
+
+   ```bash
+   python simulations/first_simulation.py
+   mpiexec -n 2 python simulations/mpi_check.py
+   ```
+
+The first command runs a real port-Hamiltonian oscillator and writes
+`outputs/oscillator.csv` **on your computer**; the second checks MPI startup
+but is not a PDE parity test. A terminal-only Docker workflow is also
+supported, without VS Code. Linux/Ubuntu is the qualified baseline; Windows
+WSL2 and macOS are best effort, and Apple Silicon needs an explicitly
+compatible image/platform.
+
+For a locally compiled image, release-candidate preparation, host volume
+permissions and the terminal workflow, see the
+[installation guide](docs/source/install.rst),
+[first project guide](docs/source/vscode.rst) and
+[Docker distribution gates](docs/V130_DOCKER_FIRST_RELEASE_GATE.md).
+
+## Alternative: native Conda (existing installations and advanced users)
+
+Conda remains supported as an **alternative**, especially for development and
+users with a working existing native environment; it is not the v1.3.0 default.
+
+1. Install [Conda](https://docs.conda.io/) or Micromamba.
+2. Clone the repository: `git clone https://github.com/g-haine/scrimp`.
+3. Enter it: `cd scrimp`.
+4. Create the environment: `conda env create -f scrimp.yml`.
+5. Activate: `conda activate scrimp`.
+6. Install the package: `python -m pip install -e .`.
+
+The historical `scrimp.yml` remains separate from the GetFEM 5.5/NumPy 2
+Docker candidate; this change does not silently upgrade host dependencies.
 
 ## v1.3.0 release preparation: conforming interfaces and MPI ParaView
 
