@@ -21,7 +21,7 @@ we add an internal dissipative port in example **2B**. We will
 then study the complementary co-energy formulation in example
 **2C** (:doc:`wave_coenergy`).
 
-This page describes the actual code in ``examples/wave.py`.
+This page describes the actual code in ``examples/wave.py``.
 Its snippets are included **directly from that file**, avoiding
 manual discrepancies between the tutorial and the program.
 The validated source is the same for all PETSc solver backends.
@@ -409,7 +409,7 @@ Haine and Matignon (2022)**. The tutorial is
 **not** a numerical reproduction of either paper.
 
 The next section introduces a physically distinct
-**resistive port** in ``examples/wave_dissipative.py`
+**resistive port** in ``examples/wave_dissipative.py``
 while keeping the same material, domain and
 conventions. The later :doc:`wave_coenergy`
 chapter changes the state variables and adds
@@ -433,7 +433,7 @@ The independent, executable source is
 material tensor, density, normal directions, four boundary
 control ports, finite-element spaces for `q` and `p`,
 initial conditions and fixed Crank--Nicolson scheme
-are *identical* to those of :ref:`Wave_2D`.
+are *identical* to those of :doc:`wave`.
 
 On :math:`\Omega=(0,2)\times(0,1)`, the equation now reads
 
