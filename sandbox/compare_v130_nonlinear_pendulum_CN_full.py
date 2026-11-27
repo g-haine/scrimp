@@ -145,9 +145,9 @@ def main():
                 errors.append(f"Original CN evidence unreadable {key}: {exc}")
 
         if showcase:
-            folder=root/f"work_{label}"/"outputs/showcase/nonlinear_pendulum"/variant
-            manifest=folder/"manifest.json"
-            history=folder/"native_lumped_time_history.npz"
+            folder=root/f"work_{label}"/"outputs"/f"nonlinear_pendulum_{variant}"
+            manifest=folder/"json"/"manifest.json"
+            history=folder/"npz"/"native_lumped_time_history.npz"
             try:
                 info=json.loads(manifest.read_text())
                 to_zip.update((manifest,history))
@@ -199,7 +199,7 @@ def main():
                         or "pendulum_motion.gif" not in names):
                     errors.append(f"Original canonical figure inventory {label}")
                 for name in names:
-                    file=folder/"figures"/name
+                    file=folder/name.rsplit(".",1)[-1]/name
                     if not file.is_file() or file.stat().st_size<=1200:
                         errors.append(f"Missing original canonical figure {label}/{name}")
                     else:
@@ -207,7 +207,7 @@ def main():
                         if name.endswith(".png"):
                             with Image.open(file) as im:
                                 im.verify()
-                gif=folder/"figures/pendulum_motion.gif"
+                gif=folder/"gif"/"pendulum_motion.gif"
                 with Image.open(gif) as im:
                     if im.n_frames!=min(36,count) or min(im.size)<200:
                         errors.append(f"Not genuine state-count canonical GIF {label}")
@@ -320,7 +320,7 @@ def main():
     # GetFEM trajectory. Preserve the original example's failure
     # diagnostic in the ZIP for numerical post-mortem.
     to_zip.update(root.glob(
-        "work_*/outputs/showcase/nonlinear_pendulum/"
+        "work_*/outputs/nonlinear_pendulum_*/"
         "*/failed_native_constitutive_trace.npz"
     ))
     archive=Path(str(root)+".zip")
