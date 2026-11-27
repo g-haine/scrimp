@@ -416,12 +416,11 @@ class Port:
         time-dependent GetFEM expressions are evaluated at t[k] as
         they were historically, **not** at the physical midpoint time.
 
-        Args:
-            solution: Accepted time/FE-state history, containing
-                matching `t` and `z` sequences.
-            gf_model: Original GetFEM model (collective MPI assembly).
-            domain: SCRIMP integration domain.
-            sampling: `instantaneous` (default) or `cn_step`.
+        :param solution: Accepted time/FE-state history, containing
+            matching ``t`` and ``z`` sequences.
+        :param gf_model: Original GetFEM model (collective MPI assembly).
+        :param domain: SCRIMP integration domain.
+        :param sampling: ``instantaneous`` (default) or ``cn_step``.
 
         The returned `get_power()` array preserves the original port
         algebraic orientation. `get_power_sampling()` identifies the
