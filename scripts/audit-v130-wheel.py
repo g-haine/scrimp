@@ -10,6 +10,7 @@ import argparse
 import json
 from email.parser import Parser
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -31,12 +32,46 @@ def main() -> int:
         if output.exists():
             parser.error(f"refusing existing audit directory: {output}")
         output.mkdir(parents=True)
+    # Copy only Git-tracked Python/package metadata into an isolated
+    # staging tree. Do not let setuptools scan untracked user files,
+    # nor leave build/egg-info artifacts in the developer repository.
+    tracked_changes = subprocess.check_output(
+        ["git", "status", "--porcelain", "--untracked-files=no"],
+        cwd=ROOT, text=True)
+    if tracked_changes.strip():
+        parser.error("tracked source changes are present; commit first")
+    revision = subprocess.check_output(
+        ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
+    source = output / "source"
+    source.mkdir()
+    tracked = subprocess.check_output(
+        ["git", "ls-files", "--cached", "-z", "--full-name"],
+        cwd=ROOT).split(b"\\0")
+    needed = {"setup.py", "pyproject.toml", "README.md", "LICENSE"}
+    copied = set()
+    for raw in tracked:
+        if not raw:
+            continue
+        relative = raw.decode("utf-8")
+        if relative not in needed and not (
+            relative.startswith("scrimp/") and relative.endswith(".py")
+        ):
+            continue
+        incoming = ROOT / relative
+        if incoming.is_symlink() or not incoming.is_file():
+            parser.error(f"missing/unsafe tracked package source: {relative}")
+        target = source / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(incoming, target)
+        copied.add(relative)
+    if not needed.issubset(copied) or "scrimp/__init__.py" not in copied:
+        parser.error("missing required tracked wheel source files")
     wheel_dir = output / "wheel"
     wheel_dir.mkdir()
-    print(f"Wheel audit evidence: {output}", flush=True)
+    print(f"Wheel audit evidence: {output}; source: {revision}", flush=True)
     subprocess.run([sys.executable, "-m", "pip", "wheel", "--no-deps",
                     "--no-build-isolation", "--wheel-dir", str(wheel_dir),
-                    str(ROOT)], check=True)
+                    str(source)], check=True)
     wheels = sorted(wheel_dir.glob("scrimp-1.3.0-*.whl"))
     assert len(wheels) == 1, f"expected exactly one SCRIMP 1.3.0 wheel: {wheels}"
     wheel = wheels[0]
@@ -78,6 +113,7 @@ def main() -> int:
         "wheel": str(wheel),
         "distribution_name": "scrimp",
         "distribution_version": "1.3.0",
+        "source_revision": revision,
         "file_count": len(names),
         "scope": "wheel build, payload and isolated metadata installation",
         "not_tested": ["SCRIMP import without native GetFEM/PETSc",
