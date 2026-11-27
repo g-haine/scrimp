@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SCRIMP - Simulation and ContRol of Interactions in Multi-Physics
+# Copyright (C) 2015-2026 ISAE-SUPAERO -- GNU GPLv3
 """Build and audit a v1.3.0 wheel in an isolated directory.
 
 This is a *package metadata and payload* acceptance test, not a native
