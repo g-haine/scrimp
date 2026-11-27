@@ -2867,10 +2867,31 @@ class DPHS:
                 "MUMPS policy and SCRIMP_MATRIX_MEMORY_MODE must resolve "
                 "identically on all MPI ranks: " + repr(policies)
             )
+        # The logger is temporary and scoped to this user system:
+        # preserve the console logger and never redirect other models'
+        # stdout, MPI processes or PETSc C-level output globally.
+        file_handler = None
+        if rank == 0 and self._output_root is not None:
+            log_folder=self.get_output_path("log",create=True)
+            file_handler=logging.FileHandler(
+                log_folder/"scrimp.log",mode="a",encoding="utf-8"
+            )
+            file_handler.setLevel(logging.INFO)
+            file_handler.setFormatter(logging.Formatter(
+                "%(asctime)s %(levelname)s %(message)s"
+            ))
+            logging.getLogger().addHandler(file_handler)
+            logging.info(
+                "SCRIMP user system run; output_root=%s",
+                self._output_root,
+            )
         with self.profiler.measure("solve.total"):
             try:
                 return self._solve_impl()
             finally:
+                if file_handler is not None:
+                    logging.getLogger().removeHandler(file_handler)
+                    file_handler.close()
                 # The candidate Jacobian is only needed during callbacks.
                 # Keep its allocations out of subsequent solves and do not
                 # retain one extra full MPI sparse matrix after TS finishes.
