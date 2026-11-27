@@ -59,7 +59,7 @@ class DocumentationReleaseSourceTests(unittest.TestCase):
                     line.rstrip().endswith("\\\\"),
                     "double backslash does NOT continue a POSIX shell line"
                 )
-        self.assertIn("single-output-tree check",src)
+        self.assertIn("without legacy global output siblings",src)
         self.assertIn("full nine-case",src)
         self.assertIn("mesh/",src)
         self.assertIn(":doc:`../energy_and_power`",(DOC/"examples/shallow_water.rst").read_text())
