@@ -839,3 +839,28 @@ SuperLU_DIST, h/dt convergence
 and spectral gallery-mode
 identification remain unqualified.
 
+**Next independent physical release gate**: compare
+the complete original Gaussian 15-second
+Crank–Nicolson solution between MPI1 and MPI2,
+including **all 3,001 accepted states with
+all 7,689 GetFEM unknowns**, and every heat,
+wave, interface and cumulative power sample.
+The dedicated runner reuses the validated
+original canonical probe, with full-state
+archiving on both MPI2 ranks:
+
+.. code-block:: bash
+
+   cd ~/Simulations/scrimp
+   git pull --ff-only
+   SCRIMP_DOCKER_NO_SUDO=1 \\
+   SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \\
+   bash scripts/run-v130-heat-wave-full-mpi2-physics.sh
+
+The full MPI2 physical parity remains
+**native pending** until this separate
+complete run passes. This scientific
+test does **not** perform parallel VTK
+output or rerun the already accepted
+original example-generated figures.
+
