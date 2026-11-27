@@ -33,6 +33,16 @@ echo "SCRIMP v1.3.0 original example outputs — real native GetFEM, NOT a sourc
 echo "All shared images and ParaView files in runs/<case>/outputs/<system>/{png,svg,gif,mesh,log,npz,json}"
 echo "Docker image $image, revision $revision"
 echo "Evidence directory: $out"
+# Optional fast smoke of ONE real native case, useful before rerunning
+# all nine. Never label a one-case run as full examples acceptance.
+only="${SCRIMP_V130_EXAMPLE_OUTPUT_ONLY:-}"
+case "$only" in
+  ""|mass_spring|pendulum|heat|heat_wave|shallow_water|wave_2d|wave_dissipative|wave_coenergy|heat_wave_mpi2) ;;
+  *) echo "Unknown SCRIMP_V130_EXAMPLE_OUTPUT_ONLY=$only" >&2; exit 2 ;;
+esac
+if [[ -n "$only" ]]; then
+    echo "SINGLE CASE output layout regression: $only (not full release acceptance)"
+fi
 
 # Calls the original public Python example entry point; every case gets
 # a separate actual user working_directory. MPI processes share ONE
@@ -40,6 +50,7 @@ echo "Evidence directory: $out"
 run_case() {
     local label="$1" system="$2" mpi="$3" module="$4"
     shift 4
+    if [[ -n "$only" && "$only" != "$label" ]]; then return 0; fi
     local wd="$out/runs/$label"
     local reportdir="$wd/outputs/$system/log"
     mkdir -p "$reportdir"
@@ -159,14 +170,22 @@ run_case wave_coenergy wave_coenergy 1 examples.wave_coenergy
 run_case heat_wave_mpi2 heat_wave 2 examples.heat_wave \
     --final-time .02 --time-step .002 --save-step .002
 
-python3 - "$out" "$image" "$revision" <<'PY'
+python3 - "$out" "$image" "$revision" "$only" <<'PY'
 import json,subprocess,sys,zipfile
 from pathlib import Path
 root=Path(sys.argv[1])
+only=sys.argv[4]
 reports=sorted(root.glob("runs/*/outputs/*/json/user_output_smoke.json"))
-if len(reports)!=9:
-    raise RuntimeError(f"Missing native canonical output checks: {len(reports)} != 9")
-result={"status":"PASS_V130_ALL_NINE_REAL_USER_EXAMPLE_OUTPUT_CASES",
+expected=1 if only else 9
+if len(reports)!=expected:
+    raise RuntimeError(
+        f"Missing native canonical output checks: {len(reports)} != {expected}"
+    )
+if only and json.loads(reports[0].read_text())["case"]!=only:
+    raise RuntimeError("Wrong native selected case in output archive")
+status=("PASS_V130_SINGLE_REAL_USER_EXAMPLE_OUTPUT_CASE"
+        if only else "PASS_V130_ALL_NINE_REAL_USER_EXAMPLE_OUTPUT_CASES")
+result={"status":status,
  "schema":"scrimp-v130-all-user-canonical-output-layout-v1",
  "source":subprocess.check_output(["git","rev-parse","HEAD"],text=True).strip(),
  "image":sys.argv[2],"image_revision":sys.argv[3],
