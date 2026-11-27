@@ -800,6 +800,19 @@ class DPHS:
         """
 
         self.domain = domain
+        # Gmsh's historical shared import path is retained for GetFEM
+        # compatibility; also retain the TRUE source .msh inside this
+        # user example's own typed mesh directory. Gmsh already
+        # synchronizes the shared file before Domain() returns.
+        if self._output_root is not None and rank == 0:
+            from shutil import copy2
+            source = Path(outputs_path) / "mesh" / (domain.get_name()+".msh")
+            if source.is_file():
+                destination = self.get_output_path(
+                    "mesh", source.name, create=True
+                )
+                if source.resolve() != destination.resolve():
+                    copy2(source, destination)
         if self._auto_internal_interface_pilot:
             from scrimp.interface_deferred import DeferredInterfaceCompiler
             pilot = DeferredInterfaceCompiler(domain)
