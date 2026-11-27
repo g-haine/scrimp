@@ -118,8 +118,8 @@ type="Float32" format="binary">{a(scalar,"<f4")}</DataArray></PointData>
             '"whispering_gallery_eigenmode_certified":False',
             '"full_field_energy_localization_certified":False',
             '"no_time_interpolation":True',
-            'gallery/"wave_annulus_long.gif"',
-            'gallery/"wave_outer_shell_kinetic_proxy.png"',
+            'gif/"wave_annulus_long.gif"',
+            'png/"wave_outer_shell_kinetic_proxy.png"',
             'ax.loglog(times[positive],H[positive]',
             'parser.add_argument("--long-showcase",action="store_true")',
         ):
