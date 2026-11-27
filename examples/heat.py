@@ -77,7 +77,10 @@ def heat_eq(
 
     # Set the domain (using the built-in geometry `Rectangle`)
     # Labels: Omega = 1, Gamma_Bottom = 10, Gamma_Right = 11, Gamma_Top = 12, Gamma_Left = 13
-    heat.set_domain(S.Domain("Rectangle", {"L": 2.0, "l": 1.0, "h": float(mesh_size)}))
+    heat.set_domain(S.Domain(
+        "Rectangle", {"L": 2.0, "l": 1.0, "h": float(mesh_size)},
+        mesh_output_dir=heat.get_output_path("mesh",create=True),
+    ))
 
     # Define the variables and their discretizations and add them to the dphs
     states = [
