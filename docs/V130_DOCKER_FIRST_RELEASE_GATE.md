@@ -8,7 +8,7 @@ version-matched standalone project ZIP and optionally VS Code with Dev
 Containers. Never require cloning the SCRIMP library into a simulation
 workspace.
 
-## Proven, not yet proven
+## Candidate qualification and remaining stable-release work
 
 - **Qualified earlier, with bounded scope:** local Ubuntu image
   `scrimp-mpi:v1.3.0-rc3`, GetFEM 5.5, PETSc/SLEPc complex,
@@ -32,11 +32,29 @@ workspace.
   audit, and the user-confirmed VS Code Dev Container F5/F10/F5
   debugging path. The Python source CI became green on the subsequent
   release-preparation branch, after standardizing 89 Python headers.
-- **Still pending:** a truly fresh host/registry pull by immutable
-  digest, an image-internal physical MPI PDE parity gate, final
-  strict HTML/LaTeX/PDF build on the 1.3.0 sources, registry publication
-  and digest verification; Windows/macOS remain best-effort. No public
-  v1.3.0 image, release tag or ZIP has been published.
+- **Now PASS on a genuinely new Ubuntu 24.04/AMD64 runner:**
+  GHCR prerelease `ghcr.io/g-haine/scrimp:1.3.0-dist-rc3` was
+  published and pulled **by OCI index digest**
+  `sha256:0cbbce6ad42b23552aff9d12555342f3864b50522054fe039c161a7145b2732a`;
+  the actual pulled local image ID was
+  `sha256:c8307d382ed88f449d86bd09336ad75908a1fc58ba49d80baae2719c0d5de798`.
+  Image source label = `58dbe187de308979938153f9adfcf94dac4df85a`.
+  Independent ZIP, oscillator/host CSV, MPI2 startup and 10-step
+  Heat--Wave MPI1/MPI2 native Hamiltonian parity **PASS**
+  (relative L2 `4.275706381199414e-15`, tolerance `1e-7`).
+  [GitHub Actions run 46025625273, attempt 2](
+  https://github.com/g-haine/scrimp/actions/runs/46025625273) archives the
+  actual logs and evidence. **This is not full-field equivalence,
+  graphical VS Code testing on a new desktop, or Windows/macOS proof.**
+- **Current docs/build progress:** v1.3.0 wheel metadata/build and
+  isolated install PASS, Sphinx HTML/LaTeX/PDF PASS on
+  `0cdb2ad8`. A separate source-distribution audit
+  now builds the `sdist` from tracked files and reconstructs a
+  byte-equivalent Python wheel; it has passed its CI step.
+- **Still pending:** stable `ghcr.io/g-haine/scrimp:1.3.0` tag,
+  final release project ZIP and GitHub tag/release, issue triage,
+  and a deliberate stable publication decision. Windows/macOS
+  remain best-effort.
 
 ## Ubuntu native and independent ZIP acceptance (2026-11-27)
 
@@ -93,15 +111,12 @@ This is **energy observable parity**, not full-state FE equivalence
 or a claim for other MPI sizes. Evidence:
 `sandbox/outputs/v130-distribution-heat-wave-mpi-wb9SrBRd/`.
 
-**Remaining release gates:** a final rebuilt image from the
-settled release sources, immutable GHCR digest push/pull
-verification on a **fresh host** with independent ZIP and
-host-owned outputs, review of the issue backlog, and actual
-release approval/publication. Recheck GUI F5/F10 against
-the final published artifact when that digest exists.
-The image `dist-rc2` and this successful document build
-are local qualifications only. No release tag or image
-publication is claimed.
+**Historical dist-rc2 status at the time of that earlier audit:**
+a fresh GHCR pull was still pending. That gate was subsequently
+completed on `dist-rc3` (see the updated evidence above). GUI
+F5/F10 remains proven only with the local Ubuntu Dev Container;
+the stable GHCR tag, final ZIP, release approval and GitHub
+release are still outstanding.
 
 ## Candidate construction — do not replace rc3 or local images
 

@@ -11,13 +11,18 @@ user.
 
 .. important::
 
-   **Pre-release status, 27 November 2026:** the local Ubuntu image
-   ``scrimp-mpi:v1.3.0-rc3`` passed the scoped native physics and MPI
-   campaigns. A fresh distribution image, the public
-   ``ghcr.io/g-haine/scrimp:1.3.0`` tag, and the final standalone
-   project ZIP have **not** yet been qualified/published. The pull
-   command below describes the release workflow; it will not work
-   until the public image exists.
+   **Pre-release status, 27 November 2026:** the candidate
+   ``ghcr.io/g-haine/scrimp:1.3.0-dist-rc3`` has been published
+   on GHCR and **successfully pulled by immutable digest** on a fresh
+   Ubuntu 24.04/AMD64 GitHub-hosted runner. Its standalone user ZIP,
+   genuine oscillator/host CSV, MPI startup and original Heat--Wave
+   MPI1/MPI2 Hamiltonian parity gates passed. The source revision is
+   ``58dbe187de308979938153f9adfcf94dac4df85a``, and the OCI index
+   digest is ``sha256:0cbbce6ad42b23552aff9d12555342f3864b50522054fe039c161a7145b2732a``.
+   The package may still be private. The **stable**
+   ``ghcr.io/g-haine/scrimp:1.3.0`` tag and official project ZIP
+   have **not** been published; the commands below are for the
+   future stable release.
 
 Default: precompiled Docker and standalone project (after release)
 ------------------------------------------------------------------

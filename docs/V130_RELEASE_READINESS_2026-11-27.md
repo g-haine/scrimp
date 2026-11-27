@@ -9,6 +9,35 @@ Branche : `release/1.3.0-preparation`. **Aucun tag v1.3.0 publié.**
 Les affirmations scientifiques ci-dessous concernent les configurations
 explicitement testées, jamais une garantie universelle pour tout modèle.
 
+## Dernière qualification de distribution — 27 novembre 2026
+
+**PASS GHCR depuis une VM Ubuntu indépendante.** Le candidat
+`ghcr.io/g-haine/scrimp:1.3.0-dist-rc3`, construit depuis la révision
+`58dbe187de308979938153f9adfcf94dac4df85a`, a été publié puis
+récupéré par digest OCI immuable
+`sha256:0cbbce6ad42b23552aff9d12555342f3864b50522054fe039c161a7145b2732a`
+sur un runner GitHub Ubuntu 24.04/AMD64 sans image préexistante.
+Le ZIP utilisateur indépendant, la vraie simulation avec CSV persistant
+sur l'hôte, le démarrage MPI2 et le modèle Heat--Wave natif MPI1/MPI2
+ont tous PASSÉ. Parité relative L2 des 11 Hamiltoniens FE :
+`4.275706381199414e-15`. Preuve :
+[GitHub Actions #46025625273 (tentative 2)](
+https://github.com/g-haine/scrimp/actions/runs/46025625273).
+
+**PASS de la chaîne documentaire sur `0cdb2ad8`** :
+tests sources, wheel, génération HTML et LaTeX strictes et compilation
+PDF sur GitHub Actions (workflow #46026382133).
+Le contrôle complémentaire `sdist` construit depuis une source
+isolée a également passé son étape CI, avec reconstruction du wheel
+et comparaison octet pour octet des fichiers Python.
+
+Les preuves de performance, physique MPI et GUI Ubuntu sont détaillées
+plus bas avec leur périmètre propre. **Restent à faire avant le tag
+stable :** décider du sort des issues ouvertes, publier l'image
+`1.3.0` et le ZIP officiel correspondant, vérifier leur cohérence,
+et préparer la GitHub Release. La GUI SCRIMP et l'audit énergétique
+du réservoir Saint--Venant sont reportés après la v1.3.0.
+
 ## Qualification Docker-first après installation en ZIP — 27 novembre
 
 **PASS sur Ubuntu/amd64 pour l'image locale

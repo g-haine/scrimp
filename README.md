@@ -27,11 +27,15 @@ GetFEM 5.5, complex PETSc/SLEPc, MUMPS and MPI stack. User simulations and
 outputs remain in a **separate local project**, never in the image or the
 SCRIMP Git repository.
 
-**Release status (27 November 2026):** this is the *planned* public installation
-path. Neither `ghcr.io/g-haine/scrimp:1.3.0` nor the final project ZIP has been
-published or clean-install qualified. Do not use these steps as proof that a
-public image already exists. The currently qualified image is a local,
-Ubuntu-tested release candidate (`scrimp-mpi:v1.3.0-rc3`).
+**Release status (27 November 2026):** a **pre-release** Docker image
+`ghcr.io/g-haine/scrimp:1.3.0-dist-rc3` has been published and qualified
+on a fresh GitHub-hosted Ubuntu 24.04/AMD64 runner **by immutable digest**:
+`sha256:0cbbce6ad42b23552aff9d12555342f3864b50522054fe039c161a7145b2732a`.
+The independent ZIP/oscillator/MPI-startup and genuine Heat--Wave MPI1/MPI2
+Hamiltonian parity gates passed. This tag may have restricted GHCR visibility.
+**The stable `ghcr.io/g-haine/scrimp:1.3.0` image, official project ZIP and
+GitHub Release are NOT yet published.** Do not confuse the pre-release
+candidate with the stable release.
 
 **Once the public v1.3.0 release and image are qualified and published:**
 
