@@ -23,7 +23,7 @@ class HWCNdtRefinementV130(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.s=COMPARE.read_text(encoding="utf-8")
-        cls.run=RUNNER.read_text(encoding="utf-8")
+        cls.runner_source=RUNNER.read_text(encoding="utf-8")
         cls.probe=PROBE.read_text(encoding="utf-8")
         cls.example=EXAMPLE.read_text(encoding="utf-8")
         ast.parse(cls.s)
@@ -62,10 +62,10 @@ class HWCNdtRefinementV130(unittest.TestCase):
             'v130-heat-wave-CN-dt-refinement',
         ):
             with self.subTest(needle=needle):
-                self.assertIn(needle,self.run)
-        self.assertNotIn('export_to_pv(',self.run)
-        self.assertNotIn('set_time_scheme(',self.run)
-        self.assertNotIn('examples/published:rw',self.run)
+                self.assertIn(needle,self.runner_source)
+        self.assertNotIn('export_to_pv(',self.runner_source)
+        self.assertNotIn('set_time_scheme(',self.runner_source)
+        self.assertNotIn('examples/published:rw',self.runner_source)
 
     def test_scientific_verifier_rejects_shortcut_data(self):
         for needle in (
