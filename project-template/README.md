@@ -13,7 +13,7 @@ Changing a simulation **never rebuilds** the SCRIMP Docker image.
 - **With native Conda:** SCRIMP and dependencies instead live in your
   activated Conda environment; this project directory stays the same.
 
-## Option A: precompiled Docker image (after v1.3.0 is published)
+## Default: precompiled Docker image (after v1.3.0 is published)
 
 The future released image is expected to be
 `ghcr.io/g-haine/scrimp:1.3.0` (**not yet published**).
@@ -26,8 +26,11 @@ and pull the image:
 docker pull ghcr.io/g-haine/scrimp:1.3.0
 ```
 
-Then change `image` in `.devcontainer/devcontainer.json` to
-`ghcr.io/g-haine/scrimp:1.3.0`.
+The **official release ZIP will already include** that verified image
+reference in `.devcontainer/devcontainer.json`; users of the released
+ZIP must not need to edit it. The current Git-branch preview template
+still selects a **local rc1 development image** and must not be
+mistaken for the published release ZIP.
 
 ## Option B: Docker image built locally
 
@@ -180,16 +183,19 @@ on 20 November 2026**. Parallel MPI Python debugging needs
 a different multi-process configuration and has not been qualified.
 
 **All output is persistent on your computer**: Dev Containers mounts
-this directory read-write at `/work`. SCRIMP uses the current working
-directory to create `outputs/log`, `outputs/mesh`, `outputs/png`
-and `outputs/pv`. Container deletion, image rebuilds and VS Code
-restarts do not remove those files.
+this directory read-write at `/work`. The maintained v1.3.0 canonical
+examples group SCRIMP-generated data under
+`outputs/<system_name>/{png,svg,gif,mesh,log,npz,json}` rather than
+creating generic `outputs/log`, `outputs/mesh`, `outputs/png` or
+`outputs/pv` siblings. The introductory oscillator additionally writes
+`outputs/oscillator.csv`. Container deletion, image rebuilds and VS
+Code restarts do not remove your project files.
 
 On Linux, Dev Containers attempts to match the container user's
 UID/GID to yours. Ownership and bind-mount permissions still need
 qualification on Windows, macOS and multi-user Linux machines.
 
-## Option C: local native installation (no Docker)
+## Alternative: local native Conda installation (no Docker)
 
 Follow SCRIMP's native Conda/source installation instructions in
 the official installation guide. Activate the resulting environment:
