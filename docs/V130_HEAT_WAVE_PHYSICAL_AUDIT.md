@@ -9,6 +9,104 @@ Visual annular-gallery evidence is distinct: eigenmodes,
 MPI2 long time, MPI-parallel VTK and SuperLU_DIST remain
 unqualified.**
 
+## 15-second MPI1/MPI2 post-mortem — quantitative diagnosis (27 November 2026)
+
+The user-host read-only post-mortem of the ORIGINAL
+`e6326198` native dataset successfully analyzed **all
+23,074,689 original GetFEM coefficients** across
+3,001 accepted CN times, and all scalar physical
+and power histories. Diagnostic source:
+`sandbox/diagnose_v130_heat_wave_full_mpi_parity.py`.
+Its status is `POST_MORTEM_ONLY_NOT_A_RELEASE_ACCEPTANCE`.
+
+| Original full 15s MPI difference | Observed |
+| --- | ---: |
+| Max coefficient absolute difference | `2.758281700265819e-9` |
+| Absolute worst index/time/DOF | `3000 / 15s / 1584` |
+| Max normalized coefficient L2 per time | `7.644623431064666e-10` |
+| Normalized coefficient L2 full space-time | `1.2364288236187903e-10` |
+| Coefficients violating old scalar pointwise `allclose` | `1178 / 23074689` |
+| First pointwise exceedance | `step=1156, t=5.78s` |
+| MPI2 rank0 versus rank1 | **bitwise identical** |
+| Largest difference in full Hamiltonian trace | `3.775e-15` |
+| Largest difference in heat-flux dissipation trace | `1.635e-13` |
+| Original physical scalar/power trace criteria | **all pass** |
+
+The pointwise failure concerns a small fraction of
+individually small coefficients. An illustration:
+at `t=14.58`, DOF 1584 differs by
+`2.6471e-9` while both coefficients are around
+`6.2066e-4`: the old pointwise allowance is
+only about `5.12e-10`. Yet the *entire* coefficient
+vector is nearly identical in normalized L2 norm,
+and every original heat/wave/interface energy-power
+gate passes separately on all three ranks.
+The discrepancy grows smoothly over the long horizon
+from a maximum of `1.95e-12` at the initial time.
+This pattern is **compatible with accumulated
+parallel numerical roundoff**, but does not establish
+the particular cause (matrix reduction, factorization,
+or other rank-dependent arithmetic ordering).
+
+### Follow-up scientific acceptance metric — source-staged, not yet verified
+
+To avoid both (a) weakening the physical GetFEM/PETSc
+tolerances, and (b) treating an individually near-zero
+DOF as the scale for an *entire* FE coefficient vector,
+a **read-only independent re-assessment** now applies
+the exact same `atol=5e-10` and `rtol=2e-8`
+to **coefficient-vector norms at every time**:
+
+```text
+||z_MPI1-z_MPI2||_infinity
+  <= atol + rtol * max(||z_MPI1||_infinity,||z_MPI2||_infinity)
+
+||z_MPI1-z_MPI2||_2
+  <= sqrt(7689)*atol + rtol*max(||z_MPI1||_2,||z_MPI2||_2)
+
+and independently:
+||z_MPI1-z_MPI2||_2 / max(||z_MPI1||_2,||z_MPI2||_2)
+  <= rtol
+```
+
+These are **coefficient-space** norms, not
+mass-weighted spatial finite-element norms.
+The initial field must also satisfy the original
+pointwise `allclose`. All ORIGINAL Hamiltonian,
+heat/wave/interface, and dissipative observable
+traces must still pass the **unchanged pointwise**
+`np.allclose(atol=5e-10,rtol=2e-8)`, in addition
+to the original strict independent CN physics
+and DAE checks. MPI2 rank0/rank1 data must
+remain exactly identical. The old 1,178 pointwise
+violations remain recorded as a diagnostic,
+not silently erased.
+
+The new independent, read-only host verifier
+reuses the original physical audit, does not
+call SCRIMP/GetFEM/PETSc, does not mutate
+`summary.json` or the native ZIP, and
+refuses missing/modified original provenance.
+It can be executed on the **existing** data:
+
+```bash
+python tests/test_v130_heat_wave_full_mpi_norm_reassessment.py
+python scripts/reassess-v130-heat-wave-full-mpi2-norm-parity.py \
+  sandbox/outputs/v130-heat-wave-full-15s-MPI1-MPI2-e6326198-fhkvnmsR \
+  --out /tmp/heat-wave-full-MPI-norm-reassessment.json
+```
+
+**Current acceptance status remains the historical
+strict pointwise FAIL**, until this new metric
+has been executed and independently verified
+against the original native records. If accepted,
+the full MPI1/MPI2 equivalence must be explicitly
+qualified as **normwise coefficient-space parity**
+and CN physical observable parity, **not** identical
+coefficients or proven mass-weighted FE convergence.
+Neither parallel VTK writing nor spectral gallery
+mode purity follows from this check.
+
 ## Full 15-second MPI1/MPI2 first attempt — PHYSICS PASS, STRICT PARITY GATE FAIL (27 November 2026)
 
 The native user-host full-length run on source `e6326198`
