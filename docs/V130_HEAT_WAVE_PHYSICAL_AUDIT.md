@@ -84,6 +84,27 @@ report to retroactively assert a pointwise PASS.
 for this exact full-horizon, two-rank Gaussian normwise
 parity and physical energy-power acceptance.**
 
+**Future executions** of the native driver
+`scripts/run-v130-heat-wave-full-mpi2-physics.sh`
+now use `scripts/verify-v130-heat-wave-full-mpi2-normwise.py`
+as their release gate. This new reusable verifier imports the
+**unchanged** GetFEM/PETSc physical and energy-power checking
+algorithm plus the previously accepted coefficient-vector
+normwise comparison; unlike the historical read-only
+reassessment, it does **not** require an earlier failed
+`summary.json` or a pinned historical source SHA.
+It validates new original runs and writes their own
+release `summary.json` through an explicit `--out`.
+The original source
+`scripts/verify-v130-heat-wave-full-mpi2.py` and
+original native `e6326198` FAIL archive remain untouched.
+Source and negative tests are in
+`tests/test_v130_heat_wave_full_mpi_norm_release_source.py`.
+This reusable route is **source-staged**, and has not been
+qualified by a separate future native run; the already
+completed `e6326198` dataset has independently
+**PASSED** the identical normwise metric above.
+
 ## 15-second MPI1/MPI2 post-mortem — quantitative diagnosis (27 November 2026)
 
 The user-host read-only post-mortem of the ORIGINAL
