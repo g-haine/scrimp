@@ -9,6 +9,41 @@ Branche : `release/1.3.0-preparation`. **Aucun tag v1.3.0 publié.**
 Les affirmations scientifiques ci-dessous concernent les configurations
 explicitement testées, jamais une garantie universelle pour tout modèle.
 
+## Mise à jour source du 27 novembre — sortie des huit exemples (EN ATTENTE du smoke natif)
+
+Un chantier transversal a été intégré à `release/1.3.0-preparation` :
+
+- `DPHS.set_output_name(...)` et `get_output_path(...)` normalisent
+  les fichiers des systèmes utilisateurs sous
+  `working_dir/outputs/<system_name>/{png,svg,gif,mesh,log,npz,csv,json}`.
+  Les anciennes API et les dossiers scientifiques de provenance
+  restent lisibles et non déplacés.
+- `plot_Hamiltonian` écrit PNG/SVG et traces NPZ ; le cache
+  `compute_Hamiltonian` est recalculable sans duplication et
+  respecte la véritable horloge du modèle GetFEM.
+- `compute_powers` sélectionne `cn_step` **uniquement**
+  quand tous les pas PETSc acceptés ont été sauvegardés,
+  sinon une observation nodale et une intégration des
+  puissances explicitement **approximative**.
+- `examples/heat_wave.py` expose désormais directement
+  les énergies chaleur/onde, les puissances sur les deux
+  faces orientées, la dissipation, ainsi que le travail
+  physique ; ses fichiers proviennent du modèle canonique
+  et des vraies quadratures GetFEM, jamais d'un pilote.
+- Les huit exemples canoniques ont été adaptés au nouvel
+  agencement, sans modification de leurs formes faibles
+  ni des huit sources immuables `examples/published/`.
+
+Les tests source Python et la campagne
+`scripts/run-v130-example-user-output-smoke.sh` sont prêts :
+**neuf vrais cas** (les huit modèles MPI1 plus Heat–Wave
+MPI2). **Ces nouveaux chemins/post-traitements ne sont
+pas encore qualifiés par exécution native**. Ne pas les
+marquer PASS avant leur résultat. Les anciennes
+qualifications physiques restent valides et séparées.
+
+Voir [contrat complet de sorties, quadratures et tests](V130_EXAMPLES_OUTPUT_CONTRACT.md).
+
 ## 1. Décision générale
 
 **Le socle numérique est très avancé ; la release n'est PAS encore prête
