@@ -47,7 +47,10 @@ def mass_spring_damper(
 
     sys = S.DPHS("real")
     sys.set_output_name("mass_spring_damper")
-    sys.set_domain(S.Domain("Interval", {"L": interval_length, "h": 1.0}))
+    sys.set_domain(S.Domain(
+        "Interval", {"L": interval_length, "h": 1.0},
+        mesh_output_dir=sys.get_output_path("mesh",create=False),
+    ))
 
     q = S.State("q", "Displacement", "lumped")
     p = S.State("p", "Linear momentum", "lumped")
