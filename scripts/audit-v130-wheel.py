@@ -46,7 +46,7 @@ def main() -> int:
     source.mkdir()
     tracked = subprocess.check_output(
         ["git", "ls-files", "--cached", "-z", "--full-name"],
-        cwd=ROOT).split(b"\\0")
+        cwd=ROOT).split(b"\0")
     needed = {"setup.py", "pyproject.toml", "README.md", "LICENSE"}
     copied = set()
     for raw in tracked:
