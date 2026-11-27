@@ -257,7 +257,7 @@ def heat_eq(
 
     # This canonical figure and its physical ports remain directly
     # reproducible by running this very example.
-    heat.plot_Hamiltonian(save_figure=True, filename="Hamiltonian_Heat_2D.png")
+    heat.plot_Hamiltonian(save_figure=True, show=False, filename="Hamiltonian_Heat_2D.png")
 
     if check or showcase:
         observations = measure_heat_cn(heat)
