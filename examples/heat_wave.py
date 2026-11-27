@@ -110,7 +110,8 @@ def _native_wave_vtk_frame(pvd_dir, frame_file):
     return points[:,:2],triangle,values
 
 
-def render_heat_wave_long_showcase(times, H, *, profile, wave_region):
+def render_heat_wave_long_showcase(times, H, *, profile, wave_region,
+                                   output_root=None):
     """Create genuine log-log and annular-wave visuals from THIS run.
 
     Only wave_region=2 can provide the annular gallery. VTK nodal
@@ -136,11 +137,20 @@ def render_heat_wave_long_showcase(times, H, *, profile, wave_region):
             or not np.all(np.diff(times)>0)
             or H[0]<=0):
         raise ValueError("Incorrect true long-time physical Hamiltonian")
-    base = Path.cwd()/"outputs"
-    gallery = base/"showcase"/"heat_wave_annulus"
-    gallery.mkdir(parents=True,exist_ok=True)
-
-    catalog = base/"pv"/"p"/"p.pvd"
+    from petsc4py import PETSc
+    if PETSc.COMM_WORLD.getRank()!=0:
+        # The original VTK PVD and shared plot files have ONE writer.
+        return None
+    base = (Path(output_root) if output_root is not None
+            else Path.cwd()/"outputs"/"heat_wave")
+    png=base/"png"
+    svg=base/"svg"
+    gif=base/"gif"
+    data=base/"npz"
+    metadata=base/"json"
+    for folder in (png,svg,gif,data,metadata):
+        folder.mkdir(parents=True,exist_ok=True)
+    catalog = base/"mesh"/"p"/"p.pvd"
     pvd = ET.parse(catalog).getroot().findall(".//DataSet")
     if len(pvd)!=len(times):
         raise ValueError("GetFEM p VTU frames do not match saved FE times")
@@ -218,8 +228,8 @@ def render_heat_wave_long_showcase(times, H, *, profile, wave_region):
     ax.grid(True,which="both",alpha=.25)
     ax.legend()
     fig.tight_layout()
-    fig.savefig(gallery/"heat_wave_H_long_loglog.png",dpi=170)
-    fig.savefig(gallery/"heat_wave_H_long_loglog.svg")
+    fig.savefig(png/"heat_wave_H_long_loglog.png",dpi=170)
+    fig.savefig(svg/"heat_wave_H_long_loglog.svg")
     plt.close(fig)
 
     snapshots = sorted(set((0,len(selected)//3,
@@ -227,7 +237,7 @@ def render_heat_wave_long_showcase(times, H, *, profile, wave_region):
     for index in snapshots:
         fig=plot_wave(index)
         fig.savefig(
-            gallery/f"wave_annulus_t{times[selected[index]]:.3f}.png",
+            png/f"wave_annulus_t{times[selected[index]]:.3f}.png",
             dpi=150,
         )
         plt.close(fig)
@@ -242,7 +252,7 @@ def render_heat_wave_long_showcase(times, H, *, profile, wave_region):
         with Image.open(buffer) as im:
             frames.append(im.convert("RGB").copy())
     frames[0].save(
-        gallery/"wave_annulus_long.gif",
+        gif/"wave_annulus_long.gif",
         save_all=True,append_images=frames[1:],
         duration=180,loop=0,optimize=False,
     )
@@ -279,13 +289,13 @@ def render_heat_wave_long_showcase(times, H, *, profile, wave_region):
                ylim=(0,1.05))
         ax.grid(alpha=.25)
         fig.tight_layout()
-        fig.savefig(gallery/"wave_outer_shell_kinetic_proxy.png",dpi=155)
+        fig.savefig(png/"wave_outer_shell_kinetic_proxy.png",dpi=155)
         plt.close(fig)
     # Reproducible native energy series, not coordinates digitized from
     # a graphic. These are the actual Hamiltonian quadratures at accepted
     # saved FE states.
     np.savez_compressed(
-        gallery/"heat_wave_FE_H_long.npz",
+        data/"heat_wave_FE_H_long.npz",
         t=np.ascontiguousarray(times,dtype=np.float64),
         H=np.ascontiguousarray(H,dtype=np.float64),
     )
@@ -308,7 +318,7 @@ def render_heat_wave_long_showcase(times, H, *, profile, wave_region):
         "note":"p nodal CG1 triangle values only; shell uses centroid rule. "
                "The animation is a visualization, not a modal/eigenvalue proof.",
     }
-    (gallery/"provenance.json").write_text(
+    (metadata/"heat_wave_long_showcase.json").write_text(
         json.dumps(result,indent=2)+"\n",encoding="utf-8",
     )
     return result
@@ -502,7 +512,7 @@ def heat_wave_eq(
     final_time=2.0, time_step=0.001, save_step=0.05,
     initial_wave_boundary="clamp",
     initial_wave_profile="gaussian", long_showcase=False,
-    physics_only=False,
+    physics_only=False, output_dir=None,
 ):
     """A physically oriented, energy-dissipative coupled heat-wave example.
 
@@ -556,6 +566,7 @@ def heat_wave_eq(
     
     # Init the distributed port-Hamiltonian system
     hw = S.DPHS("real")
+    hw.set_output_name("heat_wave", output_dir=output_dir)
 
     # Set the domain (using the built-in geometry `Concentric`)
     # Labels: Disk = 1, Annulus = 2, Interface = 10, Boundary = 20
@@ -857,35 +868,34 @@ def heat_wave_eq(
     # Plot the Hamiltonian and save the output
     hw.plot_Hamiltonian(save_figure=True, filename="Hamiltonian_Heat"+str(heat_region)+"_Wave"+str(wave_region)+"_2D.png")
     
-    # A true log-log diagnostic must omit t=0, rather than plotting
-    # zero on a logarithmic axis. Keep this separate from the energy
-    # identity plot used for the physical qualification.
+    # Genuine log-log H(t) at saved FE times, no fictitious log(0).
+    # The shared figure is written once; GetFEM energy computation was
+    # already collective above in plot_Hamiltonian().
     import matplotlib.pyplot as plt
+    from petsc4py import PETSc
     t = np.asarray(hw.solution["t"], dtype=float)
     Hamiltonian = np.asarray(hw.get_Hamiltonian(), dtype=float)
-    fig, ax = plt.subplots(figsize=(8, 5))
-    positive = (t > 0.) & (Hamiltonian > 0.)
-    ax.loglog(t[positive], Hamiltonian[positive])
-    ax.grid(axis="both")
-    ax.set_xlabel("time t")
-    ax.set_ylabel("Hamiltonian")
-    ax.set_title("Evolution of the Hamiltonian (log-log)")
-    # The example itself saves this long-time diagnostic, with t=0
-    # excluded because log(0) is undefined. Never fit an exponent
-    # unless a separate physical convergence/decay study validates it.
-    from pathlib import Path
-    png = Path.cwd()/"outputs"/"png"
-    png.mkdir(parents=True,exist_ok=True)
-    fig.tight_layout()
-    fig.savefig(png/("Hamiltonian_Heat"+str(heat_region)+
-                     "_Wave"+str(wave_region)+"_2D_loglog.png"),dpi=170)
-    fig.savefig(png/("Hamiltonian_Heat"+str(heat_region)+
-                     "_Wave"+str(wave_region)+"_2D_loglog.svg"))
-    plt.show()
-    plt.close(fig)
-    
+    if PETSc.COMM_WORLD.getRank()==0:
+        fig,ax=plt.subplots(figsize=(8,5))
+        positive=(t>0.) & (Hamiltonian>0.)
+        ax.loglog(t[positive],Hamiltonian[positive])
+        ax.grid(axis="both")
+        ax.set(xlabel="Time",ylabel="Hamiltonian",
+               title="Evolution of Heat–Wave Hamiltonian (log-log)")
+        stem=("Hamiltonian_Heat"+str(heat_region)+
+              "_Wave"+str(wave_region)+"_2D_loglog")
+        fig.tight_layout()
+        fig.savefig(hw.get_output_path("png",stem+".png",create=True),dpi=170)
+        fig.savefig(hw.get_output_path("svg",stem+".svg",create=True))
+        plt.close(fig)
+
     hw.export_to_pv("p")
     hw.export_to_pv("T")
+    # The actual canonical example must create the explanatory figures
+    # itself, not only a sandbox diagnostic or test probe.
+    hw.heat_wave_energy_port_visuals = render_heat_wave_energy_ports(
+        hw,heat_region=heat_region,wave_region=wave_region
+    )
     if long_showcase:
         if wave_region != 2:
             raise ValueError("Long annular showcase requires wave_region=2")
@@ -894,6 +904,7 @@ def heat_wave_eq(
         hw.heat_wave_showcase_report = render_heat_wave_long_showcase(
             t, Hamiltonian,
             profile=initial_wave_profile, wave_region=wave_region,
+            output_root=hw._output_root,
         )
 
     return hw
@@ -922,6 +933,10 @@ if __name__ == "__main__":
                         choices=("gaussian","gallery_packet"),
                         default="gaussian")
     parser.add_argument("--long-showcase",action="store_true")
+    parser.add_argument(
+        "--output-dir",default=None,
+        help="Output root (default: ./outputs/heat_wave with png/svg/mesh/...)"
+    )
     args=parser.parse_args()
     if (args.heat_positional is None)!=(args.wave_positional is None):
         parser.error("Both historical heat/wave positional regions are required")
@@ -940,5 +955,6 @@ if __name__ == "__main__":
         initial_wave_boundary=args.initial_wave_boundary,
         initial_wave_profile=args.initial_wave_profile,
         long_showcase=args.long_showcase,
+        output_dir=args.output_dir,
     )
     
