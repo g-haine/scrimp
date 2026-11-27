@@ -175,6 +175,35 @@ class UserOutputPowerHamiltonianTests(unittest.TestCase):
         self.assertEqual(term.get_values(),[1.,2.01])
         self.assertFalse(h.get_is_computed())
 
+    def test_mid_assembly_failure_preserves_values_but_invalidates_cache(self):
+        Hamiltonian,Term,Model=hamiltonian_with_mock_getfem()
+        h=Hamiltonian("Energy")
+        term=Term("E","u",[1])
+        h.add_term(term)
+        model=Model()
+        model.set_time=lambda t:setattr(model,"current_time",t)
+        def set_state(state):
+            if state[0]==99.:
+                raise RuntimeError("simulated GetFEM assembly state failure")
+            model.current_state=state
+        model.to_variables=set_state
+        domain=types.SimpleNamespace(_int_method=[object()])
+        valid={"t":[0.,.01],"z":[[1.],[2.]]}
+        h.compute(valid,model,domain)
+        self.assertTrue(h.get_is_computed())
+        previous=term.get_values()
+        with self.assertRaisesRegex(RuntimeError,"simulated GetFEM"):
+            h.compute(
+                {"t":[0.,.01,.02],"z":[[1.],[2.],[99.]]},
+                model,domain,
+            )
+        self.assertFalse(h.get_is_computed())
+        # Do not expose a partially recomputed new series.
+        self.assertEqual(term.get_values(),previous)
+        h.compute(valid,model,domain)
+        self.assertTrue(h.get_is_computed())
+        self.assertEqual(term.get_values(),previous)
+
     def test_production_source_uses_new_core_api_with_legacy_fallback(self):
         for literal in (
             "def set_output_name(",
