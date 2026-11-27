@@ -189,7 +189,7 @@ numerical MPI discrepancy needs investigation.
 Do not conflate three separate correct
 physical solves with a proven full FE parity.
 
-## Next open gate — complete 15-second MPI1/MPI2 FE parity (27 November 2026, SOURCE-STAGED)
+## Historical staging note — complete 15-second MPI1/MPI2 FE parity (experiment since run)
 
 The reference Heat–Wave physics is **already qualified** for:
 - Four real 0.001-second CN steps on 7,689 GetFEM DOFs,
@@ -210,8 +210,9 @@ full FE trajectory parity when run with MUMPS MPI2?
 The earlier four-step MPI check and 15-second MPI1
 run are NOT a proof of this full-horizon comparison.
 
-A **dedicated**, original-model-native experiment is
-now source-staged, not yet run:
+The **original source-staged experiment** was subsequently
+executed on 27 November 2026. The following is its
+original invocation, retained for reproducibility:
 
 ```bash
 cd ~/Simulations/scrimp
@@ -248,9 +249,13 @@ The large source histories (3 × 3,001 × 7,689
 float64 FE coefficients) intentionally make this
 an evidence-heavy experiment.
 
-**PENDING NATIVE OUTPUT.** Do not claim full
-15-second MPI2 parity or per-step power balance
-before this new evidence has actually passed.
+**The experiment has now been executed**; the
+original full MPI2 per-step physical powers
+passed, but strict coefficient pointwise
+parity failed as recorded above. The
+separate read-only normwise reassessment
+is pending. No repeated native solve is
+required just to assess the archived data.
 This scientific pilot deliberately suppresses
 parallel ParaView and plotting output; no
 parallel VTK, `SuperLU_DIST`, time/mesh-refinement
