@@ -52,8 +52,24 @@ class WaveCoenergySourceTests(unittest.TestCase):
         self.assertIn('S.Term("Potential energy", "0.5*q.Tinv.q"',self.source)
 
     def test_two_region_coenergy_and_strictly_positive_resistive_inverse(self):
+        # Check the actual S.Domain argument through Python AST rather than
+        # a brittle one-line spelling: the maintained source passes the
+        # same "Concentric" literal on the following indented line.
+        domain_calls = [
+            node for node in ast.walk(self.ast)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "S"
+            and node.func.attr == "Domain"
+        ]
+        self.assertTrue(any(
+            node.args
+            and isinstance(node.args[0], ast.Constant)
+            and node.args[0].value == "Concentric"
+            for node in domain_calls
+        ), "coenergy model must use the two-region Concentric geometry")
         for snippet in (
-            'S.Domain("Concentric"',
             'S.CoState("e_q", "Stress", states[0], substituted=True)',
             'S.CoState("e_p", "Velocity", states[1], substituted=True)',
             'S.Port("Damping", "e_r", "e_r", "scalar-field", substituted=True, region=1)',
