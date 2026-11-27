@@ -60,6 +60,8 @@ class DockerFirstReleaseSourceTests(unittest.TestCase):
         self.assertIn("SCRIMP_V130_EXPECT_REVISION", text)
         self.assertIn("SCRIMP_V130_DISTRIBUTION_IMAGE", text)
         self.assertIn("org.opencontainers.image.revision", text)
+        self.assertIn('git -C "$ROOT" rev-parse HEAD', text)
+        self.assertIn('status --porcelain --untracked-files=no', text)
         self.assertIn('version("scrimp")', text)
         self.assertIn('assert actual == "1.3.0"', text)
         self.assertIn("scrimp-project-template.zip", text)
