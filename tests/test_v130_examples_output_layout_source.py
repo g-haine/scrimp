@@ -76,6 +76,38 @@ class UserExampleOutputLayoutTests(unittest.TestCase):
         self.assertIn("scripts/check-v130-published-immutable.py",src)
         self.assertIn("PASS_V130_ALL_NINE_REAL_USER_EXAMPLE_OUTPUT_CASES",src)
 
+    def test_renderer_manifest_paths_are_directories_not_dicts(self):
+        # Regression for the former heat.py metadata-shadowing bug:
+        # render_heat_visuals assigned metadata=Path(.../json), then
+        # metadata={...}, so metadata/"manifest.json" raised TypeError
+        # AFTER a successful genuine GetFEM run and figure export.
+        heat=(ROOT/"examples/heat.py").read_text(encoding="utf-8")
+        self.assertIn('metadata_dir=folder/"json"',heat)
+        self.assertIn('(metadata_dir/"manifest.json").write_text(',heat)
+        self.assertIn('metadata={',heat)
+        for name in MODELS:
+            source=(ROOT/"examples"/name).read_text(encoding="utf-8")
+            tree=ast.parse(source,filename=name)
+            for func in (node for node in ast.walk(tree)
+                         if isinstance(node,(ast.FunctionDef,ast.AsyncFunctionDef))):
+                # Check each function's local dictionaries: a dict must
+                # never be re-used as the left side of pathlib '/'.
+                dict_names=set()
+                for node in ast.walk(func):
+                    if isinstance(node,ast.Assign) and isinstance(node.value,ast.Dict):
+                        dict_names.update(
+                            target.id for target in node.targets
+                            if isinstance(target,ast.Name)
+                        )
+                for node in ast.walk(func):
+                    if (isinstance(node,ast.BinOp)
+                            and isinstance(node.op,ast.Div)
+                            and isinstance(node.left,ast.Name)):
+                        self.assertNotIn(
+                            node.left.id,dict_names,
+                            f"{name}:{func.name}: {node.left.id} is a dict, not an output folder",
+                        )
+
     def test_published_examples_not_touched_by_output_migration(self):
         src=(ROOT/"scripts/run-v130-example-user-output-smoke.sh").read_text()
         self.assertNotIn("examples/published:",src)
