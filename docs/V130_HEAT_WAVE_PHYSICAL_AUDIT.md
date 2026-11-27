@@ -12,6 +12,102 @@ Parallel VTK, SuperLU_DIST, h/dt convergence and
 annular whispering-gallery modes are separate,
 unqualified questions.
 
+## 27 November 2026 — Native four-grid refinement PHYSICALLY PASS; NO order-2 claim
+
+The original fixed-mesh `h=.05`, MUMPS MPI1, compatible
+Gaussian Heat–Wave pH-DAE was run on `0<=t<=.2`
+with **all four original CN grids completed**:
+`dt=.01/.005/.0025/.00125`, respectively
+**20/40/80/160 accepted steps**, and **21/41/81/161**
+genuine 7,689-DOF GetFEM snapshots. The original
+source was `34479ea5`, pinned native image
+`scrimp-mpi:v1.3.0-rc3`; original evidence:
+`v130-heat-wave-CN-dt-refinement-34479ea5-mOra40Ps.zip`.
+The original file and its printed status remain immutable.
+
+**All original native physical gates passed at every dt.**
+They include exact DAE-compatible boundary initialization,
+positive dissipative heat flux, nonnegative subsystem
+Hamiltonians, separate heat/wave/total CN energy balance,
+zero signed interface/outer work, decreasing total H
+and complete actual accepted-step histories. The maximum
+per-step total energy-power defects for the four cases
+were `4.57e-15/4.02e-15/5.61e-15/4.72e-15`.
+The true final Hamiltonians moved toward
+`0.34910545...`:
+`0.34912773, 0.34911116, 0.34910661, 0.34910545`.
+
+The two **full-coefficient self-refinement ratios**
+were `3.016523745` and `3.338154455`, corresponding
+to apparent orders **1.59289** and **1.73905**.
+The original checker printed
+`PASS_HEATWAVE_CN_TEMPORAL_SECOND_ORDER_FIXED_SPATIAL_MESH`
+because its overly permissive `[3,5]` ratio band
+mistakenly treated those results as proof of order 2.
+**That order-2 conclusion is explicitly WITHDRAWN.**
+This is not a failure of energy dissipation, physical
+interface coupling, DAE compatibility or native MPI.
+
+The source checker now uses the explicit outcome
+`PASS_HEATWAVE_CN_FIXED_MESH_PHYSICAL_REFINEMENT_DIAGNOSTIC`
+and **does not enforce or claim an asymptotic order**;
+ratios are recorded for information. Its old evidence
+and original JSON are not overwritten. This revised
+scientific interpretation is **source-staged**;
+no new native calculation is required.
+
+### Why the example matters to a SCRIMP user
+
+The model demonstrates a *genuinely coupled multiphysics*
+port-Hamiltonian system, not just two PDEs solved alongside
+each other. A useful tutorial should show:
+
+1. The heat/wave subdomain geometry, the **two oriented**
+   faces of the conforming interface, and the externally
+   homogeneous boundary condition.
+2. A real exported **temperature field `T`** and
+   wave velocity field **`p`**, with times, color scale,
+   mesh and region labels, using the example's own PVD/VTU.
+3. Separately `H_heat(t)`, `H_wave(t)`, `H_total(t)`,
+   their transfer of energy and thermal dissipation.
+4. The **two signed interface powers**, measured on
+   the actual oriented GetFEM facets, and the cancellation
+   of the *total* interface power. Do **not** confuse
+   a zero **sum** with each individual power being zero.
+5. The accepted CN identity at every time step when
+   `dt_save=dt`:
+   `ΔH + dt*(D-P_interface-P_outer)≈0`.
+   The default example uses `save_step=.05`
+   with `time_step=.001`; those subsampled states
+   must **not** be presented as enough to reconstruct
+   true per-step CN midpoint power. An optional detailed
+   power demonstration must save every genuine accepted
+   CN state or otherwise use a separately qualified
+   production-grade stage-power trace.
+
+Existing canonical `examples/heat_wave.py` **already**
+writes real GetFEM `p` and `T` PVD/VTU, total-H
+figures and optional annular wave GIF; these outputs
+do **not yet** show the separate subsystem energies
+and interface power exchange together. Native diagnostics
+already compute the required quantities in
+`sandbox/measure_v130_hw_dual_facet_physics.py`.
+The next user-facing step is to expose them safely from
+the **canonical example**, with source-owned and documented
+PNG/SVG/NPZ outputs; do not make users run sandbox acceptance
+probes to recreate tutorial illustrations. Avoid introducing
+fragile duplicated physical mathematics into `heat_wave.py`
+merely for plotting: use an appropriately reviewed
+helper or an exact reuse of the validated measurements.
+
+**Decision:** Heat–Wave physics/MPI is qualified within the
+tested scope, physical time-refinement runs are accepted
+as additional *physical robustness evidence*, and
+user-facing output/documentation is the relevant
+remaining release task. Neither an order-2 proof nor
+an h-convergence study is required solely to make this
+example useful for v1.3.0.
+
 ## Next release gate — temporal CN convergence at fixed original mesh (SOURCE STAGED, NATIVE PENDING)
 
 The accepted physical MPI1/MPI2 Heat–Wave problem has
