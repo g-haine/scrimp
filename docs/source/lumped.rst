@@ -4,7 +4,7 @@ Finite-dimensional port-Hamiltonian systems
 .. _lumped:
 
 Global scalar ports (tested examples)
-------------------------------------
+-------------------------------------
 
 SCRIMP's :class:`scrimp.dphs.DPHS` supports **global scalar
 states** and co-states in addition to distributed finite-element fields.
