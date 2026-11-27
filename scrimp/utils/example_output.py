@@ -53,7 +53,20 @@ def output_file(root, name, kind, *, create=True):
     if (not name or name in (".", "..") or Path(name).name != name
             or "/" in name or "\\" in name):
         raise ValueError("Output filename must be a simple basename")
-    suffix = "." + kind
-    if not name.lower().endswith(suffix):
-        raise ValueError(f"Output filename {name!r} must end in {suffix}")
+    allowed = {
+        "mesh": (".msh", ".pvd", ".vtu", ".pvtu"),
+        "log": (".log", ".txt"),
+        "json": (".json",),
+        "png": (".png",),
+        "svg": (".svg",),
+        "gif": (".gif",),
+        "npz": (".npz",),
+        "csv": (".csv",),
+    }
+    if kind not in allowed:
+        raise ValueError("Unknown SCRIMP output kind: " + str(kind))
+    if not any(name.lower().endswith(suffix) for suffix in allowed[kind]):
+        raise ValueError(
+            f"Output filename {name!r} must use one of {allowed[kind]}"
+        )
     return output_folder(root, kind, create=create) / name
