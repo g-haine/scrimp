@@ -3,12 +3,16 @@ Finite-dimensional port-Hamiltonian systems
 
 .. _lumped:
 
-Global scalar ports (experimental)
-----------------------------------
+Global scalar ports (tested examples)
+------------------------------------
 
-SCRIMP's :class:`scrimp.dphs.DPHS` can represent **global scalar
+SCRIMP's :class:`scrimp.dphs.DPHS` supports **global scalar
 states** and co-states in addition to distributed finite-element fields.
-This feature is currently under validation for the next release.
+The canonical mass--spring--damper and nonlinear pendulum examples
+have passed genuine native PETSc time integration and user-output
+qualification in their documented configurations. This does
+**not** qualify arbitrary coupled PDE--ODE constraints, which
+remain an experimental extension.
 
 For instance, a mass--spring--damper has two energy states, displacement
 :math:`q(t)` and momentum :math:`p(t)`, and no spatial dependence.
