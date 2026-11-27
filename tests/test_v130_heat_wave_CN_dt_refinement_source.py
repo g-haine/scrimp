@@ -122,7 +122,7 @@ class HWCNdtRefinementV130(unittest.TestCase):
             diagnostic=self.verify.nested_triple(a,b,c,"synthetic_negative_control")
         self.assertAlmostEqual(diagnostic["Richardson_ratio"],2.,places=6)
         self.assertFalse(diagnostic["temporal_order_claimed_or_required"])
-        c["t"][2]+=.0001
+        c["t"][4]+=.0001
         with patch.object(self.verify,"FE_DOF",4):
             with self.assertRaisesRegex(RuntimeError,"nested"):
                 self.verify.nested_triple(a,b,c,"synthetic_negative_control")
