@@ -9,6 +9,40 @@ Branche : `release/1.3.0-preparation`. **Aucun tag v1.3.0 publié.**
 Les affirmations scientifiques ci-dessous concernent les configurations
 explicitement testées, jamais une garantie universelle pour tout modèle.
 
+## Qualification Docker-first après installation en ZIP — 27 novembre
+
+**PASS sur Ubuntu/amd64 pour l'image locale
+`scrimp-mpi:v1.3.0-dist-rc2`**, construite depuis
+`91d7eb1a12329d54854f13cd60d7860c36b856a4` :
+contrôle de provenance OCI/versions, wheel v1.3.0, GetFEM
+MPI2/PETSc/SLEPc/MUMPS, smoke MPI1/MPI2, ZIP autonome,
+simulateur réel à 10 pas BDF2/11 états, CSV physiquement
+cohérent et persistant sur l'hôte. Le gate de distribution a
+rendu `PASS_STANDALONE_ZIP_IMAGE_SERIAL_MPI_STARTUP`.
+
+**PASS du parcours Ubuntu VS Code Dev Containers sur le ZIP
+autonome réel** : après fermeture puis réouverture de VS Code,
+le projet a été exécuté ; l'utilisateur a confirmé **F5**
+jusqu'à un point d'arrêt, **F10** instruction par instruction,
+puis **F5** jusqu'à la fin de la simulation. Le fichier
+`oscillator.csv` transmis permet la vérification de ses
+11 états et de l'identité énergétique. Ce PASS concerne la
+GUI locale du candidat testé, **pas** une installation depuis
+GHCR ni le débogage MPI multiprocessus.
+
+La CI Python source demeure **rouge** sur une vérification
+de conformité des en-têtes Python : 89 fichiers suivis
+comportent des variations historiques du bandeau ou n'ont
+pas le bandeau exact exigé par
+`tests/test_python_headers.py`. Une normalisation source
+sans changement d'exécution reste requise. La confirmation
+HTML/LaTeX/PDF après mise à jour du numéro de version,
+le tirage de l'image par digest sur hôte vierge, une vraie
+parité de PDE MPI sur l'image de distribution finale et la
+publication GHCR restent ouverts. Aucun tag ni image publique.
+
+Voir [porte de qualification Docker-first](V130_DOCKER_FIRST_RELEASE_GATE.md).
+
 ## Décision Docker-first et compilation qualifiée — 27 novembre, après-midi
 
 **Décision v1.3.0 : Docker précompilé devient l'installation recommandée.**
