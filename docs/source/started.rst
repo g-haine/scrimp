@@ -3,10 +3,13 @@ Getting started
 
 .. _started:
 
-Before beginning, activate the environment in which **SCRIMP** is
-installed (for example, run ``conda activate scrimp`` for a native
-Conda installation). The exact same model can also run in the
-precompiled GetFEM/PETSc Docker environment.
+Before beginning, use the **recommended Docker installation** and
+open your independent user project in VS Code's Dev Container (or run
+Python inside the Docker image with your project mounted at ``/work``).
+For a **native Conda alternative**, activate the environment in which
+SCRIMP is installed (for example ``conda activate scrimp``).
+The public v1.3.0 Docker image is planned but **not yet published**;
+see :doc:`install` and :doc:`vscode` for the exact release status.
 
 **This chapter is both a first lesson and a small installation
 test.** We start from the physical energy and boundary power law,
