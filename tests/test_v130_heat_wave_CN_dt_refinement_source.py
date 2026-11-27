@@ -80,7 +80,8 @@ class HWCNdtRefinementV130(unittest.TestCase):
             '"phys_CN_per_step_wave_balance_error"',
             'np.linalg.norm(z0-z1)',
             'np.linalg.norm(z1-z2)',
-            '3.0<=ratio<=5.0',
+            'temporal_order_claimed_or_required',
+            'no_asymptotic_temporal_order_claim',
             'no_spatial_convergence_claim',
         ):
             with self.subTest(needle=needle):
@@ -103,17 +104,27 @@ class HWCNdtRefinementV130(unittest.TestCase):
         self.assertAlmostEqual(report["Richardson_ratio"],4.,places=6)
         self.assertAlmostEqual(report["observed_order_log2_ratio"],2.,places=6)
 
-    def test_bad_temporal_order_or_changed_initial_data_fails(self):
+    def test_changed_initial_data_fails_and_lower_order_is_only_diagnostic(self):
         a,b,c=(self.tiny(dt) for dt in (.01,.005,.0025))
         c["z"][0,0]=.001
         with patch.object(self.verify,"FE_DOF",4):
             with self.assertRaisesRegex(RuntimeError,"initial"):
                 self.verify.nested_triple(a,b,c,"synthetic_negative_control")
-        c=self.tiny(.0025)
-        # Malformed deliberately non-convergent medium trajectory.
-        b["z"][1:,0]+=.03
+        # This is only a mathematical unit fixture: even a first-order
+        # sequence must NOT be mislabeled as a proof/failure of order 2.
+        a,b,c=(self.tiny(dt) for dt in (.01,.005,.0025))
+        for dt,data in zip((.01,.005,.0025),(a,b,c)):
+            t=data["t"]
+            base=np.column_stack((np.sin(3*t),np.cos(2*t),
+                                  np.sin(7*t),np.cos(5*t)))
+            data["z"]=base+dt*np.sin(t)[:,None]*np.array([1.,2.,-1.,.5])
         with patch.object(self.verify,"FE_DOF",4):
-            with self.assertRaisesRegex(RuntimeError,"second-order"):
+            diagnostic=self.verify.nested_triple(a,b,c,"synthetic_negative_control")
+        self.assertAlmostEqual(diagnostic["Richardson_ratio"],2.,places=6)
+        self.assertFalse(diagnostic["temporal_order_claimed_or_required"])
+        c["t"][2]+=.0001
+        with patch.object(self.verify,"FE_DOF",4):
+            with self.assertRaisesRegex(RuntimeError,"nested"):
                 self.verify.nested_triple(a,b,c,"synthetic_negative_control")
 
     def test_absent_native_case_fails_closed(self):
