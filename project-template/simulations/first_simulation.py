@@ -41,9 +41,10 @@ def main() -> None:
     system.add_lumped_port("q")
     system.add_lumped_port("p")
 
+    mass, stiffness = 1.5, 5.0
     system.gf_model.add_macro("ell", "1.0")
-    system.gf_model.add_macro("osc_mass", "1.5")
-    system.gf_model.add_macro("spring_k", "5.0")
+    system.gf_model.add_macro("osc_mass", str(mass))
+    system.gf_model.add_macro("spring_k", str(stiffness))
     system.gf_model.add_macro("damp_c", "0.25")
     system.gf_model.add_macro("force", "0.2*sin(2*pi*t)")
 
@@ -68,13 +69,13 @@ def main() -> None:
     q0, p0 = 0.4, 0.0
     system.set_initial_value("q", q0)
     system.set_initial_value("p", p0)
-    system.gf_model.set_variable("e_q", np.array([5.0 * q0]))
-    system.gf_model.set_variable("e_p", np.array([p0 / 1.5]))
+    system.gf_model.set_variable("e_q", np.array([stiffness * q0]))
+    system.gf_model.set_variable("e_p", np.array([p0 / mass]))
     system.set_time_scheme(
         ts_type="bdf", ts_bdf_order=2,
         ts_exact_final_time="matchstep", ts_adapt_type="none",
+        # Use SCRIMP's qualified v1.3.0 default LU backend (MUMPS).
         ksp_type="gmres", pc_type="lu",
-        pc_factor_mat_solver_type="superlu",
         t_0=0.0, t_f=0.10, dt=0.01, dt_save=0.01,
         init_step=False,
     )
@@ -90,7 +91,7 @@ def main() -> None:
     # Energy is tracked explicitly: this *driven, damped* oscillator
     # exchanges power with the exterior and dissipates energy, so H
     # is not expected to remain constant. Hamiltonian = k*q^2/2+p^2/(2m).
-    energy = 0.5 * 5.0 * displacement**2 + momentum**2 / (2 * 1.5)
+    energy = 0.5 * stiffness * displacement**2 + momentum**2 / (2 * mass)
     output = Path("outputs/oscillator.csv")
     output.parent.mkdir(parents=True, exist_ok=True)
     np.savetxt(output, np.column_stack((times, displacement, momentum, energy)),
