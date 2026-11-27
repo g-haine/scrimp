@@ -25,7 +25,7 @@ comm = PETSc.COMM_WORLD
 rank = comm.getRank()
 
 import scrimp.utils.config
-scrimp.utils.config.set_paths()
+scrimp.utils.config.set_paths(create=False)
 scrimp.utils.config.set_verbose(1)
 
 from scrimp.dphs import DPHS
