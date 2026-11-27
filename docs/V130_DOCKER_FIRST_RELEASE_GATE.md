@@ -118,6 +118,73 @@ F5/F10 remains proven only with the local Ubuntu Dev Container;
 the stable GHCR tag, final ZIP, release approval and GitHub
 release are still outstanding.
 
+## Final release-candidate acceptance without hard-coded provenance
+
+After source freeze, the workflow
+`.github/workflows/v130-ghcr-clean-install.yml` is triggered by the
+**release-candidate Git tag** `v1.3.0-rcN`. It derives the exact
+checkout SHA from that immutable tag, resolves the corresponding
+`ghcr.io/g-haine/scrimp:1.3.0-dist-rcN` **registry OCI index digest**,
+then pulls **by digest**, checks the embedded OCI source revision and
+runs the standalone project ZIP/host-owned CSV/MPI and native Heat--Wave
+MPI1/MPI2 physics gates on a fresh Ubuntu 24.04/AMD64 runner.
+
+**Order matters:** publish and verify the candidate **image first**,
+and only then push its **matching Git RC tag**. Pushing a tag before the
+image is accessible makes the CI correctly fail before runtime testing.
+The workflow is also manually dispatchable with an existing candidate
+tag once it is present on the GitHub default branch. Never modify
+the repository just to hard-code a new digest.
+
+For the next *separately named* candidate, from an already checked-out
+and finalized source commit (example: `rc4`):
+
+```bash
+set -euo pipefail
+test -z "$(git status --porcelain --untracked-files=no)"
+REV="$(git rev-parse HEAD)"
+RC=4
+IMAGE="scrimp-mpi:v1.3.0-dist-rc${RC}"
+REMOTE="ghcr.io/g-haine/scrimp:1.3.0-dist-rc${RC}"
+
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_DOCKER_CANDIDATE_IMAGE="$IMAGE" \
+SCRIMP_DOCKER_SOURCE=github \
+SCRIMP_GITHUB_REF="$REV" \
+bash scripts/build-v130-docker-candidate.sh
+
+SCRIMP_DOCKER_NO_SUDO=1 \
+SCRIMP_DOCKER_CANDIDATE_IMAGE="$IMAGE" \
+bash scripts/smoke-v130-docker-candidate.sh
+
+test "$(docker image inspect --format \
+  '{{index .Config.Labels "org.opencontainers.image.revision"}}' \
+  "$IMAGE")" = "$REV"
+
+# Requires docker login ghcr.io with write:packages, or other
+# authorized GHCR publication identity. Does NOT publish stable 1.3.0.
+docker tag "$IMAGE" "$REMOTE"
+docker push "$REMOTE"
+docker buildx imagetools inspect "$REMOTE"
+
+# Do NOT reuse or move an already published candidate Git tag.
+git tag -a "v1.3.0-rc${RC}" "$REV" \
+  -m "SCRIMP v1.3.0 release candidate ${RC}"
+git push origin "v1.3.0-rc${RC}"
+```
+
+The final command starts the hosted acceptance without creating a
+new source commit. Store the **registry digest** and the actual
+`docker image inspect .Id` separately; these are distinct identifiers.
+If the tag/image revision check or any numerical gate fails,
+**do not** re-tag the image as the stable release. Correct the defect,
+freeze a new commit and prepare a **new RC number** instead.
+
+This acceptance is limited to the recorded Ubuntu/AMD64 runtime,
+independent user project, host outputs and MPI1/MPI2 physics. It does
+not test the SCRIMP graphical GUI, Windows, macOS, higher MPI sizes,
+or arbitrary nonlinear DAE initialization.
+
 ## Candidate construction — do not replace rc3 or local images
 
 Run from the SCRIMP source checkout on Ubuntu with working Docker
