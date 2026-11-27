@@ -436,7 +436,7 @@ class DPHS:
         #: To check if the powers have been computed
         self.powers_computed = False
         #: None preserves legacy user output locations. Canonical v1.3
-        #: examples opt into working_dir/outputs/<system_name>/.
+        #: examples opt into working_dir/<system_name>/outputs/.
         self._output_root = None
         #: Tangent (non-linear + linear) mass matrix of the system in PETSc CSR format
         self.tangent_mass = PETSc.Mat().create(comm=comm)
@@ -525,7 +525,7 @@ class DPHS:
         return self._output_root
 
     def set_output_name(self, system_name, *, working_dir=None, output_dir=None):
-        """Use working_dir/outputs/system_name/{png,svg,mesh,log,...}.
+        """Use working_dir/system_name/outputs/{png,svg,mesh,log,...}.
 
         If output_dir is given, it is treated as this system's explicit
         root; no extra 'outputs' or name component is appended.
@@ -800,11 +800,13 @@ class DPHS:
         """
 
         self.domain = domain
-        # Gmsh's historical shared import path is retained for GetFEM
-        # compatibility; also retain the TRUE source .msh inside this
-        # user example's own typed mesh directory. Gmsh already
-        # synchronizes the shared file before Domain() returns.
-        if self._output_root is not None and rank == 0:
+        # Legacy Domain() callers may still import the GetFEM mesh from
+        # the historical shared outputs/mesh. Preserve its .msh also
+        # under this system's output root if it exists. Modern examples
+        # pass mesh_output_dir=... directly to Domain() instead, and
+        # NEVER create or copy a shared global outputs/mesh file.
+        if (self._output_root is not None and rank == 0
+                and getattr(domain, "_mesh_output_dir", None) is None):
             from shutil import copy2
             source = Path(outputs_path) / "mesh" / (domain.get_name()+".msh")
             if source.is_file():
@@ -4286,7 +4288,7 @@ class DPHS:
             # Preserve the historical explicit export_to_pv(path=...) API.
             path = os.path.join(path, "pv", name_variable)
         elif self._output_root is not None:
-            # Canonical v1.3 user layout: outputs/<name>/mesh/<field>/.
+            # Canonical v1.3 user layout: <name>/outputs/mesh/<field>/.
             path = os.path.join(self._output_root, "mesh", name_variable)
         else:
             path = os.path.join(outputs_path, "pv", name_variable)
