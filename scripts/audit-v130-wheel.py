@@ -7,7 +7,6 @@ GetFEM/PETSc runtime test. It uses no import of SCRIMP and no user data.
 from __future__ import annotations
 
 import argparse
-import importlib.metadata
 import json
 from email.parser import Parser
 from pathlib import Path
@@ -24,6 +23,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, help="new wheel audit directory")
     args = parser.parse_args()
+    (ROOT / "sandbox/outputs").mkdir(parents=True, exist_ok=True)
     output = (args.output or
               Path(tempfile.mkdtemp(prefix="v130-wheel-audit-",
                                      dir=ROOT / "sandbox/outputs"))).resolve()
