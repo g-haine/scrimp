@@ -839,28 +839,61 @@ SuperLU_DIST, h/dt convergence
 and spectral gallery-mode
 identification remain unqualified.
 
-**Next independent physical release gate**: compare
-the complete original Gaussian 15-second
-Crank–Nicolson solution between MPI1 and MPI2,
-including **all 3,001 accepted states with
-all 7,689 GetFEM unknowns**, and every heat,
-wave, interface and cumulative power sample.
-The dedicated runner reuses the validated
-original canonical probe, with full-state
-archiving on both MPI2 ranks:
+**Full Gaussian 15-second MPI1/MPI2 native
+experiment completed on 27 November 2026.**
+Both true 7,689-DOF GetFEM/PETSc CN simulations
+completed **all 3,000 steps**, with 3,001
+originally saved FE states, and both ranks of
+MPI2 were bitwise identical. Independent
+heat/wave/interface and energy-power balance
+gates passed on all three original ranks.
+
+The initial **strict pointwise coefficient parity
+gate nevertheless FAILED**: out of 23,074,689
+original coefficients, 1,178 violated the
+old `np.allclose(atol=5e-10,rtol=2e-8)`
+criterion, with a maximum absolute error of
+`2.7583e-9` after 15 seconds. The
+maximum normalized coefficient-vector
+Euclidean error at any saved time was only
+`7.6446e-10`, while the original
+Hamiltonian difference was at most
+`3.7748e-15`. Thus the **full MPI parity
+gate is not yet accepted** under its
+original pointwise definition.
+
+A dedicated **offline, read-only
+normwise reassessment** now tests those
+same original 3,001 complete FE states
+using the **same numeric absolute and
+relative thresholds** on true vector
+:math:`L^\infty` and coefficient
+:math:`\ell^2` norms rather than
+per coefficient. The unmodified
+pointwise physical/port-power checks
+and native rank evidence must pass.
+The old strict FAIL remains documented
+unchanged; no expensive new PDE
+simulation is required to carry out
+the separate reassessment:
 
 .. code-block:: bash
 
    cd ~/Simulations/scrimp
    git pull --ff-only
-   SCRIMP_DOCKER_NO_SUDO=1 \\
-   SCRIMP_V130_DAE_IMAGE=scrimp-mpi:v1.3.0-rc3 \\
-   bash scripts/run-v130-heat-wave-full-mpi2-physics.sh
+   python tests/test_v130_heat_wave_full_mpi_norm_reassessment.py
+   python scripts/reassess-v130-heat-wave-full-mpi2-norm-parity.py \\
+     sandbox/outputs/v130-heat-wave-full-15s-MPI1-MPI2-e6326198-fhkvnmsR \\
+     --out /tmp/heat-wave-full-MPI-norm-reassessment.json
 
-The full MPI2 physical parity remains
-**native pending** until this separate
-complete run passes. This scientific
-test does **not** perform parallel VTK
-output or rerun the already accepted
-original example-generated figures.
+The comparison is of **finite-element
+coefficient-vector norms**, not a
+mass-weighted FE error estimate.
+Native long-horizon power balances
+are PASS, but normwise MPI parity
+remains **pending actual offline
+verification**. Parallel VTK output,
+other solver backends, mesh/time
+convergence and gallery-eigenmode
+status are separate qualifications.
 
