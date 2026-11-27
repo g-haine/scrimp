@@ -1,27 +1,81 @@
 How to install
 ==============
 
-This page distinguishes the existing native Conda route from the
-GetFEM 5.5 / NumPy 2 / MPI level 2 **v1.3.0 candidate**.
-The local ``scrimp-mpi:v1.3.0-rc3`` image has passed genuine
-GetFEM/PETSc MPI, DAE and physical-example tests on Ubuntu
-(including Heat--Wave MPI2), with a pinned OCI revision.
-This qualification applies to that exact image and the tested
-source overlays. It is **not** evidence that a public GHCR tag
-or fresh-machine installation has already been published or
-qualified. The previous wording calling *all* modern MPI
-validation pending is historical.
+**Docker is the recommended/default installation for SCRIMP v1.3.0.**
+The future public distribution will provide a precompiled Linux image
+containing Python, GetFEM 5.5, PETSc/SLEPc (complex), MUMPS, OpenMPI and
+SCRIMP itself. User simulations and their outputs live in an
+**independent, host-owned project**, not inside the image or a SCRIMP
+source checkout. A source checkout is **not** needed by a released-image
+user.
 
-**New users:** read :doc:`vscode` for the planned v1.3.0
-post-install experience: an independent local simulation project,
-the three installation modes (precompiled Docker / locally built
-Docker / native Conda), VS Code Dev Containers, persistent outputs,
-MPI terminals and Python debugging. The project template is available
-in the repository's `project-template/` directory. Neither the
-public v1.3.0 image nor the standalone project ZIP is released yet.
+.. important::
 
-Stable user environment (Conda)
--------------------------------
+   **Pre-release status, 27 November 2026:** the local Ubuntu image
+   ``scrimp-mpi:v1.3.0-rc3`` passed the scoped native physics and MPI
+   campaigns. A fresh distribution image, the public
+   ``ghcr.io/g-haine/scrimp:1.3.0`` tag, and the final standalone
+   project ZIP have **not** yet been qualified/published. The pull
+   command below describes the release workflow; it will not work
+   until the public image exists.
+
+Default: precompiled Docker and standalone project (after release)
+------------------------------------------------------------------
+
+1. Install Docker (on Windows, Docker Desktop with WSL2; on macOS,
+   Docker Desktop). VS Code and Dev Containers are recommended for
+   editing/debugging but **not required** for command-line execution.
+2. Download the matching
+   ``scrimp-project-template.zip`` asset from the SCRIMP v1.3.0
+   GitHub Release and unpack it into your own project directory. The
+   released ZIP must embed the **validated** image reference in
+   ``.devcontainer/devcontainer.json``.
+3. Pull the released Docker image:
+
+   .. code-block:: bash
+
+      docker pull ghcr.io/g-haine/scrimp:1.3.0
+
+4. Open the project directory in VS Code and choose
+   **Dev Containers: Reopen in Container**. In its terminal, run:
+
+   .. code-block:: bash
+
+      python simulations/first_simulation.py
+      mpiexec -n 2 python simulations/mpi_check.py
+
+   The oscillator is a real serial SCRIMP simulation and saves
+   ``outputs/oscillator.csv`` **on the host**. The second command
+   checks only MPI startup, not a distributed PDE power/physics result.
+
+5. Without VS Code, execute the same project by mounting your
+   independent workspace (Linux shell):
+
+   .. code-block:: bash
+
+      cd ~/MySCRIMPProject
+      docker run --rm --user "$(id -u):$(id -g)" \
+          -e HOME=/tmp -e XDG_CACHE_HOME=/tmp/.cache \
+          -v "$PWD:/work:rw" -w /work \
+          ghcr.io/g-haine/scrimp:1.3.0 \
+          python simulations/first_simulation.py
+
+   On Docker Desktop, permissions and mount semantics differ; consult
+   the Windows/macOS guidance below. No numerical output belongs
+   in a throwaway container filesystem.
+
+The complete standalone workspace, release ZIP generation, explicit
+image tags and F5 debugging are documented in :doc:`vscode`.
+The distribution qualification contract (including exact Git revision,
+separate candidate tag, image metadata, host CSV and MPI check) is in
+``docs/V130_DOCKER_FIRST_RELEASE_GATE.md``. Until that gate and a
+fresh-machine installation pass, **do not publish the final tag**.
+
+Alternative: native Conda installation
+--------------------------------------
+
+The original Conda workflow is retained for current users and
+advanced developers. It is **not** the v1.3.0 default.
 
 1. Install `Conda <https://docs.conda.io/>`_ or
    `Micromamba <https://mamba.readthedocs.io/>`_.
@@ -31,9 +85,10 @@ Stable user environment (Conda)
 5. Activate: ``conda activate scrimp``.
 6. Install SCRIMP: ``python -m pip install -e .``.
 
-The existing ``scrimp.yml`` deliberately retains ``numpy<2`` and
-the packaged GetFEM build for established users. It is **not**
-silently upgraded by the experimental instructions below.
+The historical ``scrimp.yml`` deliberately retains its older
+packaged GetFEM/NumPy dependencies for existing users; **do not**
+interpret native Conda as a validated GetFEM 5.5/MPI/NumPy 2
+replacement for the candidate Docker stack.
 
 Modern parallel Docker image (GetFEM 5.5)
 -----------------------------------------
