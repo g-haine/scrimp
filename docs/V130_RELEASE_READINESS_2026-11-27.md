@@ -9,6 +9,41 @@ Branche : `release/1.3.0-preparation`. **Aucun tag v1.3.0 publié.**
 Les affirmations scientifiques ci-dessous concernent les configurations
 explicitement testées, jamais une garantie universelle pour tout modèle.
 
+## Décision Docker-first et compilation qualifiée — 27 novembre, après-midi
+
+**Décision v1.3.0 : Docker précompilé devient l'installation recommandée.**
+Le Docker construit localement reste l'option développeur et Conda
+natif l'alternative avancée/existante. La branche de préparation
+`feature/v130-docker-first-distribution` organise la distribution,
+sans changer les équations ni les sources `examples/published/`.
+La future image publique, son digest et le ZIP utilisateur **ne sont
+pas publiés** ; le socle qualifié rc3 reste inchangé.
+
+Le build documentaire **effectivement réalisé** sur la source
+`cf75f4f761c2854788e5ef519375b31e7f040509` a passé
+`test_v130_docs_release_source.py` (8/8), Sphinx HTML et LaTeX en
+mode `-n -W --keep-going` (0 avertissement de chaque côté), et
+`latexmk -pdf` : PDF réel **168 pages**, statut
+`PASS_HTML_LATEX_PDF_BUILT`. Les quelques avertissements
+de typographie pdfLaTeX ne sont pas des avertissements Sphinx et
+n'empêchent pas le build. Le titre de la version dans le PDF
+restait `1.2.0`, parce que Sphinx et `setup.py` étaient
+encore à `1.2.0` ; tous deux sont maintenant passés à
+`1.3.0` **sur la nouvelle branche** et requièrent un build
+de confirmation avant la release.
+
+Deux barrières de distribution sont préparées, sans PASS natif
+revendiqué : `scripts/audit-v130-wheel.py` teste le wheel et
+son installation isolée (métadonnées seulement, sans bibliothèques
+natives), et `scripts/run-v130-docker-distribution-gate.sh` vérifie
+la provenance exacte, le package installé dans l'image, le ZIP
+autonome, le vrai oscillateur et son CSV sur l'hôte, et le
+démarrage MPI à deux rangs. Voir
+[V130_DOCKER_FIRST_RELEASE_GATE.md](V130_DOCKER_FIRST_RELEASE_GATE.md).
+L'installation sur hôte vierge, l'acceptation GUI du nouvel artefact,
+une qualification d'image finale et la publication GHCR
+restent ouvertes. **Aucun tag v1.3.0 autorisé à ce stade.**
+
 ## Mise à jour documentation et sortie des exemples — 27 novembre, fin de matinée
 
 Le guide public [`energy_and_power.rst`](source/energy_and_power.rst)
@@ -55,10 +90,10 @@ source. Le **premier build effectif** du commit
 avertissements Sphinx), mais le PDF a **ÉCHOUÉ**
 sur le caractère `U+2212` dans du code verbatim
 (`pdflatex`). Les titres/docstrings/références
-en cause ont été corrigés en source ; une
-nouvelle compilation **stricte, zéro avertissement,
-HTML/LaTeX/PDF** est encore requise. Le pilote
-et la CI traitent maintenant les avertissements
+en cause ont été corrigés en source ; le **second build**
+sur `cf75f4f7` a ensuite **PASSÉ HTML, LaTeX et PDF**,
+avec 0 avertissement Sphinx (détails en tête du présent
+document). Le pilote et la CI traitent les avertissements
 Sphinx comme des échecs par défaut.
 
 **Après ces deux gates :** vérifier le packaging/wheel,
