@@ -19,8 +19,8 @@ jobs:
           bash -n scripts/run-v130-example-user-output-smoke.sh
       - name: Sphinx HTML and LaTeX source builds
         run: |
-          sphinx-build -n -b html docs/source docs/build
-          sphinx-build -n -b latex docs/source docs/build/latex
+          sphinx-build -n -W --keep-going -b html docs/source docs/build
+          sphinx-build -n -W --keep-going -b latex docs/source docs/build/latex
       - name: Compile LaTeX
         uses: xu-cheng/latex-action@v2
         with:
